@@ -128,6 +128,11 @@ export default function OnboardingPage() {
     setIsSaving(true);
 
     try {
+      if (!supabase) {
+        setError("Unable to connect right now. Please try again shortly.");
+        return;
+      }
+
       const {
         data: { user },
         error: userError,
