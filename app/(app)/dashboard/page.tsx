@@ -1,3 +1,5 @@
+import RecentProjectsWidget from "./recent-projects-widget";
+
 export default function DashboardPage() {
   return (
     <div className="space-y-8">
@@ -132,6 +134,8 @@ export default function DashboardPage() {
           </button>
         </div>
       </section>
+
+      <RecentProjectsWidget />
     </div>
   );
 }

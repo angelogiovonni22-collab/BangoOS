@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -37,6 +38,7 @@ type CustomerRow = {
 };
 
 export default function CustomersPage() {
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -331,12 +333,35 @@ export default function CustomersPage() {
                 {filteredCustomers.map((customer) => (
                   <tr
                     key={customer.id}
-                    className="transition hover:bg-slate-50"
+                    className="cursor-pointer transition hover:bg-slate-50"
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Open ${customer.name}`}
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement;
+
+                      if (target.closest("a,button,input,select,textarea")) {
+                        return;
+                      }
+
+                      router.push(`/customers/${customer.id}`);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") {
+                        return;
+                      }
+
+                      event.preventDefault();
+                      router.push(`/customers/${customer.id}`);
+                    }}
                   >
                     <td className="whitespace-nowrap px-6 py-4">
-                      <div className="font-semibold text-slate-950">
+                      <Link
+                        href={`/customers/${customer.id}`}
+                        className="font-semibold text-slate-950 transition hover:text-blue-700"
+                      >
                         {customer.name}
-                      </div>
+                      </Link>
 
                       <div className="mt-1 text-sm text-slate-500">
                         Customer ID: {customer.id}
@@ -366,12 +391,12 @@ export default function CustomersPage() {
                     </td>
 
                     <td className="whitespace-nowrap px-6 py-4 text-right">
-                      <button
-                        type="button"
+                      <Link
+                        href={`/customers/${customer.id}`}
                         className="text-sm font-semibold text-blue-600 transition hover:text-blue-800"
                       >
                         View
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))}

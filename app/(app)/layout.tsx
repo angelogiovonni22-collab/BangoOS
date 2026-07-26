@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 
 const navigationItems = [
@@ -16,6 +17,7 @@ const navigationItems = [
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_25%),linear-gradient(135deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
@@ -44,7 +46,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 label={item.label}
                 href={item.href}
                 icon={item.icon}
-                active={item.href === '/dashboard'}
+                active={
+                  pathname === item.href || pathname.startsWith(`${item.href}/`)
+                }
               />
             ))}
           </nav>

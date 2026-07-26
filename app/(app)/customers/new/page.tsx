@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type CustomerType = "Residential" | "Commercial";
+type CustomerType = "residential" | "commercial";
 
 type CustomerFormData = {
 	customerType: CustomerType;
@@ -21,7 +21,7 @@ type CustomerFormData = {
 };
 
 const initialFormData: CustomerFormData = {
-	customerType: "Residential",
+	customerType: "residential",
 	companyName: "",
 	firstName: "",
 	lastName: "",
@@ -179,8 +179,8 @@ export default function NewCustomerPage() {
 								className={inputClassName}
 								required
 							>
-								<option value="Residential">Residential</option>
-								<option value="Commercial">Commercial</option>
+								<option value="residential">Residential</option>
+								<option value="commercial">Commercial</option>
 							</select>
 						</Field>
 
