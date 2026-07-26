@@ -1,8 +1,86 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-500: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-700: #1e40af;
+  --color-brand-800: #1e3a8a;
+
+  --color-navy-900: #0f172a;
+  --color-navy-800: #1e293b;
+
+  --color-surface-app: #f3f6fb;
+  --color-surface-subtle: #f8fafc;
+  --color-surface-muted: #e2e8f0;
+  --color-surface-card: #ffffff;
+
+  --color-border-subtle: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  --color-text-inverse: #f8fafc;
+
+  --color-success-50: #ecfdf3;
+  --color-success-500: #22c55e;
+  --color-success-700: #15803d;
+
+  --color-warning-50: #fff7ed;
+  --color-warning-500: #f59e0b;
+  --color-warning-700: #b45309;
+
+  --color-danger-50: #fff1f2;
+  --color-danger-200: #fecdd3;
+  --color-danger-500: #f43f5e;
+  --color-danger-700: #be123c;
+
+  --color-info-50: #f0f9ff;
+  --color-info-500: #0ea5e9;
+  --color-info-700: #0369a1;
+
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-500: #64748b;
+  --color-neutral-700: #334155;
+
+  --font-family-sans: var(--font-geist-sans), "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-family-mono: var(--font-geist-mono), "Cascadia Mono", Consolas, monospace;
+
+  --font-size-display: 2.25rem;
+  --font-size-h1: 1.875rem;
+  --font-size-h2: 1.25rem;
+  --font-size-body: 0.9375rem;
+  --font-size-caption: 0.75rem;
+
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 1.75rem;
+
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --shadow-sm: 0 6px 14px -8px rgb(15 23 42 / 0.2);
+  --shadow-card: 0 10px 24px -18px rgb(15 23 42 / 0.28);
+  --shadow-lg: 0 18px 30px -20px rgb(15 23 42 / 0.32);
+
+  --focus-ring-primary: rgb(37 99 235 / 0.22);
+  --focus-ring-neutral: rgb(100 116 139 / 0.25);
+  --focus-ring-danger: rgb(244 63 94 / 0.22);
+
+  --background: var(--color-surface-app);
+  --foreground: var(--color-text-primary);
 }
 
 @theme inline {
@@ -12,15 +90,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body);
+  line-height: 1.5;
 }
