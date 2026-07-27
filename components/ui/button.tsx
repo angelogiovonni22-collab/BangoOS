@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonClassOptions = {
@@ -16,12 +16,14 @@ export function getButtonClassName(options: ButtonClassOptions = {}) {
   const size = options.size || "md";
 
   const base =
-    "inline-flex items-center justify-center gap-2 font-semibold transition-colors duration-200 outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-60";
+    "motion-hover-button inline-flex items-center justify-center gap-2 font-semibold outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-60";
 
   const variantClass: Record<ButtonVariant, string> = {
     primary:
       "bg-[var(--color-brand-600)] text-white shadow-[var(--shadow-sm)] hover:bg-[var(--color-brand-700)] active:bg-[var(--color-brand-800)] focus-visible:ring-[var(--focus-ring-primary)]",
     secondary:
+      "bg-[var(--color-surface-subtle)] text-[var(--color-text-primary)] shadow-[var(--shadow-xs)] hover:bg-[var(--color-surface-muted)] active:bg-[var(--color-neutral-100)] focus-visible:ring-[var(--focus-ring-neutral)]",
+    outline:
       "border border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)] shadow-[var(--shadow-xs)] hover:bg-[var(--color-surface-subtle)] active:bg-[var(--color-surface-muted)] focus-visible:ring-[var(--focus-ring-neutral)]",
     ghost:
       "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] focus-visible:ring-[var(--focus-ring-neutral)]",

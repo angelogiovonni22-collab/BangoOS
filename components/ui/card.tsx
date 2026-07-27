@@ -2,6 +2,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 
 type CardProps = HTMLAttributes<HTMLElement> & {
   as?: "article" | "section" | "div";
+  variant?: "default" | "elevated" | "kpi";
 };
 
 type CardHeaderProps = HTMLAttributes<HTMLDivElement>;
@@ -10,11 +11,20 @@ type CardDescriptionProps = HTMLAttributes<HTMLParagraphElement>;
 type CardContentProps = HTMLAttributes<HTMLDivElement>;
 type CardFooterProps = HTMLAttributes<HTMLDivElement>;
 
-export function Card({ as = "article", className, ...props }: CardProps) {
+export function Card({ as = "article", variant = "default", className, ...props }: CardProps) {
   const Component = as;
 
+  const variantClass: Record<NonNullable<CardProps["variant"]>, string> = {
+    default:
+      "rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-card)]",
+    elevated:
+      "rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-large)]",
+    kpi:
+      "rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-medium)] motion-hover-card",
+  };
+
   const composedClassName = [
-    "rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-card)]",
+    variantClass[variant],
     className || "",
   ]
     .filter(Boolean)

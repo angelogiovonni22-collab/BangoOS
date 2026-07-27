@@ -3,21 +3,32 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
+import { LanguageSelector, SearchBar } from '@/components/ui';
+import { I18nProvider, useI18n } from '@/lib/i18n/provider';
 
 const navigationItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: '◉' },
-  { label: 'Customers', href: '/customers', icon: '◌' },
-  { label: 'Projects', href: '/projects', icon: '◍' },
-  { label: 'Estimates', href: '/estimates', icon: '◎' },
-  { label: 'Invoices', href: '/invoices', icon: '◐' },
-  { label: 'Schedule', href: '/schedule', icon: '◑' },
-  { label: 'Team', href: '/team', icon: '◒' },
-  { label: 'Settings', href: '/settings', icon: '◓' },
+  { key: 'dashboard', href: '/dashboard', icon: '◉' },
+  { key: 'customers', href: '/customers', icon: '◌' },
+  { key: 'projects', href: '/projects', icon: '◍' },
+  { key: 'estimates', href: '/estimates', icon: '◎' },
+  { key: 'invoices', href: '/invoices', icon: '◐' },
+  { key: 'schedule', href: '/schedule', icon: '◑' },
+  { key: 'crew', href: '/team', icon: '◒' },
+  { key: 'settings', href: '/settings', icon: '◓' },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <I18nProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </I18nProvider>
+  );
+}
+
+function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const { t } = useI18n();
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_25%),linear-gradient(135deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
@@ -35,15 +46,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-300">
                 BangoOS
               </p>
-              <p className="text-sm text-slate-400">Construction OS</p>
+              <p className="text-sm text-slate-400">{t('common.constructionOs')}</p>
             </div>
           </div>
 
           <nav className="mt-8 space-y-1.5">
             {navigationItems.map((item) => (
               <SidebarItem
-                key={item.label}
-                label={item.label}
+                key={item.key}
+                label={t(`navigation.${item.key}`)}
                 href={item.href}
                 icon={item.icon}
                 active={
@@ -54,9 +65,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="mt-auto rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-            <p className="text-sm font-semibold text-white">Project pulse</p>
+            <p className="text-sm font-semibold text-white">{t('common.projectPulse')}</p>
             <p className="mt-2 text-sm leading-6 text-slate-300">
-              Stay on top of crews, estimates, and clients from one premium workspace.
+              {t('common.projectPulseDescription')}
             </p>
           </div>
         </aside>
@@ -83,24 +94,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   <span className="text-lg">☰</span>
                 </button>
                 <div>
-                  <p className="text-sm font-medium text-slate-500">Operations workspace</p>
+                  <p className="text-sm font-medium text-slate-500">{t('common.operationsWorkspace')}</p>
                   <h2 className="text-lg font-semibold text-slate-950">BangoOS</h2>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3">
-                <label className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 md:flex">
-                  <span>⌕</span>
-                  <input
-                    type="text"
-                    placeholder="Search"
-                    className="w-36 bg-transparent outline-none placeholder:text-slate-400 sm:w-48"
-                  />
-                </label>
+                <div className="hidden min-w-[220px] md:block">
+                  <SearchBar placeholder={t('common.search')} />
+                </div>
+                <LanguageSelector />
                 <button
                   type="button"
                   className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100"
-                  aria-label="Notifications"
+                  aria-label={t('common.notifications')}
                 >
                   🔔
                 </button>

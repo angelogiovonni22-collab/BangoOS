@@ -4,7 +4,7 @@ import { getButtonClassName } from "./button";
 type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon: ReactNode;
   label: string;
-  variant?: "primary" | "secondary" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
 };
 
