@@ -7,6 +7,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { formatProjectDate, normalizeProjectStatus, getProjectDisplayName, type ProjectRow } from "@/lib/projects";
 import type { Database } from "@/types/database.types";
 import { getProjectStatusBadgeClass } from "@/lib/projects/statuses";
+import { useI18n } from "@/lib/i18n/provider";
 
 type CustomerSummaryRow = Pick<
   Database["public"]["Tables"]["customers"]["Row"],
@@ -23,6 +24,7 @@ type RecentProjectItem = {
 };
 
 export default function RecentProjectsWidget() {
+  const { t, locale } = useI18n();
   const supabase = useMemo(() => createClient(), []);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export default function RecentProjectsWidget() {
 
       if (!client) {
         if (isSubscribed) {
-          setErrorMessage("Unable to connect right now. Please try again shortly.");
+          setErrorMessage(t("projects.errorConnect"));
           setIsLoading(false);
         }
 
@@ -73,7 +75,7 @@ export default function RecentProjectsWidget() {
 
         if (projectsResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load recent projects right now.");
+            setErrorMessage(t("dashboard.recentProjectsLoadError"));
           }
 
           return;
@@ -81,14 +83,17 @@ export default function RecentProjectsWidget() {
 
         if (customersResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load recent projects right now.");
+            setErrorMessage(t("dashboard.recentProjectsLoadError"));
           }
 
           return;
         }
 
         const customerNameMap = new Map(
-          (customersResponse.data ?? []).map((customer) => [customer.id, getCustomerDisplayName(customer)]),
+          (customersResponse.data ?? []).map((customer) => [
+            customer.id,
+            getCustomerDisplayName(customer, t("customers.unnamedCustomer")),
+          ]),
         );
 
         const mappedProjects = (projectsResponse.data ?? []).map((row) => {
@@ -97,9 +102,9 @@ export default function RecentProjectsWidget() {
 
           return {
             id: project.id,
-            name: getProjectDisplayName(project),
-            customerName: project.customer_id ? customerNameMap.get(project.customer_id) || "Not linked" : "Not linked",
-            statusLabel: status.label,
+            name: getProjectDisplayName(project, t("projects.unnamedProject")),
+            customerName: project.customer_id ? customerNameMap.get(project.customer_id) || t("projects.notLinked") : t("projects.notLinked"),
+            statusLabel: mapProjectStatus(status.key, t),
             statusKey: status.key,
             createdAt: project.created_at,
           };
@@ -112,7 +117,7 @@ export default function RecentProjectsWidget() {
         console.error("Load recent projects error:", caughtError);
 
         if (isSubscribed) {
-          setErrorMessage("Something unexpected happened while loading recent projects.");
+          setErrorMessage(t("projects.errorUnexpectedLoad"));
         }
       } finally {
         if (isSubscribed) {
@@ -126,18 +131,18 @@ export default function RecentProjectsWidget() {
     return () => {
       isSubscribed = false;
     };
-  }, [supabase]);
+  }, [supabase, t]);
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-950">Recent Projects</h2>
-          <p className="mt-1 text-sm text-slate-500">The latest projects across your workspace.</p>
+          <h2 className="text-lg font-semibold text-slate-950">{t("dashboard.recentProjectsTitle")}</h2>
+          <p className="mt-1 text-sm text-slate-500">{t("dashboard.recentProjectsDescription")}</p>
         </div>
 
         <Link href="/projects" className="text-sm font-semibold text-blue-600 transition hover:text-blue-800">
-          View all
+          {t("dashboard.viewAll")}
         </Link>
       </div>
 
@@ -162,9 +167,9 @@ export default function RecentProjectsWidget() {
                 </div>
 
                 <div className="mt-4 flex items-center justify-between gap-4 text-sm text-slate-600">
-                  <span>{formatProjectDate(project.createdAt)}</span>
+                  <span>{formatProjectDate(project.createdAt, locale === "es" ? "es-ES" : "en-US")}</span>
                   <Link href={`/projects/${project.id}`} className="font-semibold text-blue-600 transition hover:text-blue-800">
-                    Link
+                    {t("dashboard.link")}
                   </Link>
                 </div>
               </article>
@@ -179,21 +184,25 @@ export default function RecentProjectsWidget() {
 }
 
 function WidgetLoadingState() {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-48 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
       <div>
-        <p className="font-semibold text-slate-800">Loading recent projects...</p>
-        <p className="mt-2 text-sm text-slate-500">Please wait while we load your project feed.</p>
+        <p className="font-semibold text-slate-800">{t("dashboard.loadingRecentProjects")}</p>
+        <p className="mt-2 text-sm text-slate-500">{t("dashboard.loadingRecentProjectsDescription")}</p>
       </div>
     </div>
   );
 }
 
 function WidgetErrorState({ message }: { message: string }) {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-48 items-center justify-center rounded-2xl border border-dashed border-rose-300 bg-rose-50 p-8 text-center">
       <div>
-        <p className="font-semibold text-rose-700">We could not load recent projects</p>
+        <p className="font-semibold text-rose-700">{t("dashboard.recentProjectsLoadError")}</p>
         <p className="mt-2 text-sm text-rose-600">{message}</p>
       </div>
     </div>
@@ -201,11 +210,13 @@ function WidgetErrorState({ message }: { message: string }) {
 }
 
 function WidgetEmptyState() {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-48 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
       <div>
-        <p className="font-semibold text-slate-800">No projects yet</p>
-        <p className="mt-2 text-sm text-slate-500">Create a project to see it appear here.</p>
+        <p className="font-semibold text-slate-800">{t("dashboard.recentProjectsEmptyTitle")}</p>
+        <p className="mt-2 text-sm text-slate-500">{t("dashboard.recentProjectsEmptyDescription")}</p>
       </div>
     </div>
   );
@@ -215,7 +226,7 @@ function ProjectStatusBadge({ statusKey, label }: { statusKey: string; label: st
   return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${getProjectStatusBadgeClass(statusKey)}`}>{label}</span>;
 }
 
-function getCustomerDisplayName(customer: CustomerSummaryRow) {
+function getCustomerDisplayName(customer: CustomerSummaryRow, fallbackLabel = "Unnamed Customer") {
   const companyName = customer.company_name?.trim() || "";
   const firstName = customer.first_name?.trim() || "";
   const lastName = customer.last_name?.trim() || "";
@@ -225,5 +236,20 @@ function getCustomerDisplayName(customer: CustomerSummaryRow) {
     return companyName;
   }
 
-  return fallbackName || companyName || "Unnamed Customer";
+  return fallbackName || companyName || fallbackLabel;
+}
+
+function mapProjectStatus(statusKey: string, t: (key: string) => string) {
+  const map: Record<string, string> = {
+    lead: "projects.statusLead",
+    estimating: "projects.statusEstimating",
+    approved: "projects.statusApproved",
+    scheduled: "projects.statusScheduled",
+    in_progress: "projects.statusInProgress",
+    on_hold: "projects.statusOnHold",
+    completed: "projects.statusCompleted",
+    cancelled: "projects.statusCancelled",
+  };
+
+  return map[statusKey] ? t(map[statusKey]) : normalizeProjectStatus(statusKey).label;
 }

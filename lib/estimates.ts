@@ -20,31 +20,39 @@ export function normalizeEstimateStatus(status: string | null) {
   };
 }
 
-export function formatEstimateCurrency(value: number | null) {
+export function formatEstimateCurrency(
+  value: number | null,
+  locale = "en-US",
+  missingLabel = "Not provided",
+) {
   if (typeof value !== "number") {
-    return "Not provided";
+    return missingLabel;
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 2,
   }).format(value);
 }
 
-export function formatEstimateDate(value: string | null) {
+export function formatEstimateDate(
+  value: string | null,
+  locale = "en-US",
+  missingLabel = "Not provided",
+) {
   if (!value) {
-    return "Not provided";
+    return missingLabel;
   }
 
   const normalizedValue = value.includes("T") ? value : `${value}T00:00:00`;
   const date = new Date(normalizedValue);
 
   if (Number.isNaN(date.getTime())) {
-    return "Not provided";
+    return missingLabel;
   }
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",

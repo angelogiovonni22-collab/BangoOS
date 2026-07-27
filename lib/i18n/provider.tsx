@@ -1,21 +1,36 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import commonEn from "@/locales/en/common.json";
+import authEn from "@/locales/en/auth.json";
+import customersEn from "@/locales/en/customers.json";
 import dashboardEn from "@/locales/en/dashboard.json";
+import estimatesEn from "@/locales/en/estimates.json";
 import navigationEn from "@/locales/en/navigation.json";
+import onboardingEn from "@/locales/en/onboarding.json";
+import projectsEn from "@/locales/en/projects.json";
 import commonEs from "@/locales/es/common.json";
+import authEs from "@/locales/es/auth.json";
+import customersEs from "@/locales/es/customers.json";
 import dashboardEs from "@/locales/es/dashboard.json";
+import estimatesEs from "@/locales/es/estimates.json";
 import navigationEs from "@/locales/es/navigation.json";
+import onboardingEs from "@/locales/es/onboarding.json";
+import projectsEs from "@/locales/es/projects.json";
 
 export type AppLocale = "en" | "es";
 
 type NamespaceDictionary = Record<string, string>;
 
 type LocaleDictionaries = {
+  auth: NamespaceDictionary;
   common: NamespaceDictionary;
+  customers: NamespaceDictionary;
   dashboard: NamespaceDictionary;
+  estimates: NamespaceDictionary;
   navigation: NamespaceDictionary;
+  onboarding: NamespaceDictionary;
+  projects: NamespaceDictionary;
 };
 
 type TranslationNamespace = keyof LocaleDictionaries;
@@ -27,7 +42,7 @@ type I18nContextValue = {
   userScope: string;
   setLocale: (nextLocale: AppLocale) => void;
   setUserScope: (scope: string) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 };
 
 type I18nProviderProps = {
@@ -40,17 +55,28 @@ const DEFAULT_LOCALE: AppLocale = "en";
 const DEFAULT_SCOPE = "local-default-user";
 const STORAGE_KEY = "bangoos:i18n:languageByUser";
 const ACTIVE_SCOPE_KEY = "bangoos:i18n:activeUserScope";
+const LOCALE_COOKIE_KEY = "bangoos_i18n_locale";
 
 const resources: TranslationResources = {
   en: {
+    auth: authEn,
     common: commonEn,
+    customers: customersEn,
     dashboard: dashboardEn,
+    estimates: estimatesEn,
     navigation: navigationEn,
+    onboarding: onboardingEn,
+    projects: projectsEn,
   },
   es: {
+    auth: authEs,
     common: commonEs,
+    customers: customersEs,
     dashboard: dashboardEs,
+    estimates: estimatesEs,
     navigation: navigationEs,
+    onboarding: onboardingEs,
+    projects: projectsEs,
   },
 };
 
@@ -84,6 +110,38 @@ function readStoredLanguageMap() {
   }
 }
 
+function readCookieLocale() {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const legacyEncodedKey = encodeURIComponent("bangoos:i18n:locale");
+  const cookie = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find(
+      (part) => part.startsWith(`${LOCALE_COOKIE_KEY}=`) || part.startsWith(`${legacyEncodedKey}=`),
+    );
+
+  if (!cookie) {
+    return null;
+  }
+
+  const cookieName = cookie.startsWith(`${LOCALE_COOKIE_KEY}=`)
+    ? LOCALE_COOKIE_KEY
+    : legacyEncodedKey;
+  const value = decodeURIComponent(cookie.slice(cookieName.length + 1));
+  return isAppLocale(value) ? value : null;
+}
+
+function writeCookieLocale(locale: AppLocale) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.cookie = `${LOCALE_COOKIE_KEY}=${encodeURIComponent(locale)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+}
+
 function resolveNamespaceAndKey(path: string): {
   namespace: TranslationNamespace;
   lookupKey: string;
@@ -94,14 +152,23 @@ function resolveNamespaceAndKey(path: string): {
     return { namespace: "common", lookupKey: "" };
   }
 
-  if (firstSegment === "common" || firstSegment === "dashboard" || firstSegment === "navigation") {
+  if (
+    firstSegment === "common"
+    || firstSegment === "auth"
+    || firstSegment === "customers"
+    || firstSegment === "dashboard"
+    || firstSegment === "estimates"
+    || firstSegment === "navigation"
+    || firstSegment === "onboarding"
+    || firstSegment === "projects"
+  ) {
     return { namespace: firstSegment, lookupKey: rest.join(".") };
   }
 
   return { namespace: "common", lookupKey: path };
 }
 
-function translate(locale: AppLocale, key: string) {
+function translate(locale: AppLocale, key: string, params?: Record<string, string | number>) {
   const { namespace, lookupKey } = resolveNamespaceAndKey(key);
 
   if (!lookupKey) {
@@ -109,8 +176,16 @@ function translate(locale: AppLocale, key: string) {
   }
 
   const dictionary = resources[locale][namespace];
+  const rawValue = dictionary[lookupKey] || resources[DEFAULT_LOCALE][namespace][lookupKey] || key;
 
-  return dictionary[lookupKey] || resources[DEFAULT_LOCALE][namespace][lookupKey] || key;
+  if (!params) {
+    return rawValue;
+  }
+
+  return rawValue.replace(/\{\{\s*(\w+)\s*\}\}/g, (_match, paramKey: string) => {
+    const value = params[paramKey];
+    return value === undefined || value === null ? "" : String(value);
+  });
 }
 
 export function I18nProvider({
@@ -118,24 +193,33 @@ export function I18nProvider({
   initialLocale = DEFAULT_LOCALE,
   initialUserScope = DEFAULT_SCOPE,
 }: I18nProviderProps) {
-  const [userScope, setUserScopeState] = useState<string>(() => {
-    if (typeof window === "undefined") {
-      return initialUserScope;
-    }
+  const [userScope, setUserScopeState] = useState<string>(initialUserScope);
+  const [locale, setLocaleState] = useState<AppLocale>(initialLocale);
 
-    return window.localStorage.getItem(ACTIVE_SCOPE_KEY) || initialUserScope;
-  });
-
-  const [locale, setLocaleState] = useState<AppLocale>(() => {
-    if (typeof window === "undefined") {
-      return initialLocale;
-    }
-
-    const scope = window.localStorage.getItem(ACTIVE_SCOPE_KEY) || initialUserScope;
+  useEffect(() => {
+    const storedScope = window.localStorage.getItem(ACTIVE_SCOPE_KEY) || userScope;
+    const normalizedScope = storedScope.trim() || DEFAULT_SCOPE;
     const languageMap = readStoredLanguageMap();
+    const cookieLocale = readCookieLocale();
+    const syncedLocale = languageMap[normalizedScope] || cookieLocale || locale;
 
-    return languageMap[scope] || initialLocale;
-  });
+    if (normalizedScope !== userScope || syncedLocale !== locale) {
+      queueMicrotask(() => {
+        if (normalizedScope !== userScope) {
+          setUserScopeState(normalizedScope);
+        }
+
+        if (syncedLocale !== locale) {
+          setLocaleState(syncedLocale);
+        }
+      });
+    }
+
+    languageMap[normalizedScope] = syncedLocale;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(languageMap));
+    window.localStorage.setItem(ACTIVE_SCOPE_KEY, normalizedScope);
+    writeCookieLocale(syncedLocale);
+  }, [locale, userScope]);
 
   const setLocale = useCallback((nextLocale: AppLocale) => {
     setLocaleState(nextLocale);
@@ -148,6 +232,7 @@ export function I18nProvider({
     languageMap[userScope] = nextLocale;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(languageMap));
     window.localStorage.setItem(ACTIVE_SCOPE_KEY, userScope);
+    writeCookieLocale(nextLocale);
   }, [userScope]);
 
   const setUserScope = useCallback((scope: string) => {
@@ -161,9 +246,12 @@ export function I18nProvider({
     window.localStorage.setItem(ACTIVE_SCOPE_KEY, normalizedScope);
 
     const languageMap = readStoredLanguageMap();
-    const scopedLocale = languageMap[normalizedScope] || DEFAULT_LOCALE;
+    const scopedLocale = languageMap[normalizedScope] || readCookieLocale() || locale;
+    languageMap[normalizedScope] = scopedLocale;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(languageMap));
     setLocaleState(scopedLocale);
-  }, []);
+    writeCookieLocale(scopedLocale);
+  }, [locale]);
 
   const value = useMemo<I18nContextValue>(
     () => ({
@@ -171,7 +259,7 @@ export function I18nProvider({
       userScope,
       setLocale,
       setUserScope,
-      t: (key: string) => translate(locale, key),
+      t: (key: string, params?: Record<string, string | number>) => translate(locale, key, params),
     }),
     [locale, userScope, setLocale, setUserScope],
   );

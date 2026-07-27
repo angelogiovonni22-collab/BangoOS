@@ -65,8 +65,8 @@ export function normalizeProjectType(projectType: string | null) {
   };
 }
 
-export function getProjectDisplayName(project: ProjectRow) {
-  return project.name.trim() || "Unnamed Project";
+export function getProjectDisplayName(project: ProjectRow, fallbackLabel = "Unnamed Project") {
+  return project.name.trim() || fallbackLabel;
 }
 
 export function formatProjectAddress(project: ProjectRow) {
@@ -81,31 +81,39 @@ export function formatProjectAddress(project: ProjectRow) {
   return addressParts.length > 0 ? addressParts.join("\n") : "";
 }
 
-export function formatProjectCurrency(value: number | null) {
+export function formatProjectCurrency(
+  value: number | null,
+  locale = "en-US",
+  missingLabel = "Not provided",
+) {
   if (typeof value !== "number") {
-    return "Not provided";
+    return missingLabel;
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(value);
 }
 
-export function formatProjectDate(value: string | null) {
+export function formatProjectDate(
+  value: string | null,
+  locale = "en-US",
+  missingLabel = "Not provided",
+) {
   if (!value) {
-    return "Not provided";
+    return missingLabel;
   }
 
   const normalizedValue = value.includes("T") ? value : `${value}T00:00:00`;
   const date = new Date(normalizedValue);
 
   if (Number.isNaN(date.getTime())) {
-    return "Not provided";
+    return missingLabel;
   }
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -113,19 +121,23 @@ export function formatProjectDate(value: string | null) {
   }).format(date);
 }
 
-export function formatProjectDateLong(value: string | null) {
+export function formatProjectDateLong(
+  value: string | null,
+  locale = "en-US",
+  missingLabel = "Not provided",
+) {
   if (!value) {
-    return "Not provided";
+    return missingLabel;
   }
 
   const normalizedValue = value.includes("T") ? value : `${value}T00:00:00`;
   const date = new Date(normalizedValue);
 
   if (Number.isNaN(date.getTime())) {
-    return "Not provided";
+    return missingLabel;
   }
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale, {
     month: "long",
     day: "numeric",
     year: "numeric",

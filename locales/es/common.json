@@ -1,6 +1,7 @@
 {
   "search": "Buscar",
   "notifications": "Notificaciones",
+  "userMenu": "Menu de usuario",
   "language": "Idioma",
   "english": "English",
   "spanish": "Español",
@@ -9,5 +10,16 @@
   "projectPulse": "Pulso del proyecto",
   "projectPulseDescription": "Mantente al tanto de cuadrillas, presupuestos y clientes desde un solo espacio premium.",
   "welcomeBack": "Bienvenido de nuevo",
-  "searchWorkspacePlaceholder": "Buscar proyectos, clientes y cuadrillas..."
+  "searchWorkspacePlaceholder": "Buscar proyectos, clientes y cuadrillas...",
+  "openSidebar": "Abrir barra lateral",
+  "closeSidebar": "Cerrar barra lateral",
+  "appName": "BangoOS",
+  "homeEyebrow": "Sistema operativo para construccion",
+  "homeDescription": "Administra clientes, proyectos, presupuestos, facturas, empleados y operaciones diarias en un solo lugar.",
+  "openCrm": "Abrir CRM",
+  "testSupabase": "Probar Supabase",
+  "statusReady": "Listo",
+  "statusNeedsConfiguration": "Requiere configuracion",
+  "yes": "Si",
+  "no": "No"
 }

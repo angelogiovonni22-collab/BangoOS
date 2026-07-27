@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n/provider";
 
 type BusinessType = "residential" | "commercial" | "both";
 
@@ -35,6 +36,7 @@ const initialForm: OnboardingForm = {
 };
 
 export default function OnboardingPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const supabase = createClient();
 
@@ -60,47 +62,47 @@ export default function OnboardingPage() {
   function validateCurrentStep() {
     if (step === 1) {
       if (!form.companyName.trim()) {
-        setError("Company name is required.");
+        setError(t("onboarding.validationCompanyName"));
         return false;
       }
 
       if (!form.businessEmail.trim()) {
-        setError("Business email is required.");
+        setError(t("onboarding.validationBusinessEmail"));
         return false;
       }
 
       if (!form.businessEmail.includes("@")) {
-        setError("Enter a valid business email.");
+        setError(t("onboarding.validationBusinessEmailInvalid"));
         return false;
       }
     }
 
     if (step === 2) {
       if (!form.yearsInBusiness.trim()) {
-        setError("Years in business is required.");
+        setError(t("onboarding.validationYearsRequired"));
         return false;
       }
 
       if (Number(form.yearsInBusiness) < 0) {
-        setError("Years in business cannot be less than zero.");
+        setError(t("onboarding.validationYearsInvalid"));
         return false;
       }
 
       if (!form.defaultTaxRate.trim()) {
-        setError("Default tax rate is required.");
+        setError(t("onboarding.validationTaxRequired"));
         return false;
       }
 
       const taxRate = Number(form.defaultTaxRate);
 
       if (taxRate < 0 || taxRate > 100) {
-        setError("Default tax rate must be between 0 and 100.");
+        setError(t("onboarding.validationTaxInvalid"));
         return false;
       }
     }
 
     if (step === 3 && !form.ownerName.trim()) {
-      setError("Owner name is required.");
+      setError(t("onboarding.validationOwnerRequired"));
       return false;
     }
 
@@ -129,7 +131,7 @@ export default function OnboardingPage() {
 
     try {
       if (!supabase) {
-        setError("Unable to connect right now. Please try again shortly.");
+        setError(t("onboarding.errorConnect"));
         return;
       }
 
@@ -139,9 +141,7 @@ export default function OnboardingPage() {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        setError(
-          "You must be logged in before you can create your workspace.",
-        );
+        setError(t("onboarding.errorLoginRequired"));
         return;
       }
 
@@ -184,7 +184,7 @@ export default function OnboardingPage() {
         .maybeSingle();
 
       if (lookupError) {
-        setError(`Unable to check your workspace: ${lookupError.message}`);
+        setError(t("onboarding.errorWorkspaceLookup", { message: lookupError.message }));
         return;
       }
 
@@ -195,7 +195,7 @@ export default function OnboardingPage() {
           .eq("id", existingCompany.id);
 
         if (updateError) {
-          setError(`Unable to update your workspace: ${updateError.message}`);
+          setError(t("onboarding.errorWorkspaceUpdate", { message: updateError.message }));
           return;
         }
       } else {
@@ -204,7 +204,7 @@ export default function OnboardingPage() {
           .insert(companyData);
 
         if (insertError) {
-          setError(`Unable to create your workspace: ${insertError.message}`);
+          setError(t("onboarding.errorWorkspaceCreate", { message: insertError.message }));
           return;
         }
       }
@@ -213,9 +213,7 @@ export default function OnboardingPage() {
       router.refresh();
     } catch (caughtError) {
       console.error("Onboarding error:", caughtError);
-      setError(
-        "Something unexpected happened while creating your workspace. Please try again.",
-      );
+      setError(t("onboarding.errorUnexpected"));
     } finally {
       setIsSaving(false);
     }
@@ -229,29 +227,28 @@ export default function OnboardingPage() {
         <div className="overflow-hidden rounded-3xl bg-white shadow-xl">
           <header className="bg-slate-950 px-8 py-10 text-white sm:px-12">
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-300">
-              BangoOS Onboarding
+              {t("onboarding.eyebrow")}
             </p>
 
             <h1 className="mt-4 text-4xl font-bold sm:text-5xl">
-              Welcome to BangoOS
+              {t("onboarding.title")}
             </h1>
 
             <p className="mt-4 max-w-2xl text-lg text-slate-300">
-              Set up your construction company so your projects, customers,
-              estimates, invoices, and team are organized from day one.
+              {t("onboarding.description")}
             </p>
           </header>
 
           <section className="px-8 py-8 sm:px-12 sm:py-10">
             <div className="mb-10">
               <div className="flex items-center justify-between gap-4 text-sm font-semibold">
-                <span className="text-slate-900">Step {step} of 4</span>
+                <span className="text-slate-900">{t("onboarding.step", { current: step, total: 4 })}</span>
 
                 <span className="text-right text-slate-500">
-                  {step === 1 && "Company information"}
-                  {step === 2 && "Business details"}
-                  {step === 3 && "Owner and company type"}
-                  {step === 4 && "Review your information"}
+                  {step === 1 && t("onboarding.stepCompany")}
+                  {step === 2 && t("onboarding.stepBusiness")}
+                  {step === 3 && t("onboarding.stepOwner")}
+                  {step === 4 && t("onboarding.stepReview")}
                 </span>
               </div>
 
@@ -266,17 +263,13 @@ export default function OnboardingPage() {
             {step === 1 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-950">
-                    Company information
-                  </h2>
+                  <h2 className="text-2xl font-bold text-slate-950">{t("onboarding.companyInfoTitle")}</h2>
 
-                  <p className="mt-2 text-slate-600">
-                    Enter the main contact information for your company.
-                  </p>
+                  <p className="mt-2 text-slate-600">{t("onboarding.companyInfoDescription")}</p>
                 </div>
 
                 <Field
-                  label="Company Name"
+                  label={t("onboarding.companyName")}
                   value={form.companyName}
                   placeholder="Bango Construction"
                   onChange={(value) => updateField("companyName", value)}
@@ -284,7 +277,7 @@ export default function OnboardingPage() {
                 />
 
                 <Field
-                  label="Business Email"
+                  label={t("onboarding.businessEmail")}
                   type="email"
                   value={form.businessEmail}
                   placeholder="office@yourcompany.com"
@@ -293,7 +286,7 @@ export default function OnboardingPage() {
                 />
 
                 <Field
-                  label="Business Phone"
+                  label={t("onboarding.businessPhone")}
                   type="tel"
                   value={form.businessPhone}
                   placeholder="(614) 555-1234"
@@ -301,15 +294,15 @@ export default function OnboardingPage() {
                 />
 
                 <Field
-                  label="Company Address"
+                  label={t("onboarding.companyAddress")}
                   value={form.companyAddress}
                   placeholder="123 Main Street, Columbus, Ohio, 43215"
-                  helperText="Use this format: street, city, state, ZIP code."
+                  helperText={t("onboarding.helperAddress")}
                   onChange={(value) => updateField("companyAddress", value)}
                 />
 
                 <Field
-                  label="Website"
+                  label={t("onboarding.website")}
                   type="url"
                   value={form.website}
                   placeholder="https://yourcompany.com"
@@ -321,57 +314,44 @@ export default function OnboardingPage() {
             {step === 2 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-950">
-                    Business details
-                  </h2>
+                  <h2 className="text-2xl font-bold text-slate-950">{t("onboarding.businessDetailsTitle")}</h2>
 
-                  <p className="mt-2 text-slate-600">
-                    Add information that will help personalize your estimates,
-                    invoices, and company settings.
-                  </p>
+                  <p className="mt-2 text-slate-600">{t("onboarding.businessDetailsDescription")}</p>
                 </div>
 
                 <Field
-                  label="Contractor License Number"
+                  label={t("onboarding.contractorLicense")}
                   value={form.contractorLicense}
-                  placeholder="Optional"
-                  onChange={(value) =>
-                    updateField("contractorLicense", value)
-                  }
+                  placeholder={t("onboarding.optional")}
+                  onChange={(value) => updateField("contractorLicense", value)}
                 />
 
                 <Field
-                  label="Insurance Provider"
+                  label={t("onboarding.insuranceProvider")}
                   value={form.insuranceProvider}
                   placeholder="Insurance company"
-                  onChange={(value) =>
-                    updateField("insuranceProvider", value)
-                  }
+                  onChange={(value) => updateField("insuranceProvider", value)}
                 />
 
                 <Field
-                  label="Years in Business"
+                  label={t("onboarding.yearsInBusiness")}
                   type="number"
                   min="0"
                   value={form.yearsInBusiness}
                   placeholder="5"
-                  onChange={(value) =>
-                    updateField("yearsInBusiness", value)
-                  }
+                  onChange={(value) => updateField("yearsInBusiness", value)}
                   required
                 />
 
                 <Field
-                  label="Default Tax Rate (%)"
+                  label={t("onboarding.defaultTaxRate")}
                   type="number"
                   min="0"
                   max="100"
                   step="0.01"
                   value={form.defaultTaxRate}
                   placeholder="7.50"
-                  onChange={(value) =>
-                    updateField("defaultTaxRate", value)
-                  }
+                  onChange={(value) => updateField("defaultTaxRate", value)}
                   required
                 />
               </div>
@@ -380,18 +360,13 @@ export default function OnboardingPage() {
             {step === 3 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-950">
-                    Owner and company type
-                  </h2>
+                  <h2 className="text-2xl font-bold text-slate-950">{t("onboarding.ownerTypeTitle")}</h2>
 
-                  <p className="mt-2 text-slate-600">
-                    Tell BangoOS who owns the company and what type of work the
-                    company performs.
-                  </p>
+                  <p className="mt-2 text-slate-600">{t("onboarding.ownerTypeDescription")}</p>
                 </div>
 
                 <Field
-                  label="Owner Name"
+                  label={t("onboarding.ownerName")}
                   value={form.ownerName}
                   placeholder="Angelo Bango"
                   onChange={(value) => updateField("ownerName", value)}
@@ -400,31 +375,27 @@ export default function OnboardingPage() {
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-800">
-                    Primary Type of Work
+                    {t("onboarding.businessType")}
                   </label>
 
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     <BusinessTypeButton
-                      label="Residential"
-                      description="Homes and residential remodeling"
+                      label={t("onboarding.residential")}
+                      description={t("onboarding.residentialDesc")}
                       selected={form.businessType === "residential"}
-                      onClick={() =>
-                        updateField("businessType", "residential")
-                      }
+                      onClick={() => updateField("businessType", "residential")}
                     />
 
                     <BusinessTypeButton
-                      label="Commercial"
-                      description="Commercial and property projects"
+                      label={t("onboarding.commercial")}
+                      description={t("onboarding.commercialDesc")}
                       selected={form.businessType === "commercial"}
-                      onClick={() =>
-                        updateField("businessType", "commercial")
-                      }
+                      onClick={() => updateField("businessType", "commercial")}
                     />
 
                     <BusinessTypeButton
-                      label="Both"
-                      description="Residential and commercial work"
+                      label={t("onboarding.both")}
+                      description={t("onboarding.bothDesc")}
                       selected={form.businessType === "both"}
                       onClick={() => updateField("businessType", "both")}
                     />
@@ -436,50 +407,22 @@ export default function OnboardingPage() {
             {step === 4 && (
               <div className="space-y-5">
                 <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-slate-950">
-                    Review your workspace
-                  </h2>
+                  <h2 className="text-2xl font-bold text-slate-950">{t("onboarding.reviewTitle")}</h2>
 
-                  <p className="mt-2 text-slate-600">
-                    Confirm the information below before creating your BangoOS
-                    workspace.
-                  </p>
+                  <p className="mt-2 text-slate-600">{t("onboarding.reviewDescription")}</p>
                 </div>
 
-                <ReviewRow label="Company" value={form.companyName} />
-                <ReviewRow label="Business Email" value={form.businessEmail} />
-                <ReviewRow label="Business Phone" value={form.businessPhone} />
-                <ReviewRow label="Address" value={form.companyAddress} />
-                <ReviewRow label="Website" value={form.website} />
-
-                <ReviewRow
-                  label="Contractor License"
-                  value={form.contractorLicense}
-                />
-
-                <ReviewRow
-                  label="Insurance Provider"
-                  value={form.insuranceProvider}
-                />
-
-                <ReviewRow
-                  label="Years in Business"
-                  value={form.yearsInBusiness}
-                />
-
-                <ReviewRow
-                  label="Default Tax Rate"
-                  value={
-                    form.defaultTaxRate ? `${form.defaultTaxRate}%` : ""
-                  }
-                />
-
-                <ReviewRow label="Owner" value={form.ownerName} />
-
-                <ReviewRow
-                  label="Business Type"
-                  value={formatBusinessType(form.businessType)}
-                />
+                <ReviewRow label={t("onboarding.reviewCompany")} value={form.companyName} />
+                <ReviewRow label={t("onboarding.businessEmail")} value={form.businessEmail} />
+                <ReviewRow label={t("onboarding.businessPhone")} value={form.businessPhone} />
+                <ReviewRow label={t("onboarding.reviewAddress")} value={form.companyAddress} />
+                <ReviewRow label={t("onboarding.website")} value={form.website} />
+                <ReviewRow label={t("onboarding.contractorLicense")} value={form.contractorLicense} />
+                <ReviewRow label={t("onboarding.insuranceProvider")} value={form.insuranceProvider} />
+                <ReviewRow label={t("onboarding.yearsInBusiness")} value={form.yearsInBusiness} />
+                <ReviewRow label={t("onboarding.reviewTaxRate")} value={form.defaultTaxRate ? `${form.defaultTaxRate}%` : ""} />
+                <ReviewRow label={t("onboarding.reviewOwner")} value={form.ownerName} />
+                <ReviewRow label={t("onboarding.reviewBusinessType")} value={formatBusinessType(form.businessType, t)} />
               </div>
             )}
 
@@ -500,7 +443,7 @@ export default function OnboardingPage() {
                   disabled={isSaving}
                   className="w-full rounded-xl border border-slate-300 bg-white px-6 py-4 text-lg font-bold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Back
+                  {t("onboarding.back")}
                 </button>
               )}
 
@@ -510,7 +453,7 @@ export default function OnboardingPage() {
                   onClick={handleNext}
                   className="w-full rounded-xl bg-blue-600 px-6 py-4 text-lg font-bold text-white shadow-lg transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
                 >
-                  Continue
+                  {t("onboarding.continue")}
                 </button>
               ) : (
                 <button
@@ -519,9 +462,7 @@ export default function OnboardingPage() {
                   disabled={isSaving}
                   className="w-full rounded-xl bg-blue-600 px-6 py-4 text-lg font-bold text-white shadow-lg transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSaving
-                    ? "Creating Workspace..."
-                    : "Create My Workspace"}
+                  {isSaving ? t("onboarding.creatingWorkspace") : t("onboarding.createWorkspace")}
                 </button>
               )}
             </div>
@@ -634,25 +575,27 @@ function ReviewRow({
   label: string;
   value: string;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <span className="text-sm font-semibold text-slate-500">{label}</span>
 
       <span className="break-words font-semibold text-slate-900 sm:text-right">
-        {value || "Not provided"}
+        {value || t("onboarding.notProvided")}
       </span>
     </div>
   );
 }
 
-function formatBusinessType(type: BusinessType) {
+function formatBusinessType(type: BusinessType, t: (key: string) => string) {
   if (type === "residential") {
-    return "Residential";
+    return t("onboarding.residential");
   }
 
   if (type === "commercial") {
-    return "Commercial";
+    return t("onboarding.commercial");
   }
 
-  return "Residential and Commercial";
+  return t("onboarding.residentialAndCommercial");
 }

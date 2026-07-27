@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { LanguageSelector, SearchBar } from '@/components/ui';
-import { I18nProvider, useI18n } from '@/lib/i18n/provider';
+import { useI18n } from '@/lib/i18n/provider';
 
 const navigationItems = [
   { key: 'dashboard', href: '/dashboard', icon: '◉' },
@@ -18,11 +18,7 @@ const navigationItems = [
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  return (
-    <I18nProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
-    </I18nProvider>
-  );
+  return <DashboardLayoutContent>{children}</DashboardLayoutContent>;
 }
 
 function DashboardLayoutContent({ children }: { children: ReactNode }) {
@@ -75,7 +71,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         {mobileOpen ? (
           <button
             type="button"
-            aria-label="Close sidebar"
+            aria-label={t('common.closeSidebar')}
             className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden"
             onClick={() => setMobileOpen(false)}
           />
@@ -87,7 +83,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  aria-label="Open sidebar"
+                  aria-label={t('common.openSidebar')}
                   className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 shadow-sm transition hover:bg-slate-100 lg:hidden"
                   onClick={() => setMobileOpen(true)}
                 >
@@ -112,6 +108,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
                   🔔
                 </button>
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-400 font-semibold text-white">
+                  <span className="sr-only">{t('common.userMenu')}</span>
                   A
                 </div>
               </div>

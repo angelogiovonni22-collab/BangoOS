@@ -14,6 +14,7 @@ import {
   type ProjectRow,
 } from "@/lib/projects";
 import { getProjectStatusBadgeClass } from "@/lib/projects/statuses";
+import { useI18n } from "@/lib/i18n/provider";
 
 type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
 
@@ -44,6 +45,7 @@ type CustomerProject = {
 };
 
 export default function CustomerDetailsPage() {
+  const { t, locale } = useI18n();
   const params = useParams<{ id?: string | string[] }>();
   const customerId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const supabase = useMemo(() => createClient(), []);
@@ -64,9 +66,11 @@ export default function CustomerDetailsPage() {
       setErrorMessage(null);
       setNotFound(false);
 
-      if (!supabase) {
+      const client = supabase;
+
+      if (!client) {
         if (isSubscribed) {
-          setErrorMessage("Unable to connect right now. Please try again shortly.");
+          setErrorMessage(t("customers.errorConnect"));
           setIsLoading(false);
         }
 
@@ -75,7 +79,7 @@ export default function CustomerDetailsPage() {
 
       if (!customerId) {
         if (isSubscribed) {
-          setErrorMessage("We could not read the customer ID from this link.");
+          setErrorMessage(t("customers.errorReadCustomerId"));
           setIsLoading(false);
         }
 
@@ -86,17 +90,17 @@ export default function CustomerDetailsPage() {
         const {
           data: { user },
           error: userError,
-        } = await supabase.auth.getUser();
+        } = await client.auth.getUser();
 
         if (userError || !user) {
           if (isSubscribed) {
-            setErrorMessage("You need to be logged in to view customer details.");
+            setErrorMessage(t("customers.errorViewCustomerLogin"));
           }
 
           return;
         }
 
-        const { data: company, error: companyError } = await supabase
+        const { data: company, error: companyError } = await client
           .from("companies")
           .select("id")
           .eq("owner_id", user.id)
@@ -104,9 +108,7 @@ export default function CustomerDetailsPage() {
 
         if (companyError) {
           if (isSubscribed) {
-            setErrorMessage(
-              "Unable to verify your workspace right now. Please try again shortly.",
-            );
+            setErrorMessage(t("customers.errorVerifyWorkspace"));
           }
 
           return;
@@ -114,13 +116,13 @@ export default function CustomerDetailsPage() {
 
         if (!company) {
           if (isSubscribed) {
-            setErrorMessage("No company was found for your account yet.");
+            setErrorMessage(t("customers.errorNoCompanyYet"));
           }
 
           return;
         }
 
-        const { data: row, error: customerError } = await supabase
+        const { data: row, error: customerError } = await client
           .from("customers")
           .select(
             "id, company_id, customer_type, first_name, last_name, company_name, email, phone, address_line_1, address_line_2, city, state, postal_code, notes, status, created_at",
@@ -131,9 +133,7 @@ export default function CustomerDetailsPage() {
 
         if (customerError) {
           if (isSubscribed) {
-            setErrorMessage(
-              "Unable to load this customer right now. Please try again shortly.",
-            );
+            setErrorMessage(t("customers.errorLoadCustomer"));
           }
 
           return;
@@ -147,12 +147,12 @@ export default function CustomerDetailsPage() {
           return;
         }
 
-        const normalizedCustomerType = normalizeCustomerType(row.customer_type);
-        const normalizedStatus = normalizeCustomerStatus(row.status);
+        const normalizedCustomerType = normalizeCustomerType(row.customer_type, t);
+        const normalizedStatus = normalizeCustomerStatus(row.status, t);
 
         const nextCustomer: CustomerDetails = {
           id: row.id,
-          name: getCustomerName(row, normalizedCustomerType.key),
+          name: getCustomerName(row, normalizedCustomerType.key, t),
           customerTypeLabel: normalizedCustomerType.label,
           customerTypeKey: normalizedCustomerType.key,
           statusLabel: normalizedStatus.label,
@@ -171,7 +171,7 @@ export default function CustomerDetailsPage() {
         setProjectsLoading(true);
         setProjectsError(null);
 
-        const { data: projectRows, error: projectError } = await supabase
+        const { data: projectRows, error: projectError } = await client
           .from("projects")
           .select(
             "id, company_id, customer_id, name, project_number, project_type, status, estimated_cost, estimated_start_date, estimated_end_date, created_at",
@@ -182,7 +182,7 @@ export default function CustomerDetailsPage() {
 
         if (projectError) {
           if (isSubscribed) {
-            setProjectsError("Unable to load projects right now. Please try again shortly.");
+            setProjectsError(t("customers.errorLoadProjects"));
           }
 
           return;
@@ -192,17 +192,18 @@ export default function CustomerDetailsPage() {
           const project = row as ProjectRow;
           const status = normalizeProjectStatus(project.status);
           const projectType = normalizeProjectType(project.project_type);
+          const localeTag = locale === "es" ? "es-ES" : "en-US";
 
           return {
             id: project.id,
-            name: getProjectDisplayName(project),
-            projectNumber: project.project_number?.trim() || "Not provided",
-            statusLabel: status.label,
+            name: getProjectDisplayName(project, t("projects.unnamedProject")),
+            projectNumber: project.project_number?.trim() || t("customers.notProvided"),
+            statusLabel: mapProjectStatus(status.key, t),
             statusKey: status.key,
-            typeLabel: projectType.label,
-            estimatedStart: formatProjectDate(project.estimated_start_date),
-            estimatedEnd: formatProjectDate(project.estimated_end_date),
-            estimatedCost: formatProjectCurrency(project.estimated_cost),
+            typeLabel: mapProjectType(projectType.key, t),
+            estimatedStart: formatProjectDate(project.estimated_start_date, localeTag, t("customers.notProvided")),
+            estimatedEnd: formatProjectDate(project.estimated_end_date, localeTag, t("customers.notProvided")),
+            estimatedCost: formatProjectCurrency(project.estimated_cost, localeTag, t("customers.notProvided")),
           };
         });
 
@@ -213,9 +214,7 @@ export default function CustomerDetailsPage() {
         console.error("Load customer error:", caughtError);
 
         if (isSubscribed) {
-          setErrorMessage(
-            "Something unexpected happened while loading this customer. Please try again.",
-          );
+          setErrorMessage(t("customers.errorLoadCustomerUnexpected"));
         }
       } finally {
         if (isSubscribed) {
@@ -230,7 +229,7 @@ export default function CustomerDetailsPage() {
     return () => {
       isSubscribed = false;
     };
-  }, [customerId, supabase]);
+  }, [customerId, locale, supabase, t]);
 
   if (isLoading) {
     return <CustomerLoadingState />;
@@ -250,20 +249,16 @@ export default function CustomerDetailsPage() {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-slate-500">
             <Link href="/customers" className="text-blue-600 transition hover:text-blue-800">
-              Back to Customers
+              {t("customers.backToCustomers")}
             </Link>
             <span aria-hidden="true">/</span>
-            <span>Customer Details</span>
+            <span>{t("customers.detailsTitle")}</span>
           </div>
 
           <div>
-            <p className="text-sm font-medium text-slate-500">Customer Management</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              {customer.name}
-            </h1>
-            <p className="mt-2 text-slate-600">
-              View contact information, records, and upcoming work for this customer.
-            </p>
+            <p className="text-sm font-medium text-slate-500">{t("customers.pageEyebrow")}</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">{customer.name}</h1>
+            <p className="mt-2 text-slate-600">{t("customers.detailsDescription")}</p>
           </div>
         </div>
 
@@ -272,17 +267,17 @@ export default function CustomerDetailsPage() {
             href="/customers"
             className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
           >
-            Back
+            {t("customers.back")}
           </Link>
 
           <button
             type="button"
             disabled
             aria-disabled="true"
-            title="Coming soon"
+            title={t("customers.comingSoon")}
             className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm opacity-70 transition"
           >
-            Edit Customer
+            {t("customers.editCustomer")}
           </button>
         </div>
       </section>
@@ -292,7 +287,7 @@ export default function CustomerDetailsPage() {
         className="rounded-3xl border border-slate-200 bg-white p-2 shadow-sm"
       >
         <nav className="flex flex-wrap gap-2" aria-label="Customer page sections">
-          {customerSections.map((section) => (
+          {customerSections(t).map((section) => (
             <a
               key={section.id}
               href={`#${section.id}`}
@@ -312,10 +307,8 @@ export default function CustomerDetailsPage() {
         <div className="border-b border-slate-200 p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-950">Overview</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Customer contact details and record information.
-              </p>
+              <h2 className="text-lg font-semibold text-slate-950">{t("customers.overview")}</h2>
+              <p className="mt-1 text-sm text-slate-500">{t("customers.overviewDescription")}</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -327,18 +320,18 @@ export default function CustomerDetailsPage() {
 
         <div className="p-6">
           <dl className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            <DetailItem label="Email" value={customer.email} />
-            <DetailItem label="Phone" value={customer.phone} />
-            <DetailItem label="Customer Type" value={customer.customerTypeLabel} />
-            <DetailItem label="Status" value={customer.statusLabel} />
-            <DetailItem label="Date Added" value={formatDate(customer.createdAt)} />
-            <DetailItem label="Notes" value={customer.notes} fullWidth />
-            <DetailItem label="Full Address" value={customer.address} fullWidth />
+            <DetailItem label={t("customers.email")} value={customer.email} />
+            <DetailItem label={t("customers.phoneNumber")} value={customer.phone} />
+            <DetailItem label={t("customers.customerTypeLabel")} value={customer.customerTypeLabel} />
+            <DetailItem label={t("customers.tableStatus")} value={customer.statusLabel} />
+            <DetailItem label={t("customers.dateAdded")} value={formatDate(customer.createdAt, locale, t)} />
+            <DetailItem label={t("customers.notes")} value={customer.notes} fullWidth />
+            <DetailItem label={t("customers.fullAddress")} value={customer.address} fullWidth />
           </dl>
         </div>
       </section>
 
-      {customerSections
+      {customerSections(t)
         .filter((section) => section.id !== "overview")
         .map((section) => (
           <section
@@ -348,17 +341,17 @@ export default function CustomerDetailsPage() {
           >
             <div className="border-b border-slate-200 p-6">
               <h2 className="text-lg font-semibold text-slate-950">{section.label}</h2>
-              <p className="mt-1 text-sm text-slate-500">Coming soon</p>
+              <p className="mt-1 text-sm text-slate-500">{t("customers.comingSoon")}</p>
             </div>
 
             <div className="p-6">
               <div className="flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                 <div>
                   <p className="text-base font-semibold text-slate-800">
-                    {section.label} coming soon
+                    {t("customers.sectionComingSoon", { section: section.label })}
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    This section will show customer {section.label.toLowerCase()} once it is connected.
+                    {t("customers.sectionComingSoonDescription", { section: section.label.toLowerCase() })}
                   </p>
                 </div>
               </div>
@@ -368,10 +361,8 @@ export default function CustomerDetailsPage() {
 
       <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-950">Projects</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Every project associated with this customer.
-          </p>
+          <h2 className="text-lg font-semibold text-slate-950">{t("customers.projectsTitle")}</h2>
+          <p className="mt-1 text-sm text-slate-500">{t("customers.projectsDescription")}</p>
         </div>
 
         <div className="p-6">
@@ -391,7 +382,7 @@ export default function CustomerDetailsPage() {
                     <div>
                       <p className="font-semibold text-slate-950">{project.name}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Project #{project.projectNumber}
+                        {t("customers.projectNumber")} {project.projectNumber}
                       </p>
                     </div>
 
@@ -399,10 +390,10 @@ export default function CustomerDetailsPage() {
                   </div>
 
                   <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
-                    <DetailStat label="Type" value={project.typeLabel} />
-                    <DetailStat label="Estimated Cost" value={project.estimatedCost} />
-                    <DetailStat label="Estimated Start" value={project.estimatedStart} />
-                    <DetailStat label="Estimated Completion" value={project.estimatedEnd} />
+                    <DetailStat label={t("customers.type")} value={project.typeLabel} />
+                    <DetailStat label={t("customers.estimatedCost")} value={project.estimatedCost} />
+                    <DetailStat label={t("customers.estimatedStart")} value={project.estimatedStart} />
+                    <DetailStat label={t("customers.estimatedCompletion")} value={project.estimatedEnd} />
                   </div>
                 </Link>
               ))}
@@ -416,47 +407,47 @@ export default function CustomerDetailsPage() {
   );
 }
 
-const customerSections = [
-  { id: "overview", label: "Overview" },
-  { id: "projects", label: "Projects" },
-  { id: "estimates", label: "Estimates" },
-  { id: "invoices", label: "Invoices" },
-  { id: "files", label: "Files" },
-  { id: "activity", label: "Activity" },
-];
+function customerSections(t: (key: string) => string) {
+  return [
+    { id: "overview", label: t("customers.overview") },
+    { id: "projects", label: t("customers.projects") },
+    { id: "estimates", label: t("customers.estimates") },
+    { id: "invoices", label: t("customers.invoices") },
+    { id: "files", label: t("customers.files") },
+    { id: "activity", label: t("customers.activity") },
+  ];
+}
 
 function CustomerLoadingState() {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl font-bold text-blue-600">
-          C
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl font-bold text-blue-600">C
         </div>
-        <h1 className="mt-5 text-2xl font-semibold text-slate-950">Loading customer...</h1>
-        <p className="mt-2 leading-7 text-slate-500">
-          Please wait while we load this customer record.
-        </p>
+        <h1 className="mt-5 text-2xl font-semibold text-slate-950">{t("customers.loadingCustomer")}</h1>
+        <p className="mt-2 leading-7 text-slate-500">{t("customers.loadingCustomerDescription")}</p>
       </div>
     </div>
   );
 }
 
 function CustomerErrorState({ message }: { message: string }) {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="max-w-lg rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-2xl font-bold text-rose-600">
-          !
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-2xl font-bold text-rose-600">!
         </div>
-        <h1 className="mt-5 text-2xl font-semibold text-slate-950">
-          We could not load this customer
-        </h1>
+        <h1 className="mt-5 text-2xl font-semibold text-slate-950">{t("customers.errorCustomerTitle")}</h1>
         <p className="mt-2 leading-7 text-slate-500">{message}</p>
         <Link
           href="/customers"
           className="mt-6 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
         >
-          Back to Customers
+          {t("customers.backToCustomers")}
         </Link>
       </div>
     </div>
@@ -464,21 +455,20 @@ function CustomerErrorState({ message }: { message: string }) {
 }
 
 function CustomerNotFoundState() {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-bold text-slate-600">
-          ?
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-bold text-slate-600">?
         </div>
-        <h1 className="mt-5 text-2xl font-semibold text-slate-950">Customer not found</h1>
-        <p className="mt-2 leading-7 text-slate-500">
-          This customer may have been removed or may belong to a different company.
-        </p>
+        <h1 className="mt-5 text-2xl font-semibold text-slate-950">{t("customers.customerNotFoundTitle")}</h1>
+        <p className="mt-2 leading-7 text-slate-500">{t("customers.customerNotFoundDescription")}</p>
         <Link
           href="/customers"
           className="mt-6 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
         >
-          Back to Customers
+          {t("customers.backToCustomers")}
         </Link>
       </div>
     </div>
@@ -486,21 +476,25 @@ function CustomerNotFoundState() {
 }
 
 function CustomerProjectsLoadingState() {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
       <div>
-        <p className="font-semibold text-slate-800">Loading projects...</p>
-        <p className="mt-2 text-sm text-slate-500">Please wait while we load related projects.</p>
+        <p className="font-semibold text-slate-800">{t("customers.loadingProjects")}</p>
+        <p className="mt-2 text-sm text-slate-500">{t("customers.loadingProjectsDescription")}</p>
       </div>
     </div>
   );
 }
 
 function CustomerProjectsErrorState({ message }: { message: string }) {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-rose-300 bg-rose-50 p-8 text-center">
       <div>
-        <p className="font-semibold text-rose-700">We could not load projects</p>
+        <p className="font-semibold text-rose-700">{t("customers.errorProjectsTitle")}</p>
         <p className="mt-2 text-sm text-rose-600">{message}</p>
       </div>
     </div>
@@ -508,13 +502,13 @@ function CustomerProjectsErrorState({ message }: { message: string }) {
 }
 
 function CustomerProjectsEmptyState() {
+  const { t } = useI18n();
+
   return (
     <div className="flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
       <div>
-        <p className="font-semibold text-slate-800">No projects yet.</p>
-        <p className="mt-2 text-sm text-slate-500">
-          Projects for this customer will appear here once they are created.
-        </p>
+        <p className="font-semibold text-slate-800">{t("customers.emptyProjectsTitle")}</p>
+        <p className="mt-2 text-sm text-slate-500">{t("customers.emptyProjectsDescription")}</p>
       </div>
     </div>
   );
@@ -523,9 +517,7 @@ function CustomerProjectsEmptyState() {
 function DetailStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
       <p className="mt-1 font-medium text-slate-800">{value}</p>
     </div>
   );
@@ -540,11 +532,13 @@ function DetailItem({
   value: string;
   fullWidth?: boolean;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className={fullWidth ? "md:col-span-2 xl:col-span-3" : ""}>
       <dt className="text-sm font-semibold text-slate-500">{label}</dt>
       <dd className="mt-2 whitespace-pre-line rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-800">
-        {value.trim() ? value : "Not provided"}
+        {value.trim() ? value : t("customers.notProvided")}
       </dd>
     </div>
   );
@@ -575,37 +569,35 @@ function StatusPill({
   const badgeStyle = styles[variant] || styles.inactive;
 
   return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${badgeStyle}`}
-    >
+    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${badgeStyle}`}>
       {label}
     </span>
   );
 }
 
-function normalizeCustomerType(customerType: string | null) {
+function normalizeCustomerType(customerType: string | null, t: (key: string) => string) {
   const normalized = customerType?.trim().toLowerCase();
 
   if (normalized === "commercial") {
-    return { key: "commercial" as const, label: "Commercial" as const };
+    return { key: "commercial" as const, label: t("customers.typeCommercial") };
   }
 
-  return { key: "residential" as const, label: "Residential" as const };
+  return { key: "residential" as const, label: t("customers.typeResidential") };
 }
 
-function normalizeCustomerStatus(status: string | null) {
+function normalizeCustomerStatus(status: string | null, t: (key: string) => string) {
   const normalized = status?.trim().toLowerCase();
 
   if (normalized === "active") {
-    return { key: "active", label: "Active" };
+    return { key: "active", label: t("customers.statusActive") };
   }
 
   if (normalized === "lead") {
-    return { key: "lead", label: "Lead" };
+    return { key: "lead", label: t("customers.statusLead") };
   }
 
   if (normalized === "inactive") {
-    return { key: "inactive", label: "Inactive" };
+    return { key: "inactive", label: t("customers.statusInactive") };
   }
 
   return {
@@ -614,17 +606,45 @@ function normalizeCustomerStatus(status: string | null) {
   };
 }
 
-function getCustomerName(row: CustomerRow, customerTypeKey: "residential" | "commercial") {
+function mapProjectStatus(statusKey: string, t: (key: string) => string) {
+  const map: Record<string, string> = {
+    lead: "customers.statusLead",
+    in_progress: "projects.statusInProgress",
+    completed: "projects.statusCompleted",
+    on_hold: "projects.statusOnHold",
+    scheduled: "projects.statusScheduled",
+    approved: "projects.statusApproved",
+    cancelled: "projects.statusCancelled",
+    estimating: "projects.statusEstimating",
+  };
+
+  return map[statusKey] ? t(map[statusKey]) : toTitleCase(statusKey.replace(/_/g, " "));
+}
+
+function mapProjectType(typeKey: string, t: (key: string) => string) {
+  const map: Record<string, string> = {
+    residential: "projects.typeResidential",
+    commercial: "projects.typeCommercial",
+    maintenance: "projects.typeMaintenance",
+    renovation: "projects.typeRenovation",
+    new_construction: "projects.typeNewConstruction",
+    other: "projects.typeOther",
+  };
+
+  return map[typeKey] ? t(map[typeKey]) : toTitleCase(typeKey.replace(/_/g, " "));
+}
+
+function getCustomerName(row: CustomerRow, customerTypeKey: "residential" | "commercial", t: (key: string) => string) {
   const firstName = row.first_name?.trim() || "";
   const lastName = row.last_name?.trim() || "";
   const companyName = row.company_name?.trim() || "";
   const residentialName = [firstName, lastName].filter(Boolean).join(" ");
 
   if (customerTypeKey === "commercial") {
-    return companyName || residentialName || "Unnamed Customer";
+    return companyName || residentialName || t("customers.unnamedCustomer");
   }
 
-  return residentialName || companyName || "Unnamed Customer";
+  return residentialName || companyName || t("customers.unnamedCustomer");
 }
 
 function formatAddress(row: CustomerRow) {
@@ -639,14 +659,14 @@ function formatAddress(row: CustomerRow) {
   return addressParts.join("\n");
 }
 
-function formatDate(value: string) {
+function formatDate(value: string, locale: "en" | "es", t: (key: string) => string) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Not provided";
+    return t("customers.notProvided");
   }
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale === "es" ? "es-ES" : "en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",

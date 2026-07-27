@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -8,6 +8,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 import { PROJECT_TYPE_OPTIONS } from "@/lib/projects";
 import { PROJECT_STATUSES } from "@/lib/projects/statuses";
+import { useI18n } from "@/lib/i18n/provider";
 
 type CustomerSummaryRow = Pick<
   Database["public"]["Tables"]["customers"]["Row"],
@@ -51,6 +52,7 @@ const initialFormData: ProjectFormData = {
 };
 
 export default function NewProjectPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -83,7 +85,7 @@ export default function NewProjectPage() {
 
       if (!client) {
         if (isSubscribed) {
-          setErrorMessage("Unable to connect right now. Please try again shortly.");
+          setErrorMessage(t("projects.errorConnect"));
           setIsLoading(false);
         }
 
@@ -99,7 +101,7 @@ export default function NewProjectPage() {
 
         if (error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load customers right now. Please try again shortly.");
+            setErrorMessage(t("projects.errorLoadProjectCustomers"));
           }
 
           return;
@@ -107,7 +109,7 @@ export default function NewProjectPage() {
 
         const mappedOptions = (data ?? []).map((customer) => ({
           id: customer.id,
-          label: getCustomerDisplayName(customer),
+          label: getCustomerDisplayName(customer, t("customers.unnamedCustomer")),
         }));
 
         if (isSubscribed) {
@@ -118,7 +120,7 @@ export default function NewProjectPage() {
 
         if (isSubscribed) {
           setErrorMessage(
-            "Something unexpected happened while loading project customers. Please try again.",
+            t("projects.errorUnexpectedProjectCustomers"),
           );
         }
       } finally {
@@ -133,7 +135,7 @@ export default function NewProjectPage() {
     return () => {
       isSubscribed = false;
     };
-  }, [supabase]);
+  }, [supabase, t]);
 
   function updateField<K extends keyof ProjectFormData>(
     field: K,
@@ -151,22 +153,22 @@ export default function NewProjectPage() {
     setSuccessMessage(null);
 
     if (!formData.projectName.trim()) {
-      setErrorMessage("Project name is required.");
+      setErrorMessage(t("projects.validationProjectName"));
       return;
     }
 
     if (!formData.customerId) {
-      setErrorMessage("Customer is required.");
+      setErrorMessage(t("projects.validationCustomer"));
       return;
     }
 
     if (!formData.projectType) {
-      setErrorMessage("Project type is required.");
+      setErrorMessage(t("projects.validationProjectType"));
       return;
     }
 
     if (!formData.status) {
-      setErrorMessage("Status is required.");
+      setErrorMessage(t("projects.validationStatus"));
       return;
     }
 
@@ -180,14 +182,14 @@ export default function NewProjectPage() {
       const workspace = await resolveWorkspaceContext(supabase);
 
       if (workspace.errorMessage || !workspace.context) {
-        setErrorMessage(workspace.errorMessage);
+        setErrorMessage(workspace.errorMessage || t("projects.errorLoadWorkspace"));
         return;
       }
 
       const client = supabase;
 
       if (!client) {
-        setErrorMessage("Unable to connect right now. Please try again shortly.");
+        setErrorMessage(t("projects.errorConnect"));
         return;
       }
 
@@ -216,21 +218,21 @@ export default function NewProjectPage() {
         .single();
 
       if (error) {
-        setErrorMessage(`Unable to save project: ${error.message}`);
+        setErrorMessage(t("projects.errorSaveProject", { message: error.message }));
         return;
       }
 
       if (!data?.id) {
-        setErrorMessage("Project was saved, but we could not open its workspace.");
+        setErrorMessage(t("projects.errorMissingProjectLink"));
         return;
       }
 
-      setSuccessMessage("Project created successfully.");
+      setSuccessMessage(t("projects.projectCreated"));
       router.push(`/projects/${data.id}`);
       router.refresh();
     } catch (caughtError) {
       console.error("Save project error:", caughtError);
-      setErrorMessage("Something unexpected happened while saving the project. Please try again.");
+      setErrorMessage(t("projects.errorUnexpectedSave"));
     } finally {
       setIsSaving(false);
     }
@@ -240,14 +242,14 @@ export default function NewProjectPage() {
     <div className="space-y-8">
       <section className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">Project Management</p>
+          <p className="text-sm font-medium text-slate-500">{t("projects.workspace")}</p>
 
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-            New Project
+            {t("projects.newTitle")}
           </h1>
 
           <p className="mt-2 max-w-2xl text-slate-600">
-            Create a company-scoped project using the existing project workspace model.
+            {t("projects.newDescription")}
           </p>
         </div>
 
@@ -255,29 +257,29 @@ export default function NewProjectPage() {
           href="/projects"
           className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
         >
-          Back to Projects
+          {t("projects.backToProjects")}
         </Link>
       </section>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Project Information</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("projects.sectionProjectInfo")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <Field>
-              <Label htmlFor="projectName">Project Name</Label>
+              <Label htmlFor="projectName">{t("projects.projectName")}</Label>
               <input
                 id="projectName"
                 value={formData.projectName}
                 onChange={(event) => updateField("projectName", event.target.value)}
                 className={inputClassName}
-                placeholder="Kitchen renovation"
+                placeholder={t("projects.projectNameExample")}
                 required
               />
             </Field>
 
             <Field>
-              <Label htmlFor="customerId">Customer</Label>
+              <Label htmlFor="customerId">{t("projects.fieldCustomer")}</Label>
               <select
                 id="customerId"
                 value={formData.customerId}
@@ -286,7 +288,7 @@ export default function NewProjectPage() {
                 required
                 disabled={isLoading || customerOptions.length === 0}
               >
-                <option value="">Select a customer</option>
+                <option value="">{t("projects.customerSelect")}</option>
                 {customerOptions.map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.label}
@@ -295,24 +297,24 @@ export default function NewProjectPage() {
               </select>
               {!isLoading && customerOptions.length === 0 ? (
                 <p className="mt-2 text-sm text-slate-500">
-                  You need at least one customer before creating a project.
+                  {t("projects.customerRequiredInfo")}
                 </p>
               ) : null}
             </Field>
 
             <Field>
-              <Label htmlFor="projectNumber">Project Number</Label>
+              <Label htmlFor="projectNumber">{t("projects.projectNumberLabel")}</Label>
               <input
                 id="projectNumber"
                 value={formData.projectNumber}
                 onChange={(event) => updateField("projectNumber", event.target.value)}
                 className={inputClassName}
-                placeholder="PRJ-1024"
+                placeholder={t("projects.projectNumberExample")}
               />
             </Field>
 
             <Field>
-              <Label htmlFor="projectType">Project Type</Label>
+              <Label htmlFor="projectType">{t("projects.projectType")}</Label>
               <select
                 id="projectType"
                 value={formData.projectType}
@@ -320,17 +322,17 @@ export default function NewProjectPage() {
                 className={inputClassName}
                 required
               >
-                <option value="">Select project type</option>
+                <option value="">{t("projects.projectTypeSelect")}</option>
                 {PROJECT_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {getProjectTypeLabel(option.value, t)}
                   </option>
                 ))}
               </select>
             </Field>
 
             <Field>
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status">{t("projects.status")}</Label>
               <select
                 id="status"
                 value={formData.status}
@@ -340,14 +342,14 @@ export default function NewProjectPage() {
               >
                 {PROJECT_STATUSES.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {getProjectStatusLabel(option.value, t)}
                   </option>
                 ))}
               </select>
             </Field>
 
             <Field>
-              <Label htmlFor="estimatedStartDate">Estimated Start</Label>
+              <Label htmlFor="estimatedStartDate">{t("projects.estimatedStart")}</Label>
               <input
                 id="estimatedStartDate"
                 type="date"
@@ -358,7 +360,7 @@ export default function NewProjectPage() {
             </Field>
 
             <Field>
-              <Label htmlFor="estimatedEndDate">Estimated Completion</Label>
+              <Label htmlFor="estimatedEndDate">{t("projects.estimatedCompletion")}</Label>
               <input
                 id="estimatedEndDate"
                 type="date"
@@ -369,7 +371,7 @@ export default function NewProjectPage() {
             </Field>
 
             <Field>
-              <Label htmlFor="estimatedCost">Estimated Cost</Label>
+              <Label htmlFor="estimatedCost">{t("projects.estimatedCost")}</Label>
               <input
                 id="estimatedCost"
                 type="number"
@@ -378,12 +380,12 @@ export default function NewProjectPage() {
                 value={formData.estimatedCost}
                 onChange={(event) => updateField("estimatedCost", event.target.value)}
                 className={inputClassName}
-                placeholder="125000"
+                placeholder={t("projects.estimatedCostExample")}
               />
             </Field>
 
             <Field>
-              <Label htmlFor="contractAmount">Contract Amount</Label>
+              <Label htmlFor="contractAmount">{t("projects.contractAmount")}</Label>
               <input
                 id="contractAmount"
                 type="number"
@@ -392,79 +394,79 @@ export default function NewProjectPage() {
                 value={formData.contractAmount}
                 onChange={(event) => updateField("contractAmount", event.target.value)}
                 className={inputClassName}
-                placeholder="150000"
+                placeholder={t("projects.contractAmountExample")}
               />
             </Field>
           </div>
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Description and Address</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("projects.sectionDescriptionAddress")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <Field className="md:col-span-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t("projects.description")}</Label>
               <textarea
                 id="description"
                 value={formData.description}
                 onChange={(event) => updateField("description", event.target.value)}
                 className={`${inputClassName} min-h-32`}
-                placeholder="Scope of work, notes, or special instructions"
+                placeholder={t("projects.descriptionExample")}
               />
             </Field>
 
             <Field className="md:col-span-2">
-              <Label htmlFor="addressLine1">Address Line 1</Label>
+              <Label htmlFor="addressLine1">{t("projects.addressLine1")}</Label>
               <input
                 id="addressLine1"
                 value={formData.addressLine1}
                 onChange={(event) => updateField("addressLine1", event.target.value)}
                 className={inputClassName}
-                placeholder="123 Main Street"
+                placeholder={t("projects.addressLine1Example")}
               />
             </Field>
 
             <Field className="md:col-span-2">
-              <Label htmlFor="addressLine2">Address Line 2</Label>
+              <Label htmlFor="addressLine2">{t("projects.addressLine2")}</Label>
               <input
                 id="addressLine2"
                 value={formData.addressLine2}
                 onChange={(event) => updateField("addressLine2", event.target.value)}
                 className={inputClassName}
-                placeholder="Unit 4B"
+                placeholder={t("projects.addressLine2Example")}
               />
             </Field>
 
             <Field>
-              <Label htmlFor="city">City</Label>
+              <Label htmlFor="city">{t("projects.city")}</Label>
               <input
                 id="city"
                 value={formData.city}
                 onChange={(event) => updateField("city", event.target.value)}
                 className={inputClassName}
-                placeholder="Austin"
+                placeholder={t("projects.cityExample")}
               />
             </Field>
 
             <Field>
-              <Label htmlFor="state">State</Label>
+              <Label htmlFor="state">{t("projects.state")}</Label>
               <input
                 id="state"
                 value={formData.state}
                 onChange={(event) => updateField("state", event.target.value)}
                 className={inputClassName}
-                placeholder="TX"
+                placeholder={t("projects.stateExample")}
               />
             </Field>
 
             <Field>
-              <Label htmlFor="postalCode">Postal Code</Label>
+              <Label htmlFor="postalCode">{t("projects.postalCode")}</Label>
               <input
                 id="postalCode"
                 value={formData.postalCode}
                 onChange={(event) => updateField("postalCode", event.target.value)}
                 className={inputClassName}
-                placeholder="78701"
+                placeholder={t("projects.postalCodeExample")}
               />
             </Field>
           </div>
@@ -478,7 +480,7 @@ export default function NewProjectPage() {
             href="/projects"
             className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
           >
-            Cancel
+            {t("projects.cancel")}
           </Link>
 
           <button
@@ -486,7 +488,7 @@ export default function NewProjectPage() {
             disabled={isSaving || isLoading}
             className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSaving ? "Saving Project..." : "Create Project"}
+            {isSaving ? t("projects.savingProject") : t("projects.createProject")}
           </button>
         </div>
       </form>
@@ -525,7 +527,7 @@ function parseCurrencyInput(value: string) {
   return Number.isNaN(numericValue) ? null : numericValue;
 }
 
-function getCustomerDisplayName(customer: CustomerSummaryRow) {
+function getCustomerDisplayName(customer: CustomerSummaryRow, fallbackLabel = "Unnamed Customer") {
   const companyName = customer.company_name?.trim() || "";
   const firstName = customer.first_name?.trim() || "";
   const lastName = customer.last_name?.trim() || "";
@@ -535,5 +537,33 @@ function getCustomerDisplayName(customer: CustomerSummaryRow) {
     return companyName;
   }
 
-  return fallbackName || companyName || "Unnamed Customer";
+  return fallbackName || companyName || fallbackLabel;
+}
+
+function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
+  const statusLabelKey: Record<string, string> = {
+    lead: "projects.statusLead",
+    estimating: "projects.statusEstimating",
+    approved: "projects.statusApproved",
+    scheduled: "projects.statusScheduled",
+    in_progress: "projects.statusInProgress",
+    on_hold: "projects.statusOnHold",
+    completed: "projects.statusCompleted",
+    cancelled: "projects.statusCancelled",
+  };
+
+  return statusLabelKey[statusKey] ? t(statusLabelKey[statusKey]) : statusKey;
+}
+
+function getProjectTypeLabel(projectTypeKey: string, t: (key: string) => string) {
+  const typeLabelKey: Record<string, string> = {
+    residential: "projects.typeResidential",
+    commercial: "projects.typeCommercial",
+    maintenance: "projects.typeMaintenance",
+    renovation: "projects.typeRenovation",
+    new_construction: "projects.typeNewConstruction",
+    other: "projects.typeOther",
+  };
+
+  return typeLabelKey[projectTypeKey] ? t(typeLabelKey[projectTypeKey]) : projectTypeKey;
 }

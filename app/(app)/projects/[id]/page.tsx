@@ -3,70 +3,216 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  SectionHeader,
+  SummaryCard,
+} from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import {
+  formatProjectAddress,
+  formatProjectCurrency,
+  formatProjectDateLong,
+  getProjectDisplayName,
+  normalizeProjectStatus,
+  type ProjectRow,
+} from "@/lib/projects";
+import { getProjectStatusBadgeClass } from "@/lib/projects/statuses";
 import type { Database } from "@/types/database.types";
-import type { ProjectRow } from "@/lib/projects";
-import { ProjectPhasesSidebar } from "./components/project-phases-sidebar";
-import { PhaseTasksPanel } from "./components/phase-tasks-panel";
-import { TaskDetailsPanel } from "./components/task-details-panel";
-import type { PhaseListItem, TaskFormValues, TaskListItem } from "./components/workspace-types";
+import { useI18n } from "@/lib/i18n/provider";
 
-type ProjectSummary = Pick<ProjectRow, "id" | "name" | "project_number" | "company_id">;
-type WorkspaceContext = { companyId: string; userId: string };
-type ProjectPhaseRow = Database["public"]["Tables"]["project_phases"]["Row"];
-type TaskRow = Database["public"]["Tables"]["tasks"]["Row"];
-type ProfileNameRow = Pick<
+type ProjectSummary = Pick<
+  ProjectRow,
+  | "id"
+  | "name"
+  | "project_number"
+  | "status"
+  | "customer_id"
+  | "created_by"
+  | "address_line_1"
+  | "address_line_2"
+  | "city"
+  | "state"
+  | "postal_code"
+  | "estimated_cost"
+  | "contract_amount"
+  | "estimated_start_date"
+  | "estimated_end_date"
+  | "actual_end_date"
+  | "created_at"
+>;
+
+type CustomerSummary = Pick<
+  Database["public"]["Tables"]["customers"]["Row"],
+  "id" | "first_name" | "last_name" | "company_name" | "customer_type"
+>;
+
+type ProfileSummary = Pick<
   Database["public"]["Tables"]["profiles"]["Row"],
   "id" | "first_name" | "last_name"
 >;
 
-const DEFAULT_PHASE_COLOR = "#2563eb";
+type TaskSummary = Pick<
+  Database["public"]["Tables"]["tasks"]["Row"],
+  "id" | "title" | "status" | "completion_percentage" | "planned_start" | "planned_finish" | "assigned_profile_id" | "created_at"
+>;
+
+type ProjectTab = "overview" | "photos" | "schedule" | "files" | "financial" | "activity";
+
+type SiteCamPhoto = {
+  id: string;
+  categoryKey:
+    | "photoCategoryBefore"
+    | "photoCategoryProgress"
+    | "photoCategoryAfter"
+    | "photoCategoryDamage"
+    | "photoCategorySafety"
+    | "photoCategoryMaterials"
+    | "photoCategoryReceipts";
+  captionKey:
+    | "photoCaptionBeforeEntry"
+    | "photoCaptionProgressFraming"
+    | "photoCaptionAfterKitchen"
+    | "photoCaptionSafetyHarness"
+    | "photoCaptionMaterialsTile"
+    | "photoCaptionReceiptElectrical";
+  createdAt: string;
+};
+
+type ProjectFileItem = {
+  id: string;
+  name: string;
+  typeKey:
+    | "fileTypeContracts"
+    | "fileTypePermits"
+    | "fileTypeDrawings"
+    | "fileTypeSpecifications"
+    | "fileTypeChangeOrders"
+    | "fileTypeInvoices";
+  uploadedAt: string;
+};
+
+type ActivityItem = {
+  id: string;
+  eventKey:
+    | "activityProjectCreated"
+    | "activityPhotoUploaded"
+    | "activityEstimateApproved"
+    | "activityCrewAssigned"
+    | "activityFileUploaded";
+  detailsKey:
+    | "activityProjectCreatedDetails"
+    | "activityPhotoUploadedDetails"
+    | "activityEstimateApprovedDetails"
+    | "activityCrewAssignedDetails"
+    | "activityFileUploadedDetails";
+  timestampKey:
+    | "time2DaysAgo"
+    | "time1DayAgo"
+    | "time18HoursAgo"
+    | "time9HoursAgo"
+    | "time3HoursAgo";
+};
+
+const siteCamPhotos: SiteCamPhoto[] = [
+  { id: "ph-1", categoryKey: "photoCategoryBefore", captionKey: "photoCaptionBeforeEntry", createdAt: "2026-07-12" },
+  { id: "ph-2", categoryKey: "photoCategoryProgress", captionKey: "photoCaptionProgressFraming", createdAt: "2026-07-17" },
+  { id: "ph-3", categoryKey: "photoCategoryAfter", captionKey: "photoCaptionAfterKitchen", createdAt: "2026-07-20" },
+  { id: "ph-4", categoryKey: "photoCategorySafety", captionKey: "photoCaptionSafetyHarness", createdAt: "2026-07-21" },
+  { id: "ph-5", categoryKey: "photoCategoryMaterials", captionKey: "photoCaptionMaterialsTile", createdAt: "2026-07-22" },
+  { id: "ph-6", categoryKey: "photoCategoryReceipts", captionKey: "photoCaptionReceiptElectrical", createdAt: "2026-07-23" },
+];
+
+const projectFiles: ProjectFileItem[] = [
+  { id: "f-1", name: "Owner Contract v2.pdf", typeKey: "fileTypeContracts", uploadedAt: "2026-07-09" },
+  { id: "f-2", name: "Permit - Electrical 4102.pdf", typeKey: "fileTypePermits", uploadedAt: "2026-07-11" },
+  { id: "f-3", name: "Sheet A-102 Floorplan.dwg", typeKey: "fileTypeDrawings", uploadedAt: "2026-07-13" },
+  { id: "f-4", name: "Finish Specifications.docx", typeKey: "fileTypeSpecifications", uploadedAt: "2026-07-14" },
+  { id: "f-5", name: "Change Order CO-003.pdf", typeKey: "fileTypeChangeOrders", uploadedAt: "2026-07-19" },
+  { id: "f-6", name: "Invoice INV-1242.pdf", typeKey: "fileTypeInvoices", uploadedAt: "2026-07-24" },
+];
+
+const activityFeed: ActivityItem[] = [
+  {
+    id: "a-1",
+    eventKey: "activityProjectCreated",
+    detailsKey: "activityProjectCreatedDetails",
+    timestampKey: "time2DaysAgo",
+  },
+  {
+    id: "a-2",
+    eventKey: "activityPhotoUploaded",
+    detailsKey: "activityPhotoUploadedDetails",
+    timestampKey: "time1DayAgo",
+  },
+  {
+    id: "a-3",
+    eventKey: "activityEstimateApproved",
+    detailsKey: "activityEstimateApprovedDetails",
+    timestampKey: "time18HoursAgo",
+  },
+  {
+    id: "a-4",
+    eventKey: "activityCrewAssigned",
+    detailsKey: "activityCrewAssignedDetails",
+    timestampKey: "time9HoursAgo",
+  },
+  {
+    id: "a-5",
+    eventKey: "activityFileUploaded",
+    detailsKey: "activityFileUploadedDetails",
+    timestampKey: "time3HoursAgo",
+  },
+];
 
 export default function ProjectDetailsPage() {
+  const { t, locale } = useI18n();
   const params = useParams<{ id?: string | string[] }>();
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const supabase = useMemo(() => createClient(), []);
 
+  const [activeTab, setActiveTab] = useState<ProjectTab>("overview");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
-  const [workspace, setWorkspace] = useState<WorkspaceContext | null>(null);
   const [project, setProject] = useState<ProjectSummary | null>(null);
-  const [phaseRows, setPhaseRows] = useState<ProjectPhaseRow[]>([]);
-  const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
-  const [profileNamesById, setProfileNamesById] = useState<Record<string, string>>({});
-
-  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [phaseNameInput, setPhaseNameInput] = useState("");
-  const [phaseColorInput, setPhaseColorInput] = useState(DEFAULT_PHASE_COLOR);
-  const [taskFormValues, setTaskFormValues] = useState<TaskFormValues>(emptyTaskFormValues());
+  const [customer, setCustomer] = useState<CustomerSummary | null>(null);
+  const [profilesById, setProfilesById] = useState<Record<string, string>>({});
+  const [tasks, setTasks] = useState<TaskSummary[]>([]);
 
   useEffect(() => {
     let isSubscribed = true;
 
-    const loadProjectWorkspace = async () => {
+    const loadProject = async () => {
       setIsLoading(true);
       setErrorMessage(null);
       setNotFound(false);
 
       if (!projectId) {
         if (isSubscribed) {
-          setErrorMessage("We could not read the project ID from this link.");
+          setErrorMessage(t("projects.errorReadProjectId"));
           setIsLoading(false);
         }
 
         return;
       }
 
-      const workspaceResult = await resolveWorkspaceContext(supabase);
+      const workspace = await resolveWorkspaceContext(supabase);
 
-      if (workspaceResult.errorMessage || !workspaceResult.context) {
+      if (workspace.errorMessage || !workspace.context) {
         if (isSubscribed) {
-          setErrorMessage(workspaceResult.errorMessage);
+          setErrorMessage(workspace.errorMessage || t("projects.errorLoadWorkspace"));
           setIsLoading(false);
         }
 
@@ -77,7 +223,7 @@ export default function ProjectDetailsPage() {
 
       if (!client) {
         if (isSubscribed) {
-          setErrorMessage("Unable to connect right now. Please try again shortly.");
+          setErrorMessage(t("projects.errorConnect"));
           setIsLoading(false);
         }
 
@@ -85,22 +231,37 @@ export default function ProjectDetailsPage() {
       }
 
       try {
-        const { data: projectData, error: projectError } = await client
-          .from("projects")
-          .select("id, name, project_number, company_id")
-          .eq("id", projectId)
-          .eq("company_id", workspaceResult.context.companyId)
-          .maybeSingle<ProjectSummary>();
+        const [projectResponse, profilesResponse, tasksResponse] = await Promise.all([
+          client
+            .from("projects")
+            .select(
+              "id, name, project_number, status, customer_id, created_by, address_line_1, address_line_2, city, state, postal_code, estimated_cost, contract_amount, estimated_start_date, estimated_end_date, actual_end_date, created_at",
+            )
+            .eq("id", projectId)
+            .eq("company_id", workspace.context.companyId)
+            .maybeSingle<ProjectSummary>(),
+          client
+            .from("profiles")
+            .select("id, first_name, last_name")
+            .eq("company_id", workspace.context.companyId),
+          client
+            .from("tasks")
+            .select("id, title, status, completion_percentage, planned_start, planned_finish, assigned_profile_id, created_at")
+            .eq("company_id", workspace.context.companyId)
+            .eq("project_id", projectId)
+            .order("planned_start", { ascending: true })
+            .order("created_at", { ascending: true }),
+        ]);
 
-        if (projectError) {
+        if (projectResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load this project right now. Please try again shortly.");
+            setErrorMessage(t("projects.errorLoadProject"));
           }
 
           return;
         }
 
-        if (!projectData) {
+        if (!projectResponse.data) {
           if (isSubscribed) {
             setNotFound(true);
           }
@@ -108,32 +269,9 @@ export default function ProjectDetailsPage() {
           return;
         }
 
-        const [phasesResponse, tasksResponse, profilesResponse] = await Promise.all([
-          client
-            .from("project_phases")
-            .select("id, company_id, project_id, name, color, sort_order, created_at, updated_at")
-            .eq("project_id", projectId)
-            .eq("company_id", workspaceResult.context.companyId)
-            .order("sort_order", { ascending: true })
-            .order("created_at", { ascending: true }),
-          client
-            .from("tasks")
-            .select(
-              "id, company_id, project_id, assigned_profile_id, phase_id, task_number, title, description, priority, status, planned_start, planned_finish, estimated_completion_date, actual_start, actual_finish, estimated_hours, actual_hours, completion_percentage, sort_order, notes, created_by, created_at, updated_at",
-            )
-            .eq("project_id", projectId)
-            .eq("company_id", workspaceResult.context.companyId)
-            .order("sort_order", { ascending: true })
-            .order("task_number", { ascending: true }),
-          client
-            .from("profiles")
-            .select("id, first_name, last_name")
-            .eq("company_id", workspaceResult.context.companyId),
-        ]);
-
-        if (phasesResponse.error) {
+        if (profilesResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load project phases right now. Please try again shortly.");
+            setErrorMessage(t("projects.errorLoadTeamProfiles"));
           }
 
           return;
@@ -141,49 +279,43 @@ export default function ProjectDetailsPage() {
 
         if (tasksResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load project tasks right now. Please try again shortly.");
+            setErrorMessage(t("projects.errorLoadSchedule"));
           }
 
           return;
         }
 
-        if (profilesResponse.error) {
+        const loadedProject = projectResponse.data;
+        const profileMap = buildProfileNameMap((profilesResponse.data ?? []) as ProfileSummary[], t("projects.notAssigned"));
+
+        const customerResponse = loadedProject.customer_id
+          ? await client
+              .from("customers")
+              .select("id, first_name, last_name, company_name, customer_type")
+              .eq("company_id", workspace.context.companyId)
+              .eq("id", loadedProject.customer_id)
+              .maybeSingle<CustomerSummary>()
+          : null;
+
+        if (customerResponse?.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load team members right now. Please try again shortly.");
+            setErrorMessage(t("projects.errorLoadProjectCustomer"));
           }
 
           return;
         }
-
-        const loadedPhaseRows = (phasesResponse.data ?? []) as ProjectPhaseRow[];
-        const loadedTaskRows = (tasksResponse.data ?? []) as TaskRow[];
-        const profileRows = (profilesResponse.data ?? []) as ProfileNameRow[];
-        const profileNameMap = buildProfileNameMap(profileRows);
 
         if (isSubscribed) {
-          setWorkspace(workspaceResult.context);
-          setProject(projectData);
-          setPhaseRows(loadedPhaseRows);
-          setTaskRows(loadedTaskRows);
-          setProfileNamesById(profileNameMap);
-
-          const initialPhaseId = loadedPhaseRows[0]?.id ?? null;
-          const initialPhase = loadedPhaseRows.find((phase) => phase.id === initialPhaseId) || null;
-          const initialTask = loadedTaskRows.find((task) => task.phase_id === initialPhaseId) || null;
-
-          setSelectedPhaseId(initialPhaseId);
-          setPhaseNameInput(initialPhase?.name || "");
-          setPhaseColorInput(initialPhase?.color || DEFAULT_PHASE_COLOR);
-          setSelectedTaskId(initialTask?.id ?? null);
-          setTaskFormValues(initialTask ? toTaskFormValues(initialTask) : emptyTaskFormValues());
+          setProject(loadedProject);
+          setCustomer(customerResponse?.data ?? null);
+          setProfilesById(profileMap);
+          setTasks((tasksResponse.data ?? []) as TaskSummary[]);
         }
       } catch (caughtError) {
-        console.error("Load project workspace error:", caughtError);
+        console.error("Load project details error:", caughtError);
 
         if (isSubscribed) {
-          setErrorMessage(
-            "Something unexpected happened while loading this workspace. Please try again.",
-          );
+          setErrorMessage(t("projects.errorUnexpectedWorkspace"));
         }
       } finally {
         if (isSubscribed) {
@@ -192,965 +324,483 @@ export default function ProjectDetailsPage() {
       }
     };
 
-    void loadProjectWorkspace();
+    void loadProject();
 
     return () => {
       isSubscribed = false;
     };
-  }, [projectId, supabase]);
-
-  const phaseList = useMemo(
-    () => mapPhasesWithProgress(phaseRows, taskRows),
-    [phaseRows, taskRows],
-  );
-
-  const selectedPhase = useMemo(
-    () => phaseList.find((phase) => phase.id === selectedPhaseId) || null,
-    [phaseList, selectedPhaseId],
-  );
-
-  const phaseTasks = useMemo(
-    () => mapTasksForPhase(taskRows, selectedPhaseId, profileNamesById),
-    [taskRows, selectedPhaseId, profileNamesById],
-  );
-
-  const selectedTask = useMemo(
-    () => phaseTasks.find((task) => task.id === selectedTaskId) || null,
-    [phaseTasks, selectedTaskId],
-  );
-
-  const overallProgress = useMemo(() => {
-    if (phaseList.length === 0) {
-      return 0;
-    }
-
-    const totalTasks = phaseList.reduce((sum, phase) => sum + phase.taskCount, 0);
-
-    if (totalTasks > 0) {
-      const weightedProgress = phaseList.reduce(
-        (sum, phase) => sum + phase.progress * phase.taskCount,
-        0,
-      );
-
-      return weightedProgress / totalTasks;
-    }
-
-    return phaseList.reduce((sum, phase) => sum + phase.progress, 0) / phaseList.length;
-  }, [phaseList]);
-
-  const handleSelectPhase = (phaseId: string) => {
-    const phase = phaseRows.find((row) => row.id === phaseId) || null;
-    const firstTask = taskRows
-      .filter((row) => row.phase_id === phaseId)
-      .sort((a, b) => a.sort_order - b.sort_order || a.task_number - b.task_number)[0] || null;
-
-    setSelectedPhaseId(phaseId);
-    setPhaseNameInput(phase?.name || "");
-    setPhaseColorInput(phase?.color || DEFAULT_PHASE_COLOR);
-    setSelectedTaskId(firstTask?.id || null);
-    setTaskFormValues(firstTask ? toTaskFormValues(firstTask) : emptyTaskFormValues());
-    setErrorMessage(null);
-  };
-
-  const handleSelectTask = (taskId: string) => {
-    const task = taskRows.find((row) => row.id === taskId);
-
-    setSelectedTaskId(taskId);
-    setTaskFormValues(task ? toTaskFormValues(task) : emptyTaskFormValues());
-    setErrorMessage(null);
-  };
-
-  const handleTaskFormChange = (field: keyof TaskFormValues, value: string) => {
-    setTaskFormValues((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const savePhaseOrder = async (orderedPhases: ProjectPhaseRow[]) => {
-    if (!workspace || !projectId) {
-      setErrorMessage("Unable to save phase order right now.");
-      return false;
-    }
-
-    const client = supabase;
-
-    if (!client) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return false;
-    }
-
-    try {
-      const updates = orderedPhases.map((phase, index) =>
-        client
-          .from("project_phases")
-          .update({ sort_order: index + 1 })
-          .eq("id", phase.id)
-          .eq("company_id", workspace.companyId)
-          .eq("project_id", projectId),
-      );
-
-      const results = await Promise.all(updates);
-      const failedUpdate = results.find((result) => Boolean(result.error));
-
-      if (failedUpdate?.error) {
-        setErrorMessage("Unable to save the updated phase order. Please try again.");
-        return false;
-      }
-
-      return true;
-    } catch (caughtError) {
-      console.error("Save phase order error:", caughtError);
-      setErrorMessage("Unable to save the updated phase order. Please try again.");
-      return false;
-    }
-  };
-
-  const handleReorderPhases = async (draggedPhaseId: string, targetPhaseId: string) => {
-    if (isSaving || draggedPhaseId === targetPhaseId) {
-      return;
-    }
-
-    const draggedIndex = phaseRows.findIndex((phase) => phase.id === draggedPhaseId);
-    const targetIndex = phaseRows.findIndex((phase) => phase.id === targetPhaseId);
-
-    if (draggedIndex < 0 || targetIndex < 0) {
-      return;
-    }
-
-    const previousPhases = [...phaseRows];
-    const reorderedPhases = [...phaseRows];
-    const [draggedPhase] = reorderedPhases.splice(draggedIndex, 1);
-    reorderedPhases.splice(targetIndex, 0, draggedPhase);
-
-    const normalizedPhases = reorderedPhases.map((phase, index) => ({
-      ...phase,
-      sort_order: index + 1,
-    }));
-
-    setErrorMessage(null);
-    setIsSaving(true);
-    setPhaseRows(normalizedPhases);
-
-    const didSave = await savePhaseOrder(normalizedPhases);
-
-    if (!didSave) {
-      setPhaseRows(previousPhases);
-    }
-
-    setIsSaving(false);
-  };
-
-  const handleAddPhase = async () => {
-    if (!workspace || !projectId || isSaving) {
-      return;
-    }
-
-    const client = supabase;
-
-    if (!client) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsSaving(true);
-
-    try {
-      const nextSortOrder = phaseRows.length + 1;
-      const newPhaseName = getNextPhaseName(phaseRows);
-      const insertPayload: Database["public"]["Tables"]["project_phases"]["Insert"] = {
-        company_id: workspace.companyId,
-        project_id: projectId,
-        name: newPhaseName,
-        color: DEFAULT_PHASE_COLOR,
-        sort_order: nextSortOrder,
-      };
-
-      const { data, error } = await client
-        .from("project_phases")
-        .insert(insertPayload)
-        .select("id, company_id, project_id, name, color, sort_order, created_at, updated_at")
-        .single<ProjectPhaseRow>();
-
-      if (error || !data) {
-        setErrorMessage("Unable to add a new phase right now. Please try again.");
-        return;
-      }
-
-      const nextPhaseRows = [...phaseRows, data];
-      setPhaseRows(nextPhaseRows);
-      setSelectedPhaseId(data.id);
-      setPhaseNameInput(data.name);
-      setPhaseColorInput(data.color || DEFAULT_PHASE_COLOR);
-      setSelectedTaskId(null);
-      setTaskFormValues(emptyTaskFormValues());
-
-      await savePhaseOrder(nextPhaseRows);
-    } catch (caughtError) {
-      console.error("Add phase error:", caughtError);
-      setErrorMessage("Unable to add a new phase right now. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSavePhase = async () => {
-    if (!workspace || !projectId || !selectedPhaseId || isSaving) {
-      return;
-    }
-
-    const trimmedName = phaseNameInput.trim();
-
-    if (!trimmedName) {
-      setErrorMessage("Phase name is required.");
-      return;
-    }
-
-    const normalizedColor = normalizeColorInput(phaseColorInput);
-    const client = supabase;
-
-    if (!client) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsSaving(true);
-
-    try {
-      const { error } = await client
-        .from("project_phases")
-        .update({ name: trimmedName, color: normalizedColor })
-        .eq("id", selectedPhaseId)
-        .eq("company_id", workspace.companyId)
-        .eq("project_id", projectId);
-
-      if (error) {
-        setErrorMessage("Unable to save phase changes right now. Please try again.");
-        return;
-      }
-
-      setPhaseRows((currentRows) =>
-        currentRows.map((phase) =>
-          phase.id === selectedPhaseId ? { ...phase, name: trimmedName, color: normalizedColor } : phase,
-        ),
-      );
-    } catch (caughtError) {
-      console.error("Update phase error:", caughtError);
-      setErrorMessage("Unable to save phase changes right now. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeletePhase = async () => {
-    if (!workspace || !projectId || !selectedPhase || isSaving) {
-      return;
-    }
-
-    const shouldDelete = window.confirm(
-      `Delete phase \"${selectedPhase.name}\"? Tasks in this phase may be removed by database constraints.`,
-    );
-
-    if (!shouldDelete) {
-      return;
-    }
-
-    const client = supabase;
-
-    if (!client) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsSaving(true);
-
-    try {
-      const { error } = await client
-        .from("project_phases")
-        .delete()
-        .eq("id", selectedPhase.id)
-        .eq("company_id", workspace.companyId)
-        .eq("project_id", projectId);
-
-      if (error) {
-        setErrorMessage("Unable to delete this phase right now. Please try again.");
-        return;
-      }
-
-      const nextPhaseRows = phaseRows.filter((phase) => phase.id !== selectedPhase.id);
-      const nextTaskRows = taskRows.filter((task) => task.phase_id !== selectedPhase.id);
-
-      setPhaseRows(nextPhaseRows);
-      setTaskRows(nextTaskRows);
-
-      const nextSelectedPhase = nextPhaseRows[0] || null;
-      const nextSelectedTask = nextTaskRows
-        .filter((task) => task.phase_id === nextSelectedPhase?.id)
-        .sort((a, b) => a.sort_order - b.sort_order || a.task_number - b.task_number)[0] || null;
-
-      setSelectedPhaseId(nextSelectedPhase?.id || null);
-      setPhaseNameInput(nextSelectedPhase?.name || "");
-      setPhaseColorInput(nextSelectedPhase?.color || DEFAULT_PHASE_COLOR);
-      setSelectedTaskId(nextSelectedTask?.id || null);
-      setTaskFormValues(nextSelectedTask ? toTaskFormValues(nextSelectedTask) : emptyTaskFormValues());
-
-      await savePhaseOrder(nextPhaseRows);
-    } catch (caughtError) {
-      console.error("Delete phase error:", caughtError);
-      setErrorMessage("Unable to delete this phase right now. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const saveTaskOrder = async (phaseId: string, orderedTaskIds: string[]) => {
-    if (!workspace || !projectId) {
-      setErrorMessage("Unable to save task order right now.");
-      return false;
-    }
-
-    const client = supabase;
-
-    if (!client) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return false;
-    }
-
-    try {
-      const updates = orderedTaskIds.map((taskId, index) =>
-        client
-          .from("tasks")
-          .update({ sort_order: index + 1 })
-          .eq("id", taskId)
-          .eq("company_id", workspace.companyId)
-          .eq("project_id", projectId)
-          .eq("phase_id", phaseId),
-      );
-
-      const results = await Promise.all(updates);
-      const failedUpdate = results.find((result) => Boolean(result.error));
-
-      if (failedUpdate?.error) {
-        setErrorMessage("Unable to save task order right now. Please try again.");
-        return false;
-      }
-
-      return true;
-    } catch (caughtError) {
-      console.error("Save task order error:", caughtError);
-      setErrorMessage("Unable to save task order right now. Please try again.");
-      return false;
-    }
-  };
-
-  const handleReorderTasks = async (draggedTaskId: string, targetTaskId: string) => {
-    if (!selectedPhaseId || isSaving || draggedTaskId === targetTaskId) {
-      return;
-    }
-
-    const tasksInPhase = taskRows
-      .filter((task) => task.phase_id === selectedPhaseId)
-      .sort((a, b) => a.sort_order - b.sort_order || a.task_number - b.task_number);
-
-    const draggedIndex = tasksInPhase.findIndex((task) => task.id === draggedTaskId);
-    const targetIndex = tasksInPhase.findIndex((task) => task.id === targetTaskId);
-
-    if (draggedIndex < 0 || targetIndex < 0) {
-      return;
-    }
-
-    const reordered = [...tasksInPhase];
-    const [draggedTask] = reordered.splice(draggedIndex, 1);
-    reordered.splice(targetIndex, 0, draggedTask);
-
-    const normalized = reordered.map((task, index) => ({ ...task, sort_order: index + 1 }));
-    const previousTaskRows = [...taskRows];
-
-    setIsSaving(true);
-    setErrorMessage(null);
-    setTaskRows(mergePhaseTasks(taskRows, selectedPhaseId, normalized));
-
-    const didSave = await saveTaskOrder(
-      selectedPhaseId,
-      normalized.map((task) => task.id),
-    );
-
-    if (!didSave) {
-      setTaskRows(previousTaskRows);
-    }
-
-    setIsSaving(false);
-  };
-
-  const handleToggleTaskComplete = async (taskId: string, isCompleted: boolean) => {
-    if (!workspace || !projectId || isSaving) {
-      return;
-    }
-
-    const task = taskRows.find((row) => row.id === taskId);
-
-    if (!task) {
-      return;
-    }
-
-    const client = supabase;
-
-    if (!client) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return;
-    }
-
-    const nextStatus = isCompleted ? "completed" : "not_started";
-    const nextCompletion = isCompleted ? 100 : 0;
-
-    setIsSaving(true);
-    setErrorMessage(null);
-
-    try {
-      const { error } = await client
-        .from("tasks")
-        .update({ status: nextStatus, completion_percentage: nextCompletion })
-        .eq("id", taskId)
-        .eq("company_id", workspace.companyId)
-        .eq("project_id", projectId);
-
-      if (error) {
-        setErrorMessage("Unable to update task status right now. Please try again.");
-        return;
-      }
-
-      setTaskRows((currentRows) =>
-        currentRows.map((row) =>
-          row.id === taskId ? { ...row, status: nextStatus, completion_percentage: nextCompletion } : row,
-        ),
-      );
-    } catch (caughtError) {
-      console.error("Toggle task complete error:", caughtError);
-      setErrorMessage("Unable to update task status right now. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleNewTask = async () => {
-    if (!workspace || !projectId || !selectedPhaseId || isSaving) {
-      return;
-    }
-
-    const client = supabase;
-
-    if (!client) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsSaving(true);
-
-    try {
-      const nextTaskNumber = getNextTaskNumber(taskRows);
-      const maxSortOrderInPhase = taskRows
-        .filter((task) => task.phase_id === selectedPhaseId)
-        .reduce((maxValue, task) => Math.max(maxValue, task.sort_order), 0);
-
-      const { data, error } = await client
-        .from("tasks")
-        .insert({
-          company_id: workspace.companyId,
-          project_id: projectId,
-          phase_id: selectedPhaseId,
-          task_number: nextTaskNumber,
-          title: `New Task ${nextTaskNumber}`,
-          status: "not_started",
-          priority: "medium",
-          completion_percentage: 0,
-          sort_order: maxSortOrderInPhase + 1,
-        })
-        .select(
-          "id, company_id, project_id, assigned_profile_id, phase_id, task_number, title, description, priority, status, planned_start, planned_finish, estimated_completion_date, actual_start, actual_finish, estimated_hours, actual_hours, completion_percentage, sort_order, notes, created_by, created_at, updated_at",
-        )
-        .single<TaskRow>();
-
-      if (error || !data) {
-        setErrorMessage("Unable to create a task right now. Please try again.");
-        return;
-      }
-
-      setTaskRows((currentRows) => [...currentRows, data]);
-      setSelectedTaskId(data.id);
-      setTaskFormValues(toTaskFormValues(data));
-    } catch (caughtError) {
-      console.error("Create task error:", caughtError);
-      setErrorMessage("Unable to create a task right now. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSaveTask = async () => {
-    if (!workspace || !projectId || !selectedTaskId || isSaving) {
-      return;
-    }
-
-    const task = taskRows.find((row) => row.id === selectedTaskId);
-
-    if (!task) {
-      return;
-    }
-
-    const title = taskFormValues.title.trim();
-
-    if (!title) {
-      setErrorMessage("Task name is required.");
-      return;
-    }
-
-    const completionValue = clampPercentage(taskFormValues.completionPercentage);
-
-    if (completionValue === null) {
-      setErrorMessage("Completion percentage must be between 0 and 100.");
-      return;
-    }
-
-    const client = supabase;
-
-    if (!client) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return;
-    }
-
-    const payload: Database["public"]["Tables"]["tasks"]["Update"] = {
-      title,
-      description: normalizeText(taskFormValues.description),
-      status: taskFormValues.status,
-      priority: taskFormValues.priority,
-      estimated_hours: parseNullableNumber(taskFormValues.estimatedHours),
-      actual_hours: parseNullableNumber(taskFormValues.actualHours),
-      planned_start: normalizeDateInput(taskFormValues.plannedStart),
-      planned_finish: normalizeDateInput(taskFormValues.plannedFinish),
-      actual_start: normalizeDateInput(taskFormValues.actualStart),
-      actual_finish: normalizeDateInput(taskFormValues.actualFinish),
-      completion_percentage: completionValue,
-    };
-
-    setIsSaving(true);
-    setErrorMessage(null);
-
-    try {
-      const { data, error } = await client
-        .from("tasks")
-        .update(payload)
-        .eq("id", task.id)
-        .eq("company_id", workspace.companyId)
-        .eq("project_id", projectId)
-        .select(
-          "id, company_id, project_id, assigned_profile_id, phase_id, task_number, title, description, priority, status, planned_start, planned_finish, estimated_completion_date, actual_start, actual_finish, estimated_hours, actual_hours, completion_percentage, sort_order, notes, created_by, created_at, updated_at",
-        )
-        .single<TaskRow>();
-
-      if (error || !data) {
-        setErrorMessage("Unable to save task changes right now. Please try again.");
-        return;
-      }
-
-      setTaskRows((currentRows) => currentRows.map((row) => (row.id === data.id ? data : row)));
-      setTaskFormValues(toTaskFormValues(data));
-    } catch (caughtError) {
-      console.error("Save task error:", caughtError);
-      setErrorMessage("Unable to save task changes right now. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteTask = async () => {
-    if (!workspace || !projectId || !selectedTask || isSaving) {
-      return;
-    }
-
-    const shouldDelete = window.confirm(`Delete task \"${selectedTask.title}\"?`);
-
-    if (!shouldDelete) {
-      return;
-    }
-
-    const client = supabase;
-
-    if (!client) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return;
-    }
-
-    setIsSaving(true);
-    setErrorMessage(null);
-
-    try {
-      const { error } = await client
-        .from("tasks")
-        .delete()
-        .eq("id", selectedTask.id)
-        .eq("company_id", workspace.companyId)
-        .eq("project_id", projectId);
-
-      if (error) {
-        setErrorMessage("Unable to delete this task right now. Please try again.");
-        return;
-      }
-
-      const nextTaskRows = taskRows.filter((row) => row.id !== selectedTask.id);
-      const samePhaseTasks = nextTaskRows
-        .filter((row) => row.phase_id === selectedPhaseId)
-        .sort((a, b) => a.sort_order - b.sort_order || a.task_number - b.task_number)
-        .map((row, index) => ({ ...row, sort_order: index + 1 }));
-
-      setTaskRows(mergePhaseTasks(nextTaskRows, selectedPhaseId, samePhaseTasks));
-      setSelectedTaskId(samePhaseTasks[0]?.id || null);
-      setTaskFormValues(samePhaseTasks[0] ? toTaskFormValues(samePhaseTasks[0]) : emptyTaskFormValues());
-
-      if (selectedPhaseId) {
-        await saveTaskOrder(
-          selectedPhaseId,
-          samePhaseTasks.map((row) => row.id),
-        );
-      }
-    } catch (caughtError) {
-      console.error("Delete task error:", caughtError);
-      setErrorMessage("Unable to delete this task right now. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  }, [projectId, supabase, t]);
 
   if (isLoading) {
-    return <ProjectLoadingState />;
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="space-y-4 p-6">
+            <div className="h-10 w-56 animate-pulse rounded-[var(--radius-lg)] bg-[var(--color-surface-muted)]" />
+            <div className="h-6 w-80 animate-pulse rounded-[var(--radius-lg)] bg-[var(--color-surface-muted)]" />
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  if (errorMessage && !project && !phaseRows.length) {
-    return <ProjectErrorState message={errorMessage} />;
+  if (errorMessage && !project) {
+    return <ErrorState title={t("projects.errorTitle")} description={errorMessage} />;
   }
 
   if (notFound || !project) {
-    return <ProjectNotFoundState />;
+    return (
+      <EmptyState
+        icon="?"
+        title={t("projects.projectNotFoundTitle")}
+        description={t("projects.projectNotFoundDescription")}
+        action={
+          <Link href="/projects">
+            <Button>{t("projects.backToProjects")}</Button>
+          </Link>
+        }
+      />
+    );
   }
+
+  const progress = calculateProjectProgress(tasks);
+  const status = normalizeProjectStatus(project.status);
+  const localeTag = locale === "es" ? "es-ES" : "en-US";
+  const statusLabel = getProjectStatusLabel(status.key, t);
+  const customerName = customer
+    ? getCustomerDisplayName(customer, t("customers.unnamedCustomer"))
+    : t("projects.notLinked");
+  const projectManager = project.created_by ? profilesById[project.created_by] || t("projects.notAssigned") : t("projects.notAssigned");
+  const assignedCrew = getAssignedCrewLabel(tasks, profilesById, t("projects.notAssigned"));
+  const budget = formatProjectCurrency(project.contract_amount, localeTag, t("projects.notProvided"));
+  const currentCosts = formatProjectCurrency(project.estimated_cost, localeTag, t("projects.notProvided"));
+  const estimatedProfit = formatProjectCurrency(
+    calculateProfit(project.contract_amount, project.estimated_cost),
+    localeTag,
+    t("projects.notProvided"),
+  );
+  const zeroAmount = formatProjectCurrency(0, localeTag, t("projects.notProvided"));
+
+  const tabItems: Array<{ value: ProjectTab; label: string }> = [
+    { value: "overview", label: t("projects.tabsOverview") },
+    { value: "photos", label: t("projects.tabsPhotos") },
+    { value: "schedule", label: t("projects.tabsSchedule") },
+    { value: "files", label: t("projects.tabsFiles") },
+    { value: "financial", label: t("projects.tabsFinancial") },
+    { value: "activity", label: t("projects.tabsActivity") },
+  ];
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-slate-500">
-            <Link href="/projects" className="text-blue-600 transition hover:text-blue-800">
-              Back to Projects
-            </Link>
-            <span aria-hidden="true">/</span>
-            <span>Project Workspace</span>
+      <PageHeader
+        title={getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject"))}
+        description={`${t("projects.projectNumber")} ${project.project_number?.trim() || t("projects.notProvided")}`}
+        secondaryActions={
+          <Link href="/projects">
+            <Button variant="outline">{t("projects.backToProjects")}</Button>
+          </Link>
+        }
+      />
+
+      {errorMessage ? <ErrorState compact title={t("projects.errorTitle")} description={errorMessage} /> : null}
+
+      <Card>
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+            {tabItems.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setActiveTab(tab.value)}
+                className={`rounded-[var(--radius-lg)] border px-3 py-2 text-sm font-semibold transition ${
+                  activeTab === tab.value
+                    ? "border-[var(--color-brand-600)] bg-[var(--color-brand-50)] text-[var(--color-brand-700)]"
+                    : "border-[var(--color-border-subtle)] bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"
+                }`}
+                aria-pressed={activeTab === tab.value}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
+        </CardContent>
+      </Card>
 
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-            {project.name.trim() || "Unnamed Project"}
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-600">
-            Project #{project.project_number?.trim() || "Not provided"}
-          </p>
-        </div>
-      </section>
-
-      {errorMessage ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {errorMessage}
-        </div>
+      {activeTab === "overview" ? (
+        <OverviewTab
+          customerName={customerName}
+          address={formatProjectAddress(project as ProjectRow) || t("projects.notProvided")}
+          projectManager={projectManager}
+          assignedCrew={assignedCrew}
+          budget={budget}
+          estimatedProfit={estimatedProfit}
+          startDate={formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided"))}
+          completionDate={formatProjectDateLong(
+            project.actual_end_date || project.estimated_end_date,
+            localeTag,
+            t("projects.notProvided"),
+          )}
+          progress={progress}
+          statusKey={status.key}
+          statusLabel={statusLabel}
+        />
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_minmax(0,1fr)]">
-        <ProjectPhasesSidebar
-          overallProgress={overallProgress}
-          phases={phaseList}
-          selectedPhaseId={selectedPhaseId}
-          phaseNameInput={phaseNameInput}
-          phaseColorInput={phaseColorInput}
-          isSaving={isSaving}
-          onAddPhase={handleAddPhase}
-          onSelectPhase={handleSelectPhase}
-          onPhaseNameChange={setPhaseNameInput}
-          onPhaseColorChange={setPhaseColorInput}
-          onSavePhase={handleSavePhase}
-          onDeletePhase={handleDeletePhase}
-          onReorderPhases={handleReorderPhases}
-        />
-
-        <PhaseTasksPanel
-          phaseName={selectedPhase?.name || null}
-          tasks={phaseTasks}
-          selectedTaskId={selectedTaskId}
-          isSaving={isSaving}
-          onSelectTask={handleSelectTask}
-          onToggleTaskComplete={handleToggleTaskComplete}
-          onNewTask={handleNewTask}
-          onReorderTasks={handleReorderTasks}
-        />
-
-        <TaskDetailsPanel
-          phaseName={selectedPhase?.name || null}
-          task={selectedTask}
-          formValues={taskFormValues}
-          isSaving={isSaving}
-          onChange={handleTaskFormChange}
-          onSave={handleSaveTask}
-          onDelete={handleDeleteTask}
-          onNewTask={handleNewTask}
-        />
-      </div>
+      {activeTab === "photos" ? <PhotosTab photos={siteCamPhotos} localeTag={localeTag} /> : null}
+      {activeTab === "schedule" ? <ScheduleTab tasks={tasks} profilesById={profilesById} localeTag={localeTag} /> : null}
+      {activeTab === "files" ? <FilesTab files={projectFiles} localeTag={localeTag} /> : null}
+      {activeTab === "financial" ? <FinancialTab budget={budget} currentCosts={currentCosts} estimatedProfit={estimatedProfit} zeroAmount={zeroAmount} /> : null}
+      {activeTab === "activity" ? <ActivityTab items={activityFeed} /> : null}
     </div>
   );
 }
 
-function buildProfileNameMap(rows: ProfileNameRow[]) {
-  const entries = rows.map((row) => {
-    const fullName = `${row.first_name?.trim() || ""} ${row.last_name?.trim() || ""}`.trim();
-    return [row.id, fullName || "Unassigned"] as const;
-  });
+function OverviewTab({
+  customerName,
+  address,
+  projectManager,
+  assignedCrew,
+  budget,
+  estimatedProfit,
+  startDate,
+  completionDate,
+  progress,
+  statusKey,
+  statusLabel,
+}: {
+  customerName: string;
+  address: string;
+  projectManager: string;
+  assignedCrew: string;
+  budget: string;
+  estimatedProfit: string;
+  startDate: string;
+  completionDate: string;
+  progress: number;
+  statusKey: string;
+  statusLabel: string;
+}) {
+  const { t } = useI18n();
 
-  return Object.fromEntries(entries);
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <SectionHeader title={t("projects.overviewTitle")} description={t("projects.overviewDescription")} />
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <OverviewField label={t("projects.fieldCustomer")} value={customerName} />
+            <OverviewField label={t("projects.fieldAddress")} value={address} />
+            <OverviewField label={t("projects.fieldProjectManager")} value={projectManager} />
+            <OverviewField label={t("projects.fieldAssignedCrew")} value={assignedCrew} />
+            <OverviewField label={t("projects.fieldBudget")} value={budget} />
+            <OverviewField label={t("projects.fieldEstimatedProfit")} value={estimatedProfit} />
+            <OverviewField label={t("projects.fieldStartDate")} value={startDate} />
+            <OverviewField label={t("projects.fieldCompletionDate")} value={completionDate} />
+            <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+                {t("projects.fieldCurrentStatus")}
+              </p>
+              <div className="mt-2">
+                <Badge className={getProjectStatusBadgeClass(statusKey)}>{statusLabel}</Badge>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-sm font-semibold text-[var(--color-text-secondary)]">{t("projects.fieldProgress")}</p>
+          <p className="mt-2 text-3xl font-bold text-[var(--color-text-primary)]">{progress}%</p>
+          <div className="mt-3 h-3 rounded-full bg-[var(--color-surface-muted)]">
+            <div className="h-3 rounded-full bg-[var(--color-brand-600)] transition-all" style={{ width: `${progress}%` }} />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
-function mapPhasesWithProgress(phases: ProjectPhaseRow[], tasks: TaskRow[]): PhaseListItem[] {
-  return phases
-    .slice()
-    .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at))
-    .map((phase) => {
-      const relatedTasks = tasks.filter((task) => task.phase_id === phase.id);
-      const taskCount = relatedTasks.length;
+function PhotosTab({ photos, localeTag }: { photos: SiteCamPhoto[]; localeTag: string }) {
+  const { t } = useI18n();
 
-      if (taskCount === 0) {
-        return {
-          id: phase.id,
-          name: phase.name,
-          color: phase.color,
-          progress: 0,
-          taskCount: 0,
-          completedTaskCount: 0,
-        };
-      }
+  return (
+    <Card>
+      <CardHeader>
+        <SectionHeader
+          title={t("projects.photosTitle")}
+          description={t("projects.photosDescription")}
+          action={
+            <div className="flex gap-2">
+              <Button variant="outline">{t("projects.capturePhoto")}</Button>
+              <Button>{t("projects.uploadPhoto")}</Button>
+            </div>
+          }
+        />
+      </CardHeader>
+      <CardContent className="space-y-4 p-6">
+        <div className="flex flex-wrap gap-2">
+          {[
+            "photoCategoryBefore",
+            "photoCategoryProgress",
+            "photoCategoryAfter",
+            "photoCategoryDamage",
+            "photoCategorySafety",
+            "photoCategoryMaterials",
+            "photoCategoryReceipts",
+          ].map((categoryKey) => (
+            <Badge key={categoryKey} tone="info">
+              {t(`projects.${categoryKey}`)}
+            </Badge>
+          ))}
+        </div>
 
-      const completionSum = relatedTasks.reduce((sum, task) => {
-        if (task.status.trim().toLowerCase() === "completed") {
-          return sum + 100;
-        }
-
-        return sum + Math.max(0, Math.min(100, task.completion_percentage));
-      }, 0);
-
-      const completedTaskCount = relatedTasks.filter(
-        (task) => task.status.trim().toLowerCase() === "completed" || task.completion_percentage >= 100,
-      ).length;
-
-      return {
-        id: phase.id,
-        name: phase.name,
-        color: phase.color,
-        progress: completionSum / taskCount,
-        taskCount,
-        completedTaskCount,
-      };
-    });
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {photos.map((photo) => (
+            <article key={photo.id} className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white">
+              <div className="flex h-36 items-center justify-center bg-[linear-gradient(135deg,var(--color-brand-50),var(--color-info-50))]">
+                <span className="text-sm font-semibold text-[var(--color-text-secondary)]">{t("projects.placeholderImage")}</span>
+              </div>
+              <div className="space-y-2 p-4">
+                <Badge tone="neutral">{t(`projects.${photo.categoryKey}`)}</Badge>
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t(`projects.${photo.captionKey}`)}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{formatProjectDateLong(photo.createdAt, localeTag, t("projects.notProvided"))}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
-function mapTasksForPhase(
-  tasks: TaskRow[],
-  phaseId: string | null,
-  profileNamesById: Record<string, string>,
-): TaskListItem[] {
-  if (!phaseId) {
-    return [];
+function ScheduleTab({
+  tasks,
+  profilesById,
+  localeTag,
+}: {
+  tasks: TaskSummary[];
+  profilesById: Record<string, string>;
+  localeTag: string;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("projects.tabsSchedule")}</CardTitle>
+        <CardDescription>{t("projects.overviewDescription")}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-6">
+        {tasks.length > 0 ? (
+          <div className="space-y-3">
+            {tasks.slice(0, 12).map((task) => (
+              <div key={task.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-[var(--color-text-primary)]">{task.title}</p>
+                    <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                      {task.planned_start
+                        ? formatProjectDateLong(task.planned_start, localeTag, t("projects.notProvided"))
+                        : t("projects.notProvided")}
+                      {" - "}
+                      {task.planned_finish
+                        ? formatProjectDateLong(task.planned_finish, localeTag, t("projects.notProvided"))
+                        : t("projects.notProvided")}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <Badge className={getProjectStatusBadgeClass(normalizeProjectStatus(task.status).key)}>
+                      {getProjectStatusLabel(normalizeProjectStatus(task.status).key, t)}
+                    </Badge>
+                    <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                      {task.assigned_profile_id ? profilesById[task.assigned_profile_id] || t("projects.notAssigned") : t("projects.notAssigned")}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 h-2 rounded-full bg-[var(--color-surface-muted)]">
+                  <div
+                    className="h-2 rounded-full bg-[var(--color-brand-600)]"
+                    style={{ width: `${Math.max(0, Math.min(100, task.completion_percentage))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState compact icon="S" title={t("projects.tabsSchedule")} description={t("projects.scheduleEmptyDescription")} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FilesTab({ files, localeTag }: { files: ProjectFileItem[]; localeTag: string }) {
+  const { t } = useI18n();
+
+  return (
+    <Card>
+      <CardHeader>
+        <SectionHeader
+          title={t("projects.filesTitle")}
+          description={t("projects.filesDescription")}
+          action={<Button>{t("projects.uploadFile")}</Button>}
+        />
+      </CardHeader>
+      <CardContent className="space-y-3 p-6">
+        {files.map((file) => (
+          <div key={file.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] p-4">
+            <div>
+              <p className="font-semibold text-[var(--color-text-primary)]">{file.name}</p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">{formatProjectDateLong(file.uploadedAt, localeTag, t("projects.notProvided"))}</p>
+            </div>
+            <Badge tone="brand">{t(`projects.${file.typeKey}`)}</Badge>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FinancialTab({
+  budget,
+  currentCosts,
+  estimatedProfit,
+  zeroAmount,
+}: {
+  budget: string;
+  currentCosts: string;
+  estimatedProfit: string;
+  zeroAmount: string;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader title={t("projects.financialTitle")} description={t("projects.financialDescription")} />
+
+      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
+        <SummaryCard icon="$" label={t("projects.financeEstimateTotal")} value={budget} />
+        <SummaryCard icon="+" label={t("projects.financeApprovedChangeOrders")} value={zeroAmount} />
+        <SummaryCard icon="P" label={t("projects.financeCustomerPayments")} value={zeroAmount} />
+        <SummaryCard icon="C" label={t("projects.financeCurrentCosts")} value={currentCosts} />
+        <SummaryCard icon="%" label={t("projects.financeEstimatedProfit")} value={estimatedProfit} />
+      </section>
+    </div>
+  );
+}
+
+function ActivityTab({ items }: { items: ActivityItem[] }) {
+  const { t } = useI18n();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("projects.activityTitle")}</CardTitle>
+        <CardDescription>{t("projects.activityDescription")}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-6">
+        <ol className="relative ml-2 border-l border-[var(--color-border-subtle)] pl-6">
+          {items.map((item) => (
+            <li key={item.id} className="mb-6 last:mb-0">
+              <span className="absolute -left-[7px] mt-1.5 h-3.5 w-3.5 rounded-full bg-[var(--color-brand-600)]" />
+              <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t(`projects.${item.eventKey}`)}</p>
+              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t(`projects.${item.detailsKey}`)}</p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">{t(`projects.${item.timestampKey}`)}</p>
+            </li>
+          ))}
+        </ol>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OverviewField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{label}</p>
+      <p className="mt-2 whitespace-pre-line text-sm font-semibold text-[var(--color-text-primary)]">{value}</p>
+    </div>
+  );
+}
+
+function buildProfileNameMap(rows: ProfileSummary[], fallbackLabel: string) {
+  return Object.fromEntries(
+    rows.map((row) => {
+      const fullName = `${row.first_name?.trim() || ""} ${row.last_name?.trim() || ""}`.trim();
+      return [row.id, fullName || fallbackLabel] as const;
+    }),
+  );
+}
+
+function calculateProjectProgress(tasks: TaskSummary[]) {
+  if (tasks.length === 0) {
+    return 0;
   }
 
-  return tasks
-    .filter((task) => task.phase_id === phaseId)
-    .sort((a, b) => a.sort_order - b.sort_order || a.task_number - b.task_number)
-    .map((task) => ({
-      id: task.id,
-      title: task.title,
-      status: task.status,
-      priority: task.priority,
-      plannedFinish: task.planned_finish,
-      completionPercentage: task.completion_percentage,
-      assignedProfileId: task.assigned_profile_id,
-      assignedProfileLabel: task.assigned_profile_id
-        ? profileNamesById[task.assigned_profile_id] || "Assigned user"
-        : "Unassigned",
-      sortOrder: task.sort_order,
-      taskNumber: task.task_number,
-    }));
-}
-
-function mergePhaseTasks(taskRows: TaskRow[], phaseId: string | null, phaseTasks: TaskRow[]) {
-  if (!phaseId) {
-    return taskRows;
-  }
-
-  const otherTasks = taskRows.filter((task) => task.phase_id !== phaseId);
-
-  return [...otherTasks, ...phaseTasks].sort((a, b) => {
-    if (a.phase_id === b.phase_id) {
-      return a.sort_order - b.sort_order || a.task_number - b.task_number;
+  const completion = tasks.reduce((sum, task) => {
+    if (task.status.trim().toLowerCase() === "completed") {
+      return sum + 100;
     }
 
-    return a.created_at.localeCompare(b.created_at);
-  });
+    return sum + Math.max(0, Math.min(100, task.completion_percentage));
+  }, 0);
+
+  return Math.round(completion / tasks.length);
 }
 
-function toTaskFormValues(task: TaskRow): TaskFormValues {
-  return {
-    title: task.title,
-    description: task.description || "",
-    status: task.status,
-    priority: task.priority,
-    estimatedHours: task.estimated_hours?.toString() || "",
-    actualHours: task.actual_hours?.toString() || "",
-    plannedStart: task.planned_start || "",
-    plannedFinish: task.planned_finish || "",
-    actualStart: task.actual_start || "",
-    actualFinish: task.actual_finish || "",
-    completionPercentage: String(task.completion_percentage),
+function calculateProfit(contractAmount: number | null, estimatedCost: number | null) {
+  if (typeof contractAmount !== "number") {
+    return null;
+  }
+
+  const costs = typeof estimatedCost === "number" ? estimatedCost : 0;
+  return contractAmount - costs;
+}
+
+function getAssignedCrewLabel(tasks: TaskSummary[], profilesById: Record<string, string>, fallback: string) {
+  const assignedIds = Array.from(
+    new Set(tasks.map((task) => task.assigned_profile_id).filter((profileId): profileId is string => Boolean(profileId))),
+  );
+
+  if (assignedIds.length === 0) {
+    return fallback;
+  }
+
+  const names = assignedIds.map((id) => profilesById[id] || fallback).slice(0, 3);
+  const remainder = assignedIds.length - names.length;
+
+  if (remainder > 0) {
+    return `${names.join(", ")} +${remainder}`;
+  }
+
+  return names.join(", ");
+}
+
+function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
+  const statusLabelKey: Record<string, string> = {
+    lead: "projects.statusLead",
+    estimating: "projects.statusEstimating",
+    approved: "projects.statusApproved",
+    scheduled: "projects.statusScheduled",
+    in_progress: "projects.statusInProgress",
+    on_hold: "projects.statusOnHold",
+    completed: "projects.statusCompleted",
+    cancelled: "projects.statusCancelled",
   };
+
+  return statusLabelKey[statusKey] ? t(statusLabelKey[statusKey]) : normalizeProjectStatus(statusKey).label;
 }
 
-function emptyTaskFormValues(): TaskFormValues {
-  return {
-    title: "",
-    description: "",
-    status: "not_started",
-    priority: "medium",
-    estimatedHours: "",
-    actualHours: "",
-    plannedStart: "",
-    plannedFinish: "",
-    actualStart: "",
-    actualFinish: "",
-    completionPercentage: "0",
-  };
-}
+function getCustomerDisplayName(customer: CustomerSummary, fallbackLabel = "Unnamed Customer") {
+  const companyName = customer.company_name?.trim() || "";
+  const firstName = customer.first_name?.trim() || "";
+  const lastName = customer.last_name?.trim() || "";
+  const fallbackName = [firstName, lastName].filter(Boolean).join(" ");
 
-function normalizeColorInput(color: string) {
-  const trimmedColor = color.trim();
-
-  if (!trimmedColor) {
-    return null;
+  if (customer.customer_type?.trim().toLowerCase() === "commercial" && companyName) {
+    return companyName;
   }
 
-  return /^#[0-9a-fA-F]{6}$/.test(trimmedColor) ? trimmedColor : DEFAULT_PHASE_COLOR;
-}
-
-function getNextPhaseName(phases: ProjectPhaseRow[]) {
-  const phaseNameSet = new Set(phases.map((phase) => phase.name.trim().toLowerCase()));
-
-  let sequence = phases.length + 1;
-  let nextName = `New Phase ${sequence}`;
-
-  while (phaseNameSet.has(nextName.toLowerCase())) {
-    sequence += 1;
-    nextName = `New Phase ${sequence}`;
-  }
-
-  return nextName;
-}
-
-function getNextTaskNumber(tasks: TaskRow[]) {
-  const maxTaskNumber = tasks.reduce((maxValue, task) => Math.max(maxValue, task.task_number), 0);
-  return maxTaskNumber + 1;
-}
-
-function normalizeText(value: string) {
-  const trimmedValue = value.trim();
-  return trimmedValue ? trimmedValue : null;
-}
-
-function normalizeDateInput(value: string) {
-  const trimmedValue = value.trim();
-  return trimmedValue ? trimmedValue : null;
-}
-
-function parseNullableNumber(value: string) {
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) {
-    return null;
-  }
-
-  const parsed = Number(trimmedValue);
-
-  if (Number.isNaN(parsed) || parsed < 0) {
-    return null;
-  }
-
-  return parsed;
-}
-
-function clampPercentage(value: string) {
-  const parsed = Number(value.trim());
-
-  if (Number.isNaN(parsed) || parsed < 0 || parsed > 100) {
-    return null;
-  }
-
-  return Math.round(parsed);
-}
-
-function ProjectLoadingState() {
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl font-bold text-blue-600">
-          P
-        </div>
-        <h1 className="mt-5 text-2xl font-semibold text-slate-950">Loading project workspace...</h1>
-        <p className="mt-2 leading-7 text-slate-500">Please wait while we load phases and tasks.</p>
-      </div>
-    </div>
-  );
-}
-
-function ProjectErrorState({ message }: { message: string }) {
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="max-w-lg rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-2xl font-bold text-rose-600">
-          !
-        </div>
-        <h1 className="mt-5 text-2xl font-semibold text-slate-950">We could not load this project</h1>
-        <p className="mt-2 leading-7 text-slate-500">{message}</p>
-        <Link
-          href="/projects"
-          className="mt-6 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          Back to Projects
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function ProjectNotFoundState() {
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-bold text-slate-600">
-          ?
-        </div>
-        <h1 className="mt-5 text-2xl font-semibold text-slate-950">Project not found</h1>
-        <p className="mt-2 leading-7 text-slate-500">
-          This project may have been removed or may belong to a different company.
-        </p>
-        <Link
-          href="/projects"
-          className="mt-6 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          Back to Projects
-        </Link>
-      </div>
-    </div>
-  );
+  return fallbackName || companyName || fallbackLabel;
 }

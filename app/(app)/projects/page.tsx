@@ -2,52 +2,68 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  SearchInput,
+  SectionHeader,
+  Select,
+  SkeletonLoader,
+  SummaryCard,
+  TableContainer,
+} from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 import {
-  formatProjectCurrency,
   formatProjectDate,
   getProjectDisplayName,
   normalizeProjectStatus,
-  normalizeProjectType,
   type ProjectRow,
 } from "@/lib/projects";
-import {
-  PROJECT_STATUSES,
-  getProjectStatusBadgeClass,
-} from "@/lib/projects/statuses";
+import { getProjectStatusBadgeClass, PROJECT_STATUSES } from "@/lib/projects/statuses";
+import { useI18n } from "@/lib/i18n/provider";
 
 type CustomerSummaryRow = Pick<
   Database["public"]["Tables"]["customers"]["Row"],
   "id" | "first_name" | "last_name" | "company_name" | "customer_type"
 >;
 
+type TaskProgressRow = Pick<
+  Database["public"]["Tables"]["tasks"]["Row"],
+  "project_id" | "status" | "completion_percentage"
+>;
+
+type SortKey = "name" | "customer" | "start_date" | "progress" | "status";
+
 type ProjectListItem = {
   id: string;
-  projectNumber: string;
   name: string;
   customerName: string;
   customerId: string | null;
+  startDate: string;
+  startDateRaw: string | null;
+  progress: number;
   statusKey: string;
-  statusLabel: string;
-  typeKey: string;
-  typeLabel: string;
-  estimatedCost: string;
-  estimatedStart: string;
-  estimatedEnd: string;
   searchText: string;
 };
 
 export default function ProjectsPage() {
+  const { t, locale } = useI18n();
   const supabase = useMemo(() => createClient(), []);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [customerFilter, setCustomerFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [customerFilter, setCustomerFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<SortKey>("name");
   const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string }>>([]);
 
   useEffect(() => {
@@ -61,7 +77,7 @@ export default function ProjectsPage() {
 
       if (workspace.errorMessage || !workspace.context) {
         if (isSubscribed) {
-          setErrorMessage(workspace.errorMessage);
+          setErrorMessage(workspace.errorMessage || t("projects.errorLoadWorkspace"));
           setIsLoading(false);
         }
 
@@ -72,7 +88,7 @@ export default function ProjectsPage() {
 
       if (!client) {
         if (isSubscribed) {
-          setErrorMessage("Unable to connect right now. Please try again shortly.");
+          setErrorMessage(t("projects.errorConnect"));
           setIsLoading(false);
         }
 
@@ -80,12 +96,10 @@ export default function ProjectsPage() {
       }
 
       try {
-        const [projectsResponse, customersResponse] = await Promise.all([
+        const [projectsResponse, customersResponse, tasksResponse] = await Promise.all([
           client
             .from("projects")
-            .select(
-              "id, company_id, customer_id, name, project_number, project_type, status, estimated_cost, estimated_start_date, estimated_end_date, created_at",
-            )
+            .select("id, customer_id, name, status, estimated_start_date")
             .eq("company_id", workspace.context.companyId)
             .order("created_at", { ascending: false }),
           client
@@ -93,11 +107,15 @@ export default function ProjectsPage() {
             .select("id, first_name, last_name, company_name, customer_type")
             .eq("company_id", workspace.context.companyId)
             .order("created_at", { ascending: false }),
+          client
+            .from("tasks")
+            .select("project_id, status, completion_percentage")
+            .eq("company_id", workspace.context.companyId),
         ]);
 
         if (projectsResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load projects right now. Please try again shortly.");
+            setErrorMessage(t("projects.errorLoadProjects"));
           }
 
           return;
@@ -105,68 +123,70 @@ export default function ProjectsPage() {
 
         if (customersResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load project customers right now. Please try again shortly.");
+            setErrorMessage(t("projects.errorLoadCustomers"));
           }
 
           return;
         }
 
-        const customers = (customersResponse.data ?? []) as CustomerSummaryRow[];
+        if (tasksResponse.error) {
+          if (isSubscribed) {
+            setErrorMessage(t("projects.errorLoadProjectProgress"));
+          }
+
+          return;
+        }
+
+        const customerRows = (customersResponse.data ?? []) as CustomerSummaryRow[];
+        const taskRows = (tasksResponse.data ?? []) as TaskProgressRow[];
         const customerNameMap = new Map(
-          customers.map((customer) => [customer.id, getCustomerDisplayName(customer)]),
+          customerRows.map((row) => [row.id, getCustomerDisplayName(row, t("customers.unnamedCustomer"))]),
         );
+        const progressByProjectId = buildProjectProgressMap(taskRows);
+        const localeTag = locale === "es" ? "es-ES" : "en-US";
 
         const mappedProjects = (projectsResponse.data ?? []).map((row) => {
-          const project = row as ProjectRow;
-          const status = normalizeProjectStatus(project.status);
-          const projectType = normalizeProjectType(project.project_type);
+          const project = row as Pick<ProjectRow, "id" | "customer_id" | "name" | "status" | "estimated_start_date">;
+          const normalizedStatus = normalizeProjectStatus(project.status);
           const customerName = project.customer_id
-            ? customerNameMap.get(project.customer_id) || "Not linked"
-            : "Not linked";
-          const projectNumber = project.project_number?.trim() || "Not provided";
-          const searchText = [
-            project.name,
-            project.project_number || "",
-            customerName,
-            status.label,
-            projectType.label,
-          ]
-            .join(" ")
-            .toLowerCase();
+            ? customerNameMap.get(project.customer_id) || t("projects.notLinked")
+            : t("projects.notLinked");
+          const statusLabel = getProjectStatusLabel(normalizedStatus.key, t);
 
           return {
             id: project.id,
-            projectNumber,
-            name: getProjectDisplayName(project),
+            name: getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject")),
             customerName,
             customerId: project.customer_id,
-            statusKey: status.key,
-            statusLabel: status.label,
-            typeKey: projectType.key,
-            typeLabel: projectType.label,
-            estimatedCost: formatProjectCurrency(project.estimated_cost),
-            estimatedStart: formatProjectDate(project.estimated_start_date),
-            estimatedEnd: formatProjectDate(project.estimated_end_date),
-            searchText,
+            startDate: formatProjectDate(project.estimated_start_date, localeTag, t("projects.notProvided")),
+            startDateRaw: project.estimated_start_date,
+            progress: progressByProjectId[project.id] ?? 0,
+            statusKey: normalizedStatus.key,
+            searchText: [
+              project.name,
+              customerName,
+              statusLabel,
+              formatProjectDate(project.estimated_start_date, localeTag, t("projects.notProvided")),
+            ]
+              .join(" ")
+              .toLowerCase(),
           };
         });
 
-        const customerOptionsData = customers.map((customer) => ({
-          id: customer.id,
-          label: getCustomerDisplayName(customer),
-        }));
-
         if (isSubscribed) {
           setProjects(mappedProjects);
-          setCustomerOptions(customerOptionsData);
+          setCustomerOptions(
+            customerRows.map((row) => ({
+              id: row.id,
+              label: getCustomerDisplayName(row, t("customers.unnamedCustomer")),
+            })),
+          );
         }
       } catch (caughtError) {
         console.error("Load projects error:", caughtError);
 
         if (isSubscribed) {
-          setErrorMessage(
-            "Something unexpected happened while loading projects. Please try again.",
-          );
+          setErrorMessage(t("projects.errorUnexpectedLoad"));
         }
       } finally {
         if (isSubscribed) {
@@ -180,297 +200,347 @@ export default function ProjectsPage() {
     return () => {
       isSubscribed = false;
     };
-  }, [supabase]);
+  }, [locale, supabase, t]);
+
+  const filteredAndSortedProjects = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return projects
+      .filter((project) => {
+        const matchesSearch = !normalizedSearch || project.searchText.includes(normalizedSearch);
+        const matchesStatus = statusFilter === "all" || project.statusKey === statusFilter;
+        const matchesCustomer = customerFilter === "all" || project.customerId === customerFilter;
+
+        return matchesSearch && matchesStatus && matchesCustomer;
+      })
+      .sort((a, b) => {
+        if (sortBy === "name") {
+          return a.name.localeCompare(b.name);
+        }
+
+        if (sortBy === "customer") {
+          return a.customerName.localeCompare(b.customerName);
+        }
+
+        if (sortBy === "start_date") {
+          return compareDateNullable(a.startDateRaw, b.startDateRaw);
+        }
+
+        if (sortBy === "progress") {
+          return b.progress - a.progress;
+        }
+
+        return getProjectStatusLabel(a.statusKey, t).localeCompare(getProjectStatusLabel(b.statusKey, t));
+      });
+  }, [projects, searchTerm, statusFilter, customerFilter, sortBy, t]);
 
   const summary = useMemo(() => {
-    const totalProjects = projects.length;
-    const inProgressProjects = projects.filter((project) => project.statusKey === "in_progress").length;
-    const leadProjects = projects.filter((project) => project.statusKey === "lead").length;
-    const completedProjects = projects.filter((project) => project.statusKey === "completed").length;
+    const total = projects.length;
+    const inProgress = projects.filter((project) => project.statusKey === "in_progress").length;
+    const completed = projects.filter((project) => project.statusKey === "completed").length;
+    const averageProgress =
+      total === 0 ? 0 : Math.round(projects.reduce((sum, project) => sum + project.progress, 0) / total);
 
-    return {
-      totalProjects,
-      inProgressProjects,
-      leadProjects,
-      completedProjects,
-    };
+    return { total, inProgress, completed, averageProgress };
   }, [projects]);
 
-  const filteredProjects = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    const normalizedStatusFilter = statusFilter.toLowerCase();
-
-    return projects.filter((project) => {
-      const matchesSearch = !normalizedSearch || project.searchText.includes(normalizedSearch);
-      const matchesStatus =
-        statusFilter === "All" || project.statusKey === normalizedStatusFilter;
-      const matchesCustomer =
-        customerFilter === "All" || project.customerId === customerFilter;
-
-      return matchesSearch && matchesStatus && matchesCustomer;
-    });
-  }, [projects, searchTerm, statusFilter, customerFilter]);
+  const sortOptions: Array<{ value: SortKey; label: string }> = [
+    { value: "name", label: t("projects.sortName") },
+    { value: "customer", label: t("projects.sortCustomer") },
+    { value: "start_date", label: t("projects.sortStartDate") },
+    { value: "progress", label: t("projects.sortProgress") },
+    { value: "status", label: t("projects.sortStatus") },
+  ];
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">Project Management</p>
-
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-            Projects
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-slate-600">
-            Track active work, leads, and completed projects across your company.
-          </p>
-        </div>
-
-        <Link
-          href="/projects/new"
-          className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          <span className="mr-2 text-lg leading-none">+</span>
-          New Project
-        </Link>
-      </section>
+      <PageHeader
+        title={t("projects.pageTitle")}
+        description={t("projects.pageDescription")}
+        primaryAction={
+          <Link href="/projects/new">
+            <Button size="lg">+ {t("projects.newProject")}</Button>
+          </Link>
+        }
+      />
 
       <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard title="Total Projects" value={String(summary.totalProjects)} />
-        <SummaryCard title="In Progress" value={String(summary.inProgressProjects)} />
-        <SummaryCard title="Lead" value={String(summary.leadProjects)} />
-        <SummaryCard title="Completed" value={String(summary.completedProjects)} />
+        <SummaryCard icon="P" label={t("projects.summaryTotal")} value={String(summary.total)} />
+        <SummaryCard icon="I" label={t("projects.summaryInProgress")} value={String(summary.inProgress)} />
+        <SummaryCard icon="C" label={t("projects.summaryCompleted")} value={String(summary.completed)} />
+        <SummaryCard icon="%" label={t("projects.summaryAvgProgress")} value={`${summary.averageProgress}%`} />
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-950">Project Directory</h2>
+      <TableContainer
+        title={t("projects.directoryTitle")}
+        description={t("projects.directoryDescription")}
+        controls={
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <SearchInput
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={t("projects.searchPlaceholder")}
+              aria-label={t("projects.searchPlaceholder")}
+            />
 
-              <p className="mt-1 text-sm text-slate-500">
-                Search, filter, and open any project workspace.
-              </p>
-            </div>
+            <Select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              aria-label={t("projects.filterStatusLabel")}
+            >
+              <option value="all">{t("projects.filterAllStatuses")}</option>
+              {PROJECT_STATUSES.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {getProjectStatusLabel(status.value, t)}
+                </option>
+              ))}
+            </Select>
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <label className="relative block md:col-span-1">
-                <span className="sr-only">Search projects</span>
+            <Select
+              value={customerFilter}
+              onChange={(event) => setCustomerFilter(event.target.value)}
+              aria-label={t("projects.filterCustomerLabel")}
+            >
+              <option value="all">{t("projects.filterAllCustomers")}</option>
+              {customerOptions.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.label}
+                </option>
+              ))}
+            </Select>
 
-                <input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search projects..."
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                />
-              </label>
-
-              <label className="block">
-                <span className="sr-only">Filter by status</span>
-
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="All">All statuses</option>
-                  {PROJECT_STATUSES.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="sr-only">Filter by customer</span>
-
-                <select
-                  value={customerFilter}
-                  onChange={(event) => setCustomerFilter(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="All">All customers</option>
-                  {customerOptions.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            <Select
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as SortKey)}
+              aria-label={t("projects.sortByLabel")}
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
           </div>
-        </div>
-
+        }
+      >
         {isLoading ? (
           <ProjectsLoadingState />
         ) : errorMessage ? (
-          <ProjectsErrorState message={errorMessage} />
-        ) : filteredProjects.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <TableHeading>Project Number</TableHeading>
-                  <TableHeading>Project Name</TableHeading>
-                  <TableHeading>Customer</TableHeading>
-                  <TableHeading>Status</TableHeading>
-                  <TableHeading>Project Type</TableHeading>
-                  <TableHeading>Estimated Cost</TableHeading>
-                  <TableHeading>Estimated Start</TableHeading>
-                  <TableHeading>Estimated Completion</TableHeading>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredProjects.map((project) => (
-                  <tr key={project.id} className="cursor-pointer transition hover:bg-slate-50" onClick={() => window.location.assign(`/projects/${project.id}`)}>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      <Link href={`/projects/${project.id}`} className="font-semibold text-blue-600 transition hover:text-blue-800" onClick={(event) => event.stopPropagation()}>
-                        {project.projectNumber}
-                      </Link>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <Link href={`/projects/${project.id}`} className="font-semibold text-slate-950 transition hover:text-blue-700" onClick={(event) => event.stopPropagation()}>
-                        {project.name}
-                      </Link>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {project.customerName}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <ProjectStatusBadge statusKey={project.statusKey} label={project.statusLabel} />
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {project.typeLabel}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {project.estimatedCost}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {project.estimatedStart}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {project.estimatedEnd}
-                    </td>
+          <ErrorState title={t("projects.errorTitle")} description={errorMessage} />
+        ) : filteredAndSortedProjects.length > 0 ? (
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full divide-y divide-[var(--color-border-subtle)]">
+                <thead className="bg-[var(--color-surface-subtle)]">
+                  <tr>
+                    <TableHeading>{t("projects.tableProject")}</TableHeading>
+                    <TableHeading>{t("projects.tableCustomer")}</TableHeading>
+                    <TableHeading>{t("projects.tableStartDate")}</TableHeading>
+                    <TableHeading>{t("projects.tableProgress")}</TableHeading>
+                    <TableHeading>{t("projects.tableStatus")}</TableHeading>
+                    <TableHeading>{t("projects.tableActions")}</TableHeading>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-[var(--color-border-subtle)] bg-white">
+                  {filteredAndSortedProjects.map((project) => (
+                    <tr key={project.id} className="transition hover:bg-[var(--color-surface-subtle)]">
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <Link href={`/projects/${project.id}`} className="font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
+                          {project.name}
+                        </Link>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-[var(--color-text-secondary)]">
+                        {project.customerName}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-[var(--color-text-secondary)]">
+                        {project.startDate}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <ProgressCell value={project.progress} />
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <StatusBadge statusKey={project.statusKey} label={getProjectStatusLabel(project.statusKey, t)} />
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm">
+                        <Link href={`/projects/${project.id}`} className="font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">
+                          {t("projects.viewWorkspace")}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid gap-4 p-4 md:hidden">
+              {filteredAndSortedProjects.map((project) => (
+                <Card key={project.id}>
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <Link href={`/projects/${project.id}`} className="text-base font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
+                          {project.name}
+                        </Link>
+                        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{project.customerName}</p>
+                      </div>
+                      <StatusBadge statusKey={project.statusKey} label={getProjectStatusLabel(project.statusKey, t)} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <InfoLine label={t("projects.tableStartDate")} value={project.startDate} />
+                      <InfoLine label={t("projects.tableProgress")} value={`${project.progress}%`} />
+                    </div>
+
+                    <Link href={`/projects/${project.id}`} className="inline-flex text-sm font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">
+                      {t("projects.viewWorkspace")}
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
         ) : projects.length === 0 ? (
-          <ProjectsEmptyState />
+          <EmptyState
+            icon="P"
+            title={t("projects.emptyTitle")}
+            description={t("projects.emptyDescription")}
+            action={
+              <Link href="/projects/new">
+                <Button>{t("projects.newProject")}</Button>
+              </Link>
+            }
+          />
         ) : (
-          <ProjectsFilteredEmptyState />
+          <EmptyState
+            icon="?"
+            title={t("projects.filteredEmptyTitle")}
+            description={t("projects.filteredEmptyDescription")}
+          />
         )}
-      </section>
+      </TableContainer>
     </div>
-  );
-}
-
-function SummaryCard({ title, value }: { title: string; value: string }) {
-  return (
-    <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <p className="text-sm font-semibold text-slate-500">{title}</p>
-
-      <p className="mt-4 text-4xl font-bold tracking-tight text-slate-950">{value}</p>
-    </article>
   );
 }
 
 function TableHeading({ children }: { children: React.ReactNode }) {
   return (
-    <th scope="col" className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+    <th
+      scope="col"
+      className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]"
+    >
       {children}
     </th>
   );
 }
 
-function ProjectStatusBadge({ statusKey, label }: { statusKey: string; label: string }) {
-  const badgeStyle = getProjectStatusBadgeClass(statusKey);
-
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${badgeStyle}`}>{label}</span>;
-}
-
 function ProjectsLoadingState() {
   return (
-    <div className="flex min-h-80 items-center justify-center p-8">
-      <div className="max-w-md text-center">
-        <h3 className="text-xl font-semibold text-slate-950">Loading projects...</h3>
-
-        <p className="mt-2 leading-7 text-slate-500">
-          Please wait while we load your project directory.
-        </p>
-      </div>
+    <div className="space-y-4 p-6">
+      <SectionHeader title="" description="" />
+      <SkeletonLoader className="h-14 w-full" />
+      <SkeletonLoader className="h-14 w-full" />
+      <SkeletonLoader className="h-14 w-full" />
+      <SkeletonLoader className="h-14 w-full" />
     </div>
   );
 }
 
-function ProjectsErrorState({ message }: { message: string }) {
+function ProgressCell({ value }: { value: number }) {
+  const normalized = Math.max(0, Math.min(100, Math.round(value)));
+
   return (
-    <div className="flex min-h-80 items-center justify-center p-8">
-      <div className="max-w-md text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-2xl font-bold text-rose-600">
-          !
-        </div>
-
-        <h3 className="mt-5 text-xl font-semibold text-slate-950">
-          We couldn&apos;t load projects
-        </h3>
-
-        <p className="mt-2 leading-7 text-slate-500">{message}</p>
+    <div className="min-w-[130px]">
+      <div className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+        <span>{normalized}%</span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-[var(--color-surface-muted)]">
+        <div
+          className="h-2 rounded-full bg-[var(--color-brand-600)] transition-all"
+          style={{ width: `${normalized}%` }}
+        />
       </div>
     </div>
   );
 }
 
-function ProjectsEmptyState() {
+function StatusBadge({ statusKey, label }: { statusKey: string; label: string }) {
+  const style = getProjectStatusBadgeClass(statusKey);
+
+  return <Badge className={style}>{label}</Badge>;
+}
+
+function InfoLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-h-80 items-center justify-center p-8">
-      <div className="max-w-md text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl font-bold text-blue-600">
-          P
-        </div>
-
-        <h3 className="mt-5 text-xl font-semibold text-slate-950">No projects yet</h3>
-
-        <p className="mt-2 leading-7 text-slate-500">
-          Add your first project to start tracking work, scheduling, and billing.
-        </p>
-
-        <Link
-          href="/projects/new"
-          className="mt-6 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          Create Project
-        </Link>
-      </div>
+    <div>
+      <p className="text-xs text-[var(--color-text-muted)]">{label}</p>
+      <p className="font-semibold text-[var(--color-text-primary)]">{value}</p>
     </div>
   );
 }
 
-function ProjectsFilteredEmptyState() {
-  return (
-    <div className="flex min-h-80 items-center justify-center p-8">
-      <div className="max-w-md text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-bold text-slate-600">
-          ?
-        </div>
+function buildProjectProgressMap(tasks: TaskProgressRow[]) {
+  const progressMap = new Map<string, { total: number; count: number }>();
 
-        <h3 className="mt-5 text-xl font-semibold text-slate-950">
-          No projects match your filters
-        </h3>
+  for (const task of tasks) {
+    const projectId = task.project_id;
 
-        <p className="mt-2 leading-7 text-slate-500">
-          Try clearing the search term or changing the status and customer filters.
-        </p>
-      </div>
-    </div>
-  );
+    if (!projectId) {
+      continue;
+    }
+
+    const normalizedStatus = task.status.trim().toLowerCase();
+    const progress = normalizedStatus === "completed" ? 100 : Math.max(0, Math.min(100, task.completion_percentage));
+    const current = progressMap.get(projectId) || { total: 0, count: 0 };
+
+    progressMap.set(projectId, {
+      total: current.total + progress,
+      count: current.count + 1,
+    });
+  }
+
+  return Object.fromEntries(
+    Array.from(progressMap.entries()).map(([projectId, data]) => [
+      projectId,
+      data.count > 0 ? Math.round(data.total / data.count) : 0,
+    ]),
+  ) as Record<string, number>;
 }
 
-function getCustomerDisplayName(customer: CustomerSummaryRow) {
+function compareDateNullable(a: string | null, b: string | null) {
+  const aTime = a ? new Date(`${a}T00:00:00`).getTime() : 0;
+  const bTime = b ? new Date(`${b}T00:00:00`).getTime() : 0;
+
+  if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+    return 0;
+  }
+
+  if (Number.isNaN(aTime)) {
+    return 1;
+  }
+
+  if (Number.isNaN(bTime)) {
+    return -1;
+  }
+
+  return bTime - aTime;
+}
+
+function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
+  const statusLabelKey: Record<string, string> = {
+    lead: "projects.statusLead",
+    estimating: "projects.statusEstimating",
+    approved: "projects.statusApproved",
+    scheduled: "projects.statusScheduled",
+    in_progress: "projects.statusInProgress",
+    on_hold: "projects.statusOnHold",
+    completed: "projects.statusCompleted",
+    cancelled: "projects.statusCancelled",
+  };
+
+  return statusLabelKey[statusKey] ? t(statusLabelKey[statusKey]) : normalizeProjectStatus(statusKey).label;
+}
+
+function getCustomerDisplayName(customer: CustomerSummaryRow, fallbackLabel = "Unnamed Customer") {
   const companyName = customer.company_name?.trim() || "";
   const firstName = customer.first_name?.trim() || "";
   const lastName = customer.last_name?.trim() || "";
@@ -480,5 +550,5 @@ function getCustomerDisplayName(customer: CustomerSummaryRow) {
     return companyName;
   }
 
-  return fallbackName || companyName || "Unnamed Customer";
+  return fallbackName || companyName || fallbackLabel;
 }

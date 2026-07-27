@@ -28,6 +28,7 @@ import {
   ESTIMATE_STATUSES,
   getEstimateStatusBadgeClass,
 } from "@/lib/estimates/statuses";
+import { useI18n } from "@/lib/i18n/provider";
 
 type CustomerSummaryRow = Pick<
   Database["public"]["Tables"]["customers"]["Row"],
@@ -64,13 +65,13 @@ type EstimateListItem = {
   projectName: string;
   totalAmountValue: number;
   totalAmount: string;
-  createdAt: string;
   createdAtLabel: string;
   expiresAtLabel: string;
   searchText: string;
 };
 
 export default function EstimatesPage() {
+  const { t, locale } = useI18n();
   const supabase = useMemo(() => createClient(), []);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -78,9 +79,9 @@ export default function EstimatesPage() {
   const [estimates, setEstimates] = useState<EstimateListItem[]>([]);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [customerFilter, setCustomerFilter] = useState("All");
-  const [projectFilter, setProjectFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [customerFilter, setCustomerFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState("all");
 
   const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [projectOptions, setProjectOptions] = useState<Array<{ id: string; label: string }>>([]);
@@ -96,7 +97,7 @@ export default function EstimatesPage() {
 
       if (workspace.errorMessage || !workspace.context) {
         if (isSubscribed) {
-          setErrorMessage(workspace.errorMessage);
+          setErrorMessage(workspace.errorMessage || t("estimates.errorConnect"));
           setIsLoading(false);
         }
 
@@ -107,7 +108,7 @@ export default function EstimatesPage() {
 
       if (!client) {
         if (isSubscribed) {
-          setErrorMessage("Unable to connect right now. Please try again shortly.");
+          setErrorMessage(t("estimates.errorConnect"));
           setIsLoading(false);
         }
 
@@ -137,7 +138,7 @@ export default function EstimatesPage() {
 
         if (estimatesResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load estimates right now. Please try again shortly.");
+            setErrorMessage(t("estimates.errorLoadEstimates"));
           }
 
           return;
@@ -145,7 +146,7 @@ export default function EstimatesPage() {
 
         if (customersResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load estimate customers right now. Please try again shortly.");
+            setErrorMessage(t("estimates.errorLoadCustomers"));
           }
 
           return;
@@ -153,7 +154,7 @@ export default function EstimatesPage() {
 
         if (projectsResponse.error) {
           if (isSubscribed) {
-            setErrorMessage("Unable to load estimate projects right now. Please try again shortly.");
+            setErrorMessage(t("estimates.errorLoadProjects"));
           }
 
           return;
@@ -164,11 +165,11 @@ export default function EstimatesPage() {
         const estimateRows = (estimatesResponse.data ?? []) as unknown as EstimateDashboardRow[];
 
         const customerNameMap = new Map(
-          customerRows.map((customer) => [customer.id, getCustomerDisplayName(customer)]),
+          customerRows.map((customer) => [customer.id, getCustomerDisplayName(customer, t)]),
         );
 
         const projectNameMap = new Map(
-          projectRows.map((project) => [project.id, getProjectDisplayName(project.name)]),
+          projectRows.map((project) => [project.id, getProjectDisplayName(project.name, t)]),
         );
 
         const activeEstimates = estimateRows.filter((estimate) => !estimate.deleted_at);
@@ -176,20 +177,32 @@ export default function EstimatesPage() {
         const mappedEstimates = activeEstimates.map((estimate) => {
           const status = normalizeEstimateStatus(estimate.status);
           const customerName = estimate.customer_id
-            ? customerNameMap.get(estimate.customer_id) || "Not linked"
-            : "Not linked";
+            ? customerNameMap.get(estimate.customer_id) || t("estimates.notLinked")
+            : t("estimates.notLinked");
           const projectName = estimate.project_id
-            ? projectNameMap.get(estimate.project_id) || "Not linked"
-            : "Not linked";
+            ? projectNameMap.get(estimate.project_id) || t("estimates.notLinked")
+            : t("estimates.notLinked");
           const estimateNumber = getEstimateNumber(estimate.estimate_number);
-          const totalAmount = formatEstimateCurrency(estimate.total_amount);
-          const createdAtLabel = formatEstimateDate(estimate.created_at);
-          const expiresAtLabel = formatEstimateDate(estimate.expiration_date);
+          const totalAmount = formatEstimateCurrency(
+            estimate.total_amount,
+            locale === "es" ? "es-ES" : "en-US",
+            t("projects.notProvided"),
+          );
+          const createdAtLabel = formatEstimateDate(
+            estimate.created_at,
+            locale === "es" ? "es-ES" : "en-US",
+            t("projects.notProvided"),
+          );
+          const expiresAtLabel = formatEstimateDate(
+            estimate.expiration_date,
+            locale === "es" ? "es-ES" : "en-US",
+            t("projects.notProvided"),
+          );
           const searchText = [
             estimateNumber,
             customerName,
             projectName,
-            status.label,
+            mapEstimateStatus(status.key, t),
             totalAmount,
           ]
             .join(" ")
@@ -198,16 +211,14 @@ export default function EstimatesPage() {
           return {
             id: estimate.id,
             statusKey: status.key,
-            statusLabel: status.label,
+            statusLabel: mapEstimateStatus(status.key, t),
             estimateNumber,
             customerId: estimate.customer_id,
             customerName,
             projectId: estimate.project_id,
             projectName,
-            totalAmountValue:
-              typeof estimate.total_amount === "number" ? estimate.total_amount : 0,
+            totalAmountValue: typeof estimate.total_amount === "number" ? estimate.total_amount : 0,
             totalAmount,
-            createdAt: estimate.created_at,
             createdAtLabel,
             expiresAtLabel,
             searchText,
@@ -219,13 +230,13 @@ export default function EstimatesPage() {
           setCustomerOptions(
             customerRows.map((customer) => ({
               id: customer.id,
-              label: getCustomerDisplayName(customer),
+              label: getCustomerDisplayName(customer, t),
             })),
           );
           setProjectOptions(
             projectRows.map((project) => ({
               id: project.id,
-              label: getProjectDisplayName(project.name),
+              label: getProjectDisplayName(project.name, t),
             })),
           );
         }
@@ -233,9 +244,7 @@ export default function EstimatesPage() {
         console.error("Load estimates error:", caughtError);
 
         if (isSubscribed) {
-          setErrorMessage(
-            "Something unexpected happened while loading estimates. Please try again.",
-          );
+          setErrorMessage(t("estimates.errorUnexpected"));
         }
       } finally {
         if (isSubscribed) {
@@ -249,7 +258,7 @@ export default function EstimatesPage() {
     return () => {
       isSubscribed = false;
     };
-  }, [supabase]);
+  }, [supabase, t, locale]);
 
   const summary = useMemo(() => {
     const totalEstimates = estimates.length;
@@ -267,23 +276,22 @@ export default function EstimatesPage() {
       draftCount,
       sentCount,
       approvedCount,
-      totalEstimateValue: formatEstimateCurrency(totalEstimateValue),
+      totalEstimateValue: formatEstimateCurrency(
+        totalEstimateValue,
+        locale === "es" ? "es-ES" : "en-US",
+        t("projects.notProvided"),
+      ),
     };
-  }, [estimates]);
+  }, [estimates, locale, t]);
 
   const filteredEstimates = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
-    const normalizedStatusFilter = statusFilter.toLowerCase();
 
     return estimates.filter((estimate) => {
-      const matchesSearch =
-        !normalizedSearch || estimate.searchText.includes(normalizedSearch);
-      const matchesStatus =
-        statusFilter === "All" || estimate.statusKey === normalizedStatusFilter;
-      const matchesCustomer =
-        customerFilter === "All" || estimate.customerId === customerFilter;
-      const matchesProject =
-        projectFilter === "All" || estimate.projectId === projectFilter;
+      const matchesSearch = !normalizedSearch || estimate.searchText.includes(normalizedSearch);
+      const matchesStatus = statusFilter === "all" || estimate.statusKey === statusFilter;
+      const matchesCustomer = customerFilter === "all" || estimate.customerId === customerFilter;
+      const matchesProject = projectFilter === "all" || estimate.projectId === projectFilter;
 
       return matchesSearch && matchesStatus && matchesCustomer && matchesProject;
     });
@@ -292,77 +300,47 @@ export default function EstimatesPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Estimates"
-        description="Track estimate status, value, and customer/project alignment across your company."
+        title={t("estimates.pageTitle")}
+        description={t("estimates.pageDescription")}
         primaryAction={
           <Link href="/estimates/new" className={getButtonClassName({ variant: "primary", size: "lg" })}>
             <span className="text-lg leading-none">+</span>
-            <span>Create Estimate</span>
+            <span>{t("estimates.createEstimate")}</span>
           </Link>
         }
       />
 
       <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard
-          icon={<span className="text-sm font-bold">Σ</span>}
-          label="Total Estimates"
-          value={String(summary.totalEstimates)}
-        />
-        <SummaryCard
-          icon={<span className="text-sm font-bold">D</span>}
-          label="Draft"
-          value={String(summary.draftCount)}
-        />
-        <SummaryCard
-          icon={<span className="text-sm font-bold">S</span>}
-          label="Sent"
-          value={String(summary.sentCount)}
-        />
-        <SummaryCard
-          icon={<span className="text-sm font-bold">A</span>}
-          label="Approved"
-          value={String(summary.approvedCount)}
-        />
-        <SummaryCard
-          icon={<span className="text-sm font-bold">$</span>}
-          label="Total Estimate Value"
-          value={summary.totalEstimateValue}
-        />
+        <SummaryCard icon={<span className="text-sm font-bold">Σ</span>} label={t("estimates.summaryTotal")} value={String(summary.totalEstimates)} />
+        <SummaryCard icon={<span className="text-sm font-bold">D</span>} label={t("estimates.summaryDraft")} value={String(summary.draftCount)} />
+        <SummaryCard icon={<span className="text-sm font-bold">S</span>} label={t("estimates.summarySent")} value={String(summary.sentCount)} />
+        <SummaryCard icon={<span className="text-sm font-bold">A</span>} label={t("estimates.summaryApproved")} value={String(summary.approvedCount)} />
+        <SummaryCard icon={<span className="text-sm font-bold">$</span>} label={t("estimates.summaryTotalValue")} value={summary.totalEstimateValue} />
       </section>
 
       <TableContainer
-        title="Estimate Directory"
-        description="Search, filter, and manage estimate records."
+        title={t("estimates.directoryTitle")}
+        description={t("estimates.directoryDescription")}
         controls={
           <div className="grid gap-3 md:grid-cols-4">
-            <SearchInput
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search estimates..."
-            />
+            <SearchInput value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder={t("estimates.searchPlaceholder")} />
 
             <label className="block">
-              <span className="sr-only">Filter by status</span>
-              <Select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-              >
-                <option value="All">All statuses</option>
+              <span className="sr-only">{t("estimates.filterStatus")}</span>
+              <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="all">{t("estimates.allStatuses")}</option>
                 {ESTIMATE_STATUSES.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {mapEstimateStatus(option.value, t)}
                   </option>
                 ))}
               </Select>
             </label>
 
             <label className="block">
-              <span className="sr-only">Filter by customer</span>
-              <Select
-                value={customerFilter}
-                onChange={(event) => setCustomerFilter(event.target.value)}
-              >
-                <option value="All">All customers</option>
+              <span className="sr-only">{t("estimates.filterCustomer")}</span>
+              <Select value={customerFilter} onChange={(event) => setCustomerFilter(event.target.value)}>
+                <option value="all">{t("estimates.allCustomers")}</option>
                 {customerOptions.map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.label}
@@ -372,12 +350,9 @@ export default function EstimatesPage() {
             </label>
 
             <label className="block">
-              <span className="sr-only">Filter by project</span>
-              <Select
-                value={projectFilter}
-                onChange={(event) => setProjectFilter(event.target.value)}
-              >
-                <option value="All">All projects</option>
+              <span className="sr-only">{t("estimates.filterProject")}</span>
+              <Select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}>
+                <option value="all">{t("estimates.allProjects")}</option>
                 {projectOptions.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.label}
@@ -397,14 +372,14 @@ export default function EstimatesPage() {
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>
-                  <TableHeading>Status</TableHeading>
-                  <TableHeading>Estimate Number</TableHeading>
-                  <TableHeading>Customer</TableHeading>
-                  <TableHeading>Project</TableHeading>
-                  <TableHeading>Total</TableHeading>
-                  <TableHeading>Created</TableHeading>
-                  <TableHeading>Expires</TableHeading>
-                  <TableHeading align="right">Actions</TableHeading>
+                  <TableHeading>{t("estimates.tableStatus")}</TableHeading>
+                  <TableHeading>{t("estimates.tableEstimateNumber")}</TableHeading>
+                  <TableHeading>{t("estimates.tableCustomer")}</TableHeading>
+                  <TableHeading>{t("estimates.tableProject")}</TableHeading>
+                  <TableHeading>{t("estimates.tableTotal")}</TableHeading>
+                  <TableHeading>{t("estimates.tableCreated")}</TableHeading>
+                  <TableHeading>{t("estimates.tableExpires")}</TableHeading>
+                  <TableHeading align="right">{t("estimates.tableActions")}</TableHeading>
                 </tr>
               </thead>
 
@@ -412,58 +387,37 @@ export default function EstimatesPage() {
                 {filteredEstimates.map((estimate) => (
                   <tr key={estimate.id} className="transition hover:bg-slate-50">
                     <td className="whitespace-nowrap px-6 py-4">
-                      <EstimateStatusBadge
-                        statusKey={estimate.statusKey}
-                        label={estimate.statusLabel}
-                      />
+                      <EstimateStatusBadge statusKey={estimate.statusKey} label={estimate.statusLabel} />
                     </td>
 
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-950">
-                      {estimate.estimateNumber}
-                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-950">{estimate.estimateNumber}</td>
 
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {estimate.customerName}
-                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.customerName}</td>
 
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {estimate.projectName}
-                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.projectName}</td>
 
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {estimate.totalAmount}
-                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.totalAmount}</td>
 
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {estimate.createdAtLabel}
-                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.createdAtLabel}</td>
 
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
-                      {estimate.expiresAtLabel}
-                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.expiresAtLabel}</td>
 
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/estimates/${estimate.id}`}
-                          className={getButtonClassName({ variant: "secondary", size: "sm" })}
-                        >
-                          View
+                        <Link href={`/estimates/${estimate.id}`} className={getButtonClassName({ variant: "secondary", size: "sm" })}>
+                          {t("estimates.view")}
                         </Link>
 
-                        <Link
-                          href={`/estimates/${estimate.id}/edit`}
-                          className={getButtonClassName({ variant: "secondary", size: "sm" })}
-                        >
-                          Edit
+                        <Link href={`/estimates/${estimate.id}/edit`} className={getButtonClassName({ variant: "secondary", size: "sm" })}>
+                          {t("estimates.edit")}
                         </Link>
 
                         <Button type="button" variant="secondary" size="sm">
-                          Duplicate
+                          {t("estimates.duplicate")}
                         </Button>
 
-                        <Button type="button" variant="secondary" size="sm" aria-label="More actions">
-                          More
+                        <Button type="button" variant="secondary" size="sm" aria-label={t("estimates.moreActions")}>
+                          {t("estimates.more")}
                         </Button>
                       </div>
                     </td>
@@ -501,13 +455,7 @@ function TableHeading({
   );
 }
 
-function EstimateStatusBadge({
-  statusKey,
-  label,
-}: {
-  statusKey: string;
-  label: string;
-}) {
+function EstimateStatusBadge({ statusKey, label }: { statusKey: string; label: string }) {
   return <Badge className={getEstimateStatusBadgeClass(statusKey)}>{label}</Badge>;
 }
 
@@ -525,25 +473,23 @@ function EstimatesLoadingState() {
 }
 
 function EstimatesErrorState({ message }: { message: string }) {
-  return (
-    <ErrorState
-      title="We couldn&apos;t load estimates"
-      description={message}
-      compact
-    />
-  );
+  const { t } = useI18n();
+
+  return <ErrorState title={t("estimates.errorTitle")} description={message} compact />;
 }
 
 function EstimatesEmptyState() {
+  const { t } = useI18n();
+
   return (
     <EmptyState
       icon="E"
-      title="No estimates yet"
-      description="Create your first estimate to begin tracking pricing and approvals."
+      title={t("estimates.emptyTitle")}
+      description={t("estimates.emptyDescription")}
       compact
       action={
         <Link href="/estimates/new" className={getButtonClassName({ variant: "primary", size: "lg" })}>
-          Create Estimate
+          {t("estimates.createEstimate")}
         </Link>
       }
     />
@@ -551,17 +497,32 @@ function EstimatesEmptyState() {
 }
 
 function EstimatesFilteredEmptyState() {
+  const { t } = useI18n();
+
   return (
     <EmptyState
       icon="?"
-      title="No estimates match your filters"
-      description="Try clearing the search term or changing the status, customer, or project filters."
+      title={t("estimates.filteredEmptyTitle")}
+      description={t("estimates.filteredEmptyDescription")}
       compact
     />
   );
 }
 
-function getCustomerDisplayName(customer: CustomerSummaryRow) {
+function mapEstimateStatus(statusKey: string, t: (key: string) => string) {
+  const map: Record<string, string> = {
+    draft: "estimates.statusDraft",
+    sent: "estimates.statusSent",
+    approved: "estimates.statusApproved",
+    rejected: "estimates.statusRejected",
+    expired: "estimates.statusExpired",
+    converted: "estimates.statusConverted",
+  };
+
+  return map[statusKey] ? t(map[statusKey]) : normalizeEstimateStatus(statusKey).label;
+}
+
+function getCustomerDisplayName(customer: CustomerSummaryRow, t: (key: string) => string) {
   const companyName = customer.company_name?.trim() || "";
   const firstName = customer.first_name?.trim() || "";
   const lastName = customer.last_name?.trim() || "";
@@ -571,11 +532,11 @@ function getCustomerDisplayName(customer: CustomerSummaryRow) {
     return companyName;
   }
 
-  return fallbackName || companyName || "Unnamed Customer";
+  return fallbackName || companyName || t("estimates.unnamedCustomer");
 }
 
-function getProjectDisplayName(name: string | null) {
+function getProjectDisplayName(name: string | null, t: (key: string) => string) {
   const normalized = name?.trim() || "";
 
-  return normalized || "Unnamed Project";
+  return normalized || t("estimates.unnamedProject");
 }

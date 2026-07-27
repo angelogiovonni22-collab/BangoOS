@@ -143,32 +143,32 @@ const recentActivity: ActivityItem[] = [
   {
     id: "a-1",
     eventKey: "estimateCreated",
-    details: "EST-004219 for Northpoint Medical uploaded for review.",
-    timestamp: "12 minutes ago",
+    details: "estimateCreatedDetails",
+    timestamp: "time12MinutesAgo",
   },
   {
     id: "a-2",
     eventKey: "invoicePaid",
-    details: "INV-1184 from Riverside Apartments marked paid in full.",
-    timestamp: "48 minutes ago",
+    details: "invoicePaidDetails",
+    timestamp: "time48MinutesAgo",
   },
   {
     id: "a-3",
     eventKey: "customerAdded",
-    details: "Blue Ridge Retail added with multi-site profile.",
-    timestamp: "1 hour ago",
+    details: "customerAddedDetails",
+    timestamp: "time1HourAgo",
   },
   {
     id: "a-4",
     eventKey: "projectCompleted",
-    details: "Harper Residence kitchen remodel moved to completed.",
-    timestamp: "2 hours ago",
+    details: "projectCompletedDetails",
+    timestamp: "time2HoursAgo",
   },
   {
     id: "a-5",
     eventKey: "employeeAssigned",
-    details: "M. Rivera assigned to Dock Expansion night shift.",
-    timestamp: "3 hours ago",
+    details: "employeeAssignedDetails",
+    timestamp: "time3HoursAgo",
   },
 ];
 
@@ -303,10 +303,10 @@ export default function DashboardPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t(`dashboard.${item.eventKey}`)}</p>
-                    <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.details}</p>
+                    <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t(`dashboard.${item.details}`)}</p>
                   </div>
                   <span className="whitespace-nowrap text-xs font-medium text-[var(--color-text-muted)]">
-                    {item.timestamp}
+                    {t(`dashboard.${item.timestamp}`)}
                   </span>
                 </div>
               </article>
