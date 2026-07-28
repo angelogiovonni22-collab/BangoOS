@@ -5,6 +5,7 @@ import commonEn from "@/locales/en/common.json";
 import authEn from "@/locales/en/auth.json";
 import customersEn from "@/locales/en/customers.json";
 import dashboardEn from "@/locales/en/dashboard.json";
+import employeesEn from "@/locales/en/employees.json";
 import estimatesEn from "@/locales/en/estimates.json";
 import navigationEn from "@/locales/en/navigation.json";
 import onboardingEn from "@/locales/en/onboarding.json";
@@ -13,6 +14,7 @@ import commonEs from "@/locales/es/common.json";
 import authEs from "@/locales/es/auth.json";
 import customersEs from "@/locales/es/customers.json";
 import dashboardEs from "@/locales/es/dashboard.json";
+import employeesEs from "@/locales/es/employees.json";
 import estimatesEs from "@/locales/es/estimates.json";
 import navigationEs from "@/locales/es/navigation.json";
 import onboardingEs from "@/locales/es/onboarding.json";
@@ -27,6 +29,7 @@ type LocaleDictionaries = {
   common: NamespaceDictionary;
   customers: NamespaceDictionary;
   dashboard: NamespaceDictionary;
+  employees: NamespaceDictionary;
   estimates: NamespaceDictionary;
   navigation: NamespaceDictionary;
   onboarding: NamespaceDictionary;
@@ -63,6 +66,7 @@ const resources: TranslationResources = {
     common: commonEn,
     customers: customersEn,
     dashboard: dashboardEn,
+    employees: employeesEn,
     estimates: estimatesEn,
     navigation: navigationEn,
     onboarding: onboardingEn,
@@ -73,6 +77,7 @@ const resources: TranslationResources = {
     common: commonEs,
     customers: customersEs,
     dashboard: dashboardEs,
+    employees: employeesEs,
     estimates: estimatesEs,
     navigation: navigationEs,
     onboarding: onboardingEs,
@@ -157,6 +162,7 @@ function resolveNamespaceAndKey(path: string): {
     || firstSegment === "auth"
     || firstSegment === "customers"
     || firstSegment === "dashboard"
+    || firstSegment === "employees"
     || firstSegment === "estimates"
     || firstSegment === "navigation"
     || firstSegment === "onboarding"

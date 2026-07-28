@@ -20,6 +20,7 @@ const navigationItems = [
   { key: "estimates", href: "/estimates", icon: "◎" },
   { key: "invoices", href: "/invoices", icon: "◐" },
   { key: "schedule", href: "/schedule", icon: "◑" },
+  { key: "employees", href: "/employees", icon: "◒" },
   { key: "crew", href: "/team", icon: "◒" },
   { key: "settings", href: "/settings", icon: "◓" },
 ];
@@ -115,6 +116,27 @@ export function AppShell({ children, userName, userEmail, companyName }: AppShel
       return {
         title: t("navigation.schedule"),
         description: t("common.moduleUnderDevelopmentDescription"),
+      };
+    }
+
+    if (pathname === "/employees") {
+      return {
+        title: t("employees.pageTitle"),
+        description: t("employees.pageDescription"),
+      };
+    }
+
+    if (pathname === "/employees/new") {
+      return {
+        title: t("employees.new.title"),
+        description: t("employees.new.description"),
+      };
+    }
+
+    if (pathname.startsWith("/employees/")) {
+      return {
+        title: t("employees.pageTitle"),
+        description: t("employees.profile.description"),
       };
     }
 
