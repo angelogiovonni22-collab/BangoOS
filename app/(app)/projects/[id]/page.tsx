@@ -19,6 +19,7 @@ import {
 } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
+import { createCrewService, type ProjectCrewAssignmentSummary } from "@/lib/crews";
 import {
   formatProjectAddress,
   formatProjectCurrency,
@@ -153,6 +154,7 @@ export default function ProjectDetailsPage() {
   const params = useParams<{ id?: string | string[] }>();
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const supabase = useMemo(() => createClient(), []);
+  const crewService = useMemo(() => createCrewService(), []);
 
   const [activeTab, setActiveTab] = useState<ProjectTab>("overview");
   const [isLoading, setIsLoading] = useState(true);
@@ -161,6 +163,7 @@ export default function ProjectDetailsPage() {
   const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
 
   const [project, setProject] = useState<ProjectSummary | null>(null);
+  const [projectCrews, setProjectCrews] = useState<ProjectCrewAssignmentSummary[]>([]);
   const [customer, setCustomer] = useState<CustomerSummary | null>(null);
   const [profilesById, setProfilesById] = useState<Record<string, string>>({});
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
@@ -262,6 +265,9 @@ export default function ProjectDetailsPage() {
         }
 
         const loadedProject = projectResponse.data;
+        const crewAssignments = await crewService.getCrewsForProject(
+          getProjectDisplayName(loadedProject as ProjectRow, ""),
+        );
         const profileMap = buildProfileNameMap((profilesResponse.data ?? []) as ProfileSummary[], t("projects.notAssigned"));
 
         const customerResponse = loadedProject.customer_id
@@ -284,6 +290,7 @@ export default function ProjectDetailsPage() {
         if (isSubscribed) {
           setWorkspaceContext(workspace.context);
           setProject(loadedProject);
+          setProjectCrews(crewAssignments);
           setCustomer(customerResponse?.data ?? null);
           setProfilesById(profileMap);
           setTasks((tasksResponse.data ?? []) as TaskSummary[]);
@@ -306,7 +313,7 @@ export default function ProjectDetailsPage() {
     return () => {
       isSubscribed = false;
     };
-  }, [projectId, supabase, t]);
+  }, [crewService, projectId, supabase, t]);
 
   if (isLoading) {
     return (
@@ -414,6 +421,7 @@ export default function ProjectDetailsPage() {
           address={formatProjectAddress(project as ProjectRow) || t("projects.notProvided")}
           projectManager={projectManager}
           assignedCrew={assignedCrew}
+          assignedCrews={projectCrews}
           budget={budget}
           estimatedProfit={estimatedProfit}
           startDate={formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided"))}
@@ -463,6 +471,7 @@ function OverviewTab({
   address,
   projectManager,
   assignedCrew,
+  assignedCrews,
   budget,
   estimatedProfit,
   startDate,
@@ -475,6 +484,7 @@ function OverviewTab({
   address: string;
   projectManager: string;
   assignedCrew: string;
+  assignedCrews: ProjectCrewAssignmentSummary[];
   budget: string;
   estimatedProfit: string;
   startDate: string;
@@ -518,6 +528,30 @@ function OverviewTab({
           <div className="mt-3 h-3 rounded-full bg-[var(--color-surface-muted)]">
             <div className="h-3 rounded-full bg-[var(--color-brand-600)] transition-all" style={{ width: `${progress}%` }} />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3 p-6">
+          <SectionHeader title={t("projects.fieldAssignedCrew")} description={t("projects.overviewDescription")} />
+          {assignedCrews.length === 0 ? (
+            <p className="text-sm font-medium text-[var(--color-text-secondary)]">{assignedCrew}</p>
+          ) : (
+            assignedCrews.map((crew) => (
+              <article key={crew.crewId} className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-[var(--color-text-primary)]">{crew.crewName}</p>
+                    <p className="mt-1 text-sm font-medium text-[var(--color-text-secondary)]">{crew.role}</p>
+                  </div>
+                  <Badge tone="info">{crew.allocationPercentage}%</Badge>
+                </div>
+                <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                  {crew.actualManpower}/{crew.estimatedManpower}
+                </p>
+              </article>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

@@ -457,6 +457,20 @@ export function createEmployee(input: UpsertEmployeeInput): Employee {
     skills: input.skills,
     assignedProjects: input.assignedProjects,
     employmentHistory: input.employmentHistory,
+    primaryCrew: input.primaryCrew ?? input.crew,
+    secondaryCrew: input.secondaryCrew ?? null,
+    crewRole: input.crewRole ?? input.position,
+    crewAssignedOn: input.crewAssignedOn ?? input.hiredOn,
+    crewHistory: input.crewHistory ?? [
+      {
+        id: `crew-hist-${Math.random().toString(36).slice(2, 8)}`,
+        crewName: input.crew,
+        role: input.position,
+        startedOn: input.hiredOn,
+        endedOn: null,
+        primaryCrew: true,
+      },
+    ],
     notes: input.notes,
   };
 
@@ -475,6 +489,11 @@ export function updateEmployee(employeeId: string, input: UpsertEmployeeInput): 
   const updated: Employee = {
     ...existing,
     ...input,
+    primaryCrew: input.primaryCrew ?? existing.primaryCrew ?? input.crew,
+    secondaryCrew: input.secondaryCrew ?? existing.secondaryCrew ?? null,
+    crewRole: input.crewRole ?? existing.crewRole ?? input.position,
+    crewAssignedOn: input.crewAssignedOn ?? existing.crewAssignedOn ?? input.hiredOn,
+    crewHistory: input.crewHistory ?? existing.crewHistory ?? [],
     avatarUrl: input.avatarUrl || null,
   };
 

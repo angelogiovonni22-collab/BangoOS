@@ -72,6 +72,14 @@ export function EmployeeProfileSections({ employee, locale, t }: EmployeeProfile
               label={t("employees.table.assignment")}
               value={employee.currentAssignment || t("employees.unassigned")}
             />
+            <SummaryItem
+              label={t("employees.profile.currentCrew")}
+              value={employee.primaryCrew || employee.crew || t("employees.unassigned")}
+            />
+            <SummaryItem
+              label={t("employees.profile.crewRole")}
+              value={employee.crewRole || employee.position}
+            />
             <SummaryItem label={t("employees.form.phone")} value={employee.phone} />
             <SummaryItem label={t("employees.form.email")} value={employee.email} />
             <SummaryItem

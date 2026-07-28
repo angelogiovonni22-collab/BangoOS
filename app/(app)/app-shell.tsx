@@ -15,13 +15,14 @@ type AppShellProps = {
 
 const navigationItems = [
   { key: "dashboard", href: "/dashboard", icon: "◉" },
+  { key: "operations", href: "/operations", icon: "◈" },
   { key: "customers", href: "/customers", icon: "◌" },
   { key: "projects", href: "/projects", icon: "◍" },
   { key: "estimates", href: "/estimates", icon: "◎" },
   { key: "invoices", href: "/invoices", icon: "◐" },
   { key: "schedule", href: "/schedule", icon: "◑" },
   { key: "employees", href: "/employees", icon: "◒" },
-  { key: "crew", href: "/team", icon: "◒" },
+  { key: "crew", href: "/crews", icon: "◒" },
   { key: "settings", href: "/settings", icon: "◓" },
 ];
 
@@ -53,6 +54,13 @@ export function AppShell({ children, userName, userEmail, companyName }: AppShel
       return {
         title: t("navigation.dashboard"),
         description: t("dashboard.executiveSummary"),
+      };
+    }
+
+    if (pathname.startsWith("/operations")) {
+      return {
+        title: t("navigation.operations"),
+        description: t("operations.summary.default"),
       };
     }
 
@@ -140,10 +148,24 @@ export function AppShell({ children, userName, userEmail, companyName }: AppShel
       };
     }
 
-    if (pathname.startsWith("/team")) {
+    if (pathname === "/crews") {
+      return {
+        title: t("crews.pageTitle"),
+        description: t("crews.pageDescription"),
+      };
+    }
+
+    if (pathname === "/crews/new") {
+      return {
+        title: t("crews.new.title"),
+        description: t("crews.new.description"),
+      };
+    }
+
+    if (pathname.startsWith("/crews/")) {
       return {
         title: t("navigation.crew"),
-        description: t("common.moduleUnderDevelopmentDescription"),
+        description: t("crews.profile.description"),
       };
     }
 

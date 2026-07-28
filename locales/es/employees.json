@@ -62,6 +62,8 @@
   "profile.description": "Perfil del empleado y detalles de disponibilidad laboral.",
   "profile.executiveSummary": "Resumen Ejecutivo",
   "profile.supervisor": "Supervisor",
+  "profile.currentCrew": "Cuadrilla actual",
+  "profile.crewRole": "Rol en cuadrilla",
   "profile.personalInformation": "Información personal",
   "profile.contactInformation": "Información de contacto",
   "profile.emergencyContact": "Contacto de emergencia",

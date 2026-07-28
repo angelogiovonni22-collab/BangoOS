@@ -42,6 +42,15 @@ export type EmergencyContact = {
   phone: string;
 };
 
+export type CrewHistoryEntry = {
+  id: string;
+  crewName: string;
+  role: string;
+  startedOn: string;
+  endedOn: string | null;
+  primaryCrew: boolean;
+};
+
 export type Employee = {
   id: string;
   avatarUrl: string | null;
@@ -63,6 +72,11 @@ export type Employee = {
   skills: string[];
   assignedProjects: EmployeeProjectAssignment[];
   employmentHistory: EmploymentHistoryEntry[];
+  primaryCrew?: string | null;
+  secondaryCrew?: string | null;
+  crewRole?: string | null;
+  crewAssignedOn?: string | null;
+  crewHistory?: CrewHistoryEntry[];
   notes: string;
 };
 
@@ -111,6 +125,11 @@ export type UpsertEmployeeInput = {
   skills: string[];
   assignedProjects: EmployeeProjectAssignment[];
   employmentHistory: EmploymentHistoryEntry[];
+  primaryCrew?: string | null;
+  secondaryCrew?: string | null;
+  crewRole?: string | null;
+  crewAssignedOn?: string | null;
+  crewHistory?: CrewHistoryEntry[];
   notes: string;
   avatarUrl?: string | null;
 };

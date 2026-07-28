@@ -5,19 +5,23 @@ import commonEn from "@/locales/en/common.json";
 import authEn from "@/locales/en/auth.json";
 import customersEn from "@/locales/en/customers.json";
 import dashboardEn from "@/locales/en/dashboard.json";
+import crewsEn from "@/locales/en/crews.json";
 import employeesEn from "@/locales/en/employees.json";
 import estimatesEn from "@/locales/en/estimates.json";
 import navigationEn from "@/locales/en/navigation.json";
 import onboardingEn from "@/locales/en/onboarding.json";
+import operationsEn from "@/locales/en/operations.json";
 import projectsEn from "@/locales/en/projects.json";
 import commonEs from "@/locales/es/common.json";
 import authEs from "@/locales/es/auth.json";
 import customersEs from "@/locales/es/customers.json";
 import dashboardEs from "@/locales/es/dashboard.json";
+import crewsEs from "@/locales/es/crews.json";
 import employeesEs from "@/locales/es/employees.json";
 import estimatesEs from "@/locales/es/estimates.json";
 import navigationEs from "@/locales/es/navigation.json";
 import onboardingEs from "@/locales/es/onboarding.json";
+import operationsEs from "@/locales/es/operations.json";
 import projectsEs from "@/locales/es/projects.json";
 
 export type AppLocale = "en" | "es";
@@ -29,10 +33,12 @@ type LocaleDictionaries = {
   common: NamespaceDictionary;
   customers: NamespaceDictionary;
   dashboard: NamespaceDictionary;
+  crews: NamespaceDictionary;
   employees: NamespaceDictionary;
   estimates: NamespaceDictionary;
   navigation: NamespaceDictionary;
   onboarding: NamespaceDictionary;
+  operations: NamespaceDictionary;
   projects: NamespaceDictionary;
 };
 
@@ -66,10 +72,12 @@ const resources: TranslationResources = {
     common: commonEn,
     customers: customersEn,
     dashboard: dashboardEn,
+    crews: crewsEn,
     employees: employeesEn,
     estimates: estimatesEn,
     navigation: navigationEn,
     onboarding: onboardingEn,
+    operations: operationsEn,
     projects: projectsEn,
   },
   es: {
@@ -77,10 +85,12 @@ const resources: TranslationResources = {
     common: commonEs,
     customers: customersEs,
     dashboard: dashboardEs,
+    crews: crewsEs,
     employees: employeesEs,
     estimates: estimatesEs,
     navigation: navigationEs,
     onboarding: onboardingEs,
+    operations: operationsEs,
     projects: projectsEs,
   },
 };
@@ -162,10 +172,12 @@ function resolveNamespaceAndKey(path: string): {
     || firstSegment === "auth"
     || firstSegment === "customers"
     || firstSegment === "dashboard"
+    || firstSegment === "crews"
     || firstSegment === "employees"
     || firstSegment === "estimates"
     || firstSegment === "navigation"
     || firstSegment === "onboarding"
+    || firstSegment === "operations"
     || firstSegment === "projects"
   ) {
     return { namespace: firstSegment, lookupKey: rest.join(".") };
