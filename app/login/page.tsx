@@ -40,6 +40,16 @@ function LoginPageContent() {
     return decodeURIComponent(rawError);
   }, [searchParams, t]);
 
+  const nextPath = useMemo(() => {
+    const rawNext = searchParams.get("next");
+
+    if (!rawNext || !rawNext.startsWith("/")) {
+      return "/dashboard";
+    }
+
+    return rawNext;
+  }, [searchParams]);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
@@ -64,7 +74,8 @@ function LoginPageContent() {
       return;
     }
 
-    router.push("/");
+    router.push(nextPath);
+    router.refresh();
   };
 
   return (

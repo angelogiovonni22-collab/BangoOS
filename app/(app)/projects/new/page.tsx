@@ -193,42 +193,67 @@ export default function NewProjectPage() {
         return;
       }
 
-      const { data, error } = await client
-        .from("projects")
-        .insert({
-          company_id: workspace.context.companyId,
-          created_by: workspace.context.userId,
-          customer_id: formData.customerId,
-          name: formData.projectName.trim(),
-          project_number: formData.projectNumber.trim() || null,
-          project_type: formData.projectType,
-          status: formData.status,
-          description: formData.description.trim() || null,
-          address_line_1: formData.addressLine1.trim() || null,
-          address_line_2: formData.addressLine2.trim() || null,
-          city: formData.city.trim() || null,
-          state: formData.state.trim() || null,
-          postal_code: formData.postalCode.trim() || null,
-          estimated_start_date: formData.estimatedStartDate || null,
-          estimated_end_date: formData.estimatedEndDate || null,
-          estimated_cost: parseCurrencyInput(formData.estimatedCost),
-          contract_amount: parseCurrencyInput(formData.contractAmount),
-        })
-        .select("id")
-        .single();
+      const maxAttempts = 3;
+      let createdProjectId: string | null = null;
+      let lastErrorCode: string | null = null;
+      let lastErrorMessage: string | null = null;
 
-      if (error) {
-        setErrorMessage(t("projects.errorSaveProject", { message: error.message }));
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const generatedProjectNumber = await generateNextProjectNumber(client, workspace.context.companyId);
+
+        const { data, error } = await client
+          .from("projects")
+          .insert({
+            company_id: workspace.context.companyId,
+            created_by: workspace.context.userId,
+            customer_id: formData.customerId,
+            name: formData.projectName.trim(),
+            project_number: generatedProjectNumber,
+            project_type: formData.projectType,
+            status: formData.status,
+            description: formData.description.trim() || null,
+            address_line_1: formData.addressLine1.trim() || null,
+            address_line_2: formData.addressLine2.trim() || null,
+            city: formData.city.trim() || null,
+            state: formData.state.trim() || null,
+            postal_code: formData.postalCode.trim() || null,
+            estimated_start_date: formData.estimatedStartDate || null,
+            estimated_end_date: formData.estimatedEndDate || null,
+            estimated_cost: parseCurrencyInput(formData.estimatedCost),
+            contract_amount: parseCurrencyInput(formData.contractAmount),
+          })
+          .select("id")
+          .single();
+
+        if (!error && data?.id) {
+          createdProjectId = data.id;
+
+          break;
+        }
+
+        lastErrorCode = error?.code ?? null;
+        lastErrorMessage = error?.message ?? null;
+
+        if (lastErrorCode === "23505") {
+          continue;
+        }
+
+        setErrorMessage(t("projects.errorSaveProject", { message: error?.message || t("projects.errorUnexpectedSave") }));
         return;
       }
 
-      if (!data?.id) {
-        setErrorMessage(t("projects.errorMissingProjectLink"));
+      if (!createdProjectId) {
+        if (lastErrorCode === "23505") {
+          setErrorMessage(t("projects.errorProjectNumberGeneration"));
+          return;
+        }
+
+        setErrorMessage(t("projects.errorSaveProject", { message: lastErrorMessage || t("projects.errorUnexpectedSave") }));
         return;
       }
 
       setSuccessMessage(t("projects.projectCreated"));
-      router.push(`/projects/${data.id}`);
+      router.push(`/projects/${createdProjectId}`);
       router.refresh();
     } catch (caughtError) {
       console.error("Save project error:", caughtError);
@@ -516,6 +541,47 @@ function FormAlert({ tone, children }: { tone: "error" | "success"; children: Re
 
 const inputClassName =
   "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
+
+async function generateNextProjectNumber(
+  client: NonNullable<ReturnType<typeof createClient>>,
+  companyId: string,
+) {
+  const { data, error } = await client
+    .from("projects")
+    .select("project_number")
+    .eq("company_id", companyId)
+    .not("project_number", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error) {
+    throw new Error(error.message || "Unable to read project numbers");
+  }
+
+  let maxSequence = 0;
+
+  (data ?? []).forEach((row) => {
+    const projectNumber = row.project_number?.trim();
+
+    if (!projectNumber) {
+      return;
+    }
+
+    const match = /^PRJ-(\d+)$/i.exec(projectNumber);
+
+    if (!match) {
+      return;
+    }
+
+    const sequence = Number(match[1]);
+
+    if (!Number.isNaN(sequence) && sequence > maxSequence) {
+      maxSequence = sequence;
+    }
+  });
+
+  return `PRJ-${String(maxSequence + 1).padStart(4, "0")}`;
+}
 
 function parseCurrencyInput(value: string) {
   if (!value.trim()) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/provider";
@@ -38,7 +38,7 @@ const initialForm: OnboardingForm = {
 export default function OnboardingPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<OnboardingForm>(initialForm);

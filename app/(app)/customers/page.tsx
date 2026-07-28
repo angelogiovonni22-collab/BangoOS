@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
 
 type Customer = {
@@ -49,6 +50,26 @@ export default function CustomersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const resolveWorkspaceError = useCallback((errorCode: string | null, fallback: string | null) => {
+    if (errorCode === "unauthenticated") {
+      return t("customers.errorViewLogin");
+    }
+
+    if (errorCode === "profile_missing") {
+      return t("customers.errorProfileMissing");
+    }
+
+    if (errorCode === "company_missing") {
+      return t("customers.errorNoCompanyYet");
+    }
+
+    if (errorCode === "supabase_unavailable") {
+      return t("customers.errorConnect");
+    }
+
+    return fallback || t("customers.errorLoadUnexpected");
+  }, [t]);
+
   useEffect(() => {
     let isSubscribed = true;
 
@@ -67,34 +88,11 @@ export default function CustomersPage() {
       }
 
       try {
-        const {
-          data: { user },
-          error: userError,
-        } = await client.auth.getUser();
+        const workspace = await resolveWorkspaceContext(client);
 
-        if (userError || !user) {
+        if (workspace.errorMessage || !workspace.context) {
           if (isSubscribed) {
-            setErrorMessage(t("customers.errorViewLogin"));
-          }
-          return;
-        }
-
-        const { data: company, error: companyError } = await client
-          .from("companies")
-          .select("id")
-          .eq("owner_id", user.id)
-          .maybeSingle();
-
-        if (companyError) {
-          if (isSubscribed) {
-            setErrorMessage(t("customers.errorViewCompany"));
-          }
-          return;
-        }
-
-        if (!company) {
-          if (isSubscribed) {
-            setErrorMessage(t("customers.errorNoCompanyYet"));
+            setErrorMessage(resolveWorkspaceError(workspace.errorCode, workspace.errorMessage));
           }
           return;
         }
@@ -104,7 +102,7 @@ export default function CustomersPage() {
           .select(
             "id, customer_type, first_name, last_name, company_name, email, phone, address_line_1, address_line_2, city, state, postal_code, status, created_at",
           )
-          .eq("company_id", company.id)
+          .eq("company_id", workspace.context.companyId)
           .order("created_at", { ascending: false });
 
         if (customersError) {
@@ -163,7 +161,7 @@ export default function CustomersPage() {
     return () => {
       isSubscribed = false;
     };
-  }, [supabase, t]);
+  }, [resolveWorkspaceError, supabase, t]);
 
   const summary = useMemo(() => {
     const activeCustomers = customers.filter((customer) => customer.statusKey === "active").length;

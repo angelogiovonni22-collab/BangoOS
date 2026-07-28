@@ -407,6 +407,82 @@ export type Database = {
           },
         ]
       }
+      project_photos: {
+        Row: {
+          captured_at: string | null
+          category: string
+          company_id: string
+          created_at: string
+          file_size: number | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          mime_type: string | null
+          note: string | null
+          original_filename: string | null
+          project_id: string
+          storage_path: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          captured_at?: string | null
+          category?: string
+          company_id: string
+          created_at?: string
+          file_size?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          mime_type?: string | null
+          note?: string | null
+          original_filename?: string | null
+          project_id: string
+          storage_path: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          captured_at?: string | null
+          category?: string
+          company_id?: string
+          created_at?: string
+          file_size?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          mime_type?: string | null
+          note?: string | null
+          original_filename?: string | null
+          project_id?: string
+          storage_path?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_photos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_photos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_photos_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           actual_end_date: string | null

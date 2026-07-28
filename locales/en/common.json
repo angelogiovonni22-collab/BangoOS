@@ -21,5 +21,14 @@
   "statusReady": "Ready",
   "statusNeedsConfiguration": "Needs configuration",
   "yes": "Yes",
-  "no": "No"
+  "no": "No",
+  "account": "Account",
+  "signOut": "Sign Out",
+  "signingOut": "Signing out...",
+  "unknownUser": "Unknown user",
+  "noCompanyAssigned": "No company assigned yet",
+  "errorConnect": "Unable to connect right now. Please try again shortly.",
+  "signOutFailed": "Unable to sign out right now. Please try again.",
+  "moduleUnderDevelopmentTitle": "{{module}} is under development",
+  "moduleUnderDevelopmentDescription": "This module is not available yet in production. We are actively building it and will release it soon."
 }

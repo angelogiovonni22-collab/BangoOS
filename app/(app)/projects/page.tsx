@@ -53,12 +53,15 @@ type ProjectListItem = {
   searchText: string;
 };
 
+type ProjectsErrorKind = "auth" | "company" | "database" | "network" | "unknown";
+
 export default function ProjectsPage() {
   const { t, locale } = useI18n();
   const supabase = useMemo(() => createClient(), []);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<ProjectsErrorKind | null>(null);
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -72,12 +75,25 @@ export default function ProjectsPage() {
     const loadProjects = async () => {
       setIsLoading(true);
       setErrorMessage(null);
+      setErrorKind(null);
 
       const workspace = await resolveWorkspaceContext(supabase);
 
       if (workspace.errorMessage || !workspace.context) {
         if (isSubscribed) {
-          setErrorMessage(workspace.errorMessage || t("projects.errorLoadWorkspace"));
+          if (workspace.errorCode === "unauthenticated") {
+            setErrorKind("auth");
+            setErrorMessage(t("projects.errorAuthRequired"));
+          } else if (workspace.errorCode === "profile_missing" || workspace.errorCode === "company_missing") {
+            setErrorKind("company");
+            setErrorMessage(t("projects.errorCompanyContext"));
+          } else if (workspace.errorCode === "supabase_unavailable") {
+            setErrorKind("network");
+            setErrorMessage(t("projects.errorConnect"));
+          } else {
+            setErrorKind("unknown");
+            setErrorMessage(workspace.errorMessage || t("projects.errorLoadWorkspace"));
+          }
           setIsLoading(false);
         }
 
@@ -88,6 +104,7 @@ export default function ProjectsPage() {
 
       if (!client) {
         if (isSubscribed) {
+          setErrorKind("network");
           setErrorMessage(t("projects.errorConnect"));
           setIsLoading(false);
         }
@@ -115,7 +132,8 @@ export default function ProjectsPage() {
 
         if (projectsResponse.error) {
           if (isSubscribed) {
-            setErrorMessage(t("projects.errorLoadProjects"));
+            setErrorKind("database");
+            setErrorMessage(t("projects.errorLoadProjectsDetailed", { message: projectsResponse.error.message }));
           }
 
           return;
@@ -123,7 +141,8 @@ export default function ProjectsPage() {
 
         if (customersResponse.error) {
           if (isSubscribed) {
-            setErrorMessage(t("projects.errorLoadCustomers"));
+            setErrorKind("database");
+            setErrorMessage(t("projects.errorLoadCustomersDetailed", { message: customersResponse.error.message }));
           }
 
           return;
@@ -131,7 +150,8 @@ export default function ProjectsPage() {
 
         if (tasksResponse.error) {
           if (isSubscribed) {
-            setErrorMessage(t("projects.errorLoadProjectProgress"));
+            setErrorKind("database");
+            setErrorMessage(t("projects.errorLoadProjectProgressDetailed", { message: tasksResponse.error.message }));
           }
 
           return;
@@ -186,6 +206,7 @@ export default function ProjectsPage() {
         console.error("Load projects error:", caughtError);
 
         if (isSubscribed) {
+          setErrorKind("network");
           setErrorMessage(t("projects.errorUnexpectedLoad"));
         }
       } finally {
@@ -326,7 +347,7 @@ export default function ProjectsPage() {
         {isLoading ? (
           <ProjectsLoadingState />
         ) : errorMessage ? (
-          <ErrorState title={t("projects.errorTitle")} description={errorMessage} />
+          <ErrorState title={getProjectsErrorTitle(errorKind, t)} description={errorMessage} />
         ) : filteredAndSortedProjects.length > 0 ? (
           <>
             <div className="hidden overflow-x-auto md:block">
@@ -461,6 +482,29 @@ function ProgressCell({ value }: { value: number }) {
       </div>
     </div>
   );
+}
+
+function getProjectsErrorTitle(
+  errorKind: ProjectsErrorKind | null,
+  t: (key: string) => string,
+) {
+  if (errorKind === "auth") {
+    return t("projects.errorTitleAuth");
+  }
+
+  if (errorKind === "company") {
+    return t("projects.errorTitleCompany");
+  }
+
+  if (errorKind === "database") {
+    return t("projects.errorTitleDatabase");
+  }
+
+  if (errorKind === "network") {
+    return t("projects.errorTitleNetwork");
+  }
+
+  return t("projects.errorTitle");
 }
 
 function StatusBadge({ statusKey, label }: { statusKey: string; label: string }) {

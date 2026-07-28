@@ -490,7 +490,7 @@ begin
   from public.estimate_sections s
   join public.estimates e
     on e.id = s.estimate_id
-  where s.id = p_section_id;
+  where s.id = p_section_id
     and s.estimate_id = p_estimate_id
     and s.deleted_at is null
     and e.deleted_at is null

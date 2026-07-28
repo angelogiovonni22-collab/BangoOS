@@ -18,7 +18,7 @@ import {
   SummaryCard,
 } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
-import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
 import {
   formatProjectAddress,
   formatProjectCurrency,
@@ -30,6 +30,7 @@ import {
 import { getProjectStatusBadgeClass } from "@/lib/projects/statuses";
 import type { Database } from "@/types/database.types";
 import { useI18n } from "@/lib/i18n/provider";
+import { SiteCamWorkspace } from "./components/sitecam-workspace";
 
 type ProjectSummary = Pick<
   ProjectRow,
@@ -69,26 +70,6 @@ type TaskSummary = Pick<
 
 type ProjectTab = "overview" | "photos" | "schedule" | "files" | "financial" | "activity";
 
-type SiteCamPhoto = {
-  id: string;
-  categoryKey:
-    | "photoCategoryBefore"
-    | "photoCategoryProgress"
-    | "photoCategoryAfter"
-    | "photoCategoryDamage"
-    | "photoCategorySafety"
-    | "photoCategoryMaterials"
-    | "photoCategoryReceipts";
-  captionKey:
-    | "photoCaptionBeforeEntry"
-    | "photoCaptionProgressFraming"
-    | "photoCaptionAfterKitchen"
-    | "photoCaptionSafetyHarness"
-    | "photoCaptionMaterialsTile"
-    | "photoCaptionReceiptElectrical";
-  createdAt: string;
-};
-
 type ProjectFileItem = {
   id: string;
   name: string;
@@ -123,15 +104,6 @@ type ActivityItem = {
     | "time9HoursAgo"
     | "time3HoursAgo";
 };
-
-const siteCamPhotos: SiteCamPhoto[] = [
-  { id: "ph-1", categoryKey: "photoCategoryBefore", captionKey: "photoCaptionBeforeEntry", createdAt: "2026-07-12" },
-  { id: "ph-2", categoryKey: "photoCategoryProgress", captionKey: "photoCaptionProgressFraming", createdAt: "2026-07-17" },
-  { id: "ph-3", categoryKey: "photoCategoryAfter", captionKey: "photoCaptionAfterKitchen", createdAt: "2026-07-20" },
-  { id: "ph-4", categoryKey: "photoCategorySafety", captionKey: "photoCaptionSafetyHarness", createdAt: "2026-07-21" },
-  { id: "ph-5", categoryKey: "photoCategoryMaterials", captionKey: "photoCaptionMaterialsTile", createdAt: "2026-07-22" },
-  { id: "ph-6", categoryKey: "photoCategoryReceipts", captionKey: "photoCaptionReceiptElectrical", createdAt: "2026-07-23" },
-];
 
 const projectFiles: ProjectFileItem[] = [
   { id: "f-1", name: "Owner Contract v2.pdf", typeKey: "fileTypeContracts", uploadedAt: "2026-07-09" },
@@ -185,6 +157,7 @@ export default function ProjectDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
 
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [customer, setCustomer] = useState<CustomerSummary | null>(null);
@@ -213,6 +186,7 @@ export default function ProjectDetailsPage() {
       if (workspace.errorMessage || !workspace.context) {
         if (isSubscribed) {
           setErrorMessage(workspace.errorMessage || t("projects.errorLoadWorkspace"));
+          setWorkspaceContext(null);
           setIsLoading(false);
         }
 
@@ -224,6 +198,7 @@ export default function ProjectDetailsPage() {
       if (!client) {
         if (isSubscribed) {
           setErrorMessage(t("projects.errorConnect"));
+          setWorkspaceContext(null);
           setIsLoading(false);
         }
 
@@ -306,6 +281,7 @@ export default function ProjectDetailsPage() {
         }
 
         if (isSubscribed) {
+          setWorkspaceContext(workspace.context);
           setProject(loadedProject);
           setCustomer(customerResponse?.data ?? null);
           setProfilesById(profileMap);
@@ -446,7 +422,20 @@ export default function ProjectDetailsPage() {
         />
       ) : null}
 
-      {activeTab === "photos" ? <PhotosTab photos={siteCamPhotos} localeTag={localeTag} /> : null}
+      {activeTab === "photos"
+        ? workspaceContext
+          ? (
+            <SiteCamWorkspace
+              companyId={workspaceContext.companyId}
+              projectId={project.id}
+              projectName={getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject"))}
+              userId={workspaceContext.userId}
+              locale={locale}
+              profilesById={profilesById}
+            />
+            )
+          : <ErrorState compact title={t("projects.sitecamLoadErrorTitle")} description={t("projects.errorLoadWorkspace")} />
+        : null}
       {activeTab === "schedule" ? <ScheduleTab tasks={tasks} profilesById={profilesById} localeTag={localeTag} /> : null}
       {activeTab === "files" ? <FilesTab files={projectFiles} localeTag={localeTag} /> : null}
       {activeTab === "financial" ? <FinancialTab budget={budget} currentCosts={currentCosts} estimatedProfit={estimatedProfit} zeroAmount={zeroAmount} /> : null}
@@ -518,59 +507,6 @@ function OverviewTab({
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function PhotosTab({ photos, localeTag }: { photos: SiteCamPhoto[]; localeTag: string }) {
-  const { t } = useI18n();
-
-  return (
-    <Card>
-      <CardHeader>
-        <SectionHeader
-          title={t("projects.photosTitle")}
-          description={t("projects.photosDescription")}
-          action={
-            <div className="flex gap-2">
-              <Button variant="outline">{t("projects.capturePhoto")}</Button>
-              <Button>{t("projects.uploadPhoto")}</Button>
-            </div>
-          }
-        />
-      </CardHeader>
-      <CardContent className="space-y-4 p-6">
-        <div className="flex flex-wrap gap-2">
-          {[
-            "photoCategoryBefore",
-            "photoCategoryProgress",
-            "photoCategoryAfter",
-            "photoCategoryDamage",
-            "photoCategorySafety",
-            "photoCategoryMaterials",
-            "photoCategoryReceipts",
-          ].map((categoryKey) => (
-            <Badge key={categoryKey} tone="info">
-              {t(`projects.${categoryKey}`)}
-            </Badge>
-          ))}
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {photos.map((photo) => (
-            <article key={photo.id} className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white">
-              <div className="flex h-36 items-center justify-center bg-[linear-gradient(135deg,var(--color-brand-50),var(--color-info-50))]">
-                <span className="text-sm font-semibold text-[var(--color-text-secondary)]">{t("projects.placeholderImage")}</span>
-              </div>
-              <div className="space-y-2 p-4">
-                <Badge tone="neutral">{t(`projects.${photo.categoryKey}`)}</Badge>
-                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t(`projects.${photo.captionKey}`)}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">{formatProjectDateLong(photo.createdAt, localeTag, t("projects.notProvided"))}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

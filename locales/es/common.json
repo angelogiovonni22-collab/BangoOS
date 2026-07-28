@@ -21,5 +21,14 @@
   "statusReady": "Listo",
   "statusNeedsConfiguration": "Requiere configuracion",
   "yes": "Si",
-  "no": "No"
+  "no": "No",
+  "account": "Cuenta",
+  "signOut": "Cerrar sesion",
+  "signingOut": "Cerrando sesion...",
+  "unknownUser": "Usuario desconocido",
+  "noCompanyAssigned": "Aun no hay una empresa asignada",
+  "errorConnect": "No se puede conectar en este momento. Intentalo de nuevo pronto.",
+  "signOutFailed": "No se pudo cerrar sesion en este momento. Intentalo de nuevo.",
+  "moduleUnderDevelopmentTitle": "{{module}} esta en desarrollo",
+  "moduleUnderDevelopmentDescription": "Este modulo aun no esta disponible en produccion. Lo estamos construyendo activamente y lo liberaremos pronto."
 }

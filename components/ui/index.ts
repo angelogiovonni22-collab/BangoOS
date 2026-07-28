@@ -16,6 +16,7 @@ export { Select, getSelectClassName } from "./select";
 export { SearchInput } from "./search-input";
 export { SearchBar } from "./search-bar";
 export { LanguageSelector } from "./language-selector";
+export { ProfileMenu } from "./profile-menu";
 export { TableContainer } from "./table-container";
 export { EmptyState } from "./empty-state";
 export { ErrorState } from "./error-state";

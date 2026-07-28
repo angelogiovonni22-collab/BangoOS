@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
 
 type CustomerType = "residential" | "commercial";
@@ -38,10 +39,24 @@ const initialFormData: CustomerFormData = {
 export default function NewCustomerPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [formData, setFormData] = useState<CustomerFormData>(initialFormData);
   const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const hasMissingRequiredValues =
+    !formData.customerType
+    || !formData.firstName.trim()
+    || !formData.lastName.trim()
+    || !formData.email.trim()
+    || !formData.phoneNumber.trim()
+    || !formData.streetAddress.trim()
+    || !formData.city.trim()
+    || !formData.state.trim()
+    || !formData.zipCode.trim();
+
+  const isSubmitDisabled = isSaving || hasMissingRequiredValues;
 
   const handleFieldChange = <K extends keyof CustomerFormData>(
     field: K,
@@ -51,71 +66,82 @@ export default function NewCustomerPage() {
       ...previous,
       [field]: value,
     }));
+
+    if (errorMessage) {
+      setErrorMessage(null);
+    }
   };
 
   const handleCancel = () => {
     setFormData(initialFormData);
+    setErrorMessage(null);
+  };
+
+  const resolveWorkspaceError = (errorCode: string | null, fallback: string | null) => {
+    if (errorCode === "unauthenticated") {
+      return t("customers.errorLoginRequired");
+    }
+
+    if (errorCode === "profile_missing") {
+      return t("customers.errorProfileMissing");
+    }
+
+    if (errorCode === "company_missing") {
+      return t("customers.errorCompanyMissing");
+    }
+
+    if (errorCode === "supabase_unavailable") {
+      return t("customers.errorConnect");
+    }
+
+    return fallback || t("customers.errorSaveUnexpected");
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setErrorMessage(null);
 
     if (!formData.customerType) {
-      window.alert(t("customers.validationSelectType"));
+      setErrorMessage(t("customers.validationSelectType"));
       return;
     }
 
     if (!formData.firstName.trim()) {
-      window.alert(t("customers.validationFirstName"));
+      setErrorMessage(t("customers.validationFirstName"));
       return;
     }
 
     if (!formData.lastName.trim()) {
-      window.alert(t("customers.validationLastName"));
+      setErrorMessage(t("customers.validationLastName"));
       return;
     }
 
     if (!formData.email.trim()) {
-      window.alert(t("customers.validationEmail"));
+      setErrorMessage(t("customers.validationEmail"));
       return;
     }
 
     if (!supabase) {
-      window.alert(t("customers.errorConnect"));
+      setErrorMessage(t("customers.errorConnect"));
+      return;
+    }
+
+    if (isSaving) {
       return;
     }
 
     setIsSaving(true);
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const workspace = await resolveWorkspaceContext(supabase);
 
-      if (userError || !user) {
-        window.alert(t("customers.errorLoginRequired"));
+      if (workspace.errorMessage || !workspace.context) {
+        setErrorMessage(resolveWorkspaceError(workspace.errorCode, workspace.errorMessage));
         return;
       }
 
-      const { data: company, error: companyError } = await supabase
-        .from("companies")
-        .select("id")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-
-      if (companyError) {
-        window.alert(t("customers.errorFindCompany", { message: companyError.message }));
-        return;
-      }
-
-      if (!company) {
-        window.alert(t("customers.errorCompanyMissing"));
-        return;
-      }
-
-      const { error: insertError } = await supabase.from("customers").insert({
-        company_id: company.id,
+      const { data, error: insertError } = await supabase.from("customers").insert({
+        company_id: workspace.context.companyId,
         customer_type: formData.customerType,
         first_name: formData.firstName.trim(),
         last_name: formData.lastName.trim(),
@@ -128,19 +154,26 @@ export default function NewCustomerPage() {
         state: formData.state.trim() || null,
         postal_code: formData.zipCode.trim() || null,
         notes: formData.notes.trim() || null,
-        created_by: user.id,
-      });
+        created_by: workspace.context.userId,
+      })
+        .select("id")
+        .single();
 
       if (insertError) {
-        window.alert(t("customers.errorSaveCustomer", { message: insertError.message }));
+        setErrorMessage(t("customers.errorSaveCustomer", { message: insertError.message }));
         return;
       }
 
-      router.push("/customers");
+      if (!data?.id) {
+        setErrorMessage(t("customers.errorMissingCustomerLink"));
+        return;
+      }
+
+      router.push(`/customers/${data.id}`);
       router.refresh();
     } catch (caughtError) {
       console.error("Save customer error:", caughtError);
-      window.alert(t("customers.errorSaveUnexpected"));
+      setErrorMessage(t("customers.errorSaveUnexpected"));
     } finally {
       setIsSaving(false);
     }
@@ -156,7 +189,7 @@ export default function NewCustomerPage() {
         <p className="mt-2 text-slate-600">{t("customers.newDescription")}</p>
       </section>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form id="new-customer-form" onSubmit={handleSubmit} className="space-y-6">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">{t("customers.sectionCustomerInfo")}</h2>
 
@@ -321,6 +354,12 @@ export default function NewCustomerPage() {
           </Field>
         </section>
 
+        {errorMessage ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {errorMessage}
+          </div>
+        ) : null}
+
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
@@ -332,8 +371,9 @@ export default function NewCustomerPage() {
 
           <button
             type="submit"
-            disabled={isSaving}
-            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            form="new-customer-form"
+            disabled={isSubmitDisabled}
+            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving ? t("customers.saving") : t("customers.saveCustomer")}
           </button>

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 import {
   formatProjectCurrency,
@@ -58,6 +59,26 @@ export default function CustomerDetailsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
+  const resolveWorkspaceError = useCallback((errorCode: string | null, fallback: string | null) => {
+    if (errorCode === "unauthenticated") {
+      return t("customers.errorViewCustomerLogin");
+    }
+
+    if (errorCode === "profile_missing") {
+      return t("customers.errorProfileMissing");
+    }
+
+    if (errorCode === "company_missing") {
+      return t("customers.errorNoCompanyYet");
+    }
+
+    if (errorCode === "supabase_unavailable") {
+      return t("customers.errorConnect");
+    }
+
+    return fallback || t("customers.errorLoadCustomerUnexpected");
+  }, [t]);
+
   useEffect(() => {
     let isSubscribed = true;
 
@@ -87,36 +108,11 @@ export default function CustomerDetailsPage() {
       }
 
       try {
-        const {
-          data: { user },
-          error: userError,
-        } = await client.auth.getUser();
+        const workspace = await resolveWorkspaceContext(client);
 
-        if (userError || !user) {
+        if (workspace.errorMessage || !workspace.context) {
           if (isSubscribed) {
-            setErrorMessage(t("customers.errorViewCustomerLogin"));
-          }
-
-          return;
-        }
-
-        const { data: company, error: companyError } = await client
-          .from("companies")
-          .select("id")
-          .eq("owner_id", user.id)
-          .maybeSingle();
-
-        if (companyError) {
-          if (isSubscribed) {
-            setErrorMessage(t("customers.errorVerifyWorkspace"));
-          }
-
-          return;
-        }
-
-        if (!company) {
-          if (isSubscribed) {
-            setErrorMessage(t("customers.errorNoCompanyYet"));
+            setErrorMessage(resolveWorkspaceError(workspace.errorCode, workspace.errorMessage));
           }
 
           return;
@@ -128,7 +124,7 @@ export default function CustomerDetailsPage() {
             "id, company_id, customer_type, first_name, last_name, company_name, email, phone, address_line_1, address_line_2, city, state, postal_code, notes, status, created_at",
           )
           .eq("id", customerId)
-          .eq("company_id", company.id)
+          .eq("company_id", workspace.context.companyId)
           .maybeSingle<CustomerRow>();
 
         if (customerError) {
@@ -176,7 +172,7 @@ export default function CustomerDetailsPage() {
           .select(
             "id, company_id, customer_id, name, project_number, project_type, status, estimated_cost, estimated_start_date, estimated_end_date, created_at",
           )
-          .eq("company_id", company.id)
+          .eq("company_id", workspace.context.companyId)
           .eq("customer_id", customerId)
           .order("created_at", { ascending: false });
 
@@ -229,7 +225,7 @@ export default function CustomerDetailsPage() {
     return () => {
       isSubscribed = false;
     };
-  }, [customerId, locale, supabase, t]);
+  }, [customerId, locale, resolveWorkspaceError, supabase, t]);
 
   if (isLoading) {
     return <CustomerLoadingState />;

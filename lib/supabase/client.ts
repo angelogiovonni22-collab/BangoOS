@@ -1,13 +1,28 @@
 import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from '@/types/database.types'
+import { getSupabaseEnv } from '@/lib/supabase/env'
+
+let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = null
 
 export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  const {
+    url,
+    publishableKey,
+  } = getSupabaseEnv()
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!url || !publishableKey) {
     return null
   }
 
-  return createBrowserClient<Database>(supabaseUrl, supabaseKey)
+  if (browserClient) {
+    return browserClient
+  }
+
+  try {
+    browserClient = createBrowserClient<Database>(url, publishableKey)
+  } catch {
+    return null
+  }
+
+  return browserClient
 }
