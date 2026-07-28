@@ -7,6 +7,12 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 import {
+  Button,
+  EmptyState,
+  ErrorState,
+  SkeletonLoader,
+} from "@/components/ui";
+import {
   formatProjectCurrency,
   formatProjectDate,
   getProjectDisplayName,
@@ -415,15 +421,19 @@ function customerSections(t: (key: string) => string) {
 }
 
 function CustomerLoadingState() {
-  const { t } = useI18n();
-
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl font-bold text-blue-600">C
+    <div className="space-y-6">
+      <SkeletonLoader className="h-8 w-40" />
+      <SkeletonLoader className="h-10 w-72" />
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <SkeletonLoader className="h-20 w-full" />
+          <SkeletonLoader className="h-20 w-full" />
+          <SkeletonLoader className="h-20 w-full" />
+          <SkeletonLoader className="h-20 w-full" />
+          <SkeletonLoader className="h-20 w-full" />
+          <SkeletonLoader className="h-20 w-full" />
         </div>
-        <h1 className="mt-5 text-2xl font-semibold text-slate-950">{t("customers.loadingCustomer")}</h1>
-        <p className="mt-2 leading-7 text-slate-500">{t("customers.loadingCustomerDescription")}</p>
       </div>
     </div>
   );
@@ -432,54 +442,31 @@ function CustomerLoadingState() {
 function CustomerErrorState({ message }: { message: string }) {
   const { t } = useI18n();
 
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="max-w-lg rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-2xl font-bold text-rose-600">!
-        </div>
-        <h1 className="mt-5 text-2xl font-semibold text-slate-950">{t("customers.errorCustomerTitle")}</h1>
-        <p className="mt-2 leading-7 text-slate-500">{message}</p>
-        <Link
-          href="/customers"
-          className="mt-6 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          {t("customers.backToCustomers")}
-        </Link>
-      </div>
-    </div>
-  );
+  return <ErrorState title={t("customers.errorCustomerTitle")} description={message} />;
 }
 
 function CustomerNotFoundState() {
   const { t } = useI18n();
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-bold text-slate-600">?
-        </div>
-        <h1 className="mt-5 text-2xl font-semibold text-slate-950">{t("customers.customerNotFoundTitle")}</h1>
-        <p className="mt-2 leading-7 text-slate-500">{t("customers.customerNotFoundDescription")}</p>
-        <Link
-          href="/customers"
-          className="mt-6 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          {t("customers.backToCustomers")}
+    <EmptyState
+      icon="?"
+      title={t("customers.customerNotFoundTitle")}
+      description={t("customers.customerNotFoundDescription")}
+      action={
+        <Link href="/customers">
+          <Button>{t("customers.backToCustomers")}</Button>
         </Link>
-      </div>
-    </div>
+      }
+    />
   );
 }
 
 function CustomerProjectsLoadingState() {
-  const { t } = useI18n();
-
   return (
-    <div className="flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-      <div>
-        <p className="font-semibold text-slate-800">{t("customers.loadingProjects")}</p>
-        <p className="mt-2 text-sm text-slate-500">{t("customers.loadingProjectsDescription")}</p>
-      </div>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <SkeletonLoader className="h-40 w-full" />
+      <SkeletonLoader className="h-40 w-full" />
     </div>
   );
 }
@@ -501,12 +488,12 @@ function CustomerProjectsEmptyState() {
   const { t } = useI18n();
 
   return (
-    <div className="flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-      <div>
-        <p className="font-semibold text-slate-800">{t("customers.emptyProjectsTitle")}</p>
-        <p className="mt-2 text-sm text-slate-500">{t("customers.emptyProjectsDescription")}</p>
-      </div>
-    </div>
+    <EmptyState
+      icon="P"
+      compact
+      title={t("customers.emptyProjectsTitle")}
+      description={t("customers.emptyProjectsDescription")}
+    />
   );
 }
 

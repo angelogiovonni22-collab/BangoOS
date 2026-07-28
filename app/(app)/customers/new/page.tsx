@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button, Input, Select } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
@@ -190,155 +191,145 @@ export default function NewCustomerPage() {
       </section>
 
       <form id="new-customer-form" onSubmit={handleSubmit} className="space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">{t("customers.sectionCustomerInfo")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <Field>
               <Label htmlFor="customerType">{t("customers.customerType")}</Label>
-              <select
+              <Select
                 id="customerType"
                 value={formData.customerType}
                 onChange={(event) => handleFieldChange("customerType", event.target.value as CustomerType)}
-                className={inputClassName}
                 required
               >
                 <option value="residential">{t("customers.typeResidential")}</option>
                 <option value="commercial">{t("customers.typeCommercial")}</option>
-              </select>
+              </Select>
             </Field>
 
             <Field>
               <Label htmlFor="companyName">{t("customers.companyNameOptional")}</Label>
-              <input
+              <Input
                 id="companyName"
                 type="text"
                 value={formData.companyName}
                 onChange={(event) => handleFieldChange("companyName", event.target.value)}
                 placeholder="Bango Construction LLC"
-                className={inputClassName}
               />
             </Field>
 
             <Field>
               <Label htmlFor="firstName">{t("customers.firstName")}</Label>
-              <input
+              <Input
                 id="firstName"
                 type="text"
                 value={formData.firstName}
                 onChange={(event) => handleFieldChange("firstName", event.target.value)}
                 placeholder="Jordan"
-                className={inputClassName}
                 required
               />
             </Field>
 
             <Field>
               <Label htmlFor="lastName">{t("customers.lastName")}</Label>
-              <input
+              <Input
                 id="lastName"
                 type="text"
                 value={formData.lastName}
                 onChange={(event) => handleFieldChange("lastName", event.target.value)}
                 placeholder="Smith"
-                className={inputClassName}
                 required
               />
             </Field>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">{t("customers.sectionContactInfo")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <Field>
               <Label htmlFor="email">{t("customers.email")}</Label>
-              <input
+              <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(event) => handleFieldChange("email", event.target.value)}
                 placeholder="customer@example.com"
-                className={inputClassName}
                 required
               />
             </Field>
 
             <Field>
               <Label htmlFor="phoneNumber">{t("customers.phoneNumber")}</Label>
-              <input
+              <Input
                 id="phoneNumber"
                 type="tel"
                 value={formData.phoneNumber}
                 onChange={(event) => handleFieldChange("phoneNumber", event.target.value)}
                 placeholder="(555) 123-4567"
-                className={inputClassName}
                 required
               />
             </Field>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">{t("customers.sectionAddress")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <Field className="md:col-span-2">
               <Label htmlFor="streetAddress">{t("customers.streetAddress")}</Label>
-              <input
+              <Input
                 id="streetAddress"
                 type="text"
                 value={formData.streetAddress}
                 onChange={(event) => handleFieldChange("streetAddress", event.target.value)}
                 placeholder="123 Main St"
-                className={inputClassName}
                 required
               />
             </Field>
 
             <Field>
               <Label htmlFor="city">{t("customers.city")}</Label>
-              <input
+              <Input
                 id="city"
                 type="text"
                 value={formData.city}
                 onChange={(event) => handleFieldChange("city", event.target.value)}
                 placeholder="Austin"
-                className={inputClassName}
                 required
               />
             </Field>
 
             <Field>
               <Label htmlFor="state">{t("customers.state")}</Label>
-              <input
+              <Input
                 id="state"
                 type="text"
                 value={formData.state}
                 onChange={(event) => handleFieldChange("state", event.target.value)}
                 placeholder="TX"
-                className={inputClassName}
                 required
               />
             </Field>
 
             <Field>
               <Label htmlFor="zipCode">{t("customers.zipCode")}</Label>
-              <input
+              <Input
                 id="zipCode"
                 type="text"
                 value={formData.zipCode}
                 onChange={(event) => handleFieldChange("zipCode", event.target.value)}
                 placeholder="78701"
-                className={inputClassName}
                 required
               />
             </Field>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">{t("customers.sectionAdditional")}</h2>
 
           <Field className="mt-5">
@@ -349,7 +340,7 @@ export default function NewCustomerPage() {
               onChange={(event) => handleFieldChange("notes", event.target.value)}
               placeholder="Add any customer-specific details, preferences, or project notes..."
               rows={5}
-              className={inputClassName}
+              className={`${inputClassName} min-h-28`}
             />
           </Field>
         </section>
@@ -361,22 +352,23 @@ export default function NewCustomerPage() {
         ) : null}
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="lg"
             onClick={handleCancel}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
             {t("customers.cancel")}
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="submit"
+            size="lg"
             form="new-customer-form"
             disabled={isSubmitDisabled}
-            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving ? t("customers.saving") : t("customers.saveCustomer")}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -384,7 +376,7 @@ export default function NewCustomerPage() {
 }
 
 const inputClassName =
-  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
+  "w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]";
 
 function Field({
   children,

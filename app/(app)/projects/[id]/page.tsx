@@ -31,6 +31,7 @@ import { getProjectStatusBadgeClass } from "@/lib/projects/statuses";
 import type { Database } from "@/types/database.types";
 import { useI18n } from "@/lib/i18n/provider";
 import { SiteCamWorkspace } from "./components/sitecam-workspace";
+import { ProjectTimeline } from "@/components/project-intelligence";
 
 type ProjectSummary = Pick<
   ProjectRow,
@@ -68,7 +69,7 @@ type TaskSummary = Pick<
   "id" | "title" | "status" | "completion_percentage" | "planned_start" | "planned_finish" | "assigned_profile_id" | "created_at"
 >;
 
-type ProjectTab = "overview" | "photos" | "schedule" | "files" | "financial" | "activity";
+type ProjectTab = "overview" | "photos" | "schedule" | "files" | "financial" | "activity" | "intelligence";
 
 type ProjectFileItem = {
   id: string;
@@ -364,7 +365,12 @@ export default function ProjectDetailsPage() {
     { value: "files", label: t("projects.tabsFiles") },
     { value: "financial", label: t("projects.tabsFinancial") },
     { value: "activity", label: t("projects.tabsActivity") },
+    { value: "intelligence", label: t("projects.tabsIntelligence") },
   ];
+
+  const currentUserName = workspaceContext?.userId
+    ? profilesById[workspaceContext.userId] || t("projects.notAssigned")
+    : t("projects.notAssigned");
 
   return (
     <div className="space-y-6">
@@ -440,6 +446,14 @@ export default function ProjectDetailsPage() {
       {activeTab === "files" ? <FilesTab files={projectFiles} localeTag={localeTag} /> : null}
       {activeTab === "financial" ? <FinancialTab budget={budget} currentCosts={currentCosts} estimatedProfit={estimatedProfit} zeroAmount={zeroAmount} /> : null}
       {activeTab === "activity" ? <ActivityTab items={activityFeed} /> : null}
+      {activeTab === "intelligence" ? (
+        <ProjectTimeline
+          projectId={project.id}
+          localeTag={localeTag}
+          currentUserId={workspaceContext?.userId || "current-user"}
+          currentUserName={currentUserName}
+        />
+      ) : null}
     </div>
   );
 }

@@ -10,7 +10,7 @@ type SummaryCardProps = {
 
 export function SummaryCard({ icon, label, value, trend }: SummaryCardProps) {
   return (
-    <Card variant="kpi" className="h-full">
+    <Card variant="kpi" className="h-full !bg-[var(--color-surface-card)]">
       <CardContent className="flex h-full min-h-[156px] flex-col justify-between p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-brand-50)] text-[var(--color-brand-700)]">

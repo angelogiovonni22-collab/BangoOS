@@ -1,0 +1,45 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
+import type { WeatherSnapshot } from "@/lib/dashboard/types";
+
+type WeatherWidgetProps = {
+  weather: WeatherSnapshot;
+  t: (key: string, params?: Record<string, string | number>) => string;
+};
+
+export function WeatherWidget({ weather, t }: WeatherWidgetProps) {
+  return (
+    <Card as="section">
+      <CardHeader>
+        <CardTitle>{t("dashboard.weather")}</CardTitle>
+        <CardDescription>{t("dashboard.weatherDescription")}</CardDescription>
+      </CardHeader>
+
+      <CardContent className="p-5">
+        <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">{weather.location}</p>
+          <p className="mt-2 text-4xl font-semibold tracking-tight text-[var(--color-text-primary)]">{weather.temperatureF}°F</p>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t(weather.conditionKey)}</p>
+          <p className="mt-2 text-xs font-medium uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+            {t("dashboard.weatherHighLow", { high: weather.highF, low: weather.lowF })}
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-[var(--color-text-secondary)]">
+            <div className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2">
+              {t("dashboard.weatherWind", { speed: weather.windMph })}
+            </div>
+            <div className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2">
+              {t("dashboard.weatherRainChance", { chance: weather.rainProbabilityPercent })}
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-3 text-xs text-[var(--color-text-secondary)]">
+            <p className="font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">{t("dashboard.weatherTomorrow")}</p>
+            <p className="mt-1">{t(weather.tomorrow.conditionKey)}</p>
+            <p className="mt-1">{t("dashboard.weatherHighLow", { high: weather.tomorrow.highF, low: weather.tomorrow.lowF })}</p>
+            <p className="mt-1">{t("dashboard.weatherRainChance", { chance: weather.tomorrow.rainProbabilityPercent })}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

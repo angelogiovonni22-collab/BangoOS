@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Badge, Button, Card, CardContent, EmptyState, ErrorState, SectionHeader, Select, SkeletonLoader } from "@/components/ui";
@@ -617,16 +618,18 @@ export function SiteCamWorkspace({
             title={t("projects.sitecamTitle")}
             description={t("projects.sitecamDescription")}
             action={
-              <div className="flex flex-wrap gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
                   variant="outline"
+                  fullWidth
                   onClick={() => cameraInputRef.current?.click()}
                 >
                   {t("projects.sitecamTakePhoto")}
                 </Button>
                 <Button
                   type="button"
+                  fullWidth
                   onClick={() => uploadInputRef.current?.click()}
                 >
                   {t("projects.sitecamUploadPhotos")}
@@ -694,28 +697,30 @@ export function SiteCamWorkspace({
               ))}
             </Select>
 
-            <div className="xl:col-span-2 flex items-center gap-2">
+            <div className="xl:col-span-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setViewMode("grid")}
-                className={`rounded-[var(--radius-md)] border px-3 py-2 text-sm font-semibold ${
+                className={`rounded-[var(--radius-md)] border px-3 py-2.5 text-sm font-semibold ${
                   viewMode === "grid"
                     ? "border-[var(--color-brand-600)] bg-[var(--color-brand-50)] text-[var(--color-brand-700)]"
                     : "border-[var(--color-border-subtle)] text-[var(--color-text-secondary)]"
                 }`}
                 aria-pressed={viewMode === "grid"}
+                aria-label={t("projects.sitecamViewGrid")}
               >
                 {t("projects.sitecamViewGrid")}
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode("timeline")}
-                className={`rounded-[var(--radius-md)] border px-3 py-2 text-sm font-semibold ${
+                className={`rounded-[var(--radius-md)] border px-3 py-2.5 text-sm font-semibold ${
                   viewMode === "timeline"
                     ? "border-[var(--color-brand-600)] bg-[var(--color-brand-50)] text-[var(--color-brand-700)]"
                     : "border-[var(--color-border-subtle)] text-[var(--color-text-secondary)]"
                 }`}
                 aria-pressed={viewMode === "timeline"}
+                aria-label={t("projects.sitecamViewTimeline")}
               >
                 {t("projects.sitecamViewTimeline")}
               </button>
@@ -1015,13 +1020,13 @@ function UploadQueuePanel({
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {pendingFiles.map((item) => (
               <article key={item.id} className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white">
-                <img src={item.previewUrl} alt={item.file.name} className="h-28 w-full object-cover" />
+                <img src={item.previewUrl} alt={item.file.name} className="h-32 w-full object-cover" />
                 <div className="space-y-1 p-3">
                   <p className="line-clamp-1 text-xs font-semibold text-[var(--color-text-primary)]">{item.file.name}</p>
                   <p className="text-xs text-[var(--color-text-muted)]">{formatFileSize(item.file.size, t("projects.notProvided"))}</p>
                   <button
                     type="button"
-                    className="text-xs font-semibold text-[var(--color-danger-700)]"
+                    className="rounded-[var(--radius-sm)] px-2 py-1 text-xs font-semibold text-[var(--color-danger-700)] hover:bg-[var(--color-danger-50)]"
                     onClick={() => onRemove(item.id)}
                   >
                     {t("projects.sitecamRemoveFile")}
@@ -1061,7 +1066,7 @@ function UploadQueuePanel({
             </p>
           ) : null}
 
-          <Button type="button" disabled={isUploading || pendingFiles.length === 0} onClick={() => void onUpload()}>
+          <Button type="button" fullWidth disabled={isUploading || pendingFiles.length === 0} onClick={() => void onUpload()}>
             {isUploading ? t("projects.sitecamUploadInProgress") : t("projects.sitecamStartUpload")}
           </Button>
         </div>
@@ -1103,8 +1108,8 @@ function PhotoCard({
 }) {
   return (
     <article className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white">
-      <button type="button" onClick={onView} className="block w-full text-left">
-        <div className="h-44 bg-[var(--color-surface-subtle)]">
+      <button type="button" onClick={onView} className="block w-full text-left" aria-label={t("projects.sitecamActionView")}>
+        <div className="h-40 bg-[var(--color-surface-subtle)] sm:h-44">
           {imageUrl && !isBrokenImage ? (
             <img
               src={imageUrl}
@@ -1165,7 +1170,7 @@ function ActionMenuButton({ label, onClick, danger = false }: { label: string; o
       type="button"
       role="menuitem"
       onClick={onClick}
-      className={`block w-full rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm ${
+      className={`block w-full rounded-[var(--radius-sm)] px-3 py-2.5 text-left text-sm ${
         danger
           ? "text-[var(--color-danger-700)] hover:bg-[var(--color-danger-50)]"
           : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"

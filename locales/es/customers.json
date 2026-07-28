@@ -31,6 +31,7 @@
   "errorTitle": "No pudimos cargar los clientes",
   "emptyTitle": "Aun no hay clientes",
   "emptyDescription": "Agrega tu primer cliente residencial o comercial para comenzar a dar seguimiento a proyectos, presupuestos, facturas y comunicacion.",
+  "filteredEmptyDescription": "No hay clientes que coincidan con los filtros actuales. Ajusta la busqueda o el estado.",
   "na": "N/D",
   "newTitle": "Agregar cliente",
   "newDescription": "Crea un nuevo cliente residencial o comercial.",

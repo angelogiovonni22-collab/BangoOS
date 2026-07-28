@@ -31,6 +31,7 @@
   "errorTitle": "We couldn't load customers",
   "emptyTitle": "No customers yet",
   "emptyDescription": "Add your first residential or commercial customer to begin tracking projects, estimates, invoices, and communication.",
+  "filteredEmptyDescription": "No customers match your current filters. Try adjusting search or status.",
   "na": "N/A",
   "newTitle": "Add Customer",
   "newDescription": "Create a new residential or commercial customer.",

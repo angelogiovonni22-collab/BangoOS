@@ -29,6 +29,9 @@
   "noCompanyAssigned": "Aun no hay una empresa asignada",
   "errorConnect": "No se puede conectar en este momento. Intentalo de nuevo pronto.",
   "signOutFailed": "No se pudo cerrar sesion en este momento. Intentalo de nuevo.",
+  "unexpectedErrorTitle": "Algo salio mal",
+  "unexpectedErrorDescription": "Ocurrio un problema inesperado al cargar esta pagina. Intentalo de nuevo.",
+  "tryAgain": "Intentar de nuevo",
   "moduleUnderDevelopmentTitle": "{{module}} esta en desarrollo",
   "moduleUnderDevelopmentDescription": "Este modulo aun no esta disponible en produccion. Lo estamos construyendo activamente y lo liberaremos pronto."
 }

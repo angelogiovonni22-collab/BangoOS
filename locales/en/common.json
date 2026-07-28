@@ -29,6 +29,9 @@
   "noCompanyAssigned": "No company assigned yet",
   "errorConnect": "Unable to connect right now. Please try again shortly.",
   "signOutFailed": "Unable to sign out right now. Please try again.",
+  "unexpectedErrorTitle": "Something went wrong",
+  "unexpectedErrorDescription": "We hit an unexpected issue while loading this page. Please try again.",
+  "tryAgain": "Try again",
   "moduleUnderDevelopmentTitle": "{{module}} is under development",
   "moduleUnderDevelopmentDescription": "This module is not available yet in production. We are actively building it and will release it soon."
 }

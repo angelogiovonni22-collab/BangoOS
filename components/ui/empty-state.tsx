@@ -5,6 +5,7 @@ type EmptyStateProps = {
   title: string;
   description: string;
   action?: ReactNode;
+  secondaryAction?: ReactNode;
   compact?: boolean;
 };
 
@@ -13,6 +14,7 @@ export function EmptyState({
   title,
   description,
   action,
+  secondaryAction,
   compact = false,
 }: EmptyStateProps) {
   return (
@@ -32,7 +34,12 @@ export function EmptyState({
 
         <p className="mt-2 leading-7 text-[var(--color-text-muted)]">{description}</p>
 
-        {action ? <div className="mt-6">{action}</div> : null}
+        {action || secondaryAction ? (
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {secondaryAction}
+            {action}
+          </div>
+        ) : null}
       </div>
     </div>
   );

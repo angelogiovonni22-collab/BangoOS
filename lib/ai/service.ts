@@ -62,13 +62,13 @@ export function createAIService(): AIService {
         userRole: input.userRole ?? null,
       };
     },
-    async ask(_input) {
+    async ask() {
       throw notConfigured();
     },
-    async proposeAction(_input) {
+    async proposeAction() {
       throw notConfigured();
     },
-    async executeApprovedAction(_input) {
+    async executeApprovedAction() {
       throw notConfigured();
     },
   };

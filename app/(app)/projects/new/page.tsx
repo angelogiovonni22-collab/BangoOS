@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button, Input, Select } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
@@ -287,17 +288,16 @@ export default function NewProjectPage() {
       </section>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">{t("projects.sectionProjectInfo")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <Field>
               <Label htmlFor="projectName">{t("projects.projectName")}</Label>
-              <input
+              <Input
                 id="projectName"
                 value={formData.projectName}
                 onChange={(event) => updateField("projectName", event.target.value)}
-                className={inputClassName}
                 placeholder={t("projects.projectNameExample")}
                 required
               />
@@ -305,11 +305,10 @@ export default function NewProjectPage() {
 
             <Field>
               <Label htmlFor="customerId">{t("projects.fieldCustomer")}</Label>
-              <select
+              <Select
                 id="customerId"
                 value={formData.customerId}
                 onChange={(event) => updateField("customerId", event.target.value)}
-                className={inputClassName}
                 required
                 disabled={isLoading || customerOptions.length === 0}
               >
@@ -319,7 +318,7 @@ export default function NewProjectPage() {
                     {customer.label}
                   </option>
                 ))}
-              </select>
+              </Select>
               {!isLoading && customerOptions.length === 0 ? (
                 <p className="mt-2 text-sm text-slate-500">
                   {t("projects.customerRequiredInfo")}
@@ -329,22 +328,20 @@ export default function NewProjectPage() {
 
             <Field>
               <Label htmlFor="projectNumber">{t("projects.projectNumberLabel")}</Label>
-              <input
+              <Input
                 id="projectNumber"
                 value={formData.projectNumber}
                 onChange={(event) => updateField("projectNumber", event.target.value)}
-                className={inputClassName}
                 placeholder={t("projects.projectNumberExample")}
               />
             </Field>
 
             <Field>
               <Label htmlFor="projectType">{t("projects.projectType")}</Label>
-              <select
+              <Select
                 id="projectType"
                 value={formData.projectType}
                 onChange={(event) => updateField("projectType", event.target.value)}
-                className={inputClassName}
                 required
               >
                 <option value="">{t("projects.projectTypeSelect")}</option>
@@ -353,16 +350,15 @@ export default function NewProjectPage() {
                     {getProjectTypeLabel(option.value, t)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
 
             <Field>
               <Label htmlFor="status">{t("projects.status")}</Label>
-              <select
+              <Select
                 id="status"
                 value={formData.status}
                 onChange={(event) => updateField("status", event.target.value)}
-                className={inputClassName}
                 required
               >
                 {PROJECT_STATUSES.map((option) => (
@@ -370,62 +366,58 @@ export default function NewProjectPage() {
                     {getProjectStatusLabel(option.value, t)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
 
             <Field>
               <Label htmlFor="estimatedStartDate">{t("projects.estimatedStart")}</Label>
-              <input
+              <Input
                 id="estimatedStartDate"
                 type="date"
                 value={formData.estimatedStartDate}
                 onChange={(event) => updateField("estimatedStartDate", event.target.value)}
-                className={inputClassName}
               />
             </Field>
 
             <Field>
               <Label htmlFor="estimatedEndDate">{t("projects.estimatedCompletion")}</Label>
-              <input
+              <Input
                 id="estimatedEndDate"
                 type="date"
                 value={formData.estimatedEndDate}
                 onChange={(event) => updateField("estimatedEndDate", event.target.value)}
-                className={inputClassName}
               />
             </Field>
 
             <Field>
               <Label htmlFor="estimatedCost">{t("projects.estimatedCost")}</Label>
-              <input
+              <Input
                 id="estimatedCost"
                 type="number"
                 min="0"
                 step="0.01"
                 value={formData.estimatedCost}
                 onChange={(event) => updateField("estimatedCost", event.target.value)}
-                className={inputClassName}
                 placeholder={t("projects.estimatedCostExample")}
               />
             </Field>
 
             <Field>
               <Label htmlFor="contractAmount">{t("projects.contractAmount")}</Label>
-              <input
+              <Input
                 id="contractAmount"
                 type="number"
                 min="0"
                 step="0.01"
                 value={formData.contractAmount}
                 onChange={(event) => updateField("contractAmount", event.target.value)}
-                className={inputClassName}
                 placeholder={t("projects.contractAmountExample")}
               />
             </Field>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">{t("projects.sectionDescriptionAddress")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
@@ -442,55 +434,50 @@ export default function NewProjectPage() {
 
             <Field className="md:col-span-2">
               <Label htmlFor="addressLine1">{t("projects.addressLine1")}</Label>
-              <input
+              <Input
                 id="addressLine1"
                 value={formData.addressLine1}
                 onChange={(event) => updateField("addressLine1", event.target.value)}
-                className={inputClassName}
                 placeholder={t("projects.addressLine1Example")}
               />
             </Field>
 
             <Field className="md:col-span-2">
               <Label htmlFor="addressLine2">{t("projects.addressLine2")}</Label>
-              <input
+              <Input
                 id="addressLine2"
                 value={formData.addressLine2}
                 onChange={(event) => updateField("addressLine2", event.target.value)}
-                className={inputClassName}
                 placeholder={t("projects.addressLine2Example")}
               />
             </Field>
 
             <Field>
               <Label htmlFor="city">{t("projects.city")}</Label>
-              <input
+              <Input
                 id="city"
                 value={formData.city}
                 onChange={(event) => updateField("city", event.target.value)}
-                className={inputClassName}
                 placeholder={t("projects.cityExample")}
               />
             </Field>
 
             <Field>
               <Label htmlFor="state">{t("projects.state")}</Label>
-              <input
+              <Input
                 id="state"
                 value={formData.state}
                 onChange={(event) => updateField("state", event.target.value)}
-                className={inputClassName}
                 placeholder={t("projects.stateExample")}
               />
             </Field>
 
             <Field>
               <Label htmlFor="postalCode">{t("projects.postalCode")}</Label>
-              <input
+              <Input
                 id="postalCode"
                 value={formData.postalCode}
                 onChange={(event) => updateField("postalCode", event.target.value)}
-                className={inputClassName}
                 placeholder={t("projects.postalCodeExample")}
               />
             </Field>
@@ -501,20 +488,17 @@ export default function NewProjectPage() {
         {successMessage ? <FormAlert tone="success">{successMessage}</FormAlert> : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/projects"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            {t("projects.cancel")}
+          <Link href="/projects">
+            <Button variant="outline" size="lg">{t("projects.cancel")}</Button>
           </Link>
 
-          <button
+          <Button
             type="submit"
+            size="lg"
             disabled={isSaving || isLoading}
-            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving ? t("projects.savingProject") : t("projects.createProject")}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -540,7 +524,7 @@ function FormAlert({ tone, children }: { tone: "error" | "success"; children: Re
 }
 
 const inputClassName =
-  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
+  "w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]";
 
 async function generateNextProjectNumber(
   client: NonNullable<ReturnType<typeof createClient>>,

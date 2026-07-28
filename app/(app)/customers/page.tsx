@@ -3,6 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  SearchInput,
+  Select,
+  SkeletonLoader,
+  SummaryCard,
+  TableContainer,
+} from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
@@ -197,208 +209,194 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{t("customers.pageEyebrow")}</p>
-
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{t("customers.pageTitle")}</h1>
-
-          <p className="mt-2 text-slate-600">{t("customers.pageDescription")}</p>
-        </div>
-
-        <Link
-          href="/customers/new"
-          className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          <span className="mr-2 text-lg leading-none">+</span>
-          {t("customers.addCustomer")}
-        </Link>
-      </section>
+      <PageHeader
+        title={t("customers.pageTitle")}
+        description={t("customers.pageDescription")}
+        primaryAction={
+          <Link href="/customers/new">
+            <Button size="lg">+ {t("customers.addCustomer")}</Button>
+          </Link>
+        }
+      />
 
       <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard title={t("customers.summaryTotal")} value={String(summary.totalCustomers)} />
-        <SummaryCard title={t("customers.summaryActive")} value={String(summary.activeCustomers)} />
-        <SummaryCard title={t("customers.summaryLeads")} value={String(summary.leadCustomers)} />
-        <SummaryCard title={t("customers.summaryCommercial")} value={String(summary.commercialCustomers)} />
+        <SummaryCard icon="C" label={t("customers.summaryTotal")} value={String(summary.totalCustomers)} />
+        <SummaryCard icon="A" label={t("customers.summaryActive")} value={String(summary.activeCustomers)} />
+        <SummaryCard icon="L" label={t("customers.summaryLeads")} value={String(summary.leadCustomers)} />
+        <SummaryCard icon="B" label={t("customers.summaryCommercial")} value={String(summary.commercialCustomers)} />
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-950">{t("customers.directoryTitle")}</h2>
+      <TableContainer
+        title={t("customers.directoryTitle")}
+        description={t("customers.directoryDescription")}
+        controls={
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SearchInput
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={t("customers.searchPlaceholder")}
+              aria-label={t("customers.searchPlaceholder")}
+            />
 
-              <p className="mt-1 text-sm text-slate-500">{t("customers.directoryDescription")}</p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <label className="relative block">
-                <span className="sr-only">{t("customers.searchPlaceholder")}</span>
-
-                <input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder={t("customers.searchPlaceholder")}
-                  className="w-full min-w-64 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                />
-              </label>
-
-              <label>
-                <span className="sr-only">{t("customers.filterStatus")}</span>
-
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="all">{t("customers.allStatuses")}</option>
-                  <option value="lead">{t("customers.statusLead")}</option>
-                  <option value="active">{t("customers.statusActive")}</option>
-                  <option value="inactive">{t("customers.statusInactive")}</option>
-                </select>
-              </label>
-            </div>
+            <Select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              aria-label={t("customers.filterStatus")}
+            >
+              <option value="all">{t("customers.allStatuses")}</option>
+              <option value="lead">{t("customers.statusLead")}</option>
+              <option value="active">{t("customers.statusActive")}</option>
+              <option value="inactive">{t("customers.statusInactive")}</option>
+            </Select>
           </div>
-        </div>
-
+        }
+      >
         {isLoading ? (
-          <div className="flex min-h-96 items-center justify-center p-8">
-            <div className="max-w-md text-center">
-              <h3 className="text-xl font-semibold text-slate-950">{t("customers.loadingTitle")}</h3>
-
-              <p className="mt-2 leading-7 text-slate-500">{t("customers.loadingDescription")}</p>
-            </div>
-          </div>
+          <CustomersLoadingState />
         ) : errorMessage ? (
-          <div className="flex min-h-96 items-center justify-center p-8">
-            <div className="max-w-md text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-2xl font-bold text-rose-600">!
-              </div>
-
-              <h3 className="mt-5 text-xl font-semibold text-slate-950">{t("customers.errorTitle")}</h3>
-
-              <p className="mt-2 leading-7 text-slate-500">{errorMessage}</p>
-            </div>
-          </div>
+          <ErrorState title={t("customers.errorTitle")} description={errorMessage} compact />
         ) : filteredCustomers.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <TableHeading>{t("customers.tableCustomer")}</TableHeading>
-                  <TableHeading>{t("customers.tableType")}</TableHeading>
-                  <TableHeading>{t("customers.tableContact")}</TableHeading>
-                  <TableHeading>{t("customers.tableLocation")}</TableHeading>
-                  <TableHeading>{t("customers.tableStatus")}</TableHeading>
-                  <TableHeading align="right">{t("customers.tableActions")}</TableHeading>
-                </tr>
-              </thead>
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <TableHeading>{t("customers.tableCustomer")}</TableHeading>
+                    <TableHeading>{t("customers.tableType")}</TableHeading>
+                    <TableHeading>{t("customers.tableContact")}</TableHeading>
+                    <TableHeading>{t("customers.tableLocation")}</TableHeading>
+                    <TableHeading>{t("customers.tableStatus")}</TableHeading>
+                    <TableHeading align="right">{t("customers.tableActions")}</TableHeading>
+                  </tr>
+                </thead>
 
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredCustomers.map((customer) => (
-                  <tr
-                    key={customer.id}
-                    className="cursor-pointer transition hover:bg-slate-50"
-                    role="link"
-                    tabIndex={0}
-                    aria-label={`${t("customers.view")} ${customer.name}`}
-                    onClick={(event) => {
-                      const target = event.target as HTMLElement;
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {filteredCustomers.map((customer) => (
+                    <tr
+                      key={customer.id}
+                      className="cursor-pointer transition hover:bg-slate-50"
+                      role="link"
+                      tabIndex={0}
+                      aria-label={`${t("customers.view")} ${customer.name}`}
+                      onClick={(event) => {
+                        const target = event.target as HTMLElement;
 
-                      if (target.closest("a,button,input,select,textarea")) {
-                        return;
-                      }
+                        if (target.closest("a,button,input,select,textarea")) {
+                          return;
+                        }
 
-                      router.push(`/customers/${customer.id}`);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") {
-                        return;
-                      }
+                        router.push(`/customers/${customer.id}`);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" && event.key !== " ") {
+                          return;
+                        }
 
-                      event.preventDefault();
-                      router.push(`/customers/${customer.id}`);
-                    }}
-                  >
-                    <td className="whitespace-nowrap px-6 py-4">
+                        event.preventDefault();
+                        router.push(`/customers/${customer.id}`);
+                      }}
+                    >
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <Link
+                          href={`/customers/${customer.id}`}
+                          className="font-semibold text-slate-950 transition hover:text-blue-700"
+                        >
+                          {customer.name}
+                        </Link>
+
+                        <div className="mt-1 text-sm text-slate-500">
+                          {t("customers.customerId")}: {customer.id}
+                        </div>
+                      </td>
+
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{customer.type}</td>
+
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <div className="text-sm text-slate-700">{customer.email}</div>
+                        <div className="mt-1 text-sm text-slate-500">{customer.phone}</div>
+                      </td>
+
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{customer.location}</td>
+
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <StatusBadge status={customer.status} statusKey={customer.statusKey} />
+                      </td>
+
+                      <td className="whitespace-nowrap px-6 py-4 text-right">
+                        <Link
+                          href={`/customers/${customer.id}`}
+                          className="text-sm font-semibold text-blue-600 transition hover:text-blue-800"
+                        >
+                          {t("customers.view")}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid gap-4 p-4 md:hidden">
+              {filteredCustomers.map((customer) => (
+                <article key={customer.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
                       <Link
                         href={`/customers/${customer.id}`}
-                        className="font-semibold text-slate-950 transition hover:text-blue-700"
+                        className="text-base font-semibold text-slate-900"
                       >
                         {customer.name}
                       </Link>
+                      <p className="mt-1 text-sm text-slate-500">{customer.type}</p>
+                    </div>
+                    <StatusBadge status={customer.status} statusKey={customer.statusKey} />
+                  </div>
 
-                      <div className="mt-1 text-sm text-slate-500">
-                        {t("customers.customerId")}: {customer.id}
-                      </div>
-                    </td>
+                  <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                    <InfoLine label={t("customers.tableContact")} value={`${customer.email} · ${customer.phone}`} />
+                    <InfoLine label={t("customers.tableLocation")} value={customer.location} />
+                  </div>
 
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{customer.type}</td>
-
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <div className="text-sm text-slate-700">{customer.email}</div>
-
-                      <div className="mt-1 text-sm text-slate-500">{customer.phone}</div>
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{customer.location}</td>
-
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <StatusBadge status={customer.status} statusKey={customer.statusKey} />
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-right">
-                      <Link
-                        href={`/customers/${customer.id}`}
-                        className="text-sm font-semibold text-blue-600 transition hover:text-blue-800"
-                      >
-                        {t("customers.view")}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="flex min-h-96 items-center justify-center p-8">
-            <div className="max-w-md text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl font-bold text-blue-600">C
-              </div>
-
-              <h3 className="mt-5 text-xl font-semibold text-slate-950">{t("customers.emptyTitle")}</h3>
-
-              <p className="mt-2 leading-7 text-slate-500">{t("customers.emptyDescription")}</p>
-
-              <Link
-                href="/customers/new"
-                className="mt-6 inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-              >
-                <span className="mr-2 text-lg leading-none">+</span>
-                {t("customers.addFirstCustomer")}
-              </Link>
+                  <Link href={`/customers/${customer.id}`} className="mt-4 inline-flex text-sm font-semibold text-blue-700">
+                    {t("customers.view")}
+                  </Link>
+                </article>
+              ))}
             </div>
-          </div>
+          </>
+        ) : customers.length === 0 ? (
+          <EmptyState
+            icon="C"
+            title={t("customers.emptyTitle")}
+            description={t("customers.emptyDescription")}
+            compact
+            action={
+              <Link href="/customers/new">
+                <Button>{t("customers.addFirstCustomer")}</Button>
+              </Link>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon="?"
+            title={t("customers.emptyTitle")}
+            description={t("customers.filteredEmptyDescription")}
+            compact
+          />
         )}
-      </section>
+      </TableContainer>
     </div>
   );
 }
 
-function SummaryCard({
-  title,
-  value,
-}: {
-  title: string;
-  value: string;
-}) {
+function CustomersLoadingState() {
   return (
-    <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <p className="text-sm font-semibold text-slate-500">{title}</p>
-
-      <p className="mt-4 text-4xl font-bold tracking-tight text-slate-950">{value}</p>
-    </article>
+    <div className="space-y-4 p-6">
+      <SkeletonLoader className="h-12 w-full" />
+      <SkeletonLoader className="h-16 w-full" />
+      <SkeletonLoader className="h-16 w-full" />
+      <SkeletonLoader className="h-16 w-full" />
+    </div>
   );
 }
 
@@ -429,16 +427,21 @@ function StatusBadge({
   statusKey: string;
 }) {
   const styles: Record<string, string> = {
-    lead: "bg-amber-50 text-amber-700 ring-amber-600/20",
-    active: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-    inactive: "bg-slate-100 text-slate-600 ring-slate-500/20",
+    lead: "warning",
+    active: "success",
+    inactive: "neutral",
   };
-  const badgeStyle = styles[statusKey] || styles.inactive;
+  const tone = styles[statusKey] || "neutral";
 
+  return <Badge tone={tone as "warning" | "success" | "neutral"}>{status}</Badge>;
+}
+
+function InfoLine({ label, value }: { label: string; value: string }) {
   return (
-    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${badgeStyle}`}>
-      {status}
-    </span>
+    <div>
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="font-medium text-slate-800">{value}</p>
+    </div>
   );
 }
 
