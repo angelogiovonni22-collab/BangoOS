@@ -1,5 +1,6 @@
 import { createCrewService } from "@/lib/crews";
 import { createEmployeeService } from "@/lib/employees";
+import { createSchedulingService } from "@/lib/scheduling";
 import type {
   AttentionItem,
   CrewOperationalStatus,
@@ -307,8 +308,9 @@ const attentionQueue: AttentionItem[] = [
 export async function getOperationsPayload(filters: OperationsFilters): Promise<OperationsPayload> {
   const crewService = createCrewService();
   const employeeService = createEmployeeService();
+  const schedulingService = createSchedulingService();
 
-  const [crewList, employeeSummary] = await Promise.all([
+  const [crewList, employeeSummary, schedulingPayload] = await Promise.all([
     crewService.getCrews({
       query: filters.query,
       status: "all",
@@ -319,6 +321,7 @@ export async function getOperationsPayload(filters: OperationsFilters): Promise<
       pageSize: 50,
     }),
     employeeService.getSummary(),
+    schedulingService.getScheduling(),
   ]);
 
   const filteredProjects = projects.filter((item) => {
@@ -578,6 +581,23 @@ export async function getOperationsPayload(filters: OperationsFilters): Promise<
       },
     ],
     attentionQueue,
+    schedulingIntegration: {
+      crewsWorking: new Set(
+        schedulingPayload.assignments
+          .filter((assignment) => assignment.status === "published" || assignment.status === "in_progress")
+          .flatMap((assignment) => assignment.assignedCrewIds),
+      ).size,
+      employeesScheduled: schedulingPayload.assignments.reduce(
+        (sum, assignment) => sum + assignment.assignedEmployeeIds.length,
+        0,
+      ),
+      openShifts: schedulingPayload.openShifts.filter((shift) => !shift.dismissed).length,
+      scheduleConflicts: schedulingPayload.conflicts.filter((conflict) => conflict.resolutionStatus === "open").length,
+      delayedAssignments: schedulingPayload.assignments.filter((assignment) => assignment.status === "in_progress" && assignment.priority === "critical").length,
+      overtimeRisk: schedulingPayload.conflicts.filter((conflict) => conflict.type === "overtime_threshold_risk" && conflict.resolutionStatus === "open").length,
+      understaffedProjects: schedulingPayload.conflicts.filter((conflict) => conflict.type === "understaffed_project" && conflict.resolutionStatus === "open").length,
+      dispatchDelayed: schedulingPayload.dispatch.filter((resource) => resource.status === "delayed").length,
+    },
     projectOptions: ["all", ...new Set(projects.map((item) => item.projectName))],
   };
 }

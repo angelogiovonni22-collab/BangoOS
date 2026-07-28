@@ -175,5 +175,15 @@ export type OperationsPayload = {
   sitecamActivity: SiteCamActivity[];
   insights: OperationsInsight[];
   attentionQueue: AttentionItem[];
+  schedulingIntegration: {
+    crewsWorking: number;
+    employeesScheduled: number;
+    openShifts: number;
+    scheduleConflicts: number;
+    delayedAssignments: number;
+    overtimeRisk: number;
+    understaffedProjects: number;
+    dispatchDelayed: number;
+  };
   projectOptions: string[];
 };

@@ -221,7 +221,7 @@
   "attentionScope.safety": "Safety",
 
   "quickActions.assignCrew": "Assign Crew",
-  "quickActions.viewSchedule": "View Schedule",
+  "quickActions.viewSchedule": "Open Scheduling & Dispatch",
   "quickActions.addDailyReport": "Add Daily Report",
   "quickActions.reviewSafety": "Review Safety Alerts",
   "quickActions.openSitecam": "Open SiteCam",

@@ -16,6 +16,7 @@ type AppShellProps = {
 const navigationItems = [
   { key: "dashboard", href: "/dashboard", icon: "◉" },
   { key: "operations", href: "/operations", icon: "◈" },
+  { key: "scheduling", href: "/scheduling", icon: "◧" },
   { key: "customers", href: "/customers", icon: "◌" },
   { key: "projects", href: "/projects", icon: "◍" },
   { key: "estimates", href: "/estimates", icon: "◎" },
@@ -61,6 +62,13 @@ export function AppShell({ children, userName, userEmail, companyName }: AppShel
       return {
         title: t("navigation.operations"),
         description: t("operations.summary.default"),
+      };
+    }
+
+    if (pathname.startsWith("/scheduling")) {
+      return {
+        title: t("navigation.scheduling"),
+        description: t("scheduling.summary.operational"),
       };
     }
 

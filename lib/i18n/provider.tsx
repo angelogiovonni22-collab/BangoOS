@@ -12,6 +12,7 @@ import navigationEn from "@/locales/en/navigation.json";
 import onboardingEn from "@/locales/en/onboarding.json";
 import operationsEn from "@/locales/en/operations.json";
 import projectsEn from "@/locales/en/projects.json";
+import schedulingEn from "@/locales/en/scheduling.json";
 import commonEs from "@/locales/es/common.json";
 import authEs from "@/locales/es/auth.json";
 import customersEs from "@/locales/es/customers.json";
@@ -23,6 +24,7 @@ import navigationEs from "@/locales/es/navigation.json";
 import onboardingEs from "@/locales/es/onboarding.json";
 import operationsEs from "@/locales/es/operations.json";
 import projectsEs from "@/locales/es/projects.json";
+import schedulingEs from "@/locales/es/scheduling.json";
 
 export type AppLocale = "en" | "es";
 
@@ -40,6 +42,7 @@ type LocaleDictionaries = {
   onboarding: NamespaceDictionary;
   operations: NamespaceDictionary;
   projects: NamespaceDictionary;
+  scheduling: NamespaceDictionary;
 };
 
 type TranslationNamespace = keyof LocaleDictionaries;
@@ -79,6 +82,7 @@ const resources: TranslationResources = {
     onboarding: onboardingEn,
     operations: operationsEn,
     projects: projectsEn,
+    scheduling: schedulingEn,
   },
   es: {
     auth: authEs,
@@ -92,6 +96,7 @@ const resources: TranslationResources = {
     onboarding: onboardingEs,
     operations: operationsEs,
     projects: projectsEs,
+    scheduling: schedulingEs,
   },
 };
 
@@ -179,6 +184,7 @@ function resolveNamespaceAndKey(path: string): {
     || firstSegment === "onboarding"
     || firstSegment === "operations"
     || firstSegment === "projects"
+    || firstSegment === "scheduling"
   ) {
     return { namespace: firstSegment, lookupKey: rest.join(".") };
   }

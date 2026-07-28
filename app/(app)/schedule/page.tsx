@@ -1,5 +1,5 @@
-import { ComingSoonPage } from "../_components/coming-soon-page";
+import { redirect } from "next/navigation";
 
 export default function SchedulePage() {
-  return <ComingSoonPage moduleKey="schedule" />;
+  redirect("/scheduling");
 }

@@ -221,7 +221,7 @@
   "attentionScope.safety": "Seguridad",
 
   "quickActions.assignCrew": "Asignar cuadrilla",
-  "quickActions.viewSchedule": "Ver agenda",
+  "quickActions.viewSchedule": "Abrir Programacion y Despacho",
   "quickActions.addDailyReport": "Agregar reporte diario",
   "quickActions.reviewSafety": "Revisar alertas de seguridad",
   "quickActions.openSitecam": "Abrir SiteCam",
