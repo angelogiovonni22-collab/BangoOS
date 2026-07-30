@@ -16,7 +16,8 @@ type UseCrewsParams = {
 
 const DEFAULT_PAGE_SIZE = 8;
 
-export function useCrews({ service = createCrewService() }: UseCrewsParams = {}) {
+export function useCrews({ service }: UseCrewsParams = {}) {
+  const crewService = useMemo(() => service ?? createCrewService(), [service]);
   const [items, setItems] = useState<Crew[]>([]);
   const [summary, setSummary] = useState<CrewDashboardSummary>({
     totalCrews: 0,
@@ -72,7 +73,7 @@ export function useCrews({ service = createCrewService() }: UseCrewsParams = {})
 
     try {
       const [listResult, summaryResult, specialtyResult] = await Promise.all([
-        service.getCrews({
+        crewService.getCrews({
           query,
           status,
           availability,
@@ -81,8 +82,8 @@ export function useCrews({ service = createCrewService() }: UseCrewsParams = {})
           page,
           pageSize,
         }),
-        service.getSummary(),
-        service.getSpecialtyOptions(),
+        crewService.getSummary(),
+        crewService.getSpecialtyOptions(),
       ]);
 
       setItems(listResult.items);
@@ -97,7 +98,7 @@ export function useCrews({ service = createCrewService() }: UseCrewsParams = {})
     } finally {
       setIsLoading(false);
     }
-  }, [availability, page, pageSize, query, service, sortBy, specialty, status]);
+  }, [availability, page, pageSize, query, crewService, sortBy, specialty, status]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

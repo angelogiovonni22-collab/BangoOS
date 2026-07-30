@@ -24,15 +24,15 @@ export function ScheduleWidget({ events, t }: ScheduleWidgetProps) {
   }, [events]);
 
   return (
-    <Card as="section">
-      <CardHeader>
+    <Card as="section" variant="elevated">
+      <CardHeader className="bg-[var(--color-surface-subtle)]/40">
         <CardTitle>{t("dashboard.todaySchedule")}</CardTitle>
         <CardDescription>{t("dashboard.todayScheduleDescription")}</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-3 p-5">
         {events.length === 0 ? (
-          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
             {t("dashboard.scheduleEmpty")}
           </p>
         ) : (
@@ -68,7 +68,7 @@ function ScheduleGroup({
         <Link
           key={event.id}
           href={event.href}
-          className="block rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
+          className="block rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-medium)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">

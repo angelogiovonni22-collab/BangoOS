@@ -1,0 +1,114 @@
+import type { HTMLAttributes, ReactNode, TableHTMLAttributes } from "react";
+
+type EnterpriseTableProps = {
+  children: ReactNode;
+  className?: string;
+  minWidthClassName?: string;
+  ariaLabel: string;
+};
+
+type EnterpriseTableHeadingProps = {
+  children: ReactNode;
+  align?: "left" | "right";
+  className?: string;
+};
+
+type EnterpriseTableRowProps = HTMLAttributes<HTMLTableRowElement> & {
+  selected?: boolean;
+};
+
+type EnterpriseTableCellProps = {
+  children: ReactNode;
+  align?: "left" | "right";
+  className?: string;
+};
+
+export function EnterpriseTable({ children, className, minWidthClassName = "min-w-full", ariaLabel }: EnterpriseTableProps) {
+  return (
+    <div className="overflow-x-auto border-t border-[var(--color-border-subtle)]">
+      <table
+        aria-label={ariaLabel}
+        className={["w-full divide-y divide-[var(--color-border-subtle)]", minWidthClassName, className || ""]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {children}
+      </table>
+    </div>
+  );
+}
+
+export function EnterpriseTableHead({ children, className, ...props }: TableHTMLAttributes<HTMLTableSectionElement>) {
+  return (
+    <thead
+      className={["bg-[var(--color-primary-50)]/35", className || ""].filter(Boolean).join(" ")}
+      {...props}
+    >
+      {children}
+    </thead>
+  );
+}
+
+export function EnterpriseTableBody({ children, className, ...props }: TableHTMLAttributes<HTMLTableSectionElement>) {
+  return (
+    <tbody
+      className={["divide-y divide-[var(--color-border-subtle)] bg-[var(--color-surface-card)]", className || ""].filter(Boolean).join(" ")}
+      {...props}
+    >
+      {children}
+    </tbody>
+  );
+}
+export function EnterpriseTableHeading({ children, align = "left", className }: EnterpriseTableHeadingProps) {
+  return (
+    <th
+      scope="col"
+      className={[
+        "px-5 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]",
+        align === "right" ? "text-right" : "text-left",
+        className || "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {children}
+    </th>
+  );
+}
+
+export function EnterpriseTableRow({ children, className, selected = false, ...props }: EnterpriseTableRowProps) {
+  return (
+    <tr
+      className={[
+        "align-top transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-primary-50)]/45",
+        selected ? "bg-[var(--color-brand-50)]/70" : "",
+        className || "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      {...props}
+    >
+      {children}
+    </tr>
+  );
+}
+
+export function EnterpriseTableCell({ children, align = "left", className }: EnterpriseTableCellProps) {
+  return (
+    <td
+      className={[
+        "whitespace-nowrap px-5 py-3 text-sm text-[var(--color-text-primary)]",
+        align === "right" ? "text-right" : "text-left",
+        className || "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {children}
+    </td>
+  );
+}
+
+export function EnterpriseTableFooter({ children }: { children: ReactNode }) {
+  return <div className="border-t border-[var(--color-border-subtle)] px-5 py-3">{children}</div>;
+}

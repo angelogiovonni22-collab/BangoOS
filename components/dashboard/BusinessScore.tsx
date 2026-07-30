@@ -21,8 +21,8 @@ export function BusinessScore({ snapshot, isLoading = false, t }: BusinessScoreP
 
   if (isLoading) {
     return (
-      <Card as="section">
-        <CardHeader>
+      <Card as="section" variant="elevated">
+        <CardHeader className="bg-[var(--color-surface-subtle)]/40">
           <CardTitle>{t("dashboard.businessScoreTitle")}</CardTitle>
           <CardDescription>{t("dashboard.businessScoreDescription")}</CardDescription>
         </CardHeader>
@@ -38,13 +38,13 @@ export function BusinessScore({ snapshot, isLoading = false, t }: BusinessScoreP
 
   if (!snapshot) {
     return (
-      <Card as="section">
-        <CardHeader>
+      <Card as="section" variant="elevated">
+        <CardHeader className="bg-[var(--color-surface-subtle)]/40">
           <CardTitle>{t("dashboard.businessScoreTitle")}</CardTitle>
           <CardDescription>{t("dashboard.businessScoreDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="p-5">
-          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
             {t("dashboard.businessScoreEmpty")}
           </p>
         </CardContent>
@@ -53,8 +53,8 @@ export function BusinessScore({ snapshot, isLoading = false, t }: BusinessScoreP
   }
 
   return (
-    <Card as="section">
-      <CardHeader>
+    <Card as="section" variant="elevated">
+      <CardHeader className="bg-[var(--color-surface-subtle)]/40">
         <CardTitle>{t("dashboard.businessScoreTitle")}</CardTitle>
         <CardDescription>{t("dashboard.businessScoreDescription")}</CardDescription>
       </CardHeader>
@@ -68,7 +68,7 @@ export function BusinessScore({ snapshot, isLoading = false, t }: BusinessScoreP
                 background: `conic-gradient(${getScoreColor(normalizedScore)} ${normalizedScore * 3.6}deg, var(--color-surface-muted) 0deg)`,
               }}
             />
-            <div className="absolute inset-2 flex items-center justify-center rounded-full bg-white text-center shadow-[var(--shadow-small)]">
+            <div className="absolute inset-2 flex items-center justify-center rounded-full bg-[var(--color-surface-card)] text-center shadow-[var(--shadow-small)]">
               <div>
                 <p className="text-3xl font-semibold text-[var(--color-text-primary)]">{normalizedScore}</p>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">AI</p>

@@ -15,8 +15,8 @@ export function TableContainer({
   children,
 }: TableContainerProps) {
   return (
-    <Card as="section" className="overflow-hidden">
-      <CardHeader>
+    <Card as="section" variant="elevated" className="overflow-hidden border-[var(--color-border-subtle)]">
+      <CardHeader className="bg-[var(--color-primary-50)]/35 px-5 py-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <CardTitle>{title}</CardTitle>

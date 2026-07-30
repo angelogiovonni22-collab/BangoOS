@@ -111,23 +111,22 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <DashboardHeader
-        greeting={greeting}
+        title={t("navigation.dashboard")}
         companyName={companyName || t("common.appName")}
         currentDate={currentDate}
-        subtitle={t("dashboard.executiveSummary")}
+        description={greeting}
+        action={
+          <DashboardCustomizer
+            widgets={data.widgetDefinitions}
+            layout={layout}
+            t={t}
+            onToggleVisibility={toggleWidgetVisibility}
+            onToggleCollapsed={toggleWidgetCollapsed}
+            onReorder={reorderWidgets}
+            onReset={resetLayout}
+          />
+        }
       />
-
-      <div className="flex justify-end">
-        <DashboardCustomizer
-          widgets={data.widgetDefinitions}
-          layout={layout}
-          t={t}
-          onToggleVisibility={toggleWidgetVisibility}
-          onToggleCollapsed={toggleWidgetCollapsed}
-          onReorder={reorderWidgets}
-          onReset={resetLayout}
-        />
-      </div>
 
       <section className="grid gap-6 xl:grid-cols-3">
         {visibleWidgetOrder.map((widgetId) => {

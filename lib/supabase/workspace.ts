@@ -5,6 +5,10 @@ export type WorkspaceContext = {
   userId: string;
   companyId: string;
   role: string | null;
+  companyName: string | null;
+  companySlug: string | null;
+  membershipId: string | null;
+  membershipStatus: string | null;
 };
 
 export type WorkspaceErrorCode =
@@ -78,7 +82,28 @@ export async function resolveWorkspaceContext(
     };
   }
 
-  let companyId = profile.company_id;
+  const { data: memberships, error: membershipsError } = await supabase
+    .from("company_memberships")
+    .select("id, company_id, role, status, is_primary, joined_at, created_at")
+    .eq("user_id", user.id)
+    .order("is_primary", { ascending: false })
+    .order("joined_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+
+  const hasMembershipsTable = !membershipsError;
+
+  const activeMemberships = (memberships ?? []).filter((membership) => membership.status === "active");
+
+  const activeMembership =
+    activeMemberships.find((membership) => membership.company_id === profile.company_id)
+    || activeMemberships.find((membership) => membership.is_primary)
+    || activeMemberships[0]
+    || null;
+
+  let companyId = activeMembership?.company_id ?? profile.company_id;
+  let role = activeMembership?.role ?? profile.role;
+  let membershipId = activeMembership?.id ?? null;
+  let membershipStatus = activeMembership?.status ?? null;
 
   if (!companyId) {
     const { data: ownerCompany, error: ownerCompanyError } = await supabase
@@ -104,6 +129,29 @@ export async function resolveWorkspaceContext(
 
       if (!patchProfileError) {
         companyId = ownerCompany.id;
+
+        if (hasMembershipsTable) {
+          const { data: ownerMembership } = await supabase
+            .from("company_memberships")
+            .upsert(
+              {
+                company_id: ownerCompany.id,
+                user_id: user.id,
+                role: "owner",
+                status: "active",
+                is_primary: true,
+              },
+              { onConflict: "company_id,user_id" },
+            )
+            .select("id, status, role")
+            .maybeSingle();
+
+          if (ownerMembership) {
+            membershipId = ownerMembership.id;
+            membershipStatus = ownerMembership.status;
+            role = ownerMembership.role;
+          }
+        }
       }
     }
   }
@@ -118,9 +166,12 @@ export async function resolveWorkspaceContext(
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
-    .select("id")
+    .select("id, name")
     .eq("id", companyId)
-    .maybeSingle();
+    .maybeSingle<{
+      id: string;
+      name: string | null;
+    }>();
 
   if (companyError) {
     return {
@@ -139,11 +190,51 @@ export async function resolveWorkspaceContext(
     };
   }
 
+  if (hasMembershipsTable && !membershipId) {
+    const { data: createdMembership } = await supabase
+      .from("company_memberships")
+      .upsert(
+        {
+          company_id: company.id,
+          user_id: user.id,
+          role: role || "employee",
+          status: "active",
+          is_primary: true,
+        },
+        { onConflict: "company_id,user_id" },
+      )
+      .select("id, status, role")
+      .maybeSingle();
+
+    if (createdMembership) {
+      membershipId = createdMembership.id;
+      membershipStatus = createdMembership.status;
+      role = createdMembership.role;
+    }
+  }
+
+  if (
+    profile.company_id !== company.id
+    || (role && profile.role !== role)
+  ) {
+    await supabase
+      .from("profiles")
+      .update({
+        company_id: company.id,
+        role: role ?? profile.role ?? "employee",
+      })
+      .eq("id", user.id);
+  }
+
   return {
     context: {
       userId: user.id,
       companyId: company.id,
-      role: profile.role,
+      role,
+      companyName: company.name || null,
+      companySlug: null,
+      membershipId,
+      membershipStatus,
     },
     errorMessage: null,
     errorCode: null,

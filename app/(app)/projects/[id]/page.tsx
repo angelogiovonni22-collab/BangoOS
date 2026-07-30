@@ -2,23 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { PlansWorkspace } from "@/components/plans";
+import { Button, EmptyState, ErrorState, SkeletonLoader } from "@/components/ui";
 import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-  SectionHeader,
-  SummaryCard,
-} from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
-import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
+  ProjectEmptyTab,
+  ProjectOverview,
+  ProjectSidebar,
+  ProjectSummaryCards,
+  ProjectTabs,
+  ProjectWorkspaceHeader,
+  type ProjectWorkspaceTabKey,
+  type WorkspaceActivityItem,
+  type WorkspaceContactItem,
+  type WorkspaceMilestoneItem,
+  type WorkspaceQuickAction,
+} from "@/components/projects/workspace";
 import { createCrewService, type ProjectCrewAssignmentSummary } from "@/lib/crews";
 import {
   formatProjectAddress,
@@ -28,17 +27,17 @@ import {
   normalizeProjectStatus,
   type ProjectRow,
 } from "@/lib/projects";
-import { getProjectStatusBadgeClass } from "@/lib/projects/statuses";
-import type { Database } from "@/types/database.types";
 import { useI18n } from "@/lib/i18n/provider";
-import { SiteCamWorkspace } from "./components/sitecam-workspace";
-import { ProjectTimeline } from "@/components/project-intelligence";
+import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
+import type { Database } from "@/types/database.types";
 
 type ProjectSummary = Pick<
   ProjectRow,
   | "id"
   | "name"
   | "project_number"
+  | "project_type"
   | "status"
   | "customer_id"
   | "created_by"
@@ -53,127 +52,99 @@ type ProjectSummary = Pick<
   | "estimated_end_date"
   | "actual_end_date"
   | "created_at"
+  | "updated_at"
 >;
 
 type CustomerSummary = Pick<
   Database["public"]["Tables"]["customers"]["Row"],
-  "id" | "first_name" | "last_name" | "company_name" | "customer_type"
+  "id" | "first_name" | "last_name" | "company_name" | "customer_type" | "email" | "phone"
 >;
 
 type ProfileSummary = Pick<
   Database["public"]["Tables"]["profiles"]["Row"],
-  "id" | "first_name" | "last_name"
+  "id" | "first_name" | "last_name" | "role"
 >;
 
 type TaskSummary = Pick<
   Database["public"]["Tables"]["tasks"]["Row"],
-  "id" | "title" | "status" | "completion_percentage" | "planned_start" | "planned_finish" | "assigned_profile_id" | "created_at"
+  | "id"
+  | "title"
+  | "status"
+  | "completion_percentage"
+  | "planned_start"
+  | "planned_finish"
+  | "assigned_profile_id"
+  | "created_at"
+  | "updated_at"
 >;
 
-type ProjectTab = "overview" | "photos" | "schedule" | "files" | "financial" | "activity" | "intelligence";
+type InvoiceSummary = Pick<
+  Database["public"]["Tables"]["invoices"]["Row"],
+  | "id"
+  | "invoice_number"
+  | "title"
+  | "status"
+  | "total_amount"
+  | "amount_paid"
+  | "due_date"
+  | "issue_date"
+  | "created_at"
+  | "updated_at"
+>;
 
-type ProjectFileItem = {
-  id: string;
-  name: string;
-  typeKey:
-    | "fileTypeContracts"
-    | "fileTypePermits"
-    | "fileTypeDrawings"
-    | "fileTypeSpecifications"
-    | "fileTypeChangeOrders"
-    | "fileTypeInvoices";
-  uploadedAt: string;
+type WorkspaceTab = ProjectWorkspaceTabKey;
+
+type WorkspaceState = {
+  project: ProjectSummary;
+  customer: CustomerSummary | null;
+  profilesById: Record<string, string>;
+  tasks: TaskSummary[];
+  invoices: InvoiceSummary[];
+  crewAssignments: ProjectCrewAssignmentSummary[];
+  workspaceContext: WorkspaceContext;
 };
 
-type ActivityItem = {
-  id: string;
-  eventKey:
-    | "activityProjectCreated"
-    | "activityPhotoUploaded"
-    | "activityEstimateApproved"
-    | "activityCrewAssigned"
-    | "activityFileUploaded";
-  detailsKey:
-    | "activityProjectCreatedDetails"
-    | "activityPhotoUploadedDetails"
-    | "activityEstimateApprovedDetails"
-    | "activityCrewAssignedDetails"
-    | "activityFileUploadedDetails";
-  timestampKey:
-    | "time2DaysAgo"
-    | "time1DayAgo"
-    | "time18HoursAgo"
-    | "time9HoursAgo"
-    | "time3HoursAgo";
-};
+type WorkspaceErrorKind = "auth" | "company" | "database" | "network" | "unknown";
 
-const projectFiles: ProjectFileItem[] = [
-  { id: "f-1", name: "Owner Contract v2.pdf", typeKey: "fileTypeContracts", uploadedAt: "2026-07-09" },
-  { id: "f-2", name: "Permit - Electrical 4102.pdf", typeKey: "fileTypePermits", uploadedAt: "2026-07-11" },
-  { id: "f-3", name: "Sheet A-102 Floorplan.dwg", typeKey: "fileTypeDrawings", uploadedAt: "2026-07-13" },
-  { id: "f-4", name: "Finish Specifications.docx", typeKey: "fileTypeSpecifications", uploadedAt: "2026-07-14" },
-  { id: "f-5", name: "Change Order CO-003.pdf", typeKey: "fileTypeChangeOrders", uploadedAt: "2026-07-19" },
-  { id: "f-6", name: "Invoice INV-1242.pdf", typeKey: "fileTypeInvoices", uploadedAt: "2026-07-24" },
-];
-
-const activityFeed: ActivityItem[] = [
-  {
-    id: "a-1",
-    eventKey: "activityProjectCreated",
-    detailsKey: "activityProjectCreatedDetails",
-    timestampKey: "time2DaysAgo",
-  },
-  {
-    id: "a-2",
-    eventKey: "activityPhotoUploaded",
-    detailsKey: "activityPhotoUploadedDetails",
-    timestampKey: "time1DayAgo",
-  },
-  {
-    id: "a-3",
-    eventKey: "activityEstimateApproved",
-    detailsKey: "activityEstimateApprovedDetails",
-    timestampKey: "time18HoursAgo",
-  },
-  {
-    id: "a-4",
-    eventKey: "activityCrewAssigned",
-    detailsKey: "activityCrewAssignedDetails",
-    timestampKey: "time9HoursAgo",
-  },
-  {
-    id: "a-5",
-    eventKey: "activityFileUploaded",
-    detailsKey: "activityFileUploadedDetails",
-    timestampKey: "time3HoursAgo",
-  },
-];
-
-export default function ProjectDetailsPage() {
+export default function ProjectWorkspacePage() {
   const { t, locale } = useI18n();
   const params = useParams<{ id?: string | string[] }>();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const supabase = useMemo(() => createClient(), []);
   const crewService = useMemo(() => createCrewService(), []);
 
-  const [activeTab, setActiveTab] = useState<ProjectTab>("overview");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<WorkspaceErrorKind | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
+  const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
 
-  const [project, setProject] = useState<ProjectSummary | null>(null);
-  const [projectCrews, setProjectCrews] = useState<ProjectCrewAssignmentSummary[]>([]);
-  const [customer, setCustomer] = useState<CustomerSummary | null>(null);
-  const [profilesById, setProfilesById] = useState<Record<string, string>>({});
-  const [tasks, setTasks] = useState<TaskSummary[]>([]);
+  const activeTab = resolveWorkspaceTab(searchParams.get("tab"));
+
+  const handleTabChange = (tab: WorkspaceTab) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    if (tab === "overview") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", tab);
+    }
+
+    const nextQuery = nextParams.toString();
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    router.replace(nextUrl);
+  };
 
   useEffect(() => {
     let isSubscribed = true;
 
-    const loadProject = async () => {
+    const loadWorkspace = async () => {
       setIsLoading(true);
       setErrorMessage(null);
+      setErrorKind(null);
       setNotFound(false);
 
       if (!projectId) {
@@ -185,12 +156,12 @@ export default function ProjectDetailsPage() {
         return;
       }
 
-      const workspace = await resolveWorkspaceContext(supabase);
+      const workspaceResult = await resolveWorkspaceContext(supabase);
 
-      if (workspace.errorMessage || !workspace.context) {
+      if (workspaceResult.errorMessage || !workspaceResult.context) {
         if (isSubscribed) {
-          setErrorMessage(workspace.errorMessage || t("projects.errorLoadWorkspace"));
-          setWorkspaceContext(null);
+          setErrorKind(mapWorkspaceErrorKind(workspaceResult.errorCode));
+          setErrorMessage(workspaceResult.errorMessage || t("projects.errorLoadWorkspace"));
           setIsLoading(false);
         }
 
@@ -201,8 +172,8 @@ export default function ProjectDetailsPage() {
 
       if (!client) {
         if (isSubscribed) {
+          setErrorKind("network");
           setErrorMessage(t("projects.errorConnect"));
-          setWorkspaceContext(null);
           setIsLoading(false);
         }
 
@@ -210,30 +181,18 @@ export default function ProjectDetailsPage() {
       }
 
       try {
-        const [projectResponse, profilesResponse, tasksResponse] = await Promise.all([
-          client
-            .from("projects")
-            .select(
-              "id, name, project_number, status, customer_id, created_by, address_line_1, address_line_2, city, state, postal_code, estimated_cost, contract_amount, estimated_start_date, estimated_end_date, actual_end_date, created_at",
-            )
-            .eq("id", projectId)
-            .eq("company_id", workspace.context.companyId)
-            .maybeSingle<ProjectSummary>(),
-          client
-            .from("profiles")
-            .select("id, first_name, last_name")
-            .eq("company_id", workspace.context.companyId),
-          client
-            .from("tasks")
-            .select("id, title, status, completion_percentage, planned_start, planned_finish, assigned_profile_id, created_at")
-            .eq("company_id", workspace.context.companyId)
-            .eq("project_id", projectId)
-            .order("planned_start", { ascending: true })
-            .order("created_at", { ascending: true }),
-        ]);
+        const projectResponse = await client
+          .from("projects")
+          .select(
+            "id, name, project_number, project_type, status, customer_id, created_by, address_line_1, address_line_2, city, state, postal_code, estimated_cost, contract_amount, estimated_start_date, estimated_end_date, actual_end_date, created_at, updated_at",
+          )
+          .eq("id", projectId)
+          .eq("company_id", workspaceResult.context.companyId)
+          .maybeSingle<ProjectSummary>();
 
         if (projectResponse.error) {
           if (isSubscribed) {
+            setErrorKind("database");
             setErrorMessage(t("projects.errorLoadProject"));
           }
 
@@ -248,8 +207,41 @@ export default function ProjectDetailsPage() {
           return;
         }
 
+        const loadedProject = projectResponse.data;
+        const customerQuery = loadedProject.customer_id
+          ? client
+              .from("customers")
+              .select("id, first_name, last_name, company_name, customer_type, email, phone")
+              .eq("company_id", workspaceResult.context.companyId)
+              .eq("id", loadedProject.customer_id)
+              .maybeSingle<CustomerSummary>()
+          : Promise.resolve({ data: null, error: null });
+
+        const [profilesResponse, tasksResponse, invoicesResponse, customerResponse, crewAssignments] = await Promise.all([
+          client
+            .from("profiles")
+            .select("id, first_name, last_name, role")
+            .eq("company_id", workspaceResult.context.companyId),
+          client
+            .from("tasks")
+            .select("id, title, status, completion_percentage, planned_start, planned_finish, assigned_profile_id, created_at, updated_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("planned_start", { ascending: true })
+            .order("created_at", { ascending: true }),
+          client
+            .from("invoices")
+            .select("id, invoice_number, title, status, total_amount, amount_paid, due_date, issue_date, created_at, updated_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("created_at", { ascending: false }),
+          customerQuery,
+          crewService.getCrewsForProject(getProjectDisplayName(loadedProject as ProjectRow, "")),
+        ]);
+
         if (profilesResponse.error) {
           if (isSubscribed) {
+            setErrorKind("database");
             setErrorMessage(t("projects.errorLoadTeamProfiles"));
           }
 
@@ -258,47 +250,53 @@ export default function ProjectDetailsPage() {
 
         if (tasksResponse.error) {
           if (isSubscribed) {
+            setErrorKind("database");
             setErrorMessage(t("projects.errorLoadSchedule"));
           }
 
           return;
         }
 
-        const loadedProject = projectResponse.data;
-        const crewAssignments = await crewService.getCrewsForProject(
-          getProjectDisplayName(loadedProject as ProjectRow, ""),
-        );
-        const profileMap = buildProfileNameMap((profilesResponse.data ?? []) as ProfileSummary[], t("projects.notAssigned"));
-
-        const customerResponse = loadedProject.customer_id
-          ? await client
-              .from("customers")
-              .select("id, first_name, last_name, company_name, customer_type")
-              .eq("company_id", workspace.context.companyId)
-              .eq("id", loadedProject.customer_id)
-              .maybeSingle<CustomerSummary>()
-          : null;
-
-        if (customerResponse?.error) {
+        if (invoicesResponse.error) {
           if (isSubscribed) {
+            setErrorKind("database");
+            setErrorMessage(t("projects.errorLoadInvoices"));
+          }
+
+          return;
+        }
+
+        if (customerResponse.error) {
+          if (isSubscribed) {
+            setErrorKind("database");
             setErrorMessage(t("projects.errorLoadProjectCustomer"));
           }
 
           return;
         }
 
-        if (isSubscribed) {
-          setWorkspaceContext(workspace.context);
-          setProject(loadedProject);
-          setProjectCrews(crewAssignments);
-          setCustomer(customerResponse?.data ?? null);
-          setProfilesById(profileMap);
-          setTasks((tasksResponse.data ?? []) as TaskSummary[]);
-        }
-      } catch (caughtError) {
-        console.error("Load project details error:", caughtError);
+        const profileRows = (profilesResponse.data ?? []) as ProfileSummary[];
+        const taskRows = (tasksResponse.data ?? []) as TaskSummary[];
+        const invoiceRows = (invoicesResponse.data ?? []) as InvoiceSummary[];
+        const customerRow = (customerResponse.data ?? null) as CustomerSummary | null;
+        const profileMap = buildProfileNameMap(profileRows, t("projects.notAssigned"));
 
         if (isSubscribed) {
+          setWorkspace({
+            project: loadedProject,
+            customer: customerRow,
+            profilesById: profileMap,
+            tasks: taskRows,
+            invoices: invoiceRows,
+            crewAssignments,
+            workspaceContext: workspaceResult.context,
+          });
+        }
+      } catch (caughtError) {
+        console.error("Load project workspace error:", caughtError);
+
+        if (isSubscribed) {
+          setErrorKind("network");
           setErrorMessage(t("projects.errorUnexpectedWorkspace"));
         }
       } finally {
@@ -308,7 +306,7 @@ export default function ProjectDetailsPage() {
       }
     };
 
-    void loadProject();
+    void loadWorkspace();
 
     return () => {
       isSubscribed = false;
@@ -316,23 +314,14 @@ export default function ProjectDetailsPage() {
   }, [crewService, projectId, supabase, t]);
 
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="space-y-4 p-6">
-            <div className="h-10 w-56 animate-pulse rounded-[var(--radius-lg)] bg-[var(--color-surface-muted)]" />
-            <div className="h-6 w-80 animate-pulse rounded-[var(--radius-lg)] bg-[var(--color-surface-muted)]" />
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ProjectWorkspaceLoadingState />;
   }
 
-  if (errorMessage && !project) {
-    return <ErrorState title={t("projects.errorTitle")} description={errorMessage} />;
+  if (errorMessage && !workspace) {
+    return <ErrorState title={getWorkspaceErrorTitle(errorKind, t)} description={getWorkspaceErrorDescription(errorMessage, t)} />;
   }
 
-  if (notFound || !project) {
+  if (notFound || !workspace) {
     return (
       <EmptyState
         icon="?"
@@ -347,365 +336,322 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  const progress = calculateProjectProgress(tasks);
-  const status = normalizeProjectStatus(project.status);
   const localeTag = locale === "es" ? "es-ES" : "en-US";
+  const project = workspace.project;
+  const customerName = workspace.customer ? getCustomerDisplayName(workspace.customer, t("customers.unnamedCustomer")) : t("projects.notLinked");
+  const projectManager = workspace.project.created_by ? workspace.profilesById[workspace.project.created_by] || t("projects.notAssigned") : t("projects.notAssigned");
+  const location = formatProjectAddress(project as ProjectRow) || t("projects.notProvided");
+  const status = normalizeProjectStatus(project.status);
   const statusLabel = getProjectStatusLabel(status.key, t);
-  const customerName = customer
-    ? getCustomerDisplayName(customer, t("customers.unnamedCustomer"))
-    : t("projects.notLinked");
-  const projectManager = project.created_by ? profilesById[project.created_by] || t("projects.notAssigned") : t("projects.notAssigned");
-  const assignedCrew = getAssignedCrewLabel(tasks, profilesById, t("projects.notAssigned"));
-  const budget = formatProjectCurrency(project.contract_amount, localeTag, t("projects.notProvided"));
-  const currentCosts = formatProjectCurrency(project.estimated_cost, localeTag, t("projects.notProvided"));
-  const estimatedProfit = formatProjectCurrency(
-    calculateProfit(project.contract_amount, project.estimated_cost),
+  const startDate = formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided"));
+  const completionDate = formatProjectDateLong(project.actual_end_date || project.estimated_end_date, localeTag, t("projects.notProvided"));
+  const budgetValue = formatProjectCurrency(project.contract_amount ?? project.estimated_cost, localeTag, t("projects.notProvided"));
+  const estimatedCostValue = formatProjectCurrency(project.estimated_cost, localeTag, t("projects.notProvided"));
+  const profitValue = formatProjectCurrency(calculateProfit(project.contract_amount, project.estimated_cost), localeTag, t("projects.notProvided"));
+  const progress = calculateProjectProgress(workspace.tasks);
+  const crewCount = workspace.crewAssignments.length;
+  const crewMemberCount = workspace.crewAssignments.reduce((sum, crew) => sum + crew.actualManpower, 0);
+  const invoicesOutstanding = workspace.invoices.filter((invoice) => isInvoiceOutstanding(invoice.status, invoice.amount_paid, invoice.total_amount));
+  const outstandingInvoicesValue = formatProjectCurrency(
+    invoicesOutstanding.reduce((sum, invoice) => sum + Math.max(0, invoice.total_amount - invoice.amount_paid), 0),
     localeTag,
     t("projects.notProvided"),
   );
-  const zeroAmount = formatProjectCurrency(0, localeTag, t("projects.notProvided"));
 
-  const tabItems: Array<{ value: ProjectTab; label: string }> = [
-    { value: "overview", label: t("projects.tabsOverview") },
-    { value: "photos", label: t("projects.tabsPhotos") },
-    { value: "schedule", label: t("projects.tabsSchedule") },
-    { value: "files", label: t("projects.tabsFiles") },
-    { value: "financial", label: t("projects.tabsFinancial") },
-    { value: "activity", label: t("projects.tabsActivity") },
-    { value: "intelligence", label: t("projects.tabsIntelligence") },
+  const scheduleHealth = getScheduleHealth(workspace.project, workspace.tasks, localeTag, t);
+  const budgetHealth = getBudgetHealth(workspace.project, localeTag, t);
+  const safetyHealth = getSafetyHealth(t);
+  const progressHealth = getProgressHealth(progress, t);
+  const overallHealth = getOverallHealth([scheduleHealth.score, budgetHealth.score, safetyHealth.score, progressHealth.score], t);
+
+  const summaryOpenDailyReports = "0";
+  const summaryOpenSafetyItems = "0";
+  const summaryEquipmentAssigned = "0";
+  const summaryInvoicesOutstanding = String(invoicesOutstanding.length);
+  const summaryCrew = crewCount > 0 ? t("projects.workspaceCrewSummaryValue", { crewCount, crewMembers: crewMemberCount }) : t("projects.workspaceCrewSummaryEmpty");
+
+  const summaryCards = {
+    budget: budgetValue,
+    scheduleHealth: scheduleHealth.label,
+    crewAssigned: summaryCrew,
+    openDailyReports: summaryOpenDailyReports,
+    openSafetyItems: summaryOpenSafetyItems,
+    equipmentAssigned: summaryEquipmentAssigned,
+    invoicesOutstanding: summaryInvoicesOutstanding,
+  };
+
+  const recentActivity = buildRecentActivity({
+    project,
+    customer: workspace.customer,
+    tasks: workspace.tasks,
+    invoices: workspace.invoices,
+    profilesById: workspace.profilesById,
+    localeTag,
+    t,
+  });
+
+  const upcomingSchedule = buildUpcomingSchedule(project.id, workspace.tasks, localeTag, t).slice(0, 4);
+  const milestones = buildMilestones(project, workspace.tasks, localeTag, t);
+  const openIssues = buildOpenIssues(workspace.tasks, invoicesOutstanding, localeTag, t);
+  const dailyReports: WorkspaceActivityItem[] = [];
+
+  const projectContacts: WorkspaceContactItem[] = [
+    {
+      id: "customer",
+      label: t("projects.workspacePrimaryCustomer"),
+      value: customerName,
+      role: workspace.customer?.email?.trim() || workspace.customer?.phone?.trim() || t("projects.notProvided"),
+    },
+    {
+      id: "manager",
+      label: t("projects.workspaceProjectManager"),
+      value: projectManager,
+      role: t("projects.workspacePrimaryManagerRole"),
+    },
+    {
+      id: "crew",
+      label: t("projects.workspaceCrewContact"),
+      value: workspace.crewAssignments[0]?.crewName || t("projects.workspaceNoCrew"),
+      role: workspace.crewAssignments[0]?.role || t("projects.notAssigned"),
+    },
   ];
 
-  const currentUserName = workspaceContext?.userId
-    ? profilesById[workspaceContext.userId] || t("projects.notAssigned")
-    : t("projects.notAssigned");
+  const quickActions: WorkspaceQuickAction[] = [
+    {
+      id: "change-order",
+      label: "New Change Order",
+      href: `/change-orders/new?projectId=${project.id}${project.customer_id ? `&customerId=${project.customer_id}` : ""}`,
+    },
+    {
+      id: "invoice",
+      label: "New Invoice",
+      href: `/invoices/new?projectId=${project.id}${project.customer_id ? `&customerId=${project.customer_id}` : ""}`,
+    },
+    { id: "report", label: t("projects.workspaceActionDailyReport"), disabled: true, title: t("projects.comingSoon") },
+    { id: "schedule", label: t("projects.workspaceActionSchedule"), disabled: true, title: t("projects.comingSoon") },
+    { id: "crew", label: t("projects.workspaceActionCrew"), disabled: true, title: t("projects.comingSoon") },
+    { id: "plans", label: t("projects.workspaceActionPlans"), disabled: true, title: t("projects.comingSoon") },
+  ];
+
+  const sidebarMilestones = milestones.slice(0, 3);
+  const sidebarActivity = recentActivity.slice(0, 4);
+  const aiSummary = t("projects.workspaceAiSummaryPlaceholder");
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject"))}
-        description={`${t("projects.projectNumber")} ${project.project_number?.trim() || t("projects.notProvided")}`}
-        secondaryActions={
-          <Link href="/projects">
-            <Button variant="outline">{t("projects.backToProjects")}</Button>
-          </Link>
-        }
+    <div className="space-y-7">
+      <ProjectWorkspaceHeader
+        projectName={getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject"))}
+        customerName={customerName}
+        statusKey={status.key}
+        statusLabel={statusLabel}
+        projectManager={projectManager}
+        location={location}
+        startDate={startDate}
+        estimatedCompletion={completionDate}
+        budget={budgetValue}
+        progress={progress}
+        editDisabledLabel={t("projects.workspaceEditComingSoon")}
+        shareLabel={t("projects.workspaceShare")}
+        moreLabel={t("projects.workspaceMore")}
+        comingSoonLabel={t("projects.comingSoon")}
+        onShare={() => void shareWorkspace(project.id, t)}
+        t={t}
       />
 
-      {errorMessage ? <ErrorState compact title={t("projects.errorTitle")} description={errorMessage} /> : null}
+      <ProjectSummaryCards
+        budget={summaryCards.budget}
+        scheduleHealth={summaryCards.scheduleHealth}
+        crewAssigned={summaryCards.crewAssigned}
+        openDailyReports={summaryCards.openDailyReports}
+        openSafetyItems={summaryCards.openSafetyItems}
+        equipmentAssigned={summaryCards.equipmentAssigned}
+        invoicesOutstanding={summaryCards.invoicesOutstanding}
+        t={t}
+      />
 
-      <Card>
-        <CardContent className="p-3 sm:p-4">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-            {tabItems.map((tab) => (
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() => setActiveTab(tab.value)}
-                className={`rounded-[var(--radius-lg)] border px-3 py-2 text-sm font-semibold transition ${
-                  activeTab === tab.value
-                    ? "border-[var(--color-brand-600)] bg-[var(--color-brand-50)] text-[var(--color-brand-700)]"
-                    : "border-[var(--color-border-subtle)] bg-white text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"
-                }`}
-                aria-pressed={activeTab === tab.value}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <ProjectTabs activeTab={activeTab} onChange={handleTabChange} t={t} />
 
-      {activeTab === "overview" ? (
-        <OverviewTab
-          customerName={customerName}
-          address={formatProjectAddress(project as ProjectRow) || t("projects.notProvided")}
-          projectManager={projectManager}
-          assignedCrew={assignedCrew}
-          assignedCrews={projectCrews}
-          budget={budget}
-          estimatedProfit={estimatedProfit}
-          startDate={formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided"))}
-          completionDate={formatProjectDateLong(
-            project.actual_end_date || project.estimated_end_date,
-            localeTag,
-            t("projects.notProvided"),
-          )}
-          progress={progress}
-          statusKey={status.key}
-          statusLabel={statusLabel}
-        />
-      ) : null}
-
-      {activeTab === "photos"
-        ? workspaceContext
-          ? (
-            <SiteCamWorkspace
-              companyId={workspaceContext.companyId}
-              projectId={project.id}
-              projectName={getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject"))}
-              userId={workspaceContext.userId}
-              locale={locale}
-              profilesById={profilesById}
+      <div
+        className={`grid gap-6 ${
+          activeTab === "plans"
+            ? "xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px]"
+            : "xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_380px]"
+        }`}
+      >
+        <main className="space-y-6">
+          {activeTab === "overview" ? (
+            <ProjectOverview
+              healthItems={[
+                {
+                  label: t("projects.workspaceHealthSchedule"),
+                  value: scheduleHealth.label,
+                  tone: scheduleHealth.tone,
+                  description: scheduleHealth.description,
+                },
+                {
+                  label: t("projects.workspaceHealthBudget"),
+                  value: budgetHealth.label,
+                  tone: budgetHealth.tone,
+                  description: budgetHealth.description,
+                },
+                {
+                  label: t("projects.workspaceHealthSafety"),
+                  value: safetyHealth.label,
+                  tone: safetyHealth.tone,
+                  description: safetyHealth.description,
+                },
+                {
+                  label: t("projects.workspaceHealthProgress"),
+                  value: progressHealth.label,
+                  tone: progressHealth.tone,
+                  description: progressHealth.description,
+                },
+              ]}
+              overallHealth={overallHealth}
+              recentActivity={recentActivity.slice(0, 4)}
+              upcomingSchedule={upcomingSchedule}
+              crewTitle={t("projects.overviewCrewSummary")}
+              crewItems={workspace.crewAssignments}
+              budgetTitle={t("projects.overviewBudgetSnapshot")}
+              budget={budgetValue}
+              estimatedCost={estimatedCostValue}
+              profit={profitValue}
+              invoicesOutstanding={outstandingInvoicesValue}
+              openIssues={openIssues}
+              milestones={milestones}
+              dailyReports={dailyReports}
+              t={t}
             />
-            )
-          : <ErrorState compact title={t("projects.sitecamLoadErrorTitle")} description={t("projects.errorLoadWorkspace")} />
-        : null}
-      {activeTab === "schedule" ? <ScheduleTab tasks={tasks} profilesById={profilesById} localeTag={localeTag} /> : null}
-      {activeTab === "files" ? <FilesTab files={projectFiles} localeTag={localeTag} /> : null}
-      {activeTab === "financial" ? <FinancialTab budget={budget} currentCosts={currentCosts} estimatedProfit={estimatedProfit} zeroAmount={zeroAmount} /> : null}
-      {activeTab === "activity" ? <ActivityTab items={activityFeed} /> : null}
-      {activeTab === "intelligence" ? (
-        <ProjectTimeline
-          projectId={project.id}
-          localeTag={localeTag}
-          currentUserId={workspaceContext?.userId || "current-user"}
-          currentUserName={currentUserName}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function OverviewTab({
-  customerName,
-  address,
-  projectManager,
-  assignedCrew,
-  assignedCrews,
-  budget,
-  estimatedProfit,
-  startDate,
-  completionDate,
-  progress,
-  statusKey,
-  statusLabel,
-}: {
-  customerName: string;
-  address: string;
-  projectManager: string;
-  assignedCrew: string;
-  assignedCrews: ProjectCrewAssignmentSummary[];
-  budget: string;
-  estimatedProfit: string;
-  startDate: string;
-  completionDate: string;
-  progress: number;
-  statusKey: string;
-  statusLabel: string;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardContent className="space-y-4 p-6">
-          <SectionHeader title={t("projects.overviewTitle")} description={t("projects.overviewDescription")} />
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            <OverviewField label={t("projects.fieldCustomer")} value={customerName} />
-            <OverviewField label={t("projects.fieldAddress")} value={address} />
-            <OverviewField label={t("projects.fieldProjectManager")} value={projectManager} />
-            <OverviewField label={t("projects.fieldAssignedCrew")} value={assignedCrew} />
-            <OverviewField label={t("projects.fieldBudget")} value={budget} />
-            <OverviewField label={t("projects.fieldEstimatedProfit")} value={estimatedProfit} />
-            <OverviewField label={t("projects.fieldStartDate")} value={startDate} />
-            <OverviewField label={t("projects.fieldCompletionDate")} value={completionDate} />
-            <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-                {t("projects.fieldCurrentStatus")}
-              </p>
-              <div className="mt-2">
-                <Badge className={getProjectStatusBadgeClass(statusKey)}>{statusLabel}</Badge>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-sm font-semibold text-[var(--color-text-secondary)]">{t("projects.fieldProgress")}</p>
-          <p className="mt-2 text-3xl font-bold text-[var(--color-text-primary)]">{progress}%</p>
-          <div className="mt-3 h-3 rounded-full bg-[var(--color-surface-muted)]">
-            <div className="h-3 rounded-full bg-[var(--color-brand-600)] transition-all" style={{ width: `${progress}%` }} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-3 p-6">
-          <SectionHeader title={t("projects.fieldAssignedCrew")} description={t("projects.overviewDescription")} />
-          {assignedCrews.length === 0 ? (
-            <p className="text-sm font-medium text-[var(--color-text-secondary)]">{assignedCrew}</p>
+          ) : activeTab === "plans" ? (
+            <PlansWorkspace projectName={getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject"))} />
           ) : (
-            assignedCrews.map((crew) => (
-              <article key={crew.crewId} className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-[var(--color-text-primary)]">{crew.crewName}</p>
-                    <p className="mt-1 text-sm font-medium text-[var(--color-text-secondary)]">{crew.role}</p>
-                  </div>
-                  <Badge tone="info">{crew.allocationPercentage}%</Badge>
-                </div>
-                <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-                  {crew.actualManpower}/{crew.estimatedManpower}
-                </p>
-              </article>
-            ))
+            <ProjectEmptyTab
+              title={t("projects.workspaceTabComingSoonTitle")}
+              description={t("projects.workspaceTabComingSoonDescription")}
+              tabLabel={t(getWorkspaceTabLabelKey(activeTab))}
+            />
           )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+        </main>
 
-function ScheduleTab({
-  tasks,
-  profilesById,
-  localeTag,
-}: {
-  tasks: TaskSummary[];
-  profilesById: Record<string, string>;
-  localeTag: string;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("projects.tabsSchedule")}</CardTitle>
-        <CardDescription>{t("projects.overviewDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent className="p-6">
-        {tasks.length > 0 ? (
-          <div className="space-y-3">
-            {tasks.slice(0, 12).map((task) => (
-              <div key={task.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-[var(--color-text-primary)]">{task.title}</p>
-                    <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                      {task.planned_start
-                        ? formatProjectDateLong(task.planned_start, localeTag, t("projects.notProvided"))
-                        : t("projects.notProvided")}
-                      {" - "}
-                      {task.planned_finish
-                        ? formatProjectDateLong(task.planned_finish, localeTag, t("projects.notProvided"))
-                        : t("projects.notProvided")}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <Badge className={getProjectStatusBadgeClass(normalizeProjectStatus(task.status).key)}>
-                      {getProjectStatusLabel(normalizeProjectStatus(task.status).key, t)}
-                    </Badge>
-                    <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                      {task.assigned_profile_id ? profilesById[task.assigned_profile_id] || t("projects.notAssigned") : t("projects.notAssigned")}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 h-2 rounded-full bg-[var(--color-surface-muted)]">
-                  <div
-                    className="h-2 rounded-full bg-[var(--color-brand-600)]"
-                    style={{ width: `${Math.max(0, Math.min(100, task.completion_percentage))}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState compact icon="S" title={t("projects.tabsSchedule")} description={t("projects.scheduleEmptyDescription")} />
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function FilesTab({ files, localeTag }: { files: ProjectFileItem[]; localeTag: string }) {
-  const { t } = useI18n();
-
-  return (
-    <Card>
-      <CardHeader>
-        <SectionHeader
-          title={t("projects.filesTitle")}
-          description={t("projects.filesDescription")}
-          action={<Button>{t("projects.uploadFile")}</Button>}
+        <ProjectSidebar
+          contacts={projectContacts}
+          quickActions={quickActions}
+          milestones={sidebarMilestones}
+          activity={sidebarActivity}
+          aiSummary={aiSummary}
+          t={t}
         />
-      </CardHeader>
-      <CardContent className="space-y-3 p-6">
-        {files.map((file) => (
-          <div key={file.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] p-4">
-            <div>
-              <p className="font-semibold text-[var(--color-text-primary)]">{file.name}</p>
-              <p className="mt-1 text-xs text-[var(--color-text-muted)]">{formatProjectDateLong(file.uploadedAt, localeTag, t("projects.notProvided"))}</p>
-            </div>
-            <Badge tone="brand">{t(`projects.${file.typeKey}`)}</Badge>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function FinancialTab({
-  budget,
-  currentCosts,
-  estimatedProfit,
-  zeroAmount,
-}: {
-  budget: string;
-  currentCosts: string;
-  estimatedProfit: string;
-  zeroAmount: string;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <div className="space-y-6">
-      <SectionHeader title={t("projects.financialTitle")} description={t("projects.financialDescription")} />
-
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard icon="$" label={t("projects.financeEstimateTotal")} value={budget} />
-        <SummaryCard icon="+" label={t("projects.financeApprovedChangeOrders")} value={zeroAmount} />
-        <SummaryCard icon="P" label={t("projects.financeCustomerPayments")} value={zeroAmount} />
-        <SummaryCard icon="C" label={t("projects.financeCurrentCosts")} value={currentCosts} />
-        <SummaryCard icon="%" label={t("projects.financeEstimatedProfit")} value={estimatedProfit} />
-      </section>
+      </div>
     </div>
   );
 }
 
-function ActivityTab({ items }: { items: ActivityItem[] }) {
-  const { t } = useI18n();
-
+function ProjectWorkspaceLoadingState() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("projects.activityTitle")}</CardTitle>
-        <CardDescription>{t("projects.activityDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent className="p-6">
-        <ol className="relative ml-2 border-l border-[var(--color-border-subtle)] pl-6">
-          {items.map((item) => (
-            <li key={item.id} className="mb-6 last:mb-0">
-              <span className="absolute -left-[7px] mt-1.5 h-3.5 w-3.5 rounded-full bg-[var(--color-brand-600)]" />
-              <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t(`projects.${item.eventKey}`)}</p>
-              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t(`projects.${item.detailsKey}`)}</p>
-              <p className="mt-1 text-xs text-[var(--color-text-muted)]">{t(`projects.${item.timestampKey}`)}</p>
-            </li>
-          ))}
-        </ol>
-      </CardContent>
-    </Card>
+    <div className="space-y-5">
+      <div className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-5 shadow-[var(--shadow-card)]">
+        <div className="space-y-2">
+          <SkeletonLoader className="h-8 w-72" />
+          <SkeletonLoader className="h-5 w-96" />
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <SkeletonLoader className="h-20 w-full" />
+          <SkeletonLoader className="h-20 w-full" />
+          <SkeletonLoader className="h-20 w-full" />
+          <SkeletonLoader className="h-20 w-full" />
+          <SkeletonLoader className="h-20 w-full" />
+        </div>
+      </div>
+      <SkeletonLoader className="h-20 w-full" />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-4">
+          <SkeletonLoader className="h-12 w-full" />
+          <SkeletonLoader className="h-72 w-full" />
+          <SkeletonLoader className="h-72 w-full" />
+        </div>
+        <SkeletonLoader className="h-[720px] w-full" />
+      </div>
+    </div>
   );
 }
 
-function OverviewField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{label}</p>
-      <p className="mt-2 whitespace-pre-line text-sm font-semibold text-[var(--color-text-primary)]">{value}</p>
-    </div>
-  );
+function getWorkspaceErrorTitle(errorKind: WorkspaceErrorKind | null, t: (key: string) => string) {
+  if (errorKind === "auth") {
+    return t("projects.errorTitleAuth");
+  }
+
+  if (errorKind === "company") {
+    return t("projects.errorTitleCompany");
+  }
+
+  if (errorKind === "database") {
+    return t("projects.errorTitleDatabase");
+  }
+
+  if (errorKind === "network") {
+    return t("projects.errorTitleNetwork");
+  }
+
+  return t("projects.errorTitle");
+}
+
+function resolveWorkspaceTab(tabParam: string | null): WorkspaceTab {
+  const validTabs: WorkspaceTab[] = [
+    "overview",
+    "daily_reports",
+    "scheduling",
+    "crew",
+    "equipment",
+    "safety",
+    "plans",
+    "financials",
+    "ai_insights",
+  ];
+
+  if (!tabParam) {
+    return "overview";
+  }
+
+  return validTabs.includes(tabParam as WorkspaceTab) ? (tabParam as WorkspaceTab) : "overview";
+}
+
+function getWorkspaceErrorDescription(fallback: string, t: (key: string) => string) {
+  if (fallback.includes("sign in")) {
+    return t("projects.errorAuthRequired");
+  }
+
+  return fallback;
+}
+
+function mapWorkspaceErrorKind(errorCode: string | null): WorkspaceErrorKind {
+  if (errorCode === "unauthenticated") {
+    return "auth";
+  }
+
+  if (errorCode === "profile_missing" || errorCode === "company_missing") {
+    return "company";
+  }
+
+  if (errorCode === "supabase_unavailable") {
+    return "network";
+  }
+
+  return "unknown";
+}
+
+function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
+  const statusLabelKey: Record<string, string> = {
+    lead: "projects.statusLead",
+    estimating: "projects.statusEstimating",
+    approved: "projects.statusApproved",
+    scheduled: "projects.statusScheduled",
+    in_progress: "projects.statusInProgress",
+    on_hold: "projects.statusOnHold",
+    completed: "projects.statusCompleted",
+    cancelled: "projects.statusCancelled",
+  };
+
+  return statusLabelKey[statusKey] ? t(statusLabelKey[statusKey]) : normalizeProjectStatus(statusKey).label;
 }
 
 function buildProfileNameMap(rows: ProfileSummary[], fallbackLabel: string) {
@@ -715,6 +661,316 @@ function buildProfileNameMap(rows: ProfileSummary[], fallbackLabel: string) {
       return [row.id, fullName || fallbackLabel] as const;
     }),
   );
+}
+
+function getCustomerDisplayName(customer: CustomerSummary, fallbackLabel = "Unnamed Customer") {
+  const companyName = customer.company_name?.trim() || "";
+  const firstName = customer.first_name?.trim() || "";
+  const lastName = customer.last_name?.trim() || "";
+  const fallbackName = [firstName, lastName].filter(Boolean).join(" ");
+
+  if (customer.customer_type?.trim().toLowerCase() === "commercial" && companyName) {
+    return companyName;
+  }
+
+  return fallbackName || companyName || fallbackLabel;
+}
+
+function buildRecentActivity({
+  project,
+  customer,
+  tasks,
+  invoices,
+  profilesById,
+  localeTag,
+  t,
+}: {
+  project: ProjectSummary;
+  customer: CustomerSummary | null;
+  tasks: TaskSummary[];
+  invoices: InvoiceSummary[];
+  profilesById: Record<string, string>;
+  localeTag: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}): WorkspaceActivityItem[] {
+  const items: WorkspaceActivityItem[] = [
+    {
+      id: "project-created",
+      title: t("projects.workspaceActivityProjectCreatedTitle"),
+      detail: t("projects.workspaceActivityProjectCreatedDetail", { project: getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject")) }),
+      timestamp: formatDateTime(project.created_at, localeTag),
+      tone: "indigo",
+    },
+  ];
+
+  if (customer) {
+    items.push({
+      id: "customer-linked",
+      title: t("projects.workspaceActivityCustomerLinkedTitle"),
+      detail: t("projects.workspaceActivityCustomerLinkedDetail", { customer: getCustomerDisplayName(customer, t("customers.unnamedCustomer")) }),
+      timestamp: formatDateTime(project.updated_at, localeTag),
+      tone: "blue",
+    });
+  }
+
+  const latestTask = tasks[0];
+  if (latestTask) {
+    items.push({
+      id: `task-${latestTask.id}`,
+      title: t("projects.workspaceActivityTaskTitle"),
+      detail: latestTask.title,
+      timestamp: formatDateTime(latestTask.updated_at || latestTask.created_at, localeTag),
+      tone: "green",
+      href: `/projects/${project.id}`,
+    });
+  }
+
+  const latestInvoice = invoices[0];
+  if (latestInvoice) {
+    items.push({
+      id: `invoice-${latestInvoice.id}`,
+      title: t("projects.workspaceActivityInvoiceTitle"),
+      detail: `${latestInvoice.invoice_number?.trim() || latestInvoice.title} · ${formatProjectCurrency(latestInvoice.total_amount - latestInvoice.amount_paid, localeTag, t("projects.notProvided"))}`,
+      timestamp: formatDateTime(latestInvoice.updated_at || latestInvoice.created_at, localeTag),
+      tone: "amber",
+      href: `/projects/${project.id}`,
+    });
+  }
+
+  const assignedManagers = Object.values(profilesById).slice(0, 1);
+  if (assignedManagers.length > 0) {
+    items.push({
+      id: "manager",
+      title: t("projects.workspaceActivityManagerTitle"),
+      detail: assignedManagers[0],
+      timestamp: formatDateTime(project.updated_at, localeTag),
+      tone: "slate",
+    });
+  }
+
+  return items;
+}
+
+function buildUpcomingSchedule(
+  projectId: string,
+  tasks: TaskSummary[],
+  localeTag: string,
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
+  return tasks
+    .filter((task) => Boolean(task.planned_start || task.planned_finish))
+    .slice(0, 5)
+    .map((task) => ({
+      id: task.id,
+      title: task.title,
+      dateLabel: task.planned_finish ? formatProjectDateLong(task.planned_finish, localeTag, t("projects.notProvided")) : formatProjectDateLong(task.planned_start, localeTag, t("projects.notProvided")),
+      detail: task.assigned_profile_id ? t("projects.workspaceAssignedTo", { name: task.assigned_profile_id }) : t("projects.notAssigned"),
+      tone: getTaskTone(task),
+      href: `/projects/${projectId}`,
+    }));
+}
+
+function buildMilestones(project: ProjectSummary, tasks: TaskSummary[], localeTag: string, t: (key: string, params?: Record<string, string | number>) => string) {
+  const items: WorkspaceMilestoneItem[] = [];
+
+  if (project.estimated_start_date) {
+    items.push({
+      id: "project-start",
+      title: t("projects.workspaceMilestoneProjectStart"),
+      detail: t("projects.workspaceMilestoneProjectStartDetail"),
+      dateLabel: formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided")),
+      tone: "indigo",
+    });
+  }
+
+  if (project.estimated_end_date) {
+    items.push({
+      id: "project-end",
+      title: t("projects.workspaceMilestoneProjectEnd"),
+      detail: t("projects.workspaceMilestoneProjectEndDetail"),
+      dateLabel: formatProjectDateLong(project.estimated_end_date, localeTag, t("projects.notProvided")),
+      tone: "blue",
+    });
+  }
+
+  tasks
+    .filter((task) => Boolean(task.planned_finish))
+    .slice(0, 3)
+    .forEach((task, index) => {
+      items.push({
+        id: task.id,
+        title: task.title,
+        detail: t("projects.workspaceMilestoneTaskDetail"),
+        dateLabel: formatProjectDateLong(task.planned_finish, localeTag, t("projects.notProvided")),
+        tone: index === 0 ? "green" : "amber",
+      });
+    });
+
+  return items;
+}
+
+function buildOpenIssues(
+  tasks: TaskSummary[],
+  invoices: InvoiceSummary[],
+  localeTag: string,
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
+  const overdueTasks = tasks.filter((task) => task.planned_finish && isPastDate(task.planned_finish) && task.status.trim().toLowerCase() !== "completed");
+  const overdueInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice.status, invoice.amount_paid, invoice.total_amount) && invoice.due_date && isPastDate(invoice.due_date));
+
+  return [
+    ...overdueTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      detail: t("projects.workspaceIssueTaskOverdue"),
+      dateLabel: task.planned_finish ? formatProjectDateLong(task.planned_finish, localeTag, t("projects.notProvided")) : t("projects.notProvided"),
+      tone: "amber" as const,
+    })),
+    ...overdueInvoices.map((invoice) => ({
+      id: invoice.id,
+      title: invoice.invoice_number?.trim() || invoice.title,
+      detail: t("projects.workspaceIssueInvoiceOverdue"),
+      dateLabel: invoice.due_date ? formatProjectDateLong(invoice.due_date, localeTag, t("projects.notProvided")) : t("projects.notProvided"),
+      tone: "danger" as const,
+    })),
+  ];
+}
+
+function getTaskTone(task: TaskSummary): "blue" | "green" | "amber" | "indigo" | "slate" {
+  const status = task.status.trim().toLowerCase();
+
+  if (status === "completed") {
+    return "green";
+  }
+
+  if (status === "in_progress") {
+    return "blue";
+  }
+
+  if (status === "blocked" || status === "on_hold") {
+    return "amber";
+  }
+
+  return "slate";
+}
+
+function getScheduleHealth(
+  project: ProjectSummary,
+  tasks: TaskSummary[],
+  localeTag: string,
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
+  const progress = calculateProjectProgress(tasks);
+  const overdueTasks = tasks.filter((task) => task.planned_finish && isPastDate(task.planned_finish) && task.status.trim().toLowerCase() !== "completed").length;
+  const dueSoon = tasks.filter((task) => task.planned_finish && isWithinDays(task.planned_finish, 14) && task.status.trim().toLowerCase() !== "completed").length;
+  const projectOverdue = Boolean(project.estimated_end_date && isPastDate(project.estimated_end_date) && progress < 100);
+
+  if (projectOverdue || overdueTasks > 0) {
+    return {
+      label: t("projects.workspaceHealthBehindSchedule"),
+      tone: "danger" as const,
+      description: t("projects.workspaceHealthBehindScheduleDescription", { count: Math.max(overdueTasks, projectOverdue ? 1 : 0) }),
+      score: 35,
+    };
+  }
+
+  if (dueSoon > 0 || progress < 70) {
+    return {
+      label: t("projects.workspaceHealthAtRisk"),
+      tone: "warning" as const,
+      description: t("projects.workspaceHealthAtRiskDescription", { count: dueSoon }),
+      score: 68,
+    };
+  }
+
+  return {
+    label: t("projects.workspaceHealthOnTrack"),
+    tone: "success" as const,
+    description: t("projects.workspaceHealthOnTrackDescription"),
+    score: 92,
+  };
+}
+
+function getBudgetHealth(project: ProjectSummary, localeTag: string, t: (key: string, params?: Record<string, string | number>) => string) {
+  const contractAmount = project.contract_amount ?? null;
+  const estimatedCost = project.estimated_cost ?? null;
+
+  if (typeof contractAmount !== "number") {
+    return {
+      label: t("projects.workspaceHealthBudgetPending"),
+      tone: "neutral" as const,
+      description: t("projects.workspaceHealthBudgetPendingDescription"),
+      score: 62,
+    };
+  }
+
+  const delta = contractAmount - (estimatedCost ?? 0);
+
+  if (delta >= 0) {
+    return {
+      label: t("projects.workspaceHealthWithinBudget"),
+      tone: "success" as const,
+      description: t("projects.workspaceHealthWithinBudgetDescription", { amount: formatProjectCurrency(delta, localeTag, t("projects.notProvided")) }),
+      score: 88,
+    };
+  }
+
+  return {
+    label: t("projects.workspaceHealthOverBudget"),
+    tone: "warning" as const,
+    description: t("projects.workspaceHealthOverBudgetDescription", { amount: formatProjectCurrency(Math.abs(delta), localeTag, t("projects.notProvided")) }),
+    score: 54,
+  };
+}
+
+function getSafetyHealth(t: (key: string, params?: Record<string, string | number>) => string) {
+  return {
+    label: t("projects.workspaceHealthSafetyClear"),
+    tone: "success" as const,
+    description: t("projects.workspaceHealthSafetyClearDescription"),
+    score: 94,
+  };
+}
+
+function getProgressHealth(progress: number, t: (key: string, params?: Record<string, string | number>) => string) {
+  if (progress >= 80) {
+    return {
+      label: t("projects.workspaceHealthProgressStrong"),
+      tone: "success" as const,
+      description: t("projects.workspaceHealthProgressStrongDescription"),
+      score: 90,
+    };
+  }
+
+  if (progress >= 50) {
+    return {
+      label: t("projects.workspaceHealthProgressModerate"),
+      tone: "warning" as const,
+      description: t("projects.workspaceHealthProgressModerateDescription"),
+      score: 70,
+    };
+  }
+
+  return {
+    label: t("projects.workspaceHealthProgressEarly"),
+    tone: "neutral" as const,
+    description: t("projects.workspaceHealthProgressEarlyDescription"),
+    score: 58,
+  };
+}
+
+function getOverallHealth(scores: number[], t: (key: string, params?: Record<string, string | number>) => string) {
+  const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1));
+
+  if (average >= 85) {
+    return t("projects.workspaceHealthOverallStrong", { score: average });
+  }
+
+  if (average >= 70) {
+    return t("projects.workspaceHealthOverallWatch", { score: average });
+  }
+
+  return t("projects.workspaceHealthOverallRisk", { score: average });
 }
 
 function calculateProjectProgress(tasks: TaskSummary[]) {
@@ -742,49 +998,74 @@ function calculateProfit(contractAmount: number | null, estimatedCost: number | 
   return contractAmount - costs;
 }
 
-function getAssignedCrewLabel(tasks: TaskSummary[], profilesById: Record<string, string>, fallback: string) {
-  const assignedIds = Array.from(
-    new Set(tasks.map((task) => task.assigned_profile_id).filter((profileId): profileId is string => Boolean(profileId))),
-  );
-
-  if (assignedIds.length === 0) {
-    return fallback;
-  }
-
-  const names = assignedIds.map((id) => profilesById[id] || fallback).slice(0, 3);
-  const remainder = assignedIds.length - names.length;
-
-  if (remainder > 0) {
-    return `${names.join(", ")} +${remainder}`;
-  }
-
-  return names.join(", ");
+function isInvoiceOutstanding(status: string, amountPaid: number, totalAmount: number) {
+  const normalized = status.trim().toLowerCase();
+  return normalized !== "paid" && Math.max(0, totalAmount - amountPaid) > 0;
 }
 
-function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
-  const statusLabelKey: Record<string, string> = {
-    lead: "projects.statusLead",
-    estimating: "projects.statusEstimating",
-    approved: "projects.statusApproved",
-    scheduled: "projects.statusScheduled",
-    in_progress: "projects.statusInProgress",
-    on_hold: "projects.statusOnHold",
-    completed: "projects.statusCompleted",
-    cancelled: "projects.statusCancelled",
+function isPastDate(value: string) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  return date.getTime() < Date.now() - 24 * 60 * 60 * 1000;
+}
+
+function isWithinDays(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  const now = new Date();
+  const upper = new Date(now);
+  upper.setDate(now.getDate() + days);
+
+  return date.getTime() <= upper.getTime();
+}
+
+function formatDateTime(value: string, localeTag: string) {
+  return new Intl.DateTimeFormat(localeTag, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function getWorkspaceTabLabelKey(tab: WorkspaceTab) {
+  const map: Record<WorkspaceTab, string> = {
+    overview: "projects.workspaceTabOverview",
+    daily_reports: "projects.workspaceTabDailyReports",
+    scheduling: "projects.workspaceTabScheduling",
+    crew: "projects.workspaceTabCrew",
+    equipment: "projects.workspaceTabEquipment",
+    safety: "projects.workspaceTabSafety",
+    plans: "projects.workspaceTabPlans",
+    financials: "projects.workspaceTabFinancials",
+    ai_insights: "projects.workspaceTabAiInsights",
   };
 
-  return statusLabelKey[statusKey] ? t(statusLabelKey[statusKey]) : normalizeProjectStatus(statusKey).label;
+  return map[tab];
 }
 
-function getCustomerDisplayName(customer: CustomerSummary, fallbackLabel = "Unnamed Customer") {
-  const companyName = customer.company_name?.trim() || "";
-  const firstName = customer.first_name?.trim() || "";
-  const lastName = customer.last_name?.trim() || "";
-  const fallbackName = [firstName, lastName].filter(Boolean).join(" ");
-
-  if (customer.customer_type?.trim().toLowerCase() === "commercial" && companyName) {
-    return companyName;
+async function shareWorkspace(projectId: string, t: (key: string, params?: Record<string, string | number>) => string) {
+  if (typeof window === "undefined") {
+    return;
   }
 
-  return fallbackName || companyName || fallbackLabel;
+  const url = `${window.location.origin}/projects/${projectId}`;
+
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: t("projects.pageTitle"), url });
+      return;
+    }
+
+    await navigator.clipboard.writeText(url);
+  } catch {
+    await navigator.clipboard.writeText(url).catch(() => undefined);
+  }
 }

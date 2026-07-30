@@ -1,17 +1,8 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "./app-shell";
+import { CompanyProvider } from "@/lib/company";
 import { createClient } from "@/lib/supabase/server";
-import type { Database } from "@/types/database.types";
-
-type ProfileRow = Pick<
-  Database["public"]["Tables"]["profiles"]["Row"],
-  "id" | "first_name" | "last_name" | "company_id"
->;
-
-type CompanyRow = Pick<
-  Database["public"]["Tables"]["companies"]["Row"],
-  "id" | "name"
->;
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 export default async function DashboardLayout({
   children,
@@ -24,9 +15,15 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [
+    {
+      data: { user },
+    },
+    workspace,
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    resolveWorkspaceContext(supabase),
+  ]);
 
   if (!user) {
     redirect("/login");
@@ -34,41 +31,25 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, company_id")
+    .select("id, first_name, last_name")
     .eq("id", user.id)
-    .maybeSingle<ProfileRow>();
+    .maybeSingle<{ id: string; first_name: string | null; last_name: string | null }>();
 
-  let company: CompanyRow | null = null;
-
-  if (profile?.company_id) {
-    const { data: profileCompany } = await supabase
-      .from("companies")
-      .select("id, name")
-      .eq("id", profile.company_id)
-      .maybeSingle<CompanyRow>();
-
-    company = profileCompany ?? null;
-  }
-
-  if (!company) {
-    const { data: ownerCompany } = await supabase
-      .from("companies")
-      .select("id, name")
-      .eq("owner_id", user.id)
-      .maybeSingle<CompanyRow>();
-
-    company = ownerCompany ?? null;
-  }
-
-  if (!profile || !company) {
+  if (!profile || !workspace.context) {
     redirect("/onboarding");
   }
 
   const userName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || null;
 
   return (
-    <AppShell userName={userName} userEmail={user.email ?? null} companyName={company.name}>
-      {children}
-    </AppShell>
+    <CompanyProvider workspace={workspace.context}>
+      <AppShell
+        userName={userName}
+        userEmail={user.email ?? null}
+        companyName={workspace.context.companyName}
+      >
+        {children}
+      </AppShell>
+    </CompanyProvider>
   );
 }

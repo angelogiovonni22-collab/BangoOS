@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, SkeletonLoader } from "@/components/ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Select, SkeletonLoader } from "@/components/ui";
 import type { DashboardActivityItem } from "@/lib/dashboard/types";
 
 type ActivityFeedProps = {
@@ -49,8 +49,8 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
   }, [filteredItems.length]);
 
   return (
-    <Card as="section">
-      <CardHeader>
+    <Card as="section" variant="elevated">
+      <CardHeader className="bg-[var(--color-surface-subtle)]/40">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>{t("dashboard.recentActivity")}</CardTitle>
@@ -58,14 +58,14 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
           </div>
 
           <label className="sr-only" htmlFor="activity-filter">{t("dashboard.activityFilter")}</label>
-          <select
+          <Select
             id="activity-filter"
             value={filterValue}
             onChange={(event) => {
               setFilterValue(event.target.value as "all" | DashboardActivityItem["category"]);
               setVisibleCount(6);
             }}
-            className="w-full rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm text-[var(--color-text-primary)] sm:w-56"
+            className="w-full sm:w-56"
           >
             <option value="all">{t("dashboard.activityFilterAll")}</option>
             <option value="customer">{t("dashboard.activityFilterCustomer")}</option>
@@ -74,7 +74,7 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
             <option value="estimate">{t("dashboard.activityFilterEstimate")}</option>
             <option value="invoice">{t("dashboard.activityFilterInvoice")}</option>
             <option value="team">{t("dashboard.activityFilterTeam")}</option>
-          </select>
+          </Select>
         </div>
       </CardHeader>
 
@@ -82,12 +82,12 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
         {isLoading ? (
           <FeedLoadingState />
         ) : filteredItems.length === 0 ? (
-          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
             {t("dashboard.activityEmpty")}
           </p>
         ) : (
           visibleItems.map((item) => (
-            <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
+            <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)] transition hover:shadow-[var(--shadow-medium)]">
               <div className="flex items-start gap-3">
                 <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${getAvatarTone(item.category)}`}>
                   {item.avatarLabel}
@@ -108,13 +108,14 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
         {filteredItems.length > visibleItems.length ? (
           <>
             <div ref={sentinelRef} aria-hidden="true" className="h-1" />
-            <button
+            <Button
               type="button"
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)]"
+              variant="secondary"
+              fullWidth
               onClick={() => setVisibleCount((current) => Math.min(current + 4, filteredItems.length))}
             >
               {t("dashboard.activityLoadMore")}
-            </button>
+            </Button>
           </>
         ) : null}
       </CardContent>

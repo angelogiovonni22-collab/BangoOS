@@ -8,7 +8,7 @@ export default function AppLoading() {
         <SkeletonLoader className="h-8 w-72" />
       </div>
 
-      <Card>
+      <Card variant="elevated">
         <CardContent className="space-y-4 p-6">
           <SkeletonLoader className="h-14 w-full" />
           <SkeletonLoader className="h-14 w-full" />

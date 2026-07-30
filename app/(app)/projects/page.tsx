@@ -3,54 +3,48 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-  SearchInput,
-  SectionHeader,
-  Select,
-  SkeletonLoader,
-  SummaryCard,
-  TableContainer,
-} from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
-import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import type { Database } from "@/types/database.types";
+  ProjectFilters,
+  ProjectHeader,
+  ProjectMetrics,
+  ProjectTable,
+  type ProjectTableItem,
+} from "@/components/projects";
+import { Button, EmptyState, ErrorState, SectionHeader, SkeletonLoader } from "@/components/ui";
+import { useI18n } from "@/lib/i18n/provider";
 import {
+  formatProjectCurrency,
   formatProjectDate,
   getProjectDisplayName,
   normalizeProjectStatus,
+  normalizeProjectType,
   type ProjectRow,
 } from "@/lib/projects";
-import { getProjectStatusBadgeClass, PROJECT_STATUSES } from "@/lib/projects/statuses";
-import { useI18n } from "@/lib/i18n/provider";
+import { PROJECT_STATUSES } from "@/lib/projects/statuses";
+import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import type { Database } from "@/types/database.types";
 
 type CustomerSummaryRow = Pick<
   Database["public"]["Tables"]["customers"]["Row"],
   "id" | "first_name" | "last_name" | "company_name" | "customer_type"
 >;
 
-type TaskProgressRow = Pick<
-  Database["public"]["Tables"]["tasks"]["Row"],
-  "project_id" | "status" | "completion_percentage"
+type ProfileSummaryRow = Pick<
+  Database["public"]["Tables"]["profiles"]["Row"],
+  "id" | "first_name" | "last_name"
 >;
 
-type SortKey = "name" | "customer" | "start_date" | "progress" | "status";
+type TaskProgressRow = Pick<
+  Database["public"]["Tables"]["tasks"]["Row"],
+  "project_id" | "status" | "completion_percentage" | "created_at"
+>;
 
-type ProjectListItem = {
-  id: string;
-  name: string;
-  customerName: string;
+type ProjectListItem = ProjectTableItem & {
   customerId: string | null;
-  startDate: string;
-  startDateRaw: string | null;
-  progress: number;
-  statusKey: string;
+  projectManagerId: string | null;
+  projectTypeKey: string;
   searchText: string;
+  isOverdue: boolean;
 };
 
 type ProjectsErrorKind = "auth" | "company" | "database" | "network" | "unknown";
@@ -63,11 +57,16 @@ export default function ProjectsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorKind, setErrorKind] = useState<ProjectsErrorKind | null>(null);
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [projectManagerFilter, setProjectManagerFilter] = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
-  const [sortBy, setSortBy] = useState<SortKey>("name");
-  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [projectTypeFilter, setProjectTypeFilter] = useState("all");
+
+  const [customerOptions, setCustomerOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [projectManagerOptions, setProjectManagerOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [projectTypeOptions, setProjectTypeOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -113,10 +112,10 @@ export default function ProjectsPage() {
       }
 
       try {
-        const [projectsResponse, customersResponse, tasksResponse] = await Promise.all([
+        const [projectsResponse, customersResponse, tasksResponse, profilesResponse] = await Promise.all([
           client
             .from("projects")
-            .select("id, customer_id, name, status, estimated_start_date")
+            .select("id, customer_id, name, status, estimated_start_date, estimated_end_date, contract_amount, estimated_cost, project_type, created_by, updated_at, created_at")
             .eq("company_id", workspace.context.companyId)
             .order("created_at", { ascending: false }),
           client
@@ -126,7 +125,11 @@ export default function ProjectsPage() {
             .order("created_at", { ascending: false }),
           client
             .from("tasks")
-            .select("project_id, status, completion_percentage")
+            .select("project_id, status, completion_percentage, created_at")
+            .eq("company_id", workspace.context.companyId),
+          client
+            .from("profiles")
+            .select("id, first_name, last_name")
             .eq("company_id", workspace.context.companyId),
         ]);
 
@@ -157,50 +160,116 @@ export default function ProjectsPage() {
           return;
         }
 
+        if (profilesResponse.error) {
+          if (isSubscribed) {
+            setErrorKind("database");
+            setErrorMessage(t("projects.errorLoadTeamProfiles"));
+          }
+
+          return;
+        }
+
         const customerRows = (customersResponse.data ?? []) as CustomerSummaryRow[];
+        const profileRows = (profilesResponse.data ?? []) as ProfileSummaryRow[];
         const taskRows = (tasksResponse.data ?? []) as TaskProgressRow[];
+
+        const localeTag = locale === "es" ? "es-ES" : "en-US";
         const customerNameMap = new Map(
           customerRows.map((row) => [row.id, getCustomerDisplayName(row, t("customers.unnamedCustomer"))]),
         );
+        const profileNameMap = new Map(profileRows.map((row) => [row.id, getProfileDisplayName(row, t("projects.notAssigned"))]));
         const progressByProjectId = buildProjectProgressMap(taskRows);
-        const localeTag = locale === "es" ? "es-ES" : "en-US";
+        const lastActivityByProjectId = buildLastActivityMap(taskRows);
 
         const mappedProjects = (projectsResponse.data ?? []).map((row) => {
-          const project = row as Pick<ProjectRow, "id" | "customer_id" | "name" | "status" | "estimated_start_date">;
+          const project = row as Pick<
+            ProjectRow,
+            | "id"
+            | "customer_id"
+            | "name"
+            | "status"
+            | "estimated_start_date"
+            | "estimated_end_date"
+            | "contract_amount"
+            | "estimated_cost"
+            | "project_type"
+            | "created_by"
+            | "updated_at"
+            | "created_at"
+          >;
           const normalizedStatus = normalizeProjectStatus(project.status);
+          const normalizedType = normalizeProjectType(project.project_type);
           const customerName = project.customer_id
             ? customerNameMap.get(project.customer_id) || t("projects.notLinked")
             : t("projects.notLinked");
+          const projectManagerName = project.created_by
+            ? profileNameMap.get(project.created_by) || t("projects.notAssigned")
+            : t("projects.notAssigned");
           const statusLabel = getProjectStatusLabel(normalizedStatus.key, t);
+          const projectTypeLabel = getProjectTypeLabel(normalizedType.key, t);
+          const lastActivityAt = latestDate(project.updated_at, lastActivityByProjectId[project.id], project.created_at);
+          const endDateRaw = project.estimated_end_date;
 
           return {
             id: project.id,
-            name: getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject")),
+            projectName: getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject")),
             customerName,
             customerId: project.customer_id,
-            startDate: formatProjectDate(project.estimated_start_date, localeTag, t("projects.notProvided")),
-            startDateRaw: project.estimated_start_date,
-            progress: progressByProjectId[project.id] ?? 0,
+            projectManagerName,
+            projectManagerId: project.created_by,
             statusKey: normalizedStatus.key,
+            statusLabel,
+            budgetLabel: formatProjectCurrency(
+              project.contract_amount ?? project.estimated_cost,
+              localeTag,
+              t("projects.notProvided"),
+            ),
+            progress: progressByProjectId[project.id] ?? 0,
+            startDateLabel: formatProjectDate(project.estimated_start_date, localeTag, t("projects.notProvided")),
+            endDateLabel: formatProjectDate(endDateRaw, localeTag, t("projects.notProvided")),
+            lastActivityLabel: formatProjectDate(lastActivityAt, localeTag, t("projects.notProvided")),
+            projectTypeKey: normalizedType.key,
+            isOverdue: isProjectOverdue(endDateRaw, normalizedStatus.key),
             searchText: [
               project.name,
               customerName,
+              projectManagerName,
               statusLabel,
-              formatProjectDate(project.estimated_start_date, localeTag, t("projects.notProvided")),
+              projectTypeLabel,
             ]
               .join(" ")
               .toLowerCase(),
           };
         });
 
+        const nextCustomerOptions = customerRows
+          .map((row) => ({
+            value: row.id,
+            label: getCustomerDisplayName(row, t("customers.unnamedCustomer")),
+          }))
+          .sort((left, right) => left.label.localeCompare(right.label));
+
+        const nextProjectManagerOptions = profileRows
+          .map((row) => ({
+            value: row.id,
+            label: getProfileDisplayName(row, t("projects.notAssigned")),
+          }))
+          .sort((left, right) => left.label.localeCompare(right.label));
+
+        const projectTypeMap = new Map<string, string>();
+        for (const project of mappedProjects) {
+          projectTypeMap.set(project.projectTypeKey, getProjectTypeLabel(project.projectTypeKey, t));
+        }
+
+        const nextProjectTypeOptions = Array.from(projectTypeMap.entries())
+          .map(([value, label]) => ({ value, label }))
+          .sort((left, right) => left.label.localeCompare(right.label));
+
         if (isSubscribed) {
           setProjects(mappedProjects);
-          setCustomerOptions(
-            customerRows.map((row) => ({
-              id: row.id,
-              label: getCustomerDisplayName(row, t("customers.unnamedCustomer")),
-            })),
-          );
+          setCustomerOptions(nextCustomerOptions);
+          setProjectManagerOptions(nextProjectManagerOptions);
+          setProjectTypeOptions(nextProjectTypeOptions);
         }
       } catch (caughtError) {
         console.error("Load projects error:", caughtError);
@@ -223,263 +292,124 @@ export default function ProjectsPage() {
     };
   }, [locale, supabase, t]);
 
-  const filteredAndSortedProjects = useMemo(() => {
+  const filteredProjects = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
-    return projects
-      .filter((project) => {
-        const matchesSearch = !normalizedSearch || project.searchText.includes(normalizedSearch);
-        const matchesStatus = statusFilter === "all" || project.statusKey === statusFilter;
-        const matchesCustomer = customerFilter === "all" || project.customerId === customerFilter;
+    return projects.filter((project) => {
+      const matchesSearch = !normalizedSearch || project.searchText.includes(normalizedSearch);
+      const matchesStatus = statusFilter === "all" || project.statusKey === statusFilter;
+      const matchesProjectManager = projectManagerFilter === "all" || project.projectManagerId === projectManagerFilter;
+      const matchesCustomer = customerFilter === "all" || project.customerId === customerFilter;
+      const matchesProjectType = projectTypeFilter === "all" || project.projectTypeKey === projectTypeFilter;
 
-        return matchesSearch && matchesStatus && matchesCustomer;
-      })
-      .sort((a, b) => {
-        if (sortBy === "name") {
-          return a.name.localeCompare(b.name);
-        }
-
-        if (sortBy === "customer") {
-          return a.customerName.localeCompare(b.customerName);
-        }
-
-        if (sortBy === "start_date") {
-          return compareDateNullable(a.startDateRaw, b.startDateRaw);
-        }
-
-        if (sortBy === "progress") {
-          return b.progress - a.progress;
-        }
-
-        return getProjectStatusLabel(a.statusKey, t).localeCompare(getProjectStatusLabel(b.statusKey, t));
-      });
-  }, [projects, searchTerm, statusFilter, customerFilter, sortBy, t]);
+      return matchesSearch && matchesStatus && matchesProjectManager && matchesCustomer && matchesProjectType;
+    });
+  }, [projects, searchTerm, statusFilter, projectManagerFilter, customerFilter, projectTypeFilter]);
 
   const summary = useMemo(() => {
     const total = projects.length;
-    const inProgress = projects.filter((project) => project.statusKey === "in_progress").length;
+    const active = projects.filter((project) => !["completed", "cancelled"].includes(project.statusKey)).length;
     const completed = projects.filter((project) => project.statusKey === "completed").length;
-    const averageProgress =
-      total === 0 ? 0 : Math.round(projects.reduce((sum, project) => sum + project.progress, 0) / total);
+    const overdue = projects.filter((project) => project.isOverdue).length;
 
-    return { total, inProgress, completed, averageProgress };
+    return {
+      total,
+      active,
+      completed,
+      overdue,
+    };
   }, [projects]);
 
-  const sortOptions: Array<{ value: SortKey; label: string }> = [
-    { value: "name", label: t("projects.sortName") },
-    { value: "customer", label: t("projects.sortCustomer") },
-    { value: "start_date", label: t("projects.sortStartDate") },
-    { value: "progress", label: t("projects.sortProgress") },
-    { value: "status", label: t("projects.sortStatus") },
-  ];
+  const statusOptions = useMemo(() => {
+    return [
+      { value: "all", label: t("projects.filterAllStatuses") },
+      ...PROJECT_STATUSES.map((status) => ({ value: status.value, label: getProjectStatusLabel(status.value, t) })),
+    ];
+  }, [t]);
 
   return (
-    <div className="space-y-8">
-      <PageHeader
+    <div className="space-y-4">
+      <ProjectHeader
+        eyebrow={t("projects.headerEyebrow")}
         title={t("projects.pageTitle")}
         description={t("projects.pageDescription")}
-        primaryAction={
-          <Link href="/projects/new">
-            <Button size="lg">+ {t("projects.newProject")}</Button>
-          </Link>
-        }
+        newProjectLabel={t("projects.newProject")}
+        importLabel={t("projects.import")}
+        comingSoonLabel={t("projects.comingSoon")}
       />
 
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard icon="P" label={t("projects.summaryTotal")} value={String(summary.total)} />
-        <SummaryCard icon="I" label={t("projects.summaryInProgress")} value={String(summary.inProgress)} />
-        <SummaryCard icon="C" label={t("projects.summaryCompleted")} value={String(summary.completed)} />
-        <SummaryCard icon="%" label={t("projects.summaryAvgProgress")} value={`${summary.averageProgress}%`} />
-      </section>
+      <ProjectFilters
+        searchValue={searchTerm}
+        statusValue={statusFilter}
+        managerValue={projectManagerFilter}
+        customerValue={customerFilter}
+        typeValue={projectTypeFilter}
+        statusOptions={statusOptions}
+        managerOptions={[
+          { value: "all", label: t("projects.filterAllProjectManagers") },
+          ...projectManagerOptions,
+        ]}
+        customerOptions={[
+          { value: "all", label: t("projects.filterAllCustomers") },
+          ...customerOptions,
+        ]}
+        typeOptions={[
+          { value: "all", label: t("projects.filterAllProjectTypes") },
+          ...projectTypeOptions,
+        ]}
+        onSearchChange={setSearchTerm}
+        onStatusChange={setStatusFilter}
+        onManagerChange={setProjectManagerFilter}
+        onCustomerChange={setCustomerFilter}
+        onTypeChange={setProjectTypeFilter}
+        t={t}
+      />
 
-      <TableContainer
-        title={t("projects.directoryTitle")}
-        description={t("projects.directoryDescription")}
-        controls={
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <SearchInput
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={t("projects.searchPlaceholder")}
-              aria-label={t("projects.searchPlaceholder")}
-            />
+      <ProjectMetrics
+        totalProjects={summary.total}
+        activeProjects={summary.active}
+        completedProjects={summary.completed}
+        overdueProjects={summary.overdue}
+        t={t}
+      />
 
-            <Select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              aria-label={t("projects.filterStatusLabel")}
-            >
-              <option value="all">{t("projects.filterAllStatuses")}</option>
-              {PROJECT_STATUSES.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {getProjectStatusLabel(status.value, t)}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              value={customerFilter}
-              onChange={(event) => setCustomerFilter(event.target.value)}
-              aria-label={t("projects.filterCustomerLabel")}
-            >
-              <option value="all">{t("projects.filterAllCustomers")}</option>
-              {customerOptions.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.label}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              value={sortBy}
-              onChange={(event) => setSortBy(event.target.value as SortKey)}
-              aria-label={t("projects.sortByLabel")}
-            >
-              {sortOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-        }
-      >
-        {isLoading ? (
-          <ProjectsLoadingState />
-        ) : errorMessage ? (
-          <ErrorState title={getProjectsErrorTitle(errorKind, t)} description={errorMessage} />
-        ) : filteredAndSortedProjects.length > 0 ? (
-          <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-full divide-y divide-[var(--color-border-subtle)]">
-                <thead className="bg-[var(--color-surface-subtle)]">
-                  <tr>
-                    <TableHeading>{t("projects.tableProject")}</TableHeading>
-                    <TableHeading>{t("projects.tableCustomer")}</TableHeading>
-                    <TableHeading>{t("projects.tableStartDate")}</TableHeading>
-                    <TableHeading>{t("projects.tableProgress")}</TableHeading>
-                    <TableHeading>{t("projects.tableStatus")}</TableHeading>
-                    <TableHeading>{t("projects.tableActions")}</TableHeading>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--color-border-subtle)] bg-white">
-                  {filteredAndSortedProjects.map((project) => (
-                    <tr key={project.id} className="transition hover:bg-[var(--color-surface-subtle)]">
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <Link href={`/projects/${project.id}`} className="font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
-                          {project.name}
-                        </Link>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-[var(--color-text-secondary)]">
-                        {project.customerName}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-[var(--color-text-secondary)]">
-                        {project.startDate}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <ProgressCell value={project.progress} />
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <StatusBadge statusKey={project.statusKey} label={getProjectStatusLabel(project.statusKey, t)} />
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm">
-                        <Link href={`/projects/${project.id}`} className="font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">
-                          {t("projects.viewWorkspace")}
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="grid gap-4 p-4 md:hidden">
-              {filteredAndSortedProjects.map((project) => (
-                <Card key={project.id}>
-                  <CardContent className="space-y-3 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <Link href={`/projects/${project.id}`} className="text-base font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
-                          {project.name}
-                        </Link>
-                        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{project.customerName}</p>
-                      </div>
-                      <StatusBadge statusKey={project.statusKey} label={getProjectStatusLabel(project.statusKey, t)} />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <InfoLine label={t("projects.tableStartDate")} value={project.startDate} />
-                      <InfoLine label={t("projects.tableProgress")} value={`${project.progress}%`} />
-                    </div>
-
-                    <Link href={`/projects/${project.id}`} className="inline-flex text-sm font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">
-                      {t("projects.viewWorkspace")}
-                    </Link>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </>
-        ) : projects.length === 0 ? (
-          <EmptyState
-            icon="P"
-            title={t("projects.emptyTitle")}
-            description={t("projects.emptyDescription")}
-            action={
-              <Link href="/projects/new">
-                <Button>{t("projects.newProject")}</Button>
-              </Link>
-            }
-          />
-        ) : (
-          <EmptyState
-            icon="?"
-            title={t("projects.filteredEmptyTitle")}
-            description={t("projects.filteredEmptyDescription")}
-          />
-        )}
-      </TableContainer>
+      {isLoading ? (
+        <ProjectsLoadingState />
+      ) : errorMessage ? (
+        <ErrorState title={getProjectsErrorTitle(errorKind, t)} description={errorMessage} />
+      ) : filteredProjects.length > 0 ? (
+        <ProjectTable items={filteredProjects} t={t} />
+      ) : projects.length === 0 ? (
+        <EmptyState
+          icon="P"
+          title={t("projects.emptyTitle")}
+          description={t("projects.emptyDescription")}
+          action={
+            <Link href="/projects/new">
+              <Button>{t("projects.newProject")}</Button>
+            </Link>
+          }
+        />
+      ) : (
+        <EmptyState
+          icon="?"
+          title={t("projects.filteredEmptyTitle")}
+          description={t("projects.filteredEmptyDescription")}
+          compact
+        />
+      )}
     </div>
-  );
-}
-
-function TableHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <th
-      scope="col"
-      className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]"
-    >
-      {children}
-    </th>
   );
 }
 
 function ProjectsLoadingState() {
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-3 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-card)]">
       <SectionHeader title="" description="" />
       <SkeletonLoader className="h-14 w-full" />
       <SkeletonLoader className="h-14 w-full" />
       <SkeletonLoader className="h-14 w-full" />
       <SkeletonLoader className="h-14 w-full" />
-    </div>
-  );
-}
-
-function ProgressCell({ value }: { value: number }) {
-  const normalized = Math.max(0, Math.min(100, Math.round(value)));
-
-  return (
-    <div className="min-w-[130px]">
-      <div className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-muted)]">
-        <span>{normalized}%</span>
-      </div>
-      <div className="h-2 w-full rounded-full bg-[var(--color-surface-muted)]">
-        <div
-          className="h-2 rounded-full bg-[var(--color-brand-600)] transition-all"
-          style={{ width: `${normalized}%` }}
-        />
-      </div>
     </div>
   );
 }
@@ -505,21 +435,6 @@ function getProjectsErrorTitle(
   }
 
   return t("projects.errorTitle");
-}
-
-function StatusBadge({ statusKey, label }: { statusKey: string; label: string }) {
-  const style = getProjectStatusBadgeClass(statusKey);
-
-  return <Badge className={style}>{label}</Badge>;
-}
-
-function InfoLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-[var(--color-text-muted)]">{label}</p>
-      <p className="font-semibold text-[var(--color-text-primary)]">{value}</p>
-    </div>
-  );
 }
 
 function buildProjectProgressMap(tasks: TaskProgressRow[]) {
@@ -550,23 +465,64 @@ function buildProjectProgressMap(tasks: TaskProgressRow[]) {
   ) as Record<string, number>;
 }
 
-function compareDateNullable(a: string | null, b: string | null) {
-  const aTime = a ? new Date(`${a}T00:00:00`).getTime() : 0;
-  const bTime = b ? new Date(`${b}T00:00:00`).getTime() : 0;
+function buildLastActivityMap(tasks: TaskProgressRow[]) {
+  const lastActivityMap = new Map<string, string>();
 
-  if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
-    return 0;
+  for (const task of tasks) {
+    if (!task.project_id) {
+      continue;
+    }
+
+    const current = lastActivityMap.get(task.project_id);
+    const latest = latestDate(task.created_at, current);
+
+    if (latest) {
+      lastActivityMap.set(task.project_id, latest);
+    }
   }
 
-  if (Number.isNaN(aTime)) {
-    return 1;
+  return Object.fromEntries(lastActivityMap.entries()) as Record<string, string>;
+}
+
+function latestDate(...values: Array<string | null | undefined>) {
+  let latest = "";
+  let latestTime = -1;
+
+  for (const value of values) {
+    if (!value) {
+      continue;
+    }
+
+    const raw = value.includes("T") ? value : `${value}T00:00:00`;
+    const timestamp = new Date(raw).getTime();
+
+    if (Number.isNaN(timestamp)) {
+      continue;
+    }
+
+    if (timestamp > latestTime) {
+      latestTime = timestamp;
+      latest = value;
+    }
   }
 
-  if (Number.isNaN(bTime)) {
-    return -1;
+  return latest || null;
+}
+
+function isProjectOverdue(endDate: string | null, statusKey: string) {
+  if (!endDate || ["completed", "cancelled"].includes(statusKey)) {
+    return false;
   }
 
-  return bTime - aTime;
+  const now = new Date();
+  const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const due = new Date(`${endDate}T00:00:00Z`);
+
+  if (Number.isNaN(due.getTime())) {
+    return false;
+  }
+
+  return due.getTime() < cutoff.getTime();
 }
 
 function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
@@ -584,6 +540,19 @@ function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
   return statusLabelKey[statusKey] ? t(statusLabelKey[statusKey]) : normalizeProjectStatus(statusKey).label;
 }
 
+function getProjectTypeLabel(projectTypeKey: string, t: (key: string) => string) {
+  const typeLabelKey: Record<string, string> = {
+    residential: "projects.typeResidential",
+    commercial: "projects.typeCommercial",
+    maintenance: "projects.typeMaintenance",
+    renovation: "projects.typeRenovation",
+    new_construction: "projects.typeNewConstruction",
+    other: "projects.typeOther",
+  };
+
+  return typeLabelKey[projectTypeKey] ? t(typeLabelKey[projectTypeKey]) : normalizeProjectType(projectTypeKey).label;
+}
+
 function getCustomerDisplayName(customer: CustomerSummaryRow, fallbackLabel = "Unnamed Customer") {
   const companyName = customer.company_name?.trim() || "";
   const firstName = customer.first_name?.trim() || "";
@@ -595,4 +564,11 @@ function getCustomerDisplayName(customer: CustomerSummaryRow, fallbackLabel = "U
   }
 
   return fallbackName || companyName || fallbackLabel;
+}
+
+function getProfileDisplayName(profile: ProfileSummaryRow, fallbackLabel = "Not assigned") {
+  const firstName = profile.first_name?.trim() || "";
+  const lastName = profile.last_name?.trim() || "";
+
+  return [firstName, lastName].filter(Boolean).join(" ") || fallbackLabel;
 }

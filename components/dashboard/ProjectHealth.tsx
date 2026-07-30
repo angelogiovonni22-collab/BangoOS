@@ -9,8 +9,8 @@ type ProjectHealthProps = {
 
 export function ProjectHealth({ summary, t }: ProjectHealthProps) {
   return (
-    <Card as="section">
-      <CardHeader>
+    <Card as="section" variant="elevated">
+      <CardHeader className="bg-[var(--color-surface-subtle)]/40">
         <CardTitle>{t("dashboard.projectHealth")}</CardTitle>
         <CardDescription>{t("dashboard.projectHealthDescription")}</CardDescription>
       </CardHeader>
@@ -22,8 +22,8 @@ export function ProjectHealth({ summary, t }: ProjectHealthProps) {
           <HealthRow label={t("dashboard.projectBehindSchedule")} value={summary.behindScheduleCount} tone="danger" />
         </div>
 
-        <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)]">
-          <div className="hidden grid-cols-[1.6fr_.8fr_1fr_1fr_1fr_1fr_1fr_.8fr] gap-2 bg-[var(--color-surface-subtle)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] lg:grid">
+        <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white">
+          <div className="hidden grid-cols-[1.6fr_.8fr_1fr_1fr_1fr_1fr_1fr_.8fr] gap-2 bg-[var(--color-surface-subtle)] px-3 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] lg:grid">
             <span>{t("dashboard.projectName")}</span>
             <span>{t("dashboard.projectHealthScore")}</span>
             <span>{t("dashboard.projectBudgetStatus")}</span>
@@ -39,7 +39,7 @@ export function ProjectHealth({ summary, t }: ProjectHealthProps) {
               <Link
                 key={project.id}
                 href={project.href}
-                className="block px-3 py-3 transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
+                  className="block px-3 py-3 transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
               >
                 <div className="grid gap-2 lg:grid-cols-[1.6fr_.8fr_1fr_1fr_1fr_1fr_1fr_.8fr] lg:items-center">
                   <span className="text-sm font-semibold text-[var(--color-text-primary)]">{project.projectName}</span>
@@ -78,7 +78,7 @@ function HealthRow({
       : "bg-[var(--color-danger-500)]";
 
   return (
-    <div className="flex items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-4 py-3">
+    <div className="flex items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-4 py-3 shadow-[var(--shadow-small)]">
       <div className="flex items-center gap-2">
         <span className={`h-2.5 w-2.5 rounded-full ${toneClass}`} aria-hidden="true" />
         <span className="text-sm font-medium text-[var(--color-text-secondary)]">{label}</span>

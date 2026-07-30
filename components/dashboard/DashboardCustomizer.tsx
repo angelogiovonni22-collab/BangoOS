@@ -33,7 +33,7 @@ export function DashboardCustomizer({
         type="button"
         aria-expanded={open}
         aria-controls="dashboard-customizer-panel"
-        className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)]"
+        className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
         onClick={() => setOpen((current) => !current)}
       >
         {t("dashboard.customize")}
@@ -81,7 +81,7 @@ export function DashboardCustomizer({
 
                     <button
                       type="button"
-                      className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)]"
+                      className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-primary)]"
                       onClick={() => onToggleCollapsed(widget.id)}
                     >
                       {isCollapsed ? t("dashboard.expand") : t("dashboard.collapse")}
@@ -91,7 +91,7 @@ export function DashboardCustomizer({
                   <div className="mt-2 flex items-center gap-2">
                     <button
                       type="button"
-                      className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)]"
+                      className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-primary)]"
                       onClick={() => {
                         if (index > 0) {
                           onReorder(widget.id, orderedWidgets[index - 1].id);
@@ -103,7 +103,7 @@ export function DashboardCustomizer({
                     </button>
                     <button
                       type="button"
-                      className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)]"
+                      className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-primary)]"
                       onClick={() => {
                         if (index < orderedWidgets.length - 1) {
                           onReorder(widget.id, orderedWidgets[index + 1].id);
@@ -121,7 +121,7 @@ export function DashboardCustomizer({
 
           <button
             type="button"
-            className="mt-4 w-full rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)]"
+            className="mt-4 w-full rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
             onClick={onReset}
           >
             {t("dashboard.restoreDefault")}

@@ -15,35 +15,35 @@ export function AICommandCenter({ recommendations, isLoading = false, t }: AICom
   );
 
   return (
-    <Card as="section" className="overflow-hidden border-white/20 bg-[linear-gradient(145deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))] text-white">
-      <CardHeader className="border-white/10">
-        <CardTitle className="text-white">{t("dashboard.commandCenterTitle")}</CardTitle>
-        <CardDescription className="text-slate-300">{t("dashboard.commandCenterDescription")}</CardDescription>
+    <Card as="section" variant="elevated" className="overflow-hidden">
+      <CardHeader className="bg-[var(--color-surface-subtle)]/70">
+        <CardTitle>{t("dashboard.commandCenterTitle")}</CardTitle>
+        <CardDescription>{t("dashboard.commandCenterDescription")}</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-3 p-5">
         {isLoading ? (
           <CommandCenterLoadingState />
         ) : sorted.length === 0 ? (
-          <p className="rounded-[var(--radius-lg)] border border-white/15 bg-white/5 p-4 text-sm text-slate-300">
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
             {t("dashboard.commandCenterEmpty")}
           </p>
         ) : (
           sorted.map((recommendation) => (
-            <article key={recommendation.id} className="rounded-[var(--radius-xl)] border border-white/10 bg-white/5 p-4">
+            <article key={recommendation.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-small)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-semibold">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-[var(--color-brand-700)] bg-[var(--color-primary-50)]">
                     {recommendation.icon}
                   </span>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-300">
+                    <p className={`text-xs font-semibold uppercase tracking-[0.08em] ${priorityTone(recommendation.priority)}`}>
                       {t(`dashboard.priority${toTitle(recommendation.priority)}`)}
                     </p>
-                    <p className="mt-1 text-sm text-slate-100">{t(recommendation.messageKey)}</p>
+                    <p className="mt-1 text-sm text-[var(--color-text-primary)]">{t(recommendation.messageKey)}</p>
                   </div>
                 </div>
-                <span className="shrink-0 text-xs text-slate-400">{formatRelativeMinutes(recommendation.timestampMinutesAgo, t)}</span>
+                <span className="shrink-0 text-xs text-[var(--color-text-muted)]">{formatRelativeMinutes(recommendation.timestampMinutesAgo, t)}</span>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -53,7 +53,7 @@ export function AICommandCenter({ recommendations, isLoading = false, t }: AICom
                     type="button"
                     size="sm"
                     variant={toButtonVariant(action.intent)}
-                    className={action.intent === "primary" ? "bg-blue-500 text-white hover:bg-blue-600" : ""}
+                    className={action.intent === "primary" ? "bg-[var(--color-brand-600)] text-white hover:bg-[var(--color-brand-700)]" : ""}
                     aria-label={t(action.labelKey)}
                   >
                     {t(action.labelKey)}
@@ -100,6 +100,22 @@ function toButtonVariant(intent: "primary" | "secondary" | "ghost") {
   return "ghost";
 }
 
+function priorityTone(priority: AIRecommendation["priority"]) {
+  if (priority === "critical") {
+    return "text-[var(--color-danger-700)]";
+  }
+
+  if (priority === "high") {
+    return "text-[var(--color-warning-700)]";
+  }
+
+  if (priority === "medium") {
+    return "text-[var(--color-brand-700)]";
+  }
+
+  return "text-[var(--color-text-muted)]";
+}
+
 function formatRelativeMinutes(minutesAgo: number, t: (key: string, params?: Record<string, string | number>) => string) {
   if (minutesAgo < 60) {
     return `${minutesAgo}m ${t("dashboard.activityAgo")}`;
@@ -117,9 +133,9 @@ function formatRelativeMinutes(minutesAgo: number, t: (key: string, params?: Rec
 function CommandCenterLoadingState() {
   return (
     <div className="space-y-3">
-      <SkeletonLoader className="h-24 w-full bg-white/10" />
-      <SkeletonLoader className="h-24 w-full bg-white/10" />
-      <SkeletonLoader className="h-24 w-full bg-white/10" />
+      <SkeletonLoader className="h-24 w-full" />
+      <SkeletonLoader className="h-24 w-full" />
+      <SkeletonLoader className="h-24 w-full" />
     </div>
   );
 }
