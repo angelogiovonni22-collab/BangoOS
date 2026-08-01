@@ -14,269 +14,146 @@ export type Database = {
   }
   public: {
     Tables: {
-      companies: {
+      bango_memories: {
         Row: {
-          address_line_1: string | null
-          address_line_2: string | null
-          business_type: string | null
-          city: string | null
-          contractor_license: string | null
-          country: string | null
+          archived_at: string | null
+          category: string
+          company_id: string
+          confidence: string
           created_at: string
           created_by: string | null
-          default_tax_rate: number | null
-          display_name: string | null
-          email: string | null
+          customer_id: string | null
+          details: Json
+          expires_at: string | null
           id: string
-          insurance_provider: string | null
-          legal_name: string | null
-          logo_url: string | null
-          name: string
-          onboarding_completed: boolean
-          onboarding_completed_at: string | null
-          owner_id: string | null
-          owner_name: string | null
-          phone: string | null
-          postal_code: string | null
-          slug: string | null
-          state: string | null
+          importance: string
+          phase_id: string | null
+          project_id: string | null
+          recommendation_status: string | null
+          scope: string
+          source_references: Json
           status: string
-          timezone: string | null
+          summary: string
+          tags: string[]
+          task_id: string | null
+          title: string
           updated_at: string
           updated_by: string | null
-          website: string | null
-          years_in_business: number | null
+          user_id: string | null
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
-          address_line_1?: string | null
-          address_line_2?: string | null
-          business_type?: string | null
-          city?: string | null
-          contractor_license?: string | null
-          country?: string | null
+          archived_at?: string | null
+          category: string
+          company_id: string
+          confidence: string
           created_at?: string
           created_by?: string | null
-          default_tax_rate?: number | null
-          display_name?: string | null
-          email?: string | null
+          customer_id?: string | null
+          details?: Json
+          expires_at?: string | null
           id?: string
-          insurance_provider?: string | null
-          legal_name?: string | null
-          logo_url?: string | null
-          name: string
-          onboarding_completed?: boolean
-          onboarding_completed_at?: string | null
-          owner_id?: string | null
-          owner_name?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          slug?: string | null
-          state?: string | null
+          importance: string
+          phase_id?: string | null
+          project_id?: string | null
+          recommendation_status?: string | null
+          scope: string
+          source_references?: Json
           status?: string
-          timezone?: string | null
+          summary: string
+          tags?: string[]
+          task_id?: string | null
+          title: string
           updated_at?: string
           updated_by?: string | null
-          website?: string | null
-          years_in_business?: number | null
+          user_id?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
-          address_line_1?: string | null
-          address_line_2?: string | null
-          business_type?: string | null
-          city?: string | null
-          contractor_license?: string | null
-          country?: string | null
+          archived_at?: string | null
+          category?: string
+          company_id?: string
+          confidence?: string
           created_at?: string
           created_by?: string | null
-          default_tax_rate?: number | null
-          display_name?: string | null
-          email?: string | null
+          customer_id?: string | null
+          details?: Json
+          expires_at?: string | null
           id?: string
-          insurance_provider?: string | null
-          legal_name?: string | null
-          logo_url?: string | null
-          name?: string
-          onboarding_completed?: boolean
-          onboarding_completed_at?: string | null
-          owner_id?: string | null
-          owner_name?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          slug?: string | null
-          state?: string | null
+          importance?: string
+          phase_id?: string | null
+          project_id?: string | null
+          recommendation_status?: string | null
+          scope?: string
+          source_references?: Json
           status?: string
-          timezone?: string | null
+          summary?: string
+          tags?: string[]
+          task_id?: string | null
+          title?: string
           updated_at?: string
           updated_by?: string | null
-          website?: string | null
-          years_in_business?: number | null
+          user_id?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "companies_created_by_fkey"
+            foreignKeyName: "bango_memories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bango_memories_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "companies_updated_by_fkey"
+            foreignKeyName: "bango_memories_customer_company_fkey"
+            columns: ["customer_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "bango_memories_phase_company_fkey"
+            columns: ["phase_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "project_phases"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "bango_memories_project_company_fkey"
+            columns: ["project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "bango_memories_task_company_fkey"
+            columns: ["task_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "bango_memories_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      company_memberships: {
-        Row: {
-          company_id: string
-          created_at: string
-          id: string
-          invited_by: string | null
-          is_primary: boolean
-          joined_at: string | null
-          role: string
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          id?: string
-          invited_by?: string | null
-          is_primary?: boolean
-          joined_at?: string | null
-          role?: string
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          id?: string
-          invited_by?: string | null
-          is_primary?: boolean
-          joined_at?: string | null
-          role?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "company_memberships_company_id_fkey"
-            columns: ["company_id"]
+            foreignKeyName: "bango_memories_verified_by_fkey"
+            columns: ["verified_by"]
             isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      company_change_order_sequences: {
-        Row: {
-          company_id: string
-          created_at: string
-          next_number: number
-          padding: number
-          prefix: string
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          next_number?: number
-          padding?: number
-          prefix?: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          next_number?: number
-          padding?: number
-          prefix?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "company_change_order_sequences_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: true
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      customers: {
-        Row: {
-          address_line_1: string | null
-          address_line_2: string | null
-          city: string | null
-          company_id: string
-          company_name: string | null
-          created_at: string
-          created_by: string | null
-          customer_type: string
-          email: string | null
-          first_name: string | null
-          id: string
-          last_name: string | null
-          notes: string | null
-          phone: string | null
-          postal_code: string | null
-          state: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          address_line_1?: string | null
-          address_line_2?: string | null
-          city?: string | null
-          company_id: string
-          company_name?: string | null
-          created_at?: string
-          created_by?: string | null
-          customer_type?: string
-          email?: string | null
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          notes?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          state?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          address_line_1?: string | null
-          address_line_2?: string | null
-          city?: string | null
-          company_id?: string
-          company_name?: string | null
-          created_at?: string
-          created_by?: string | null
-          customer_type?: string
-          email?: string | null
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          notes?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          state?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customers_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -715,151 +592,1151 @@ export type Database = {
           },
         ]
       }
-      estimates: {
+      companies: {
         Row: {
-          additional_fee: number
-          archived_at: string | null
-          company_id: string
+          address_line_1: string | null
+          address_line_2: string | null
+          business_type: string | null
+          city: string | null
+          contractor_license: string | null
+          country: string | null
           created_at: string
           created_by: string | null
-          customer_notes: string | null
-          customer_id: string | null
-          description: string | null
-          direct_cost_subtotal: number
-          discount_total: number
-          discount_type: string
-          discount_value: number
-          estimate_number: string | null
-          expiration_date: string | null
-          internal_notes: string | null
+          default_tax_rate: number | null
+          display_name: string | null
+          email: string | null
           id: string
-          issue_date: string | null
-          markup_total: number
-          payment_terms: string | null
-          prepared_by: string | null
-          project_id: string | null
-          scope_exclusions: string | null
-          scope_inclusions: string | null
+          insurance_provider: string | null
+          legal_name: string | null
+          logo_url: string | null
+          name: string
+          onboarding_completed: boolean
+          onboarding_completed_at: string | null
+          owner_id: string | null
+          owner_name: string | null
+          phone: string | null
+          postal_code: string | null
+          slug: string | null
+          state: string | null
           status: string
-          subtotal: number
-          terms: string | null
-          tax_amount: number
-          tax_rate: number
-          title: string
-          total_amount: number
+          timezone: string | null
           updated_at: string
           updated_by: string | null
+          website: string | null
+          years_in_business: number | null
         }
         Insert: {
-          additional_fee?: number
-          archived_at?: string | null
-          company_id: string
+          address_line_1?: string | null
+          address_line_2?: string | null
+          business_type?: string | null
+          city?: string | null
+          contractor_license?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
-          customer_notes?: string | null
-          customer_id?: string | null
-          description?: string | null
-          direct_cost_subtotal?: number
-          discount_total?: number
-          discount_type?: string
-          discount_value?: number
-          estimate_number?: string | null
-          expiration_date?: string | null
-          internal_notes?: string | null
+          default_tax_rate?: number | null
+          display_name?: string | null
+          email?: string | null
           id?: string
-          issue_date?: string | null
-          markup_total?: number
-          payment_terms?: string | null
-          prepared_by?: string | null
-          project_id?: string | null
-          scope_exclusions?: string | null
-          scope_inclusions?: string | null
+          insurance_provider?: string | null
+          legal_name?: string | null
+          logo_url?: string | null
+          name: string
+          onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          owner_id?: string | null
+          owner_name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          slug?: string | null
+          state?: string | null
           status?: string
-          subtotal?: number
-          terms?: string | null
-          tax_amount?: number
-          tax_rate?: number
-          title: string
-          total_amount?: number
+          timezone?: string | null
           updated_at?: string
           updated_by?: string | null
+          website?: string | null
+          years_in_business?: number | null
         }
         Update: {
-          additional_fee?: number
-          archived_at?: string | null
-          company_id?: string
+          address_line_1?: string | null
+          address_line_2?: string | null
+          business_type?: string | null
+          city?: string | null
+          contractor_license?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
-          customer_notes?: string | null
-          customer_id?: string | null
-          description?: string | null
-          direct_cost_subtotal?: number
-          discount_total?: number
-          discount_type?: string
-          discount_value?: number
-          estimate_number?: string | null
-          expiration_date?: string | null
-          internal_notes?: string | null
+          default_tax_rate?: number | null
+          display_name?: string | null
+          email?: string | null
           id?: string
-          issue_date?: string | null
-          markup_total?: number
-          payment_terms?: string | null
-          prepared_by?: string | null
-          project_id?: string | null
-          scope_exclusions?: string | null
-          scope_inclusions?: string | null
+          insurance_provider?: string | null
+          legal_name?: string | null
+          logo_url?: string | null
+          name?: string
+          onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          owner_id?: string | null
+          owner_name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          slug?: string | null
+          state?: string | null
           status?: string
-          subtotal?: number
-          terms?: string | null
-          tax_amount?: number
-          tax_rate?: number
-          title?: string
-          total_amount?: number
+          timezone?: string | null
           updated_at?: string
           updated_by?: string | null
+          website?: string | null
+          years_in_business?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "estimates_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "estimates_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "estimates_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "estimates_prepared_by_fkey"
-            columns: ["prepared_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "estimates_created_by_fkey"
+            foreignKeyName: "companies_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "estimates_updated_by_fkey"
+            foreignKeyName: "companies_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_change_order_sequences: {
+        Row: {
+          company_id: string
+          created_at: string
+          next_number: number
+          padding: number
+          prefix: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          next_number?: number
+          padding?: number
+          prefix?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          next_number?: number
+          padding?: number
+          prefix?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_change_order_sequences_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_estimate_sequences: {
+        Row: {
+          company_id: string
+          created_at: string
+          next_number: number
+          padding: number
+          prefix: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          next_number?: number
+          padding?: number
+          prefix?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          next_number?: number
+          padding?: number
+          prefix?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_estimate_sequences_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_memberships: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          joined_at: string
+          role: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          joined_at?: string
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          joined_at?: string
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_memberships_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_codes: {
+        Row: {
+          actual_cost: number
+          budget: number
+          category: string | null
+          code: string
+          committed_cost: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          default_equipment_category_id: string | null
+          default_labor_rate_id: string | null
+          default_material_category_id: string | null
+          description: string | null
+          division: string | null
+          id: string
+          name: string
+          parent_cost_code_id: string | null
+          status: string
+          trade: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          actual_cost?: number
+          budget?: number
+          category?: string | null
+          code: string
+          committed_cost?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          default_equipment_category_id?: string | null
+          default_labor_rate_id?: string | null
+          default_material_category_id?: string | null
+          description?: string | null
+          division?: string | null
+          id?: string
+          name: string
+          parent_cost_code_id?: string | null
+          status?: string
+          trade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          actual_cost?: number
+          budget?: number
+          category?: string | null
+          code?: string
+          committed_cost?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          default_equipment_category_id?: string | null
+          default_labor_rate_id?: string | null
+          default_material_category_id?: string | null
+          description?: string | null
+          division?: string | null
+          id?: string
+          name?: string
+          parent_cost_code_id?: string | null
+          status?: string
+          trade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_codes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_codes_parent_company_fkey"
+            columns: ["parent_cost_code_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "cost_codes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_memberships: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          crew_id: string
+          employee_id: string
+          ends_on: string | null
+          id: string
+          is_primary: boolean
+          role: string
+          starts_on: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          crew_id: string
+          employee_id: string
+          ends_on?: string | null
+          id?: string
+          is_primary?: boolean
+          role: string
+          starts_on: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew_id?: string
+          employee_id?: string
+          ends_on?: string | null
+          id?: string
+          is_primary?: boolean
+          role?: string
+          starts_on?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_memberships_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_memberships_created_by_company_fkey"
+            columns: ["created_by", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "crew_memberships_crew_company_fkey"
+            columns: ["crew_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "crew_memberships_employee_company_fkey"
+            columns: ["employee_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "crew_memberships_updated_by_company_fkey"
+            columns: ["updated_by", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      crews: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          crew_code: string
+          description: string | null
+          home_location: string | null
+          id: string
+          lead_profile_id: string | null
+          name: string
+          notes: string | null
+          status: string
+          supervisor_profile_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          crew_code: string
+          description?: string | null
+          home_location?: string | null
+          id?: string
+          lead_profile_id?: string | null
+          name: string
+          notes?: string | null
+          status?: string
+          supervisor_profile_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew_code?: string
+          description?: string | null
+          home_location?: string | null
+          id?: string
+          lead_profile_id?: string | null
+          name?: string
+          notes?: string | null
+          status?: string
+          supervisor_profile_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crews_created_by_company_fkey"
+            columns: ["created_by", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "crews_lead_profile_company_fkey"
+            columns: ["lead_profile_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "crews_supervisor_profile_company_fkey"
+            columns: ["supervisor_profile_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "crews_updated_by_company_fkey"
+            columns: ["updated_by", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          address_line_1: string | null
+          address_line_2: string | null
+          city: string | null
+          company_id: string
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          customer_type: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          state: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address_line_1?: string | null
+          address_line_2?: string | null
+          city?: string | null
+          company_id: string
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_type?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address_line_1?: string | null
+          address_line_2?: string | null
+          city?: string | null
+          company_id?: string
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_type?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          availability_status: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          employee_number: string
+          employment_status: string
+          hire_date: string
+          id: string
+          notes: string | null
+          position_title: string
+          primary_crew_id: string | null
+          profile_id: string | null
+          supervisor_profile_id: string | null
+          termination_date: string | null
+          trade: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          availability_status?: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          employee_number: string
+          employment_status?: string
+          hire_date: string
+          id?: string
+          notes?: string | null
+          position_title: string
+          primary_crew_id?: string | null
+          profile_id?: string | null
+          supervisor_profile_id?: string | null
+          termination_date?: string | null
+          trade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          availability_status?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          employee_number?: string
+          employment_status?: string
+          hire_date?: string
+          id?: string
+          notes?: string | null
+          position_title?: string
+          primary_crew_id?: string | null
+          profile_id?: string | null
+          supervisor_profile_id?: string | null
+          termination_date?: string | null
+          trade?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_created_by_company_fkey"
+            columns: ["created_by", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "employees_primary_crew_company_fkey"
+            columns: ["primary_crew_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "employees_profile_company_fkey"
+            columns: ["profile_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "employees_supervisor_profile_company_fkey"
+            columns: ["supervisor_profile_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "employees_updated_by_company_fkey"
+            columns: ["updated_by", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      equipment: {
+        Row: {
+          ai_notes: string | null
+          asset_tag: string | null
+          assigned_at: string | null
+          assigned_crew_id: string | null
+          assigned_employee_id: string | null
+          assigned_job_id: string | null
+          barcode: string | null
+          category: string | null
+          certification_expiration_date: string | null
+          company_id: string
+          condition_score: number | null
+          created_at: string
+          created_by: string | null
+          criticality_level: string
+          current_location_name: string | null
+          current_location_type: string | null
+          current_meter_reading: number
+          current_value: number
+          daily_billable_rate: number
+          daily_internal_cost: number
+          default_cost_code_id: string | null
+          default_quantity: number
+          default_unit_of_measure: string | null
+          depreciation_method: string | null
+          depreciation_start_date: string | null
+          description: string | null
+          effective_internal_hourly_cost: number
+          equipment_number: string
+          equipment_type: string | null
+          estimated_fuel_cost_per_hour: number
+          expected_return_date: string | null
+          financed_amount: number
+          fuel_type: string | null
+          hourly_billable_rate: number
+          hourly_internal_cost: number
+          id: string
+          inspection_expiration_date: string | null
+          insurance_cost_per_hour: number
+          insurance_expiration_date: string | null
+          last_meter_updated_at: string | null
+          last_service_date: string | null
+          last_service_meter: number | null
+          lease_end_date: string | null
+          lease_monthly_cost: number
+          lease_start_date: string | null
+          license_plate: string | null
+          lifetime_hours: number
+          lifetime_miles: number
+          maintenance_cost_per_hour: number
+          maintenance_notes: string | null
+          maintenance_status: string
+          manufacturer: string | null
+          meter_type: string | null
+          meter_unit: string | null
+          model: string | null
+          model_year: number | null
+          monthly_payment: number
+          name: string
+          next_service_date: string | null
+          next_service_meter: number | null
+          notes: string | null
+          other_operating_cost_per_hour: number
+          owner_name: string | null
+          ownership_type: string
+          purchase_date: string | null
+          purchase_price: number
+          qr_code: string | null
+          registration_expiration_date: string | null
+          reliability_score: number | null
+          rental_agreement_number: string | null
+          rental_daily_cost: number
+          rental_end_date: string | null
+          rental_monthly_cost: number
+          rental_start_date: string | null
+          rental_weekly_cost: number
+          replacement_priority: string
+          replacement_score: number | null
+          required_certification_type: string | null
+          requires_operator_certification: boolean
+          safety_notes: string | null
+          salvage_value: number
+          serial_number: string | null
+          service_interval_days: number | null
+          service_interval_meter: number | null
+          status: string
+          subcategory: string | null
+          taxable: boolean
+          total_operating_cost_per_hour: number
+          updated_at: string
+          updated_by: string | null
+          useful_life_years: number | null
+          utilization_target_percent: number | null
+          vendor_id: string | null
+          vin: string | null
+          warranty_expiration_date: string | null
+        }
+        Insert: {
+          ai_notes?: string | null
+          asset_tag?: string | null
+          assigned_at?: string | null
+          assigned_crew_id?: string | null
+          assigned_employee_id?: string | null
+          assigned_job_id?: string | null
+          barcode?: string | null
+          category?: string | null
+          certification_expiration_date?: string | null
+          company_id: string
+          condition_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          criticality_level?: string
+          current_location_name?: string | null
+          current_location_type?: string | null
+          current_meter_reading?: number
+          current_value?: number
+          daily_billable_rate?: number
+          daily_internal_cost?: number
+          default_cost_code_id?: string | null
+          default_quantity?: number
+          default_unit_of_measure?: string | null
+          depreciation_method?: string | null
+          depreciation_start_date?: string | null
+          description?: string | null
+          effective_internal_hourly_cost?: number
+          equipment_number: string
+          equipment_type?: string | null
+          estimated_fuel_cost_per_hour?: number
+          expected_return_date?: string | null
+          financed_amount?: number
+          fuel_type?: string | null
+          hourly_billable_rate?: number
+          hourly_internal_cost?: number
+          id?: string
+          inspection_expiration_date?: string | null
+          insurance_cost_per_hour?: number
+          insurance_expiration_date?: string | null
+          last_meter_updated_at?: string | null
+          last_service_date?: string | null
+          last_service_meter?: number | null
+          lease_end_date?: string | null
+          lease_monthly_cost?: number
+          lease_start_date?: string | null
+          license_plate?: string | null
+          lifetime_hours?: number
+          lifetime_miles?: number
+          maintenance_cost_per_hour?: number
+          maintenance_notes?: string | null
+          maintenance_status?: string
+          manufacturer?: string | null
+          meter_type?: string | null
+          meter_unit?: string | null
+          model?: string | null
+          model_year?: number | null
+          monthly_payment?: number
+          name: string
+          next_service_date?: string | null
+          next_service_meter?: number | null
+          notes?: string | null
+          other_operating_cost_per_hour?: number
+          owner_name?: string | null
+          ownership_type?: string
+          purchase_date?: string | null
+          purchase_price?: number
+          qr_code?: string | null
+          registration_expiration_date?: string | null
+          reliability_score?: number | null
+          rental_agreement_number?: string | null
+          rental_daily_cost?: number
+          rental_end_date?: string | null
+          rental_monthly_cost?: number
+          rental_start_date?: string | null
+          rental_weekly_cost?: number
+          replacement_priority?: string
+          replacement_score?: number | null
+          required_certification_type?: string | null
+          requires_operator_certification?: boolean
+          safety_notes?: string | null
+          salvage_value?: number
+          serial_number?: string | null
+          service_interval_days?: number | null
+          service_interval_meter?: number | null
+          status?: string
+          subcategory?: string | null
+          taxable?: boolean
+          total_operating_cost_per_hour?: number
+          updated_at?: string
+          updated_by?: string | null
+          useful_life_years?: number | null
+          utilization_target_percent?: number | null
+          vendor_id?: string | null
+          vin?: string | null
+          warranty_expiration_date?: string | null
+        }
+        Update: {
+          ai_notes?: string | null
+          asset_tag?: string | null
+          assigned_at?: string | null
+          assigned_crew_id?: string | null
+          assigned_employee_id?: string | null
+          assigned_job_id?: string | null
+          barcode?: string | null
+          category?: string | null
+          certification_expiration_date?: string | null
+          company_id?: string
+          condition_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          criticality_level?: string
+          current_location_name?: string | null
+          current_location_type?: string | null
+          current_meter_reading?: number
+          current_value?: number
+          daily_billable_rate?: number
+          daily_internal_cost?: number
+          default_cost_code_id?: string | null
+          default_quantity?: number
+          default_unit_of_measure?: string | null
+          depreciation_method?: string | null
+          depreciation_start_date?: string | null
+          description?: string | null
+          effective_internal_hourly_cost?: number
+          equipment_number?: string
+          equipment_type?: string | null
+          estimated_fuel_cost_per_hour?: number
+          expected_return_date?: string | null
+          financed_amount?: number
+          fuel_type?: string | null
+          hourly_billable_rate?: number
+          hourly_internal_cost?: number
+          id?: string
+          inspection_expiration_date?: string | null
+          insurance_cost_per_hour?: number
+          insurance_expiration_date?: string | null
+          last_meter_updated_at?: string | null
+          last_service_date?: string | null
+          last_service_meter?: number | null
+          lease_end_date?: string | null
+          lease_monthly_cost?: number
+          lease_start_date?: string | null
+          license_plate?: string | null
+          lifetime_hours?: number
+          lifetime_miles?: number
+          maintenance_cost_per_hour?: number
+          maintenance_notes?: string | null
+          maintenance_status?: string
+          manufacturer?: string | null
+          meter_type?: string | null
+          meter_unit?: string | null
+          model?: string | null
+          model_year?: number | null
+          monthly_payment?: number
+          name?: string
+          next_service_date?: string | null
+          next_service_meter?: number | null
+          notes?: string | null
+          other_operating_cost_per_hour?: number
+          owner_name?: string | null
+          ownership_type?: string
+          purchase_date?: string | null
+          purchase_price?: number
+          qr_code?: string | null
+          registration_expiration_date?: string | null
+          reliability_score?: number | null
+          rental_agreement_number?: string | null
+          rental_daily_cost?: number
+          rental_end_date?: string | null
+          rental_monthly_cost?: number
+          rental_start_date?: string | null
+          rental_weekly_cost?: number
+          replacement_priority?: string
+          replacement_score?: number | null
+          required_certification_type?: string | null
+          requires_operator_certification?: boolean
+          safety_notes?: string | null
+          salvage_value?: number
+          serial_number?: string | null
+          service_interval_days?: number | null
+          service_interval_meter?: number | null
+          status?: string
+          subcategory?: string | null
+          taxable?: boolean
+          total_operating_cost_per_hour?: number
+          updated_at?: string
+          updated_by?: string | null
+          useful_life_years?: number | null
+          utilization_target_percent?: number | null
+          vendor_id?: string | null
+          vin?: string | null
+          warranty_expiration_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_default_cost_code_company_fkey"
+            columns: ["default_cost_code_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "cost_codes"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "equipment_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_vendor_company_fkey"
+            columns: ["vendor_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      estimate_items: {
+        Row: {
+          ai_context: Json
+          company_id: string
+          converted_task_id: string | null
+          created_at: string
+          customer_description: string | null
+          customer_line_total: number
+          customer_unit_price: number
+          customer_visible: boolean
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          equipment_cost: number
+          estimate_id: string
+          generated_by_ai: boolean
+          id: string
+          internal_cost_total: number
+          item_type: string
+          labor_cost: number
+          labor_hours: number
+          labor_rate: number
+          markup_type: string
+          markup_value: number
+          material_cost: number
+          name: string
+          other_cost: number
+          quantity: number
+          section_id: string
+          sort_order: number
+          source_reference: Json | null
+          source_type: string | null
+          subcontractor_cost: number
+          taxable: boolean
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_context?: Json
+          company_id: string
+          converted_task_id?: string | null
+          created_at?: string
+          customer_description?: string | null
+          customer_line_total?: number
+          customer_unit_price?: number
+          customer_visible?: boolean
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          equipment_cost?: number
+          estimate_id: string
+          generated_by_ai?: boolean
+          id?: string
+          internal_cost_total?: number
+          item_type?: string
+          labor_cost?: number
+          labor_hours?: number
+          labor_rate?: number
+          markup_type?: string
+          markup_value?: number
+          material_cost?: number
+          name: string
+          other_cost?: number
+          quantity?: number
+          section_id: string
+          sort_order?: number
+          source_reference?: Json | null
+          source_type?: string | null
+          subcontractor_cost?: number
+          taxable?: boolean
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_context?: Json
+          company_id?: string
+          converted_task_id?: string | null
+          created_at?: string
+          customer_description?: string | null
+          customer_line_total?: number
+          customer_unit_price?: number
+          customer_visible?: boolean
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          equipment_cost?: number
+          estimate_id?: string
+          generated_by_ai?: boolean
+          id?: string
+          internal_cost_total?: number
+          item_type?: string
+          labor_cost?: number
+          labor_hours?: number
+          labor_rate?: number
+          markup_type?: string
+          markup_value?: number
+          material_cost?: number
+          name?: string
+          other_cost?: number
+          quantity?: number
+          section_id?: string
+          sort_order?: number
+          source_reference?: Json | null
+          source_type?: string | null
+          subcontractor_cost?: number
+          taxable?: boolean
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_items_converted_task_id_fkey"
+            columns: ["converted_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_items_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_items_estimate_company_fkey"
+            columns: ["estimate_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "estimate_items_section_estimate_company_fkey"
+            columns: ["section_id", "estimate_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_sections"
+            referencedColumns: ["id", "estimate_id", "company_id"]
           },
         ]
       }
@@ -935,151 +1812,270 @@ export type Database = {
           },
         ]
       }
-      invoices: {
+      estimate_sections: {
         Row: {
-          additional_fee: number
-          archived_at: string | null
-          amount_paid: number
           company_id: string
           created_at: string
-          created_by: string | null
-          customer_id: string | null
+          customer_visible: boolean
+          deleted_at: string | null
+          deleted_by: string | null
           description: string | null
-          discount_total: number
-          discount_type: string
-          discount_value: number
-          due_date: string | null
-          estimate_id: string | null
+          estimate_id: string
           id: string
-          invoice_number: string | null
-          issue_date: string | null
-          notes: string | null
-          paid_date: string | null
-          payment_terms: string | null
-          prepared_by: string | null
-          project_id: string | null
-          sent_at: string | null
-          status: string
-          subtotal: number
-          tax_amount: number
-          tax_rate: number
-          title: string
-          total_amount: number
+          name: string
+          section_internal_cost: number
+          section_subtotal: number
+          sort_order: number
           updated_at: string
-          updated_by: string | null
-          viewed_at: string | null
         }
         Insert: {
-          additional_fee?: number
-          archived_at?: string | null
-          amount_paid?: number
           company_id: string
           created_at?: string
-          created_by?: string | null
-          customer_id?: string | null
+          customer_visible?: boolean
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
-          discount_total?: number
-          discount_type?: string
-          discount_value?: number
-          due_date?: string | null
-          estimate_id?: string | null
+          estimate_id: string
           id?: string
-          invoice_number?: string | null
-          issue_date?: string | null
-          notes?: string | null
-          paid_date?: string | null
-          payment_terms?: string | null
-          prepared_by?: string | null
-          project_id?: string | null
-          sent_at?: string | null
-          status?: string
-          subtotal?: number
-          tax_amount?: number
-          tax_rate?: number
-          title: string
-          total_amount?: number
+          name: string
+          section_internal_cost?: number
+          section_subtotal?: number
+          sort_order?: number
           updated_at?: string
-          updated_by?: string | null
-          viewed_at?: string | null
         }
         Update: {
-          additional_fee?: number
-          archived_at?: string | null
-          amount_paid?: number
           company_id?: string
           created_at?: string
-          created_by?: string | null
-          customer_id?: string | null
+          customer_visible?: boolean
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
-          discount_total?: number
-          discount_type?: string
-          discount_value?: number
-          due_date?: string | null
-          estimate_id?: string | null
+          estimate_id?: string
           id?: string
-          invoice_number?: string | null
-          issue_date?: string | null
-          notes?: string | null
-          paid_date?: string | null
-          payment_terms?: string | null
-          prepared_by?: string | null
-          project_id?: string | null
-          sent_at?: string | null
-          status?: string
-          subtotal?: number
-          tax_amount?: number
-          tax_rate?: number
-          title?: string
-          total_amount?: number
+          name?: string
+          section_internal_cost?: number
+          section_subtotal?: number
+          sort_order?: number
           updated_at?: string
-          updated_by?: string | null
-          viewed_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "invoices_company_id_fkey"
+            foreignKeyName: "estimate_sections_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoices_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "estimate_sections_deleted_by_fkey"
+            columns: ["deleted_by"]
             isOneToOne: false
-            referencedRelation: "customers"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoices_estimate_company_fkey"
+            foreignKeyName: "estimate_sections_estimate_company_fkey"
             columns: ["estimate_id", "company_id"]
             isOneToOne: false
             referencedRelation: "estimates"
             referencedColumns: ["id", "company_id"]
           },
+        ]
+      }
+      estimates: {
+        Row: {
+          additional_fee: number
+          ai_context: Json
+          archived_at: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          customer_id: string | null
+          customer_notes: string | null
+          customer_snapshot: Json
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          direct_cost_subtotal: number
+          discount_amount: number
+          discount_total: number
+          discount_type: string
+          discount_value: number
+          estimate_number: string | null
+          expiration_date: string | null
+          generated_by_ai: boolean
+          gross_margin_percent: number
+          gross_profit: number
+          id: string
+          internal_cost_total: number
+          internal_notes: string | null
+          issue_date: string | null
+          markup_total: number
+          payment_terms: string | null
+          pdf_snapshot: Json | null
+          prepared_by: string | null
+          previous_estimate_id: string | null
+          project_id: string | null
+          scope_exclusions: string | null
+          scope_inclusions: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          tax_rate: number
+          terms: string | null
+          title: string
+          total_amount: number
+          updated_at: string
+          updated_by: string | null
+          version_number: number
+        }
+        Insert: {
+          additional_fee?: number
+          ai_context?: Json
+          archived_at?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          customer_id?: string | null
+          customer_notes?: string | null
+          customer_snapshot?: Json
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          direct_cost_subtotal?: number
+          discount_amount?: number
+          discount_total?: number
+          discount_type?: string
+          discount_value?: number
+          estimate_number?: string | null
+          expiration_date?: string | null
+          generated_by_ai?: boolean
+          gross_margin_percent?: number
+          gross_profit?: number
+          id?: string
+          internal_cost_total?: number
+          internal_notes?: string | null
+          issue_date?: string | null
+          markup_total?: number
+          payment_terms?: string | null
+          pdf_snapshot?: Json | null
+          prepared_by?: string | null
+          previous_estimate_id?: string | null
+          project_id?: string | null
+          scope_exclusions?: string | null
+          scope_inclusions?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number
+          terms?: string | null
+          title: string
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+          version_number?: number
+        }
+        Update: {
+          additional_fee?: number
+          ai_context?: Json
+          archived_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          customer_id?: string | null
+          customer_notes?: string | null
+          customer_snapshot?: Json
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          direct_cost_subtotal?: number
+          discount_amount?: number
+          discount_total?: number
+          discount_type?: string
+          discount_value?: number
+          estimate_number?: string | null
+          expiration_date?: string | null
+          generated_by_ai?: boolean
+          gross_margin_percent?: number
+          gross_profit?: number
+          id?: string
+          internal_cost_total?: number
+          internal_notes?: string | null
+          issue_date?: string | null
+          markup_total?: number
+          payment_terms?: string | null
+          pdf_snapshot?: Json | null
+          prepared_by?: string | null
+          previous_estimate_id?: string | null
+          project_id?: string | null
+          scope_exclusions?: string | null
+          scope_inclusions?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number
+          terms?: string | null
+          title?: string
+          total_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+          version_number?: number
+        }
+        Relationships: [
           {
-            foreignKeyName: "invoices_created_by_fkey"
+            foreignKeyName: "estimates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoices_prepared_by_fkey"
+            foreignKeyName: "estimates_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_prepared_by_fkey"
             columns: ["prepared_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoices_project_id_fkey"
+            foreignKeyName: "estimates_previous_estimate_id_fkey"
+            columns: ["previous_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoices_updated_by_fkey"
+            foreignKeyName: "estimates_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1127,6 +2123,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoice_estimate_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoice_estimate_links_estimate_company_fkey"
             columns: ["estimate_id", "company_id"]
             isOneToOne: false
@@ -1139,13 +2142,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id", "company_id"]
-          },
-          {
-            foreignKeyName: "invoice_estimate_links_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -1252,18 +2248,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoice_notes_invoice_company_fkey"
-            columns: ["invoice_id", "company_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id", "company_id"]
-          },
-          {
             foreignKeyName: "invoice_notes_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_notes_invoice_company_fkey"
+            columns: ["invoice_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id", "company_id"]
           },
           {
             foreignKeyName: "invoice_notes_updated_by_fkey"
@@ -1329,18 +2325,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invoice_payment_history_invoice_company_fkey"
-            columns: ["invoice_id", "company_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id", "company_id"]
-          },
-          {
             foreignKeyName: "invoice_payment_history_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_history_invoice_company_fkey"
+            columns: ["invoice_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id", "company_id"]
           },
           {
             foreignKeyName: "invoice_payment_history_updated_by_fkey"
@@ -1351,177 +2347,151 @@ export type Database = {
           },
         ]
       }
-      profiles: {
+      invoices: {
         Row: {
-          company_id: string | null
-          created_at: string
-          first_name: string | null
-          id: string
-          last_name: string | null
-          phone: string | null
-          role: string
-          updated_at: string
-        }
-        Insert: {
-          company_id?: string | null
-          created_at?: string
-          first_name?: string | null
-          id: string
-          last_name?: string | null
-          phone?: string | null
-          role?: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string | null
-          created_at?: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          phone?: string | null
-          role?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_profiles: {
-        Row: {
-          company_id: string | null
-          created_at: string
-          display_name: string | null
-          first_name: string | null
-          id: string
-          last_name: string | null
-          phone: string | null
-          role: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          company_id?: string | null
-          created_at?: string
-          display_name?: string | null
-          first_name?: string | null
-          id: string
-          last_name?: string | null
-          phone?: string | null
-          role?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          company_id?: string | null
-          created_at?: string
-          display_name?: string | null
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          phone?: string | null
-          role?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      cost_codes: {
-        Row: {
-          actual_cost: number
-          budget: number
-          category: string | null
-          code: string
-          committed_cost: number
+          additional_fee: number
+          amount_paid: number
+          archived_at: string | null
           company_id: string
           created_at: string
           created_by: string | null
-          default_equipment_category_id: string | null
-          default_labor_rate_id: string | null
-          default_material_category_id: string | null
+          customer_id: string | null
           description: string | null
-          division: string | null
+          discount_total: number
+          discount_type: string
+          discount_value: number
+          due_date: string | null
+          estimate_id: string | null
           id: string
-          name: string
-          parent_cost_code_id: string | null
+          invoice_number: string | null
+          issue_date: string | null
+          notes: string | null
+          paid_date: string | null
+          payment_terms: string | null
+          prepared_by: string | null
+          project_id: string | null
+          sent_at: string | null
           status: string
-          trade: string | null
+          subtotal: number
+          tax_amount: number
+          tax_rate: number
+          title: string
+          total_amount: number
           updated_at: string
           updated_by: string | null
+          viewed_at: string | null
         }
         Insert: {
-          actual_cost?: number
-          budget?: number
-          category?: string | null
-          code: string
-          committed_cost?: number
+          additional_fee?: number
+          amount_paid?: number
+          archived_at?: string | null
           company_id: string
           created_at?: string
           created_by?: string | null
-          default_equipment_category_id?: string | null
-          default_labor_rate_id?: string | null
-          default_material_category_id?: string | null
+          customer_id?: string | null
           description?: string | null
-          division?: string | null
+          discount_total?: number
+          discount_type?: string
+          discount_value?: number
+          due_date?: string | null
+          estimate_id?: string | null
           id?: string
-          name: string
-          parent_cost_code_id?: string | null
+          invoice_number?: string | null
+          issue_date?: string | null
+          notes?: string | null
+          paid_date?: string | null
+          payment_terms?: string | null
+          prepared_by?: string | null
+          project_id?: string | null
+          sent_at?: string | null
           status?: string
-          trade?: string | null
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number
+          title: string
+          total_amount?: number
           updated_at?: string
           updated_by?: string | null
+          viewed_at?: string | null
         }
         Update: {
-          actual_cost?: number
-          budget?: number
-          category?: string | null
-          code?: string
-          committed_cost?: number
+          additional_fee?: number
+          amount_paid?: number
+          archived_at?: string | null
           company_id?: string
           created_at?: string
           created_by?: string | null
-          default_equipment_category_id?: string | null
-          default_labor_rate_id?: string | null
-          default_material_category_id?: string | null
+          customer_id?: string | null
           description?: string | null
-          division?: string | null
+          discount_total?: number
+          discount_type?: string
+          discount_value?: number
+          due_date?: string | null
+          estimate_id?: string | null
           id?: string
-          name?: string
-          parent_cost_code_id?: string | null
+          invoice_number?: string | null
+          issue_date?: string | null
+          notes?: string | null
+          paid_date?: string | null
+          payment_terms?: string | null
+          prepared_by?: string | null
+          project_id?: string | null
+          sent_at?: string | null
           status?: string
-          trade?: string | null
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number
+          title?: string
+          total_amount?: number
           updated_at?: string
           updated_by?: string | null
+          viewed_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "cost_codes_company_id_fkey"
+            foreignKeyName: "invoices_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "cost_codes_created_by_fkey"
+            foreignKeyName: "invoices_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "cost_codes_parent_company_fkey"
-            columns: ["parent_cost_code_id", "company_id"]
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "cost_codes"
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_estimate_company_fkey"
+            columns: ["estimate_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
             referencedColumns: ["id", "company_id"]
           },
           {
-            foreignKeyName: "cost_codes_updated_by_fkey"
+            foreignKeyName: "invoices_prepared_by_fkey"
+            columns: ["prepared_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1705,336 +2675,6 @@ export type Database = {
           },
         ]
       }
-      equipment: {
-        Row: {
-          ai_notes: string | null
-          assigned_at: string | null
-          assigned_crew_id: string | null
-          assigned_employee_id: string | null
-          assigned_job_id: string | null
-          asset_tag: string | null
-          barcode: string | null
-          category: string | null
-          certification_expiration_date: string | null
-          company_id: string
-          condition_score: number | null
-          criticality_level: string
-          created_at: string
-          created_by: string | null
-          current_location_name: string | null
-          current_location_type: string | null
-          current_meter_reading: number
-          current_value: number
-          daily_billable_rate: number
-          daily_internal_cost: number
-          default_cost_code_id: string | null
-          default_quantity: number
-          default_unit_of_measure: string | null
-          depreciation_method: string | null
-          depreciation_start_date: string | null
-          description: string | null
-          effective_internal_hourly_cost: number
-          equipment_number: string
-          equipment_type: string | null
-          expected_return_date: string | null
-          financed_amount: number
-          fuel_type: string | null
-          hourly_billable_rate: number
-          hourly_internal_cost: number
-          id: string
-          estimated_fuel_cost_per_hour: number
-          insurance_cost_per_hour: number
-          insurance_expiration_date: string | null
-          inspection_expiration_date: string | null
-          last_meter_updated_at: string | null
-          last_service_date: string | null
-          last_service_meter: number | null
-          lease_end_date: string | null
-          lease_monthly_cost: number
-          lease_start_date: string | null
-          license_plate: string | null
-          lifetime_hours: number
-          lifetime_miles: number
-          maintenance_cost_per_hour: number
-          maintenance_notes: string | null
-          maintenance_status: string
-          manufacturer: string | null
-          meter_type: string | null
-          meter_unit: string | null
-          model: string | null
-          model_year: number | null
-          monthly_payment: number
-          name: string
-          next_service_date: string | null
-          next_service_meter: number | null
-          notes: string | null
-          other_operating_cost_per_hour: number
-          ownership_type: string
-          owner_name: string | null
-          purchase_date: string | null
-          purchase_price: number
-          qr_code: string | null
-          registration_expiration_date: string | null
-          replacement_priority: string
-          replacement_score: number | null
-          rental_agreement_number: string | null
-          rental_daily_cost: number
-          rental_end_date: string | null
-          rental_monthly_cost: number
-          rental_start_date: string | null
-          rental_weekly_cost: number
-          reliability_score: number | null
-          required_certification_type: string | null
-          requires_operator_certification: boolean
-          salvage_value: number
-          safety_notes: string | null
-          serial_number: string | null
-          service_interval_days: number | null
-          service_interval_meter: number | null
-          status: string
-          subcategory: string | null
-          taxable: boolean
-          total_operating_cost_per_hour: number
-          updated_at: string
-          updated_by: string | null
-          useful_life_years: number | null
-          utilization_target_percent: number | null
-          vendor_id: string | null
-          vin: string | null
-          warranty_expiration_date: string | null
-        }
-        Insert: {
-          ai_notes?: string | null
-          assigned_at?: string | null
-          assigned_crew_id?: string | null
-          assigned_employee_id?: string | null
-          assigned_job_id?: string | null
-          asset_tag?: string | null
-          barcode?: string | null
-          category?: string | null
-          certification_expiration_date?: string | null
-          company_id: string
-          condition_score?: number | null
-          criticality_level?: string
-          created_at?: string
-          created_by?: string | null
-          current_location_name?: string | null
-          current_location_type?: string | null
-          current_meter_reading?: number
-          current_value?: number
-          daily_billable_rate?: number
-          daily_internal_cost?: number
-          default_cost_code_id?: string | null
-          default_quantity?: number
-          default_unit_of_measure?: string | null
-          depreciation_method?: string | null
-          depreciation_start_date?: string | null
-          description?: string | null
-          effective_internal_hourly_cost?: number
-          equipment_number: string
-          equipment_type?: string | null
-          expected_return_date?: string | null
-          financed_amount?: number
-          fuel_type?: string | null
-          hourly_billable_rate?: number
-          hourly_internal_cost?: number
-          id?: string
-          estimated_fuel_cost_per_hour?: number
-          insurance_cost_per_hour?: number
-          insurance_expiration_date?: string | null
-          inspection_expiration_date?: string | null
-          last_meter_updated_at?: string | null
-          last_service_date?: string | null
-          last_service_meter?: number | null
-          lease_end_date?: string | null
-          lease_monthly_cost?: number
-          lease_start_date?: string | null
-          license_plate?: string | null
-          lifetime_hours?: number
-          lifetime_miles?: number
-          maintenance_cost_per_hour?: number
-          maintenance_notes?: string | null
-          maintenance_status?: string
-          manufacturer?: string | null
-          meter_type?: string | null
-          meter_unit?: string | null
-          model?: string | null
-          model_year?: number | null
-          monthly_payment?: number
-          name: string
-          next_service_date?: string | null
-          next_service_meter?: number | null
-          notes?: string | null
-          other_operating_cost_per_hour?: number
-          ownership_type?: string
-          owner_name?: string | null
-          purchase_date?: string | null
-          purchase_price?: number
-          qr_code?: string | null
-          registration_expiration_date?: string | null
-          replacement_priority?: string
-          replacement_score?: number | null
-          rental_agreement_number?: string | null
-          rental_daily_cost?: number
-          rental_end_date?: string | null
-          rental_monthly_cost?: number
-          rental_start_date?: string | null
-          rental_weekly_cost?: number
-          reliability_score?: number | null
-          required_certification_type?: string | null
-          requires_operator_certification?: boolean
-          salvage_value?: number
-          safety_notes?: string | null
-          serial_number?: string | null
-          service_interval_days?: number | null
-          service_interval_meter?: number | null
-          status?: string
-          subcategory?: string | null
-          taxable?: boolean
-          total_operating_cost_per_hour?: number
-          updated_at?: string
-          updated_by?: string | null
-          useful_life_years?: number | null
-          utilization_target_percent?: number | null
-          vendor_id?: string | null
-          vin?: string | null
-          warranty_expiration_date?: string | null
-        }
-        Update: {
-          ai_notes?: string | null
-          assigned_at?: string | null
-          assigned_crew_id?: string | null
-          assigned_employee_id?: string | null
-          assigned_job_id?: string | null
-          asset_tag?: string | null
-          barcode?: string | null
-          category?: string | null
-          certification_expiration_date?: string | null
-          company_id?: string
-          condition_score?: number | null
-          criticality_level?: string
-          created_at?: string
-          created_by?: string | null
-          current_location_name?: string | null
-          current_location_type?: string | null
-          current_meter_reading?: number
-          current_value?: number
-          daily_billable_rate?: number
-          daily_internal_cost?: number
-          default_cost_code_id?: string | null
-          default_quantity?: number
-          default_unit_of_measure?: string | null
-          depreciation_method?: string | null
-          depreciation_start_date?: string | null
-          description?: string | null
-          effective_internal_hourly_cost?: number
-          equipment_number?: string
-          equipment_type?: string | null
-          expected_return_date?: string | null
-          financed_amount?: number
-          fuel_type?: string | null
-          hourly_billable_rate?: number
-          hourly_internal_cost?: number
-          id?: string
-          estimated_fuel_cost_per_hour?: number
-          insurance_cost_per_hour?: number
-          insurance_expiration_date?: string | null
-          inspection_expiration_date?: string | null
-          last_meter_updated_at?: string | null
-          last_service_date?: string | null
-          last_service_meter?: number | null
-          lease_end_date?: string | null
-          lease_monthly_cost?: number
-          lease_start_date?: string | null
-          license_plate?: string | null
-          lifetime_hours?: number
-          lifetime_miles?: number
-          maintenance_cost_per_hour?: number
-          maintenance_notes?: string | null
-          maintenance_status?: string
-          manufacturer?: string | null
-          meter_type?: string | null
-          meter_unit?: string | null
-          model?: string | null
-          model_year?: number | null
-          monthly_payment?: number
-          name?: string
-          next_service_date?: string | null
-          next_service_meter?: number | null
-          notes?: string | null
-          other_operating_cost_per_hour?: number
-          ownership_type?: string
-          owner_name?: string | null
-          purchase_date?: string | null
-          purchase_price?: number
-          qr_code?: string | null
-          registration_expiration_date?: string | null
-          replacement_priority?: string
-          replacement_score?: number | null
-          rental_agreement_number?: string | null
-          rental_daily_cost?: number
-          rental_end_date?: string | null
-          rental_monthly_cost?: number
-          rental_start_date?: string | null
-          rental_weekly_cost?: number
-          reliability_score?: number | null
-          required_certification_type?: string | null
-          requires_operator_certification?: boolean
-          salvage_value?: number
-          safety_notes?: string | null
-          serial_number?: string | null
-          service_interval_days?: number | null
-          service_interval_meter?: number | null
-          status?: string
-          subcategory?: string | null
-          taxable?: boolean
-          total_operating_cost_per_hour?: number
-          updated_at?: string
-          updated_by?: string | null
-          useful_life_years?: number | null
-          utilization_target_percent?: number | null
-          vendor_id?: string | null
-          vin?: string | null
-          warranty_expiration_date?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "equipment_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "equipment_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "equipment_default_cost_code_company_fkey"
-            columns: ["default_cost_code_id", "company_id"]
-            isOneToOne: false
-            referencedRelation: "cost_codes"
-            referencedColumns: ["id", "company_id"]
-          },
-          {
-            foreignKeyName: "equipment_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "equipment_vendor_company_fkey"
-            columns: ["vendor_id", "company_id"]
-            isOneToOne: false
-            referencedRelation: "vendors"
-            referencedColumns: ["id", "company_id"]
-          },
-        ]
-      }
       materials: {
         Row: {
           average_cost: number
@@ -2178,230 +2818,43 @@ export type Database = {
           },
         ]
       }
-      units_of_measure: {
+      profiles: {
         Row: {
-          allow_fractional_quantity: boolean
-          base_unit_id: string | null
-          category: string
-          code: string
           company_id: string | null
-          conversion_factor: number | null
           created_at: string
-          created_by: string | null
-          decimal_precision: number
-          description: string | null
-          id: string
-          is_active: boolean
-          is_system: boolean
-          measurement_system: string
-          name: string
-          notes: string | null
-          plural_name: string | null
-          sort_order: number
-          symbol: string | null
-          unit_type: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          allow_fractional_quantity?: boolean
-          base_unit_id?: string | null
-          category: string
-          code: string
-          company_id?: string | null
-          conversion_factor?: number | null
-          created_at?: string
-          created_by?: string | null
-          decimal_precision?: number
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          is_system?: boolean
-          measurement_system?: string
-          name: string
-          notes?: string | null
-          plural_name?: string | null
-          sort_order?: number
-          symbol?: string | null
-          unit_type?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          allow_fractional_quantity?: boolean
-          base_unit_id?: string | null
-          category?: string
-          code?: string
-          company_id?: string | null
-          conversion_factor?: number | null
-          created_at?: string
-          created_by?: string | null
-          decimal_precision?: number
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          is_system?: boolean
-          measurement_system?: string
-          name?: string
-          notes?: string | null
-          plural_name?: string | null
-          sort_order?: number
-          symbol?: string | null
-          unit_type?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "units_of_measure_base_unit_id_fkey"
-            columns: ["base_unit_id"]
-            isOneToOne: false
-            referencedRelation: "units_of_measure"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "units_of_measure_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "units_of_measure_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "units_of_measure_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      vendors: {
-        Row: {
-          account_number: string | null
-          billing_address: string | null
-          city: string | null
-          company_id: string
-          company_name: string
-          country: string | null
-          created_at: string
-          created_by: string | null
-          credit_limit: number | null
-          delivery_rating: number | null
-          display_name: string
-          email: string | null
           first_name: string | null
           id: string
           last_name: string | null
-          mobile: string | null
-          notes: string | null
-          payment_terms: string | null
           phone: string | null
-          postal_code: string | null
-          preferred_vendor: boolean
-          quality_rating: number | null
-          shipping_address: string | null
-          state: string | null
-          status: string
-          tax_id: string | null
-          title: string | null
+          role: string
           updated_at: string
-          updated_by: string | null
-          vendor_code: string
-          website: string | null
         }
         Insert: {
-          account_number?: string | null
-          billing_address?: string | null
-          city?: string | null
-          company_id: string
-          company_name: string
-          country?: string | null
+          company_id?: string | null
           created_at?: string
-          created_by?: string | null
-          credit_limit?: number | null
-          delivery_rating?: number | null
-          display_name: string
-          email?: string | null
           first_name?: string | null
-          id?: string
+          id: string
           last_name?: string | null
-          mobile?: string | null
-          notes?: string | null
-          payment_terms?: string | null
           phone?: string | null
-          postal_code?: string | null
-          preferred_vendor?: boolean
-          quality_rating?: number | null
-          shipping_address?: string | null
-          state?: string | null
-          status?: string
-          tax_id?: string | null
-          title?: string | null
+          role?: string
           updated_at?: string
-          updated_by?: string | null
-          vendor_code: string
-          website?: string | null
         }
         Update: {
-          account_number?: string | null
-          billing_address?: string | null
-          city?: string | null
-          company_id?: string
-          company_name?: string
-          country?: string | null
+          company_id?: string | null
           created_at?: string
-          created_by?: string | null
-          credit_limit?: number | null
-          delivery_rating?: number | null
-          display_name?: string
-          email?: string | null
           first_name?: string | null
           id?: string
           last_name?: string | null
-          mobile?: string | null
-          notes?: string | null
-          payment_terms?: string | null
           phone?: string | null
-          postal_code?: string | null
-          preferred_vendor?: boolean
-          quality_rating?: number | null
-          shipping_address?: string | null
-          state?: string | null
-          status?: string
-          tax_id?: string | null
-          title?: string | null
+          role?: string
           updated_at?: string
-          updated_by?: string | null
-          vendor_code?: string
-          website?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "vendors_company_id_fkey"
+            foreignKeyName: "profiles_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vendors_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vendors_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2776,6 +3229,410 @@ export type Database = {
           },
         ]
       }
+      units_of_measure: {
+        Row: {
+          allow_fractional_quantity: boolean
+          base_unit_id: string | null
+          category: string
+          code: string
+          company_id: string | null
+          conversion_factor: number | null
+          created_at: string
+          created_by: string | null
+          decimal_precision: number
+          description: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          measurement_system: string
+          name: string
+          notes: string | null
+          plural_name: string | null
+          sort_order: number
+          symbol: string | null
+          unit_type: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allow_fractional_quantity?: boolean
+          base_unit_id?: string | null
+          category: string
+          code: string
+          company_id?: string | null
+          conversion_factor?: number | null
+          created_at?: string
+          created_by?: string | null
+          decimal_precision?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          measurement_system?: string
+          name: string
+          notes?: string | null
+          plural_name?: string | null
+          sort_order?: number
+          symbol?: string | null
+          unit_type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allow_fractional_quantity?: boolean
+          base_unit_id?: string | null
+          category?: string
+          code?: string
+          company_id?: string | null
+          conversion_factor?: number | null
+          created_at?: string
+          created_by?: string | null
+          decimal_precision?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          measurement_system?: string
+          name?: string
+          notes?: string | null
+          plural_name?: string | null
+          sort_order?: number
+          symbol?: string | null
+          unit_type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "units_of_measure_base_unit_id_fkey"
+            columns: ["base_unit_id"]
+            isOneToOne: false
+            referencedRelation: "units_of_measure"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "units_of_measure_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "units_of_measure_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "units_of_measure_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_profiles: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          display_name: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+          role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors: {
+        Row: {
+          account_number: string | null
+          billing_address: string | null
+          city: string | null
+          company_id: string
+          company_name: string
+          country: string | null
+          created_at: string
+          created_by: string | null
+          credit_limit: number | null
+          delivery_rating: number | null
+          display_name: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          mobile: string | null
+          notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          postal_code: string | null
+          preferred_vendor: boolean
+          quality_rating: number | null
+          shipping_address: string | null
+          state: string | null
+          status: string
+          tax_id: string | null
+          title: string | null
+          updated_at: string
+          updated_by: string | null
+          vendor_code: string
+          website: string | null
+        }
+        Insert: {
+          account_number?: string | null
+          billing_address?: string | null
+          city?: string | null
+          company_id: string
+          company_name: string
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number | null
+          delivery_rating?: number | null
+          display_name: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          mobile?: string | null
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          preferred_vendor?: boolean
+          quality_rating?: number | null
+          shipping_address?: string | null
+          state?: string | null
+          status?: string
+          tax_id?: string | null
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vendor_code: string
+          website?: string | null
+        }
+        Update: {
+          account_number?: string | null
+          billing_address?: string | null
+          city?: string | null
+          company_id?: string
+          company_name?: string
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number | null
+          delivery_rating?: number | null
+          display_name?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          mobile?: string | null
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          preferred_vendor?: boolean
+          quality_rating?: number | null
+          shipping_address?: string | null
+          state?: string | null
+          status?: string
+          tax_id?: string | null
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vendor_code?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendors_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendors_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendors_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workforce_assignments: {
+        Row: {
+          assignment_type: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          crew_id: string | null
+          description: string | null
+          employee_id: string | null
+          ends_at: string
+          id: string
+          notes: string | null
+          phase_id: string | null
+          planned_hours: number
+          project_id: string
+          source_id: string | null
+          source_type: string
+          starts_at: string
+          status: string
+          task_id: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          assignment_type: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          crew_id?: string | null
+          description?: string | null
+          employee_id?: string | null
+          ends_at: string
+          id?: string
+          notes?: string | null
+          phase_id?: string | null
+          planned_hours?: number
+          project_id: string
+          source_id?: string | null
+          source_type?: string
+          starts_at: string
+          status?: string
+          task_id?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          assignment_type?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew_id?: string | null
+          description?: string | null
+          employee_id?: string | null
+          ends_at?: string
+          id?: string
+          notes?: string | null
+          phase_id?: string | null
+          planned_hours?: number
+          project_id?: string
+          source_id?: string | null
+          source_type?: string
+          starts_at?: string
+          status?: string
+          task_id?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workforce_assignments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workforce_assignments_created_by_company_fkey"
+            columns: ["created_by", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "workforce_assignments_crew_company_fkey"
+            columns: ["crew_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "workforce_assignments_employee_company_fkey"
+            columns: ["employee_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "workforce_assignments_phase_project_company_fkey"
+            columns: ["phase_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "project_phases"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+          {
+            foreignKeyName: "workforce_assignments_project_company_fkey"
+            columns: ["project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "workforce_assignments_task_project_company_fkey"
+            columns: ["task_id", "project_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id", "project_id", "company_id"]
+          },
+          {
+            foreignKeyName: "workforce_assignments_updated_by_company_fkey"
+            columns: ["updated_by", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2785,10 +3642,31 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: string
       }
-      company_role_weight: {
-        Args: { input_role: string }
-        Returns: number
+      allocate_estimate_number: {
+        Args: { p_company_id: string }
+        Returns: string
       }
+      bango_memory_can_read: {
+        Args: {
+          memory_category: string
+          memory_tags: string[]
+          target_company_id: string
+        }
+        Returns: boolean
+      }
+      bango_memory_can_write: {
+        Args: { memory_category: string; target_company_id: string }
+        Returns: boolean
+      }
+      bango_memory_has_active_membership: {
+        Args: { target_company_id: string }
+        Returns: boolean
+      }
+      bango_memory_membership_role: {
+        Args: { target_company_id: string }
+        Returns: string
+      }
+      company_role_weight: { Args: { input_role: string }; Returns: number }
       has_company_role: {
         Args: { p_company_id: string; p_roles: string[]; p_user_id?: string }
         Returns: boolean
@@ -2797,10 +3675,37 @@ export type Database = {
         Args: { p_company_id: string; p_user_id?: string }
         Returns: boolean
       }
-      normalize_company_slug: {
-        Args: { input_value: string }
-        Returns: string
+      normalize_company_slug: { Args: { input_value: string }; Returns: string }
+      recalc_change_order_totals: {
+        Args: { p_change_order_id: string }
+        Returns: undefined
       }
+      recalc_estimate_item_fields: {
+        Args: { p_item_id: string }
+        Returns: undefined
+      }
+      recalc_estimate_section_totals: {
+        Args: { p_section_id: string }
+        Returns: undefined
+      }
+      recalc_estimate_totals: {
+        Args: { p_estimate_id: string }
+        Returns: undefined
+      }
+      reorder_estimate_items: {
+        Args: {
+          p_estimate_id: string
+          p_item_ids: string[]
+          p_section_id: string
+        }
+        Returns: undefined
+      }
+      reorder_estimate_sections: {
+        Args: { p_estimate_id: string; p_section_ids: string[] }
+        Returns: undefined
+      }
+      round_money: { Args: { p_value: number }; Returns: number }
+      seed_default_system_units_of_measure: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
