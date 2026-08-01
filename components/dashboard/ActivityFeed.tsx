@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FadeIn, StatusPulse } from "@/components/motion";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Select, SkeletonLoader } from "@/components/ui";
+import { buildActivityPulseKey, collectNewDashboardIds, hasNewDashboardItems } from "@/lib/dashboard/motion-helpers";
 import type { DashboardActivityItem } from "@/lib/dashboard/types";
 
 type ActivityFeedProps = {
   items: DashboardActivityItem[];
   isLoading?: boolean;
+  errorMessage?: string | null;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps) {
+export function ActivityFeed({ items, isLoading = false, errorMessage = null, t }: ActivityFeedProps) {
   const [filterValue, setFilterValue] = useState<"all" | DashboardActivityItem["category"]>("all");
   const [visibleCount, setVisibleCount] = useState(6);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const knownActivityIdsRef = useRef<Set<string>>(new Set());
+  const [newActivityIds, setNewActivityIds] = useState<Record<string, true>>({});
 
   const filteredItems = useMemo(() => {
     if (filterValue === "all") {
@@ -22,6 +27,27 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
   }, [filterValue, items]);
 
   const visibleItems = useMemo(() => filteredItems.slice(0, visibleCount), [filteredItems, visibleCount]);
+
+  useEffect(() => {
+    const nextIds = filteredItems.map((item) => item.id);
+    const nextNew = collectNewDashboardIds(knownActivityIdsRef.current, nextIds);
+
+    for (const id of nextIds) {
+      knownActivityIdsRef.current.add(id);
+    }
+
+    if (!hasNewDashboardItems(nextNew)) {
+      return;
+    }
+
+    setNewActivityIds(nextNew);
+
+    const timeout = window.setTimeout(() => {
+      setNewActivityIds({});
+    }, 380);
+
+    return () => window.clearTimeout(timeout);
+  }, [filteredItems]);
 
   useEffect(() => {
     if (!sentinelRef.current) {
@@ -81,28 +107,40 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
       <CardContent className="space-y-3 p-5">
         {isLoading ? (
           <FeedLoadingState />
+        ) : errorMessage ? (
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+            {errorMessage}
+          </p>
         ) : filteredItems.length === 0 ? (
           <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
             {t("dashboard.activityEmpty")}
           </p>
         ) : (
-          visibleItems.map((item) => (
-            <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)] transition hover:shadow-[var(--shadow-medium)]">
-              <div className="flex items-start gap-3">
-                <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${getAvatarTone(item.category)}`}>
-                  {item.avatarLabel}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.user}</p>
-                  <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{t(item.actionLabelKey)}</p>
-                  {item.projectName ? (
-                    <p className="mt-1 text-xs font-medium uppercase tracking-[0.08em] text-[var(--color-text-muted)]">{item.projectName}</p>
-                  ) : null}
-                </div>
-                <span className="shrink-0 text-xs text-[var(--color-text-muted)]">{formatRelativeMinutes(item.timestampMinutesAgo, t)}</span>
-              </div>
-            </article>
-          ))
+          visibleItems.map((item) => {
+            const isNew = Boolean(newActivityIds[item.id]);
+
+            return (
+              <FadeIn key={item.id} durationMs={isNew ? 180 : 0} className={isNew ? "" : "bf-no-motion"}>
+                <StatusPulse triggerKey={buildActivityPulseKey(item)} tone="neutral">
+                  <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)] transition hover:shadow-[var(--shadow-medium)]">
+                    <div className="flex items-start gap-3">
+                      <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${getAvatarTone(item.category)}`}>
+                        {item.avatarLabel}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.user}</p>
+                        <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{item.actionLabel ?? (item.actionLabelKey ? t(item.actionLabelKey) : "")}</p>
+                        {item.projectName ? (
+                          <p className="mt-1 text-xs font-medium uppercase tracking-[0.08em] text-[var(--color-text-muted)]">{item.projectName}</p>
+                        ) : null}
+                      </div>
+                      <span className="shrink-0 text-xs text-[var(--color-text-muted)]">{formatRelativeMinutes(item.timestampMinutesAgo, t)}</span>
+                    </div>
+                  </article>
+                </StatusPulse>
+              </FadeIn>
+            );
+          })
         )}
 
         {filteredItems.length > visibleItems.length ? (

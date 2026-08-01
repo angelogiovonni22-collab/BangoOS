@@ -143,6 +143,6 @@
   "pagination.showing": "Mostrando {{from}} a {{to}} de {{total}} clientes",
   "pagination.previous": "Anterior",
   "pagination.next": "Siguiente",
-  "pulse.title": "Pulso de proyectos",
+  "pulse.title": "Salud de proyectos",
   "pulse.description": "Visibilidad de la cartera de clientes entre trabajo activo y pipeline."
 }

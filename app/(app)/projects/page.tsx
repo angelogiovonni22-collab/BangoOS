@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ProjectFilters,
-  ProjectHeader,
-  ProjectMetrics,
   ProjectTable,
   type ProjectTableItem,
 } from "@/components/projects";
-import { Button, EmptyState, ErrorState, SectionHeader, SkeletonLoader } from "@/components/ui";
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  SkeletonLoader,
+} from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import {
   formatProjectCurrency,
@@ -36,15 +41,21 @@ type ProfileSummaryRow = Pick<
 
 type TaskProgressRow = Pick<
   Database["public"]["Tables"]["tasks"]["Row"],
-  "project_id" | "status" | "completion_percentage" | "created_at"
+  "project_id" | "status" | "completion_percentage"
+>;
+
+type InvoiceSpendRow = Pick<
+  Database["public"]["Tables"]["invoices"]["Row"],
+  "project_id" | "amount_paid"
 >;
 
 type ProjectListItem = ProjectTableItem & {
   customerId: string | null;
-  projectManagerId: string | null;
+  superintendentId: string | null;
   projectTypeKey: string;
   searchText: string;
   isOverdue: boolean;
+  completedAtRaw: string | null;
 };
 
 type ProjectsErrorKind = "auth" | "company" | "database" | "network" | "unknown";
@@ -60,12 +71,12 @@ export default function ProjectsPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [projectManagerFilter, setProjectManagerFilter] = useState("all");
+  const [superintendentFilter, setSuperintendentFilter] = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
   const [projectTypeFilter, setProjectTypeFilter] = useState("all");
 
   const [customerOptions, setCustomerOptions] = useState<Array<{ value: string; label: string }>>([]);
-  const [projectManagerOptions, setProjectManagerOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [superintendentOptions, setSuperintendentOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [projectTypeOptions, setProjectTypeOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   useEffect(() => {
@@ -112,10 +123,10 @@ export default function ProjectsPage() {
       }
 
       try {
-        const [projectsResponse, customersResponse, tasksResponse, profilesResponse] = await Promise.all([
+        const [projectsResponse, customersResponse, tasksResponse, profilesResponse, invoicesResponse] = await Promise.all([
           client
             .from("projects")
-            .select("id, customer_id, name, status, estimated_start_date, estimated_end_date, contract_amount, estimated_cost, project_type, created_by, updated_at, created_at")
+            .select("id, customer_id, name, status, estimated_end_date, contract_amount, estimated_cost, project_type, created_by, actual_end_date, updated_at, created_at")
             .eq("company_id", workspace.context.companyId)
             .order("created_at", { ascending: false }),
           client
@@ -125,11 +136,15 @@ export default function ProjectsPage() {
             .order("created_at", { ascending: false }),
           client
             .from("tasks")
-            .select("project_id, status, completion_percentage, created_at")
+            .select("project_id, status, completion_percentage")
             .eq("company_id", workspace.context.companyId),
           client
             .from("profiles")
             .select("id, first_name, last_name")
+            .eq("company_id", workspace.context.companyId),
+          client
+            .from("invoices")
+            .select("project_id, amount_paid")
             .eq("company_id", workspace.context.companyId),
         ]);
 
@@ -169,9 +184,19 @@ export default function ProjectsPage() {
           return;
         }
 
+        if (invoicesResponse.error) {
+          if (isSubscribed) {
+            setErrorKind("database");
+            setErrorMessage(t("projects.errorLoadInvoices"));
+          }
+
+          return;
+        }
+
         const customerRows = (customersResponse.data ?? []) as CustomerSummaryRow[];
         const profileRows = (profilesResponse.data ?? []) as ProfileSummaryRow[];
         const taskRows = (tasksResponse.data ?? []) as TaskProgressRow[];
+        const invoiceRows = (invoicesResponse.data ?? []) as InvoiceSpendRow[];
 
         const localeTag = locale === "es" ? "es-ES" : "en-US";
         const customerNameMap = new Map(
@@ -179,7 +204,7 @@ export default function ProjectsPage() {
         );
         const profileNameMap = new Map(profileRows.map((row) => [row.id, getProfileDisplayName(row, t("projects.notAssigned"))]));
         const progressByProjectId = buildProjectProgressMap(taskRows);
-        const lastActivityByProjectId = buildLastActivityMap(taskRows);
+        const spentByProjectId = buildInvoiceSpentMap(invoiceRows);
 
         const mappedProjects = (projectsResponse.data ?? []).map((row) => {
           const project = row as Pick<
@@ -188,54 +213,69 @@ export default function ProjectsPage() {
             | "customer_id"
             | "name"
             | "status"
-            | "estimated_start_date"
             | "estimated_end_date"
             | "contract_amount"
             | "estimated_cost"
             | "project_type"
             | "created_by"
+            | "actual_end_date"
             | "updated_at"
             | "created_at"
           >;
+
           const normalizedStatus = normalizeProjectStatus(project.status);
           const normalizedType = normalizeProjectType(project.project_type);
           const customerName = project.customer_id
             ? customerNameMap.get(project.customer_id) || t("projects.notLinked")
             : t("projects.notLinked");
-          const projectManagerName = project.created_by
+          const superintendentName = project.created_by
             ? profileNameMap.get(project.created_by) || t("projects.notAssigned")
             : t("projects.notAssigned");
           const statusLabel = getProjectStatusLabel(normalizedStatus.key, t);
           const projectTypeLabel = getProjectTypeLabel(normalizedType.key, t);
-          const lastActivityAt = latestDate(project.updated_at, lastActivityByProjectId[project.id], project.created_at);
+          const progress = progressByProjectId[project.id] ?? 0;
+          const budgetValue = project.contract_amount ?? project.estimated_cost;
+          const spentValue = spentByProjectId[project.id] ?? 0;
           const endDateRaw = project.estimated_end_date;
+          const isOverdue = isProjectOverdue(endDateRaw, normalizedStatus.key);
+          const healthKey = getProjectHealth({
+            statusKey: normalizedStatus.key,
+            progress,
+            dueDate: endDateRaw,
+            isOverdue,
+          });
+          const healthLabel = getProjectHealthLabel(healthKey);
 
           return {
             id: project.id,
             projectName: getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject")),
             customerName,
             customerId: project.customer_id,
-            projectManagerName,
-            projectManagerId: project.created_by,
+            superintendentName,
+            superintendentId: project.created_by,
             statusKey: normalizedStatus.key,
             statusLabel,
+            progress,
             budgetLabel: formatProjectCurrency(
-              project.contract_amount ?? project.estimated_cost,
+              budgetValue,
               localeTag,
               t("projects.notProvided"),
             ),
-            progress: progressByProjectId[project.id] ?? 0,
-            startDateLabel: formatProjectDate(project.estimated_start_date, localeTag, t("projects.notProvided")),
-            endDateLabel: formatProjectDate(endDateRaw, localeTag, t("projects.notProvided")),
-            lastActivityLabel: formatProjectDate(lastActivityAt, localeTag, t("projects.notProvided")),
+            spentLabel: formatProjectCurrency(spentValue, localeTag, "$0"),
+            profitMarginLabel: formatProfitMarginLabel(budgetValue, spentValue),
+            dueDateLabel: formatProjectDate(endDateRaw, localeTag, t("projects.notProvided")),
+            healthKey,
+            healthLabel,
             projectTypeKey: normalizedType.key,
-            isOverdue: isProjectOverdue(endDateRaw, normalizedStatus.key),
+            isOverdue,
+            completedAtRaw: project.actual_end_date || project.updated_at || project.created_at,
             searchText: [
               project.name,
               customerName,
-              projectManagerName,
+              superintendentName,
               statusLabel,
               projectTypeLabel,
+              healthLabel,
             ]
               .join(" ")
               .toLowerCase(),
@@ -249,7 +289,7 @@ export default function ProjectsPage() {
           }))
           .sort((left, right) => left.label.localeCompare(right.label));
 
-        const nextProjectManagerOptions = profileRows
+        const nextSuperintendentOptions = profileRows
           .map((row) => ({
             value: row.id,
             label: getProfileDisplayName(row, t("projects.notAssigned")),
@@ -268,7 +308,7 @@ export default function ProjectsPage() {
         if (isSubscribed) {
           setProjects(mappedProjects);
           setCustomerOptions(nextCustomerOptions);
-          setProjectManagerOptions(nextProjectManagerOptions);
+          setSuperintendentOptions(nextSuperintendentOptions);
           setProjectTypeOptions(nextProjectTypeOptions);
         }
       } catch (caughtError) {
@@ -298,25 +338,31 @@ export default function ProjectsPage() {
     return projects.filter((project) => {
       const matchesSearch = !normalizedSearch || project.searchText.includes(normalizedSearch);
       const matchesStatus = statusFilter === "all" || project.statusKey === statusFilter;
-      const matchesProjectManager = projectManagerFilter === "all" || project.projectManagerId === projectManagerFilter;
+      const matchesSuperintendent = superintendentFilter === "all" || project.superintendentId === superintendentFilter;
       const matchesCustomer = customerFilter === "all" || project.customerId === customerFilter;
       const matchesProjectType = projectTypeFilter === "all" || project.projectTypeKey === projectTypeFilter;
 
-      return matchesSearch && matchesStatus && matchesProjectManager && matchesCustomer && matchesProjectType;
+      return matchesSearch && matchesStatus && matchesSuperintendent && matchesCustomer && matchesProjectType;
     });
-  }, [projects, searchTerm, statusFilter, projectManagerFilter, customerFilter, projectTypeFilter]);
+  }, [projects, searchTerm, statusFilter, superintendentFilter, customerFilter, projectTypeFilter]);
 
   const summary = useMemo(() => {
-    const total = projects.length;
-    const active = projects.filter((project) => !["completed", "cancelled"].includes(project.statusKey)).length;
-    const completed = projects.filter((project) => project.statusKey === "completed").length;
-    const overdue = projects.filter((project) => project.isOverdue).length;
+    const activeProjects = projects.filter((project) => !["completed", "cancelled"].includes(project.statusKey)).length;
+    const behindSchedule = projects.filter((project) => project.isOverdue).length;
+    const atRisk = projects.filter((project) => ["at_risk", "behind"].includes(project.healthKey)).length;
+    const completedThisMonth = projects.filter((project) => {
+      if (project.statusKey !== "completed") {
+        return false;
+      }
+
+      return isCurrentMonth(project.completedAtRaw);
+    }).length;
 
     return {
-      total,
-      active,
-      completed,
-      overdue,
+      activeProjects,
+      behindSchedule,
+      atRisk,
+      completedThisMonth,
     };
   }, [projects]);
 
@@ -328,26 +374,42 @@ export default function ProjectsPage() {
   }, [t]);
 
   return (
-    <div className="space-y-4">
-      <ProjectHeader
+    <div className="space-y-6">
+      <PageHeader
+        compact
         eyebrow={t("projects.headerEyebrow")}
         title={t("projects.pageTitle")}
         description={t("projects.pageDescription")}
-        newProjectLabel={t("projects.newProject")}
-        importLabel={t("projects.import")}
-        comingSoonLabel={t("projects.comingSoon")}
+        primaryAction={(
+          <Link href="/projects/new">
+            <Button
+              size="md"
+              className="h-11 rounded-[var(--radius-lg)] px-5 shadow-[0_10px_24px_-14px_rgba(37,99,235,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-14px_rgba(37,99,235,0.85)]"
+            >
+              <Plus size={16} aria-hidden="true" />
+              {t("projects.newProject")}
+            </Button>
+          </Link>
+        )}
       />
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project performance summary">
+        <KpiCard label="Active Projects" value={summary.activeProjects.toLocaleString()} />
+        <KpiCard label="Behind Schedule" value={summary.behindSchedule.toLocaleString()} />
+        <KpiCard label="At Risk" value={summary.atRisk.toLocaleString()} />
+        <KpiCard label="Completed This Month" value={summary.completedThisMonth.toLocaleString()} />
+      </section>
 
       <ProjectFilters
         searchValue={searchTerm}
         statusValue={statusFilter}
-        managerValue={projectManagerFilter}
+        managerValue={superintendentFilter}
         customerValue={customerFilter}
         typeValue={projectTypeFilter}
         statusOptions={statusOptions}
         managerOptions={[
           { value: "all", label: t("projects.filterAllProjectManagers") },
-          ...projectManagerOptions,
+          ...superintendentOptions,
         ]}
         customerOptions={[
           { value: "all", label: t("projects.filterAllCustomers") },
@@ -359,31 +421,23 @@ export default function ProjectsPage() {
         ]}
         onSearchChange={setSearchTerm}
         onStatusChange={setStatusFilter}
-        onManagerChange={setProjectManagerFilter}
+        onManagerChange={setSuperintendentFilter}
         onCustomerChange={setCustomerFilter}
         onTypeChange={setProjectTypeFilter}
-        t={t}
-      />
-
-      <ProjectMetrics
-        totalProjects={summary.total}
-        activeProjects={summary.active}
-        completedProjects={summary.completed}
-        overdueProjects={summary.overdue}
         t={t}
       />
 
       {isLoading ? (
         <ProjectsLoadingState />
       ) : errorMessage ? (
-        <ErrorState title={getProjectsErrorTitle(errorKind, t)} description={errorMessage} />
+        <ErrorState title={getProjectsErrorTitle(errorKind, t)} description={errorMessage} compact />
       ) : filteredProjects.length > 0 ? (
         <ProjectTable items={filteredProjects} t={t} />
       ) : projects.length === 0 ? (
         <EmptyState
           icon="P"
-          title={t("projects.emptyTitle")}
-          description={t("projects.emptyDescription")}
+          title="No projects yet"
+          description="Create your first project to start scheduling work, tracking spend, and monitoring profitability."
           action={
             <Link href="/projects/new">
               <Button>{t("projects.newProject")}</Button>
@@ -393,8 +447,8 @@ export default function ProjectsPage() {
       ) : (
         <EmptyState
           icon="?"
-          title={t("projects.filteredEmptyTitle")}
-          description={t("projects.filteredEmptyDescription")}
+          title="No projects match this filter"
+          description="Try adjusting your search or filters to find the project you need."
           compact
         />
       )}
@@ -404,13 +458,22 @@ export default function ProjectsPage() {
 
 function ProjectsLoadingState() {
   return (
-    <div className="space-y-3 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-card)]">
-      <SectionHeader title="" description="" />
-      <SkeletonLoader className="h-14 w-full" />
-      <SkeletonLoader className="h-14 w-full" />
-      <SkeletonLoader className="h-14 w-full" />
-      <SkeletonLoader className="h-14 w-full" />
+    <div className="space-y-3 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-card)] sm:p-5">
+      <SkeletonLoader className="h-10 w-full" />
+      <SkeletonLoader className="h-12 w-full" />
+      <SkeletonLoader className="h-12 w-full" />
+      <SkeletonLoader className="h-12 w-full" />
+      <SkeletonLoader className="h-12 w-full" />
     </div>
+  );
+}
+
+function KpiCard({ label, value }: { label: string; value: string }) {
+  return (
+    <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-3.5 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)]">{label}</p>
+      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{value}</p>
+    </article>
   );
 }
 
@@ -465,48 +528,19 @@ function buildProjectProgressMap(tasks: TaskProgressRow[]) {
   ) as Record<string, number>;
 }
 
-function buildLastActivityMap(tasks: TaskProgressRow[]) {
-  const lastActivityMap = new Map<string, string>();
+function buildInvoiceSpentMap(invoices: InvoiceSpendRow[]) {
+  const spentMap = new Map<string, number>();
 
-  for (const task of tasks) {
-    if (!task.project_id) {
+  for (const invoice of invoices) {
+    if (!invoice.project_id) {
       continue;
     }
 
-    const current = lastActivityMap.get(task.project_id);
-    const latest = latestDate(task.created_at, current);
-
-    if (latest) {
-      lastActivityMap.set(task.project_id, latest);
-    }
+    const current = spentMap.get(invoice.project_id) || 0;
+    spentMap.set(invoice.project_id, current + Math.max(0, invoice.amount_paid));
   }
 
-  return Object.fromEntries(lastActivityMap.entries()) as Record<string, string>;
-}
-
-function latestDate(...values: Array<string | null | undefined>) {
-  let latest = "";
-  let latestTime = -1;
-
-  for (const value of values) {
-    if (!value) {
-      continue;
-    }
-
-    const raw = value.includes("T") ? value : `${value}T00:00:00`;
-    const timestamp = new Date(raw).getTime();
-
-    if (Number.isNaN(timestamp)) {
-      continue;
-    }
-
-    if (timestamp > latestTime) {
-      latestTime = timestamp;
-      latest = value;
-    }
-  }
-
-  return latest || null;
+  return Object.fromEntries(spentMap.entries()) as Record<string, number>;
 }
 
 function isProjectOverdue(endDate: string | null, statusKey: string) {
@@ -523,6 +557,85 @@ function isProjectOverdue(endDate: string | null, statusKey: string) {
   }
 
   return due.getTime() < cutoff.getTime();
+}
+
+function getProjectHealth(input: {
+  statusKey: string;
+  progress: number;
+  dueDate: string | null;
+  isOverdue: boolean;
+}): ProjectTableItem["healthKey"] {
+  if (input.statusKey === "completed") {
+    return "complete";
+  }
+
+  if (input.isOverdue) {
+    return "behind";
+  }
+
+  if (!input.dueDate || input.statusKey === "cancelled") {
+    return "on_track";
+  }
+
+  const dueDate = new Date(`${input.dueDate}T00:00:00Z`);
+  if (Number.isNaN(dueDate.getTime())) {
+    return "on_track";
+  }
+
+  const now = new Date();
+  const msUntilDue = dueDate.getTime() - now.getTime();
+  const daysUntilDue = Math.ceil(msUntilDue / (1000 * 60 * 60 * 24));
+
+  if (daysUntilDue <= 14 && input.progress < 65) {
+    return "at_risk";
+  }
+
+  return "on_track";
+}
+
+function getProjectHealthLabel(healthKey: ProjectTableItem["healthKey"]) {
+  if (healthKey === "complete") {
+    return "Complete";
+  }
+
+  if (healthKey === "behind") {
+    return "Behind";
+  }
+
+  if (healthKey === "at_risk") {
+    return "At Risk";
+  }
+
+  return "On Track";
+}
+
+function formatProfitMarginLabel(budget: number | null, spent: number) {
+  if (typeof budget !== "number" || budget <= 0) {
+    return "-";
+  }
+
+  const margin = ((budget - spent) / budget) * 100;
+
+  return `${margin.toFixed(1)}%`;
+}
+
+function isCurrentMonth(dateValue: string | null) {
+  if (!dateValue) {
+    return false;
+  }
+
+  const parsedDate = dateValue.includes("T")
+    ? new Date(dateValue)
+    : new Date(`${dateValue}T00:00:00Z`);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return false;
+  }
+
+  const now = new Date();
+
+  return parsedDate.getUTCFullYear() === now.getUTCFullYear()
+    && parsedDate.getUTCMonth() === now.getUTCMonth();
 }
 
 function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {

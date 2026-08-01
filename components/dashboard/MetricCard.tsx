@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { CountUp, StatusPulse } from "@/components/motion";
 import { Card, CardContent, MetricTrend, SkeletonLoader } from "@/components/ui";
 import type { DashboardMetric } from "@/lib/dashboard/types";
 
 type MetricCardProps = {
   metric: DashboardMetric;
+  localeTag: string;
   valueLabel: string;
   title: string;
   tooltip: string;
@@ -17,6 +19,7 @@ type MetricCardProps = {
 
 export function MetricCard({
   metric,
+  localeTag,
   valueLabel,
   title,
   tooltip,
@@ -44,46 +47,88 @@ export function MetricCard({
   }
 
   return (
-    <Card
-      variant="kpi"
-      className="h-full motion-hover-card dashboard-fade-in"
-      style={{ animationDelay: `${animateIndex * 50}ms` }}
-    >
-      <Link
-        href={metric.href}
-        className="block h-full rounded-[var(--radius-xl)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
-        aria-label={title}
+    <StatusPulse triggerKey={`${metric.id}-${metric.value}`} tone={metric.trendDirection === "down" ? "warning" : "neutral"}>
+      <Card
+        variant="kpi"
+        className="h-full motion-hover-card"
+        style={{ animationDelay: `${animateIndex * 50}ms` }}
       >
-        <CardContent className="flex h-full min-h-[156px] flex-col justify-between p-4">
-          <div className="flex items-start justify-between gap-3">
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-primary-50)] text-sm font-bold text-[var(--color-brand-700)] shadow-[var(--shadow-small)]">
-              {metric.icon}
-            </span>
-            {trendLabel || typeof metric.trendPercent === "number" ? (
-              <div className="flex flex-col items-end gap-1">
-                {trendLabel ? (
-                  <MetricTrend
-                    direction={metric.trendDirection || "flat"}
-                    label={trendLabel}
-                    comparison={subtitle}
-                  />
-                ) : null}
-                {typeof metric.trendPercent === "number" ? <TrendPercent value={metric.trendPercent} /> : null}
-              </div>
-            ) : null}
-          </div>
+        <Link
+          href={metric.href}
+          className="block h-full rounded-[var(--radius-xl)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
+          aria-label={title}
+        >
+          <CardContent className="flex h-full min-h-[156px] flex-col justify-between p-4">
+            <div className="flex items-start justify-between gap-3">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-primary-50)] text-sm font-bold text-[var(--color-brand-700)] shadow-[var(--shadow-small)]">
+                {metric.icon}
+              </span>
+              {trendLabel || typeof metric.trendPercent === "number" ? (
+                <div className="flex flex-col items-end gap-1">
+                  {trendLabel ? (
+                    <MetricTrend
+                      direction={metric.trendDirection || "flat"}
+                      label={trendLabel}
+                      comparison={subtitle}
+                    />
+                  ) : null}
+                  {typeof metric.trendPercent === "number" ? <TrendPercent value={metric.trendPercent} /> : null}
+                </div>
+              ) : null}
+            </div>
 
-          <div className="mt-4 space-y-1.5">
-            <p className="text-sm font-semibold text-[var(--color-text-primary)]" title={tooltip}>{title}</p>
-            <p className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
-              {isEmpty ? emptyLabel : valueLabel}
-            </p>
-            {subtitle ? <p className="text-xs text-[var(--color-text-secondary)]">{subtitle}</p> : null}
-          </div>
-        </CardContent>
-      </Link>
-    </Card>
+            <div className="mt-4 space-y-1.5">
+              <p className="text-sm font-semibold text-[var(--color-text-primary)]" title={tooltip}>{title}</p>
+              <p className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
+                {isEmpty ? emptyLabel : <MetricValue metric={metric} localeTag={localeTag} fallback={valueLabel} />}
+              </p>
+              {subtitle ? <p className="text-xs text-[var(--color-text-secondary)]">{subtitle}</p> : null}
+            </div>
+          </CardContent>
+        </Link>
+      </Card>
+    </StatusPulse>
   );
+}
+
+function MetricValue({ metric, localeTag, fallback }: { metric: DashboardMetric; localeTag: string; fallback: string }) {
+  if (metric.displayValueKey) {
+    return fallback;
+  }
+
+  if (metric.valueKind === "currency") {
+    return (
+      <CountUp
+        value={metric.value}
+        durationMs={260}
+        formatter={(value) => new Intl.NumberFormat(localeTag, {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 0,
+        }).format(value)}
+      />
+    );
+  }
+
+  if (metric.valueKind === "score") {
+    return (
+      <>
+        <CountUp value={metric.value} durationMs={260} />/100
+      </>
+    );
+  }
+
+  if (metric.valueKind === "number") {
+    return (
+      <CountUp
+        value={metric.value}
+        durationMs={260}
+        formatter={(value) => new Intl.NumberFormat(localeTag).format(value)}
+      />
+    );
+  }
+
+  return fallback;
 }
 
 function TrendPercent({ value }: { value: number }) {

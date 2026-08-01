@@ -293,6 +293,7 @@ export function getExecutiveDashboardMockData(): ExecutiveDashboardData {
         },
       ],
     },
+    businessSummary: null,
     recommendations: [
       {
         id: "rec-project-oak-behind",

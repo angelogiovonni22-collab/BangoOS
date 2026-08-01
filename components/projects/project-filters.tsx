@@ -68,11 +68,11 @@ export function ProjectFilters({
         </label>
 
         <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-          <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{t("projects.filterProjectManager")}</span>
+          <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Superintendent</span>
           <Select
             value={managerValue}
             onChange={(event) => onManagerChange(event.target.value)}
-            aria-label={t("projects.filterProjectManager")}
+            aria-label="Superintendent"
             className="h-10 py-2"
           >
             {managerOptions.map((option) => (

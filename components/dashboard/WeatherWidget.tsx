@@ -2,11 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import type { WeatherSnapshot } from "@/lib/dashboard/types";
 
 type WeatherWidgetProps = {
-  weather: WeatherSnapshot;
+  weather: WeatherSnapshot | null;
+  errorMessage?: string | null;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function WeatherWidget({ weather, t }: WeatherWidgetProps) {
+export function WeatherWidget({ weather, errorMessage = null, t }: WeatherWidgetProps) {
   return (
     <Card as="section" variant="elevated">
       <CardHeader className="bg-[var(--color-surface-subtle)]/40">
@@ -15,6 +16,19 @@ export function WeatherWidget({ weather, t }: WeatherWidgetProps) {
       </CardHeader>
 
       <CardContent className="p-5">
+        {errorMessage ? (
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        {!errorMessage && !weather ? (
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+            {t("dashboard.weatherUnavailable")}
+          </p>
+        ) : null}
+
+        {weather ? (
         <div className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)]">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">{weather.location}</p>
           <p className="mt-2 text-4xl font-bold tracking-tight text-[var(--color-text-primary)]">{weather.temperatureF}°F</p>
@@ -39,6 +53,7 @@ export function WeatherWidget({ weather, t }: WeatherWidgetProps) {
             <p className="mt-1">{t("dashboard.weatherRainChance", { chance: weather.tomorrow.rainProbabilityPercent })}</p>
           </div>
         </div>
+        ) : null}
       </CardContent>
     </Card>
   );

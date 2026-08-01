@@ -3,22 +3,22 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { PlansWorkspace } from "@/components/plans";
-import { Button, EmptyState, ErrorState, SkeletonLoader } from "@/components/ui";
+import { ProjectRelationshipView } from "@/components/business-graph";
+import { FadeIn, MotionProvider, PageTransition } from "@/components/motion";
 import {
-  ProjectEmptyTab,
+  ProjectKpiGrid,
+  ProjectHealthHero,
   ProjectOverview,
-  ProjectSidebar,
-  ProjectSummaryCards,
   ProjectTabs,
+  ProjectWorkWorkspace,
   ProjectWorkspaceHeader,
+  ProjectWorkspaceModuleCard,
+  calculateProjectHealth,
   type ProjectWorkspaceTabKey,
   type WorkspaceActivityItem,
-  type WorkspaceContactItem,
   type WorkspaceMilestoneItem,
-  type WorkspaceQuickAction,
 } from "@/components/projects/workspace";
-import { createCrewService, type ProjectCrewAssignmentSummary } from "@/lib/crews";
+import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, SkeletonLoader } from "@/components/ui";
 import {
   formatProjectAddress,
   formatProjectCurrency,
@@ -30,6 +30,8 @@ import {
 import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
+import { calculateProjectIntelligence } from "@/lib/project-intelligence/calculate-project-intelligence";
+import { generateProjectBriefing } from "@/lib/project-intelligence/briefing/generate-project-briefing";
 import type { Database } from "@/types/database.types";
 
 type ProjectSummary = Pick<
@@ -39,6 +41,7 @@ type ProjectSummary = Pick<
   | "project_number"
   | "project_type"
   | "status"
+  | "description"
   | "customer_id"
   | "created_by"
   | "address_line_1"
@@ -69,11 +72,20 @@ type TaskSummary = Pick<
   Database["public"]["Tables"]["tasks"]["Row"],
   | "id"
   | "title"
+  | "description"
+  | "notes"
   | "status"
+  | "priority"
   | "completion_percentage"
+  | "phase_id"
   | "planned_start"
   | "planned_finish"
+  | "actual_start"
+  | "actual_finish"
+  | "estimated_hours"
+  | "actual_hours"
   | "assigned_profile_id"
+  | "created_by"
   | "created_at"
   | "updated_at"
 >;
@@ -92,7 +104,11 @@ type InvoiceSummary = Pick<
   | "updated_at"
 >;
 
-type WorkspaceTab = ProjectWorkspaceTabKey;
+type WorkspaceCounts = {
+  estimates: number;
+  changeOrders: number;
+  photos: number;
+};
 
 type WorkspaceState = {
   project: ProjectSummary;
@@ -100,11 +116,13 @@ type WorkspaceState = {
   profilesById: Record<string, string>;
   tasks: TaskSummary[];
   invoices: InvoiceSummary[];
-  crewAssignments: ProjectCrewAssignmentSummary[];
+  counts: WorkspaceCounts;
   workspaceContext: WorkspaceContext;
 };
 
 type WorkspaceErrorKind = "auth" | "company" | "database" | "network" | "unknown";
+
+type WorkspaceTab = ProjectWorkspaceTabKey;
 
 export default function ProjectWorkspacePage() {
   const { t, locale } = useI18n();
@@ -114,7 +132,6 @@ export default function ProjectWorkspacePage() {
   const searchParams = useSearchParams();
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const supabase = useMemo(() => createClient(), []);
-  const crewService = useMemo(() => createCrewService(), []);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -184,7 +201,7 @@ export default function ProjectWorkspacePage() {
         const projectResponse = await client
           .from("projects")
           .select(
-            "id, name, project_number, project_type, status, customer_id, created_by, address_line_1, address_line_2, city, state, postal_code, estimated_cost, contract_amount, estimated_start_date, estimated_end_date, actual_end_date, created_at, updated_at",
+            "id, name, project_number, project_type, status, description, customer_id, created_by, address_line_1, address_line_2, city, state, postal_code, estimated_cost, contract_amount, estimated_start_date, estimated_end_date, actual_end_date, created_at, updated_at",
           )
           .eq("id", projectId)
           .eq("company_id", workspaceResult.context.companyId)
@@ -217,14 +234,14 @@ export default function ProjectWorkspacePage() {
               .maybeSingle<CustomerSummary>()
           : Promise.resolve({ data: null, error: null });
 
-        const [profilesResponse, tasksResponse, invoicesResponse, customerResponse, crewAssignments] = await Promise.all([
+        const [profilesResponse, tasksResponse, invoicesResponse, customerResponse, estimatesCountResponse, changeOrdersCountResponse, photosCountResponse] = await Promise.all([
           client
             .from("profiles")
             .select("id, first_name, last_name, role")
             .eq("company_id", workspaceResult.context.companyId),
           client
             .from("tasks")
-            .select("id, title, status, completion_percentage, planned_start, planned_finish, assigned_profile_id, created_at, updated_at")
+            .select("id, title, description, notes, status, priority, completion_percentage, phase_id, planned_start, planned_finish, actual_start, actual_finish, estimated_hours, actual_hours, assigned_profile_id, created_by, created_at, updated_at")
             .eq("company_id", workspaceResult.context.companyId)
             .eq("project_id", projectId)
             .order("planned_start", { ascending: true })
@@ -236,40 +253,27 @@ export default function ProjectWorkspacePage() {
             .eq("project_id", projectId)
             .order("created_at", { ascending: false }),
           customerQuery,
-          crewService.getCrewsForProject(getProjectDisplayName(loadedProject as ProjectRow, "")),
+          client
+            .from("estimates")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId),
+          client
+            .from("change_orders")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId),
+          client
+            .from("project_photos")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId),
         ]);
 
-        if (profilesResponse.error) {
+        if (profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || photosCountResponse.error) {
           if (isSubscribed) {
             setErrorKind("database");
-            setErrorMessage(t("projects.errorLoadTeamProfiles"));
-          }
-
-          return;
-        }
-
-        if (tasksResponse.error) {
-          if (isSubscribed) {
-            setErrorKind("database");
-            setErrorMessage(t("projects.errorLoadSchedule"));
-          }
-
-          return;
-        }
-
-        if (invoicesResponse.error) {
-          if (isSubscribed) {
-            setErrorKind("database");
-            setErrorMessage(t("projects.errorLoadInvoices"));
-          }
-
-          return;
-        }
-
-        if (customerResponse.error) {
-          if (isSubscribed) {
-            setErrorKind("database");
-            setErrorMessage(t("projects.errorLoadProjectCustomer"));
+            setErrorMessage(t("projects.errorLoadProject"));
           }
 
           return;
@@ -288,7 +292,11 @@ export default function ProjectWorkspacePage() {
             profilesById: profileMap,
             tasks: taskRows,
             invoices: invoiceRows,
-            crewAssignments,
+            counts: {
+              estimates: estimatesCountResponse.count || 0,
+              changeOrders: changeOrdersCountResponse.count || 0,
+              photos: photosCountResponse.count || 0,
+            },
             workspaceContext: workspaceResult.context,
           });
         }
@@ -311,7 +319,7 @@ export default function ProjectWorkspacePage() {
     return () => {
       isSubscribed = false;
     };
-  }, [crewService, projectId, supabase, t]);
+  }, [projectId, supabase, t]);
 
   if (isLoading) {
     return <ProjectWorkspaceLoadingState />;
@@ -338,47 +346,68 @@ export default function ProjectWorkspacePage() {
 
   const localeTag = locale === "es" ? "es-ES" : "en-US";
   const project = workspace.project;
+  const projectName = getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject"));
   const customerName = workspace.customer ? getCustomerDisplayName(workspace.customer, t("customers.unnamedCustomer")) : t("projects.notLinked");
+  const customerHref = workspace.customer?.id ? `/customers/${workspace.customer.id}` : null;
+  const customerProjectsHref = workspace.customer?.id ? `/customers/${workspace.customer.id}?tab=projects` : "/projects";
   const projectManager = workspace.project.created_by ? workspace.profilesById[workspace.project.created_by] || t("projects.notAssigned") : t("projects.notAssigned");
   const location = formatProjectAddress(project as ProjectRow) || t("projects.notProvided");
   const status = normalizeProjectStatus(project.status);
   const statusLabel = getProjectStatusLabel(status.key, t);
   const startDate = formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided"));
   const completionDate = formatProjectDateLong(project.actual_end_date || project.estimated_end_date, localeTag, t("projects.notProvided"));
-  const budgetValue = formatProjectCurrency(project.contract_amount ?? project.estimated_cost, localeTag, t("projects.notProvided"));
-  const estimatedCostValue = formatProjectCurrency(project.estimated_cost, localeTag, t("projects.notProvided"));
-  const profitValue = formatProjectCurrency(calculateProfit(project.contract_amount, project.estimated_cost), localeTag, t("projects.notProvided"));
   const progress = calculateProjectProgress(workspace.tasks);
-  const crewCount = workspace.crewAssignments.length;
-  const crewMemberCount = workspace.crewAssignments.reduce((sum, crew) => sum + crew.actualManpower, 0);
-  const invoicesOutstanding = workspace.invoices.filter((invoice) => isInvoiceOutstanding(invoice.status, invoice.amount_paid, invoice.total_amount));
-  const outstandingInvoicesValue = formatProjectCurrency(
-    invoicesOutstanding.reduce((sum, invoice) => sum + Math.max(0, invoice.total_amount - invoice.amount_paid), 0),
+
+  const budgetValueRaw = project.contract_amount ?? project.estimated_cost;
+  const spentValueRaw = workspace.invoices.reduce((sum, invoice) => sum + Math.max(0, invoice.amount_paid), 0);
+  const remainingValueRaw = typeof budgetValueRaw === "number" ? budgetValueRaw - spentValueRaw : null;
+
+  const budgetValue = formatProjectCurrency(budgetValueRaw, localeTag, t("projects.notProvided"));
+  const spentValue = formatProjectCurrency(spentValueRaw, localeTag, "$0");
+  const remainingValue = formatProjectCurrency(remainingValueRaw, localeTag, t("projects.notProvided"));
+  const profitMarginValue = formatProfitMargin(budgetValueRaw, spentValueRaw);
+
+  const projectHealth = calculateProjectHealth({
+    projectStatus: project.status,
+    progressPercent: progress,
+    targetCompletionDate: project.estimated_end_date,
+    budget: budgetValueRaw,
+    spent: spentValueRaw,
+  });
+
+  const projectIntelligence = calculateProjectIntelligence({
+    project: {
+      status: project.status,
+      estimated_end_date: project.estimated_end_date,
+      contract_amount: project.contract_amount ?? null,
+      estimated_cost: project.estimated_cost ?? null,
+      description: project.description ?? null,
+    },
+    tasks: workspace.tasks.map((t) => ({
+      id: t.id,
+      status: t.status,
+      completion_percentage: t.completion_percentage,
+      planned_finish: t.planned_finish ?? null,
+      assigned_profile_id: t.assigned_profile_id ?? null,
+      phase_id: t.phase_id ?? null,
+    })),
+    invoices: workspace.invoices.map((inv) => ({
+      total_amount: inv.total_amount,
+      amount_paid: inv.amount_paid,
+      due_date: inv.due_date ?? null,
+    })),
+    counts: workspace.counts,
+  });
+
+  const projectBriefing = generateProjectBriefing({
+    intelligence: projectIntelligence,
+    projectId: project.id,
+    projectName,
     localeTag,
-    t("projects.notProvided"),
-  );
+  });
 
-  const scheduleHealth = getScheduleHealth(workspace.project, workspace.tasks, localeTag, t);
-  const budgetHealth = getBudgetHealth(workspace.project, localeTag, t);
-  const safetyHealth = getSafetyHealth(t);
-  const progressHealth = getProgressHealth(progress, t);
-  const overallHealth = getOverallHealth([scheduleHealth.score, budgetHealth.score, safetyHealth.score, progressHealth.score], t);
-
-  const summaryOpenDailyReports = "0";
-  const summaryOpenSafetyItems = "0";
-  const summaryEquipmentAssigned = "0";
-  const summaryInvoicesOutstanding = String(invoicesOutstanding.length);
-  const summaryCrew = crewCount > 0 ? t("projects.workspaceCrewSummaryValue", { crewCount, crewMembers: crewMemberCount }) : t("projects.workspaceCrewSummaryEmpty");
-
-  const summaryCards = {
-    budget: budgetValue,
-    scheduleHealth: scheduleHealth.label,
-    crewAssigned: summaryCrew,
-    openDailyReports: summaryOpenDailyReports,
-    openSafetyItems: summaryOpenSafetyItems,
-    equipmentAssigned: summaryEquipmentAssigned,
-    invoicesOutstanding: summaryInvoicesOutstanding,
-  };
+  const briefingFormatCurrency = (amount: number) =>
+    formatProjectCurrency(amount, localeTag, "$0");
 
   const recentActivity = buildRecentActivity({
     project,
@@ -390,160 +419,230 @@ export default function ProjectWorkspacePage() {
     t,
   });
 
-  const upcomingSchedule = buildUpcomingSchedule(project.id, workspace.tasks, localeTag, t).slice(0, 4);
-  const milestones = buildMilestones(project, workspace.tasks, localeTag, t);
-  const openIssues = buildOpenIssues(workspace.tasks, invoicesOutstanding, localeTag, t);
-  const dailyReports: WorkspaceActivityItem[] = [];
+  const upcomingDates = buildUpcomingDates(project, workspace.tasks, localeTag, t);
+  const timeline = buildTimeline(recentActivity, upcomingDates);
 
-  const projectContacts: WorkspaceContactItem[] = [
-    {
-      id: "customer",
-      label: t("projects.workspacePrimaryCustomer"),
-      value: customerName,
-      role: workspace.customer?.email?.trim() || workspace.customer?.phone?.trim() || t("projects.notProvided"),
-    },
-    {
-      id: "manager",
-      label: t("projects.workspaceProjectManager"),
-      value: projectManager,
-      role: t("projects.workspacePrimaryManagerRole"),
-    },
-    {
-      id: "crew",
-      label: t("projects.workspaceCrewContact"),
-      value: workspace.crewAssignments[0]?.crewName || t("projects.workspaceNoCrew"),
-      role: workspace.crewAssignments[0]?.role || t("projects.notAssigned"),
-    },
+  const headerProjectHrefSuffix = project.customer_id ? `&customerId=${project.customer_id}` : "";
+  const details = [
+    { label: "Customer", value: customerName, href: customerHref || undefined },
+    { label: "Address", value: location },
+    { label: "Project Type", value: project.project_type || t("projects.notProvided") },
+    { label: "Status", value: statusLabel, badgeTone: mapStatusToBadgeTone(status.key) },
+    { label: "Start Date", value: startDate },
+    { label: "Target Completion", value: completionDate },
+    { label: "Project Manager", value: projectManager },
+    { label: "Created", value: formatProjectDateLong(project.created_at, localeTag, t("projects.notProvided")) },
   ];
-
-  const quickActions: WorkspaceQuickAction[] = [
-    {
-      id: "change-order",
-      label: "New Change Order",
-      href: `/change-orders/new?projectId=${project.id}${project.customer_id ? `&customerId=${project.customer_id}` : ""}`,
-    },
-    {
-      id: "invoice",
-      label: "New Invoice",
-      href: `/invoices/new?projectId=${project.id}${project.customer_id ? `&customerId=${project.customer_id}` : ""}`,
-    },
-    { id: "report", label: t("projects.workspaceActionDailyReport"), disabled: true, title: t("projects.comingSoon") },
-    { id: "schedule", label: t("projects.workspaceActionSchedule"), disabled: true, title: t("projects.comingSoon") },
-    { id: "crew", label: t("projects.workspaceActionCrew"), disabled: true, title: t("projects.comingSoon") },
-    { id: "plans", label: t("projects.workspaceActionPlans"), disabled: true, title: t("projects.comingSoon") },
-  ];
-
-  const sidebarMilestones = milestones.slice(0, 3);
-  const sidebarActivity = recentActivity.slice(0, 4);
-  const aiSummary = t("projects.workspaceAiSummaryPlaceholder");
 
   return (
-    <div className="space-y-7">
-      <ProjectWorkspaceHeader
-        projectName={getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject"))}
-        customerName={customerName}
-        statusKey={status.key}
-        statusLabel={statusLabel}
-        projectManager={projectManager}
-        location={location}
-        startDate={startDate}
-        estimatedCompletion={completionDate}
-        budget={budgetValue}
-        progress={progress}
-        editDisabledLabel={t("projects.workspaceEditComingSoon")}
-        shareLabel={t("projects.workspaceShare")}
-        moreLabel={t("projects.workspaceMore")}
-        comingSoonLabel={t("projects.comingSoon")}
-        onShare={() => void shareWorkspace(project.id, t)}
-        t={t}
-      />
+    <MotionProvider>
+      <div className="space-y-6">
+        <FadeIn delayMs={0} distancePx={4}>
+          <ProjectWorkspaceHeader
+            projectName={projectName}
+            customerName={customerName}
+            customerHref={customerHref}
+            customerProjectsHref={customerProjectsHref}
+            statusLabel={statusLabel}
+            statusKey={status.key}
+            projectTypeLabel={project.project_type || t("projects.notProvided")}
+            projectNumber={project.project_number}
+            address={location}
+            projectManager={projectManager}
+            startDate={startDate}
+            targetCompletionDate={completionDate}
+            progressPercent={progress}
+            newDailyReportHref="/daily-reports/new"
+            newInvoiceHref={`/invoices/new?projectId=${project.id}${headerProjectHrefSuffix}`}
+            newChangeOrderHref={`/change-orders/new?projectId=${project.id}${headerProjectHrefSuffix}`}
+          />
+        </FadeIn>
 
-      <ProjectSummaryCards
-        budget={summaryCards.budget}
-        scheduleHealth={summaryCards.scheduleHealth}
-        crewAssigned={summaryCards.crewAssigned}
-        openDailyReports={summaryCards.openDailyReports}
-        openSafetyItems={summaryCards.openSafetyItems}
-        equipmentAssigned={summaryCards.equipmentAssigned}
-        invoicesOutstanding={summaryCards.invoicesOutstanding}
-        t={t}
-      />
+        <FadeIn delayMs={50} distancePx={6}>
+          <ProjectHealthHero health={projectHealth} />
+        </FadeIn>
 
-      <ProjectTabs activeTab={activeTab} onChange={handleTabChange} t={t} />
+        <FadeIn delayMs={90} distancePx={6}>
+          <ProjectKpiGrid
+            budgetLabel={budgetValue}
+            spentLabel={spentValue}
+            remainingLabel={remainingValue}
+            profitMarginLabel={profitMarginValue}
+          />
+        </FadeIn>
 
-      <div
-        className={`grid gap-6 ${
-          activeTab === "plans"
-            ? "xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px]"
-            : "xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_380px]"
-        }`}
-      >
-        <main className="space-y-6">
+        <FadeIn delayMs={130} distancePx={4}>
+          <ProjectTabs activeTab={activeTab} onChange={handleTabChange} t={t} />
+        </FadeIn>
+
+        <PageTransition transitionKey={`workspace-tab-${activeTab}`}>
           {activeTab === "overview" ? (
-            <ProjectOverview
-              healthItems={[
-                {
-                  label: t("projects.workspaceHealthSchedule"),
-                  value: scheduleHealth.label,
-                  tone: scheduleHealth.tone,
-                  description: scheduleHealth.description,
-                },
-                {
-                  label: t("projects.workspaceHealthBudget"),
-                  value: budgetHealth.label,
-                  tone: budgetHealth.tone,
-                  description: budgetHealth.description,
-                },
-                {
-                  label: t("projects.workspaceHealthSafety"),
-                  value: safetyHealth.label,
-                  tone: safetyHealth.tone,
-                  description: safetyHealth.description,
-                },
-                {
-                  label: t("projects.workspaceHealthProgress"),
-                  value: progressHealth.label,
-                  tone: progressHealth.tone,
-                  description: progressHealth.description,
-                },
-              ]}
-              overallHealth={overallHealth}
-              recentActivity={recentActivity.slice(0, 4)}
-              upcomingSchedule={upcomingSchedule}
-              crewTitle={t("projects.overviewCrewSummary")}
-              crewItems={workspace.crewAssignments}
-              budgetTitle={t("projects.overviewBudgetSnapshot")}
-              budget={budgetValue}
-              estimatedCost={estimatedCostValue}
-              profit={profitValue}
-              invoicesOutstanding={outstandingInvoicesValue}
-              openIssues={openIssues}
-              milestones={milestones}
-              dailyReports={dailyReports}
+            <div className="space-y-6">
+              <ProjectOverview
+                details={details}
+                description={project.description?.trim() || "No project scope description has been provided yet."}
+                health={projectHealth}
+                budgetLabel={budgetValue}
+                spentLabel={spentValue}
+                remainingLabel={remainingValue}
+                profitMarginLabel={profitMarginValue}
+                recentActivity={recentActivity}
+                upcomingDates={upcomingDates}
+              />
+              <ProjectRelationshipView
+                companyName={workspace.workspaceContext.companyName || t("common.appName")}
+                input={{
+                  projectId: project.id,
+                  projectName,
+                  customerName,
+                  customerHref,
+                  phases: buildPhaseNodes(workspace.tasks),
+                  taskCount: workspace.tasks.length,
+                  photosCount: workspace.counts.photos,
+                  changeOrdersCount: workspace.counts.changeOrders,
+                  invoiceCount: workspace.invoices.length,
+                }}
+              />
+            </div>
+          ) : activeTab === "work" ? (
+            <ProjectWorkWorkspace
+              companyId={workspace.workspaceContext.companyId}
+              projectId={project.id}
+              projectName={projectName}
+              projectStatus={project.status}
+              customerId={workspace.customer?.id ?? null}
+              userId={workspace.workspaceContext.userId}
+              locale={localeTag}
+              tasks={workspace.tasks}
+              profiles={workspace.profilesById}
+              briefing={projectBriefing}
+              formatCurrency={briefingFormatCurrency}
               t={t}
             />
-          ) : activeTab === "plans" ? (
-            <PlansWorkspace projectName={getProjectDisplayName(project as ProjectRow, t("projects.unnamedProject"))} />
+          ) : activeTab === "financial" ? (
+        <ModuleGrid>
+          <ProjectWorkspaceModuleCard
+            title="Budget"
+            description="Review baseline budget and monitor remaining financial runway."
+            metricLabel="Remaining"
+            metricValue={remainingValue}
+          />
+          <ProjectWorkspaceModuleCard
+            title="Estimates"
+            description="Review estimate history connected to this project."
+            metricLabel="Records"
+            metricValue={String(workspace.counts.estimates)}
+            href="/estimates"
+            actionLabel="Open Estimates"
+          />
+          <ProjectWorkspaceModuleCard
+            title="Change Orders"
+            description="Track approved and pending change scope impacting budget and delivery."
+            metricLabel="Records"
+            metricValue={String(workspace.counts.changeOrders)}
+            href={`/change-orders?projectId=${project.id}`}
+            actionLabel="Open Change Orders"
+          />
+          <ProjectWorkspaceModuleCard
+            title="Invoices"
+            description="Track billing progress and paid amount recorded to date."
+            metricLabel="Records"
+            metricValue={String(workspace.invoices.length)}
+            href={`/invoices?projectId=${project.id}`}
+            actionLabel="Open Invoices"
+          />
+          <ProjectWorkspaceModuleCard
+            title="Job Costing"
+            description="Detailed job costing will appear here as cost categories are connected beyond paid invoice data."
+          />
+        </ModuleGrid>
+          ) : activeTab === "resources" ? (
+        <ModuleGrid>
+          <ProjectWorkspaceModuleCard
+            title="Crew"
+            description="View crew allocation and team availability for this project."
+            href="/crews"
+            actionLabel="Open Crew"
+          />
+          <ProjectWorkspaceModuleCard
+            title="Equipment"
+            description="Track assigned equipment and availability across active jobs."
+            href="/equipment"
+            actionLabel="Open Equipment"
+          />
+          <ProjectWorkspaceModuleCard
+            title="Materials"
+            description="Manage material supply and project-specific usage details."
+            href="/materials"
+            actionLabel="Open Materials"
+          />
+          <ProjectWorkspaceModuleCard
+            title="Vendors"
+            description="Manage vendor and subcontractor partners supporting project delivery."
+            href="/vendors"
+            actionLabel="Open Vendors"
+          />
+        </ModuleGrid>
+          ) : activeTab === "documents" ? (
+        <ModuleGrid>
+          <ProjectWorkspaceModuleCard
+            title="Photos"
+            description="Field photos uploaded to this project are tracked here."
+            metricLabel="Uploaded"
+            metricValue={String(workspace.counts.photos)}
+          />
+          <ProjectWorkspaceModuleCard
+            title="Files"
+            description="Project file storage will appear here when document records are available."
+          />
+          <ProjectWorkspaceModuleCard
+            title="Contracts"
+            description="Contract records and signed artifacts will appear here once connected."
+          />
+          <ProjectWorkspaceModuleCard
+            title="Drawings"
+            description="Plan and drawing workflows are available in the plans workspace."
+            href={`/projects/${project.id}?tab=plans`}
+            actionLabel="Open Plans"
+          />
+          <ProjectWorkspaceModuleCard
+            title="Permits"
+            description="Permit tracking will appear here when permitting records are available."
+          />
+        </ModuleGrid>
           ) : (
-            <ProjectEmptyTab
-              title={t("projects.workspaceTabComingSoonTitle")}
-              description={t("projects.workspaceTabComingSoonDescription")}
-              tabLabel={t(getWorkspaceTabLabelKey(activeTab))}
-            />
+        <Card as="section" variant="elevated" className="shadow-[var(--shadow-small)]">
+          <CardHeader className="bg-[var(--color-surface-subtle)]/45">
+            <CardTitle>Project Timeline</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 p-5">
+            {timeline.length === 0 ? (
+              <EmptyState
+                compact
+                icon="T"
+                title="No timeline events"
+                description="Timeline events will appear here as project activity is recorded."
+              />
+            ) : (
+              timeline.map((item) => (
+                <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)]">
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.title}</p>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.detail}</p>
+                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">{item.timestamp}</p>
+                </article>
+              ))
+            )}
+          </CardContent>
+        </Card>
           )}
-        </main>
-
-        <ProjectSidebar
-          contacts={projectContacts}
-          quickActions={quickActions}
-          milestones={sidebarMilestones}
-          activity={sidebarActivity}
-          aiSummary={aiSummary}
-          t={t}
-        />
+        </PageTransition>
       </div>
-    </div>
+    </MotionProvider>
   );
+}
+
+function ModuleGrid({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-6 lg:grid-cols-2">{children}</div>;
 }
 
 function ProjectWorkspaceLoadingState() {
@@ -562,14 +661,17 @@ function ProjectWorkspaceLoadingState() {
           <SkeletonLoader className="h-20 w-full" />
         </div>
       </div>
-      <SkeletonLoader className="h-20 w-full" />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-4">
-          <SkeletonLoader className="h-12 w-full" />
-          <SkeletonLoader className="h-72 w-full" />
-          <SkeletonLoader className="h-72 w-full" />
-        </div>
-        <SkeletonLoader className="h-[720px] w-full" />
+      <SkeletonLoader className="h-56 w-full" />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <SkeletonLoader className="h-32 w-full" />
+        <SkeletonLoader className="h-32 w-full" />
+        <SkeletonLoader className="h-32 w-full" />
+        <SkeletonLoader className="h-32 w-full" />
+      </section>
+      <SkeletonLoader className="h-14 w-full" />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SkeletonLoader className="h-72 w-full" />
+        <SkeletonLoader className="h-72 w-full" />
       </div>
     </div>
   );
@@ -596,17 +698,7 @@ function getWorkspaceErrorTitle(errorKind: WorkspaceErrorKind | null, t: (key: s
 }
 
 function resolveWorkspaceTab(tabParam: string | null): WorkspaceTab {
-  const validTabs: WorkspaceTab[] = [
-    "overview",
-    "daily_reports",
-    "scheduling",
-    "crew",
-    "equipment",
-    "safety",
-    "plans",
-    "financials",
-    "ai_insights",
-  ];
+  const validTabs: WorkspaceTab[] = ["overview", "work", "financial", "resources", "documents", "timeline"];
 
   if (!tabParam) {
     return "overview";
@@ -654,6 +746,26 @@ function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
   return statusLabelKey[statusKey] ? t(statusLabelKey[statusKey]) : normalizeProjectStatus(statusKey).label;
 }
 
+function mapStatusToBadgeTone(statusKey: string): "brand" | "success" | "warning" | "danger" | "neutral" {
+  if (statusKey === "completed") {
+    return "success";
+  }
+
+  if (statusKey === "cancelled") {
+    return "danger";
+  }
+
+  if (statusKey === "on_hold") {
+    return "warning";
+  }
+
+  if (statusKey === "lead") {
+    return "neutral";
+  }
+
+  return "brand";
+}
+
 function buildProfileNameMap(rows: ProfileSummary[], fallbackLabel: string) {
   return Object.fromEntries(
     rows.map((row) => {
@@ -661,6 +773,20 @@ function buildProfileNameMap(rows: ProfileSummary[], fallbackLabel: string) {
       return [row.id, fullName || fallbackLabel] as const;
     }),
   );
+}
+
+function buildPhaseNodes(tasks: TaskSummary[]) {
+  const phaseIds = new Set(tasks.map((task) => task.phase_id).filter((value): value is string => Boolean(value)));
+  const ids = Array.from(phaseIds);
+
+  if (ids.length === 0) {
+    return [{ id: "phase-unassigned", label: "Unassigned Phase" }];
+  }
+
+  return ids.slice(0, 4).map((id, index) => ({
+    id,
+    label: `Phase ${index + 1}`,
+  }));
 }
 
 function getCustomerDisplayName(customer: CustomerSummary, fallbackLabel = "Unnamed Customer") {
@@ -674,6 +800,31 @@ function getCustomerDisplayName(customer: CustomerSummary, fallbackLabel = "Unna
   }
 
   return fallbackName || companyName || fallbackLabel;
+}
+
+function calculateProjectProgress(tasks: TaskSummary[]) {
+  if (tasks.length === 0) {
+    return 0;
+  }
+
+  const completion = tasks.reduce((sum, task) => {
+    if (task.status.trim().toLowerCase() === "completed") {
+      return sum + 100;
+    }
+
+    return sum + Math.max(0, Math.min(100, task.completion_percentage));
+  }, 0);
+
+  return Math.round(completion / tasks.length);
+}
+
+function formatProfitMargin(budget: number | null, spent: number) {
+  if (typeof budget !== "number" || budget <= 0) {
+    return "-";
+  }
+
+  const margin = ((budget - spent) / budget) * 100;
+  return `${margin.toFixed(1)}%`;
 }
 
 function buildRecentActivity({
@@ -713,7 +864,7 @@ function buildRecentActivity({
     });
   }
 
-  const latestTask = tasks[0];
+  const latestTask = tasks[tasks.length - 1];
   if (latestTask) {
     items.push({
       id: `task-${latestTask.id}`,
@@ -721,7 +872,6 @@ function buildRecentActivity({
       detail: latestTask.title,
       timestamp: formatDateTime(latestTask.updated_at || latestTask.created_at, localeTag),
       tone: "green",
-      href: `/projects/${project.id}`,
     });
   }
 
@@ -730,19 +880,18 @@ function buildRecentActivity({
     items.push({
       id: `invoice-${latestInvoice.id}`,
       title: t("projects.workspaceActivityInvoiceTitle"),
-      detail: `${latestInvoice.invoice_number?.trim() || latestInvoice.title} · ${formatProjectCurrency(latestInvoice.total_amount - latestInvoice.amount_paid, localeTag, t("projects.notProvided"))}`,
+      detail: latestInvoice.invoice_number?.trim() || latestInvoice.title,
       timestamp: formatDateTime(latestInvoice.updated_at || latestInvoice.created_at, localeTag),
       tone: "amber",
-      href: `/projects/${project.id}`,
     });
   }
 
-  const assignedManagers = Object.values(profilesById).slice(0, 1);
-  if (assignedManagers.length > 0) {
+  const managerName = project.created_by ? profilesById[project.created_by] : null;
+  if (managerName) {
     items.push({
       id: "manager",
       title: t("projects.workspaceActivityManagerTitle"),
-      detail: assignedManagers[0],
+      detail: managerName,
       timestamp: formatDateTime(project.updated_at, localeTag),
       tone: "slate",
     });
@@ -751,43 +900,29 @@ function buildRecentActivity({
   return items;
 }
 
-function buildUpcomingSchedule(
-  projectId: string,
+function buildUpcomingDates(
+  project: ProjectSummary,
   tasks: TaskSummary[],
   localeTag: string,
   t: (key: string, params?: Record<string, string | number>) => string,
-) {
-  return tasks
-    .filter((task) => Boolean(task.planned_start || task.planned_finish))
-    .slice(0, 5)
-    .map((task) => ({
-      id: task.id,
-      title: task.title,
-      dateLabel: task.planned_finish ? formatProjectDateLong(task.planned_finish, localeTag, t("projects.notProvided")) : formatProjectDateLong(task.planned_start, localeTag, t("projects.notProvided")),
-      detail: task.assigned_profile_id ? t("projects.workspaceAssignedTo", { name: task.assigned_profile_id }) : t("projects.notAssigned"),
-      tone: getTaskTone(task),
-      href: `/projects/${projectId}`,
-    }));
-}
-
-function buildMilestones(project: ProjectSummary, tasks: TaskSummary[], localeTag: string, t: (key: string, params?: Record<string, string | number>) => string) {
-  const items: WorkspaceMilestoneItem[] = [];
+): WorkspaceMilestoneItem[] {
+  const dates: WorkspaceMilestoneItem[] = [];
 
   if (project.estimated_start_date) {
-    items.push({
+    dates.push({
       id: "project-start",
-      title: t("projects.workspaceMilestoneProjectStart"),
-      detail: t("projects.workspaceMilestoneProjectStartDetail"),
+      title: "Planned Start",
+      detail: "Project baseline start date",
       dateLabel: formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided")),
       tone: "indigo",
     });
   }
 
   if (project.estimated_end_date) {
-    items.push({
+    dates.push({
       id: "project-end",
-      title: t("projects.workspaceMilestoneProjectEnd"),
-      detail: t("projects.workspaceMilestoneProjectEndDetail"),
+      title: "Target Completion",
+      detail: "Current completion target",
       dateLabel: formatProjectDateLong(project.estimated_end_date, localeTag, t("projects.notProvided")),
       tone: "blue",
     });
@@ -795,234 +930,37 @@ function buildMilestones(project: ProjectSummary, tasks: TaskSummary[], localeTa
 
   tasks
     .filter((task) => Boolean(task.planned_finish))
-    .slice(0, 3)
-    .forEach((task, index) => {
-      items.push({
-        id: task.id,
+    .slice(0, 4)
+    .forEach((task) => {
+      dates.push({
+        id: `task-${task.id}`,
         title: task.title,
-        detail: t("projects.workspaceMilestoneTaskDetail"),
+        detail: "Planned task finish",
         dateLabel: formatProjectDateLong(task.planned_finish, localeTag, t("projects.notProvided")),
-        tone: index === 0 ? "green" : "amber",
+        tone: "amber",
       });
     });
 
-  return items;
+  return dates;
 }
 
-function buildOpenIssues(
-  tasks: TaskSummary[],
-  invoices: InvoiceSummary[],
-  localeTag: string,
-  t: (key: string, params?: Record<string, string | number>) => string,
-) {
-  const overdueTasks = tasks.filter((task) => task.planned_finish && isPastDate(task.planned_finish) && task.status.trim().toLowerCase() !== "completed");
-  const overdueInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice.status, invoice.amount_paid, invoice.total_amount) && invoice.due_date && isPastDate(invoice.due_date));
-
-  return [
-    ...overdueTasks.map((task) => ({
-      id: task.id,
-      title: task.title,
-      detail: t("projects.workspaceIssueTaskOverdue"),
-      dateLabel: task.planned_finish ? formatProjectDateLong(task.planned_finish, localeTag, t("projects.notProvided")) : t("projects.notProvided"),
-      tone: "amber" as const,
+function buildTimeline(activity: WorkspaceActivityItem[], milestones: WorkspaceMilestoneItem[]) {
+  const events = [
+    ...activity.map((item) => ({
+      id: `activity-${item.id}`,
+      title: item.title,
+      detail: item.detail,
+      timestamp: item.timestamp,
     })),
-    ...overdueInvoices.map((invoice) => ({
-      id: invoice.id,
-      title: invoice.invoice_number?.trim() || invoice.title,
-      detail: t("projects.workspaceIssueInvoiceOverdue"),
-      dateLabel: invoice.due_date ? formatProjectDateLong(invoice.due_date, localeTag, t("projects.notProvided")) : t("projects.notProvided"),
-      tone: "danger" as const,
+    ...milestones.map((item) => ({
+      id: `milestone-${item.id}`,
+      title: item.title,
+      detail: item.detail,
+      timestamp: item.dateLabel,
     })),
   ];
-}
 
-function getTaskTone(task: TaskSummary): "blue" | "green" | "amber" | "indigo" | "slate" {
-  const status = task.status.trim().toLowerCase();
-
-  if (status === "completed") {
-    return "green";
-  }
-
-  if (status === "in_progress") {
-    return "blue";
-  }
-
-  if (status === "blocked" || status === "on_hold") {
-    return "amber";
-  }
-
-  return "slate";
-}
-
-function getScheduleHealth(
-  project: ProjectSummary,
-  tasks: TaskSummary[],
-  localeTag: string,
-  t: (key: string, params?: Record<string, string | number>) => string,
-) {
-  const progress = calculateProjectProgress(tasks);
-  const overdueTasks = tasks.filter((task) => task.planned_finish && isPastDate(task.planned_finish) && task.status.trim().toLowerCase() !== "completed").length;
-  const dueSoon = tasks.filter((task) => task.planned_finish && isWithinDays(task.planned_finish, 14) && task.status.trim().toLowerCase() !== "completed").length;
-  const projectOverdue = Boolean(project.estimated_end_date && isPastDate(project.estimated_end_date) && progress < 100);
-
-  if (projectOverdue || overdueTasks > 0) {
-    return {
-      label: t("projects.workspaceHealthBehindSchedule"),
-      tone: "danger" as const,
-      description: t("projects.workspaceHealthBehindScheduleDescription", { count: Math.max(overdueTasks, projectOverdue ? 1 : 0) }),
-      score: 35,
-    };
-  }
-
-  if (dueSoon > 0 || progress < 70) {
-    return {
-      label: t("projects.workspaceHealthAtRisk"),
-      tone: "warning" as const,
-      description: t("projects.workspaceHealthAtRiskDescription", { count: dueSoon }),
-      score: 68,
-    };
-  }
-
-  return {
-    label: t("projects.workspaceHealthOnTrack"),
-    tone: "success" as const,
-    description: t("projects.workspaceHealthOnTrackDescription"),
-    score: 92,
-  };
-}
-
-function getBudgetHealth(project: ProjectSummary, localeTag: string, t: (key: string, params?: Record<string, string | number>) => string) {
-  const contractAmount = project.contract_amount ?? null;
-  const estimatedCost = project.estimated_cost ?? null;
-
-  if (typeof contractAmount !== "number") {
-    return {
-      label: t("projects.workspaceHealthBudgetPending"),
-      tone: "neutral" as const,
-      description: t("projects.workspaceHealthBudgetPendingDescription"),
-      score: 62,
-    };
-  }
-
-  const delta = contractAmount - (estimatedCost ?? 0);
-
-  if (delta >= 0) {
-    return {
-      label: t("projects.workspaceHealthWithinBudget"),
-      tone: "success" as const,
-      description: t("projects.workspaceHealthWithinBudgetDescription", { amount: formatProjectCurrency(delta, localeTag, t("projects.notProvided")) }),
-      score: 88,
-    };
-  }
-
-  return {
-    label: t("projects.workspaceHealthOverBudget"),
-    tone: "warning" as const,
-    description: t("projects.workspaceHealthOverBudgetDescription", { amount: formatProjectCurrency(Math.abs(delta), localeTag, t("projects.notProvided")) }),
-    score: 54,
-  };
-}
-
-function getSafetyHealth(t: (key: string, params?: Record<string, string | number>) => string) {
-  return {
-    label: t("projects.workspaceHealthSafetyClear"),
-    tone: "success" as const,
-    description: t("projects.workspaceHealthSafetyClearDescription"),
-    score: 94,
-  };
-}
-
-function getProgressHealth(progress: number, t: (key: string, params?: Record<string, string | number>) => string) {
-  if (progress >= 80) {
-    return {
-      label: t("projects.workspaceHealthProgressStrong"),
-      tone: "success" as const,
-      description: t("projects.workspaceHealthProgressStrongDescription"),
-      score: 90,
-    };
-  }
-
-  if (progress >= 50) {
-    return {
-      label: t("projects.workspaceHealthProgressModerate"),
-      tone: "warning" as const,
-      description: t("projects.workspaceHealthProgressModerateDescription"),
-      score: 70,
-    };
-  }
-
-  return {
-    label: t("projects.workspaceHealthProgressEarly"),
-    tone: "neutral" as const,
-    description: t("projects.workspaceHealthProgressEarlyDescription"),
-    score: 58,
-  };
-}
-
-function getOverallHealth(scores: number[], t: (key: string, params?: Record<string, string | number>) => string) {
-  const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1));
-
-  if (average >= 85) {
-    return t("projects.workspaceHealthOverallStrong", { score: average });
-  }
-
-  if (average >= 70) {
-    return t("projects.workspaceHealthOverallWatch", { score: average });
-  }
-
-  return t("projects.workspaceHealthOverallRisk", { score: average });
-}
-
-function calculateProjectProgress(tasks: TaskSummary[]) {
-  if (tasks.length === 0) {
-    return 0;
-  }
-
-  const completion = tasks.reduce((sum, task) => {
-    if (task.status.trim().toLowerCase() === "completed") {
-      return sum + 100;
-    }
-
-    return sum + Math.max(0, Math.min(100, task.completion_percentage));
-  }, 0);
-
-  return Math.round(completion / tasks.length);
-}
-
-function calculateProfit(contractAmount: number | null, estimatedCost: number | null) {
-  if (typeof contractAmount !== "number") {
-    return null;
-  }
-
-  const costs = typeof estimatedCost === "number" ? estimatedCost : 0;
-  return contractAmount - costs;
-}
-
-function isInvoiceOutstanding(status: string, amountPaid: number, totalAmount: number) {
-  const normalized = status.trim().toLowerCase();
-  return normalized !== "paid" && Math.max(0, totalAmount - amountPaid) > 0;
-}
-
-function isPastDate(value: string) {
-  const date = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
-
-  return date.getTime() < Date.now() - 24 * 60 * 60 * 1000;
-}
-
-function isWithinDays(value: string, days: number) {
-  const date = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
-
-  const now = new Date();
-  const upper = new Date(now);
-  upper.setDate(now.getDate() + days);
-
-  return date.getTime() <= upper.getTime();
+  return events.slice(0, 12);
 }
 
 function formatDateTime(value: string, localeTag: string) {
@@ -1033,39 +971,4 @@ function formatDateTime(value: string, localeTag: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
-}
-
-function getWorkspaceTabLabelKey(tab: WorkspaceTab) {
-  const map: Record<WorkspaceTab, string> = {
-    overview: "projects.workspaceTabOverview",
-    daily_reports: "projects.workspaceTabDailyReports",
-    scheduling: "projects.workspaceTabScheduling",
-    crew: "projects.workspaceTabCrew",
-    equipment: "projects.workspaceTabEquipment",
-    safety: "projects.workspaceTabSafety",
-    plans: "projects.workspaceTabPlans",
-    financials: "projects.workspaceTabFinancials",
-    ai_insights: "projects.workspaceTabAiInsights",
-  };
-
-  return map[tab];
-}
-
-async function shareWorkspace(projectId: string, t: (key: string, params?: Record<string, string | number>) => string) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const url = `${window.location.origin}/projects/${projectId}`;
-
-  try {
-    if (navigator.share) {
-      await navigator.share({ title: t("projects.pageTitle"), url });
-      return;
-    }
-
-    await navigator.clipboard.writeText(url);
-  } catch {
-    await navigator.clipboard.writeText(url).catch(() => undefined);
-  }
 }

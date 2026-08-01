@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Download, Ellipsis, Eye, Filter, MoreHorizontal, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Pencil } from "lucide-react";
 import {
   Badge,
   Button,
@@ -11,7 +11,6 @@ import {
   EnterpriseTableHead,
   EnterpriseTableHeading,
   EnterpriseTableRow,
-  IconButton,
   StatusBadge,
   TableContainer,
 } from "@/components/ui";
@@ -22,15 +21,12 @@ type CustomerTableItem = {
   name: string;
   type: string;
   typeKey: string;
-  category: string;
-  contactName: string;
-  contactRole: string;
   email: string;
   phone: string;
-  assignedToName: string;
-  assignedToRole: string;
+  city: string;
   status: string;
   statusKey: string;
+  createdAt: string;
 };
 
 type CustomerTableProps = {
@@ -52,34 +48,19 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, t }:
 
   return (
     <TableContainer
-      title={t("customers.list.title")}
-      description={t("customers.list.description")}
-      controls={
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 px-3">
-            <Filter size={14} aria-hidden="true" />
-            {t("customers.actions.filters")}
-          </Button>
-
-          <Button variant="outline" size="sm" className="h-9 px-3" disabled aria-disabled="true" title={t("customers.comingSoon")}>
-            <Download size={14} aria-hidden="true" />
-            {t("customers.actions.export")}
-          </Button>
-
-          <IconButton icon={<Ellipsis size={16} aria-hidden="true" />} label={t("customers.actions.more")} variant="outline" size="sm" />
-        </div>
-      }
+      title="Customer List"
+      description={`${total} ${total === 1 ? "customer" : "customers"}`}
     >
       <EnterpriseTable ariaLabel={t("customers.list.title")}>
         <EnterpriseTableHead>
           <tr>
             <EnterpriseTableHeading>{t("customers.tableCustomer")}</EnterpriseTableHeading>
             <EnterpriseTableHeading>{t("customers.tableType")}</EnterpriseTableHeading>
-            <EnterpriseTableHeading>{t("customers.tableContact")}</EnterpriseTableHeading>
             <EnterpriseTableHeading>{t("customers.email")}</EnterpriseTableHeading>
             <EnterpriseTableHeading>{t("customers.phoneNumber")}</EnterpriseTableHeading>
-            <EnterpriseTableHeading>{t("customers.tableAssignedTo")}</EnterpriseTableHeading>
+            <EnterpriseTableHeading>City</EnterpriseTableHeading>
             <EnterpriseTableHeading>{t("customers.tableStatus")}</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Created</EnterpriseTableHeading>
             <EnterpriseTableHeading align="right">{t("customers.tableActions")}</EnterpriseTableHeading>
           </tr>
         </EnterpriseTableHead>
@@ -88,7 +69,7 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, t }:
           {items.map((customer) => (
             <EnterpriseTableRow
               key={customer.id}
-              className="cursor-pointer"
+              className="cursor-pointer transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]/80 hover:shadow-[0_10px_24px_-20px_rgba(15,23,42,0.28)]"
               role="link"
               tabIndex={0}
               aria-label={`${t("customers.view")} ${customer.name}`}
@@ -117,7 +98,7 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, t }:
                     <Link href={`/customers/${customer.id}`} className="truncate text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
                       {customer.name}
                     </Link>
-                    <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">{customer.category}</p>
+                    <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">{customer.city || customer.email}</p>
                   </div>
                 </div>
               </EnterpriseTableCell>
@@ -126,50 +107,29 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, t }:
                 <Badge tone={getCustomerTypeTone(customer.typeKey)}>{customer.type}</Badge>
               </EnterpriseTableCell>
 
-              <EnterpriseTableCell>
-                <p className="text-sm font-medium text-[var(--color-text-primary)]">{customer.contactName}</p>
-                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{customer.contactRole}</p>
-              </EnterpriseTableCell>
-
               <EnterpriseTableCell>{customer.email}</EnterpriseTableCell>
               <EnterpriseTableCell>{customer.phone}</EnterpriseTableCell>
-
-              <EnterpriseTableCell>
-                <div className="flex items-start gap-2.5">
-                  <CustomerAvatar name={customer.assignedToName} className="h-8 w-8 text-[10px]" />
-                  <div>
-                    <p className="text-sm font-medium text-[var(--color-text-primary)]">{customer.assignedToName}</p>
-                    <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{customer.assignedToRole}</p>
-                  </div>
-                </div>
-              </EnterpriseTableCell>
+              <EnterpriseTableCell>{customer.city}</EnterpriseTableCell>
 
               <EnterpriseTableCell>
                 <StatusBadge status={customer.status} />
               </EnterpriseTableCell>
 
+              <EnterpriseTableCell>{formatCreatedDate(customer.createdAt)}</EnterpriseTableCell>
+
               <EnterpriseTableCell align="right">
                 <div className="inline-flex items-center gap-1">
                   <Link href={`/customers/${customer.id}`}>
-                    <IconButton
-                      icon={<Eye size={15} aria-hidden="true" />}
-                      label={t("customers.view")}
-                      variant="ghost"
-                      size="sm"
-                    />
+                    <Button variant="ghost" size="sm" className="transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]" aria-label={t("customers.view")}>
+                      <Eye size={15} aria-hidden="true" />
+                    </Button>
                   </Link>
-                  <IconButton
-                    icon={<Pencil size={15} aria-hidden="true" />}
-                    label={t("customers.editCustomer")}
-                    variant="ghost"
-                    size="sm"
-                  />
-                  <IconButton
-                    icon={<MoreHorizontal size={15} aria-hidden="true" />}
-                    label={t("customers.actions.more")}
-                    variant="ghost"
-                    size="sm"
-                  />
+                  <Button variant="ghost" size="sm" className="transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]" aria-label={t("customers.editCustomer")}>
+                    <Pencil size={15} aria-hidden="true" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]" aria-label={t("customers.actions.more")}>
+                    <MoreHorizontal size={15} aria-hidden="true" />
+                  </Button>
                 </div>
               </EnterpriseTableCell>
             </EnterpriseTableRow>
@@ -200,6 +160,20 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, t }:
       </EnterpriseTableFooter>
     </TableContainer>
   );
+}
+
+function formatCreatedDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 }
 
 function getCustomerTypeTone(typeKey: string): "neutral" | "brand" | "success" | "warning" | "info" {

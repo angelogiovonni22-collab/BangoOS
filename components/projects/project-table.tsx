@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  Badge,
   EnterpriseTable,
   EnterpriseTableBody,
   EnterpriseTableCell,
@@ -17,14 +19,16 @@ export type ProjectTableItem = {
   id: string;
   projectName: string;
   customerName: string;
-  projectManagerName: string;
+  superintendentName: string;
   statusKey: string;
   statusLabel: string;
   budgetLabel: string;
+  spentLabel: string;
+  profitMarginLabel: string;
   progress: number;
-  startDateLabel: string;
-  endDateLabel: string;
-  lastActivityLabel: string;
+  dueDateLabel: string;
+  healthKey: "on_track" | "at_risk" | "behind" | "complete";
+  healthLabel: string;
 };
 
 type ProjectTableProps = {
@@ -33,30 +37,56 @@ type ProjectTableProps = {
 };
 
 export function ProjectTable({ items, t }: ProjectTableProps) {
+  const router = useRouter();
+
   return (
     <TableContainer
       title={t("projects.directoryTitle")}
       description={t("projects.directoryDescription")}
     >
-      <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[1260px]">
+      <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[1320px]">
           <EnterpriseTableHead>
             <tr>
               <EnterpriseTableHeading>{t("projects.tableProject")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableCustomer")}</EnterpriseTableHeading>
-              <EnterpriseTableHeading>{t("projects.tableProjectManager")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableStatus")}</EnterpriseTableHeading>
-              <EnterpriseTableHeading>{t("projects.tableBudget")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableProgress")}</EnterpriseTableHeading>
-              <EnterpriseTableHeading>{t("projects.tableStartDate")}</EnterpriseTableHeading>
-              <EnterpriseTableHeading>{t("projects.tableEndDate")}</EnterpriseTableHeading>
-              <EnterpriseTableHeading>{t("projects.tableLastActivity")}</EnterpriseTableHeading>
+              <EnterpriseTableHeading>{t("projects.tableBudget")}</EnterpriseTableHeading>
+              <EnterpriseTableHeading>Spent</EnterpriseTableHeading>
+              <EnterpriseTableHeading>Profit Margin</EnterpriseTableHeading>
+              <EnterpriseTableHeading>Superintendent</EnterpriseTableHeading>
+              <EnterpriseTableHeading>Due Date</EnterpriseTableHeading>
+              <EnterpriseTableHeading>Health</EnterpriseTableHeading>
               <EnterpriseTableHeading align="right">{t("projects.tableActions")}</EnterpriseTableHeading>
             </tr>
           </EnterpriseTableHead>
 
           <EnterpriseTableBody>
             {items.map((project) => (
-              <EnterpriseTableRow key={project.id}>
+              <EnterpriseTableRow
+                key={project.id}
+                className="cursor-pointer transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]/80 hover:shadow-[0_10px_24px_-20px_rgba(15,23,42,0.28)]"
+                role="link"
+                tabIndex={0}
+                aria-label={`${t("projects.viewWorkspace")} ${project.projectName}`}
+                onClick={(event) => {
+                  const target = event.target as HTMLElement;
+
+                  if (target.closest("a,button,input,select,textarea")) {
+                    return;
+                  }
+
+                  router.push(`/projects/${project.id}`);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  router.push(`/projects/${project.id}`);
+                }}
+              >
                 <EnterpriseTableCell>
                   <div className="flex items-start gap-3">
                     <ProjectAvatar name={project.projectName} />
@@ -73,17 +103,20 @@ export function ProjectTable({ items, t }: ProjectTableProps) {
                 </EnterpriseTableCell>
 
                 <EnterpriseTableCell>{project.customerName}</EnterpriseTableCell>
-                <EnterpriseTableCell>{project.projectManagerName}</EnterpriseTableCell>
                 <EnterpriseTableCell>
                   <ProjectStatusBadge statusKey={project.statusKey} label={project.statusLabel} />
                 </EnterpriseTableCell>
-                <EnterpriseTableCell className="font-semibold">{project.budgetLabel}</EnterpriseTableCell>
                 <EnterpriseTableCell>
                   <ProjectProgress value={project.progress} />
                 </EnterpriseTableCell>
-                <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.startDateLabel}</EnterpriseTableCell>
-                <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.endDateLabel}</EnterpriseTableCell>
-                <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.lastActivityLabel}</EnterpriseTableCell>
+                <EnterpriseTableCell className="font-semibold">{project.budgetLabel}</EnterpriseTableCell>
+                <EnterpriseTableCell>{project.spentLabel}</EnterpriseTableCell>
+                <EnterpriseTableCell className="font-semibold">{project.profitMarginLabel}</EnterpriseTableCell>
+                <EnterpriseTableCell>{project.superintendentName}</EnterpriseTableCell>
+                <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.dueDateLabel}</EnterpriseTableCell>
+                <EnterpriseTableCell>
+                  <Badge tone={getHealthTone(project.healthKey)}>{project.healthLabel}</Badge>
+                </EnterpriseTableCell>
                 <EnterpriseTableCell align="right">
                   <ProjectActions
                     projectId={project.id}
@@ -98,4 +131,24 @@ export function ProjectTable({ items, t }: ProjectTableProps) {
       </EnterpriseTable>
     </TableContainer>
   );
+}
+
+function getHealthTone(healthKey: ProjectTableItem["healthKey"]): "brand" | "success" | "warning" | "danger" | "neutral" {
+  if (healthKey === "complete") {
+    return "success";
+  }
+
+  if (healthKey === "at_risk") {
+    return "warning";
+  }
+
+  if (healthKey === "behind") {
+    return "danger";
+  }
+
+  if (healthKey === "on_track") {
+    return "brand";
+  }
+
+  return "neutral";
 }

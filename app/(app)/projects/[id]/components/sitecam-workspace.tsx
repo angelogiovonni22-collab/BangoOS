@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { WorkspaceEnvironment } from "@/components/bangoflow";
 import { Badge, Button, Card, CardContent, EmptyState, ErrorState, SectionHeader, Select, SkeletonLoader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n, type AppLocale } from "@/lib/i18n/provider";
@@ -611,7 +612,8 @@ export function SiteCamWorkspace({
   const hasPermissionError = isPermissionError(errorMessage || "");
 
   return (
-    <div className="space-y-4">
+    <WorkspaceEnvironment workspace="camera" routeKey={`${projectId}:sitecam`} className="bf-sitecam-environment">
+      <div className="space-y-4">
       <Card>
         <CardContent className="space-y-6 p-6">
           <SectionHeader
@@ -984,7 +986,8 @@ export function SiteCamWorkspace({
           </article>
         </DialogOverlay>
       ) : null}
-    </div>
+      </div>
+    </WorkspaceEnvironment>
   );
 }
 

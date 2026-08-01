@@ -209,21 +209,49 @@ as $$
   )
 $$;
 
-insert into public.user_profiles (id, first_name, last_name, display_name, phone)
-select
-  p.id,
-  p.first_name,
-  p.last_name,
-  nullif(trim(concat_ws(' ', p.first_name, p.last_name)), ''),
-  p.phone
-from public.profiles p
-on conflict (id) do update
-set
-  first_name = coalesce(excluded.first_name, public.user_profiles.first_name),
-  last_name = coalesce(excluded.last_name, public.user_profiles.last_name),
-  display_name = coalesce(excluded.display_name, public.user_profiles.display_name),
-  phone = coalesce(excluded.phone, public.user_profiles.phone),
-  updated_at = now();
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'user_profiles'
+      and column_name = 'user_id'
+  ) then
+    insert into public.user_profiles (id, user_id, first_name, last_name, display_name, phone)
+    select
+      p.id,
+      p.id,
+      p.first_name,
+      p.last_name,
+      nullif(trim(concat_ws(' ', p.first_name, p.last_name)), ''),
+      p.phone
+    from public.profiles p
+    on conflict (id) do update
+    set
+      first_name = coalesce(excluded.first_name, public.user_profiles.first_name),
+      last_name = coalesce(excluded.last_name, public.user_profiles.last_name),
+      display_name = coalesce(excluded.display_name, public.user_profiles.display_name),
+      phone = coalesce(excluded.phone, public.user_profiles.phone),
+      updated_at = now();
+  else
+    insert into public.user_profiles (id, first_name, last_name, display_name, phone)
+    select
+      p.id,
+      p.first_name,
+      p.last_name,
+      nullif(trim(concat_ws(' ', p.first_name, p.last_name)), ''),
+      p.phone
+    from public.profiles p
+    on conflict (id) do update
+    set
+      first_name = coalesce(excluded.first_name, public.user_profiles.first_name),
+      last_name = coalesce(excluded.last_name, public.user_profiles.last_name),
+      display_name = coalesce(excluded.display_name, public.user_profiles.display_name),
+      phone = coalesce(excluded.phone, public.user_profiles.phone),
+      updated_at = now();
+  end if;
+end $$;
 
 insert into public.company_memberships (company_id, user_id, role, status, is_primary, joined_at)
 select

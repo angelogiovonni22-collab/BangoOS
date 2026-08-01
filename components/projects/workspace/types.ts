@@ -2,14 +2,11 @@ import type { ReactNode } from "react";
 
 export type ProjectWorkspaceTabKey =
   | "overview"
-  | "daily_reports"
-  | "scheduling"
-  | "crew"
-  | "equipment"
-  | "safety"
-  | "plans"
-  | "financials"
-  | "ai_insights";
+  | "work"
+  | "financial"
+  | "resources"
+  | "documents"
+  | "timeline";
 
 export type WorkspaceSummaryCardItem = {
   label: string;

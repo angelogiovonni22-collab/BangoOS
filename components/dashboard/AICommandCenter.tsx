@@ -1,14 +1,17 @@
 import { useMemo } from "react";
+import { IntelligenceActivity, StatusPulse } from "@/components/motion";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, SkeletonLoader } from "@/components/ui";
+import { buildRecommendationPulseKey } from "@/lib/dashboard/motion-helpers";
 import type { AIRecommendation } from "@/lib/dashboard/types";
 
 type AICommandCenterProps = {
   recommendations: AIRecommendation[];
   isLoading?: boolean;
+  errorMessage?: string | null;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function AICommandCenter({ recommendations, isLoading = false, t }: AICommandCenterProps) {
+export function AICommandCenter({ recommendations, isLoading = false, errorMessage = null, t }: AICommandCenterProps) {
   const sorted = useMemo(
     () => [...recommendations].sort((a, b) => priorityWeight(a.priority) - priorityWeight(b.priority)),
     [recommendations],
@@ -19,18 +22,30 @@ export function AICommandCenter({ recommendations, isLoading = false, t }: AICom
       <CardHeader className="bg-[var(--color-surface-subtle)]/70">
         <CardTitle>{t("dashboard.commandCenterTitle")}</CardTitle>
         <CardDescription>{t("dashboard.commandCenterDescription")}</CardDescription>
+        <div className="pt-1">
+          <IntelligenceActivity active={isLoading} label={t("dashboard.loadingMetrics")} className="w-fit" />
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-3 p-5">
         {isLoading ? (
           <CommandCenterLoadingState />
+        ) : errorMessage ? (
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+            {errorMessage}
+          </p>
         ) : sorted.length === 0 ? (
           <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
             {t("dashboard.commandCenterEmpty")}
           </p>
         ) : (
           sorted.map((recommendation) => (
-            <article key={recommendation.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-small)]">
+            <StatusPulse
+              key={recommendation.id}
+              triggerKey={buildRecommendationPulseKey(recommendation)}
+              tone={recommendation.priority === "critical" || recommendation.priority === "high" ? "warning" : "neutral"}
+            >
+            <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-small)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-[var(--color-brand-700)] bg-[var(--color-primary-50)]">
@@ -55,12 +70,15 @@ export function AICommandCenter({ recommendations, isLoading = false, t }: AICom
                     variant={toButtonVariant(action.intent)}
                     className={action.intent === "primary" ? "bg-[var(--color-brand-600)] text-white hover:bg-[var(--color-brand-700)]" : ""}
                     aria-label={t(action.labelKey)}
+                    title={t("dashboard.actionUnavailable")}
+                    disabled
                   >
                     {t(action.labelKey)}
                   </Button>
                 ))}
               </div>
             </article>
+            </StatusPulse>
           ))
         )}
       </CardContent>

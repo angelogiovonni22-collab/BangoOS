@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
+import { FadeIn, MotionProvider } from "@/components/motion";
 import {
   ActivityFeed,
   AICommandCenter,
   BusinessScore,
   DashboardHeader,
   DashboardCustomizer,
+  ExecutiveRelationshipView,
   KPIGrid,
   ProjectHealth,
   ScheduleWidget,
@@ -14,9 +16,11 @@ import {
 } from "@/components/dashboard";
 import { Button, Card, CardContent, ErrorState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
+import { getWidgetSequenceRank, shouldShowDashboardPreviewDataBadge } from "@/lib/dashboard/motion-helpers";
 import { useDashboardLayout } from "@/lib/dashboard/use-dashboard-layout";
 import { useExecutiveDashboard } from "@/lib/dashboard/use-executive-dashboard";
 import type { DashboardMetric, WidgetId } from "@/lib/dashboard/types";
+import { ExecutiveIntelligenceBar } from "@/components/orion/ExecutiveIntelligenceBar";
 
 function getGreetingKey(currentHour: number) {
   if (currentHour < 12) {
@@ -48,7 +52,7 @@ function formatMetricValue(metric: DashboardMetric, localeTag: string) {
 
 export default function DashboardPage() {
   const { t, locale } = useI18n();
-  const { data, companyName, isLoading, errorMessage } = useExecutiveDashboard();
+  const { data, companyName, isLoading, errorMessage, isMockData, sectionErrors, workspaceContext } = useExecutiveDashboard();
   const {
     layout,
     visibleWidgetOrder,
@@ -68,6 +72,12 @@ export default function DashboardPage() {
     year: "numeric",
   }).format(now);
 
+  const showPreviewDataBadge = shouldShowDashboardPreviewDataBadge({
+    isMockData,
+    forceVisible: process.env.NEXT_PUBLIC_DASHBOARD_SHOW_MOCK_BADGE === "true",
+    nodeEnv: process.env.NODE_ENV,
+  });
+
   const widgetClassById: Record<WidgetId, string> = {
     kpi: "xl:col-span-3",
     schedule: "xl:col-span-2",
@@ -83,20 +93,22 @@ export default function DashboardPage() {
       kpi: (
         <KPIGrid
           metrics={data.metrics}
+          localeTag={localeTag}
           isLoading={isLoading}
           isEmpty={data.metrics.length === 0}
-          formatValue={(metric) => formatMetricValue(metric, localeTag)}
+          errorMessage={sectionErrors.kpi ?? null}
+          formatValue={(metric) => metric.displayValueKey ? t(metric.displayValueKey) : formatMetricValue(metric, localeTag)}
           t={t}
         />
       ),
-      schedule: <ScheduleWidget events={data.schedule} t={t} />,
-      "project-health": <ProjectHealth summary={data.projectHealth} t={t} />,
-      weather: <WeatherWidget weather={data.weather} t={t} />,
-      activity: <ActivityFeed items={data.activities} isLoading={isLoading} t={t} />,
-      "business-score": <BusinessScore snapshot={data.businessScore} isLoading={isLoading} t={t} />,
-      "command-center": <AICommandCenter recommendations={data.recommendations} isLoading={isLoading} t={t} />,
+      schedule: <ScheduleWidget events={data.schedule} errorMessage={sectionErrors.schedule ?? null} t={t} />,
+      "project-health": <ProjectHealth summary={data.projectHealth} errorMessage={sectionErrors["project-health"] ?? null} t={t} />,
+      weather: <WeatherWidget weather={data.weather} errorMessage={sectionErrors.weather ?? null} t={t} />,
+      activity: <ActivityFeed items={data.activities} isLoading={isLoading} errorMessage={sectionErrors.activity ?? null} t={t} />,
+      "business-score": <BusinessScore snapshot={data.businessScore} summary={data.businessSummary} isLoading={isLoading} errorMessage={sectionErrors["business-score"] ?? null} t={t} />,
+      "command-center": <AICommandCenter recommendations={data.recommendations} isLoading={isLoading} errorMessage={sectionErrors["command-center"] ?? null} t={t} />,
     }),
-    [data, isLoading, localeTag, t],
+    [data, isLoading, localeTag, sectionErrors, t],
   );
 
   const widgetTitleById = useMemo(
@@ -109,59 +121,84 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <DashboardHeader
-        title={t("navigation.dashboard")}
-        companyName={companyName || t("common.appName")}
-        currentDate={currentDate}
-        description={greeting}
-        action={
-          <DashboardCustomizer
-            widgets={data.widgetDefinitions}
-            layout={layout}
+    <MotionProvider>
+      <div className="space-y-6 overflow-x-hidden">
+        <FadeIn delayMs={0} distancePx={4}>
+          <DashboardHeader
+            title={t("navigation.dashboard")}
+            companyName={companyName || t("common.appName")}
+            currentDate={currentDate}
+            description={greeting}
+            previewDataLabel={showPreviewDataBadge ? t("dashboard.previewData") : null}
+            isReady={!isLoading}
             t={t}
-            onToggleVisibility={toggleWidgetVisibility}
-            onToggleCollapsed={toggleWidgetCollapsed}
-            onReorder={reorderWidgets}
-            onReset={resetLayout}
+            action={
+              <DashboardCustomizer
+                widgets={data.widgetDefinitions}
+                layout={layout}
+                t={t}
+                onToggleVisibility={toggleWidgetVisibility}
+                onToggleCollapsed={toggleWidgetCollapsed}
+                onReorder={reorderWidgets}
+                onReset={resetLayout}
+              />
+            }
           />
-        }
-      />
+        </FadeIn>
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        {visibleWidgetOrder.map((widgetId) => {
-          const isCollapsed = layout.collapsed.includes(widgetId);
-
-          if (isCollapsed) {
-            return (
-              <Card key={widgetId} className={widgetClassById[widgetId]}>
-                <CardContent className="flex items-center justify-between gap-3 p-4">
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                    {widgetTitleById.get(widgetId) || t("dashboard.widget")}
-                  </p>
-                  <Button size="sm" variant="outline" onClick={() => toggleWidgetCollapsed(widgetId)}>
-                    {t("dashboard.expand")}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          }
-
-          return (
-            <div key={widgetId} className={widgetClassById[widgetId]}>
-              {widgetContentById[widgetId]}
-            </div>
-          );
-        })}
-      </section>
-
-      {visibleWidgetOrder.length === 0 ? (
-        <ErrorState
-          compact
-          title={t("dashboard.noWidgetsVisible")}
-          description={t("dashboard.noWidgetsVisibleDescription")}
+        <ExecutiveIntelligenceBar
+          companyName={companyName}
+          workspaceContext={workspaceContext}
+          dashboardData={data}
+          dashboardSectionErrors={sectionErrors}
+          isDashboardLoading={isLoading}
+          localeTag={localeTag}
+          t={t}
         />
-      ) : null}
-    </div>
+
+        <FadeIn delayMs={140} distancePx={6}>
+          <ExecutiveRelationshipView companyName={companyName || t("common.appName")} data={data} />
+        </FadeIn>
+
+        <section className="grid gap-6 xl:grid-cols-3">
+          {visibleWidgetOrder.map((widgetId) => {
+            const isCollapsed = layout.collapsed.includes(widgetId);
+            const sequenceRank = getWidgetSequenceRank(widgetId);
+            const delayMs = Math.min(260, sequenceRank * 28);
+
+            if (isCollapsed) {
+              return (
+                <FadeIn key={widgetId} delayMs={delayMs} distancePx={5} className={widgetClassById[widgetId]}>
+                  <Card>
+                    <CardContent className="flex items-center justify-between gap-3 p-4">
+                      <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                        {widgetTitleById.get(widgetId) || t("dashboard.widget")}
+                      </p>
+                      <Button size="sm" variant="outline" onClick={() => toggleWidgetCollapsed(widgetId)}>
+                        {t("dashboard.expand")}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </FadeIn>
+              );
+            }
+
+            return (
+              <FadeIn key={widgetId} delayMs={delayMs} distancePx={5} className={widgetClassById[widgetId]}>
+                {widgetContentById[widgetId]}
+              </FadeIn>
+            );
+          })}
+        </section>
+
+        {visibleWidgetOrder.length === 0 ? (
+          <ErrorState
+            compact
+            title={t("dashboard.noWidgetsVisible")}
+            description={t("dashboard.noWidgetsVisibleDescription")}
+          />
+        ) : null}
+      </div>
+    </MotionProvider>
   );
 }

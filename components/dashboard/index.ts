@@ -10,3 +10,4 @@ export { WeatherWidget } from "./WeatherWidget";
 export { AIInsightsCard } from "./AIInsightsCard";
 export { AICommandCenter } from "./AICommandCenter";
 export { DashboardCustomizer } from "./DashboardCustomizer";
+export { ExecutiveRelationshipView } from "@/components/business-graph";

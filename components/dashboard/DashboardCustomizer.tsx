@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useRef } from "react";
+import { FadeIn, useFocusTrap } from "@/components/motion";
 import type { DashboardLayoutState, DashboardWidgetDefinition, WidgetId } from "@/lib/dashboard/types";
 
 type DashboardCustomizerProps = {
@@ -22,6 +24,13 @@ export function DashboardCustomizer({
 }: DashboardCustomizerProps) {
   const [open, setOpen] = useState(false);
   const [dragId, setDragId] = useState<WidgetId | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  useFocusTrap({
+    active: open,
+    containerRef: panelRef,
+    onEscape: () => setOpen(false),
+  });
 
   const orderedWidgets = layout.order
     .map((id) => widgets.find((widget) => widget.id === id))
@@ -40,9 +49,12 @@ export function DashboardCustomizer({
       </button>
 
       {open ? (
+        <FadeIn delayMs={0} distancePx={4} className="absolute right-0 z-30 mt-2 w-80">
         <div
+          ref={panelRef}
           id="dashboard-customizer-panel"
-          className="absolute right-0 z-30 mt-2 w-80 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-large)]"
+          tabIndex={-1}
+          className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-large)]"
         >
           <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t("dashboard.customizeTitle")}</p>
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{t("dashboard.customizeDescription")}</p>
@@ -127,6 +139,7 @@ export function DashboardCustomizer({
             {t("dashboard.restoreDefault")}
           </button>
         </div>
+        </FadeIn>
       ) : null}
     </div>
   );

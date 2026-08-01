@@ -12,6 +12,7 @@ import dailyReportsEn from "@/locales/en/daily-reports.json";
 import navigationEn from "@/locales/en/navigation.json";
 import onboardingEn from "@/locales/en/onboarding.json";
 import operationsEn from "@/locales/en/operations.json";
+import orionEn from "@/locales/en/orion.json";
 import projectsEn from "@/locales/en/projects.json";
 import schedulingEn from "@/locales/en/scheduling.json";
 import commonEs from "@/locales/es/common.json";
@@ -25,6 +26,7 @@ import dailyReportsEs from "@/locales/es/daily-reports.json";
 import navigationEs from "@/locales/es/navigation.json";
 import onboardingEs from "@/locales/es/onboarding.json";
 import operationsEs from "@/locales/es/operations.json";
+import orionEs from "@/locales/es/orion.json";
 import projectsEs from "@/locales/es/projects.json";
 import schedulingEs from "@/locales/es/scheduling.json";
 
@@ -44,6 +46,7 @@ type LocaleDictionaries = {
   navigation: NamespaceDictionary;
   onboarding: NamespaceDictionary;
   operations: NamespaceDictionary;
+  orion: NamespaceDictionary;
   projects: NamespaceDictionary;
   scheduling: NamespaceDictionary;
 };
@@ -85,6 +88,7 @@ const resources: TranslationResources = {
     navigation: navigationEn,
     onboarding: onboardingEn,
     operations: operationsEn,
+    orion: orionEn,
     projects: projectsEn,
     scheduling: schedulingEn,
   },
@@ -100,6 +104,7 @@ const resources: TranslationResources = {
     navigation: navigationEs,
     onboarding: onboardingEs,
     operations: operationsEs,
+    orion: orionEs,
     projects: projectsEs,
     scheduling: schedulingEs,
   },
@@ -189,6 +194,7 @@ function resolveNamespaceAndKey(path: string): {
     || firstSegment === "navigation"
     || firstSegment === "onboarding"
     || firstSegment === "operations"
+    || firstSegment === "orion"
     || firstSegment === "projects"
     || firstSegment === "scheduling"
   ) {

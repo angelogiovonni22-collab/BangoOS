@@ -8,12 +8,8 @@
     CalendarDays,
     Clock3,
     CreditCard,
-    EllipsisVertical,
     Globe,
     History,
-    Mail,
-    MapPin,
-    Phone,
     ReceiptText,
     StickyNote,
     UserRound,
@@ -26,6 +22,7 @@
     CardContent,
     CardHeader,
     CardTitle,
+    Button,
     EmptyState,
     ErrorState,
     EnterpriseTable,
@@ -104,17 +101,17 @@
     tags: string[];
   };
 
-  type ProfileTab = "overview" | "contacts" | "projects" | "estimates" | "invoices" | "activity" | "notes";
-  type HeroTone = "blue" | "green" | "orange" | "purple" | "red" | "cyan";
-
+  type ProfileTab = "overview" | "projects" | "estimates" | "invoices" | "change-orders" | "documents" | "photos" | "notes" | "timeline";
   const PROFILE_TABS: Array<{ key: ProfileTab; label: string }> = [
     { key: "overview", label: "Overview" },
-    { key: "contacts", label: "Contacts" },
     { key: "projects", label: "Projects" },
     { key: "estimates", label: "Estimates" },
     { key: "invoices", label: "Invoices" },
-    { key: "activity", label: "Activity" },
+    { key: "change-orders", label: "Change Orders" },
+    { key: "documents", label: "Documents" },
+    { key: "photos", label: "Photos" },
     { key: "notes", label: "Notes" },
+    { key: "timeline", label: "Timeline" },
   ];
 
   export default function CustomerDetailsPage() {
@@ -358,44 +355,77 @@
 
     return (
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
-              <Link href="/customers" className="text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">
-                Customers
-              </Link>
-              <span>/</span>
-              <span className="truncate">{customerProfile.customerName}</span>
+        <section className="overflow-hidden rounded-[var(--radius-3xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] shadow-[var(--shadow-large)]">
+          <div className="bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(6,182,212,0.06),transparent)] px-6 py-6 sm:px-7 sm:py-7">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 space-y-4">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
+                  <Link href="/customers" className="text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">
+                    Customers
+                  </Link>
+                  <span>/</span>
+                  <span className="truncate">Customer Workspace</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <CustomerAvatar name={customerProfile.customerName} className="h-16 w-16 text-base" />
+                  <div className="min-w-0">
+                    <h1 className="truncate text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-5xl">{customerProfile.customerName}</h1>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Badge tone={customerProfile.statusKey === "active" ? "success" : customerProfile.statusKey === "archived" ? "neutral" : "warning"}>
+                        {customerProfile.statusLabel}
+                      </Badge>
+                      <Badge tone={customerProfile.customerTypeKey === "commercial" ? "brand" : "success"}>
+                        {formatCustomerTypeLabel(customerProfile.customerTypeLabel)}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="max-w-3xl text-base leading-7 text-[var(--color-text-secondary)] sm:text-lg">
+                  Manage the customer relationship, track projects and billing, and review the latest activity in one workspace.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 self-start lg:justify-end">
+                <Link
+                  href={`/customers/${customerProfile.customer.id}/edit`}
+                  className="inline-flex h-11 items-center rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-white px-4 text-sm font-semibold text-[var(--color-text-primary)] shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]"
+                >
+                  Edit
+                </Link>
+                <Link
+                  href={`/estimates/new?customerId=${customerProfile.customer.id}`}
+                  className="inline-flex h-11 items-center rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-white px-4 text-sm font-semibold text-[var(--color-text-primary)] shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]"
+                >
+                  New Estimate
+                </Link>
+                <Link
+                  href={`/projects/new?customerId=${customerProfile.customer.id}`}
+                  className="inline-flex h-11 items-center rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-white px-4 text-sm font-semibold text-[var(--color-text-primary)] shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]"
+                >
+                  New Project
+                </Link>
+                <Link
+                  href={`/invoices/new?customerId=${customerProfile.customer.id}${customerProfile.currentProject ? `&projectId=${customerProfile.currentProject.id}` : ""}`}
+                  className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white shadow-[0_12px_26px_-16px_rgba(37,99,235,0.75)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-brand-700)] hover:shadow-[0_16px_30px_-14px_rgba(37,99,235,0.85)]"
+                >
+                  New Invoice
+                </Link>
+              </div>
             </div>
 
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-[2.35rem]">Customer Profile</h1>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <SummaryCard icon={<CreditCard size={16} aria-hidden="true" />} label="Lifetime Revenue" value="Coming Soon" context="No revenue data yet" tone="brand" />
+              <SummaryCard icon={<Building2 size={16} aria-hidden="true" />} label="Active Projects" value={String(customerProfile.activeProjects.length)} context={customerProfile.activeProjects.length > 0 ? "Currently active work" : "No active projects"} tone="success" />
+              <SummaryCard icon={<CreditCard size={16} aria-hidden="true" />} label="Outstanding Balance" value={formatProjectCurrency(customerProfile.outstandingBalance, localeTag(locale), "$0")} context={customerProfile.outstandingBalance > 0 ? "Balance due" : "No outstanding balance"} tone="warning" />
+              <SummaryCard icon={<CalendarDays size={16} aria-hidden="true" />} label="Member Since" value={customerProfile.customerSince} context="Customer record creation date" tone="info" />
+            </div>
           </div>
-
-          <div className="flex items-center gap-2 self-start">
-            <Link
-              href={`/customers/${customerProfile.customer.id}/edit`}
-              className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]"
-            >
-              Edit Customer
-            </Link>
-
-            <details className="relative">
-              <summary className="flex h-11 w-11 list-none items-center justify-center rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] text-[var(--color-text-secondary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--color-surface-subtle)]">
-                <EllipsisVertical size={18} aria-hidden="true" />
-              </summary>
-
-              <div className="absolute right-0 z-20 mt-2 w-56 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-2 shadow-[0_18px_30px_-18px_rgb(15_23_42/0.35)]">
-                <ActionMenuItem label="Archive Customer" disabled />
-                <ActionMenuItem label="Delete Customer" disabled destructive />
-              </div>
-            </details>
-          </div>
-        </div>
-
-        <CustomerHero profile={customerProfile} locale={locale} />
+        </section>
 
         <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-1.5 shadow-[var(--shadow-small)]">
-          <nav className="flex gap-1.5 overflow-x-auto" aria-label="Customer profile tabs">
+          <nav className="flex gap-1.5 overflow-x-auto p-1" aria-label="Customer workspace tabs">
             {PROFILE_TABS.map((tab) => {
               const active = tab.key === activeTab;
 
@@ -404,7 +434,7 @@
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
-                  className={`whitespace-nowrap rounded-[var(--radius-lg)] border-b-2 px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] ${
+                  className={`whitespace-nowrap rounded-[var(--radius-lg)] border-b-2 px-4 py-3 text-sm font-semibold transition-all duration-200 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] ${
                     active
                       ? "border-[var(--color-brand-600)] text-[var(--color-brand-700)]"
                       : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
@@ -419,7 +449,7 @@
           </nav>
         </section>
 
-        <div role="tabpanel" aria-label={PROFILE_TABS.find((tab) => tab.key === activeTab)?.label || "Customer profile section"}>
+        <div role="tabpanel" aria-label={PROFILE_TABS.find((tab) => tab.key === activeTab)?.label || "Customer workspace section"}>
           {tabContent}
         </div>
       </div>
@@ -450,278 +480,104 @@
     invoicesError: string | null;
   }) {
     switch (activeTab) {
-      case "contacts":
-        return <ContactsTab profile={profile} t={t} />;
       case "projects":
         return <ProjectsTab profile={profile} locale={locale} t={t} projectsLoading={projectsLoading} projectsError={projectsError} />;
       case "estimates":
         return <EstimatesTab profile={profile} locale={locale} t={t} estimatesLoading={estimatesLoading} estimatesError={estimatesError} />;
       case "invoices":
         return <InvoicesTab profile={profile} locale={locale} t={t} invoicesLoading={invoicesLoading} invoicesError={invoicesError} />;
-      case "activity":
-        return <ActivityTab profile={profile} />;
+      case "change-orders":
+        return <ChangeOrdersTab profile={profile} />;
+      case "documents":
+        return <DocumentsTab />;
+      case "photos":
+        return <PhotosTab />;
       case "notes":
         return <NotesTab profile={profile} />;
+      case "timeline":
+        return <TimelineTab profile={profile} />;
       case "overview":
       default:
         return <OverviewTab profile={profile} locale={locale} t={t} />;
     }
   }
 
-  function CustomerHero({ profile, locale }: { profile: CustomerProfile; locale: string; }) {
+  function OverviewTab({ profile, locale, t }: { profile: CustomerProfile; locale: string; t: (key: string, params?: Record<string, string | number>) => string; }) {
     return (
-      <section className="rounded-[var(--radius-3xl)] bg-[var(--color-sidebar)] px-6 py-6 text-white shadow-[0_24px_44px_-30px_rgb(15_23_42/0.7)] sm:px-7">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(0,0.95fr)] xl:items-start">
-          <div className="space-y-4">
-            <div className="flex items-center gap-5">
-              <CustomerAvatar name={profile.customerName} className="h-[72px] w-[72px] shrink-0 border border-white/10 bg-white/10 text-lg font-semibold text-white" />
-
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">Customer Account</p>
-                <h2 className="mt-2 truncate text-[2.15rem] font-extrabold tracking-[-0.04em] text-white sm:text-[2.9rem]">{profile.customerName}</h2>
-                <p className="mt-2 text-sm font-semibold text-white/75">{profile.customerTypeLabel}</p>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <HeroBadge>{profile.statusLabel}</HeroBadge>
-                  <HeroBadge tone="muted">Primary Contact</HeroBadge>
-                </div>
-              </div>
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div className="space-y-4">
+          <ProfileCard title="Customer Information" icon={<UserRound size={16} />}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DetailRow label="Primary Contact" value={profile.primaryContactName} />
+              <DetailRow label="Account Owner" value={profile.accountOwnerName} subValue={profile.accountOwnerRole} />
+              <DetailRow label="Phone" value={profile.contactPhone || t("customers.notProvided")} />
+              <DetailRow label="Email" value={profile.contactEmail || t("customers.notProvided")} />
+              <DetailRow label="Address" value={profile.address || t("customers.notProvided")} multiline />
+              <DetailRow label="Customer Since" value={profile.customerSince} />
             </div>
+          </ProfileCard>
 
+          <ProfileCard title="Financial Summary" icon={<CreditCard size={16} />}>
             <div className="grid gap-3 sm:grid-cols-2">
-              <HeroMetric
-                label="Active Projects"
-                value={String(profile.activeProjects.length)}
-                supportingText={profile.activeProjects.length > 0 ? "Projects currently in progress" : "No active projects"}
-                tone="blue"
-                icon={<Building2 size={18} aria-hidden="true" />}
-              />
-              <HeroMetric
-                label="Open Estimates"
-                value={String(profile.estimates.length)}
-                supportingText={profile.estimates.length > 0 ? "Estimates awaiting action" : "No open estimates"}
-                tone="green"
-                icon={<ReceiptText size={18} aria-hidden="true" />}
-              />
+              <SummaryCard icon={<CreditCard size={16} aria-hidden="true" />} label="Outstanding Balance" value={formatProjectCurrency(profile.outstandingBalance, localeTag(locale), "$0")} context={profile.outstandingBalance > 0 ? "Balance due" : "No outstanding balance"} tone="warning" compact />
+              <SummaryCard icon={<ReceiptText size={16} aria-hidden="true" />} label="Invoices" value={String(profile.invoices.length)} context="Billing records" tone="info" compact />
+              <SummaryCard icon={<ReceiptText size={16} aria-hidden="true" />} label="Estimates" value={String(profile.estimates.length)} context="Estimate records" tone="brand" compact />
+              <SummaryCard icon={<Building2 size={16} aria-hidden="true" />} label="Active Projects" value={String(profile.activeProjects.length)} context="Projects in progress" tone="success" compact />
             </div>
+          </ProfileCard>
 
-            <div className="rounded-[var(--radius-2xl)] border border-white/10 bg-white/[0.07] px-4 py-4 shadow-[0_12px_24px_-22px_rgb(15_23_42/0.55)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/55">Current Project</p>
-              <p className="mt-1 text-sm font-semibold text-white">
-                {profile.currentProject ? profile.currentProject.name : "No active project yet"}
-              </p>
-              <p className="mt-1 text-xs font-medium text-white/60">
-                {profile.currentProject ? "Most recent active work" : "No active projects"}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-3">
-            <HeroInfoLine icon={<Phone size={18} />} label="Phone" value={profile.contactPhone || "Not provided"} tone="blue" />
-            <HeroInfoLine icon={<Mail size={18} />} label="Email" value={profile.contactEmail || "Not provided"} tone="green" />
-            <HeroInfoLine icon={<CalendarDays size={18} />} label="Customer Since" value={profile.customerSince} tone="orange" />
-            <HeroInfoLine icon={<UserRound size={18} />} label="Account Owner" value={profile.accountOwnerName} subValue={profile.accountOwnerRole} tone="purple" />
-          </div>
-
-          <div className="grid gap-3">
-            <HeroInfoLine icon={<MapPin size={18} />} label="Primary Address" value={profile.address || "Not provided"} multiline tone="red" />
-            <HeroInfoLine icon={<Building2 size={18} />} label="Primary Contact" value={profile.primaryContactName} subValue={profile.customerTypeLabel} tone="cyan" />
-            <HeroInfoLine
-              icon={<CreditCard size={18} />}
-              label="Outstanding Balance"
-              value={formatProjectCurrency(profile.outstandingBalance, localeTag(locale), "$0")}
-              subValue={profile.outstandingBalance > 0 ? "Balance currently outstanding" : "No outstanding balance"}
-              tone="orange"
-            />
-            <HeroInfoLine icon={<Globe size={18} />} label="Website" value="Not provided" tone="blue" />
-          </div>
+          <ProfileCard title="Recent Activity Timeline" icon={<History size={16} />}>
+            <TimelineList profile={profile} compact />
+          </ProfileCard>
         </div>
+
+        <ProfileCard title="AI Insights" icon={<Globe size={16} />}>
+          <AIInsightsCard profile={profile} />
+        </ProfileCard>
       </section>
     );
   }
 
-  function OverviewTab({ profile, locale, t }: { profile: CustomerProfile; locale: string; t: (key: string, params?: Record<string, string | number>) => string; }) {
-    const customerSummary = [
-      {
-        label: "Total Projects",
-        value: profile.activeProjects.length + (profile.currentProject && !profile.activeProjects.includes(profile.currentProject) ? 1 : 0),
-        context: "Linked projects",
-        tone: "brand" as const,
-        icon: <Building2 size={18} aria-hidden="true" />,
-      },
-      {
-        label: "Active Projects",
-        value: profile.activeProjects.length,
-        context: profile.activeProjects.length > 0 ? "Projects in progress" : "No active projects",
-        tone: "success" as const,
-        icon: <Clock3 size={18} aria-hidden="true" />,
-      },
-      {
-        label: "Estimates",
-        value: profile.estimates.length,
-        context: profile.estimates.length > 0 ? "Estimate records" : "No open estimates",
-        tone: "info" as const,
-        icon: <ReceiptText size={18} aria-hidden="true" />,
-      },
-      {
-        label: "Approved Estimates",
-        value: profile.approvedEstimateCount,
-        context: profile.approvedEstimateCount > 0 ? "Ready for follow-up" : "No approved estimates",
-        tone: "success" as const,
-        icon: <Users size={18} aria-hidden="true" />,
-      },
-      {
-        label: "Invoices",
-        value: profile.invoices.length,
-        context: profile.invoices.length > 0 ? "Billing records" : "No invoices yet",
-        tone: "warning" as const,
-        icon: <CreditCard size={18} aria-hidden="true" />,
-      },
-      {
-        label: "Change Orders",
-        value: profile.changeOrders.length,
-        context: profile.changeOrders.length > 0 ? "Scope change records" : "No change orders",
-        tone: "info" as const,
-        icon: <ReceiptText size={18} aria-hidden="true" />,
-      },
-      {
-        label: "Outstanding Balance",
-        value: formatProjectCurrency(profile.outstandingBalance, localeTag(locale), "$0"),
-        context: profile.outstandingBalance > 0 ? "Balance due" : "No outstanding balance",
-        tone: "danger" as const,
-        icon: <CreditCard size={18} aria-hidden="true" />,
-      },
-    ];
-
+  function ChangeOrdersTab({ profile }: { profile: CustomerProfile; }) {
     return (
-      <section className="grid gap-4 xl:grid-cols-3">
-        <ProfileCard title="Contact Information" icon={<Phone size={16} />}>
-          <DetailRow label="Phone" value={profile.contactPhone || t("customers.notProvided")} />
-          <DetailRow label="Email" value={profile.contactEmail || t("customers.notProvided")} />
-          <DetailRow label="Website" value={t("customers.notProvided")} />
-          <DetailRow label="Address" value={profile.address || t("customers.notProvided")} multiline />
-        </ProfileCard>
-
-        <ProfileCard title="Primary Contact" icon={<Building2 size={16} />}>
-          <DetailRow label="Contact Name" value={profile.primaryContactName} />
-          <DetailRow label="Title" value="Primary Contact" />
-          <DetailRow label="Phone" value={profile.contactPhone || t("customers.notProvided")} />
-          <DetailRow label="Email" value={profile.contactEmail || t("customers.notProvided")} />
-        </ProfileCard>
-
-        <ProfileCard title="Customer Details" icon={<UserRound size={16} />}>
-          <DetailRow label="Status" value={profile.statusLabel} />
-          <DetailRow label="Type" value={formatCustomerTypeLabel(profile.customerTypeLabel)} />
-          <DetailRow label="Customer Since" value={profile.customerSince} />
-          <DetailRow label="Account Owner" value={profile.accountOwnerName} subValue={profile.accountOwnerRole} />
-        </ProfileCard>
-
-        <ProfileCard title="Billing Information" icon={<CreditCard size={16} />}>
-          <DetailRow label="Billing Address" value={profile.address || t("customers.notProvided")} multiline />
-          <DetailRow label="Billing Contact" value={profile.primaryContactName} />
-          <DetailRow label="Billing Email" value={profile.contactEmail || t("customers.notProvided")} />
-          <DetailRow label="Payment Terms" value={t("customers.notProvided")} />
-        </ProfileCard>
-
-        <ProfileCard title="Customer Summary" icon={<ReceiptText size={16} />}>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {customerSummary.map((item) => (
-              <SummaryCard key={item.label} icon={item.icon} label={item.label} value={String(item.value)} context={item.context} tone={item.tone} compact />
+      <TabCard title="Change Orders" description="Change orders associated with this customer.">
+        {profile.changeOrders.length > 0 ? (
+          <div className="space-y-3">
+            {profile.changeOrders.map((changeOrder) => (
+              <article key={changeOrder.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 transition-all duration-200 hover:-translate-y-px hover:shadow-[var(--shadow-card)]">
+                <div className="flex items-center justify-between gap-3">
+                  <Link href={`/change-orders/${changeOrder.id}`} className="text-sm font-semibold text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">
+                    {changeOrder.change_order_number || "Unassigned"}
+                  </Link>
+                  <Badge tone={statusToneForChangeOrder(changeOrder.status)}>{toTitleCase(changeOrder.status.replace(/_/g, " "))}</Badge>
+                </div>
+                <p className="mt-1 text-sm text-[var(--color-text-primary)]">{changeOrder.title}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                  <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 font-semibold ring-1 ring-inset ring-[var(--color-border-subtle)]">${formatProjectCurrency(changeOrder.total_amount, localeTag("en-US"), "$0")}</span>
+                  <span>Related Project</span>
+                  <Link href={`/projects/${changeOrder.project_id}`} className="font-semibold text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">
+                    {changeOrder.project_id || "Not provided"}
+                  </Link>
+                </div>
+              </article>
             ))}
           </div>
-        </ProfileCard>
-
-        <ProfileCard title="Tags & Attributes" icon={<StickyNote size={16} />}>
-          {profile.tags.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {profile.tags.map((tag) => (
-                <Badge key={tag} tone={badgeToneForTag(tag)}>{tag}</Badge>
-              ))}
-            </div>
-          ) : (
-            <EmptyState compact icon={<StickyNote size={18} />} title="No Tags Yet" description="Customer tags and classifications will appear here when they are available." />
-          )}
-        </ProfileCard>
-
-        <ProfileCard title="Recent Change Orders" icon={<ReceiptText size={16} />}>
-          {profile.changeOrders.length > 0 ? (
-            <div className="space-y-2">
-              {profile.changeOrders.slice(0, 5).map((changeOrder) => (
-                <article key={changeOrder.id} className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-3 py-2.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <Link href={`/change-orders/${changeOrder.id}`} className="text-sm font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">
-                      {changeOrder.change_order_number || "Unassigned"}
-                    </Link>
-                    <span className="text-xs text-[var(--color-text-secondary)]">{toTitleCase(changeOrder.status.replace(/_/g, " "))}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-[var(--color-text-primary)]">{changeOrder.title}</p>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <EmptyState compact title="No change orders yet" description="Change orders for this customer will appear here." />
-          )}
-        </ProfileCard>
-      </section>
-    );
-  }
-
-  function ContactsTab({ profile, t }: { profile: CustomerProfile; t: (key: string, params?: Record<string, string | number>) => string; }) {
-    return (
-      <Card variant="elevated">
-        <CardHeader className="space-y-1.5">
-          <CardTitle className="text-[1.05rem] font-semibold tracking-[-0.02em] text-[var(--color-text-primary)]">Contacts</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 p-0">
-          <EnterpriseTable ariaLabel="Customer contacts">
-            <EnterpriseTableHead>
-              <tr>
-                <EnterpriseTableHeading>Name</EnterpriseTableHeading>
-                <EnterpriseTableHeading>Role</EnterpriseTableHeading>
-                <EnterpriseTableHeading>Phone</EnterpriseTableHeading>
-                <EnterpriseTableHeading>Email</EnterpriseTableHeading>
-                <EnterpriseTableHeading>Primary</EnterpriseTableHeading>
-                <EnterpriseTableHeading align="right">Actions</EnterpriseTableHeading>
-              </tr>
-            </EnterpriseTableHead>
-            <EnterpriseTableBody>
-              <EnterpriseTableRow>
-                <EnterpriseTableCell>
-                  <div className="flex items-center gap-3">
-                    <CustomerAvatar name={profile.primaryContactName} className="h-9 w-9 text-[11px]" />
-                    <div>
-                      <p className="font-semibold text-[var(--color-text-primary)]">{profile.primaryContactName}</p>
-                      <p className="text-xs text-[var(--color-text-secondary)]">{profile.customerTypeLabel}</p>
-                    </div>
-                  </div>
-                </EnterpriseTableCell>
-                <EnterpriseTableCell>{profile.accountOwnerRole}</EnterpriseTableCell>
-                <EnterpriseTableCell>{profile.contactPhone || t("customers.notProvided")}</EnterpriseTableCell>
-                <EnterpriseTableCell>{profile.contactEmail || t("customers.notProvided")}</EnterpriseTableCell>
-                <EnterpriseTableCell><Badge tone="success">Primary</Badge></EnterpriseTableCell>
-                <EnterpriseTableCell align="right">
-                  <div className="inline-flex items-center gap-2">
-                    <Link href={`/customers/${profile.customer.id}`} className="text-sm font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">View</Link>
-                    <Link href={`/customers/${profile.customer.id}/edit`} className="text-sm font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">Edit</Link>
-                  </div>
-                </EnterpriseTableCell>
-              </EnterpriseTableRow>
-            </EnterpriseTableBody>
-          </EnterpriseTable>
-        </CardContent>
-      </Card>
+        ) : (
+          <EmptyState compact title="No change orders yet" description="Change orders for this customer will appear here." />
+        )}
+      </TabCard>
     );
   }
 
   function ProjectsTab({ profile, locale, t, projectsLoading, projectsError }: { profile: CustomerProfile; locale: string; t: (key: string, params?: Record<string, string | number>) => string; projectsLoading: boolean; projectsError: string | null; }) {
     return (
-      <TabCard title="Projects" description="Projects associated with this customer.">
+      <TabCard title="Projects" description="Active and historical projects associated with this customer.">
         {projectsLoading ? (
-          <TableLoadingState rows={3} columns={6} />
+          <TableLoadingState rows={4} columns={7} />
         ) : projectsError ? (
-          <ErrorState title={t("customers.errorProjectsTitle")} description={projectsError} compact />
+          <ErrorState title={t("customers.errorCustomerTitle")} description={projectsError} compact />
         ) : profile.activeProjects.length > 0 ? (
-          <EnterpriseTable ariaLabel="Customer projects" minWidthClassName="min-w-[1120px]">
+          <EnterpriseTable ariaLabel="Customer projects" minWidthClassName="min-w-[1200px]">
             <EnterpriseTableHead>
               <tr>
                 <EnterpriseTableHeading>Project Name</EnterpriseTableHeading>
@@ -739,15 +595,23 @@
                   <EnterpriseTableCell>
                     <div>
                       <p className="font-semibold text-[var(--color-text-primary)]">{project.name}</p>
-                      <p className="text-xs text-[var(--color-text-secondary)]">{project.project_number || "Not provided"}</p>
+                      <p className="text-xs text-[var(--color-text-secondary)]">{project.project_number || t("customers.notProvided")}</p>
                     </div>
                   </EnterpriseTableCell>
                   <EnterpriseTableCell>{project.project_number || t("customers.notProvided")}</EnterpriseTableCell>
-                  <EnterpriseTableCell><span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${getProjectStatusBadgeClass(project.status)}`}>{normalizeProjectStatus(project.status).label}</span></EnterpriseTableCell>
+                  <EnterpriseTableCell>
+                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${getProjectStatusBadgeClass(project.status)}`}>
+                      {normalizeProjectStatus(project.status).label}
+                    </span>
+                  </EnterpriseTableCell>
                   <EnterpriseTableCell>{formatProjectLocation(project) || t("customers.notProvided")}</EnterpriseTableCell>
                   <EnterpriseTableCell>{formatProjectDate(project.estimated_start_date, localeTag(locale), t("customers.notProvided"))}</EnterpriseTableCell>
                   <EnterpriseTableCell>{formatProjectCurrency(project.contract_amount ?? project.estimated_cost, localeTag(locale), t("customers.notProvided"))}</EnterpriseTableCell>
-                  <EnterpriseTableCell align="right"><Link href={`/projects/${project.id}`} className="font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">View</Link></EnterpriseTableCell>
+                  <EnterpriseTableCell align="right">
+                    <Link href={`/projects/${project.id}`} className="font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">
+                      View
+                    </Link>
+                  </EnterpriseTableCell>
                 </EnterpriseTableRow>
               ))}
             </EnterpriseTableBody>
@@ -755,6 +619,93 @@
         ) : (
           <EmptyState compact title="No projects yet" description="Projects linked to this customer will appear here once they are created." />
         )}
+      </TabCard>
+    );
+  }
+
+  function DocumentsTab() {
+    const categories = ["Contracts", "Permits", "Change Orders", "Invoices"];
+
+    return (
+      <TabCard title="Documents" description="Documents linked to this customer.">
+        <div className="rounded-[var(--radius-2xl)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-6 transition-all duration-200 hover:border-[var(--color-border-strong)] hover:bg-white">
+          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary-50)] text-[var(--color-brand-700)] shadow-[var(--shadow-small)]">
+              <ReceiptText size={20} aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold text-[var(--color-text-primary)]">Upload a document</p>
+              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Keep contracts, permits, and records organized in one workspace.</p>
+            </div>
+            <Button size="sm" className="h-11 px-4 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-px">Upload Document</Button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <Badge key={category} tone="brand">{category}</Badge>
+          ))}
+        </div>
+
+        <EmptyState compact title="No documents yet" description="Customer documents will appear here once they are uploaded." />
+      </TabCard>
+    );
+  }
+
+  function PhotosTab() {
+    const galleryItems = Array.from({ length: 6 }, (_, index) => index + 1);
+
+    return (
+      <TabCard title="Photos" description="Site photos and image attachments for this customer.">
+        <div className="flex items-center justify-between gap-3">
+          <p className="max-w-2xl text-sm leading-6 text-[var(--color-text-secondary)]">Upload and review project images, site snapshots, and visual progress notes.</p>
+          <Button size="sm" className="h-11 px-4 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-px">Upload Photo</Button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {galleryItems.map((index) => (
+            <article key={index} className="group overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[linear-gradient(135deg,rgba(37,99,235,0.12),rgba(6,182,212,0.08),rgba(15,23,42,0.02))] shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-card)]">
+              <div className="aspect-[4/3] p-3">
+                <div className="flex h-full items-end rounded-[var(--radius-xl)] bg-[linear-gradient(180deg,rgba(15,23,42,0.0),rgba(15,23,42,0.18))] p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Photo {index}</p>
+                    <p className="text-xs text-white/75">Upload pending</p>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <EmptyState compact title="No photos yet" description="Customer photos will appear here once they are uploaded." />
+      </TabCard>
+    );
+  }
+
+  function TimelineTab({ profile }: { profile: CustomerProfile; }) {
+    return (
+      <TabCard title="Timeline" description="A chronological view of customer activity.">
+        <TimelineList profile={profile} />
+        <div className="space-y-4">
+          <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-primary-50)] p-5 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-px">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[var(--color-brand-700)] shadow-[var(--shadow-small)]">
+                <StickyNote size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-semibold text-[var(--color-text-primary)]">Pinned Note</p>
+                  <p className="text-xs font-medium text-[var(--color-text-secondary)]">Updated {formatDate(profile.customer.updated_at)}</p>
+                </div>
+                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-[var(--color-text-primary)]">{profile.notes}</p>
+              </div>
+            </div>
+          </article>
+
+          <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm leading-7 text-[var(--color-text-secondary)] shadow-[var(--shadow-small)]">
+            Notes are stored in the customer record and surfaced here for quick workspace review.
+          </article>
+        </div>
       </TabCard>
     );
   }
@@ -857,37 +808,6 @@
     );
   }
 
-  function ActivityTab({ profile }: { profile: CustomerProfile; }) {
-    const activityItems = buildActivityFeed(profile);
-
-    return (
-      <TabCard title="Activity" description="Recent customer activity based on real linked records.">
-        {activityItems.length > 0 ? (
-          <div className="space-y-3">
-            {activityItems.map((item) => (
-              <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
-                <div className="flex items-start gap-3">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${item.tone}`}>
-                    {item.icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
-                      <p className="text-xs font-medium text-[var(--color-text-secondary)]">{item.timestamp}</p>
-                    </div>
-                    <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.description}</p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <EmptyState compact icon={<History size={18} />} title="No activity yet" description="Customer activity will appear here once projects, estimates, invoices, or notes are added." />
-        )}
-      </TabCard>
-    );
-  }
-
   function NotesTab({ profile }: { profile: CustomerProfile; }) {
     return (
       <TabCard title="Notes" description="Customer notes captured in the record.">
@@ -910,6 +830,80 @@
           <EmptyState compact icon={<StickyNote size={18} />} title="No notes yet" description="This customer does not have notes on file yet." />
         )}
       </TabCard>
+    );
+  }
+
+  function AIInsightsCard({ profile }: { profile: CustomerProfile; }) {
+    const insights = [
+      profile.outstandingBalance > 0
+        ? `Outstanding balance is ${formatProjectCurrency(profile.outstandingBalance, "$", "$0")}.`
+        : "No outstanding balance detected.",
+      profile.activeProjects.length > 0
+        ? `${profile.activeProjects.length} active project${profile.activeProjects.length === 1 ? "" : "s"} are currently linked.`
+        : "There are no active projects linked right now.",
+      profile.estimates.length > 0
+        ? `${profile.approvedEstimateCount} approved estimate${profile.approvedEstimateCount === 1 ? "" : "s"} can support follow-up.`
+        : "No estimates are available yet.",
+    ];
+
+    return (
+      <div className="space-y-3">
+        {insights.map((insight, index) => (
+          <article key={index} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 transition-all duration-200 hover:-translate-y-px hover:shadow-[var(--shadow-card)]">
+            <p className="text-sm leading-6 text-[var(--color-text-primary)]">{insight}</p>
+          </article>
+        ))}
+      </div>
+    );
+  }
+
+  function TimelineList({ profile, compact = false }: { profile: CustomerProfile; compact?: boolean; }) {
+    const items = buildActivityFeed(profile).slice(0, compact ? 4 : 8);
+
+    if (items.length === 0) {
+      const placeholderItems = [
+        { id: "placeholder-1", title: "Workspace created", description: "Customer workspace initialized and ready for activity.", timestamp: "Just now", tone: "bg-[var(--color-brand-600)]/15 text-[var(--color-brand-700)]", icon: <Users size={16} /> },
+        { id: "placeholder-2", title: "Awaiting linked records", description: "Projects, estimates, invoices, and notes will appear here.", timestamp: "Pending", tone: "bg-[var(--color-info-500)]/15 text-[var(--color-info-700)]", icon: <Clock3 size={16} /> },
+      ];
+
+      return (
+        <div className="space-y-3">
+          {placeholderItems.map((item) => (
+            <article key={item.id} className="relative rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 transition-all duration-200 hover:-translate-y-px hover:shadow-[var(--shadow-card)] sm:pl-14">
+              <span aria-hidden="true" className={`absolute left-0 top-4 hidden h-10 w-10 items-center justify-center rounded-full ${item.tone} shadow-[0_10px_18px_-14px_rgb(15_23_42/0.45)] sm:flex`}>
+                {item.icon}
+              </span>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.description}</p>
+                </div>
+                <p className="text-xs font-medium text-[var(--color-text-secondary)]">{item.timestamp}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="relative space-y-4 pl-2">
+        <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-5 top-2 hidden w-px bg-[var(--color-border-subtle)] sm:block" />
+        {items.map((item) => (
+          <article key={item.id} className="relative rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 transition-all duration-200 hover:-translate-y-px hover:shadow-[var(--shadow-card)] sm:pl-14">
+            <span aria-hidden="true" className={`absolute left-0 top-4 hidden h-10 w-10 items-center justify-center rounded-full ${item.tone} shadow-[0_10px_18px_-14px_rgb(15_23_42/0.45)] sm:flex`}>
+              {item.icon}
+            </span>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.description}</p>
+              </div>
+              <p className="text-xs font-medium text-[var(--color-text-secondary)]">{item.timestamp}</p>
+            </div>
+          </article>
+        ))}
+      </div>
     );
   }
 
@@ -1000,79 +994,6 @@
         <p className={`mt-1 text-sm font-medium text-[var(--color-text-primary)] ${multiline ? "whitespace-pre-line leading-6" : ""}`}>{value}</p>
         {subValue ? <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{subValue}</p> : null}
       </div>
-    );
-  }
-
-  function HeroBadge({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "muted"; }) {
-    const className = tone === "muted"
-      ? "bg-white/10 text-white/80 ring-white/10"
-      : "bg-white/12 text-white ring-white/12";
-
-    return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${className}`}>{children}</span>;
-  }
-
-  function HeroMetric({ label, value, supportingText, icon, tone }: { label: string; value: string; supportingText?: string; icon: ReactNode; tone: HeroTone; }) {
-    const toneClass: Record<HeroTone, string> = {
-      blue: "bg-[rgba(59,130,246,0.24)]",
-      green: "bg-[rgba(34,197,94,0.24)]",
-      orange: "bg-[rgba(249,115,22,0.24)]",
-      purple: "bg-[rgba(168,85,247,0.24)]",
-      red: "bg-[rgba(239,68,68,0.24)]",
-      cyan: "bg-[rgba(6,182,212,0.24)]",
-    };
-
-    return (
-      <div className="rounded-[var(--radius-2xl)] border border-white/10 bg-white/[0.07] p-4 shadow-[0_12px_24px_-22px_rgb(15_23_42/0.55)]">
-        <div className="flex items-start justify-between gap-4">
-          <div className={`flex h-11 w-11 items-center justify-center rounded-full text-white shadow-[0_10px_18px_-14px_rgb(15_23_42/0.45)] ${toneClass[tone]}`}>
-            {icon}
-          </div>
-        </div>
-
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-white/60">{label}</p>
-        <p className="mt-1 text-[1.8rem] font-bold tracking-[-0.04em] text-white">{value}</p>
-        {supportingText ? <p className="mt-1 text-xs font-medium text-white/62">{supportingText}</p> : null}
-      </div>
-    );
-  }
-
-  function HeroInfoLine({ icon, label, value, subValue, multiline = false, tone = "blue" }: { icon: ReactNode; label: string; value: string; subValue?: string; multiline?: boolean; tone?: HeroTone; }) {
-    const toneClass: Record<HeroTone, { bg: string; text: string }> = {
-      blue: { bg: "bg-[rgba(59,130,246,0.22)]", text: "text-white" },
-      green: { bg: "bg-[rgba(34,197,94,0.22)]", text: "text-white" },
-      orange: { bg: "bg-[rgba(249,115,22,0.22)]", text: "text-white" },
-      purple: { bg: "bg-[rgba(168,85,247,0.22)]", text: "text-white" },
-      red: { bg: "bg-[rgba(239,68,68,0.22)]", text: "text-white" },
-      cyan: { bg: "bg-[rgba(6,182,212,0.22)]", text: "text-white" },
-    };
-
-    return (
-      <div className="rounded-[var(--radius-2xl)] border border-white/10 bg-white/[0.07] px-4 py-4 shadow-[0_12px_24px_-22px_rgb(15_23_42/0.5)]">
-        <div className="flex items-start gap-3">
-          <div className={`mt-0.5 flex h-11 w-11 items-center justify-center rounded-full ${toneClass[tone].bg} ${toneClass[tone].text} shadow-[0_10px_18px_-14px_rgb(15_23_42/0.45)]`}>
-            {icon}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium tracking-[-0.01em] text-white/72">{label}</p>
-            <p className={`mt-1 text-sm font-semibold text-white ${multiline ? "whitespace-pre-line leading-6" : "truncate"}`}>{value}</p>
-            {subValue ? <p className="mt-1 text-xs font-medium text-white/60">{subValue}</p> : null}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function ActionMenuItem({ label, disabled = false, destructive = false }: { label: string; disabled?: boolean; destructive?: boolean; }) {
-    return (
-      <button
-        type="button"
-        disabled={disabled}
-        className={`flex w-full items-center rounded-[var(--radius-lg)] px-3 py-2 text-left text-sm font-medium transition ${
-          destructive ? "text-[var(--color-danger-700)] hover:bg-[var(--color-danger-50)]" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]"
-        } disabled:cursor-not-allowed disabled:opacity-50`}
-      >
-        {label}
-      </button>
     );
   }
 
@@ -1243,22 +1164,6 @@
     return label.replace(/\s+Customer$/i, "").replace(/\s+/g, " ").trim();
   }
 
-  function badgeToneForTag(tag: string) {
-    if (tag.toLowerCase().includes("active") || tag.toLowerCase().includes("repeat")) {
-      return "success";
-    }
-
-    if (tag.toLowerCase().includes("commercial") || tag.toLowerCase().includes("customer")) {
-      return "brand";
-    }
-
-    if (tag.toLowerCase().includes("lead") || tag.toLowerCase().includes("pending")) {
-      return "warning";
-    }
-
-    return "neutral";
-  }
-
   function getInvoiceStatusClass(status: string) {
     const normalized = status.trim().toLowerCase();
     const map: Record<string, string> = {
@@ -1273,6 +1178,24 @@
     };
 
     return map[normalized] || map.draft;
+  }
+
+  function statusToneForChangeOrder(status: string): "neutral" | "brand" | "info" | "success" | "warning" | "danger" | "error" | "analytics" {
+    const normalized = status.trim().toLowerCase();
+
+    if (normalized.includes("approved") || normalized.includes("accepted") || normalized.includes("closed")) {
+      return "success";
+    }
+
+    if (normalized.includes("pending") || normalized.includes("submitted") || normalized.includes("review")) {
+      return "warning";
+    }
+
+    if (normalized.includes("draft") || normalized.includes("new")) {
+      return "neutral";
+    }
+
+    return "brand";
   }
 
   function resolveWorkspaceError(errorCode: string | null, fallback: string | null, t: (key: string) => string) {

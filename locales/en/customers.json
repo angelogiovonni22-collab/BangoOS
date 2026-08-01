@@ -143,6 +143,6 @@
   "pagination.showing": "Showing {{from}} to {{to}} of {{total}} customers",
   "pagination.previous": "Previous",
   "pagination.next": "Next",
-  "pulse.title": "Project Pulse",
+  "pulse.title": "Project Health",
   "pulse.description": "Customer portfolio visibility across active work and pipeline."
 }
