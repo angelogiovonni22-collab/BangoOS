@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { TaskDetailsPanel } from "@/app/(app)/projects/[id]/components/task-details-panel";
 import type { TaskFormValues } from "@/app/(app)/projects/[id]/components/workspace-types";
 import { FadeIn, SlidePanel, StaggerGroup, StatusPulse } from "@/components/motion";
-import { Card, CardHeader, CardTitle } from "@/components/ui";
+import { BottomSheet, Card, CardHeader, CardTitle } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import type { ProjectSuperintendentBriefing } from "@/lib/project-intelligence/briefing/briefing-types";
 import { ProjectSuperintendentBriefingPanel } from "./project-superintendent-briefing";
@@ -415,41 +415,31 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
         </div>
       </StaggerGroup>
 
-      {isMobileDetailsOpen ? (
-        <div className="fixed inset-0 z-[var(--z-modal)] xl:hidden" role="dialog" aria-modal="true" aria-label={taskDetailsLabels.title}>
-          <button
-            type="button"
-            className="absolute inset-0 bg-slate-950/45"
-            aria-label={taskDetailsLabels.close}
-            onClick={() => setIsMobileDetailsOpen(false)}
-          />
-          <SlidePanel
-            open
-            from="bottom"
-            trapFocus
-            onEscape={() => setIsMobileDetailsOpen(false)}
-            className="absolute inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[18px] bg-white p-4 shadow-[0_-24px_48px_-28px_rgba(15,23,42,0.5)]"
-          >
-            <TaskDetailsPanel
-              mode={selectedTaskMode}
-              phaseName={selectedPhaseLabel}
-              taskTitle={selectedTask?.title || null}
-              isOverdue={selectedTaskIsOverdue}
-              formValues={selectedTaskDraft}
-              assigneeOptions={assigneeOptions}
-              dependencySummary={selectedTaskMode === "task" ? dependencySummary : null}
-              isSaving={isSavingTask}
-              isDirty={isTaskDirty}
-              validationMessage={validationMessage}
-              feedbackMessage={saveFeedback}
-              labels={taskDetailsLabels}
-              onChange={handleTaskFieldChange}
-              onSave={handleSaveTask}
-              onClose={() => setIsMobileDetailsOpen(false)}
-            />
-          </SlidePanel>
-        </div>
-      ) : null}
+      <BottomSheet
+        open={isMobileDetailsOpen}
+        onClose={() => setIsMobileDetailsOpen(false)}
+        ariaLabel={taskDetailsLabels.title}
+        backdropLabel={taskDetailsLabels.close}
+        panelClassName="shadow-[0_-24px_48px_-28px_rgba(15,23,42,0.5)]"
+      >
+        <TaskDetailsPanel
+          mode={selectedTaskMode}
+          phaseName={selectedPhaseLabel}
+          taskTitle={selectedTask?.title || null}
+          isOverdue={selectedTaskIsOverdue}
+          formValues={selectedTaskDraft}
+          assigneeOptions={assigneeOptions}
+          dependencySummary={selectedTaskMode === "task" ? dependencySummary : null}
+          isSaving={isSavingTask}
+          isDirty={isTaskDirty}
+          validationMessage={validationMessage}
+          feedbackMessage={saveFeedback}
+          labels={taskDetailsLabels}
+          onChange={handleTaskFieldChange}
+          onSave={handleSaveTask}
+          onClose={() => setIsMobileDetailsOpen(false)}
+        />
+      </BottomSheet>
     </div>
   );
 }

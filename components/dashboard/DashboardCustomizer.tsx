@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRef } from "react";
-import { createPortal } from "react-dom";
 import { LayerManager } from "@/components/bangoflow";
 import { FadeIn, useFocusTrap } from "@/components/motion";
+import { ModalHeader, OverlayBackdrop, PortalHost, useBodyScrollLock } from "@/components/ui";
+import { useTopmostOverlay } from "@/components/ui/overlay-runtime";
 import type { DashboardLayoutState, DashboardWidgetDefinition, WidgetId } from "@/lib/dashboard/types";
 
 type DashboardCustomizerProps = {
@@ -29,7 +30,11 @@ export function DashboardCustomizer({
   const [position, setPosition] = useState({ top: 0, left: 0, maxHeight: 480 });
   const panelRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  const isTopmost = useTopmostOverlay(open);
 
+  useBodyScrollLock(open);
   useFocusTrap({
     active: open,
     containerRef: panelRef,
@@ -39,6 +44,25 @@ export function DashboardCustomizer({
   const orderedWidgets = layout.order
     .map((id) => widgets.find((widget) => widget.id === id))
     .filter((widget): widget is DashboardWidgetDefinition => Boolean(widget));
+
+  useEffect(() => {
+    if (!open || !isTopmost) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isTopmost, open]);
 
   useEffect(() => {
     if (!open) {
@@ -75,34 +99,33 @@ export function DashboardCustomizer({
     };
   }, [open]);
 
-  const panel = open && typeof document !== "undefined"
-    ? createPortal(
-        <>
-          <LayerManager layer="overlay">
-            <button
-              type="button"
-              aria-label={t("common.closeSidebar")}
-              className="fixed inset-0 bg-slate-950/40"
-              onClick={() => setOpen(false)}
-            />
-          </LayerManager>
+  const panel = open
+    ? (
+        <PortalHost>
+          <OverlayBackdrop closeLabel={t("dashboard.customizeTitle")} onClick={() => setOpen(false)} className="bg-slate-950/40" />
 
           <LayerManager layer="spotlight">
-            <div className="fixed w-80" style={{ top: `${position.top}px`, left: `${position.left}px` }}>
+            <div className="fixed pointer-events-none" style={{ top: `${position.top}px`, left: `${position.left}px` }}>
               <FadeIn delayMs={0} distancePx={4}>
                 <div
                   ref={panelRef}
                   id="dashboard-customizer-panel"
                   role="dialog"
                   aria-modal="true"
+                  aria-labelledby={titleId}
+                  aria-describedby={descriptionId}
                   tabIndex={-1}
-                  className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-large)]"
+                  className="pointer-events-auto w-80 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-large)]"
                   style={{ maxHeight: `${position.maxHeight}px`, overflowY: "auto" }}
                 >
-                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t("dashboard.customizeTitle")}</p>
-                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{t("dashboard.customizeDescription")}</p>
+                  <ModalHeader
+                    title={t("dashboard.customizeTitle")}
+                    description={t("dashboard.customizeDescription")}
+                    titleId={titleId}
+                    descriptionId={descriptionId}
+                  />
 
-                <div className="mt-4 space-y-2">
+                  <div className="mt-4 space-y-2">
                   {orderedWidgets.map((widget, index) => {
                     const isVisible = !layout.hidden.includes(widget.id);
                     const isCollapsed = layout.collapsed.includes(widget.id);
@@ -172,21 +195,20 @@ export function DashboardCustomizer({
                       </div>
                     );
                   })}
-                </div>
+                  </div>
 
-                <button
-                  type="button"
-                  className="mt-4 w-full rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
-                  onClick={onReset}
-                >
-                  {t("dashboard.restoreDefault")}
-                </button>
+                  <button
+                    type="button"
+                    className="mt-4 w-full rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
+                    onClick={onReset}
+                  >
+                    {t("dashboard.restoreDefault")}
+                  </button>
                 </div>
               </FadeIn>
             </div>
           </LayerManager>
-        </>,
-        document.body,
+        </PortalHost>
       )
     : null;
 

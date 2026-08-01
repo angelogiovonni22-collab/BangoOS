@@ -16,6 +16,8 @@ type EquipmentFiltersProps = {
   status: EquipmentStatus | "all";
   equipmentType: EquipmentType | "all";
   category: string;
+  assignedJobId: string;
+  assignedEmployeeId: string;
   ownershipType: OwnershipType | "all";
   vendorId: string;
   maintenanceStatus: MaintenanceStatus | "all";
@@ -26,10 +28,14 @@ type EquipmentFiltersProps = {
   sortBy: EquipmentSortKey;
   vendorOptions: EquipmentVendorOption[];
   costCodeOptions: { id: string; code: string; name: string }[];
+  projectOptions: Array<{ id: string; name: string }>;
+  employeeOptions: Array<{ id: string; fullName: string }>;
   onQueryChange: (value: string) => void;
   onStatusChange: (value: EquipmentStatus | "all") => void;
   onEquipmentTypeChange: (value: EquipmentType | "all") => void;
   onCategoryChange: (value: string) => void;
+  onAssignedJobChange: (value: string) => void;
+  onAssignedEmployeeChange: (value: string) => void;
   onOwnershipTypeChange: (value: OwnershipType | "all") => void;
   onVendorChange: (value: string) => void;
   onMaintenanceStatusChange: (value: MaintenanceStatus | "all") => void;
@@ -46,6 +52,8 @@ export function EquipmentFilters({
   status,
   equipmentType,
   category,
+  assignedJobId,
+  assignedEmployeeId,
   ownershipType,
   vendorId,
   maintenanceStatus,
@@ -56,10 +64,14 @@ export function EquipmentFilters({
   sortBy,
   vendorOptions,
   costCodeOptions,
+  projectOptions,
+  employeeOptions,
   onQueryChange,
   onStatusChange,
   onEquipmentTypeChange,
   onCategoryChange,
+  onAssignedJobChange,
+  onAssignedEmployeeChange,
   onOwnershipTypeChange,
   onVendorChange,
   onMaintenanceStatusChange,
@@ -121,6 +133,26 @@ export function EquipmentFilters({
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
         <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Category</span>
         <SearchInput value={category} onChange={(event) => onCategoryChange(event.target.value)} placeholder="Filter category" aria-label="Filter category" className="h-10 py-2" />
+      </label>
+
+      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
+        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Project</span>
+        <Select value={assignedJobId} onChange={(event) => onAssignedJobChange(event.target.value)} className="h-10 py-2">
+          <option value="">All projects</option>
+          {projectOptions.map((project) => (
+            <option key={project.id} value={project.id}>{project.name}</option>
+          ))}
+        </Select>
+      </label>
+
+      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
+        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Assigned Employee</span>
+        <Select value={assignedEmployeeId} onChange={(event) => onAssignedEmployeeChange(event.target.value)} className="h-10 py-2">
+          <option value="">All employees</option>
+          {employeeOptions.map((employee) => (
+            <option key={employee.id} value={employee.id}>{employee.fullName}</option>
+          ))}
+        </Select>
       </label>
 
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">

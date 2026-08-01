@@ -13,19 +13,17 @@ import {
   IconButton,
   TableContainer,
 } from "@/components/ui";
-import { EquipmentStatusBadge } from "./equipment-status-badge";
-import { MaintenanceStatusBadge } from "./maintenance-status-badge";
-import { formatUsdCurrency, type EquipmentListItem } from "@/lib/equipment";
+import { type FleetGridRow } from "@/lib/equipment";
 
 type EquipmentTableProps = {
-  items: EquipmentListItem[];
+  rows: FleetGridRow[];
   total: number;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
 };
 
-export function EquipmentTable({ items, total, page, pageSize, onPageChange }: EquipmentTableProps) {
+export function EquipmentTable({ rows, total, page, pageSize, onPageChange }: EquipmentTableProps) {
   const router = useRouter();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const showingFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -38,29 +36,37 @@ export function EquipmentTable({ items, total, page, pageSize, onPageChange }: E
       <EnterpriseTable ariaLabel="Equipment directory table">
         <EnterpriseTableHead>
           <tr>
-            <EnterpriseTableHeading>Equipment Number</EnterpriseTableHeading>
-            <EnterpriseTableHeading>Name</EnterpriseTableHeading>
-            <EnterpriseTableHeading>Type</EnterpriseTableHeading>
-            <EnterpriseTableHeading>Manufacturer / Model</EnterpriseTableHeading>
-            <EnterpriseTableHeading>Ownership</EnterpriseTableHeading>
-            <EnterpriseTableHeading>Current Location</EnterpriseTableHeading>
-            <EnterpriseTableHeading align="right">Effective Hourly Cost</EnterpriseTableHeading>
-            <EnterpriseTableHeading align="right">Billable Rate</EnterpriseTableHeading>
-            <EnterpriseTableHeading>Maintenance</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Equipment ID</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Asset Name</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Category</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Manufacturer</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Model</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Serial Number</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Current Project</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Assigned Employee</EnterpriseTableHeading>
             <EnterpriseTableHeading>Status</EnterpriseTableHeading>
-            <EnterpriseTableHeading>Updated</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Hours</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Mileage</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Condition</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Inspection Status</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Maintenance Due</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Location</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Purchase Date</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Warranty</EnterpriseTableHeading>
+            <EnterpriseTableHeading>QR Code</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Last Activity</EnterpriseTableHeading>
             <EnterpriseTableHeading align="right">Actions</EnterpriseTableHeading>
           </tr>
         </EnterpriseTableHead>
 
         <EnterpriseTableBody>
-          {items.map((equipment) => (
+          {rows.map((row) => (
             <EnterpriseTableRow
-              key={equipment.id}
+              key={row.equipmentId}
               className="cursor-pointer"
               role="link"
               tabIndex={0}
-              aria-label={`Open equipment ${equipment.equipmentNumber}`}
+              aria-label={`Open equipment ${row.equipmentNumber}`}
               onClick={(event) => {
                 const target = event.target as HTMLElement;
 
@@ -68,7 +74,7 @@ export function EquipmentTable({ items, total, page, pageSize, onPageChange }: E
                   return;
                 }
 
-                router.push(`/equipment/${equipment.id}`);
+                router.push(`/equipment/${row.equipmentId}`);
               }}
               onKeyDown={(event) => {
                 if (event.key !== "Enter" && event.key !== " ") {
@@ -76,52 +82,37 @@ export function EquipmentTable({ items, total, page, pageSize, onPageChange }: E
                 }
 
                 event.preventDefault();
-                router.push(`/equipment/${equipment.id}`);
+                router.push(`/equipment/${row.equipmentId}`);
               }}
             >
               <EnterpriseTableCell>
-                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{equipment.equipmentNumber}</p>
-                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{equipment.defaultCostCodeLabel || "No default cost code"}</p>
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{row.equipmentNumber}</p>
               </EnterpriseTableCell>
-
-              <EnterpriseTableCell>
-                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{equipment.name}</p>
-                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{equipment.criticalityLevel.replace(/_/g, " ")} priority</p>
-              </EnterpriseTableCell>
-
-              <EnterpriseTableCell>{equipment.equipmentType?.replace(/_/g, " ") || "-"}</EnterpriseTableCell>
-
-              <EnterpriseTableCell>
-                <p className="text-sm text-[var(--color-text-primary)]">{[equipment.manufacturer, equipment.model].filter(Boolean).join(" / ") || "-"}</p>
-                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{equipment.vendorName || "No vendor"}</p>
-              </EnterpriseTableCell>
-
-              <EnterpriseTableCell>{equipment.ownershipType.replace(/_/g, " ")}</EnterpriseTableCell>
-
-              <EnterpriseTableCell>
-                <p className="text-sm text-[var(--color-text-primary)]">{equipment.currentLocationType?.replace(/_/g, " ") || "-"}</p>
-                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{equipment.currentLocationName || "-"}</p>
-              </EnterpriseTableCell>
-
-              <EnterpriseTableCell align="right">{formatUsdCurrency(equipment.effectiveInternalHourlyCost)}</EnterpriseTableCell>
-              <EnterpriseTableCell align="right">{formatUsdCurrency(equipment.hourlyBillableRate)}</EnterpriseTableCell>
-
-              <EnterpriseTableCell>
-                <MaintenanceStatusBadge status={equipment.maintenanceStatus} />
-              </EnterpriseTableCell>
-
-              <EnterpriseTableCell>
-                <EquipmentStatusBadge status={equipment.status} />
-              </EnterpriseTableCell>
-
-              <EnterpriseTableCell>{new Date(equipment.updatedAt).toLocaleDateString()}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.assetName}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.category}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.manufacturer}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.model}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.serialNumber}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.currentProject}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.assignedEmployee}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.status}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.hours}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.mileage}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.condition}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.inspectionStatus}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.maintenanceDue}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.location}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.purchaseDate}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.warranty}</EnterpriseTableCell>
+              <EnterpriseTableCell>{row.qrCodeStatus}</EnterpriseTableCell>
+              <EnterpriseTableCell>{new Date(row.lastActivity).toLocaleDateString()}</EnterpriseTableCell>
 
               <EnterpriseTableCell align="right">
                 <div className="inline-flex items-center gap-1">
-                  <Link href={`/equipment/${equipment.id}`}>
+                  <Link href={`/equipment/${row.equipmentId}`}>
                     <IconButton icon={<Eye size={15} />} label="View equipment" variant="ghost" size="sm" />
                   </Link>
-                  <Link href={`/equipment/${equipment.id}/edit`}>
+                  <Link href={`/equipment/${row.equipmentId}/edit`}>
                     <IconButton icon={<Pencil size={15} />} label="Edit equipment" variant="ghost" size="sm" />
                   </Link>
                 </div>

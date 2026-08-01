@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, Select, SkeletonLoader } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, ConfirmDialog, EmptyState, ErrorState, PageHeader, Select, SkeletonLoader } from "@/components/ui";
 import { ChangeOrderStatusBadge } from "@/components/change-orders/change-order-status";
 import { formatUsd } from "@/lib/change-orders/calculations";
 import {
@@ -48,6 +48,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
   const [activity, setActivity] = useState<Array<{ id: string; activityType: string; description: string; createdAt: string }>>([]);
   const [existingInvoiceOptions, setExistingInvoiceOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -165,11 +167,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
     }
 
     if (action === "approve") {
-      if (!window.confirm("Approve this change order?")) {
-        return;
-      }
-      const result = await approveChangeOrder({ supabase, companyId, changeOrderId, userId });
-      error = result.error;
+      setIsApproveDialogOpen(true);
+      return;
     }
 
     if (action === "reject") {
@@ -212,6 +211,24 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
 
     if (error) {
       setActionMessage(error);
+      return;
+    }
+
+    router.refresh();
+  }
+
+  async function confirmApproveAction() {
+    if (!supabase || !companyId || !userId || !changeOrder || isApproving) {
+      return;
+    }
+
+    setIsApproving(true);
+    const result = await approveChangeOrder({ supabase, companyId, changeOrderId, userId });
+    setIsApproving(false);
+    setIsApproveDialogOpen(false);
+
+    if (result.error) {
+      setActionMessage(result.error);
       return;
     }
 
@@ -321,6 +338,20 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
       />
 
       {actionMessage ? <ErrorState title="Action result" description={actionMessage} compact /> : null}
+
+      <ConfirmDialog
+        open={isApproveDialogOpen}
+        title="Approve change order"
+        description="Approve this change order?"
+        cancelLabel="Cancel"
+        confirmLabel={isApproving ? "Approving..." : "Approve"}
+        isConfirming={isApproving}
+        confirmVariant="primary"
+        onCancel={() => setIsApproveDialogOpen(false)}
+        onConfirm={() => {
+          void confirmApproveAction();
+        }}
+      />
 
       <Card as="section" variant="elevated">
         <CardHeader>

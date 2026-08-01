@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { useRef } from "react";
+import type { ComponentPropsWithoutRef, ReactNode, Ref } from "react";
+import { forwardRef, useRef } from "react";
 import { useFocusTrap } from "./focus-trap";
 import { useMotionPreferences } from "./motion-provider";
 
@@ -12,7 +12,7 @@ type SlidePanelProps = {
   trapFocus?: boolean;
   onEscape?: () => void;
   children: ReactNode;
-};
+} & Omit<ComponentPropsWithoutRef<"div">, "children">;
 
 type ResolveSlidePanelClassNamesInput = {
   open: boolean;
@@ -39,24 +39,39 @@ export function resolveSlidePanelClassNames({
   ].filter(Boolean).join(" ");
 }
 
-export function SlidePanel({ open, from = "right", className, trapFocus = false, onEscape, children }: SlidePanelProps) {
+export const SlidePanel = forwardRef(function SlidePanel(
+  { open, from = "right", className, trapFocus = false, onEscape, children, tabIndex, ...props }: SlidePanelProps,
+  forwardedRef: Ref<HTMLDivElement>,
+) {
   const { reducedMotion } = useMotionPreferences();
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  const internalRef = useRef<HTMLDivElement | null>(null);
 
   useFocusTrap({
     active: open && trapFocus,
-    containerRef: panelRef,
+    containerRef: internalRef,
     onEscape,
   });
 
   return (
     <div
-      ref={panelRef}
+      {...props}
+      ref={(node) => {
+        internalRef.current = node;
+
+        if (typeof forwardedRef === "function") {
+          forwardedRef(node);
+          return;
+        }
+
+        if (forwardedRef) {
+          forwardedRef.current = node;
+        }
+      }}
       className={resolveSlidePanelClassNames({ open, from, reducedMotion, className })}
       aria-hidden={!open}
-      tabIndex={-1}
+      tabIndex={tabIndex ?? -1}
     >
       {children}
     </div>
   );
-}
+});

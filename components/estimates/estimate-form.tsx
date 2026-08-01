@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, ConfirmDialog, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
 import { EstimateCustomerProjectSection } from "@/components/estimates/estimate-customer-project-section";
 import { EstimateInformationSection } from "@/components/estimates/estimate-information-section";
 import { EstimateLineItemsSection } from "@/components/estimates/estimate-line-items";
@@ -75,6 +74,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
   const [values, setValues] = useState<EstimateFormValues>(DEFAULT_FORM_VALUES);
   const [lineItems, setLineItems] = useState<EstimateLineItemDraft[]>(DEFAULT_LINE_ITEMS);
   const [isDirty, setIsDirty] = useState(false);
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
 
   const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string; email: string | null; phone: string | null; billingAddress: string }>>([]);
   const [projectOptions, setProjectOptions] = useState<Array<{ id: string; label: string; customerId: string | null }>>([]);
@@ -336,10 +336,16 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
   }
 
   function handleCancel() {
-    if (isDirty && !window.confirm("Discard unsaved changes?")) {
+    if (isDirty) {
+      setIsDiscardDialogOpen(true);
       return;
     }
 
+    router.push(mode === "edit" && estimateId ? `/estimates/${estimateId}` : "/estimates");
+  }
+
+  function confirmDiscardChanges() {
+    setIsDiscardDialogOpen(false);
     router.push(mode === "edit" && estimateId ? `/estimates/${estimateId}` : "/estimates");
   }
 
@@ -360,15 +366,21 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={isDiscardDialogOpen}
+        title="Discard changes"
+        description="Discard unsaved changes?"
+        cancelLabel="Keep Editing"
+        confirmLabel="Discard Changes"
+        onCancel={() => setIsDiscardDialogOpen(false)}
+        onConfirm={confirmDiscardChanges}
+      />
+
       <PageHeader
         eyebrow="COMPANY WORKSPACE"
         title={mode === "create" ? "New Estimate" : "Edit Estimate"}
         description="Build a detailed construction estimate with customer/project links, line items, and live totals."
-        secondaryActions={(
-          <Link href={mode === "edit" && estimateId ? `/estimates/${estimateId}` : "/estimates"}>
-            <Button variant="secondary" size="md">Cancel</Button>
-          </Link>
-        )}
+        secondaryActions={<Button type="button" variant="secondary" size="md" onClick={handleCancel}>Cancel</Button>}
       />
 
       <form

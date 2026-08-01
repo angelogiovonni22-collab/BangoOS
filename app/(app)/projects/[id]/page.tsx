@@ -27,6 +27,7 @@ import {
   type ProjectRow,
 } from "@/lib/projects";
 import { useI18n } from "@/lib/i18n/provider";
+import { PROJECT_WORKSPACE_ASSIGNED_EQUIPMENT_STATUSES, PROJECT_WORKSPACE_EQUIPMENT_CONFLICT_OR_FILTER } from "@/lib/equipment";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
 import { calculateProjectIntelligence } from "@/lib/project-intelligence/calculate-project-intelligence";
@@ -107,6 +108,9 @@ type WorkspaceCounts = {
   estimates: number;
   changeOrders: number;
   photos: number;
+  assignedEquipment: number;
+  availableEquipment: number;
+  equipmentConflicts: number;
 };
 
 type WorkspaceState = {
@@ -233,7 +237,7 @@ export default function ProjectWorkspacePage() {
               .maybeSingle<CustomerSummary>()
           : Promise.resolve({ data: null, error: null });
 
-        const [profilesResponse, tasksResponse, invoicesResponse, customerResponse, estimatesCountResponse, changeOrdersCountResponse, photosCountResponse] = await Promise.all([
+        const [profilesResponse, tasksResponse, invoicesResponse, customerResponse, estimatesCountResponse, changeOrdersCountResponse, photosCountResponse, assignedEquipmentCountResponse, availableEquipmentCountResponse, equipmentConflictCountResponse] = await Promise.all([
           client
             .from("profiles")
             .select("id, first_name, last_name, role")
@@ -267,9 +271,27 @@ export default function ProjectWorkspacePage() {
             .select("id", { count: "exact", head: true })
             .eq("company_id", workspaceResult.context.companyId)
             .eq("project_id", projectId),
+          client
+            .from("equipment")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("assigned_job_id", projectId)
+            .in("status", [...PROJECT_WORKSPACE_ASSIGNED_EQUIPMENT_STATUSES]),
+          client
+            .from("equipment")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("status", "active")
+            .is("assigned_job_id", null),
+          client
+            .from("equipment")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("assigned_job_id", projectId)
+            .or(PROJECT_WORKSPACE_EQUIPMENT_CONFLICT_OR_FILTER),
         ]);
 
-        if (profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || photosCountResponse.error) {
+        if (profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || photosCountResponse.error || assignedEquipmentCountResponse.error || availableEquipmentCountResponse.error || equipmentConflictCountResponse.error) {
           if (isSubscribed) {
             setErrorKind("database");
             setErrorMessage(t("projects.errorLoadProject"));
@@ -295,6 +317,9 @@ export default function ProjectWorkspacePage() {
               estimates: estimatesCountResponse.count || 0,
               changeOrders: changeOrdersCountResponse.count || 0,
               photos: photosCountResponse.count || 0,
+              assignedEquipment: assignedEquipmentCountResponse.count || 0,
+              availableEquipment: availableEquipmentCountResponse.count || 0,
+              equipmentConflicts: equipmentConflictCountResponse.count || 0,
             },
             workspaceContext: workspaceResult.context,
           });
@@ -552,6 +577,8 @@ export default function ProjectWorkspacePage() {
           <ProjectWorkspaceModuleCard
             title="Equipment"
             description="Track assigned equipment and availability across active jobs."
+            metricLabel="Assigned / Available / Conflicts"
+            metricValue={`${workspace.counts.assignedEquipment} / ${workspace.counts.availableEquipment} / ${workspace.counts.equipmentConflicts}`}
             href="/equipment"
             actionLabel="Open Equipment"
           />

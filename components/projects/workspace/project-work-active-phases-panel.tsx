@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Layers3 } from "lucide-react";
 import { ProjectPhasesSidebar } from "@/app/(app)/projects/[id]/components/project-phases-sidebar";
 import type { PhaseListItem } from "@/app/(app)/projects/[id]/components/workspace-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, ConfirmDialog } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/database.types";
 
@@ -36,6 +36,7 @@ export function ProjectWorkActivePhasesPanel({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -239,10 +240,15 @@ export function ProjectWorkActivePhasesPanel({
       return;
     }
 
-    const confirmed = window.confirm(t("projects.workPhasesDeleteConfirm"));
-    if (!confirmed) {
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeletePhase = async () => {
+    if (!selectedPhaseId || isSaving || !supabase) {
       return;
     }
+
+    setIsDeleteDialogOpen(false);
 
     setIsSaving(true);
     setErrorMessage(null);
@@ -339,6 +345,19 @@ export function ProjectWorkActivePhasesPanel({
 
   return (
     <Card as="section" variant="elevated" className="rounded-[16px] shadow-[var(--shadow-small)]">
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title={t("projects.workPhasesDelete")}
+        description={t("projects.workPhasesDeleteConfirm")}
+        cancelLabel={t("projects.cancel")}
+        confirmLabel={isSaving ? t("projects.workPhasesSaving") : t("projects.workPhasesDelete")}
+        isConfirming={isSaving}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+        onConfirm={() => {
+          void confirmDeletePhase();
+        }}
+      />
+
       <CardHeader className="bg-[var(--color-surface-subtle)]/55">
         <div className="flex items-center gap-2.5">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] bg-[var(--color-primary-100)] text-[var(--color-brand-700)]">

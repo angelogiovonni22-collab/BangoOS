@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ChevronLeft, ChevronRight } from "lucide-react";
 import { WorkspaceEnvironment } from "@/components/bangoflow";
-import { AnimatedProgress, FadeIn, useFocusTrap } from "@/components/motion";
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState } from "@/components/ui";
+import { AnimatedProgress, FadeIn } from "@/components/motion";
+import { Button, Card, CardContent, CardHeader, CardTitle, Dialog, EmptyState, ErrorState } from "@/components/ui";
 import { collectNewEntityIds, hasAnimatedEntries } from "@/lib/motion/replay-helpers";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/database.types";
@@ -90,8 +90,6 @@ export function ProjectWorkSiteCamPanel({
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
 
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const viewerDialogRef = useRef<HTMLElement | null>(null);
-  const editDialogRef = useRef<HTMLElement | null>(null);
   const didInitializePhotoIds = useRef(false);
   const knownPhotoIdsRef = useRef<Set<string>>(new Set());
   const [newPhotoIds, setNewPhotoIds] = useState<Record<string, true>>({});
@@ -217,12 +215,11 @@ export function ProjectWorkSiteCamPanel({
   }, [newPhotoIds]);
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setActivePhotoId(null);
-        setEditingPhotoId(null);
-      }
+    if (!activePhoto || editingPhoto) {
+      return;
+    }
 
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "ArrowLeft" && previousPhoto) {
         setActivePhotoId(previousPhoto.id);
       }
@@ -232,14 +229,10 @@ export function ProjectWorkSiteCamPanel({
       }
     };
 
-    if (activePhoto || editingPhoto) {
-      window.addEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "hidden";
-    }
+    window.addEventListener("keydown", onKeyDown);
 
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      document.body.style.removeProperty("overflow");
     };
   }, [activePhoto, editingPhoto, nextPhoto, previousPhoto]);
 
@@ -461,18 +454,6 @@ export function ProjectWorkSiteCamPanel({
     setEditingPhotoId(photo.id);
   };
 
-  useFocusTrap({
-    active: Boolean(activePhoto),
-    containerRef: viewerDialogRef,
-    onEscape: () => setActivePhotoId(null),
-  });
-
-  useFocusTrap({
-    active: Boolean(editingPhoto),
-    containerRef: editDialogRef,
-    onEscape: () => setEditingPhotoId(null),
-  });
-
   return (
     <WorkspaceEnvironment workspace="camera" routeKey={`${projectId}:work-sitecam`} className="bf-sitecam-environment">
       <Card as="section" variant="elevated" className="rounded-[16px] shadow-[var(--shadow-small)]">
@@ -641,18 +622,15 @@ export function ProjectWorkSiteCamPanel({
         )}
       </CardContent>
 
-      {activePhoto ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button type="button" aria-label={t("projects.close")} className="absolute inset-0 bg-slate-950/60" onClick={() => setActivePhotoId(null)} />
-          <FadeIn durationMs={180} distancePx={4} className="relative z-10 w-full max-w-4xl">
-          <article
-            ref={viewerDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("projects.sitecamViewerTitle")}
-            tabIndex={-1}
-            className="max-h-[92vh] overflow-auto rounded-[16px] bg-white shadow-[var(--shadow-large)]"
-          >
+      <Dialog
+        open={Boolean(activePhoto)}
+        onClose={() => setActivePhotoId(null)}
+        ariaLabel={t("projects.sitecamViewerTitle")}
+        backdropLabel={t("projects.close")}
+        panelClassName="max-h-[92vh] max-w-4xl overflow-auto rounded-[16px] p-0"
+      >
+        {activePhoto ? (
+          <article>
             <div className="grid gap-0 lg:grid-cols-[1.6fr_1fr]">
               <div className="min-h-80 bg-[var(--color-surface-subtle)]">
                 {signedUrlByPath[activePhoto.storagePath] ? (
@@ -700,22 +678,18 @@ export function ProjectWorkSiteCamPanel({
               </div>
             </div>
           </article>
-          </FadeIn>
-        </div>
-      ) : null}
+        ) : null}
+      </Dialog>
 
-      {editingPhoto ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button type="button" aria-label={t("projects.close")} className="absolute inset-0 bg-slate-950/60" onClick={() => setEditingPhotoId(null)} />
-          <FadeIn durationMs={180} distancePx={4} className="relative z-10 w-full max-w-lg">
-          <article
-            ref={editDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("projects.workSitecamEditCaption")}
-            tabIndex={-1}
-            className="rounded-[16px] bg-white p-5 shadow-[var(--shadow-large)]"
-          >
+      <Dialog
+        open={Boolean(editingPhoto)}
+        onClose={() => setEditingPhotoId(null)}
+        ariaLabel={t("projects.workSitecamEditCaption")}
+        backdropLabel={t("projects.close")}
+        panelClassName="max-w-lg rounded-[16px] p-5"
+      >
+        {editingPhoto ? (
+          <article>
             <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{t("projects.workSitecamEditCaption")}</h3>
             <label className="mt-3 block space-y-1">
               <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{t("projects.workSitecamCaptionLabel")}</span>
@@ -731,9 +705,8 @@ export function ProjectWorkSiteCamPanel({
               <Button size="sm" disabled={isSavingCaption} onClick={() => void saveCaption()}>{isSavingCaption ? t("projects.sitecamSaving") : t("projects.sitecamSave")}</Button>
             </div>
           </article>
-          </FadeIn>
-        </div>
-      ) : null}
+        ) : null}
+      </Dialog>
       </Card>
     </WorkspaceEnvironment>
   );

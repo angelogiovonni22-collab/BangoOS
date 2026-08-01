@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ErrorState } from "@/components/ui";
+import { Button, Dialog, ErrorState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import { useLaborForecast, useScheduling, type LaborForecastRange, type ScheduleView } from "@/lib/scheduling";
 import { AssignmentForm } from "./assignment-form";
@@ -241,31 +241,33 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
         <SchedulingAnalytics analytics={payload.analytics} t={t} />
       </div>
 
-      {isCreateOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-large)]">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{t("scheduling.form.titleCreate")}</h3>
-              <button type="button" className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-sm" onClick={() => setIsCreateOpen(false)}>
-                {t("scheduling.actions.close")}
-              </button>
-            </div>
-
-            <AssignmentForm
-              projectOptions={payload.projectOptions}
-              crewOptions={payload.crewOptions}
-              employeeOptions={payload.employeeOptions}
-              tradeOptions={payload.tradeOptions}
-              onSubmit={async (draft) => {
-                await scheduling.createNewAssignment(draft);
-                setIsCreateOpen(false);
-              }}
-              onCancel={() => setIsCreateOpen(false)}
-              t={t}
-            />
-          </div>
+      <Dialog
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        ariaLabel={t("scheduling.form.titleCreate")}
+        backdropLabel={t("scheduling.actions.close")}
+        panelClassName="max-h-[92vh] max-w-4xl overflow-auto rounded-[var(--radius-2xl)] p-5"
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{t("scheduling.form.titleCreate")}</h3>
+          <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>
+            {t("scheduling.actions.close")}
+          </Button>
         </div>
-      ) : null}
+
+        <AssignmentForm
+          projectOptions={payload.projectOptions}
+          crewOptions={payload.crewOptions}
+          employeeOptions={payload.employeeOptions}
+          tradeOptions={payload.tradeOptions}
+          onSubmit={async (draft) => {
+            await scheduling.createNewAssignment(draft);
+            setIsCreateOpen(false);
+          }}
+          onCancel={() => setIsCreateOpen(false)}
+          t={t}
+        />
+      </Dialog>
     </div>
   );
 }

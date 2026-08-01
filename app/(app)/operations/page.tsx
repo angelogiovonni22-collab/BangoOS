@@ -1,139 +1,122 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
 import {
-  AiOperationsSummary,
-  AttentionQueue,
-  CrewAllocationPanel,
-  DailySchedule,
-  OperationsEmptyState,
-  OperationsHeader,
-  OperationsKpiGrid,
-  OperationsLoadingState,
-  OperationsQuickActions,
-  ProjectOperationsPanel,
-  SafetyCompliancePanel,
-  SiteCamActivityPanel,
-  WorkforceStatusPanel,
+  CommandCenterHeader,
+  LiveProjectStatus,
+  OperationsSummary,
+  OrionOperationsBrief,
+  PendingDecisions,
+  PriorityActionQueue,
+  WorkforceBoard,
 } from "@/components/operations";
-import { ErrorState } from "@/components/ui";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { ScheduleWidget } from "@/components/dashboard/ScheduleWidget";
+import { ErrorState, PageLoadingState, PartialDataNotice, PermissionState, SectionLoadingState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
-import { useOperations } from "@/lib/operations";
+import { useOperationsCommandCenter } from "@/lib/operations";
 
 export default function OperationsPage() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const localeTag = locale === "es" ? "es-ES" : "en-US";
   const {
-    filters,
-    setDate,
-    setShift,
-    setProject,
-    setQuery,
-    attentionScope,
-    setAttentionScope,
-    payload,
-    filteredAttention,
+    data,
     isLoading,
+    isRefreshing,
     errorMessage,
+    isPermissionError,
+    focusFilter,
+    setFocusFilter,
+    filteredPriorityQueue,
+    filteredPendingDecisions,
     refresh,
-  } = useOperations();
-  const [noteOpen, setNoteOpen] = useState(false);
+  } = useOperationsCommandCenter({ localeTag, t });
+
+  const currentDateLabel = useMemo(() => {
+    if (!data) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat(localeTag, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }).format(new Date(data.currentDateIso));
+  }, [data, localeTag]);
+
+  const lastRefreshedLabel = useMemo(() => {
+    if (!data) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat(localeTag, {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(data.lastRefreshedAt));
+  }, [data, localeTag]);
 
   if (isLoading) {
-    return <OperationsLoadingState />;
+    return <PageLoadingState sections={6} />;
   }
 
-  if (errorMessage || !payload) {
-    return <ErrorState title={t("operations.errorTitle")} description={t(errorMessage || "operations.errorLoad")} />;
+  if (isPermissionError) {
+    return <PermissionState title="Operations access unavailable" description={errorMessage || "Your workspace could not be resolved for this company."} />;
   }
 
-  const hasNoData = payload.projects.length === 0
-    && payload.crewAllocations.length === 0
-    && payload.schedule.length === 0;
+  if (errorMessage || !data) {
+    return <ErrorState title="Unable to load Operations Command Center" description={errorMessage || "The command center data could not be loaded."} />;
+  }
 
   return (
-    <div className="space-y-6">
-      <OperationsHeader
-        title={t("operations.header.title")}
-        dateLabel={payload.summary.dateLabel}
-        summary={t(payload.summary.dailySummary)}
-        companyContext={payload.summary.companyContext}
-        locationContext={payload.summary.locationContext}
-        date={filters.date}
-        shift={filters.shift}
-        project={filters.project}
-        query={filters.query}
-        projectOptions={payload.projectOptions}
-        onDateChange={setDate}
-        onShiftChange={setShift}
-        onProjectChange={setProject}
-        onQueryChange={setQuery}
+    <div className="space-y-6 overflow-x-hidden">
+      <CommandCenterHeader
+        companyName={data.companyName}
+        currentDateLabel={currentDateLabel}
+        lastRefreshedLabel={lastRefreshedLabel}
+        operatingStatus={data.operatingStatus}
+        healthIndicator={data.healthIndicator}
+        orionState={data.orionBrief?.readinessState || null}
+        focusFilter={focusFilter}
+        isRefreshing={isRefreshing}
+        onFocusFilterChange={setFocusFilter}
         onRefresh={refresh}
-        t={t}
       />
 
-      <OperationsQuickActions onCreateNote={() => setNoteOpen(true)} t={t} />
+      {isRefreshing ? <SectionLoadingState rows={1} /> : null}
 
-      {hasNoData ? (
-        <OperationsEmptyState title={t("operations.empty.title")} description={t("operations.empty.description")} />
-      ) : (
-        <>
-          <OperationsKpiGrid
-            items={payload.summary.kpis.map((item) => ({
-              ...item,
-              label: t(item.label),
-              insight: t(item.insight),
-              trend: t(item.trend),
-            }))}
-          />
+      {data.partialNotices.map((notice) => (
+        <PartialDataNotice key={notice} message={notice} />
+      ))}
 
-          <ProjectOperationsPanel items={payload.projects} t={t} />
+      <OperationsSummary metrics={data.summaryMetrics} />
 
-          <div className="grid gap-5 2xl:grid-cols-2">
-            <CrewAllocationPanel items={payload.crewAllocations} t={t} />
-            <WorkforceStatusPanel data={payload.workforce} t={t} />
-          </div>
-
-          <DailySchedule items={payload.schedule} t={t} />
-
-          <div className="grid gap-5 2xl:grid-cols-2">
-            <SafetyCompliancePanel items={payload.safetyAlerts} t={t} />
-            <SiteCamActivityPanel items={payload.sitecamActivity} t={t} />
-          </div>
-
-          <AiOperationsSummary items={payload.insights} t={t} />
-          <AttentionQueue items={filteredAttention} scope={attentionScope} onScopeChange={setAttentionScope} t={t} />
-        </>
-      )}
-
-      {noteOpen ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-lg rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-6 shadow-[var(--shadow-large)]">
-            <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{t("operations.quickActions.createOperationsNote")}</h3>
-            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{t("operations.quickActions.notePlaceholder")}</p>
-            <textarea
-              rows={5}
-              className="mt-4 w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
-              placeholder={t("operations.quickActions.noteInputPlaceholder")}
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setNoteOpen(false)}
-                className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)]"
-              >
-                {t("operations.actions.close")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setNoteOpen(false)}
-                className="rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-3 py-2 text-sm font-semibold text-white"
-              >
-                {t("operations.actions.saveNote")}
-              </button>
-            </div>
-          </div>
+      <div className="grid gap-6 xl:grid-cols-12">
+        <div className="xl:col-span-7">
+          <PriorityActionQueue items={filteredPriorityQueue} />
         </div>
-      ) : null}
+        <div className="xl:col-span-5">
+          <ScheduleWidget events={data.schedule} t={t} />
+        </div>
+
+        <div className="xl:col-span-8">
+          <LiveProjectStatus items={data.projectStatus} />
+        </div>
+        <div className="xl:col-span-4">
+          <WorkforceBoard items={data.workforceBoard} availability={data.availability.workforce} />
+        </div>
+
+        <div className="xl:col-span-7">
+          <ActivityFeed items={data.activityFeed} isLoading={false} errorMessage={null} t={t} />
+        </div>
+        <div className="xl:col-span-5">
+          <PendingDecisions items={filteredPendingDecisions} />
+        </div>
+
+        <div className="xl:col-span-12">
+          <OrionOperationsBrief brief={data.orionBrief} />
+        </div>
+      </div>
     </div>
   );
 }

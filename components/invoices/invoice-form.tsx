@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, ConfirmDialog, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
 import { InvoiceBillingDetailsSection } from "@/components/invoices/invoice-billing-details-section";
 import { InvoiceCustomerProjectSection } from "@/components/invoices/invoice-customer-project-section";
 import { InvoiceInformationSection } from "@/components/invoices/invoice-information-section";
@@ -83,6 +82,7 @@ export function InvoiceForm({
   const [values, setValues] = useState<InvoiceFormValues>(DEFAULT_FORM_VALUES);
   const [lineItems, setLineItems] = useState<InvoiceLineItemDraft[]>(DEFAULT_LINE_ITEMS);
   const [isDirty, setIsDirty] = useState(false);
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
 
   const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string; email: string | null; phone: string | null; billingAddress: string }>>([]);
   const [projectOptions, setProjectOptions] = useState<Array<{ id: string; label: string; customerId: string | null }>>([]);
@@ -399,10 +399,16 @@ export function InvoiceForm({
   }
 
   function handleCancel() {
-    if (isDirty && !window.confirm("Discard unsaved changes?")) {
+    if (isDirty) {
+      setIsDiscardDialogOpen(true);
       return;
     }
 
+    router.push(mode === "edit" && invoiceId ? `/invoices/${invoiceId}` : "/invoices");
+  }
+
+  function confirmDiscardChanges() {
+    setIsDiscardDialogOpen(false);
     router.push(mode === "edit" && invoiceId ? `/invoices/${invoiceId}` : "/invoices");
   }
 
@@ -423,15 +429,21 @@ export function InvoiceForm({
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={isDiscardDialogOpen}
+        title="Discard changes"
+        description="Discard unsaved changes?"
+        cancelLabel="Keep Editing"
+        confirmLabel="Discard Changes"
+        onCancel={() => setIsDiscardDialogOpen(false)}
+        onConfirm={confirmDiscardChanges}
+      />
+
       <PageHeader
         eyebrow="COMPANY WORKSPACE"
         title={mode === "create" ? "New Invoice" : "Edit Invoice"}
         description="Create, review, and issue customer invoices with line items and payment terms."
-        secondaryActions={(
-          <Link href={mode === "edit" && invoiceId ? `/invoices/${invoiceId}` : "/invoices"}>
-            <Button variant="secondary" size="md">Cancel</Button>
-          </Link>
-        )}
+        secondaryActions={<Button type="button" variant="secondary" size="md" onClick={handleCancel}>Cancel</Button>}
       />
 
       <form

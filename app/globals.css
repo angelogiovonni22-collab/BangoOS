@@ -155,9 +155,13 @@
 
   --z-base: 1;
   --z-header: 20;
-  --z-overlay: 40;
+  --z-popover: 30;
+  --z-overlay: 30;
+  --z-backdrop: 40;
   --z-modal: 60;
+  --z-spotlight: 70;
   --z-toast: 70;
+  --z-critical: 80;
 
   /* Backward-compatible aliases for existing components. */
   --color-brand-50: var(--color-primary-50);
@@ -468,7 +472,7 @@ body {
 
   .bf-panel-right.bf-panel-open {
     opacity: 1;
-    transform: translateX(0);
+    transform: none;
   }
 
   .bf-panel-bottom.bf-panel-closed {
@@ -479,7 +483,7 @@ body {
 
   .bf-panel-bottom.bf-panel-open {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 
   .bf-pulse-once {

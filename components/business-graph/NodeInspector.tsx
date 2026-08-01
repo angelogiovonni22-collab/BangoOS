@@ -2,8 +2,7 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { SlidePanel } from "@/components/motion";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Drawer } from "@/components/ui";
 import { useBusinessGraph } from "./BusinessGraphProvider";
 import { collectDependencyPath, collectNodeConnections } from "./RelationshipEngine";
 
@@ -25,12 +24,15 @@ export function NodeInspector({ title = "Node Inspector" }: NodeInspectorProps) 
   );
 
   return (
-    <SlidePanel
+    <Drawer
       open={open}
-      from="right"
+      onClose={() => setSelectedNodeId(null)}
       trapFocus
-      onEscape={() => setSelectedNodeId(null)}
-      className="fixed right-4 top-20 z-[55] w-[340px]"
+      showBackdrop={false}
+      lockBodyScroll={false}
+      ariaLabel={title}
+      className="top-20 right-4 bottom-4"
+      panelClassName="h-auto max-h-full w-[340px] rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)]"
     >
       <Card as="section" variant="elevated" className="shadow-[var(--shadow-large)]">
         <CardHeader className="bg-[var(--color-surface-subtle)]/70">
@@ -130,7 +132,7 @@ export function NodeInspector({ title = "Node Inspector" }: NodeInspectorProps) 
             </>
           ) : null}
         </CardContent>
-      </Card>
-    </SlidePanel>
+        </Card>
+      </Drawer>
   );
 }

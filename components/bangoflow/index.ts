@@ -1,6 +1,7 @@
 export { CameraController, resolveCameraClassName } from "./CameraController";
 export { DepartmentNavigator } from "./DepartmentNavigator";
-export { DEPTH_TOKENS, resolveDepthClassName } from "./DepthTokens";
+export { DEPTH_TOKENS, LAYER_HIERARCHY, classifyDepthLayer, resolveDepthClassName } from "./DepthTokens";
+export type { DepthLayer, LayerHierarchy } from "./DepthTokens";
 export {
 	AmbientGrid,
 	BlueprintSurface,
