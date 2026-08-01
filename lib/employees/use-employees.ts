@@ -25,9 +25,13 @@ export function useEmployees({ service = createEmployeeService() }: UseEmployees
     assignedToProjects: 0,
     onLeave: 0,
   });
-  const [crewOptions, setCrewOptions] = useState<string[]>([]);
+  const [crewOptions, setCrewOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [supervisorOptions, setSupervisorOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [projectOptions, setProjectOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [query, setQueryState] = useState("");
-  const [crew, setCrewState] = useState("all");
+  const [crewId, setCrewState] = useState("all");
+  const [supervisorId, setSupervisorIdState] = useState("all");
+  const [projectId, setProjectIdState] = useState("all");
   const [employmentStatus, setEmploymentStatusState] = useState<EmploymentStatus | "all">("all");
   const [availabilityStatus, setAvailabilityStatusState] = useState<AvailabilityStatus | "all">("all");
   const [sortBy, setSortByState] = useState<SortKey>("name_asc");
@@ -37,14 +41,25 @@ export function useEmployees({ service = createEmployeeService() }: UseEmployees
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [partialNotices, setPartialNotices] = useState<string[]>([]);
 
   const setQuery = useCallback((value: string) => {
     setQueryState(value);
     setPage(1);
   }, []);
 
-  const setCrew = useCallback((value: string) => {
+  const setCrewId = useCallback((value: string) => {
     setCrewState(value);
+    setPage(1);
+  }, []);
+
+  const setSupervisorId = useCallback((value: string) => {
+    setSupervisorIdState(value);
+    setPage(1);
+  }, []);
+
+  const setProjectId = useCallback((value: string) => {
+    setProjectIdState(value);
     setPage(1);
   }, []);
 
@@ -68,33 +83,34 @@ export function useEmployees({ service = createEmployeeService() }: UseEmployees
     setErrorMessage(null);
 
     try {
-      const [listResult, summaryResult, crewResult] = await Promise.all([
-        service.getEmployees({
-          query,
-          crew,
-          employmentStatus,
-          availabilityStatus,
-          sortBy,
-          page,
-          pageSize,
-        }),
-        service.getSummary(),
-        service.getCrewOptions(),
-      ]);
+      const listResult = await service.getEmployees({
+        query,
+        crewId,
+        supervisorId,
+        projectId,
+        employmentStatus,
+        availabilityStatus,
+        sortBy,
+        page,
+        pageSize,
+      });
 
       setItems(listResult.items);
       setTotal(listResult.total);
       setTotalPages(listResult.totalPages);
       setPage(listResult.page);
       setPageSize(listResult.pageSize);
-      setSummary(summaryResult);
-      setCrewOptions(crewResult);
+      setSummary(listResult.summary);
+      setCrewOptions(listResult.options.crewOptions);
+      setSupervisorOptions(listResult.options.supervisorOptions);
+      setProjectOptions(listResult.options.projectOptions);
+      setPartialNotices(listResult.partialNotices);
     } catch {
       setErrorMessage("employees.errorLoad");
     } finally {
       setIsLoading(false);
     }
-  }, [availabilityStatus, crew, employmentStatus, page, pageSize, query, service, sortBy]);
+  }, [availabilityStatus, crewId, employmentStatus, page, pageSize, projectId, query, service, sortBy, supervisorId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -116,7 +132,15 @@ export function useEmployees({ service = createEmployeeService() }: UseEmployees
       count += 1;
     }
 
-    if (crew !== "all") {
+    if (crewId !== "all") {
+      count += 1;
+    }
+
+    if (supervisorId !== "all") {
+      count += 1;
+    }
+
+    if (projectId !== "all") {
       count += 1;
     }
 
@@ -129,16 +153,22 @@ export function useEmployees({ service = createEmployeeService() }: UseEmployees
     }
 
     return count;
-  }, [availabilityStatus, crew, employmentStatus, query]);
+  }, [availabilityStatus, crewId, employmentStatus, projectId, query, supervisorId]);
 
   return {
     items,
     summary,
     crewOptions,
+    supervisorOptions,
+    projectOptions,
     query,
     setQuery,
-    crew,
-    setCrew,
+    crewId,
+    setCrewId,
+    supervisorId,
+    setSupervisorId,
+    projectId,
+    setProjectId,
     employmentStatus,
     setEmploymentStatus,
     availabilityStatus,
@@ -156,6 +186,7 @@ export function useEmployees({ service = createEmployeeService() }: UseEmployees
     activeFilters,
     isLoading,
     errorMessage,
+    partialNotices,
     refresh,
   };
 }

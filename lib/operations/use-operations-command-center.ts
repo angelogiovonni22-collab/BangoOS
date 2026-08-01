@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { CommandCenterFocusFilter, OperationsCommandCenterData } from "./command-center-types";
@@ -14,14 +14,19 @@ type UseOperationsCommandCenterParams = {
 export function useOperationsCommandCenter({ localeTag, t }: UseOperationsCommandCenterParams) {
   const supabase = useMemo(() => createClient(), []);
   const [data, setData] = useState<OperationsCommandCenterData | null>(null);
+  const hasDataRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPermissionError, setIsPermissionError] = useState(false);
   const [focusFilter, setFocusFilter] = useState<CommandCenterFocusFilter>("all");
 
+  useEffect(() => {
+    hasDataRef.current = data !== null;
+  }, [data]);
+
   const refresh = useCallback(async (options?: { preserveData?: boolean }) => {
-    const preserveData = options?.preserveData ?? Boolean(data);
+    const preserveData = options?.preserveData ?? hasDataRef.current;
 
     if (preserveData) {
       setIsRefreshing(true);
@@ -56,7 +61,7 @@ export function useOperationsCommandCenter({ localeTag, t }: UseOperationsComman
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [data, localeTag, supabase, t]);
+  }, [localeTag, supabase, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

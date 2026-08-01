@@ -12,6 +12,11 @@ export type WorkforceAssignmentStatus = "planned" | "confirmed" | "in_progress" 
 
 export type WorkforceAssignmentSourceType = "manual" | "schedule" | "task" | "project" | "import";
 
+export type SelectOption = {
+  id: string;
+  label: string;
+};
+
 export type WorkforceEmployeeRow = {
   id: string;
   company_id: string;
@@ -89,6 +94,42 @@ export type WorkforceAssignmentRow = {
   updated_at: string;
 };
 
+export type WorkforceProfileRow = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+export type WorkforceProjectRow = {
+  id: string;
+  name: string;
+};
+
+export type WorkforcePhaseRow = {
+  id: string;
+  project_id: string;
+  name: string;
+};
+
+export type WorkforceTaskRow = {
+  id: string;
+  project_id: string;
+  phase_id: string | null;
+  title: string;
+};
+
+export type WorkforceEquipmentRow = {
+  id: string;
+  equipment_number: string;
+  name: string;
+  status: string;
+  maintenance_status: string;
+  assigned_job_id: string | null;
+  assigned_crew_id: string | null;
+  assigned_employee_id: string | null;
+  expected_return_date: string | null;
+};
+
 export type WorkforceMembershipFilters = {
   crewId?: string;
   employeeId?: string;
@@ -103,6 +144,248 @@ export type WorkforceAssignmentFilters = {
   assignmentType?: WorkforceAssignmentType | "all";
 };
 
+export type EmployeeDirectorySortKey =
+  | "name_asc"
+  | "name_desc"
+  | "employee_number_asc"
+  | "employee_number_desc"
+  | "updated_desc"
+  | "updated_asc";
+
+export type CrewDirectorySortKey =
+  | "name_asc"
+  | "name_desc"
+  | "members_desc"
+  | "updated_desc";
+
+export type EmployeeDirectoryFilters = {
+  query: string;
+  employmentStatus: WorkforceEmployeeStatus | "all";
+  availabilityStatus: WorkforceEmployeeAvailabilityStatus | "all";
+  crewId: string | "all";
+  supervisorId: string | "all";
+  projectId: string | "all";
+  sortBy: EmployeeDirectorySortKey;
+  page: number;
+  pageSize: number;
+};
+
+export type CrewDirectoryFilters = {
+  query: string;
+  status: WorkforceCrewStatus | "all";
+  leadId: string | "all";
+  supervisorId: string | "all";
+  projectId: string | "all";
+  assignmentStatus: WorkforceAssignmentStatus | "none" | "all";
+  sortBy: CrewDirectorySortKey;
+  page: number;
+  pageSize: number;
+};
+
+export type WorkforceAssignmentView = {
+  id: string;
+  assignmentType: WorkforceAssignmentType;
+  status: WorkforceAssignmentStatus;
+  sourceType: WorkforceAssignmentSourceType;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  plannedHours: number;
+  notes: string | null;
+  projectId: string;
+  projectName: string;
+  phaseId: string | null;
+  phaseName: string | null;
+  taskId: string | null;
+  taskName: string | null;
+  crewId: string | null;
+  crewName: string | null;
+  employeeId: string | null;
+  employeeName: string | null;
+  bucket: "current" | "upcoming" | "completed";
+  isCurrent: boolean;
+  isUpcoming: boolean;
+  isCompleted: boolean;
+  hasConflict: boolean;
+  displayTaskOrPhase: string | null;
+};
+
+export type CrewMembershipView = {
+  id: string;
+  crewId: string;
+  crewName: string;
+  employeeId: string;
+  employeeName: string;
+  role: string;
+  isPrimary: boolean;
+  startsOn: string;
+  endsOn: string | null;
+  status: WorkforceMembershipStatus;
+  isCurrent: boolean;
+};
+
+export type WorkforceEquipmentContext = {
+  id: string;
+  equipmentNumber: string;
+  name: string;
+  status: string;
+  maintenanceStatus: string;
+  assignedJobId: string | null;
+  assignedCrewId: string | null;
+  assignedEmployeeId: string | null;
+  expectedReturnDate: string | null;
+  isInUse: boolean;
+  isConflict: boolean;
+  isOutOfService: boolean;
+  href: string;
+};
+
+export type EmployeeDirectoryRow = {
+  id: string;
+  employeeNumber: string;
+  fullName: string;
+  positionTitle: string;
+  trade: string | null;
+  employmentStatus: WorkforceEmployeeStatus;
+  availabilityStatus: WorkforceEmployeeAvailabilityStatus;
+  supervisorName: string | null;
+  supervisorProfileId: string | null;
+  primaryCrewId: string | null;
+  primaryCrewName: string | null;
+  currentAssignmentId: string | null;
+  currentAssignmentTitle: string | null;
+  currentProjectId: string | null;
+  currentProjectName: string | null;
+  currentPhaseOrTask: string | null;
+  currentAssignmentStatus: WorkforceAssignmentStatus | null;
+  hireDate: string;
+  updatedAt: string;
+  notes: string | null;
+  terminationDate: string | null;
+  assignmentBucket: "current" | "upcoming" | "completed" | null;
+  equipmentCount: number;
+};
+
+export type CrewDirectoryRow = {
+  id: string;
+  crewCode: string;
+  name: string;
+  status: WorkforceCrewStatus;
+  leadName: string | null;
+  leadProfileId: string | null;
+  supervisorName: string | null;
+  supervisorProfileId: string | null;
+  homeLocation: string | null;
+  description: string | null;
+  notes: string | null;
+  activeMemberCount: number;
+  primaryMemberCount: number;
+  currentAssignmentId: string | null;
+  currentAssignmentTitle: string | null;
+  currentProjectId: string | null;
+  currentProjectName: string | null;
+  currentPhaseOrTask: string | null;
+  currentAssignmentStatus: WorkforceAssignmentStatus | null;
+  nextAssignmentTitle: string | null;
+  nextProjectName: string | null;
+  updatedAt: string;
+  equipmentCount: number;
+  projectEquipmentCount: number;
+  hasEquipmentConflict: boolean;
+  availability: "available" | "assigned";
+  isActive: boolean;
+};
+
+export type EmployeeDirectorySummary = {
+  totalEmployees: number;
+  activeToday: number;
+  available: number;
+  assignedToProjects: number;
+  onLeave: number;
+};
+
+export type CrewDirectorySummary = {
+  totalCrews: number;
+  activeCrews: number;
+  availableCrews: number;
+  assignedCrews: number;
+};
+
+export type EmployeeDirectoryResult = {
+  items: EmployeeDirectoryRow[];
+  total: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+  summary: EmployeeDirectorySummary;
+  options: {
+    crewOptions: SelectOption[];
+    supervisorOptions: SelectOption[];
+    projectOptions: SelectOption[];
+  };
+  partialNotices: string[];
+  assignmentViews: WorkforceAssignmentView[];
+  membershipViews: CrewMembershipView[];
+  equipment: WorkforceEquipmentContext[];
+};
+
+export type CrewDirectoryResult = {
+  items: CrewDirectoryRow[];
+  total: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+  summary: CrewDirectorySummary;
+  options: {
+    supervisorOptions: SelectOption[];
+    leadOptions: SelectOption[];
+    projectOptions: SelectOption[];
+  };
+  partialNotices: string[];
+  assignmentViews: WorkforceAssignmentView[];
+  membershipViews: CrewMembershipView[];
+  equipment: WorkforceEquipmentContext[];
+};
+
+export type EmployeeProfileData = {
+  overview: EmployeeDirectoryRow;
+  memberships: {
+    current: CrewMembershipView[];
+    planned: CrewMembershipView[];
+    ended: CrewMembershipView[];
+  };
+  assignments: {
+    current: WorkforceAssignmentView[];
+    upcoming: WorkforceAssignmentView[];
+    completed: WorkforceAssignmentView[];
+  };
+  equipment: {
+    direct: WorkforceEquipmentContext[];
+    crew: WorkforceEquipmentContext[];
+    project: WorkforceEquipmentContext[];
+  };
+  partialNotices: string[];
+};
+
+export type CrewProfileData = {
+  overview: CrewDirectoryRow;
+  memberships: {
+    current: CrewMembershipView[];
+    planned: CrewMembershipView[];
+    ended: CrewMembershipView[];
+  };
+  assignments: {
+    current: WorkforceAssignmentView[];
+    upcoming: WorkforceAssignmentView[];
+    completed: WorkforceAssignmentView[];
+  };
+  equipment: {
+    crew: WorkforceEquipmentContext[];
+    project: WorkforceEquipmentContext[];
+  };
+  partialNotices: string[];
+};
+
 export type WorkforceService = {
   listEmployees: (companyId: string) => Promise<WorkforceEmployeeRow[]>;
   getEmployee: (companyId: string, employeeId: string) => Promise<WorkforceEmployeeRow | null>;
@@ -110,4 +393,8 @@ export type WorkforceService = {
   getCrew: (companyId: string, crewId: string) => Promise<WorkforceCrewRow | null>;
   listCrewMemberships: (companyId: string, filters?: WorkforceMembershipFilters) => Promise<WorkforceMembershipRow[]>;
   listWorkforceAssignments: (companyId: string, filters?: WorkforceAssignmentFilters) => Promise<WorkforceAssignmentRow[]>;
+  getEmployeeDirectory: (companyId: string, filters: EmployeeDirectoryFilters) => Promise<EmployeeDirectoryResult>;
+  getEmployeeProfile: (companyId: string, employeeId: string) => Promise<EmployeeProfileData | null>;
+  getCrewDirectory: (companyId: string, filters: CrewDirectoryFilters) => Promise<CrewDirectoryResult>;
+  getCrewProfile: (companyId: string, crewId: string) => Promise<CrewProfileData | null>;
 };

@@ -1,5 +1,7 @@
 import { buildActivityFeed, buildAvailabilityMap, buildPendingDecisions, buildProjectStatusRows, buildSummaryMetrics, buildTodaySchedule, buildWorkforceBoard } from "./command-center-normalizer";
 import { computePriorityRank, rankPriorityActionItems } from "./command-center-priority";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 let passed = 0;
 let failed = 0;
@@ -238,6 +240,15 @@ async function main() {
     assert(metricMap.get("equipmentInUse") === 0, "equipment in-use metric does not fabricate non-zero values");
     assert(metricMap.get("equipmentMaintenanceDue") === 0, "maintenance-due metric does not fabricate non-zero values");
     assert(metricMap.get("equipmentConflicts") === 0, "conflict metric does not fabricate non-zero values");
+  });
+
+  await test("8. operations hook refresh dependency remains data-agnostic to prevent reload loops", () => {
+    const hookPath = join(process.cwd(), "lib", "operations", "use-operations-command-center.ts");
+    const source = readFileSync(hookPath, "utf8");
+
+    assert(source.includes("const hasDataRef = useRef(false);"), "hook tracks presence of data via ref");
+    assert(source.includes("const preserveData = options?.preserveData ?? hasDataRef.current;"), "refresh default preserve behavior uses stable ref");
+    assert(source.includes("}, [localeTag, supabase, t]);"), "refresh callback dependencies exclude data state");
   });
 
   console.log(`\nOperations Command Center Phase 1 results: ${passed} passed, ${failed} failed`);

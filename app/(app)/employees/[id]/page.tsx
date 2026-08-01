@@ -45,7 +45,7 @@ export default function EmployeeProfilePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={employee.fullName}
+        title={employee.overview.fullName}
         description={t("employees.profile.description")}
         primaryAction={
           <div className="flex flex-wrap gap-2">
@@ -54,12 +54,6 @@ export default function EmployeeProfilePage() {
               className="inline-flex h-11 items-center rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 text-sm font-semibold text-[var(--color-text-secondary)]"
             >
               {t("employees.actions.backToDirectory")}
-            </Link>
-            <Link
-              href={`/employees/${employee.id}/edit`}
-              className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white"
-            >
-              {t("employees.actions.edit")}
             </Link>
           </div>
         }

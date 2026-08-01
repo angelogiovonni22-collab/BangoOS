@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createEmployeeService, type EmployeeService } from "./service";
-import type { Employee } from "./types";
+import type { EmployeeProfile } from "./types";
 
 type UseEmployeeProfileParams = {
   employeeId: string;
@@ -10,7 +10,7 @@ type UseEmployeeProfileParams = {
 };
 
 export function useEmployeeProfile({ employeeId, service = createEmployeeService() }: UseEmployeeProfileParams) {
-  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(employeeId));
   const [errorMessage, setErrorMessage] = useState<string | null>(employeeId ? null : "employees.errorMissingId");
   const [notFound, setNotFound] = useState(false);

@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import {
   EmptyState,
   ErrorState,
   PageHeader,
+  PartialDataNotice,
   TableContainer,
 } from "@/components/ui";
 import {
@@ -23,15 +23,21 @@ export default function CrewsPage() {
   const {
     items,
     summary,
-    specialtyOptions,
+    leadOptions,
+    supervisorOptions,
+    projectOptions,
     query,
     setQuery,
     status,
     setStatus,
-    availability,
-    setAvailability,
-    specialty,
-    setSpecialty,
+    leadId,
+    setLeadId,
+    supervisorId,
+    setSupervisorId,
+    projectId,
+    setProjectId,
+    assignmentStatus,
+    setAssignmentStatus,
     sortBy,
     setSortBy,
     page,
@@ -45,6 +51,7 @@ export default function CrewsPage() {
     activeFilters,
     isLoading,
     errorMessage,
+    partialNotices,
   } = useCrews();
 
   return (
@@ -52,16 +59,13 @@ export default function CrewsPage() {
       <PageHeader
         title={t("crews.pageTitle")}
         description={t("crews.pageDescription")}
-        primaryAction={
-          <Link href="/crews/new" className="inline-flex">
-            <span className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-5 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition hover:-translate-y-px hover:bg-[var(--color-brand-700)]">
-              + {t("crews.actions.addCrew")}
-            </span>
-          </Link>
-        }
       />
 
       <CrewDashboardMetrics summary={summary} t={t} />
+
+      {partialNotices.map((notice) => (
+        <PartialDataNotice key={notice} message={notice} />
+      ))}
 
       <TableContainer
         title={t("crews.directoryTitle")}
@@ -70,15 +74,21 @@ export default function CrewsPage() {
           <CrewFilters
             query={query}
             status={status}
-            availability={availability}
-            specialty={specialty}
+            leadId={leadId}
+            supervisorId={supervisorId}
+            projectId={projectId}
+            assignmentStatus={assignmentStatus}
             sortBy={sortBy}
-            specialtyOptions={specialtyOptions}
+            leadOptions={leadOptions}
+            supervisorOptions={supervisorOptions}
+            projectOptions={projectOptions}
             activeFilters={activeFilters}
             onQueryChange={setQuery}
             onStatusChange={setStatus}
-            onAvailabilityChange={setAvailability}
-            onSpecialtyChange={setSpecialty}
+            onLeadChange={setLeadId}
+            onSupervisorChange={setSupervisorId}
+            onProjectChange={setProjectId}
+            onAssignmentStatusChange={setAssignmentStatus}
             onSortChange={setSortBy}
             t={t}
           />
@@ -94,14 +104,6 @@ export default function CrewsPage() {
             icon={<HardHat className="h-7 w-7" />}
             title={t("crews.empty.title")}
             description={t("crews.empty.description")}
-            action={
-              <Link
-                href="/crews/new"
-                className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white"
-              >
-                {t("crews.actions.addCrew")}
-              </Link>
-            }
           />
         ) : (
           <>

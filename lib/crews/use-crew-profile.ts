@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createCrewService, type CrewService } from "./service";
-import type { Crew } from "./types";
+import type { CrewProfile } from "./types";
 
 type UseCrewProfileParams = {
   crewId: string;
@@ -11,7 +11,7 @@ type UseCrewProfileParams = {
 
 export function useCrewProfile({ crewId, service }: UseCrewProfileParams) {
   const crewService = useMemo(() => service ?? createCrewService(), [service]);
-  const [crew, setCrew] = useState<Crew | null>(null);
+  const [crew, setCrew] = useState<CrewProfile | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(crewId));
   const [errorMessage, setErrorMessage] = useState<string | null>(crewId ? null : "crews.errorMissingId");
   const [notFound, setNotFound] = useState(false);

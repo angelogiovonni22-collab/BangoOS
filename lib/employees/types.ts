@@ -1,84 +1,74 @@
-export type EmploymentStatus = "active" | "on_leave" | "inactive";
+import type {
+  EmployeeDirectoryResult,
+  EmployeeDirectoryRow,
+  EmployeeDirectorySortKey,
+  EmployeeProfileData,
+  SelectOption,
+  WorkforceEmployeeAvailabilityStatus,
+  WorkforceEmployeeStatus,
+} from "@/lib/workforce";
 
-export type AvailabilityStatus = "available" | "assigned" | "off_shift";
+export type EmploymentStatus = WorkforceEmployeeStatus;
 
-export type SortKey =
-  | "name_asc"
-  | "name_desc"
-  | "position_asc"
-  | "position_desc"
-  | "crew_asc"
-  | "crew_desc"
-  | "status_asc"
-  | "status_desc";
+export type AvailabilityStatus = WorkforceEmployeeAvailabilityStatus;
 
-export type EmployeeCertification = {
-  id: string;
-  name: string;
-  issuer: string;
-  expiresAt: string | null;
-};
+export type SortKey = EmployeeDirectorySortKey;
 
-export type EmployeeProjectAssignment = {
-  id: string;
-  projectName: string;
-  role: string;
-  startDate: string;
-  status: "active" | "upcoming" | "completed";
-};
-
-export type EmploymentHistoryEntry = {
-  id: string;
-  title: string;
-  crew: string;
-  startedOn: string;
-  endedOn: string | null;
-  summary: string;
-};
-
-export type EmergencyContact = {
-  name: string;
-  relationship: string;
-  phone: string;
-};
-
-export type CrewHistoryEntry = {
-  id: string;
-  crewName: string;
-  role: string;
-  startedOn: string;
-  endedOn: string | null;
-  primaryCrew: boolean;
-};
-
-export type Employee = {
-  id: string;
-  avatarUrl: string | null;
-  fullName: string;
-  position: string;
-  crew: string;
-  supervisor: string;
-  phone: string;
-  email: string;
-  employmentStatus: EmploymentStatus;
-  availabilityStatus: AvailabilityStatus;
-  currentAssignment: string | null;
-  activeToday: boolean;
-  hiredOn: string;
-  birthDate: string;
-  address: string;
-  emergencyContact: EmergencyContact;
-  certifications: EmployeeCertification[];
-  skills: string[];
-  assignedProjects: EmployeeProjectAssignment[];
-  employmentHistory: EmploymentHistoryEntry[];
+export type Employee = EmployeeDirectoryRow & {
+  avatarUrl?: string | null;
+  position?: string;
+  crew?: string;
+  supervisor?: string;
+  phone?: string;
+  email?: string;
+  currentAssignment?: string | null;
+  activeToday?: boolean;
+  hiredOn?: string;
+  birthDate?: string;
+  address?: string;
+  emergencyContact?: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+  certifications?: Array<{
+    id: string;
+    name: string;
+    issuer: string;
+    expiresAt: string | null;
+  }>;
+  skills?: string[];
+  assignedProjects?: Array<{
+    id: string;
+    projectName: string;
+    role: string;
+    startDate: string;
+    status: "active" | "upcoming" | "completed";
+  }>;
+  employmentHistory?: Array<{
+    id: string;
+    title: string;
+    crew: string;
+    startedOn: string;
+    endedOn: string | null;
+    summary: string;
+  }>;
+  notes?: string | null;
   primaryCrew?: string | null;
   secondaryCrew?: string | null;
   crewRole?: string | null;
   crewAssignedOn?: string | null;
-  crewHistory?: CrewHistoryEntry[];
-  notes: string;
+  crewHistory?: Array<{
+    id: string;
+    crewName: string;
+    role: string;
+    startedOn: string;
+    endedOn: string | null;
+    primaryCrew: boolean;
+  }>;
 };
+
+export type EmployeeProfile = EmployeeProfileData;
 
 export type EmployeeDashboardSummary = {
   totalEmployees: number;
@@ -90,7 +80,9 @@ export type EmployeeDashboardSummary = {
 
 export type EmployeeFilters = {
   query: string;
-  crew: string;
+  crewId: string;
+  supervisorId: string;
+  projectId: string;
   employmentStatus: EmploymentStatus | "all";
   availabilityStatus: AvailabilityStatus | "all";
   sortBy: SortKey;
@@ -104,6 +96,13 @@ export type EmployeeListResult = {
   totalPages: number;
   page: number;
   pageSize: number;
+  summary: EmployeeDashboardSummary;
+  options: {
+    crewOptions: SelectOption[];
+    supervisorOptions: SelectOption[];
+    projectOptions: SelectOption[];
+  };
+  partialNotices: string[];
 };
 
 export type UpsertEmployeeInput = {
@@ -120,16 +119,35 @@ export type UpsertEmployeeInput = {
   hiredOn: string;
   birthDate: string;
   address: string;
-  emergencyContact: EmergencyContact;
-  certifications: EmployeeCertification[];
+  emergencyContact: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+  certifications: Array<{
+    id: string;
+    name: string;
+    issuer: string;
+    expiresAt: string | null;
+  }>;
   skills: string[];
-  assignedProjects: EmployeeProjectAssignment[];
-  employmentHistory: EmploymentHistoryEntry[];
-  primaryCrew?: string | null;
-  secondaryCrew?: string | null;
-  crewRole?: string | null;
-  crewAssignedOn?: string | null;
-  crewHistory?: CrewHistoryEntry[];
+  assignedProjects: Array<{
+    id: string;
+    projectName: string;
+    role: string;
+    startDate: string;
+    status: "active" | "upcoming" | "completed";
+  }>;
+  employmentHistory: Array<{
+    id: string;
+    title: string;
+    crew: string;
+    startedOn: string;
+    endedOn: string | null;
+    summary: string;
+  }>;
   notes: string;
   avatarUrl?: string | null;
 };
+
+export type EmployeeDirectoryPayload = EmployeeDirectoryResult;

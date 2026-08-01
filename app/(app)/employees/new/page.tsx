@@ -1,48 +1,23 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { PageHeader } from "@/components/ui";
-import { EmployeeForm } from "@/components/employees";
-import { createEmployeeService } from "@/lib/employees";
-import type { UpsertEmployeeInput } from "@/lib/employees";
-import { useI18n } from "@/lib/i18n/provider";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle, PageHeader, PartialDataNotice } from "@/components/ui";
 
 export default function NewEmployeePage() {
-  const { t } = useI18n();
-  const router = useRouter();
-  const service = useMemo(() => createEmployeeService(), []);
-  const [isSaving, setIsSaving] = useState(false);
-  const crewOptions = ["Field Ops Alpha", "Field Ops Bravo", "Interior Crew", "MEP Crew", "Preconstruction", "Safety"];
-
-  const handleSubmit = async (value: UpsertEmployeeInput) => {
-    if (isSaving) {
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      const created = await service.createEmployee(value);
-      router.push(`/employees/${created.id}`);
-      router.refresh();
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   return (
     <div className="space-y-8">
-      <PageHeader title={t("employees.new.title")} description={t("employees.new.description")} />
-
-      <EmployeeForm
-        mode="create"
-        crewOptions={crewOptions}
-        isSaving={isSaving}
-        onSubmit={handleSubmit}
-        onCancel={() => router.push("/employees")}
-        t={t}
-      />
+      <PageHeader title="Employee records" description="CrewOS Phase 1 is read-only." />
+      <PartialDataNotice message="Employee create and edit workflows are intentionally unavailable in Phase 1 live data integration." />
+      <Card>
+        <CardHeader>
+          <CardTitle>Read-only phase</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Link href="/employees" className="text-sm font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">
+            Return to employee directory
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   );
 }

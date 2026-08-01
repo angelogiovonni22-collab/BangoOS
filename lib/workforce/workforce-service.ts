@@ -1,5 +1,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database.types";
+import {
+  normalizeCrewDirectory,
+  normalizeCrewProfile,
+  normalizeEmployeeDirectory,
+  normalizeEmployeeProfile,
+} from "./workforce-normalizer";
+import { createWorkforceRepository } from "./workforce-repository";
 import type {
+  CrewDirectoryFilters,
+  CrewDirectoryResult,
+  CrewProfileData,
+  EmployeeDirectoryFilters,
+  EmployeeDirectoryResult,
+  EmployeeProfileData,
   WorkforceAssignmentFilters,
   WorkforceAssignmentRow,
   WorkforceCrewRow,
@@ -9,139 +23,240 @@ import type {
   WorkforceService,
 } from "./workforce-types";
 
-type WorkforceClient = SupabaseClient;
+type WorkforceClient = SupabaseClient<Database>;
 
-const EMPLOYEE_SELECT = "*";
-const CREW_SELECT = "*";
-const MEMBERSHIP_SELECT = "*";
-const ASSIGNMENT_SELECT = "*";
+type ContextLoad = {
+  employees: WorkforceEmployeeRow[];
+  crews: WorkforceCrewRow[];
+  memberships: WorkforceMembershipRow[];
+  assignments: WorkforceAssignmentRow[];
+  partialNotices: string[];
+  profiles: Array<{ id: string; first_name: string | null; last_name: string | null }>;
+  projects: Array<{ id: string; name: string }>;
+  phases: Array<{ id: string; project_id: string; name: string }>;
+  tasks: Array<{ id: string; project_id: string; phase_id: string | null; title: string }>;
+  equipment: Array<{
+    id: string;
+    equipment_number: string;
+    name: string;
+    status: string;
+    maintenance_status: string;
+    assigned_job_id: string | null;
+    assigned_crew_id: string | null;
+    assigned_employee_id: string | null;
+    expected_return_date: string | null;
+  }>;
+};
+
+async function loadContext(
+  companyId: string,
+  loadCore: () => Promise<Pick<ContextLoad, "employees" | "crews" | "memberships" | "assignments">>,
+  loadSecondary: () => Promise<
+    Array<PromiseSettledResult<unknown>>
+  >,
+): Promise<ContextLoad> {
+  const core = await loadCore();
+  const partialNotices: string[] = [];
+
+  const [profilesResult, projectsResult, phasesResult, tasksResult, equipmentResult] = await loadSecondary();
+
+  const profiles = profilesResult.status === "fulfilled"
+    ? (profilesResult.value as ContextLoad["profiles"])
+    : [];
+  const projects = projectsResult.status === "fulfilled"
+    ? (projectsResult.value as ContextLoad["projects"])
+    : [];
+  const phases = phasesResult.status === "fulfilled"
+    ? (phasesResult.value as ContextLoad["phases"])
+    : [];
+  const tasks = tasksResult.status === "fulfilled"
+    ? (tasksResult.value as ContextLoad["tasks"])
+    : [];
+  const equipment = equipmentResult.status === "fulfilled"
+    ? (equipmentResult.value as ContextLoad["equipment"])
+    : [];
+
+  if (profilesResult.status === "rejected") {
+    partialNotices.push("Profile names are partially unavailable right now.");
+  }
+
+  if (projectsResult.status === "rejected" || phasesResult.status === "rejected" || tasksResult.status === "rejected") {
+    partialNotices.push("Project, phase, or task labels are partially unavailable right now.");
+  }
+
+  if (equipmentResult.status === "rejected") {
+    partialNotices.push("Equipment relationships are partially unavailable right now.");
+  }
+
+  return {
+    ...core,
+    profiles,
+    projects,
+    phases,
+    tasks,
+    equipment,
+    partialNotices,
+  };
+}
 
 export function createWorkforceService(supabase: WorkforceClient): WorkforceService {
+  const repository = createWorkforceRepository(supabase);
+
+  const fetchContext = async (companyId: string): Promise<ContextLoad> => loadContext(
+    companyId,
+    async () => {
+      const [employees, crews, memberships, assignments] = await Promise.all([
+        repository.listEmployees(companyId),
+        repository.listCrews(companyId),
+        repository.listCrewMemberships(companyId),
+        repository.listWorkforceAssignments(companyId),
+      ]);
+
+      return {
+        employees,
+        crews,
+        memberships,
+        assignments,
+      };
+    },
+    async () => Promise.allSettled([
+      repository.listProfiles(companyId),
+      repository.listProjects(companyId),
+      repository.listPhases(companyId),
+      repository.listTasks(companyId),
+      repository.listEquipment(companyId),
+    ]),
+  );
+
   return {
     async listEmployees(companyId) {
-      const { data, error } = await supabase
-        .from("employees")
-        .select(EMPLOYEE_SELECT)
-        .eq("company_id", companyId)
-        .order("employee_number", { ascending: true })
-        .order("created_at", { ascending: true });
-
-      if (error) {
-        throw error;
-      }
-
-      return (data ?? []) as WorkforceEmployeeRow[];
+      return repository.listEmployees(companyId);
     },
 
     async getEmployee(companyId, employeeId) {
-      const { data, error } = await supabase
-        .from("employees")
-        .select(EMPLOYEE_SELECT)
-        .eq("company_id", companyId)
-        .eq("id", employeeId)
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-
-      return (data ?? null) as WorkforceEmployeeRow | null;
+      return repository.getEmployee(companyId, employeeId);
     },
 
     async listCrews(companyId) {
-      const { data, error } = await supabase
-        .from("crews")
-        .select(CREW_SELECT)
-        .eq("company_id", companyId)
-        .order("crew_code", { ascending: true })
-        .order("created_at", { ascending: true });
-
-      if (error) {
-        throw error;
-      }
-
-      return (data ?? []) as WorkforceCrewRow[];
+      return repository.listCrews(companyId);
     },
 
     async getCrew(companyId, crewId) {
-      const { data, error } = await supabase
-        .from("crews")
-        .select(CREW_SELECT)
-        .eq("company_id", companyId)
-        .eq("id", crewId)
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-
-      return (data ?? null) as WorkforceCrewRow | null;
+      return repository.getCrew(companyId, crewId);
     },
 
     async listCrewMemberships(companyId, filters: WorkforceMembershipFilters = {}) {
-      let query = supabase
-        .from("crew_memberships")
-        .select(MEMBERSHIP_SELECT)
-        .eq("company_id", companyId)
-        .order("starts_on", { ascending: false })
-        .order("created_at", { ascending: true });
-
-      if (filters.crewId) {
-        query = query.eq("crew_id", filters.crewId);
-      }
-
-      if (filters.employeeId) {
-        query = query.eq("employee_id", filters.employeeId);
-      }
-
-      if (filters.status && filters.status !== "all") {
-        query = query.eq("status", filters.status);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-
-      return (data ?? []) as WorkforceMembershipRow[];
+      return repository.listCrewMemberships(companyId, filters);
     },
 
     async listWorkforceAssignments(companyId, filters: WorkforceAssignmentFilters = {}) {
-      let query = supabase
-        .from("workforce_assignments")
-        .select(ASSIGNMENT_SELECT)
-        .eq("company_id", companyId)
-        .order("starts_at", { ascending: true })
-        .order("created_at", { ascending: true });
+      return repository.listWorkforceAssignments(companyId, filters);
+    },
 
-      if (filters.assignmentType && filters.assignmentType !== "all") {
-        query = query.eq("assignment_type", filters.assignmentType);
-      }
+    async getEmployeeDirectory(companyId, filters: EmployeeDirectoryFilters): Promise<EmployeeDirectoryResult> {
+      const context = await fetchContext(companyId);
 
-      if (filters.crewId) {
-        query = query.eq("crew_id", filters.crewId);
-      }
+      return normalizeEmployeeDirectory({
+        employees: context.employees,
+        crews: context.crews,
+        memberships: context.memberships,
+        assignments: context.assignments,
+        projects: context.projects,
+        phases: context.phases,
+        tasks: context.tasks,
+        profiles: context.profiles,
+        equipment: context.equipment,
+        filters,
+        partialNotices: context.partialNotices,
+      });
+    },
 
-      if (filters.employeeId) {
-        query = query.eq("employee_id", filters.employeeId);
-      }
+    async getEmployeeProfile(companyId, employeeId): Promise<EmployeeProfileData | null> {
+      const context = await fetchContext(companyId);
+      const directory = normalizeEmployeeDirectory({
+        employees: context.employees,
+        crews: context.crews,
+        memberships: context.memberships,
+        assignments: context.assignments,
+        projects: context.projects,
+        phases: context.phases,
+        tasks: context.tasks,
+        profiles: context.profiles,
+        equipment: context.equipment,
+        filters: {
+          query: "",
+          employmentStatus: "all",
+          availabilityStatus: "all",
+          crewId: "all",
+          supervisorId: "all",
+          projectId: "all",
+          sortBy: "name_asc",
+          page: 1,
+          pageSize: Math.max(1, context.employees.length),
+        },
+        partialNotices: context.partialNotices,
+      });
 
-      if (filters.projectId) {
-        query = query.eq("project_id", filters.projectId);
-      }
+      return normalizeEmployeeProfile({
+        employeeId,
+        directory,
+        memberships: directory.membershipViews,
+        assignments: directory.assignmentViews,
+        equipment: directory.equipment,
+      });
+    },
 
-      if (filters.status && filters.status !== "all") {
-        query = query.eq("status", filters.status);
-      }
+    async getCrewDirectory(companyId, filters: CrewDirectoryFilters): Promise<CrewDirectoryResult> {
+      const context = await fetchContext(companyId);
 
-      const { data, error } = await query;
+      return normalizeCrewDirectory({
+        crews: context.crews,
+        employees: context.employees,
+        memberships: context.memberships,
+        assignments: context.assignments,
+        projects: context.projects,
+        phases: context.phases,
+        tasks: context.tasks,
+        profiles: context.profiles,
+        equipment: context.equipment,
+        filters,
+        partialNotices: context.partialNotices,
+      });
+    },
 
-      if (error) {
-        throw error;
-      }
+    async getCrewProfile(companyId, crewId): Promise<CrewProfileData | null> {
+      const context = await fetchContext(companyId);
+      const directory = normalizeCrewDirectory({
+        crews: context.crews,
+        employees: context.employees,
+        memberships: context.memberships,
+        assignments: context.assignments,
+        projects: context.projects,
+        phases: context.phases,
+        tasks: context.tasks,
+        profiles: context.profiles,
+        equipment: context.equipment,
+        filters: {
+          query: "",
+          status: "all",
+          leadId: "all",
+          supervisorId: "all",
+          projectId: "all",
+          assignmentStatus: "all",
+          sortBy: "name_asc",
+          page: 1,
+          pageSize: Math.max(1, context.crews.length),
+        },
+        partialNotices: context.partialNotices,
+      });
 
-      return (data ?? []) as WorkforceAssignmentRow[];
+      return normalizeCrewProfile({
+        crewId,
+        directory,
+        memberships: directory.membershipViews,
+        assignments: directory.assignmentViews,
+        equipment: directory.equipment,
+      });
     },
   };
 }

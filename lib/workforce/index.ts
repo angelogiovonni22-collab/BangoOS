@@ -1,4 +1,13 @@
 export { createWorkforceService } from "./workforce-service";
+export { createWorkforceRepository } from "./workforce-repository";
+export {
+  normalizeAssignmentViews,
+  normalizeCrewDirectory,
+  normalizeCrewProfile,
+  normalizeEmployeeDirectory,
+  normalizeEmployeeProfile,
+  normalizeMembershipViews,
+} from "./workforce-normalizer";
 export {
   hasAssignmentConflict,
   isActiveAssignment,
@@ -9,17 +18,38 @@ export {
 } from "./workforce-semantics";
 export type {
   WorkforceAssignmentFilters,
+  WorkforceAssignmentView,
   WorkforceAssignmentRow,
   WorkforceAssignmentSourceType,
   WorkforceAssignmentStatus,
   WorkforceAssignmentType,
+  WorkforceEquipmentContext,
+  WorkforceEquipmentRow,
   WorkforceCrewRow,
   WorkforceCrewStatus,
+  CrewDirectoryFilters,
+  CrewDirectoryResult,
+  CrewDirectoryRow,
+  CrewMembershipView,
+  CrewProfileData,
+  CrewDirectorySortKey,
+  CrewDirectorySummary,
+  EmployeeDirectoryFilters,
+  EmployeeDirectoryResult,
+  EmployeeDirectoryRow,
+  EmployeeDirectorySortKey,
+  EmployeeDirectorySummary,
+  EmployeeProfileData,
+  SelectOption,
   WorkforceEmployeeAvailabilityStatus,
   WorkforceEmployeeRow,
   WorkforceEmployeeStatus,
+  WorkforcePhaseRow,
+  WorkforceProfileRow,
+  WorkforceProjectRow,
   WorkforceMembershipFilters,
   WorkforceMembershipRow,
   WorkforceMembershipStatus,
   WorkforceService,
+  WorkforceTaskRow,
 } from "./workforce-types";

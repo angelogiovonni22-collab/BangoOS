@@ -70,21 +70,24 @@ export type LearningMemoryRow = {
   updated_at: string;
 };
 
-type BangoMemoriesTableRow = LearningMemoryRow & {
-  is_archived: boolean;
-};
-
-type DatabaseWithBangoMemories = Omit<Database, "public"> & {
-  public: Omit<Database["public"], "Tables"> & {
-    Tables: Database["public"]["Tables"] & {
-      bango_memories: {
-        Row: BangoMemoriesTableRow;
-        Insert: Partial<BangoMemoriesTableRow>;
-        Update: Partial<BangoMemoriesTableRow>;
-        Relationships: [];
-      };
-    };
-  };
+type BangoMemoriesCurrentRow = {
+  id: string;
+  company_id: string;
+  project_id: string | null;
+  customer_id: string | null;
+  task_id: string | null;
+  phase_id: string | null;
+  category: string;
+  title: string;
+  summary: string;
+  details: unknown;
+  recommendation_status: string | null;
+  confidence: string;
+  status: string;
+  source_references: unknown;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
 };
 
 export type LearningVendorRow = Pick<
@@ -220,15 +223,16 @@ export class SupabaseLearningProvider implements LearningProvider {
   }
 
   async getMemories(companyId: string, scope: LearningTimeScope): Promise<LearningMemoryRow[]> {
-    const supabaseWithMemories = this.supabase as unknown as SupabaseClient<DatabaseWithBangoMemories>;
+    const db = this.supabase as unknown as SupabaseClient<Record<string, unknown>>;
 
-    let query = supabaseWithMemories
+    let query = db
       .from("bango_memories")
       .select(
-        "id,company_id,project_id,customer_id,related_task_id,phase,category,content,source,relevance_score,recommendation_status,recommendation_outcome,verification_status,linked_vendor_id,linked_equipment_id,linked_material_id,created_at,updated_at",
+        "id,company_id,project_id,customer_id,task_id,phase_id,category,title,summary,details,recommendation_status,confidence,status,source_references,created_at,updated_at,archived_at",
       )
       .eq("company_id", companyId)
-      .eq("is_archived", false);
+      .neq("status", "archived")
+      .is("archived_at", null);
 
     query = applyTimeRange(query, scope, "created_at");
     const { data, error } = await query;
@@ -236,23 +240,23 @@ export class SupabaseLearningProvider implements LearningProvider {
       throw error;
     }
 
-    return (data ?? []).map((row) => ({
+    return ((data ?? []) as unknown as BangoMemoriesCurrentRow[]).map((row) => ({
       id: row.id,
       company_id: row.company_id,
       project_id: row.project_id,
       customer_id: row.customer_id,
-      related_task_id: row.related_task_id,
-      phase: row.phase,
+      related_task_id: row.task_id,
+      phase: row.phase_id,
       category: row.category,
-      content: row.content,
-      source: row.source,
-      relevance_score: row.relevance_score,
+      content: row.summary?.trim() || row.title?.trim() || "Memory record",
+      source: deriveMemorySource(row.source_references),
+      relevance_score: confidenceToScore(row.confidence),
       recommendation_status: row.recommendation_status,
-      recommendation_outcome: row.recommendation_outcome,
-      verification_status: row.verification_status,
-      linked_vendor_id: row.linked_vendor_id,
-      linked_equipment_id: row.linked_equipment_id,
-      linked_material_id: row.linked_material_id,
+      recommendation_outcome: null,
+      verification_status: row.confidence,
+      linked_vendor_id: null,
+      linked_equipment_id: null,
+      linked_material_id: null,
       created_at: row.created_at,
       updated_at: row.updated_at,
     }));
@@ -313,4 +317,29 @@ export class SupabaseLearningProvider implements LearningProvider {
 
     return data ?? [];
   }
+}
+
+function deriveMemorySource(sourceReferences: unknown) {
+  if (Array.isArray(sourceReferences) && sourceReferences.length > 0) {
+    return "memory_reference";
+  }
+
+  return "memory_record";
+}
+
+function confidenceToScore(confidence: string | null | undefined) {
+  const normalized = (confidence ?? "").trim().toLowerCase();
+  if (normalized === "verified") {
+    return 1;
+  }
+
+  if (normalized === "high") {
+    return 0.85;
+  }
+
+  if (normalized === "medium") {
+    return 0.6;
+  }
+
+  return 0.4;
 }
