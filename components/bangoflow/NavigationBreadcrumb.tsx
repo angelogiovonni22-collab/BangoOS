@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useSpatialNavigation } from "./SpatialNavigationProvider";
+import { usePathname } from "next/navigation";
+import { deriveSpatialRouteState } from "./SpatialNavigationProvider";
 
 export function NavigationBreadcrumb() {
-  const { breadcrumbs } = useSpatialNavigation();
+  const pathname = usePathname();
+  const { breadcrumbs } = deriveSpatialRouteState(pathname || "/dashboard");
 
   return (
     <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]">

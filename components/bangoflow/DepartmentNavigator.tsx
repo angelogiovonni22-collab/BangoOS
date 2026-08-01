@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useSpatialNavigation } from "./SpatialNavigationProvider";
+import { usePathname } from "next/navigation";
+import { deriveSpatialRouteState } from "./SpatialNavigationProvider";
 
 type DepartmentNavigatorProps = {
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
 export function DepartmentNavigator({ t }: DepartmentNavigatorProps) {
-  const route = useSpatialNavigation();
+  const pathname = usePathname();
+  const route = deriveSpatialRouteState(pathname || "/dashboard");
 
   return (
     <div className="flex flex-wrap items-center gap-2">

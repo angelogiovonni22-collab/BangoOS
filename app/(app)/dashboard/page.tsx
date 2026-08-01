@@ -8,7 +8,6 @@ import {
   BusinessScore,
   DashboardHeader,
   DashboardCustomizer,
-  ExecutiveRelationshipView,
   KPIGrid,
   ProjectHealth,
   ScheduleWidget,
@@ -155,10 +154,6 @@ export default function DashboardPage() {
           localeTag={localeTag}
           t={t}
         />
-
-        <FadeIn delayMs={140} distancePx={6}>
-          <ExecutiveRelationshipView companyName={companyName || t("common.appName")} data={data} />
-        </FadeIn>
 
         <section className="grid gap-6 xl:grid-cols-3">
           {visibleWidgetOrder.map((widgetId) => {

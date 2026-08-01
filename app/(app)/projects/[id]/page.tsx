@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ProjectRelationshipView } from "@/components/business-graph";
 import { FadeIn, MotionProvider, PageTransition } from "@/components/motion";
 import {
   ProjectKpiGrid,
@@ -489,20 +488,6 @@ export default function ProjectWorkspacePage() {
                 recentActivity={recentActivity}
                 upcomingDates={upcomingDates}
               />
-              <ProjectRelationshipView
-                companyName={workspace.workspaceContext.companyName || t("common.appName")}
-                input={{
-                  projectId: project.id,
-                  projectName,
-                  customerName,
-                  customerHref,
-                  phases: buildPhaseNodes(workspace.tasks),
-                  taskCount: workspace.tasks.length,
-                  photosCount: workspace.counts.photos,
-                  changeOrdersCount: workspace.counts.changeOrders,
-                  invoiceCount: workspace.invoices.length,
-                }}
-              />
             </div>
           ) : activeTab === "work" ? (
             <ProjectWorkWorkspace
@@ -773,20 +758,6 @@ function buildProfileNameMap(rows: ProfileSummary[], fallbackLabel: string) {
       return [row.id, fullName || fallbackLabel] as const;
     }),
   );
-}
-
-function buildPhaseNodes(tasks: TaskSummary[]) {
-  const phaseIds = new Set(tasks.map((task) => task.phase_id).filter((value): value is string => Boolean(value)));
-  const ids = Array.from(phaseIds);
-
-  if (ids.length === 0) {
-    return [{ id: "phase-unassigned", label: "Unassigned Phase" }];
-  }
-
-  return ids.slice(0, 4).map((id, index) => ({
-    id,
-    label: `Phase ${index + 1}`,
-  }));
 }
 
 function getCustomerDisplayName(customer: CustomerSummary, fallbackLabel = "Unnamed Customer") {
