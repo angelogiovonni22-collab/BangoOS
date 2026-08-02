@@ -1,5 +1,6 @@
 export { createWorkforceService } from "./workforce-service";
 export { createWorkforceRepository } from "./workforce-repository";
+export { createWorkforceIntelligenceService } from "./intelligence";
 export {
   normalizeAssignmentViews,
   normalizeCrewDirectory,
@@ -53,3 +54,21 @@ export type {
   WorkforceService,
   WorkforceTaskRow,
 } from "./workforce-types";
+export type {
+  WorkforceAffectedEntity,
+  WorkforceDataCompleteness,
+  WorkforceDataFreshness,
+  WorkforceEvaluationLimitation,
+  WorkforceFinding,
+  WorkforceFindingStatus,
+  WorkforceFindingType,
+  WorkforceFreshnessConfig,
+  WorkforceIntelligenceCategory,
+  WorkforceIntelligenceEvaluationInput,
+  WorkforceIntelligenceResult,
+  WorkforceIntelligenceService,
+  WorkforceIntelligenceSeverity,
+  WorkforceSignal,
+  WorkforceSignalEvaluationResult,
+  WorkforceSignalType,
+} from "./intelligence";
