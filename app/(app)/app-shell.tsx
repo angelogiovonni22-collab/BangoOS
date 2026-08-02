@@ -107,7 +107,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
             role={mobileOpen ? "dialog" : undefined}
             aria-modal={mobileOpen ? true : undefined}
             aria-label={mobileOpen ? t("common.openSidebar") : undefined}
-            className={`fixed inset-y-0 left-0 flex w-72 flex-col border-r border-[#1e2b45] bg-[var(--color-sidebar)] px-5 py-6 text-white shadow-[0_24px_50px_-24px_rgba(15,23,42,0.85)] transition-transform duration-300 lg:static lg:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 flex h-screen w-72 flex-col overflow-hidden border-r border-[#1e2b45] bg-[var(--color-sidebar)] px-5 py-6 text-white shadow-[0_24px_50px_-24px_rgba(15,23,42,0.85)] transition-transform duration-300 [height:100dvh] lg:static lg:h-auto lg:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
@@ -134,8 +134,8 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
             </button>
           </div>
 
-          <div className="mt-7 flex min-h-0 flex-1 flex-col">
-            <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]">
+          <div className="mt-7 flex min-h-0 flex-1 flex-col overflow-hidden">
+            <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [-webkit-overflow-scrolling:touch]">
               {navigationGroups.map((group) => {
                 const isCollapsed = collapsedGroups[group.key] ?? false;
 
@@ -170,7 +170,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
               })}
             </nav>
 
-            <div className="mt-4 shrink-0 rounded-[var(--radius-xl)] border border-white/10 bg-white/5 p-4 backdrop-blur">
+            <div className="mt-auto shrink-0 rounded-[var(--radius-xl)] border border-white/10 bg-white/5 p-4 backdrop-blur">
               <p className="text-sm font-semibold text-white">{t("common.projectPulse")}</p>
               <p className="mt-2 text-sm leading-6 text-slate-300">
                 {t("common.projectPulseDescription")}
