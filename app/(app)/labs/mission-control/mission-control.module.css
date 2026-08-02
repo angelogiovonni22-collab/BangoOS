@@ -1,0 +1,70 @@
+.root {
+  position: relative;
+  overflow-x: hidden;
+}
+
+.gridGlow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.38;
+  background-image:
+    linear-gradient(to right, rgb(35 66 98 / 36%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(35 66 98 / 36%) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(circle at 22% 12%, black 0%, transparent 70%);
+}
+
+.firstViewport {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.primaryColumns {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.secondaryColumns {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1280px) {
+  .primaryColumns {
+    grid-template-columns: 1.3fr 1fr;
+    align-items: start;
+  }
+
+  .secondaryColumns {
+    grid-template-columns: 1.25fr 1fr;
+    align-items: start;
+  }
+}
+
+.kineticRail {
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(36 184 215 / 20%), rgb(164 133 239 / 22%), rgb(240 188 88 / 20%));
+  height: 8px;
+  overflow: hidden;
+}
+
+.kineticRailInner {
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(36 184 215), rgb(164 133 239));
+  animation: mc-flow var(--mc-motion) ease-out;
+}
+
+@keyframes mc-flow {
+  from {
+    transform: translateX(-14%);
+    opacity: 0.3;
+  }
+
+  to {
+    transform: translateX(0%);
+    opacity: 1;
+  }
+}
