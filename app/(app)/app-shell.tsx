@@ -118,7 +118,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
               </div>
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-300">
-                  BangoOS
+                  B.O.S.
                 </p>
                 <p className="text-sm text-slate-400">{t("common.constructionOs")}</p>
               </div>

@@ -10,7 +10,7 @@ type PageHeaderProps = {
 };
 
 export function PageHeader({
-  eyebrow = "BangoOS",
+  eyebrow = "B.O.S.",
   title,
   description,
   primaryAction,

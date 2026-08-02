@@ -84,7 +84,8 @@ function LoginPageContent() {
       <div className="grid w-full gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="hidden rounded-[var(--radius-3xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-8 shadow-[var(--shadow-large)] lg:flex lg:flex-col lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-brand-700)]">BangoOS</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-brand-700)]">B.O.S.</p>
+            <p className="mt-2 text-sm font-medium text-[var(--color-text-secondary)]">Bango Operating System</p>
             <h1 className="mt-4 text-4xl font-bold tracking-tight text-[var(--color-text-primary)]">{t("auth.loginTitle")}</h1>
             <p className="mt-4 max-w-md text-base leading-7 text-[var(--color-text-secondary)]">{t("auth.loginDescription")}</p>
           </div>

@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "BangoOS",
-  description: "BangoOS construction management workspace",
+  title: "B.O.S.",
+  description: "Bango Operating System construction management workspace",
 };
 
 const LOCALE_COOKIE_KEY = "bangoos_i18n_locale";
