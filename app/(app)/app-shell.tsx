@@ -111,7 +111,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-          <div className="flex items-center justify-between gap-3">
+          <div className="shrink-0 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 text-lg font-semibold text-white shadow-lg shadow-blue-500/20">
                 B
@@ -134,46 +134,48 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
             </button>
           </div>
 
-          <nav className="mt-7 space-y-3">
-            {navigationGroups.map((group) => {
-              const isCollapsed = collapsedGroups[group.key] ?? false;
+          <div className="mt-7 flex min-h-0 flex-1 flex-col">
+            <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]">
+              {navigationGroups.map((group) => {
+                const isCollapsed = collapsedGroups[group.key] ?? false;
 
-              return (
-                <section key={group.key} className="space-y-2">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:bg-white/5 hover:text-white"
-                    onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))}
-                    aria-expanded={!isCollapsed}
-                  >
-                    <span>{group.label}</span>
-                    <span>{isCollapsed ? "+" : "-"}</span>
-                  </button>
+                return (
+                  <section key={group.key} className="space-y-2">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:bg-white/5 hover:text-white"
+                      onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))}
+                      aria-expanded={!isCollapsed}
+                    >
+                      <span>{group.label}</span>
+                      <span>{isCollapsed ? "+" : "-"}</span>
+                    </button>
 
-                  {!isCollapsed ? (
-                    <div className="space-y-1.5">
-                      {group.items.map((item) => (
-                        <SidebarItem
-                          key={item.key}
-                          label={t(`navigation.${item.key}`)}
-                          href={item.href}
-                          icon={item.icon}
-                          active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                          onNavigate={() => setMobileOpen(false)}
-                        />
-                      ))}
-                    </div>
-                  ) : null}
-                </section>
-              );
-            })}
-          </nav>
+                    {!isCollapsed ? (
+                      <div className="space-y-1.5">
+                        {group.items.map((item) => (
+                          <SidebarItem
+                            key={item.key}
+                            label={t(`navigation.${item.key}`)}
+                            href={item.href}
+                            icon={item.icon}
+                            active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                            onNavigate={() => setMobileOpen(false)}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                );
+              })}
+            </nav>
 
-          <div className="mt-auto rounded-[var(--radius-xl)] border border-white/10 bg-white/5 p-4 backdrop-blur">
-            <p className="text-sm font-semibold text-white">{t("common.projectPulse")}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
-              {t("common.projectPulseDescription")}
-            </p>
+            <div className="mt-4 shrink-0 rounded-[var(--radius-xl)] border border-white/10 bg-white/5 p-4 backdrop-blur">
+              <p className="text-sm font-semibold text-white">{t("common.projectPulse")}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                {t("common.projectPulseDescription")}
+              </p>
+            </div>
           </div>
           </aside>
         </LayerManager>
