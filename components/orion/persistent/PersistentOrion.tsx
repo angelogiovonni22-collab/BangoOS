@@ -13,11 +13,14 @@ type FloatingPosition = {
   y: number;
 };
 
-const PERSISTENT_ORION_POSITION_KEY = "bangoos:persistent-orion-position";
+const PERSISTENT_ORION_POSITION_KEY = "bangoos:persistent-orion-position:v2-session";
 const FLOAT_MARGIN = 12;
 const DRAG_THRESHOLD_PX = 6;
 const DEFAULT_FULL_CONTROL_SIZE = 124;
 const DEFAULT_MIN_CONTROL_SIZE = 92;
+const DESKTOP_BREAKPOINT_PX = 1024;
+const DESKTOP_SIDEBAR_WIDTH_PX = 288;
+const DESKTOP_TOP_OFFSET_PX = 88;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -41,6 +44,22 @@ function getViewportSize() {
 function getDefaultPosition(controlWidth: number, controlHeight: number): FloatingPosition {
   const viewport = getViewportSize();
 
+  if (viewport.width >= DESKTOP_BREAKPOINT_PX) {
+    return {
+      x: Math.max(
+        FLOAT_MARGIN,
+        Math.min(
+          DESKTOP_SIDEBAR_WIDTH_PX - controlWidth - FLOAT_MARGIN,
+          viewport.width - controlWidth - FLOAT_MARGIN,
+        ),
+      ),
+      y: Math.max(
+        FLOAT_MARGIN,
+        Math.min(DESKTOP_TOP_OFFSET_PX, viewport.height - controlHeight - FLOAT_MARGIN),
+      ),
+    };
+  }
+
   return {
     x: Math.max(FLOAT_MARGIN, viewport.width - controlWidth - FLOAT_MARGIN),
     y: Math.max(FLOAT_MARGIN, viewport.height - controlHeight - FLOAT_MARGIN),
@@ -53,7 +72,7 @@ function readStoredPosition() {
   }
 
   try {
-    const raw = window.localStorage.getItem(PERSISTENT_ORION_POSITION_KEY);
+    const raw = window.sessionStorage.getItem(PERSISTENT_ORION_POSITION_KEY);
     if (!raw) {
       return null;
     }
@@ -75,7 +94,7 @@ function writeStoredPosition(position: FloatingPosition) {
   }
 
   try {
-    window.localStorage.setItem(PERSISTENT_ORION_POSITION_KEY, JSON.stringify(position));
+    window.sessionStorage.setItem(PERSISTENT_ORION_POSITION_KEY, JSON.stringify(position));
   } catch {
     // Ignore storage failures.
   }
@@ -125,6 +144,22 @@ export function PersistentOrion() {
       y: clamp(next.y, FLOAT_MARGIN, Math.max(FLOAT_MARGIN, viewport.height - height - FLOAT_MARGIN)),
     };
   }, [getControlSize]);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      setPosition((current) => {
+        const fallback = getDefaultPosition(getControlSize().width, getControlSize().height);
+        const next = current ?? fallback;
+        const clamped = clampPosition(next);
+        writeStoredPosition(clamped);
+        return clamped;
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [clampPosition, getControlSize, minimized]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {

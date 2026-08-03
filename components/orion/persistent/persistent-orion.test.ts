@@ -62,14 +62,23 @@ function testSourceSafetyContracts() {
   assert.ok(persistentSource.includes("DRAG_THRESHOLD_PX = 6") && persistentSource.includes("suppressClickRef.current = true"), "6. drag threshold distinguishes dragging from clicking");
   assert.ok(persistentSource.includes("clampPosition") && persistentSource.includes("viewport.width - width - FLOAT_MARGIN"), "7. viewport clamping exists");
   assert.ok(persistentSource.includes("visualViewport?.addEventListener(\"resize\", handleResize)") && persistentSource.includes("setPanelStyle({ left, top, position: \"fixed\" })"), "8. resize clamping exists");
-  assert.ok(persistentSource.includes("bangoos:persistent-orion-position") && persistentSource.includes("localStorage.setItem"), "9. localStorage position persistence exists");
+  assert.ok(
+    persistentSource.includes("bangoos:persistent-orion-position:v2-session")
+      && persistentSource.includes("sessionStorage.setItem")
+      && !persistentSource.includes("localStorage.setItem"),
+    "9. sessionStorage position persistence exists with versioned key",
+  );
   assert.ok(persistentSource.includes("if (!isFiniteNumber(parsed.x) || !isFiniteNumber(parsed.y))") || persistentSource.includes("return null;"), "10. invalid stored positions fall back safely");
   assert.ok(persistentSource.includes("if (typeof window === \"undefined\")") && persistentSource.includes("readStoredPosition"), "11. server-render safety exists");
   assert.ok(persistentSource.includes("event.key === \"ArrowLeft\"") && persistentSource.includes("event.key === \"ArrowDown\""), "12. keyboard arrow repositioning exists");
   assert.ok(persistentSource.includes("const step = event.shiftKey ? 24 : 12"), "13. Shift + Arrow larger movement exists");
   assert.ok(buttonSource.includes("aria-describedby={instructionsId}") && persistentSource.includes("Drag Orion to reposition it. Use arrow keys when focused."), "14. accessible drag instructions exist");
   assert.ok(stylesSource.includes(".persistentOrionRoot {") && stylesSource.includes("pointer-events: auto;"), "interactive wrapper has pointer-events enabled");
-  assert.ok(stylesSource.includes("z-index: calc(var(--z-backdrop) + 10);"), "Persistent Orion root z-index is above sidebar navigation layer");
+  assert.ok(
+    stylesSource.includes("z-index: calc(var(--z-backdrop) + 10);")
+      || stylesSource.includes("z-index: calc(var(--z-backdrop, 1000) + 10);"),
+    "Persistent Orion root z-index is above sidebar navigation layer",
+  );
   assert.ok(stylesSource.includes(".persistentOrionRoot :global(.persistentOrionPanel)") && stylesSource.includes("z-index: 2;"), "Persistent Orion panel stacks above floating sphere");
   assert.ok(stylesSource.includes(".persistentOrionRoot :global(.persistentOrionButton)") && stylesSource.includes("z-index: 1;"), "Persistent Orion sphere remains below its panel");
   assert.ok(globalsSource.includes("--z-modal: 60;") && globalsSource.includes("--z-backdrop: 40;"), "Repository modal/dialog layer remains above Orion z-index scale");
@@ -95,7 +104,13 @@ function testSourceSafetyContracts() {
   assert.ok(sphereSource.includes("DESKTOP_PARTICLES = 184") && sphereSource.includes("MOBILE_PARTICLES = 124"), "Mini sphere particle density increased for larger control");
   assert.ok(!sphereSource.includes("const ringRadius =") && !sphereSource.includes("ctx.setLineDash([2, 2])"), "Mini sphere no longer renders outer boundary rings");
   assert.ok(!sphereSource.includes("const shadow = ctx.createRadialGradient(") && !sphereSource.includes("ctx.ellipse("), "Mini sphere no longer renders outer shadow shell");
-  assert.ok(sphereSource.includes("rgba(248, 252, 255, 1)") && sphereSource.includes("ctx.arc(centerX, centerY, 1.45 * corePulse"), "Mini sphere keeps a brighter and more defined intelligence core");
+  assert.ok(
+    sphereSource.includes("rgba(248, 252, 255, 1)")
+      && sphereSource.includes("ctx.createRadialGradient")
+      && sphereSource.includes("rgba(250, 252, 255, 0.98)")
+      && sphereSource.includes("corePulse"),
+    "Mini sphere keeps a brighter and more defined intelligence core",
+  );
   assert.ok(sphereSource.includes("requestAnimationFrame"), "Mini sphere uses requestAnimationFrame");
   assert.ok(sphereSource.includes("cancelAnimationFrame"), "Mini sphere cancels animation on cleanup");
   assert.ok(sphereSource.includes("ResizeObserver"), "Mini sphere includes ResizeObserver handling");
