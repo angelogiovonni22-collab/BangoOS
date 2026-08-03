@@ -12,10 +12,14 @@
   --po-motion: 220ms;
   --po-min-size: 86px;
   --po-full-size: 116px;
+
   position: fixed;
   right: clamp(0.7rem, 2.2vw, 1.35rem);
   bottom: max(0.8rem, calc(env(safe-area-inset-bottom) + 0.55rem));
-  z-index: calc(var(--z-backdrop) + 10);
+
+  z-index: calc(var(--z-backdrop, 1000) + 10);
+  isolation: isolate;
+
   pointer-events: auto;
 }
 
@@ -76,7 +80,8 @@
   pointer-events: none;
 }
 
-.persistentOrionRoot :global(.persistentOrionButtonMinimized .persistentOrionVisual) {
+.persistentOrionRoot
+  :global(.persistentOrionButtonMinimized .persistentOrionVisual) {
   width: var(--po-min-size);
   height: var(--po-min-size);
 }
@@ -241,7 +246,8 @@
     height: 86px;
   }
 
-  .persistentOrionRoot :global(.persistentOrionButtonMinimized .persistentOrionVisual) {
+  .persistentOrionRoot
+    :global(.persistentOrionButtonMinimized .persistentOrionVisual) {
     width: 64px;
     height: 64px;
   }
