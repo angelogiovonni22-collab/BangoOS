@@ -325,6 +325,6 @@ export function buildScheduleHealth(payload: Pick<SchedulingPayload, "conflicts"
       "Fill urgent open shifts using deterministic recommendations.",
       "Rebalance utilization to keep crew load between 70% and 90%.",
     ],
-    isMock: true,
+    isMock: false,
   };
 }

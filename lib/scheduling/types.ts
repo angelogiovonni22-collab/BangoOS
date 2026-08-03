@@ -226,7 +226,7 @@ export type ScheduleHealth = {
   biggestRisks: string[];
   strongestAreas: string[];
   recommendedImprovements: string[];
-  isMock: true;
+  isMock: boolean;
 };
 
 export type LaborDemand = {
@@ -342,6 +342,7 @@ export type SchedulingPayload = {
   conflicts: ScheduleConflict[];
   availability: ResourceAvailability[];
   insights: SchedulingInsight[];
+  timeOff?: TimeOffEntry[];
   health: ScheduleHealth;
   analytics: SchedulingAnalytics;
   projectOptions: Array<{ id: string; name: string }>;
