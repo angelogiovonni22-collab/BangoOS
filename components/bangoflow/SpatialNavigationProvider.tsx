@@ -36,6 +36,7 @@ const DEPARTMENT_LOOKUP: Record<string, { department: SpatialDepartment; label: 
   dashboard: { department: "dashboard", label: "Mission Control", href: "/dashboard" },
   operations: { department: "operations", label: "Operations", href: "/operations" },
   scheduling: { department: "operations", label: "Operations", href: "/operations" },
+  dispatch: { department: "operations", label: "Operations", href: "/operations" },
   "daily-reports": { department: "operations", label: "Operations", href: "/operations" },
   schedule: { department: "operations", label: "Operations", href: "/operations" },
   projects: { department: "operations", label: "Operations", href: "/operations" },
@@ -68,6 +69,8 @@ export function deriveSpatialRouteState(pathname: string): SpatialRouteState {
     ? "Mission Control"
     : surfaceKind === "workspace"
       ? "Project Workspace"
+      : moduleKey === "dispatch"
+        ? "Dispatch Center"
       : toTitle(moduleKey.replace(/-/g, " "));
 
   return {

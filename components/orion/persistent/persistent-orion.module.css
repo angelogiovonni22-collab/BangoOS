@@ -1,0 +1,253 @@
+.persistentOrionRoot {
+  --po-ready: #54a8e2;
+  --po-analyzing: #8260c4;
+  --po-insight: #44a872;
+  --po-attention: #bc9052;
+  --po-critical: #a6464e;
+  --po-stale: #a8afbc;
+  --po-unavailable: #626770;
+  --po-glow: rgba(88, 130, 190, 0.32);
+  --po-panel: rgba(11, 21, 34, 0.96);
+  --po-border: rgba(153, 174, 202, 0.24);
+  --po-motion: 220ms;
+  --po-min-size: 86px;
+  --po-full-size: 116px;
+  position: fixed;
+  right: clamp(0.7rem, 2.2vw, 1.35rem);
+  bottom: max(0.8rem, calc(env(safe-area-inset-bottom) + 0.55rem));
+  z-index: calc(var(--z-backdrop) + 10);
+  pointer-events: auto;
+}
+
+.persistentOrionRoot :global(.persistentOrionButton),
+.persistentOrionRoot :global(.persistentOrionPanel) {
+  pointer-events: auto;
+}
+
+.persistentOrionRoot :global(.persistentOrionButton) {
+  all: unset;
+  display: inline-grid;
+  place-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  width: calc(var(--po-full-size) + 0.5rem);
+  height: calc(var(--po-full-size) + 0.5rem);
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #eef5ff;
+  padding: 0;
+  cursor: grab;
+  transition: transform var(--po-motion) ease;
+  touch-action: none;
+  user-select: none;
+  z-index: 1;
+}
+
+.persistentOrionRoot :global(.persistentOrionButton:hover) {
+  transform: translateY(-1px);
+}
+
+.persistentOrionRoot :global(.persistentOrionButtonDragging) {
+  cursor: grabbing;
+}
+
+.persistentOrionRoot :global(.persistentOrionButton:focus-visible),
+.persistentOrionRoot :global(.persistentOrionClose:focus-visible),
+.persistentOrionRoot :global(.persistentOrionMinimize:focus-visible),
+.persistentOrionRoot :global(.persistentOrionLinkAction:focus-visible) {
+  outline: 2px solid #9ac4ef;
+  outline-offset: 2px;
+}
+
+.persistentOrionRoot :global(.persistentOrionButtonMinimized) {
+  width: calc(var(--po-min-size) + 0.35rem);
+  height: calc(var(--po-min-size) + 0.35rem);
+}
+
+.persistentOrionRoot :global(.persistentOrionVisual) {
+  position: relative;
+  width: var(--po-full-size);
+  height: var(--po-full-size);
+  display: inline-grid;
+  place-items: center;
+  filter: drop-shadow(0 0 12px rgba(90, 152, 220, 0.18));
+  pointer-events: none;
+}
+
+.persistentOrionRoot :global(.persistentOrionButtonMinimized .persistentOrionVisual) {
+  width: var(--po-min-size);
+  height: var(--po-min-size);
+}
+
+.persistentOrionRoot :global(.persistentOrionCanvas) {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.persistentOrionRoot :global(.persistentOrionSr) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.persistentOrionRoot :global(.persistentOrionPanel) {
+  margin-top: 0;
+  z-index: 2;
+  width: min(20.8rem, calc(100vw - 1.4rem));
+  max-height: min(72vh, 32rem);
+  overflow: auto;
+  border: 1px solid var(--po-border);
+  border-radius: 1rem;
+  background: var(--po-panel);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.48);
+  color: #edf5ff;
+  padding: 0.9rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionPanelHeader) {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionPanelHeader h3) {
+  margin: 0.12rem 0 0;
+  font-size: 1rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionEyebrow) {
+  margin: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #a8bfdc;
+}
+
+.persistentOrionRoot :global(.persistentOrionStateLine) {
+  margin: 0.22rem 0 0;
+  color: #cad6e8;
+  font-size: 0.79rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionClose),
+.persistentOrionRoot :global(.persistentOrionMinimize) {
+  all: unset;
+  border: 1px solid rgba(165, 186, 213, 0.3);
+  border-radius: 0.6rem;
+  padding: 0.35rem 0.55rem;
+  color: #e4efff;
+  cursor: pointer;
+}
+
+.persistentOrionRoot :global(.persistentOrionFixtureTags) {
+  margin-top: 0.7rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.persistentOrionRoot :global(.persistentOrionFixtureTags span) {
+  border-radius: 999px;
+  border: 1px solid rgba(171, 192, 219, 0.25);
+  padding: 0.18rem 0.5rem;
+  font-size: 0.68rem;
+  color: #d5e4f9;
+  background: rgba(24, 36, 56, 0.8);
+}
+
+.persistentOrionRoot :global(.persistentOrionSection) {
+  margin-top: 0.72rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionSection p) {
+  margin: 0.18rem 0 0;
+  font-size: 0.83rem;
+  color: #d5e3f4;
+}
+
+.persistentOrionRoot :global(.persistentOrionFacts) {
+  margin: 0.82rem 0 0;
+  display: grid;
+  gap: 0.62rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionFacts div) {
+  border-top: 1px solid rgba(158, 176, 200, 0.18);
+  padding-top: 0.5rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionFacts dt) {
+  font-size: 0.72rem;
+  color: #a9bed9;
+}
+
+.persistentOrionRoot :global(.persistentOrionFacts dd) {
+  margin: 0.16rem 0 0;
+  font-size: 0.82rem;
+  color: #ddeaf9;
+}
+
+.persistentOrionRoot :global(.persistentOrionPanelFooter) {
+  margin-top: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.persistentOrionRoot :global(.persistentOrionLinkAction) {
+  color: #9ad0ff;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
+}
+
+.persistentOrionInstructions {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+@media (max-width: 768px) {
+  .persistentOrionRoot {
+    right: 0.62rem;
+    bottom: max(0.7rem, calc(env(safe-area-inset-bottom) + 0.7rem));
+  }
+
+  .persistentOrionRoot :global(.persistentOrionButton) {
+    width: calc(86px + 0.34rem);
+    height: calc(86px + 0.34rem);
+  }
+
+  .persistentOrionRoot :global(.persistentOrionVisual) {
+    width: 86px;
+    height: 86px;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionButtonMinimized .persistentOrionVisual) {
+    width: 64px;
+    height: 64px;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionPanel) {
+    width: min(19.6rem, calc(100vw - 1rem));
+    max-height: min(68vh, 27.5rem);
+  }
+}

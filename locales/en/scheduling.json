@@ -1,8 +1,10 @@
 {
-  "pageTitle": "Scheduling & Dispatch",
+  "pageTitleDispatch": "Dispatch Center",
+  "pageTitleSchedule": "Schedule",
   "header.badge": "Construction Air Traffic Control",
   "dateRange.currentWeek": "Current Operational Week",
-  "summary.operational": "Plan labor, dispatch crews, and resolve conflicts with deterministic mock scheduling intelligence.",
+  "summary.dispatchOperational": "Assign crews, equipment, vehicles, and resources with conflict-aware scheduling intelligence.",
+  "summary.scheduleOperational": "Manage the master company calendar across milestones, deadlines, deliveries, reservations, and key dates.",
 
   "sections.overview": "Overview",
   "sections.calendar": "Calendar",
@@ -271,7 +273,7 @@
 
   "month.more": "+{{count}} more",
 
-  "errorTitle": "Unable to load Scheduling & Dispatch",
+  "errorTitle": "Unable to load Dispatch Center",
   "errorLoad": "We could not load scheduling data.",
   "errorSaveAssignment": "Unable to save assignment.",
   "errorDispatchUpdate": "Unable to update dispatch status.",

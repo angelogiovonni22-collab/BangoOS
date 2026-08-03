@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { MotionProvider } from "@/components/motion";
+import { PersistentOrion } from "@/components/orion/persistent";
 import { DepartmentNavigator, LayerManager, NavigationBreadcrumb } from "@/components/bangoflow";
 import { LanguageSelector, ProfileMenu, SearchBar } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
@@ -26,7 +27,7 @@ const navigationGroups = [
     label: "Operations",
     items: [
       { key: "operations", href: "/operations", icon: "◈" },
-      { key: "scheduling", href: "/scheduling", icon: "◧" },
+      { key: "dispatch", href: "/dispatch", icon: "⌁" },
       { key: "dailyReports", href: "/daily-reports", icon: "◨" },
       { key: "schedule", href: "/schedule", icon: "◑" },
       { key: "projects", href: "/projects", icon: "◍" },
@@ -100,14 +101,15 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-app)] text-[var(--color-text-primary)] enterprise-shell">
+      <PersistentOrion />
       <div className="flex min-h-screen">
-        <LayerManager layer="dialog">
+        <LayerManager layer="backdrop">
           <aside
             id="bangoos-sidebar"
             role={mobileOpen ? "dialog" : undefined}
             aria-modal={mobileOpen ? true : undefined}
             aria-label={mobileOpen ? t("common.openSidebar") : undefined}
-            className={`fixed inset-y-0 left-0 flex h-screen w-72 flex-col overflow-hidden border-r border-[#1e2b45] bg-[var(--color-sidebar)] px-5 py-6 text-white shadow-[0_24px_50px_-24px_rgba(15,23,42,0.85)] transition-transform duration-300 [height:100dvh] lg:static lg:h-auto lg:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 flex h-screen w-72 flex-col overflow-hidden border-r border-[#1e2b45] bg-[var(--color-sidebar)] px-5 py-6 text-white shadow-[0_24px_50px_-24px_rgba(15,23,42,0.85)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
@@ -135,7 +137,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
           </div>
 
           <div className="mt-7 flex min-h-0 flex-1 flex-col overflow-hidden">
-            <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [-webkit-overflow-scrolling:touch]">
+            <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
               {navigationGroups.map((group) => {
                 const isCollapsed = collapsedGroups[group.key] ?? false;
 

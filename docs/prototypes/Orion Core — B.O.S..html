@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<!-- saved from url=(0058)file:///C:/Users/Misty/Downloads/orion_core_prototype.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orion Core — B.O.S.</title>
+<style>
+  :root{
+    --bg:#03071a;
+    --panel:#07112a;
+    --panel-2:#091633;
+    --line:rgba(92,126,255,.22);
+    --text:#f7f9ff;
+    --muted:#8b97b7;
+    --cyan:#31d7ff;
+    --blue:#3e73ff;
+    --violet:#8f48ff;
+    --magenta:#d85aff;
+    --green:#24f27b;
+    --red:#ff4b8a;
+    --shadow:0 18px 60px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.015);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    color:var(--text);
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:
+      radial-gradient(circle at 54% 34%, rgba(47,87,255,.11), transparent 30%),
+      radial-gradient(circle at 64% 53%, rgba(121,54,255,.08), transparent 32%),
+      linear-gradient(135deg,#020615 0%,#060b21 48%,#05091b 100%);
+    overflow:hidden;
+  }
+  button,input{font:inherit}
+  .app{
+    height:100vh;
+    display:grid;
+    grid-template-columns:246px minmax(0,1fr) 360px;
+    border:1px solid rgba(77,102,190,.28);
+    border-radius:18px;
+    overflow:hidden;
+    background:rgba(3,7,24,.88);
+    box-shadow:0 35px 120px rgba(0,0,0,.7);
+  }
+  .sidebar{
+    position:relative;
+    padding:28px 20px 18px;
+    border-right:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(2,6,20,.98),rgba(2,6,20,.9));
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .brand{display:flex;gap:14px;align-items:center;margin:0 8px 36px}
+  .brand-orb{width:48px;height:48px;position:relative;border-radius:50%}
+  .brand-orb::before,.brand-orb::after{
+    content:"";position:absolute;inset:7px;border:2px solid #2a8fff;border-radius:50%;filter:drop-shadow(0 0 10px #287dff);
+  }
+  .brand-orb::after{transform:rotate(60deg) scale(.84);border-color:#6d4dff}
+  .brand-title{font-size:24px;letter-spacing:.28em;font-weight:700;line-height:1}
+  .brand-sub{margin-top:7px;font-size:10px;letter-spacing:.18em;color:#66759b}
+  .nav-section{margin-top:14px}
+  .nav-label{font-size:11px;letter-spacing:.18em;color:#7180a9;margin:0 10px 12px}
+  .nav-item{
+    width:100%;border:0;color:#aeb8d4;background:transparent;display:flex;align-items:center;gap:14px;
+    padding:12px 14px;border-radius:13px;text-align:left;margin:3px 0;cursor:pointer;transition:.2s ease;
+  }
+  .nav-item:hover{background:rgba(77,104,255,.08);color:#fff}
+  .nav-item.active{background:linear-gradient(90deg,rgba(32,61,150,.45),rgba(12,32,94,.58));box-shadow:inset 0 0 0 1px rgba(56,112,255,.28),0 0 22px rgba(41,91,255,.12);color:#fff}
+  .nav-icon{width:22px;height:22px;display:grid;place-items:center;color:#8fb6ff}
+  .divider{height:1px;background:rgba(103,122,184,.13);margin:18px 10px}
+  .profile{
+    margin-top:auto;display:flex;align-items:center;gap:12px;padding:12px;border:1px solid rgba(86,110,190,.18);
+    border-radius:15px;background:rgba(7,15,38,.8);
+  }
+  .avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(145deg,#f8d8c1,#775347);position:relative;box-shadow:0 0 0 2px rgba(255,255,255,.08)}
+  .avatar::after{content:"";position:absolute;width:9px;height:9px;border-radius:50%;background:#2cf27d;right:-1px;bottom:2px;border:2px solid #061027}
+  .profile-name{font-size:14px}.profile-role{font-size:11px;color:#7382a8;margin-top:2px}
+
+  .main{position:relative;min-width:0;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(4,8,26,.9),rgba(3,7,24,.95));}
+  .topbar{height:92px;display:flex;align-items:flex-start;justify-content:space-between;padding:30px 56px 0;position:relative;z-index:5}
+  .title{font-size:26px;letter-spacing:.42em;font-weight:500;text-shadow:0 0 24px rgba(91,121,255,.26)}
+  .subtitle{font-size:13px;color:#8490ad;margin-top:6px}
+  .top-actions{display:flex;gap:16px;align-items:center}
+  .ask-btn,.icon-btn{
+    border:1px solid rgba(104,123,215,.36);background:rgba(7,14,37,.84);color:#fff;border-radius:15px;min-height:46px;display:flex;align-items:center;justify-content:center;
+  }
+  .ask-btn{padding:0 22px;gap:11px;color:#69dfff;box-shadow:inset 0 0 0 1px rgba(43,103,255,.08)}
+  .icon-btn{width:48px;position:relative;color:#8d97b6}
+  .notify-dot{position:absolute;width:9px;height:9px;border-radius:50%;background:#ae51ff;top:4px;right:5px;box-shadow:0 0 12px #ae51ff}
+
+  .core-stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding-bottom:190px}
+  .core-wrap{position:relative;width:min(620px,68vw);aspect-ratio:1/1;display:grid;place-items:center}
+  #orionCanvas{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(66,98,255,.62))}
+  .sphere-shadow{position:absolute;width:52%;height:8%;bottom:6%;border-radius:50%;background:radial-gradient(ellipse,rgba(47,124,255,.62),rgba(70,46,255,.2) 48%,transparent 75%);filter:blur(12px)}
+  .core-status{position:absolute;bottom:12px;text-align:center;left:0;right:0}
+  .core-active{font-size:16px;letter-spacing:.34em;color:#39d8ff;text-shadow:0 0 15px rgba(60,214,255,.6)}
+  .core-caption{margin-top:8px;color:#929bb8;font-size:14px}.core-caption b{color:#3bdcff}
+
+  .activity-card{
+    position:absolute;left:46px;right:46px;bottom:36px;background:linear-gradient(180deg,rgba(8,16,42,.95),rgba(6,13,34,.95));
+    border:1px solid rgba(73,101,191,.23);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;
+  }
+  .card-title{padding:16px 24px;border-bottom:1px solid rgba(96,115,181,.12);font-size:11px;letter-spacing:.22em;color:#cfd6ef}
+  .activity-row{display:grid;grid-template-columns:72px 20px 1fr auto;gap:12px;align-items:center;padding:10px 24px;font-size:12px}
+  .time{color:#7584aa}.dot{width:8px;height:8px;border-radius:50%}.tag{padding:6px 12px;border-radius:999px;background:rgba(21,54,120,.35);color:#55bfff}
+  .tag.alert{background:rgba(124,22,74,.25);color:#ff6ea9}.tag.rec{background:rgba(5,99,62,.25);color:#29e88a}.tag.update{background:rgba(10,65,143,.3);color:#39b6ff}
+  .composer{position:absolute;left:15%;right:15%;bottom:-58px;height:58px;border-radius:30px;border:1px solid rgba(69,109,255,.45);background:rgba(6,14,36,.95);display:flex;align-items:center;padding:0 18px;gap:14px;box-shadow:0 0 28px rgba(25,79,255,.18)}
+  .composer-orb{width:28px;height:28px;border-radius:50%;border:2px solid #425cff;box-shadow:0 0 14px #4357ff;position:relative}.composer-orb::after{content:"";position:absolute;inset:5px;border:2px solid #9a4dff;border-radius:50%}
+  .composer input{flex:1;border:0;outline:0;background:transparent;color:#dfe8ff;font-size:13px}.composer input::placeholder{color:#697597}
+  .send{color:#7f8fbc;font-size:22px}
+
+  .rightbar{padding:28px 20px;border-left:1px solid var(--line);background:linear-gradient(180deg,rgba(3,7,24,.96),rgba(2,6,20,.94));overflow:auto}
+  .right-card{border:1px solid rgba(78,103,190,.24);border-radius:17px;background:linear-gradient(180deg,rgba(8,16,40,.9),rgba(5,12,31,.9));box-shadow:var(--shadow);margin-bottom:20px;overflow:hidden}
+  .right-card h3{font-size:11px;letter-spacing:.23em;font-weight:600;margin:0;padding:20px 24px;border-bottom:1px solid rgba(91,114,184,.13)}
+  .metric{padding:22px 24px;border-bottom:1px solid rgba(91,114,184,.13)}
+  .metric:last-child{border-bottom:0}
+  .metric-label{font-size:10px;color:#7483aa;margin-bottom:10px}
+  .metric-row{display:flex;align-items:center;justify-content:space-between}.metric-value{font-size:17px}.green{color:var(--green)}.purple{color:#bf63ff}.cyan{color:#38d7ff}
+  .spark{width:90px;height:24px;position:relative}.spark::before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:linear-gradient(90deg,transparent,#1fea71 18%,#1fea71 80%,transparent);clip-path:polygon(0 52%,34% 52%,39% 35%,45% 72%,51% 0,58% 100%,63% 47%,100% 47%,100% 57%,64% 57%,58% 82%,51% 16%,46% 92%,38% 56%,0 56%)}
+  .bars{display:flex;gap:5px;align-items:flex-end;height:30px}.bars span{width:5px;border-radius:4px;background:linear-gradient(#c15cff,#7444ff)}
+  .progress{width:116px;height:7px;border-radius:99px;background:#18234a;overflow:hidden}.progress span{display:block;height:100%;width:98%;background:linear-gradient(90deg,#38d9ff,#3d83ff);border-radius:inherit}
+  .updated{font-size:11px;color:#6f7da3}.updated::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#22e779;margin-right:9px;box-shadow:0 0 8px #22e779}
+
+  .insight-row{display:grid;grid-template-columns:32px 1fr auto 14px;align-items:center;gap:12px;padding:14px 22px;color:#d7ddf3;font-size:13px}
+  .insight-icon{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:rgba(30,76,182,.25);color:#49c9ff}.insight-row:nth-child(2) .insight-icon{background:rgba(127,24,76,.25);color:#ff6399}.insight-row:nth-child(3) .insight-icon{background:rgba(12,113,74,.24);color:#34ef9a}.insight-row:nth-child(4) .insight-icon{background:rgba(79,34,155,.27);color:#aa6bff}
+  .count{font-weight:700;color:#45dcff}.insight-row:nth-child(2) .count{color:#ff6196}.insight-row:nth-child(3) .count{color:#40efad}.insight-row:nth-child(4) .count{color:#b16cff}.chev{color:#657395}
+  .view-all{padding:16px 24px;color:#3fc7ff;font-size:12px;border-top:1px solid rgba(91,114,184,.13)}
+
+  @media (max-width:1180px){.app{grid-template-columns:210px 1fr}.rightbar{display:none}.topbar{padding-left:34px;padding-right:34px}.activity-card{left:28px;right:28px}}
+  @media (max-width:760px){body{overflow:auto}.app{height:auto;min-height:100vh;grid-template-columns:1fr;border-radius:0}.sidebar{display:none}.main{min-height:100vh}.topbar{height:auto;padding:24px}.title{font-size:20px}.top-actions{display:none}.core-stage{min-height:760px;padding-bottom:240px}.core-wrap{width:92vw}.activity-card{left:12px;right:12px;bottom:100px}.activity-row{grid-template-columns:58px 14px 1fr}.tag{display:none}.composer{left:8%;right:8%;bottom:-72px}}
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-orb"></div><div><div class="brand-title">B.O.S</div><div class="brand-sub">QUANTUM LAB</div></div></div>
+    <div class="nav-section"><div class="nav-label">LABS</div>
+      <button class="nav-item active"><span class="nav-icon">◉</span>Orion Core</button>
+      <button class="nav-item"><span class="nav-icon">✧</span>Digital Twin</button>
+      <button class="nav-item"><span class="nav-icon">⬡</span>Vision AI</button>
+      <button class="nav-item"><span class="nav-icon">✺</span>Predictive Engine</button>
+    </div>
+    <div class="divider"></div>
+    <div class="nav-section"><div class="nav-label">OPERATIONS</div>
+      <button class="nav-item"><span class="nav-icon">▣</span>Projects</button>
+      <button class="nav-item"><span class="nav-icon">▤</span>Finances</button>
+      <button class="nav-item"><span class="nav-icon">♧</span>Teams</button>
+      <button class="nav-item"><span class="nav-icon">▧</span>Resources</button>
+      <button class="nav-item"><span class="nav-icon">⌁</span>Analytics</button>
+    </div>
+    <div class="divider"></div>
+    <button class="nav-item"><span class="nav-icon">⚙</span>Settings</button>
+    <button class="nav-item"><span class="nav-icon">?</span>Help Center</button>
+    <div class="profile"><div class="avatar"></div><div><div class="profile-name">Angelo Bango</div><div class="profile-role">Owner</div></div><div style="margin-left:auto;color:#7080a6">›</div></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div><div class="title">ORION CORE</div><div class="subtitle">Your AI Command Center</div></div>
+      <div class="top-actions"><button class="ask-btn">Ask Orion <span>✦</span></button><button class="icon-btn">♢<span class="notify-dot"></span></button><button class="icon-btn">•••</button></div>
+    </header>
+
+    <section class="core-stage">
+      <div class="core-wrap">
+        <canvas id="orionCanvas" width="775" height="775"></canvas>
+        <div class="sphere-shadow"></div>
+        <div class="core-status"><div class="core-active">ORION IS ACTIVE</div><div class="core-caption">Listening. Analyzing. <b>Guiding.</b></div></div>
+      </div>
+
+      <section class="activity-card">
+        <div class="card-title">RECENT ORION ACTIVITY</div>
+        <div class="activity-row"><div class="time">2:34 PM</div><div class="dot" style="background:#39bfff"></div><div>Analyzed cash flow across 14 projects</div><div class="tag">Analysis</div></div>
+        <div class="activity-row"><div class="time">2:31 PM</div><div class="dot" style="background:#a65cff"></div><div>Identified cost overrun risk in Foundation Project</div><div class="tag alert">Alert</div></div>
+        <div class="activity-row"><div class="time">2:28 PM</div><div class="dot" style="background:#2cec87"></div><div>Suggested vendor for electrical materials</div><div class="tag rec">Recommendation</div></div>
+        <div class="activity-row"><div class="time">2:24 PM</div><div class="dot" style="background:#8b56ff"></div><div>Updated project timeline for Harbor Point</div><div class="tag update">Update</div></div>
+        <div class="composer"><div class="composer-orb"></div><input placeholder="Ask Orion anything..."><div class="send">➤</div></div>
+      </section>
+    </section>
+  </main>
+
+  <aside class="rightbar">
+    <section class="right-card"><h3>ORION STATUS</h3>
+      <div class="metric"><div class="metric-label">SYSTEM HEALTH</div><div class="metric-row"><div class="metric-value green">Optimal</div><div class="spark"></div></div></div>
+      <div class="metric"><div class="metric-label">ACTIVITY LEVEL</div><div class="metric-row"><div class="metric-value purple">High</div><div class="bars"><span style="height:11px"></span><span style="height:18px"></span><span style="height:25px"></span><span style="height:29px"></span><span style="height:28px"></span><span style="height:22px"></span></div></div></div>
+      <div class="metric"><div class="metric-label">CONFIDENCE</div><div class="metric-row"><div class="metric-value cyan">98%</div><div class="progress"><span></span></div></div></div>
+      <div class="metric"><div class="updated">Last Updated: Just now</div></div>
+    </section>
+    <section class="right-card"><h3>ORION INSIGHTS</h3>
+      <div class="insight-row"><div class="insight-icon">☆</div><div>Recommendations</div><div class="count">12</div><div class="chev">›</div></div>
+      <div class="insight-row"><div class="insight-icon">△</div><div>Alerts</div><div class="count">3</div><div class="chev">›</div></div>
+      <div class="insight-row"><div class="insight-icon">⊙</div><div>Opportunities</div><div class="count">7</div><div class="chev">›</div></div>
+      <div class="insight-row"><div class="insight-icon">☑</div><div>Tasks Suggested</div><div class="count">18</div><div class="chev">›</div></div>
+      <div class="view-all">View All Insights <span style="float:right">›</span></div>
+    </section>
+  </aside>
+</div>
+<script>
+(() => {
+  const canvas = document.getElementById('orionCanvas');
+  const ctx = canvas.getContext('2d');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let w=0,h=0,dpr=1,cx=0,cy=0,radius=0;
+  const particles=[];
+  const CONNECTIONS=380;
+  const STAR_COUNT=900;
+
+  function randomPointOnSphere(){
+    const u=Math.random();
+    const v=Math.random();
+    const theta=2*Math.PI*u;
+    const phi=Math.acos(2*v-1);
+    return {x:Math.sin(phi)*Math.cos(theta),y:Math.sin(phi)*Math.sin(theta),z:Math.cos(phi),size:.35+Math.random()*1.55,twinkle:Math.random()*Math.PI*2,hue:Math.random()};
+  }
+  for(let i=0;i<STAR_COUNT;i++) particles.push(randomPointOnSphere());
+  const edges=[];
+  for(let i=0;i<CONNECTIONS;i++){
+    const a=Math.floor(Math.random()*STAR_COUNT), b=Math.floor(Math.random()*STAR_COUNT);
+    edges.push([a,b]);
+  }
+
+  function resize(){
+    const rect=canvas.getBoundingClientRect();
+    dpr=Math.min(devicePixelRatio||1,2);
+    canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    w=rect.width;h=rect.height;cx=w/2;cy=h/2-6;radius=Math.min(w,h)*.34;
+  }
+  new ResizeObserver(resize).observe(canvas);resize();
+
+  function project(p,angle,pulse){
+    const ca=Math.cos(angle),sa=Math.sin(angle);
+    const x=p.x*ca-p.z*sa;
+    const z=p.x*sa+p.z*ca;
+    const y=p.y;
+    const perspective=1/(1.55-z*.34);
+    return {x:cx+x*radius*pulse*perspective,y:cy+y*radius*pulse*perspective,z,size:p.size*perspective};
+  }
+
+  function draw(t){
+    const time=t/1000;
+    ctx.clearRect(0,0,w,h);
+    const pulse=reduceMotion?1:1+Math.sin(time*1.45)*.028;
+    const angle=reduceMotion?0.45:time*.14;
+
+    const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,radius*1.5);
+    glow.addColorStop(0,'rgba(160,85,255,.12)');
+    glow.addColorStop(.42,'rgba(45,102,255,.08)');
+    glow.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(cx,cy,radius*1.5,0,Math.PI*2);ctx.fill();
+
+    const pts=particles.map(p=>project(p,angle,pulse));
+
+    ctx.lineWidth=.45;
+    edges.forEach(([a,b])=>{
+      const p=pts[a],q=pts[b];
+      if(p.z<-.55&&q.z<-.55)return;
+      const dist=Math.hypot(p.x-q.x,p.y-q.y);
+      if(dist>radius*.58)return;
+      ctx.strokeStyle=`rgba(75,126,255,${Math.max(.015,.13-dist/(radius*4))})`;
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
+    });
+
+    ctx.save();
+    ctx.shadowBlur=18;ctx.shadowColor='#2a67ff';
+    pts.sort((a,b)=>a.z-b.z).forEach((p,i)=>{
+      const src=particles[i%particles.length];
+      const tw=reduceMotion?1:(.68+.32*Math.sin(time*2.8+src.twinkle));
+      const alpha=(.28+(p.z+1)*.34)*tw;
+      let color;
+      if(src.hue>.84) color=`rgba(220,105,255,${alpha})`;
+      else if(src.hue>.67) color=`rgba(143,81,255,${alpha})`;
+      else color=`rgba(67,164,255,${alpha})`;
+      ctx.fillStyle=color;
+      ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.45,p.size*(1+p.z*.3)),0,Math.PI*2);ctx.fill();
+    });
+    ctx.restore();
+
+    const corePulse=reduceMotion?1:(1+Math.sin(time*2.2)*.1);
+    const core=ctx.createRadialGradient(cx,cy,0,cx,cy,26*corePulse);
+    core.addColorStop(0,'rgba(255,255,255,1)');
+    core.addColorStop(.16,'rgba(245,180,255,.95)');
+    core.addColorStop(.42,'rgba(131,82,255,.72)');
+    core.addColorStop(1,'rgba(58,95,255,0)');
+    ctx.fillStyle=core;ctx.beginPath();ctx.arc(cx,cy,30*corePulse,0,Math.PI*2);ctx.fill();
+
+    const rim=ctx.createRadialGradient(cx,cy,radius*.82,cx,cy,radius*1.08);
+    rim.addColorStop(0,'rgba(45,94,255,0)');rim.addColorStop(.64,'rgba(62,123,255,.13)');rim.addColorStop(.91,'rgba(48,113,255,.55)');rim.addColorStop(1,'rgba(39,93,255,0)');
+    ctx.fillStyle=rim;ctx.beginPath();ctx.arc(cx,cy,radius*1.12,0,Math.PI*2);ctx.fill();
+
+    if(!reduceMotion) requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+
+
+</body></html>

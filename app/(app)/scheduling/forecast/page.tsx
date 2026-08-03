@@ -1,7 +1,5 @@
-"use client";
-
-import { SchedulingDashboard } from "@/components/scheduling";
+import { redirect } from "next/navigation";
 
 export default function SchedulingForecastPage() {
-  return <SchedulingDashboard initialSection="forecast" />;
+  redirect("/dispatch/forecast");
 }

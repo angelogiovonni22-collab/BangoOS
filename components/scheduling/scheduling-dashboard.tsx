@@ -24,9 +24,10 @@ import { SchedulingLoadingState } from "./scheduling-loading-state";
 
 type SchedulingDashboardProps = {
   initialSection?: "overview" | "dispatch" | "calendar" | "forecast";
+  workspace?: "schedule" | "dispatch";
 };
 
-export function SchedulingDashboard({ initialSection = "overview" }: SchedulingDashboardProps) {
+export function SchedulingDashboard({ initialSection = "overview", workspace = "dispatch" }: SchedulingDashboardProps) {
   const { t } = useI18n();
   const scheduling = useScheduling();
   const [activeSection, setActiveSection] = useState(initialSection);
@@ -81,13 +82,16 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
   }
 
   const payload = scheduling.payload;
+  const pageTitle = workspace === "schedule" ? t("scheduling.pageTitleSchedule") : t("scheduling.pageTitleDispatch");
+  const pageSummary = workspace === "schedule" ? t("scheduling.summary.scheduleOperational") : t("scheduling.summary.dispatchOperational");
+  const emptyStateHref = workspace === "schedule" ? "/schedule" : "/dispatch";
 
   return (
     <div className="space-y-6">
       <SchedulingHeader
-        title={t("scheduling.pageTitle")}
+        title={pageTitle}
         dateRangeLabel={t(payload.summary.dateRangeLabel)}
-        summary={t(payload.summary.operationalSummary)}
+        summary={pageSummary}
         companyContext={payload.summary.companyContext}
         branchContext={payload.summary.branchContext}
         periodDate={scheduling.periodDate}
@@ -119,9 +123,9 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
             {section.label}
           </button>
         ))}
-        <Link href="/scheduling/dispatch" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.dispatch")}</Link>
-        <Link href="/scheduling/calendar" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.calendar")}</Link>
-        <Link href="/scheduling/forecast" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.forecast")}</Link>
+        <Link href="/dispatch" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.dispatch")}</Link>
+        <Link href="/schedule" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.calendar")}</Link>
+        <Link href="/dispatch/forecast" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.forecast")}</Link>
       </nav>
 
       <SchedulingKpiGrid
@@ -152,6 +156,7 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
           title={t("scheduling.empty.filteredTitle")}
           description={t("scheduling.empty.filteredDescription")}
           actionLabel={t("scheduling.actions.refresh")}
+          href={emptyStateHref}
         />
       ) : null}
 

@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { SchedulingDashboard } from "@/components/scheduling";
 
 export default function SchedulePage() {
-  redirect("/scheduling");
+  return <SchedulingDashboard initialSection="calendar" workspace="schedule" />;
 }

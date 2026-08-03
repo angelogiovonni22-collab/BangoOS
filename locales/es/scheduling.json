@@ -1,8 +1,10 @@
 {
-  "pageTitle": "Programacion y Despacho",
+  "pageTitleDispatch": "Centro de Despacho",
+  "pageTitleSchedule": "Calendario",
   "header.badge": "Control Aereo de Obra",
   "dateRange.currentWeek": "Semana Operativa Actual",
-  "summary.operational": "Planifica mano de obra, despacha cuadrillas y resuelve conflictos con inteligencia simulada determinista.",
+  "summary.dispatchOperational": "Asigna cuadrillas, equipos, vehiculos y recursos con inteligencia de programacion consciente de conflictos.",
+  "summary.scheduleOperational": "Administra el calendario maestro de la empresa con hitos, vencimientos, entregas, reservas y fechas clave.",
 
   "sections.overview": "Resumen",
   "sections.calendar": "Calendario",

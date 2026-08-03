@@ -16,7 +16,7 @@ type OperationsQuickActionsProps = {
 
 const links = [
   { key: "assignCrew", href: "/crews", icon: Wrench },
-  { key: "viewSchedule", href: "/scheduling", icon: CalendarClock },
+  { key: "viewSchedule", href: "/dispatch", icon: CalendarClock },
   { key: "addDailyReport", href: "/projects", icon: ClipboardList },
   { key: "reviewSafety", href: "/operations", icon: ShieldAlert },
   { key: "openSitecam", href: "/projects", icon: Camera },
