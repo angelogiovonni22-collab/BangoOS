@@ -16,7 +16,8 @@ type UseEmployeesParams = {
 
 const DEFAULT_PAGE_SIZE = 10;
 
-export function useEmployees({ service = createEmployeeService() }: UseEmployeesParams = {}) {
+export function useEmployees({ service }: UseEmployeesParams = {}) {
+  const employeeService = useMemo(() => service ?? createEmployeeService(), [service]);
   const [items, setItems] = useState<Employee[]>([]);
   const [summary, setSummary] = useState<EmployeeDashboardSummary>({
     totalEmployees: 0,
@@ -83,7 +84,7 @@ export function useEmployees({ service = createEmployeeService() }: UseEmployees
     setErrorMessage(null);
 
     try {
-      const listResult = await service.getEmployees({
+      const listResult = await employeeService.getEmployees({
         query,
         crewId,
         supervisorId,
@@ -110,7 +111,7 @@ export function useEmployees({ service = createEmployeeService() }: UseEmployees
     } finally {
       setIsLoading(false);
     }
-  }, [availabilityStatus, crewId, employmentStatus, page, pageSize, projectId, query, service, sortBy, supervisorId]);
+  }, [availabilityStatus, crewId, employmentStatus, page, pageSize, projectId, query, employeeService, sortBy, supervisorId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
