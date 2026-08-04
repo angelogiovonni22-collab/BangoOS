@@ -83,6 +83,19 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
 
   useEffect(() => {
     if (!mobileOpen) {
+      document.body.style.removeProperty("overflow");
+      return;
+    }
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.removeProperty("overflow");
+    };
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    if (!mobileOpen) {
       return;
     }
 
@@ -101,15 +114,17 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-app)] text-[var(--color-text-primary)] enterprise-shell">
-      <PersistentOrion />
+      <div className={mobileOpen ? "pointer-events-none opacity-0 transition-opacity lg:pointer-events-auto lg:opacity-100" : ""}>
+        <PersistentOrion />
+      </div>
       <div className="flex min-h-screen">
-        <LayerManager layer="backdrop">
+        <LayerManager layer="dialog">
           <aside
             id="bangoos-sidebar"
             role={mobileOpen ? "dialog" : undefined}
             aria-modal={mobileOpen ? true : undefined}
             aria-label={mobileOpen ? t("common.openSidebar") : undefined}
-            className={`fixed inset-y-0 left-0 flex h-screen w-72 flex-col overflow-hidden border-r border-[#1e2b45] bg-[var(--color-sidebar)] px-5 py-6 text-white shadow-[0_24px_50px_-24px_rgba(15,23,42,0.85)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 z-[var(--z-modal)] flex w-72 flex-col overflow-hidden border-r border-[#1e2b45] bg-[var(--color-sidebar)] px-5 py-6 text-white shadow-[0_24px_50px_-24px_rgba(15,23,42,0.85)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
@@ -183,11 +198,11 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
         </LayerManager>
 
         {mobileOpen ? (
-          <LayerManager layer="overlay">
+          <LayerManager layer="backdrop">
             <button
               type="button"
               aria-label={t("common.closeSidebar")}
-              className="fixed inset-0 bg-slate-950/40 lg:hidden"
+              className="fixed inset-0 z-[var(--z-backdrop)] bg-slate-950/40 lg:hidden"
               onClick={() => setMobileOpen(false)}
             />
           </LayerManager>

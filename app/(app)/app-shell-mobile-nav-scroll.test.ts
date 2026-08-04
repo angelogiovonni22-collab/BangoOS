@@ -29,6 +29,10 @@ async function main() {
     assert(!source.includes("<nav className=\"mt-7 space-y-3\">"), "legacy non-scroll nav container is removed");
     assert(source.includes("lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh]"), "desktop sidebar keeps a constrained full-height sticky scroll container");
     assert(!source.includes("lg:h-auto"), "desktop sidebar no longer switches to unconstrained auto height");
+    assert(source.includes("<LayerManager layer=\"dialog\">"), "sidebar is rendered in dialog layer for top-most mobile navigation");
+    assert(source.includes("<LayerManager layer=\"backdrop\">"), "mobile backdrop is rendered in dedicated backdrop layer");
+    assert(source.includes("z-[var(--z-modal)]"), "sidebar sets explicit modal z-index to avoid iOS fixed layering anomalies");
+    assert(source.includes("z-[var(--z-backdrop)]"), "backdrop sets explicit backdrop z-index under the sidebar");
   });
 
   await test("2. shell visual and theme classes remain unchanged", () => {
@@ -48,6 +52,13 @@ async function main() {
 
     const sidebarMatches = source.match(/id=\"bangoos-sidebar\"/g) ?? [];
     assert(sidebarMatches.length === 1, "sidebar remains singular and is not duplicated");
+  });
+
+  await test("4. opening mobile nav locks page scroll", () => {
+    const source = readFileSync(join(process.cwd(), "app", "(app)", "app-shell.tsx"), "utf8");
+
+    assert(source.includes("document.body.style.overflow = \"hidden\";"), "mobile nav open locks body scroll");
+    assert(source.includes("document.body.style.removeProperty(\"overflow\");"), "mobile nav close restores body scroll");
   });
 
   console.log(`\nApp shell mobile nav scroll results: ${passed} passed, ${failed} failed`);
