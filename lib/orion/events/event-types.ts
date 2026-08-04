@@ -1,0 +1,60 @@
+export const ORION_EVENT_TYPES = [
+  "customer.created",
+  "customer.updated",
+  "estimate.created",
+  "estimate.sent",
+  "estimate.viewed",
+  "estimate.approved",
+  "estimate.declined",
+  "estimate.request_changes",
+  "project.created",
+  "project.updated",
+  "crew.created",
+  "crew.updated",
+  "crew.assigned",
+  "employee.created",
+  "employee.updated",
+  "invoice.created",
+  "invoice.sent",
+  "invoice.paid",
+  "deposit.received",
+  "change_order.created",
+  "daily_report.created",
+  "task.completed",
+  "notification.sent",
+  "workflow.executed",
+] as const;
+
+export type OrionEventType = (typeof ORION_EVENT_TYPES)[number];
+
+export const ORION_AGGREGATE_TYPES = [
+  "customer",
+  "estimate",
+  "project",
+  "crew",
+  "employee",
+  "invoice",
+  "deposit",
+  "change_order",
+  "daily_report",
+  "task",
+  "notification",
+  "workflow",
+] as const;
+
+export type OrionAggregateType = (typeof ORION_AGGREGATE_TYPES)[number];
+
+export const ORION_SOURCE_MODULES = [
+  "customers",
+  "estimates",
+  "projects",
+  "workforce",
+  "invoices",
+  "change_orders",
+  "daily_reports",
+  "notifications",
+  "workflows",
+  "system",
+] as const;
+
+export type OrionSourceModule = (typeof ORION_SOURCE_MODULES)[number];

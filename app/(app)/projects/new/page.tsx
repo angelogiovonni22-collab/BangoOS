@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Select } from "@/components/ui";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
@@ -252,6 +253,24 @@ export default function NewProjectPage() {
         setErrorMessage(t("projects.errorSaveProject", { message: lastErrorMessage || t("projects.errorUnexpectedSave") }));
         return;
       }
+
+      const orion = createSupabaseOrionEventPublisher(client);
+      await orion.publishEvent({
+        company_id: workspace.context.companyId,
+        actor_profile_id: workspace.context.userId,
+        event_type: "project.created",
+        aggregate_type: "project",
+        aggregate_id: createdProjectId,
+        source_module: "projects",
+        payload: {
+          name: formData.projectName.trim(),
+          customer_id: formData.customerId,
+          project_type: formData.projectType,
+          status: formData.status,
+          estimated_cost: parseCurrencyInput(formData.estimatedCost),
+          contract_amount: parseCurrencyInput(formData.contractAmount),
+        },
+      });
 
       setSuccessMessage(t("projects.projectCreated"));
       router.push(`/projects/${createdProjectId}`);

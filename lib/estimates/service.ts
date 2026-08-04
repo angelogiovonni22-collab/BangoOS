@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculateEstimateTotals, lineItemMoney } from "@/lib/estimates/calculations";
 import { getNextEstimateNumber } from "@/lib/estimates/numbering";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import type {
   EstimateFormValues,
   EstimateLineItemDraft,
@@ -297,6 +298,8 @@ export async function saveEstimate(params: {
   };
 
   let estimateId = params.estimateId;
+  const isCreate = !estimateId;
+  const orion = createSupabaseOrionEventPublisher(params.supabase);
 
   if (estimateId) {
     const { error: updateError } = await params.supabase
@@ -353,6 +356,28 @@ export async function saveEstimate(params: {
     if (lineItemsError) {
       return { error: lineItemsError.message, estimateId: null };
     }
+  }
+
+  if (isCreate) {
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: "estimate.created",
+      aggregate_type: "estimate",
+      aggregate_id: estimateId,
+      source_module: "estimates",
+      payload: {
+        estimate_number: estimateNumber,
+        title: estimatePayload.title,
+        status: estimatePayload.status,
+        customer_id: estimatePayload.customer_id,
+        project_id: estimatePayload.project_id,
+        total_amount: estimatePayload.total_amount,
+      },
+      metadata: {
+        workflow_name: "estimate_lifecycle",
+      },
+    });
   }
 
   return { error: null, estimateId };

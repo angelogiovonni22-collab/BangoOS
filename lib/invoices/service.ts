@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculateInvoiceTotals, invoiceLineItemMoney } from "@/lib/invoices/calculations";
 import { getNextInvoiceNumber } from "@/lib/invoices/numbering";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import type {
   InvoiceFormValues,
@@ -342,6 +343,8 @@ export async function saveInvoice(params: {
   };
 
   let invoiceId = params.invoiceId;
+  const isCreate = !invoiceId;
+  const orion = createSupabaseOrionEventPublisher(params.supabase);
 
   if (invoiceId) {
     const { error: updateError } = await params.supabase
@@ -413,6 +416,29 @@ export async function saveInvoice(params: {
       }, { onConflict: "invoice_id,estimate_id" });
   }
 
+  if (isCreate) {
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: "invoice.created",
+      aggregate_type: "invoice",
+      aggregate_id: invoiceId,
+      source_module: "invoices",
+      payload: {
+        invoice_number: invoiceNumber,
+        title: invoicePayload.title,
+        status: invoicePayload.status,
+        customer_id: invoicePayload.customer_id,
+        project_id: invoicePayload.project_id,
+        total_amount: invoicePayload.total_amount,
+        estimate_id: invoicePayload.estimate_id,
+      },
+      metadata: {
+        workflow_name: "invoice_lifecycle",
+      },
+    });
+  }
+
   return { error: null, invoiceId };
 }
 
@@ -431,6 +457,24 @@ export async function sendInvoice(params: {
     })
     .eq("company_id", params.companyId)
     .eq("id", params.invoiceId);
+
+  if (!error) {
+    const orion = createSupabaseOrionEventPublisher(params.supabase);
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: "invoice.sent",
+      aggregate_type: "invoice",
+      aggregate_id: params.invoiceId,
+      source_module: "invoices",
+      payload: {
+        invoice_id: params.invoiceId,
+      },
+      metadata: {
+        workflow_name: "invoice_lifecycle",
+      },
+    });
+  }
 
   return { error: error?.message || null };
 }
@@ -476,6 +520,26 @@ export async function markInvoicePaid(params: {
     })
     .eq("company_id", params.companyId)
     .eq("id", params.invoiceId);
+
+  if (!error) {
+    const orion = createSupabaseOrionEventPublisher(params.supabase);
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: "invoice.paid",
+      aggregate_type: "invoice",
+      aggregate_id: params.invoiceId,
+      source_module: "invoices",
+      payload: {
+        invoice_id: params.invoiceId,
+        amount_paid: record.data.invoice.total_amount,
+        paid_date: now.slice(0, 10),
+      },
+      metadata: {
+        workflow_name: "invoice_lifecycle",
+      },
+    });
+  }
 
   return { error: error?.message || null };
 }

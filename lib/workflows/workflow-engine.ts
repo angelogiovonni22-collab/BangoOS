@@ -36,6 +36,15 @@ export function createWorkflowEngine(supabase: SupabaseClient<Database>): Workfl
           reference_entity: input.referenceEntity,
           reference_id: input.referenceId,
           occurred_at: input.occurredAt || new Date().toISOString(),
+          version: 1,
+          source_module: "workflows",
+          payload: {
+            workflow_name: input.workflowName,
+            current_state: input.currentState,
+            next_state: input.nextState,
+            reference_entity: input.referenceEntity,
+            reference_id: input.referenceId,
+          },
           metadata: input.metadata || {},
         })
         .select("id")

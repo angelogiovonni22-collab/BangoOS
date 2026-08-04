@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Select } from "@/components/ui";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
@@ -169,6 +170,23 @@ export default function NewCustomerPage() {
         setErrorMessage(t("customers.errorMissingCustomerLink"));
         return;
       }
+
+      const orion = createSupabaseOrionEventPublisher(supabase);
+      await orion.publishEvent({
+        company_id: workspace.context.companyId,
+        actor_profile_id: workspace.context.userId,
+        event_type: "customer.created",
+        aggregate_type: "customer",
+        aggregate_id: data.id,
+        source_module: "customers",
+        payload: {
+          customer_type: formData.customerType,
+          first_name: formData.firstName.trim(),
+          last_name: formData.lastName.trim(),
+          company_name: formData.companyName.trim() || null,
+          email: formData.email.trim(),
+        },
+      });
 
       router.push(`/customers/${data.id}`);
       router.refresh();
