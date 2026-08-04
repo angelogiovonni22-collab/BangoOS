@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildExecutiveBrief } from "@/lib/orion/executive-brief-service";
+import { createOrionTimelineService } from "@/lib/orion/timeline";
 import type { WorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 import type { OperationsCommandCenterResult } from "./command-center-types";
 import {
-  buildActivityFeed,
   buildAvailabilityMap,
   buildDashboardLikeData,
   buildPendingDecisions,
@@ -70,11 +70,9 @@ export async function getOperationsCommandCenter(
   });
 
   const schedule = buildTodaySchedule(tasks, projectNameById, new Date().toISOString().slice(0, 10));
-  const activityFeed = buildActivityFeed({
-    photos,
-    invoices,
-    changeOrders,
-    profileNameById,
+  const activityFeed = await buildTimelineActivityFeed({
+    supabase,
+    companyId: workspace.companyId,
     projectNameById,
   });
   const priorityQueue = buildPriorityQueue({
@@ -398,4 +396,79 @@ async function loadEquipment(supabase: SupabaseClient<Database>, companyId: stri
     assignedJobId: row.assigned_job_id,
     nextServiceDate: row.next_service_date,
   })) as CommandCenterEquipmentRow[];
+}
+
+async function buildTimelineActivityFeed(params: {
+  supabase: SupabaseClient<Database>;
+  companyId: string;
+  projectNameById: Map<string, string>;
+}) {
+  const timeline = createOrionTimelineService(params.supabase);
+  const result = await timeline.listCompanyTimeline(params.companyId, {
+    pageSize: 24,
+    includeLegacyAdapters: true,
+  });
+
+  return result.items.map((item) => {
+    const user = item.actorName || "System";
+    const projectName = item.projectName || (item.projectId ? params.projectNameById.get(item.projectId) : undefined) || undefined;
+
+    return {
+      id: item.id,
+      icon: item.sourceModule === "workforce" ? "W" : item.sourceModule === "invoices" ? "I" : "O",
+      category: mapTimelineCategory(item.category),
+      timestampMinutesAgo: diffMinutes(item.occurredAt),
+      user,
+      avatarLabel: initials(user),
+      actionLabelKey: null,
+      actionLabel: item.summary,
+      projectName,
+      href: item.href || (item.projectId ? `/projects/${item.projectId}` : "/operations"),
+    };
+  })
+    .filter((item) => Number.isFinite(item.timestampMinutesAgo))
+    .sort((left, right) => left.timestampMinutesAgo - right.timestampMinutesAgo)
+    .slice(0, 18);
+}
+
+function mapTimelineCategory(category: string): "customer" | "project" | "sitecam" | "estimate" | "invoice" | "team" {
+  if (category === "customers") {
+    return "customer";
+  }
+
+  if (category === "sales") {
+    return "estimate";
+  }
+
+  if (category === "finance") {
+    return "invoice";
+  }
+
+  if (category === "workforce") {
+    return "team";
+  }
+
+  if (category === "field") {
+    return "sitecam";
+  }
+
+  return "project";
+}
+
+function diffMinutes(isoValue: string) {
+  const timestamp = new Date(isoValue).getTime();
+  if (Number.isNaN(timestamp)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+}
+
+function initials(name: string) {
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return "--";
+  }
+
+  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
 }

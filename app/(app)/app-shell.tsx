@@ -27,6 +27,7 @@ const navigationGroups = [
     label: "Operations",
     items: [
       { key: "operations", href: "/operations", icon: "◈" },
+      { key: "timeline", href: "/timeline", icon: "◔" },
       { key: "dispatch", href: "/dispatch", icon: "⌁" },
       { key: "dailyReports", href: "/daily-reports", icon: "◨" },
       { key: "schedule", href: "/schedule", icon: "◑" },

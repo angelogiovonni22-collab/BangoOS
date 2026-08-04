@@ -3,6 +3,7 @@ import { normalizeChangeOrderStatus } from "@/lib/change-orders/statuses";
 import { normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import { calculateProjectIntelligence } from "@/lib/project-intelligence/calculate-project-intelligence";
 import { normalizeProjectStatus } from "@/lib/projects";
+import { createOrionTimelineService } from "@/lib/orion/timeline";
 import type { CompanyRole } from "@/lib/supabase/authorization";
 import type { WorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
@@ -169,7 +170,15 @@ export async function buildExecutiveDashboardData(
   const metrics = buildMetrics(projects, tasks, estimates, invoices, payments, canReadFinancials);
   const projectHealth = buildProjectHealth(projects, tasksByProject, invoicesByProject, phaseById, photosByProject);
   const schedule = buildSchedule(tasks, projectById);
-  const activities = buildActivities(photos, invoices, payments, changeOrders, changeOrderActivity, memories, profileById, projectById);
+  void changeOrderActivity;
+  void memories;
+  const activities = await buildTimelineActivities({
+    supabase,
+    companyId: workspace.companyId,
+    profileById,
+    projectById,
+    sectionErrors,
+  });
   const businessSummary = buildBusinessSummary(projectHealth.projects, tasks, photos, invoices, canReadFinancials);
   const recommendations = buildRecommendations(projectHealth.projects, tasks, invoices, changeOrders, canReadFinancials);
 
@@ -528,6 +537,9 @@ function buildSchedule(tasks: TaskRow[], projectById: Map<string, ProjectRow>): 
     .sort((left, right) => compareIso(right.occurredAt) - compareIso(left.occurredAt))
     .slice(0, 8);
 }
+
+  const keepBuildActivitiesReferenced = buildActivities;
+  void keepBuildActivitiesReferenced;
 
 function buildActivities(
   photos: ProjectPhotoRow[],
@@ -1066,4 +1078,102 @@ function initials(value: string) {
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+
+async function buildTimelineActivities(params: {
+  supabase: SupabaseClient<Database>;
+  companyId: string;
+  profileById: Map<string, ProfileRow>;
+  projectById: Map<string, ProjectRow>;
+  sectionErrors: DashboardSectionErrors;
+}): Promise<DashboardActivityItem[]> {
+  try {
+    const timeline = createOrionTimelineService(params.supabase);
+    const result = await timeline.listCompanyTimeline(params.companyId, {
+      pageSize: 24,
+      includeLegacyAdapters: true,
+    });
+
+    return result.items.map((item) => {
+      const user = item.actorName || formatProfileName(params.profileById.get(item.actorProfileId || ""));
+      const projectName = item.projectName
+        || (item.projectId ? params.projectById.get(item.projectId)?.name : undefined)
+        || undefined;
+
+      return {
+        id: item.id,
+        icon: timelineIcon(item.sourceModule),
+        category: mapTimelineCategory(item.category),
+        timestampMinutesAgo: diffMinutes(item.occurredAt),
+        user,
+        avatarLabel: initials(user),
+        actionLabelKey: null,
+        actionLabel: item.summary,
+        projectName,
+        href: item.href || projectHref(projectName, item.projectId) || undefined,
+      };
+    })
+      .filter((row) => Number.isFinite(row.timestampMinutesAgo))
+      .sort((left, right) => left.timestampMinutesAgo - right.timestampMinutesAgo)
+      .slice(0, 18);
+  } catch (error) {
+    markError(params.sectionErrors, "activity", error);
+    return [];
+  }
+}
+
+function mapTimelineCategory(category: string): DashboardActivityItem["category"] {
+  if (category === "customers") {
+    return "customer";
+  }
+
+  if (category === "sales") {
+    return "estimate";
+  }
+
+  if (category === "finance") {
+    return "invoice";
+  }
+
+  if (category === "workforce") {
+    return "team";
+  }
+
+  if (category === "field") {
+    return "sitecam";
+  }
+
+  return "project";
+}
+
+function timelineIcon(sourceModule: string) {
+  if (sourceModule === "invoices") {
+    return "I";
+  }
+
+  if (sourceModule === "estimates") {
+    return "E";
+  }
+
+  if (sourceModule === "workforce") {
+    return "W";
+  }
+
+  if (sourceModule === "customers") {
+    return "C";
+  }
+
+  if (sourceModule === "projects") {
+    return "P";
+  }
+
+  return "SY";
+}
+
+function projectHref(projectName: string | undefined, projectId: string | null) {
+  if (projectId) {
+    return `/projects/${projectId}`;
+  }
+
+  return projectName ? "/projects" : null;
 }

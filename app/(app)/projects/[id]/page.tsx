@@ -31,6 +31,7 @@ import { PROJECT_WORKSPACE_ASSIGNED_EQUIPMENT_STATUSES, PROJECT_WORKSPACE_EQUIPM
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
 import { calculateProjectIntelligence } from "@/lib/project-intelligence/calculate-project-intelligence";
+import { createOrionTimelineService, formatTimelineText, type OrionTimelineItem } from "@/lib/orion/timeline";
 import { generateProjectBriefing } from "@/lib/project-intelligence/briefing/generate-project-briefing";
 import type { Database } from "@/types/database.types";
 
@@ -141,6 +142,7 @@ export default function ProjectWorkspacePage() {
   const [errorKind, setErrorKind] = useState<WorkspaceErrorKind | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
+  const [projectTimeline, setProjectTimeline] = useState<OrionTimelineItem[]>([]);
 
   const activeTab = resolveWorkspaceTab(searchParams.get("tab"));
 
@@ -323,6 +325,13 @@ export default function ProjectWorkspacePage() {
             },
             workspaceContext: workspaceResult.context,
           });
+
+          const timeline = createOrionTimelineService(client);
+          const timelineResult = await timeline.listProjectTimeline(workspaceResult.context.companyId, projectId, {
+            pageSize: 24,
+            includeLegacyAdapters: true,
+          });
+          setProjectTimeline(timelineResult.items);
         }
       } catch (caughtError) {
         console.error("Load project workspace error:", caughtError);
@@ -444,7 +453,7 @@ export default function ProjectWorkspacePage() {
   });
 
   const upcomingDates = buildUpcomingDates(project, workspace.tasks, localeTag, t);
-  const timeline = buildTimeline(recentActivity, upcomingDates);
+  const timeline = projectTimeline;
 
   const headerProjectHrefSuffix = project.customer_id ? `&customerId=${project.customer_id}` : "";
   const details = [
@@ -632,15 +641,15 @@ export default function ProjectWorkspacePage() {
               <EmptyState
                 compact
                 icon="T"
-                title="No timeline events"
-                description="Timeline events will appear here as project activity is recorded."
+                title="No activity has been recorded yet."
+                description="No activity has been recorded yet."
               />
             ) : (
               timeline.map((item) => (
                 <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)]">
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.title}</p>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.detail}</p>
-                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">{item.timestamp}</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{formatTimelineText(item, t).title}</p>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{formatTimelineText(item, t).summary}</p>
+                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">{formatDateTime(item.occurredAt, localeTag)}</p>
                 </article>
               ))
             )}
@@ -940,25 +949,6 @@ function buildUpcomingDates(
     });
 
   return dates;
-}
-
-function buildTimeline(activity: WorkspaceActivityItem[], milestones: WorkspaceMilestoneItem[]) {
-  const events = [
-    ...activity.map((item) => ({
-      id: `activity-${item.id}`,
-      title: item.title,
-      detail: item.detail,
-      timestamp: item.timestamp,
-    })),
-    ...milestones.map((item) => ({
-      id: `milestone-${item.id}`,
-      title: item.title,
-      detail: item.detail,
-      timestamp: item.dateLabel,
-    })),
-  ];
-
-  return events.slice(0, 12);
 }
 
 function formatDateTime(value: string, localeTag: string) {
