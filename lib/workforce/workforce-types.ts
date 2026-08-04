@@ -130,6 +130,64 @@ export type WorkforceEquipmentRow = {
   expected_return_date: string | null;
 };
 
+export type WorkforceEventEntityType = "employee" | "crew" | "crew_membership";
+
+export type WorkforceEventAction = "create" | "update" | "archive" | "add" | "end";
+
+export type WorkforceEventInput = {
+  companyId: string;
+  eventType: string;
+  entityType: WorkforceEventEntityType;
+  entityId: string;
+  action: WorkforceEventAction;
+  actorProfileId: string | null;
+  payload: Record<string, unknown>;
+};
+
+export type WorkforceCreateEmployeeInput = {
+  employee_number: string;
+  profile_id: string | null;
+  trade: string | null;
+  position_title: string;
+  employment_status: WorkforceEmployeeStatus;
+  primary_crew_id: string | null;
+  hire_date: string;
+  availability_status: WorkforceEmployeeAvailabilityStatus;
+  notes: string | null;
+};
+
+export type WorkforceUpdateEmployeeInput = Partial<WorkforceCreateEmployeeInput>;
+
+export type WorkforceCreateCrewInput = {
+  crew_code: string;
+  name: string;
+  description: string | null;
+  status: WorkforceCrewStatus;
+  lead_profile_id: string | null;
+  supervisor_profile_id: string | null;
+  home_location: string | null;
+  notes: string | null;
+};
+
+export type WorkforceUpdateCrewInput = Partial<WorkforceCreateCrewInput>;
+
+export type WorkforceAddMembershipInput = {
+  crew_id: string;
+  employee_id: string;
+  role: string;
+  is_primary: boolean;
+  starts_on: string;
+  status: Extract<WorkforceMembershipStatus, "active" | "planned">;
+};
+
+export type WorkforceUpdateMembershipInput = {
+  role?: string;
+  is_primary?: boolean;
+  starts_on?: string;
+  ends_on?: string | null;
+  status?: WorkforceMembershipStatus;
+};
+
 export type WorkforceMembershipFilters = {
   crewId?: string;
   employeeId?: string;
@@ -389,9 +447,17 @@ export type CrewProfileData = {
 export type WorkforceService = {
   listEmployees: (companyId: string) => Promise<WorkforceEmployeeRow[]>;
   getEmployee: (companyId: string, employeeId: string) => Promise<WorkforceEmployeeRow | null>;
+  createEmployee: (companyId: string, actorProfileId: string, input: WorkforceCreateEmployeeInput) => Promise<WorkforceEmployeeRow>;
+  updateEmployee: (companyId: string, actorProfileId: string, employeeId: string, input: WorkforceUpdateEmployeeInput) => Promise<WorkforceEmployeeRow | null>;
+  archiveEmployee: (companyId: string, actorProfileId: string, employeeId: string) => Promise<WorkforceEmployeeRow | null>;
   listCrews: (companyId: string) => Promise<WorkforceCrewRow[]>;
   getCrew: (companyId: string, crewId: string) => Promise<WorkforceCrewRow | null>;
+  createCrew: (companyId: string, actorProfileId: string, input: WorkforceCreateCrewInput) => Promise<WorkforceCrewRow>;
+  updateCrew: (companyId: string, actorProfileId: string, crewId: string, input: WorkforceUpdateCrewInput) => Promise<WorkforceCrewRow | null>;
   listCrewMemberships: (companyId: string, filters?: WorkforceMembershipFilters) => Promise<WorkforceMembershipRow[]>;
+  addCrewMembership: (companyId: string, actorProfileId: string, input: WorkforceAddMembershipInput) => Promise<WorkforceMembershipRow>;
+  updateCrewMembership: (companyId: string, actorProfileId: string, membershipId: string, input: WorkforceUpdateMembershipInput) => Promise<WorkforceMembershipRow | null>;
+  endCrewMembership: (companyId: string, actorProfileId: string, membershipId: string, endsOn: string) => Promise<WorkforceMembershipRow | null>;
   listWorkforceAssignments: (companyId: string, filters?: WorkforceAssignmentFilters) => Promise<WorkforceAssignmentRow[]>;
   getEmployeeDirectory: (companyId: string, filters: EmployeeDirectoryFilters) => Promise<EmployeeDirectoryResult>;
   getEmployeeProfile: (companyId: string, employeeId: string) => Promise<EmployeeProfileData | null>;

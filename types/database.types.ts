@@ -3633,6 +3633,60 @@ export type Database = {
           },
         ]
       }
+      workforce_events: {
+        Row: {
+          action: string
+          actor_profile_id: string | null
+          company_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id: string
+          occurred_at: string
+          payload: Json
+        }
+        Insert: {
+          action: string
+          actor_profile_id?: string | null
+          company_id: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id?: string
+          occurred_at?: string
+          payload?: Json
+        }
+        Update: {
+          action?: string
+          actor_profile_id?: string | null
+          company_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workforce_events_actor_profile_company_fkey"
+            columns: ["actor_profile_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "workforce_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

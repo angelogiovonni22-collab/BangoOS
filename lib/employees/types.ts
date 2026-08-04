@@ -106,6 +106,10 @@ export type EmployeeListResult = {
 };
 
 export type UpsertEmployeeInput = {
+  employeeNumber?: string;
+  profileId?: string | null;
+  supervisorProfileId?: string | null;
+  primaryCrewId?: string | null;
   fullName: string;
   position: string;
   crew: string;

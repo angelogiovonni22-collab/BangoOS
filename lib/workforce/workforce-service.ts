@@ -137,6 +137,18 @@ export function createWorkforceService(supabase: WorkforceClient): WorkforceServ
       return repository.getEmployee(companyId, employeeId);
     },
 
+    async createEmployee(companyId, actorProfileId, input) {
+      return repository.createEmployee(companyId, actorProfileId, input);
+    },
+
+    async updateEmployee(companyId, actorProfileId, employeeId, input) {
+      return repository.updateEmployee(companyId, actorProfileId, employeeId, input);
+    },
+
+    async archiveEmployee(companyId, actorProfileId, employeeId) {
+      return repository.archiveEmployee(companyId, actorProfileId, employeeId);
+    },
+
     async listCrews(companyId) {
       return repository.listCrews(companyId);
     },
@@ -145,8 +157,28 @@ export function createWorkforceService(supabase: WorkforceClient): WorkforceServ
       return repository.getCrew(companyId, crewId);
     },
 
+    async createCrew(companyId, actorProfileId, input) {
+      return repository.createCrew(companyId, actorProfileId, input);
+    },
+
+    async updateCrew(companyId, actorProfileId, crewId, input) {
+      return repository.updateCrew(companyId, actorProfileId, crewId, input);
+    },
+
     async listCrewMemberships(companyId, filters: WorkforceMembershipFilters = {}) {
       return repository.listCrewMemberships(companyId, filters);
+    },
+
+    async addCrewMembership(companyId, actorProfileId, input) {
+      return repository.addCrewMembership(companyId, actorProfileId, input);
+    },
+
+    async updateCrewMembership(companyId, actorProfileId, membershipId, input) {
+      return repository.updateCrewMembership(companyId, actorProfileId, membershipId, input);
+    },
+
+    async endCrewMembership(companyId, actorProfileId, membershipId, endsOn) {
+      return repository.endCrewMembership(companyId, actorProfileId, membershipId, endsOn);
     },
 
     async listWorkforceAssignments(companyId, filters: WorkforceAssignmentFilters = {}) {

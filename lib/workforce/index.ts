@@ -1,5 +1,6 @@
 export { createWorkforceService } from "./workforce-service";
 export { createWorkforceRepository } from "./workforce-repository";
+export { createWorkforceEventRepository } from "./workforce-event-repository";
 export { createWorkforceIntelligenceService } from "./intelligence";
 export {
   normalizeAssignmentViews,

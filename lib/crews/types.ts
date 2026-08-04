@@ -76,6 +76,8 @@ export type CrewMember = {
 };
 
 export type UpsertCrewInput = {
+  leadProfileId?: string | null;
+  supervisorProfileId?: string | null;
   name: string;
   code: string;
   lead: string;
