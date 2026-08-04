@@ -128,6 +128,21 @@ create table if not exists public.estimate_public_tokens (
     on delete set null
 );
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'estimate_public_tokens_id_company_unique'
+      and conrelid = 'public.estimate_public_tokens'::regclass
+  ) then
+    alter table public.estimate_public_tokens
+      add constraint estimate_public_tokens_id_company_unique
+      unique (id, company_id);
+  end if;
+end
+$$;
+
 alter table public.estimate_public_tokens
   drop constraint if exists estimate_public_tokens_company_estimate_hash_unique,
   add constraint estimate_public_tokens_company_estimate_hash_unique
@@ -175,6 +190,21 @@ create table if not exists public.estimate_agreement_versions (
     references public.profiles(id, company_id)
     on delete set null
 );
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'estimate_agreement_versions_id_company_unique'
+      and conrelid = 'public.estimate_agreement_versions'::regclass
+  ) then
+    alter table public.estimate_agreement_versions
+      add constraint estimate_agreement_versions_id_company_unique
+      unique (id, company_id);
+  end if;
+end
+$$;
 
 alter table public.estimate_agreement_versions
   drop constraint if exists estimate_agreement_versions_company_estimate_version_unique,
@@ -240,6 +270,21 @@ create table if not exists public.estimate_signatures (
     references public.estimate_public_tokens(id, company_id)
     on delete set null
 );
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'estimate_signatures_id_company_unique'
+      and conrelid = 'public.estimate_signatures'::regclass
+  ) then
+    alter table public.estimate_signatures
+      add constraint estimate_signatures_id_company_unique
+      unique (id, company_id);
+  end if;
+end
+$$;
 
 alter table public.estimate_signatures
   drop constraint if exists estimate_signatures_company_estimate_idempotency_unique,
