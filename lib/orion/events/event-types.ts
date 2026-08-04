@@ -23,6 +23,21 @@ export const ORION_EVENT_TYPES = [
   "task.completed",
   "notification.sent",
   "workflow.executed",
+  "automation.rule.started",
+  "automation.step.started",
+  "automation.step.completed",
+  "automation.step.failed",
+  "automation.rule.completed",
+  "automation.failed",
+  "portal.created",
+  "service_agreement.generated",
+  "welcome_packet.generated",
+  "project.timeline_seeded",
+  "estimate.followup_due",
+  "decision.created",
+  "decision.acknowledged",
+  "decision.resolved",
+  "decision.dismissed",
 ] as const;
 
 export type OrionEventType = (typeof ORION_EVENT_TYPES)[number];
@@ -40,6 +55,7 @@ export const ORION_AGGREGATE_TYPES = [
   "task",
   "notification",
   "workflow",
+  "decision",
 ] as const;
 
 export type OrionAggregateType = (typeof ORION_AGGREGATE_TYPES)[number];
@@ -54,6 +70,8 @@ export const ORION_SOURCE_MODULES = [
   "daily_reports",
   "notifications",
   "workflows",
+  "automation",
+  "decision",
   "system",
 ] as const;
 

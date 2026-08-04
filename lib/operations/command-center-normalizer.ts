@@ -702,6 +702,33 @@ export function buildDashboardLikeData(input: {
       items: businessSummaryItems,
     },
     recommendations,
+    pendingFollowups: [],
+    automationQueue: [],
+    recentAutomations: [],
+    estimatePipeline: {
+      total: 0,
+      draft: 0,
+      sent: 0,
+      viewed: 0,
+      revisionRequested: 0,
+      approved: 0,
+      rejected: 0,
+    },
+    topPriorities: [],
+    businessHealth: [],
+    riskSummary: {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+    },
+    decisionRecommendations: [],
+    todaysDecisions: [],
+    criticalAlerts: [],
+    morningBriefing: {
+      greeting: "",
+      lines: [],
+    },
     widgetDefinitions: [],
   };
 }

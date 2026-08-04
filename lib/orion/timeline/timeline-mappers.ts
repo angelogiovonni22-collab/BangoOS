@@ -62,6 +62,10 @@ const EVENT_DESCRIPTORS: Record<string, EventDescriptor> = {
   "daily_report.created": { category: "field", severity: "info", titleKey: "orion.timeline.event.dailyReportCreated.title", summaryKey: "orion.timeline.event.dailyReportCreated.summary" },
   "task.completed": { category: "scheduling", severity: "success", titleKey: "orion.timeline.event.taskCompleted.title", summaryKey: "orion.timeline.event.taskCompleted.summary" },
   "workflow.executed": { category: "system", severity: "info", titleKey: "orion.timeline.event.workflowExecuted.title", summaryKey: "orion.timeline.event.workflowExecuted.summary" },
+  "decision.created": { category: "system", severity: "attention", titleKey: "orion.timeline.event.decisionCreated.title", summaryKey: "orion.timeline.event.decisionCreated.summary" },
+  "decision.acknowledged": { category: "system", severity: "info", titleKey: "orion.timeline.event.decisionAcknowledged.title", summaryKey: "orion.timeline.event.decisionAcknowledged.summary" },
+  "decision.resolved": { category: "system", severity: "success", titleKey: "orion.timeline.event.decisionResolved.title", summaryKey: "orion.timeline.event.decisionResolved.summary" },
+  "decision.dismissed": { category: "system", severity: "attention", titleKey: "orion.timeline.event.decisionDismissed.title", summaryKey: "orion.timeline.event.decisionDismissed.summary" },
 };
 
 const BLOCKED_PAYLOAD_KEYS = new Set([
@@ -235,6 +239,14 @@ function summaryFor(record: TimelineRawRecord, context: ReturnType<typeof resolv
       return "A task was completed.";
     case "workflow.executed":
       return "A workflow completed successfully.";
+    case "decision.created":
+      return "A new decision recommendation needs attention.";
+    case "decision.acknowledged":
+      return "A decision recommendation was acknowledged.";
+    case "decision.resolved":
+      return "A decision recommendation was resolved.";
+    case "decision.dismissed":
+      return "A decision recommendation was dismissed.";
     default:
       return "An activity event was recorded.";
   }
@@ -278,6 +290,14 @@ function titleFor(eventType: string) {
       return "Task Completed";
     case "workflow.executed":
       return "Workflow Completed";
+    case "decision.created":
+      return "Decision Created";
+    case "decision.acknowledged":
+      return "Decision Acknowledged";
+    case "decision.resolved":
+      return "Decision Resolved";
+    case "decision.dismissed":
+      return "Decision Dismissed";
     default:
       return "Activity Recorded";
   }
@@ -305,6 +325,8 @@ function hrefFor(entityType: string, entityId: string) {
       return `/change-orders/${entityId}`;
     case "daily_report":
       return `/daily-reports/${entityId}`;
+    case "decision":
+      return "/dashboard";
     default:
       return null;
   }

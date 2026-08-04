@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
+import { createOrionAutomationRunner } from "@/lib/orion/automation";
 import type {
   WorkflowTransitionInput,
   WorkflowTransitionResult,
@@ -21,6 +22,7 @@ export function createWorkflowEngine(supabase: SupabaseClient<Database>): Workfl
   };
 
   const db = supabase as unknown as WorkflowInsertClient;
+  const automationRunner = createOrionAutomationRunner(supabase);
 
   return {
     async recordTransition(input) {
@@ -52,6 +54,12 @@ export function createWorkflowEngine(supabase: SupabaseClient<Database>): Workfl
 
       if (error || !data?.id) {
         throw new Error(error?.message || "Unable to record workflow transition.");
+      }
+
+      try {
+        await automationRunner.runForWorkflowEventId(data.id);
+      } catch {
+        // Automation failures should not block the canonical workflow event write path.
       }
 
       return { eventId: data.id as string };

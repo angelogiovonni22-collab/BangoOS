@@ -4,11 +4,20 @@ import { normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import { calculateProjectIntelligence } from "@/lib/project-intelligence/calculate-project-intelligence";
 import { normalizeProjectStatus } from "@/lib/projects";
 import { createOrionTimelineService } from "@/lib/orion/timeline";
+import { createOrionDecisionEngine } from "@/lib/orion/decision";
 import type { CompanyRole } from "@/lib/supabase/authorization";
 import type { WorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 import type {
   AIRecommendation,
+  DashboardAutomationQueueItem,
+  DashboardDecisionHealthItem,
+  DashboardDecisionItem,
+  DashboardDecisionRiskSummary,
+  DashboardEstimatePipeline,
+  DashboardMorningBriefing,
+  DashboardPendingFollowupItem,
+  DashboardRecentAutomationItem,
   BusinessHealthSummary,
   DashboardActivityItem,
   DashboardMetric,
@@ -79,6 +88,16 @@ type InvoicePaymentRow = Pick<
   Database["public"]["Tables"]["invoice_payment_history"]["Row"],
   "id" | "invoice_id" | "amount" | "status" | "payment_date" | "created_at" | "created_by"
 >;
+
+type WorkflowEventActivityRow = {
+  id: string;
+  company_id: string;
+  event_type: string;
+  reference_entity: string;
+  reference_id: string;
+  occurred_at: string;
+  payload: Record<string, unknown>;
+};
 
 type ChangeOrderRow = Pick<
   Database["public"]["Tables"]["change_orders"]["Row"],
@@ -181,6 +200,13 @@ export async function buildExecutiveDashboardData(
   });
   const businessSummary = buildBusinessSummary(projectHealth.projects, tasks, photos, invoices, canReadFinancials);
   const recommendations = buildRecommendations(projectHealth.projects, tasks, invoices, changeOrders, canReadFinancials);
+  const decisionResult = await loadDecisionDashboardData(supabase, workspace, sectionErrors);
+  const [pendingFollowups, automationQueue, recentAutomations] = await Promise.all([
+    loadPendingFollowups(supabase, workspace.companyId, sectionErrors),
+    loadAutomationQueue(supabase, workspace.companyId, sectionErrors),
+    loadRecentAutomations(supabase, workspace.companyId, sectionErrors),
+  ]);
+  const estimatePipeline = buildEstimatePipeline(estimates);
 
   return {
     companyName: workspace.companyName?.trim() || null,
@@ -194,12 +220,33 @@ export async function buildExecutiveDashboardData(
       businessScore: null,
       businessSummary,
       recommendations,
+      pendingFollowups,
+      automationQueue,
+      recentAutomations,
+      estimatePipeline,
+      topPriorities: decisionResult.topPriorities,
+      businessHealth: decisionResult.businessHealth,
+      riskSummary: decisionResult.riskSummary,
+      decisionRecommendations: decisionResult.decisionRecommendations,
+      todaysDecisions: decisionResult.todaysDecisions,
+      criticalAlerts: decisionResult.criticalAlerts,
+      morningBriefing: decisionResult.morningBriefing,
       widgetDefinitions: [
         { id: "kpi", titleKey: "dashboard.metricSectionTitle", descriptionKey: "dashboard.metricSectionDescription" },
         { id: "schedule", titleKey: "dashboard.todaySchedule", descriptionKey: "dashboard.todayScheduleDescription" },
         { id: "project-health", titleKey: "dashboard.projectHealth", descriptionKey: "dashboard.projectHealthDescription" },
         { id: "weather", titleKey: "dashboard.weather", descriptionKey: "dashboard.weatherDescription" },
         { id: "activity", titleKey: "dashboard.recentActivity", descriptionKey: "dashboard.recentActivityDescription" },
+        { id: "pending-followups", titleKey: "dashboard.pendingFollowupsTitle", descriptionKey: "dashboard.pendingFollowupsDescription" },
+        { id: "automation-queue", titleKey: "dashboard.automationQueueTitle", descriptionKey: "dashboard.automationQueueDescription" },
+        { id: "recent-automations", titleKey: "dashboard.recentAutomationsTitle", descriptionKey: "dashboard.recentAutomationsDescription" },
+        { id: "estimate-pipeline", titleKey: "dashboard.estimatePipelineTitle", descriptionKey: "dashboard.estimatePipelineDescription" },
+        { id: "top-priorities", titleKey: "dashboard.topPrioritiesTitle", descriptionKey: "dashboard.topPrioritiesDescription" },
+        { id: "business-health", titleKey: "dashboard.businessHealthTitle", descriptionKey: "dashboard.businessHealthDescription" },
+        { id: "risk-summary", titleKey: "dashboard.riskSummaryTitle", descriptionKey: "dashboard.riskSummaryDescription" },
+        { id: "decision-recommendations", titleKey: "dashboard.decisionRecommendationsTitle", descriptionKey: "dashboard.decisionRecommendationsDescription" },
+        { id: "todays-decisions", titleKey: "dashboard.todaysDecisionsTitle", descriptionKey: "dashboard.todaysDecisionsDescription" },
+        { id: "critical-alerts", titleKey: "dashboard.criticalAlertsTitle", descriptionKey: "dashboard.criticalAlertsDescription" },
         { id: "business-score", titleKey: "dashboard.businessScoreTitle", descriptionKey: "dashboard.businessScoreDescription" },
         { id: "command-center", titleKey: "dashboard.commandCenterTitle", descriptionKey: "dashboard.commandCenterDescription" },
       ],
@@ -419,6 +466,361 @@ async function loadVerifiedMemories(supabase: SupabaseClient<Database>, companyI
   } catch {
     return [] as BangoMemoryRow[];
   }
+}
+
+async function loadDecisionDashboardData(
+  supabase: SupabaseClient<Database>,
+  workspace: WorkspaceContext,
+  sectionErrors: DashboardSectionErrors,
+): Promise<{
+  topPriorities: DashboardDecisionItem[];
+  businessHealth: DashboardDecisionHealthItem[];
+  riskSummary: DashboardDecisionRiskSummary;
+  decisionRecommendations: DashboardDecisionItem[];
+  todaysDecisions: DashboardDecisionItem[];
+  criticalAlerts: DashboardDecisionItem[];
+  morningBriefing: DashboardMorningBriefing;
+}> {
+  try {
+    const engine = createOrionDecisionEngine(supabase);
+    const result = await engine.evaluateCompanyDecisions({
+      companyId: workspace.companyId,
+      actorProfileId: workspace.userId,
+      companyName: workspace.companyName,
+    });
+
+    return {
+      topPriorities: result.topPriorities.map(mapDecisionItem),
+      businessHealth: result.businessHealth,
+      riskSummary: result.riskSummary,
+      decisionRecommendations: result.recommendations.map(mapDecisionItem),
+      todaysDecisions: result.todaysDecisions.map(mapDecisionItem),
+      criticalAlerts: result.criticalAlerts.map(mapDecisionItem),
+      morningBriefing: result.morningBriefing,
+    };
+  } catch (error) {
+    markError(sectionErrors, "top-priorities", error);
+    markError(sectionErrors, "business-health", error);
+    markError(sectionErrors, "risk-summary", error);
+    markError(sectionErrors, "decision-recommendations", error);
+    markError(sectionErrors, "todays-decisions", error);
+    markError(sectionErrors, "critical-alerts", error);
+
+    return {
+      topPriorities: [],
+      businessHealth: [],
+      riskSummary: { critical: 0, high: 0, medium: 0, low: 0 },
+      decisionRecommendations: [],
+      todaysDecisions: [],
+      criticalAlerts: [],
+      morningBriefing: {
+        greeting: "",
+        lines: [],
+      },
+    };
+  }
+}
+
+function mapDecisionItem(input: {
+  decisionId: string;
+  priority: "critical" | "high" | "medium" | "low";
+  category: string;
+  title: string;
+  summary: string;
+  recommendation: string;
+  actionLabel: string;
+  actionHref: string;
+  detectedAt: string;
+  status: "new" | "acknowledged" | "resolved" | "dismissed";
+}): DashboardDecisionItem {
+  return {
+    id: input.decisionId,
+    priority: input.priority,
+    category: input.category,
+    title: input.title,
+    summary: input.summary,
+    recommendation: input.recommendation,
+    actionLabel: input.actionLabel,
+    actionHref: input.actionHref,
+    detectedAt: input.detectedAt,
+    status: input.status,
+  };
+}
+
+async function loadPendingFollowups(
+  supabase: SupabaseClient<Database>,
+  companyId: string,
+  sectionErrors: DashboardSectionErrors,
+): Promise<DashboardPendingFollowupItem[]> {
+  try {
+    type PendingEstimateRow = {
+      id: string;
+      title: string;
+      estimate_number: string | null;
+      status: string;
+      followup_due_at: string | null;
+    };
+
+    const db = supabase as unknown as {
+      from: (table: string) => {
+        select: (columns: string) => {
+          eq: (column: string, value: string) => {
+            not: (column: string, operator: string, value: null) => {
+              in: (column: string, values: string[]) => {
+                order: (column: string, options: { ascending: boolean }) => {
+                  limit: (count: number) => Promise<{ data: unknown; error: { message?: string } | null }>;
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+
+    const { data, error } = await db
+      .from("estimates")
+      .select("id, title, estimate_number, status, followup_due_at")
+      .eq("company_id", companyId)
+      .not("followup_due_at", "is", null)
+      .in("status", ["sent", "viewed", "ready", "revision_requested"])
+      .order("followup_due_at", { ascending: true })
+      .limit(8);
+
+    if (error) {
+      throw new Error(error.message || "Unable to load pending follow-ups.");
+    }
+
+    const rows = (data ?? []) as PendingEstimateRow[];
+    const now = Date.now();
+
+    return rows
+      .filter((row) => Boolean(row.followup_due_at))
+      .map((row) => {
+        const dueAt = row.followup_due_at as string;
+        const dueTime = new Date(dueAt).getTime();
+        const daysOverdue = Number.isFinite(dueTime)
+          ? Math.max(0, Math.floor((now - dueTime) / (24 * 60 * 60 * 1000)))
+          : 0;
+
+        return {
+          id: row.id,
+          estimateNumber: row.estimate_number || row.id.slice(0, 8).toUpperCase(),
+          title: row.title,
+          status: row.status,
+          dueAt,
+          daysOverdue,
+          href: `/estimates/${row.id}`,
+        };
+      })
+      .sort((left, right) => left.dueAt.localeCompare(right.dueAt));
+  } catch (error) {
+    markError(sectionErrors, "pending-followups", error);
+    return [];
+  }
+}
+
+async function loadAutomationQueue(
+  supabase: SupabaseClient<Database>,
+  companyId: string,
+  sectionErrors: DashboardSectionErrors,
+): Promise<DashboardAutomationQueueItem[]> {
+  try {
+    const rows = await loadAutomationWorkflowEvents(supabase, companyId);
+    const byRun = new Map<string, {
+      startedAt: string;
+      ruleId: string;
+      triggerEvent: string;
+      relatedEstimateId: string | null;
+      relatedProjectId: string | null;
+      hasCompleted: boolean;
+      hasFailed: boolean;
+    }>();
+
+    for (const row of rows) {
+      const payload = row.payload || {};
+      const runId = readString(payload.run_id) || row.reference_id;
+      if (!runId) {
+        continue;
+      }
+
+      if (!byRun.has(runId)) {
+        byRun.set(runId, {
+          startedAt: row.occurred_at,
+          ruleId: readString(payload.rule_id) || "unknown-rule",
+          triggerEvent: readString(payload.trigger_event_type) || "workflow.executed",
+          relatedEstimateId: readString(payload.estimate_id),
+          relatedProjectId: readString(payload.project_id),
+          hasCompleted: false,
+          hasFailed: false,
+        });
+      }
+
+      const state = byRun.get(runId);
+      if (!state) {
+        continue;
+      }
+
+      if (row.event_type === "automation.rule.completed") {
+        state.hasCompleted = true;
+      }
+
+      if (row.event_type === "automation.failed" || row.event_type === "automation.step.failed") {
+        state.hasFailed = true;
+      }
+    }
+
+    return Array.from(byRun.entries())
+      .filter(([, value]) => !value.hasCompleted)
+      .map(([runId, value]) => ({
+        runId,
+        ruleId: value.ruleId,
+        triggerEvent: value.triggerEvent,
+        startedAt: value.startedAt,
+        status: value.hasFailed ? "failed" as const : "running" as const,
+        relatedEstimateId: value.relatedEstimateId,
+        relatedProjectId: value.relatedProjectId,
+      }))
+      .sort((left, right) => compareIso(right.startedAt) - compareIso(left.startedAt))
+      .slice(0, 8);
+  } catch (error) {
+    markError(sectionErrors, "automation-queue", error);
+    return [];
+  }
+}
+
+async function loadRecentAutomations(
+  supabase: SupabaseClient<Database>,
+  companyId: string,
+  sectionErrors: DashboardSectionErrors,
+): Promise<DashboardRecentAutomationItem[]> {
+  try {
+    const rows = await loadAutomationWorkflowEvents(supabase, companyId);
+    const completedRows = rows.filter((row) => row.event_type === "automation.rule.completed" || row.event_type === "automation.failed");
+
+    return completedRows
+      .map((row) => {
+        const payload = row.payload || {};
+        const runId = readString(payload.run_id) || row.reference_id;
+        const ruleId = readString(payload.rule_id) || "unknown-rule";
+        const triggerEvent = readString(payload.trigger_event_type) || "workflow.executed";
+        const durationMs = readNumber(payload.duration_ms);
+        const projectId = readString(payload.project_id);
+        const estimateId = readString(payload.estimate_id);
+
+        return {
+          id: row.id,
+          runId,
+          ruleId,
+          triggerEvent,
+          completedAt: row.occurred_at,
+          status: row.event_type === "automation.failed" ? "failed" as const : "completed" as const,
+          durationMs,
+          href: projectId ? `/projects/${projectId}` : estimateId ? `/estimates/${estimateId}` : null,
+        };
+      })
+      .sort((left, right) => compareIso(right.completedAt) - compareIso(left.completedAt))
+      .slice(0, 8);
+  } catch (error) {
+    markError(sectionErrors, "recent-automations", error);
+    return [];
+  }
+}
+
+async function loadAutomationWorkflowEvents(
+  supabase: SupabaseClient<Database>,
+  companyId: string,
+): Promise<WorkflowEventActivityRow[]> {
+  const db = supabase as unknown as {
+    from: (table: string) => {
+      select: (columns: string) => {
+        eq: (column: string, value: string) => {
+          in: (column: string, values: string[]) => {
+            order: (column: string, options: { ascending: boolean }) => {
+              limit: (count: number) => Promise<{ data: unknown; error: { message?: string } | null }>;
+            };
+          };
+        };
+      };
+    };
+  };
+
+  const { data, error } = await db
+    .from("workflow_events")
+    .select("id, company_id, event_type, reference_entity, reference_id, occurred_at, payload")
+    .eq("company_id", companyId)
+    .in("event_type", [
+      "automation.rule.started",
+      "automation.rule.completed",
+      "automation.step.failed",
+      "automation.failed",
+    ])
+    .order("occurred_at", { ascending: false })
+    .limit(200);
+
+  if (error) {
+    throw new Error(error.message || "Unable to load automation workflow events.");
+  }
+
+  return (data ?? []) as WorkflowEventActivityRow[];
+}
+
+function buildEstimatePipeline(estimates: EstimateRow[]): DashboardEstimatePipeline {
+  const totals = {
+    total: estimates.length,
+    draft: 0,
+    sent: 0,
+    viewed: 0,
+    revisionRequested: 0,
+    approved: 0,
+    rejected: 0,
+  };
+
+  for (const estimate of estimates) {
+    const normalized = estimate.status.trim().toLowerCase();
+
+    if (normalized === "draft" || normalized === "internal_review") {
+      totals.draft += 1;
+      continue;
+    }
+
+    if (normalized === "sent" || normalized === "ready") {
+      totals.sent += 1;
+      continue;
+    }
+
+    if (normalized === "viewed") {
+      totals.viewed += 1;
+      continue;
+    }
+
+    if (normalized === "revision_requested" || normalized === "changes_requested") {
+      totals.revisionRequested += 1;
+      continue;
+    }
+
+    if (normalized === "approved") {
+      totals.approved += 1;
+      continue;
+    }
+
+    if (normalized === "rejected" || normalized === "declined") {
+      totals.rejected += 1;
+    }
+  }
+
+  return totals;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  return null;
 }
 
 function buildMetrics(

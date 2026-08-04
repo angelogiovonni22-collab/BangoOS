@@ -14,7 +14,17 @@ const WIDGET_SEQUENCE_RANK: Record<WidgetId, number> = {
   "project-health": 4,
   schedule: 5,
   activity: 6,
-  weather: 7,
+  "pending-followups": 7,
+  "automation-queue": 8,
+  "recent-automations": 9,
+  "estimate-pipeline": 10,
+  "top-priorities": 11,
+  "business-health": 12,
+  "risk-summary": 13,
+  "decision-recommendations": 14,
+  "todays-decisions": 15,
+  "critical-alerts": 16,
+  weather: 17,
 };
 
 export function getWidgetSequenceRank(widgetId: WidgetId): number {

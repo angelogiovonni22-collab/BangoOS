@@ -9,7 +9,17 @@ export type WidgetId =
   | "weather"
   | "activity"
   | "business-score"
-  | "command-center";
+  | "command-center"
+  | "pending-followups"
+  | "automation-queue"
+  | "recent-automations"
+  | "estimate-pipeline"
+  | "top-priorities"
+  | "business-health"
+  | "risk-summary"
+  | "decision-recommendations"
+  | "todays-decisions"
+  | "critical-alerts";
 
 export type DashboardMetric = {
   id: string;
@@ -128,6 +138,78 @@ export type AIRecommendation = {
   actions: AIRecommendationAction[];
 };
 
+export type DashboardPendingFollowupItem = {
+  id: string;
+  estimateNumber: string;
+  title: string;
+  status: string;
+  dueAt: string;
+  daysOverdue: number;
+  href: string;
+};
+
+export type DashboardAutomationQueueItem = {
+  runId: string;
+  ruleId: string;
+  triggerEvent: string;
+  startedAt: string;
+  status: "running" | "failed";
+  relatedEstimateId: string | null;
+  relatedProjectId: string | null;
+};
+
+export type DashboardRecentAutomationItem = {
+  id: string;
+  runId: string;
+  ruleId: string;
+  triggerEvent: string;
+  completedAt: string;
+  status: "completed" | "failed";
+  durationMs: number | null;
+  href: string | null;
+};
+
+export type DashboardEstimatePipeline = {
+  total: number;
+  draft: number;
+  sent: number;
+  viewed: number;
+  revisionRequested: number;
+  approved: number;
+  rejected: number;
+};
+
+export type DashboardDecisionItem = {
+  id: string;
+  priority: "critical" | "high" | "medium" | "low";
+  category: string;
+  title: string;
+  summary: string;
+  recommendation: string;
+  actionLabel: string;
+  actionHref: string;
+  detectedAt: string;
+  status: "new" | "acknowledged" | "resolved" | "dismissed";
+};
+
+export type DashboardDecisionHealthItem = {
+  id: "sales" | "operations" | "financial" | "scheduling" | "customer" | "overall";
+  score: number;
+  rating: "Excellent" | "Good" | "Attention" | "Critical";
+};
+
+export type DashboardDecisionRiskSummary = {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+};
+
+export type DashboardMorningBriefing = {
+  greeting: string;
+  lines: string[];
+};
+
 export type DashboardLayoutState = {
   order: WidgetId[];
   hidden: WidgetId[];
@@ -149,6 +231,17 @@ export type ExecutiveDashboardData = {
   businessScore: AIBusinessScoreSnapshot | null;
   businessSummary: BusinessHealthSummary | null;
   recommendations: AIRecommendation[];
+  pendingFollowups: DashboardPendingFollowupItem[];
+  automationQueue: DashboardAutomationQueueItem[];
+  recentAutomations: DashboardRecentAutomationItem[];
+  estimatePipeline: DashboardEstimatePipeline;
+  topPriorities: DashboardDecisionItem[];
+  businessHealth: DashboardDecisionHealthItem[];
+  riskSummary: DashboardDecisionRiskSummary;
+  decisionRecommendations: DashboardDecisionItem[];
+  todaysDecisions: DashboardDecisionItem[];
+  criticalAlerts: DashboardDecisionItem[];
+  morningBriefing: DashboardMorningBriefing;
   widgetDefinitions: DashboardWidgetDefinition[];
 };
 
