@@ -11,6 +11,7 @@ import { useTopmostOverlay } from "@/components/ui/overlay-runtime";
 import { OrionHandsFreeToggle, OrionMicrophoneIndicator, OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, OrionWakeStatus, useGlobalOrionVoice } from "@/components/orion/voice";
 import { rankActionsWithWorkspaceContext } from "@/lib/orion/command-center";
 import type { OrionIntentResult } from "@/lib/orion/intent-engine";
+import { applyOrionCommandNavigationResult } from "@/lib/orion/navigation";
 import { buildVoiceConfirmationSummary, buildVoiceResponse, detectWakeWord, isCancelPhrase, isWakeWordSupported, parseVoiceConfirmationPhrase, resolveSpokenCandidate } from "@/lib/orion/voice";
 import type { OrionVoiceCaptureMode, OrionVoiceErrorCategory, OrionVoiceState } from "@/lib/orion/voice";
 import type {
@@ -31,6 +32,7 @@ type OrionCommandExecutionResult = {
   status: "completed" | "unsupported" | "rejected" | "failed";
   userMessage: string;
   href: string | null;
+  details?: Record<string, unknown>;
   requiresConfirmation: boolean;
   confirmationSummary: string | null;
 };
@@ -1162,8 +1164,26 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
       setConfirmationArmedId(null);
       markRecent(action.id);
 
-      if (result.href) {
-        router.push(result.href);
+      const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+      const navigationOutcome = applyOrionCommandNavigationResult({
+        result,
+        canGoBack,
+        goBack: () => {
+          router.back();
+        },
+        push: (href) => {
+          router.push(href);
+        },
+      });
+
+      if (navigationOutcome.usedFallback) {
+        const fallbackMessage = typeof result.details?.fallbackMessage === "string"
+          ? result.details.fallbackMessage
+          : "No previous page in history. Opening Dashboard.";
+        setResultMessage(fallbackMessage);
+      }
+
+      if (navigationOutcome.performed) {
         handleClose();
       }
     } catch {
@@ -1226,8 +1246,26 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
         markRecent(matchingAction.id);
       }
 
-      if (result.href) {
-        router.push(result.href);
+      const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+      const navigationOutcome = applyOrionCommandNavigationResult({
+        result,
+        canGoBack,
+        goBack: () => {
+          router.back();
+        },
+        push: (href) => {
+          router.push(href);
+        },
+      });
+
+      if (navigationOutcome.usedFallback) {
+        const fallbackMessage = typeof result.details?.fallbackMessage === "string"
+          ? result.details.fallbackMessage
+          : "No previous page in history. Opening Dashboard.";
+        setResultMessage(fallbackMessage);
+      }
+
+      if (navigationOutcome.performed) {
         handleClose();
       }
     } catch {
@@ -1354,11 +1392,35 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
         voice.speak(spoken.text);
       }
 
-      if (result.href) {
-        navigationTimingRef.current = { href: result.href, startedAt: nowMs() };
-        logVoiceTiming("navigation.start", { href: result.href });
-        router.push(result.href);
-        logVoiceTiming("navigation.end", { href: result.href, elapsedMs: 0 });
+      const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+      const navigationOutcome = applyOrionCommandNavigationResult({
+        result,
+        canGoBack,
+        goBack: () => {
+          router.back();
+        },
+        push: (href) => {
+          navigationTimingRef.current = { href, startedAt: nowMs() };
+          logVoiceTiming("navigation.start", { href });
+          router.push(href);
+          logVoiceTiming("navigation.end", { href, elapsedMs: 0 });
+        },
+      });
+
+      if (navigationOutcome.mode === "back") {
+        logVoiceTiming("navigation.start", { mode: "back" });
+        logVoiceTiming("navigation.end", { mode: "back", elapsedMs: 0 });
+      }
+
+      if (navigationOutcome.usedFallback) {
+        const fallbackMessage = typeof result.details?.fallbackMessage === "string"
+          ? result.details.fallbackMessage
+          : "No previous page in history. Opening Dashboard.";
+        setVoiceStatusMessage(fallbackMessage);
+        setVoiceResultMessage(fallbackMessage);
+      }
+
+      if (navigationOutcome.performed) {
         handleClose();
       }
       if (handsFreeEnabled && returnToWakeListening) {

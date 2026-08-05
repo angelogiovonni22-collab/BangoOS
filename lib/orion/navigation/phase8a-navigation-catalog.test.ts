@@ -56,10 +56,16 @@ function main() {
   test("2. deterministic aliases resolve expected command IDs and deep links", () => {
     const checks = [
       { phrase: "open dashboard", commandId: "dashboard.open", deepLink: "/dashboard" },
+      { phrase: "go home", commandId: "dashboard.open", deepLink: "/dashboard" },
+      { phrase: "go back", commandId: "navigation.back", deepLink: "/dashboard" },
+      { phrase: "open previous page", commandId: "navigation.back", deepLink: "/dashboard" },
       { phrase: "open operations", commandId: "dashboard.open", deepLink: "/operations" },
+      { phrase: "bring up operations", commandId: "dashboard.open", deepLink: "/operations" },
+      { phrase: "show me projects", commandId: "dashboard.open", deepLink: "/projects" },
       { phrase: "open dispatch center", commandId: "dashboard.open", deepLink: "/dispatch" },
       { phrase: "show today's schedule", commandId: "schedule.open", deepLink: "/schedule?range=today" },
       { phrase: "open vendors", commandId: "dashboard.open", deepLink: "/vendors" },
+      { phrase: "open reports", commandId: "dashboard.open", deepLink: "/daily-reports" },
       { phrase: "open memory review", commandId: "dashboard.open", deepLink: "/settings/memory-review" },
       { phrase: "open mission control", commandId: "dashboard.open", deepLink: "/labs/mission-control" },
     ] as const;

@@ -110,7 +110,11 @@ export async function resolveOrionIntent(params: {
     fastPathResolution.suggestedCommand
     && !fastPathResolution.requiresClarification
     && fastPathResolution.confidence >= 0.95
-    && (fastPathResolution.suggestedCommand.commandId === "dashboard.open" || fastPathResolution.suggestedCommand.commandId === "schedule.open")
+    && (
+      fastPathResolution.suggestedCommand.commandId === "dashboard.open"
+      || fastPathResolution.suggestedCommand.commandId === "schedule.open"
+      || fastPathResolution.suggestedCommand.commandId === "navigation.back"
+    )
   ) {
     logIntentTiming("intent.fast_path.navigation", resolveStartedAt, {
       commandId: fastPathResolution.suggestedCommand.commandId,

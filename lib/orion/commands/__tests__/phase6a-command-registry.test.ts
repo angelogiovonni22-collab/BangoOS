@@ -228,6 +228,7 @@ async function main() {
       "daily_report.open",
       "schedule.open",
       "dashboard.open",
+      "navigation.back",
       "document.upload",
       "document.delete",
       "document.sign",
@@ -437,22 +438,19 @@ async function main() {
       supabase: fakeSupabase as never,
     });
 
-    const cases: Array<{ label: string; commandId: string; deepLink: string; entityType: string; entityId: string }> = [
-      { label: "dashboard", commandId: "dashboard.open", deepLink: "/dashboard", entityType: "workflow", entityId: "route-dashboard" },
-      { label: "timeline", commandId: "dashboard.open", deepLink: "/timeline", entityType: "workflow", entityId: "route-timeline" },
-      { label: "projects", commandId: "dashboard.open", deepLink: "/projects", entityType: "workflow", entityId: "route-projects" },
-      { label: "schedule", commandId: "schedule.open", deepLink: "/schedule", entityType: "schedule", entityId: "schedule" },
+    const cases: Array<{ label: string; commandId: string; deepLink: string; params: Record<string, unknown> }> = [
+      { label: "dashboard", commandId: "dashboard.open", deepLink: "/dashboard", params: { entityType: "workflow", entityId: "route-dashboard", deepLink: "/dashboard" } },
+      { label: "timeline", commandId: "dashboard.open", deepLink: "/timeline", params: { entityType: "workflow", entityId: "route-timeline", deepLink: "/timeline" } },
+      { label: "projects", commandId: "dashboard.open", deepLink: "/projects", params: { entityType: "workflow", entityId: "route-projects", deepLink: "/projects" } },
+      { label: "schedule", commandId: "schedule.open", deepLink: "/schedule", params: { entityType: "schedule", entityId: "schedule", deepLink: "/schedule" } },
+      { label: "back", commandId: "navigation.back", deepLink: "/dashboard", params: { fallbackHref: "/dashboard", navigationAction: "back" } },
     ];
 
     for (const item of cases) {
       const beforeCount = fakeSupabase.workflowInserts.length;
       const result = await router.executeCommand({
         commandId: item.commandId,
-        params: {
-          entityType: item.entityType,
-          entityId: item.entityId,
-          deepLink: item.deepLink,
-        },
+        params: item.params,
         companyContext: { companyId: "company-1" },
         userContext: { actorProfileId: "profile-1", role: "employee" },
         correlationId: `corr-${item.label}`,

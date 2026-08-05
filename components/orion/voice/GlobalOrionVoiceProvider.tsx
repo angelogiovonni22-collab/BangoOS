@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCompany } from "@/lib/company";
 import type { OrionIntentResult } from "@/lib/orion/intent-engine";
 import { normalizeIntentInput } from "@/lib/orion/intent-engine";
+import { applyOrionCommandNavigationResult } from "@/lib/orion/navigation";
 import { buildVoiceConfirmationSummary } from "@/lib/orion/voice/voice-confirmation";
 import { buildVoiceResponse } from "@/lib/orion/voice/voice-response";
 import { isCancelPhrase, parseVoiceConfirmationPhrase, resolveSpokenCandidate } from "@/lib/orion/voice/voice-transcript";
@@ -569,7 +570,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
 
       const payload = await response.json() as {
         ok: boolean;
-        result?: { success: boolean; userMessage: string; href: string | null; status: string };
+        result?: { success: boolean; userMessage: string; href: string | null; status: string; details?: Record<string, unknown> };
         error?: string;
         statusCategory?: string;
       };
@@ -607,8 +608,24 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       }).text;
       speak(responseText);
 
-      if (payload.result.href) {
-        router.push(payload.result.href);
+      const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+      const navigationOutcome = applyOrionCommandNavigationResult({
+        result: payload.result,
+        canGoBack,
+        goBack: () => {
+          router.back();
+        },
+        push: (href) => {
+          router.push(href);
+        },
+      });
+
+      if (navigationOutcome.usedFallback) {
+        const fallbackMessage = typeof payload.result.details?.fallbackMessage === "string"
+          ? payload.result.details.fallbackMessage
+          : "No previous page in history. Opening Dashboard.";
+        setStatusMessage(fallbackMessage);
+        setResultMessage(fallbackMessage);
       }
 
       if (settings.mode === "hands_free" && settings.returnToWakeAfterCommand && !commandSessionActive) {

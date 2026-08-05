@@ -96,6 +96,7 @@ async function main() {
   await test("3. wake-prefixed deterministic phrases skip entity lookup", async () => {
     const checks = [
       { phrase: "Hey Orion, open dashboard", commandId: "dashboard.open", deepLink: "/dashboard" },
+      { phrase: "Hey Orion, go back", commandId: "navigation.back", deepLink: "/dashboard" },
       { phrase: "Orion, open timeline", commandId: "dashboard.open", deepLink: "/timeline" },
       { phrase: "Okay Orion, show projects", commandId: "dashboard.open", deepLink: "/projects" },
       { phrase: "Hey Orion, open customers", commandId: "dashboard.open", deepLink: "/customers" },
@@ -124,7 +125,10 @@ async function main() {
       });
 
       assert(result.suggestedCommand?.commandId === item.commandId, `${item.phrase} maps to ${item.commandId}`);
-      assert(result.suggestedCommand?.params.deepLink === item.deepLink, `${item.phrase} maps to deterministic deep link`);
+      const resolvedHref = item.commandId === "navigation.back"
+        ? result.suggestedCommand?.params.fallbackHref
+        : result.suggestedCommand?.params.deepLink;
+      assert(resolvedHref === item.deepLink, `${item.phrase} maps to deterministic deep link`);
       assert(result.confidence >= 0.95, `${item.phrase} keeps deterministic confidence`);
       assert(!result.requiresClarification, `${item.phrase} does not require clarification`);
       assert(fromCalls === 0, `${item.phrase} bypasses entity lookup`);

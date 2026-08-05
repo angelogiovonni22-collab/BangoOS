@@ -823,11 +823,16 @@ export function resolveIntentFromEntitySet(params: {
       candidates: [],
       suggestedCommand: {
         commandId: command.id,
-        params: {
-          entityType: "workflow",
-          entityId: deterministicNavigation.entityId,
-          deepLink: deterministicNavigation.deepLink,
-        },
+        params: command.id === "navigation.back"
+          ? {
+            fallbackHref: deterministicNavigation.deepLink || "/dashboard",
+            navigationAction: "back",
+          }
+          : {
+            entityType: "workflow",
+            entityId: deterministicNavigation.entityId,
+            deepLink: deterministicNavigation.deepLink,
+          },
         entityType: deterministicNavigation.entityType,
         entityId: deterministicNavigation.entityId,
       },

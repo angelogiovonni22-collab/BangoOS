@@ -30,6 +30,7 @@ export type OrionNavigationRoute = {
 type OrionDeterministicNavigationRoute = {
   routeId: string;
   aliases: string[];
+  commandId?: string;
   resolvedIntent: OrionIntentKind;
   entityType: OrionIntentEntityType;
   entityId: string;
@@ -412,11 +413,27 @@ export const ORION_SIDEBAR_NAVIGATION_GROUPS: OrionSidebarNavigationGroup[] = [
 const ORION_DETERMINISTIC_NAVIGATION: OrionDeterministicNavigationRoute[] = [
   {
     routeId: "route-dashboard",
-    aliases: ["dashboard", "home", "main dashboard", "executive dashboard"],
+    aliases: [
+      "dashboard",
+      "home",
+      "go home",
+      "main dashboard",
+      "executive dashboard",
+    ],
     resolvedIntent: "show_dashboard",
     entityType: "dashboard",
     entityId: "dashboard",
     confidence: 0.98,
+  },
+  {
+    routeId: "route-dashboard",
+    aliases: ["go back", "back", "previous page", "open previous page"],
+    commandId: "navigation.back",
+    resolvedIntent: "navigation",
+    entityType: "workflow",
+    entityId: "navigation-back",
+    confidence: 0.98,
+    deepLink: "/dashboard",
   },
   {
     routeId: "route-operations",
@@ -548,7 +565,7 @@ const ORION_DETERMINISTIC_NAVIGATION: OrionDeterministicNavigationRoute[] = [
   },
   {
     routeId: "route-daily-reports",
-    aliases: ["daily reports", "daily report", "field reports"],
+    aliases: ["daily reports", "daily report", "field reports", "reports", "reporting"],
     resolvedIntent: "navigation",
     entityType: "workflow",
     entityId: "daily-reports",
@@ -618,7 +635,7 @@ function compact(value: string) {
 
 function normalizeDeterministicSubject(input: string) {
   const normalized = compact(input)
-    .replace(/^(open|show|go to|take me to|navigate to)\s+/, "")
+    .replace(/^(open|show me|show|go to|go|take me to|bring up|bring me to|navigate to)\s+/, "")
     .replace(/^(the|up)\s+/, "")
     .trim();
 
@@ -653,9 +670,10 @@ export function resolveDeterministicNavigationRoute(input: string) {
 
     const isTodaySchedule = normalizedSubject === "today schedule" || normalizedSubject === "todays schedule" || normalizedSubject === "today's schedule";
     const deepLink = entry.deepLink || (isTodaySchedule && route.id === "route-schedule" ? "/schedule?range=today" : route.href);
+    const commandId = entry.commandId || route.commandId;
 
     return {
-      commandId: route.commandId,
+      commandId,
       resolvedIntent: entry.resolvedIntent,
       entityType: entry.entityType,
       entityId: entry.entityId,

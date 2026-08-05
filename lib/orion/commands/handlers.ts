@@ -98,6 +98,25 @@ export async function executeOpenEntityCommand(
   };
 }
 
+export async function executeNavigationBackCommand(
+  params: Record<string, unknown>,
+  context: OrionCommandExecutionContext,
+): Promise<OrionCommandExecutionOutput> {
+  void context;
+  const fallbackHref = optionalString(params, "fallbackHref") || "/dashboard";
+
+  return {
+    publishedEvent: null,
+    deepLink: fallbackHref,
+    userMessage: "Going back.",
+    details: {
+      navigationAction: "back",
+      fallbackHref,
+      fallbackMessage: "No previous page in history. Opening Dashboard.",
+    },
+  };
+}
+
 export async function executeCreateCustomerCommand(
   params: Record<string, unknown>,
   context: OrionCommandExecutionContext,

@@ -236,13 +236,19 @@ function main() {
   test("13. Navigation synonyms map to valid commands", () => {
     const checks = [
       { phrase: "go to dashboard", commandId: "dashboard.open" },
+      { phrase: "go home", commandId: "dashboard.open" },
+      { phrase: "go back", commandId: "navigation.back" },
+      { phrase: "open previous page", commandId: "navigation.back" },
       { phrase: "show dashboard", commandId: "dashboard.open" },
+      { phrase: "show me dashboard", commandId: "dashboard.open" },
       { phrase: "take me to dashboard", commandId: "dashboard.open" },
+      { phrase: "bring up dashboard", commandId: "dashboard.open" },
       { phrase: "open projects", commandId: "dashboard.open" },
       { phrase: "open operations", commandId: "dashboard.open" },
       { phrase: "show estimates", commandId: "dashboard.open" },
       { phrase: "go to customers", commandId: "dashboard.open" },
       { phrase: "open timeline", commandId: "dashboard.open" },
+      { phrase: "open reports", commandId: "dashboard.open" },
       { phrase: "show today's schedule", commandId: "schedule.open" },
     ];
 
