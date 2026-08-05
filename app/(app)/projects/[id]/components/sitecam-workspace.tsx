@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WorkspaceEnvironment } from "@/components/bangoflow";
 import { Badge, Button, Card, CardContent, ConfirmDialog, Dialog, EmptyState, ErrorState, PermissionState, SectionHeader, Select, SkeletonLoader } from "@/components/ui";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n, type AppLocale } from "@/lib/i18n/provider";
 import type { Database } from "@/types/database.types";
@@ -363,6 +364,8 @@ export function SiteCamWorkspace({
       return;
     }
 
+    const orionPublisher = createSupabaseOrionEventPublisher(supabase);
+
     if (pendingFiles.length === 0) {
       setUploadStatus({ kind: "error", message: t("projects.sitecamValidationNoFiles") });
       return;
@@ -431,6 +434,34 @@ export function SiteCamWorkspace({
         failureCount += 1;
         setUploadCount({ done: index + 1, total: pendingFiles.length });
         continue;
+      }
+
+      try {
+        await orionPublisher.publishEvent({
+          company_id: companyId,
+          actor_profile_id: userId,
+          event_type: "document.uploaded",
+          aggregate_type: "document",
+          aggregate_id: photoId,
+          source_module: "documents",
+          idempotency_key: `project-photo:${photoId}:uploaded`,
+          payload: {
+            project_id: projectId,
+            photo_id: photoId,
+            category: selectedCategory,
+            caption: uploadNote.trim() || null,
+            uploaded_at: new Date().toISOString(),
+            deep_link: `/projects/${projectId}?tab=documents`,
+          },
+          metadata: {
+            event_category: "field",
+            event_severity: "info",
+            deep_link: `/projects/${projectId}?tab=documents`,
+          },
+        });
+      } catch (eventError) {
+        const message = eventError instanceof Error ? eventError.message : "Unable to publish timeline event for uploaded photo.";
+        failureDetails.push(`Timeline: ${message}`);
       }
 
       successCount += 1;
@@ -536,6 +567,8 @@ export function SiteCamWorkspace({
       return;
     }
 
+    const orionPublisher = createSupabaseOrionEventPublisher(supabase);
+
     setIsDeletingPhoto(true);
 
     const { error: storageError } = await supabase.storage
@@ -560,6 +593,31 @@ export function SiteCamWorkspace({
     if (deleteError) {
       setUploadStatus({ kind: "error", message: t("projects.sitecamDeleteFailed", { message: deleteError.message }) });
       return;
+    }
+
+    try {
+      await orionPublisher.publishEvent({
+        company_id: companyId,
+        actor_profile_id: userId,
+        event_type: "document.deleted",
+        aggregate_type: "document",
+        aggregate_id: deletingPhoto.id,
+        source_module: "documents",
+        idempotency_key: `project-photo:${deletingPhoto.id}:deleted`,
+        payload: {
+          project_id: projectId,
+          photo_id: deletingPhoto.id,
+          deep_link: `/projects/${projectId}?tab=documents`,
+        },
+        metadata: {
+          event_category: "field",
+          event_severity: "attention",
+          deep_link: `/projects/${projectId}?tab=documents`,
+        },
+      });
+    } catch (eventError) {
+      const message = eventError instanceof Error ? eventError.message : t("projects.sitecamDeleteFailed", { message: "timeline event publish failed" });
+      setUploadStatus({ kind: "error", message });
     }
 
     setViewerPhotoId((current) => (current === deletingPhoto.id ? null : current));

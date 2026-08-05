@@ -31,6 +31,16 @@ export function getWidgetSequenceRank(widgetId: WidgetId): number {
   return WIDGET_SEQUENCE_RANK[widgetId] ?? 99;
 }
 
+export function getWidgetAnimationDelayMs(widgetId: WidgetId, options?: {
+  staggerMs?: number;
+  maxDelayMs?: number;
+}): number {
+  const staggerMs = options?.staggerMs ?? 28;
+  const maxDelayMs = options?.maxDelayMs ?? 260;
+  const sequenceRank = getWidgetSequenceRank(widgetId);
+  return Math.min(maxDelayMs, sequenceRank * staggerMs);
+}
+
 export function collectNewDashboardIds(previousIds: Set<string>, nextIds: string[]): Record<string, true> {
   return collectNewEntityIds(previousIds, nextIds);
 }

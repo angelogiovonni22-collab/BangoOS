@@ -269,9 +269,33 @@ export function useProjectTimeline({
   }, [debouncedSearchTerm, filters]);
 
   const addManualNote = useCallback((input: NewManualProjectNoteInput) => {
-    const createdEvent = createManualNoteEvent(projectId, input, currentActor);
-    setManualNotes((current) => sortEvents([createdEvent, ...current]));
-  }, [currentActor, projectId]);
+    const publish = async () => {
+      if (!resolvedService) {
+        const createdEvent = createManualNoteEvent(projectId, input, currentActor);
+        setManualNotes((current) => sortEvents([createdEvent, ...current]));
+        return;
+      }
+
+      await resolvedService.publishProjectIntelligenceEvent({
+        projectId,
+        actorProfileId: currentActor.type === "employee" ? currentActor.id : null,
+        eventType: "project.updated",
+        title: input.title,
+        note: input.note,
+        metadata: {
+          source: "manual_note",
+          category: input.category,
+          priority: input.priority,
+          related_entity_id: input.relatedEntity?.id || null,
+          related_entity_type: input.relatedEntity?.type || null,
+        },
+      });
+
+      await loadTimeline();
+    };
+
+    void publish();
+  }, [currentActor, loadTimeline, projectId, resolvedService]);
 
   const setCategoryFilter = useCallback((category: ProjectEventCategory | "all") => {
     setFilters((current) => ({ ...current, category }));

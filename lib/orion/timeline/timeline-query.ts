@@ -19,7 +19,7 @@ type WorkflowEventRow = {
   company_id: string;
   event_type: string;
   reference_entity: string;
-  reference_id: string;
+  reference_id: string | null;
   source_module: string | null;
   actor_profile_id: string | null;
   occurred_at: string;
@@ -463,7 +463,7 @@ async function fetchLegacyRows(
   filters: OrionTimelineQueryFilters,
   limit: number,
 ): Promise<TimelineRawRecord[]> {
-  const includeLegacy = filters.includeLegacyAdapters ?? true;
+  const includeLegacy = filters.includeLegacyAdapters ?? false;
   if (!includeLegacy) {
     return [];
   }

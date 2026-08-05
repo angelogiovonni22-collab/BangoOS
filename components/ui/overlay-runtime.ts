@@ -13,7 +13,8 @@ type DocumentLike = {
 
 let bodyScrollLockCount = 0;
 let previousBodyOverflow = "";
-let overlayStack: string[] = [];
+const EMPTY_OVERLAY_STACK: readonly string[] = Object.freeze([]);
+let overlayStack: readonly string[] = EMPTY_OVERLAY_STACK;
 
 const overlayListeners = new Set<() => void>();
 
@@ -64,10 +65,14 @@ export function getBodyScrollLockCount() {
 }
 
 export function resetOverlayRuntimeForTests() {
+  const hadStackEntries = overlayStack.length > 0;
   bodyScrollLockCount = 0;
   previousBodyOverflow = "";
-  overlayStack = [];
-  emitOverlayChange();
+  overlayStack = EMPTY_OVERLAY_STACK;
+
+  if (hadStackEntries) {
+    emitOverlayChange();
+  }
 }
 
 export function registerOverlay(id: string) {
@@ -84,12 +89,17 @@ export function unregisterOverlay(id: string) {
     return;
   }
 
-  overlayStack = overlayStack.filter((entry) => entry !== id);
+  const nextStack = overlayStack.filter((entry) => entry !== id);
+  overlayStack = nextStack.length === 0 ? EMPTY_OVERLAY_STACK : nextStack;
   emitOverlayChange();
 }
 
 export function getOverlayStackSnapshot() {
   return overlayStack;
+}
+
+export function getOverlayStackServerSnapshot() {
+  return EMPTY_OVERLAY_STACK;
 }
 
 export function isTopmostOverlay(id: string) {
@@ -107,7 +117,15 @@ function subscribeToOverlayStack(listener: () => void) {
 export function useTopmostOverlay(active: boolean) {
   const overlayId = useId();
 
-  const stack = useSyncExternalStore(subscribeToOverlayStack, getOverlayStackSnapshot, () => []);
+  const stack = useSyncExternalStore(subscribeToOverlayStack, getOverlayStackSnapshot, getOverlayStackServerSnapshot);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") {
+      return;
+    }
+
+    console.info("[orion-debug] overlay runtime mounted");
+  }, []);
 
   useEffect(() => {
     if (!active) {

@@ -373,9 +373,37 @@ export async function saveEstimate(params: {
         customer_id: estimatePayload.customer_id,
         project_id: estimatePayload.project_id,
         total_amount: estimatePayload.total_amount,
+        deep_link: `/estimates/${estimateId}`,
       },
       metadata: {
         workflow_name: "estimate_lifecycle",
+        event_category: "sales",
+        event_severity: "info",
+        deep_link: `/estimates/${estimateId}`,
+      },
+    });
+  } else {
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: "estimate.updated",
+      aggregate_type: "estimate",
+      aggregate_id: estimateId,
+      source_module: "estimates",
+      payload: {
+        estimate_id: estimateId,
+        estimate_number: estimateNumber,
+        status: estimatePayload.status,
+        customer_id: estimatePayload.customer_id,
+        project_id: estimatePayload.project_id,
+        total_amount: estimatePayload.total_amount,
+        deep_link: `/estimates/${estimateId}`,
+      },
+      metadata: {
+        workflow_name: "estimate_lifecycle",
+        event_category: "sales",
+        event_severity: "info",
+        deep_link: `/estimates/${estimateId}`,
       },
     });
   }
@@ -474,15 +502,40 @@ export async function archiveEstimate(params: {
   estimateId: string;
   userId: string;
 }) {
+  const nowIso = new Date().toISOString();
   const { error } = await params.supabase
     .from("estimates")
     .update({
       status: "archived",
-      archived_at: new Date().toISOString(),
+      archived_at: nowIso,
       updated_by: params.userId,
     })
     .eq("company_id", params.companyId)
     .eq("id", params.estimateId);
+
+  if (!error) {
+    const orion = createSupabaseOrionEventPublisher(params.supabase);
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: "estimate.expired",
+      aggregate_type: "estimate",
+      aggregate_id: params.estimateId,
+      source_module: "estimates",
+      occurred_at: nowIso,
+      payload: {
+        estimate_id: params.estimateId,
+        archived_at: nowIso,
+        deep_link: `/estimates/${params.estimateId}`,
+      },
+      metadata: {
+        workflow_name: "estimate_lifecycle",
+        event_category: "sales",
+        event_severity: "attention",
+        deep_link: `/estimates/${params.estimateId}`,
+      },
+    });
+  }
 
   return { error: error?.message || null };
 }

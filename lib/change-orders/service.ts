@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculateChangeOrderTotals, changeOrderLineItemMoney } from "@/lib/change-orders/calculations";
 import { getNextChangeOrderNumber } from "@/lib/change-orders/numbering";
 import { normalizeChangeOrderStatus } from "@/lib/change-orders/statuses";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import type {
   ChangeOrderActivityRow,
   ChangeOrderFormValues,
@@ -371,6 +372,7 @@ export async function saveChangeOrder(params: {
   lineItems: ChangeOrderLineItemDraft[];
   changeOrderId?: string;
 }) {
+  const orion = createSupabaseOrionEventPublisher(params.supabase);
   const totals = calculateChangeOrderTotals({
     lineItems: params.lineItems,
     taxRatePercent: params.values.taxRatePercent,
@@ -435,6 +437,7 @@ export async function saveChangeOrder(params: {
       activityType: "updated",
       description: "Change order updated.",
     });
+
   } else {
     const { data: inserted, error: insertError } = await params.supabase
       .from("change_orders")
@@ -455,6 +458,30 @@ export async function saveChangeOrder(params: {
       userId: params.userId,
       activityType: "created",
       description: "Change order created.",
+    });
+
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: "change_order.created",
+      aggregate_type: "change_order",
+      aggregate_id: changeOrderId,
+      source_module: "change_orders",
+      payload: {
+        change_order_id: changeOrderId,
+        change_order_number: changeOrderNumber,
+        status,
+        customer_id: payload.customer_id,
+        project_id: payload.project_id,
+        total_amount: payload.total_amount,
+        deep_link: `/change-orders/${changeOrderId}`,
+      },
+      metadata: {
+        workflow_name: "change_order_lifecycle",
+        event_category: "projects",
+        event_severity: "info",
+        deep_link: `/change-orders/${changeOrderId}`,
+      },
     });
   }
 
@@ -529,6 +556,7 @@ async function updateWorkflowStatus(params: {
   activityDescription: string;
   rejectionReason?: string;
 }) {
+  const orion = createSupabaseOrionEventPublisher(params.supabase);
   const record = await loadChangeOrderById(params.supabase, params.companyId, params.changeOrderId);
 
   if (record.error || !record.data) {
@@ -602,6 +630,37 @@ async function updateWorkflowStatus(params: {
       nextStatus: params.nextStatus,
     },
   });
+
+  const statusEventType = params.nextStatus === "pending_approval"
+    ? "change_order.sent"
+    : params.nextStatus === "approved"
+      ? "change_order.approved"
+      : params.nextStatus === "rejected"
+        ? "change_order.rejected"
+        : null;
+
+  if (statusEventType) {
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: statusEventType,
+      aggregate_type: "change_order",
+      aggregate_id: params.changeOrderId,
+      source_module: "change_orders",
+      payload: {
+        change_order_id: params.changeOrderId,
+        previous_status: current,
+        next_status: params.nextStatus,
+        deep_link: `/change-orders/${params.changeOrderId}`,
+      },
+      metadata: {
+        workflow_name: "change_order_lifecycle",
+        event_category: "projects",
+        event_severity: params.nextStatus === "rejected" ? "attention" : "info",
+        deep_link: `/change-orders/${params.changeOrderId}`,
+      },
+    });
+  }
 
   return { error: null };
 }
@@ -968,6 +1027,27 @@ export async function addChangeOrderToExistingInvoice(params: {
     metadata: {
       invoiceId: params.invoiceId,
       copiedLineItems: invoiceLineInserts.length,
+    },
+  });
+
+  const orion = createSupabaseOrionEventPublisher(params.supabase);
+  await orion.publishEvent({
+    company_id: params.companyId,
+    actor_profile_id: params.userId,
+    event_type: "change_order.completed",
+    aggregate_type: "change_order",
+    aggregate_id: params.changeOrderId,
+    source_module: "change_orders",
+    payload: {
+      change_order_id: params.changeOrderId,
+      invoice_id: params.invoiceId,
+      deep_link: `/change-orders/${params.changeOrderId}`,
+    },
+    metadata: {
+      workflow_name: "change_order_lifecycle",
+      event_category: "projects",
+      event_severity: "success",
+      deep_link: `/change-orders/${params.changeOrderId}`,
     },
   });
 

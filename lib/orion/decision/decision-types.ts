@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OrionEventRecord } from "@/lib/orion/events";
+import type { OrionCommandConfirmationLevel, OrionCommandPermission } from "@/lib/orion/commands";
 import type { Database } from "@/types/database.types";
 
 export const ORION_DECISION_PRIORITIES = ["critical", "high", "medium", "low"] as const;
@@ -59,6 +60,12 @@ export type OrionDecisionRecord = {
   dismissedAt: string | null;
   actionLabel: string;
   actionHref: string;
+  commandKey: string;
+  commandInput: Record<string, unknown>;
+  confirmationLevel: OrionCommandConfirmationLevel;
+  hrefFallback: string;
+  permissionRequirement: OrionCommandPermission[];
+  unsupportedReason: string | null;
 };
 
 export type OrionDecisionCandidate = Omit<OrionDecisionRecord, "status" | "acknowledged" | "resolved" | "dismissed" | "acknowledgedAt" | "resolvedAt" | "dismissedAt">;
@@ -199,6 +206,51 @@ export type OrionDecisionContext = {
       amount_paid: number;
       due_date: string | null;
       created_at: string;
+    }>>;
+    inspections: () => Promise<Array<{
+      id: string;
+      company_id: string;
+      project_id: string;
+      inspection_type: string;
+      status: string;
+      scheduled_at: string | null;
+      reinspection_required: boolean;
+      reinspection_date: string | null;
+      updated_at: string;
+    }>>;
+    permits: () => Promise<Array<{
+      id: string;
+      company_id: string;
+      project_id: string;
+      permit_type: string;
+      status: string;
+      submitted_at: string | null;
+      expiration_date: string | null;
+      rejection_reason: string | null;
+      updated_at: string;
+    }>>;
+    closeouts: () => Promise<Array<{
+      id: string;
+      company_id: string;
+      project_id: string;
+      status: string;
+      handover_status: string;
+      final_payment_recorded: boolean;
+      customer_approval_recorded: boolean;
+      required_documents_completed: boolean;
+      permit_closure_completed: boolean;
+      crew_removal_completed: boolean;
+      equipment_return_completed: boolean;
+      completion_blockers: unknown;
+      updated_at: string;
+    }>>;
+    punchItems: () => Promise<Array<{
+      id: string;
+      company_id: string;
+      project_id: string;
+      status: string;
+      due_date: string | null;
+      updated_at: string;
     }>>;
     workflowEvents: (eventTypes?: string[], limit?: number) => Promise<Array<{
       id: string;

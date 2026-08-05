@@ -21,7 +21,7 @@ export function DocumentActions({ fileName, onPreview }: DocumentActionsProps) {
         size="sm"
         variant="ghost"
         aria-label={`Download ${fileName}`}
-        title="Download support will be added in a future sprint"
+        title="Download is unavailable because no connected plan file URL is available."
         disabled
       >
         <Download size={15} aria-hidden="true" />
@@ -30,7 +30,7 @@ export function DocumentActions({ fileName, onPreview }: DocumentActionsProps) {
         size="sm"
         variant="ghost"
         aria-label={`More actions for ${fileName}`}
-        title="More actions are coming soon"
+        title="Additional document actions are unavailable for this record."
         disabled
       >
         <EllipsisVertical size={15} aria-hidden="true" />

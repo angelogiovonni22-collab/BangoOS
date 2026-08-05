@@ -6,14 +6,13 @@
   import {
     Building2,
     CalendarDays,
-    Clock3,
+    Camera,
     CreditCard,
     Globe,
     History,
     ReceiptText,
     StickyNote,
     UserRound,
-    Users,
   } from "lucide-react";
   import { CustomerAvatar } from "@/components/customers";
   import {
@@ -22,7 +21,6 @@
     CardContent,
     CardHeader,
     CardTitle,
-    Button,
     EmptyState,
     ErrorState,
     EnterpriseTable,
@@ -42,6 +40,7 @@
     type ProjectRow,
   } from "@/lib/projects";
   import { getEstimateStatusBadgeClass } from "@/lib/estimates/statuses";
+  import { createOrionTimelineService, formatTimelineOccurredAt, formatTimelineText, type OrionTimelineItem } from "@/lib/orion/timeline";
   import { getProjectStatusBadgeClass } from "@/lib/projects/statuses";
   import { createClient } from "@/lib/supabase/client";
   import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -75,6 +74,7 @@
     Database["public"]["Tables"]["change_orders"]["Row"],
     "id" | "change_order_number" | "title" | "status" | "requested_date" | "total_amount" | "project_id" | "created_at"
   >;
+  type RelatedPhoto = Pick<Database["public"]["Tables"]["project_photos"]["Row"], "id" | "project_id" | "original_filename" | "category" | "captured_at" | "created_at" | "note">;
 
   type CustomerProfile = {
     customer: CustomerRow;
@@ -96,6 +96,7 @@
     estimates: RelatedEstimate[];
     invoices: RelatedInvoice[];
     changeOrders: RelatedChangeOrder[];
+    photos: RelatedPhoto[];
     outstandingBalance: number;
     approvedEstimateCount: number;
     tags: string[];
@@ -127,6 +128,9 @@
     const [projectsLoading, setProjectsLoading] = useState(false);
     const [estimatesLoading, setEstimatesLoading] = useState(false);
     const [invoicesLoading, setInvoicesLoading] = useState(false);
+    const [timelineItems, setTimelineItems] = useState<OrionTimelineItem[]>([]);
+    const [timelineLoading, setTimelineLoading] = useState(false);
+    const [timelineError, setTimelineError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [notFound, setNotFound] = useState(false);
@@ -143,6 +147,9 @@
         setProjectsError(null);
         setEstimatesError(null);
         setInvoicesError(null);
+        setTimelineItems([]);
+        setTimelineError(null);
+        setTimelineLoading(true);
 
         if (!supabase) {
           if (isSubscribed) {
@@ -262,6 +269,29 @@
           const mappedEstimates: RelatedEstimate[] = estimatesResult.data ? (estimatesResult.data as RelatedEstimate[]) : [];
           const mappedInvoices: RelatedInvoice[] = invoicesResult.data ? (invoicesResult.data as RelatedInvoice[]) : [];
           const mappedChangeOrders: RelatedChangeOrder[] = changeOrdersResult.data ? (changeOrdersResult.data as RelatedChangeOrder[]) : [];
+          const projectIds = mappedProjects.map((project) => project.id);
+          const photosResult = projectIds.length > 0
+            ? await supabase
+                .from("project_photos")
+                .select("id, project_id, original_filename, category, captured_at, created_at, note")
+                .eq("company_id", workspace.context.companyId)
+                .in("project_id", projectIds)
+                .order("captured_at", { ascending: false })
+                .order("created_at", { ascending: false })
+            : { data: [], error: null };
+
+          let resolvedTimeline: OrionTimelineItem[] = [];
+
+          try {
+            const timelineService = createOrionTimelineService(supabase);
+            const timelineResult = await timelineService.listCustomerTimeline(workspace.context.companyId, customerId, {
+              pageSize: 20,
+              includeLegacyAdapters: false,
+            });
+            resolvedTimeline = timelineResult.items;
+          } catch {
+            resolvedTimeline = [];
+          }
 
           if (isSubscribed) {
             if (projectsResult.error) {
@@ -274,6 +304,10 @@
 
             if (invoicesResult.error) {
               setInvoicesError(t("customers.errorLoadInvoices"));
+            }
+
+            if (photosResult.error) {
+              setTimelineError("Some related records could not be loaded.");
             }
 
             const activeProjects = mappedProjects.filter((project) => isActiveProjectStatus(project.status));
@@ -301,10 +335,14 @@
               estimates: mappedEstimates,
               invoices: mappedInvoices,
               changeOrders: mappedChangeOrders,
+              photos: (photosResult.data ?? []) as RelatedPhoto[],
               outstandingBalance,
               approvedEstimateCount,
               tags: buildCustomerTags({ customerTypeLabel, statusLabel, activeProjects, notes }),
             });
+
+            setTimelineItems(resolvedTimeline);
+            setTimelineLoading(false);
 
             setProjectsLoading(false);
             setEstimatesLoading(false);
@@ -316,6 +354,7 @@
 
           if (isSubscribed) {
             setErrorMessage(t("customers.errorLoadCustomerUnexpected"));
+            setTimelineLoading(false);
             setIsLoading(false);
           }
         }
@@ -351,7 +390,12 @@
       estimatesError,
       invoicesLoading,
       invoicesError,
+      timelineItems,
+      timelineLoading,
+      timelineError,
     });
+
+    const lifetimeRevenue = customerProfile.invoices.reduce((sum, invoice) => sum + Math.max(invoice.amount_paid, 0), 0);
 
     return (
       <div className="space-y-6">
@@ -416,7 +460,7 @@
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <SummaryCard icon={<CreditCard size={16} aria-hidden="true" />} label="Lifetime Revenue" value="Coming Soon" context="No revenue data yet" tone="brand" />
+              <SummaryCard icon={<CreditCard size={16} aria-hidden="true" />} label="Lifetime Revenue" value={formatProjectCurrency(lifetimeRevenue, localeTag(locale), "$0")} context={customerProfile.invoices.length > 0 ? "Calculated from recorded invoice payments" : "No revenue data available yet"} tone="brand" />
               <SummaryCard icon={<Building2 size={16} aria-hidden="true" />} label="Active Projects" value={String(customerProfile.activeProjects.length)} context={customerProfile.activeProjects.length > 0 ? "Currently active work" : "No active projects"} tone="success" />
               <SummaryCard icon={<CreditCard size={16} aria-hidden="true" />} label="Outstanding Balance" value={formatProjectCurrency(customerProfile.outstandingBalance, localeTag(locale), "$0")} context={customerProfile.outstandingBalance > 0 ? "Balance due" : "No outstanding balance"} tone="warning" />
               <SummaryCard icon={<CalendarDays size={16} aria-hidden="true" />} label="Member Since" value={customerProfile.customerSince} context="Customer record creation date" tone="info" />
@@ -467,6 +511,9 @@
     estimatesError,
     invoicesLoading,
     invoicesError,
+    timelineItems,
+    timelineLoading,
+    timelineError,
   }: {
     activeTab: ProfileTab;
     profile: CustomerProfile;
@@ -478,6 +525,9 @@
     estimatesError: string | null;
     invoicesLoading: boolean;
     invoicesError: string | null;
+    timelineItems: OrionTimelineItem[];
+    timelineLoading: boolean;
+    timelineError: string | null;
   }) {
     switch (activeTab) {
       case "projects":
@@ -489,20 +539,20 @@
       case "change-orders":
         return <ChangeOrdersTab profile={profile} />;
       case "documents":
-        return <DocumentsTab />;
+        return <DocumentsTab timelineItems={timelineItems} timelineLoading={timelineLoading} timelineError={timelineError} locale={locale} t={t} />;
       case "photos":
-        return <PhotosTab />;
+        return <PhotosTab profile={profile} locale={locale} t={t} />;
       case "notes":
         return <NotesTab profile={profile} />;
       case "timeline":
-        return <TimelineTab profile={profile} />;
+        return <TimelineTab locale={locale} t={t} timelineItems={timelineItems} timelineLoading={timelineLoading} timelineError={timelineError} />;
       case "overview":
       default:
-        return <OverviewTab profile={profile} locale={locale} t={t} />;
+        return <OverviewTab profile={profile} locale={locale} t={t} timelineItems={timelineItems} timelineLoading={timelineLoading} timelineError={timelineError} />;
     }
   }
 
-  function OverviewTab({ profile, locale, t }: { profile: CustomerProfile; locale: string; t: (key: string, params?: Record<string, string | number>) => string; }) {
+  function OverviewTab({ profile, locale, t, timelineItems, timelineLoading, timelineError }: { profile: CustomerProfile; locale: string; t: (key: string, params?: Record<string, string | number>) => string; timelineItems: OrionTimelineItem[]; timelineLoading: boolean; timelineError: string | null; }) {
     return (
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <div className="space-y-4">
@@ -527,7 +577,7 @@
           </ProfileCard>
 
           <ProfileCard title="Recent Activity Timeline" icon={<History size={16} />}>
-            <TimelineList profile={profile} compact />
+            <TimelineList compact locale={locale} t={t} timelineItems={timelineItems} timelineLoading={timelineLoading} timelineError={timelineError} />
           </ProfileCard>
         </div>
 
@@ -563,7 +613,7 @@
             ))}
           </div>
         ) : (
-          <EmptyState compact title="No change orders yet" description="Change orders for this customer will appear here." />
+          <EmptyState compact title="No change orders yet" description="No change orders are linked to this customer yet." />
         )}
       </TabCard>
     );
@@ -617,93 +667,96 @@
             </EnterpriseTableBody>
           </EnterpriseTable>
         ) : (
-          <EmptyState compact title="No projects yet" description="Projects linked to this customer will appear here once they are created." />
+          <EmptyState compact title="No projects yet" description="No projects are linked to this customer yet." />
         )}
       </TabCard>
     );
   }
 
-  function DocumentsTab() {
-    const categories = ["Contracts", "Permits", "Change Orders", "Invoices"];
+  function DocumentsTab({ timelineItems, timelineLoading, timelineError, locale, t }: { timelineItems: OrionTimelineItem[]; timelineLoading: boolean; timelineError: string | null; locale: string; t: (key: string, params?: Record<string, string | number>) => string; }) {
+    const documentEvents = timelineItems
+      .filter((item) => item.eventType.startsWith("document."))
+      .slice(0, 10);
+    const communicationEvents = timelineItems
+      .filter((item) => item.eventType.startsWith("customer_update.") || item.eventType === "customer_message.received")
+      .slice(0, 10);
 
     return (
       <TabCard title="Documents" description="Documents linked to this customer.">
-        <div className="rounded-[var(--radius-2xl)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-6 transition-all duration-200 hover:border-[var(--color-border-strong)] hover:bg-white">
-          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary-50)] text-[var(--color-brand-700)] shadow-[var(--shadow-small)]">
-              <ReceiptText size={20} aria-hidden="true" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-semibold text-[var(--color-text-primary)]">Upload a document</p>
-              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Keep contracts, permits, and records organized in one workspace.</p>
-            </div>
-            <Button size="sm" className="h-11 px-4 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-px">Upload Document</Button>
+        {timelineLoading ? <TableLoadingState rows={2} columns={1} /> : null}
+
+        {timelineError ? (
+          <ErrorState compact title={t("customers.errorCustomerTitle")} description={timelineError} />
+        ) : null}
+
+        {documentEvents.length > 0 ? (
+          <div className="space-y-3">
+            {documentEvents.map((item) => (
+              <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{formatTimelineText(item, t).title}</p>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{formatTimelineText(item, t).summary}</p>
+                <p className="mt-2 text-xs text-[var(--color-text-muted)]">{formatTimelineOccurredAt(item.occurredAt, localeTag(locale))}</p>
+              </article>
+            ))}
           </div>
-        </div>
+        ) : (
+          <EmptyState compact title="No customer document events yet" description="No document upload or delete events have been recorded for this customer." />
+        )}
 
-        <div className="flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <Badge key={category} tone="brand">{category}</Badge>
-          ))}
-        </div>
-
-        <EmptyState compact title="No documents yet" description="Customer documents will appear here once they are uploaded." />
+        {communicationEvents.length > 0 ? (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">Communications</p>
+            {communicationEvents.map((item) => (
+              <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4">
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{formatTimelineText(item, t).title}</p>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{formatTimelineText(item, t).summary}</p>
+                <p className="mt-2 text-xs text-[var(--color-text-muted)]">{formatTimelineOccurredAt(item.occurredAt, localeTag(locale))}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState compact title="No communications recorded yet" description="No customer communication events have been recorded yet." />
+        )}
       </TabCard>
     );
   }
 
-  function PhotosTab() {
-    const galleryItems = Array.from({ length: 6 }, (_, index) => index + 1);
+  function PhotosTab({ profile, locale, t }: { profile: CustomerProfile; locale: string; t: (key: string, params?: Record<string, string | number>) => string; }) {
+    const photos = profile.photos.slice(0, 24);
 
     return (
       <TabCard title="Photos" description="Site photos and image attachments for this customer.">
-        <div className="flex items-center justify-between gap-3">
-          <p className="max-w-2xl text-sm leading-6 text-[var(--color-text-secondary)]">Upload and review project images, site snapshots, and visual progress notes.</p>
-          <Button size="sm" className="h-11 px-4 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-px">Upload Photo</Button>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {galleryItems.map((index) => (
-            <article key={index} className="group overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[linear-gradient(135deg,rgba(37,99,235,0.12),rgba(6,182,212,0.08),rgba(15,23,42,0.02))] shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-card)]">
-              <div className="aspect-[4/3] p-3">
-                <div className="flex h-full items-end rounded-[var(--radius-xl)] bg-[linear-gradient(180deg,rgba(15,23,42,0.0),rgba(15,23,42,0.18))] p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-white">Photo {index}</p>
-                    <p className="text-xs text-white/75">Upload pending</p>
+        {photos.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {photos.map((photo) => (
+              <article key={photo.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">{photo.original_filename || `Photo ${photo.id.slice(0, 8)}`}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{photo.category || "general"}</p>
                   </div>
+                  <Camera size={16} aria-hidden="true" className="shrink-0 text-[var(--color-text-muted)]" />
                 </div>
-              </div>
-            </article>
-          ))}
-        </div>
-
-        <EmptyState compact title="No photos yet" description="Customer photos will appear here once they are uploaded." />
+                <p className="mt-3 text-xs text-[var(--color-text-secondary)]">Captured {formatProjectDate(photo.captured_at, localeTag(locale), t("customers.notProvided"))}</p>
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Project <Link href={`/projects/${photo.project_id}`} className="font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">{photo.project_id.slice(0, 8)}</Link></p>
+                {photo.note ? <p className="mt-2 text-xs text-[var(--color-text-secondary)] line-clamp-2">{photo.note}</p> : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState compact title="No photos recorded yet" description="No customer-related project photos have been uploaded yet." />
+        )}
       </TabCard>
     );
   }
 
-  function TimelineTab({ profile }: { profile: CustomerProfile; }) {
+  function TimelineTab({ locale, t, timelineItems, timelineLoading, timelineError }: { locale: string; t: (key: string, params?: Record<string, string | number>) => string; timelineItems: OrionTimelineItem[]; timelineLoading: boolean; timelineError: string | null; }) {
     return (
       <TabCard title="Timeline" description="A chronological view of customer activity.">
-        <TimelineList profile={profile} />
+        <TimelineList locale={locale} t={t} timelineItems={timelineItems} timelineLoading={timelineLoading} timelineError={timelineError} />
         <div className="space-y-4">
-          <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-primary-50)] p-5 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-px">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[var(--color-brand-700)] shadow-[var(--shadow-small)]">
-                <StickyNote size={16} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="font-semibold text-[var(--color-text-primary)]">Pinned Note</p>
-                  <p className="text-xs font-medium text-[var(--color-text-secondary)]">Updated {formatDate(profile.customer.updated_at)}</p>
-                </div>
-                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-[var(--color-text-primary)]">{profile.notes}</p>
-              </div>
-            </div>
-          </article>
-
           <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm leading-7 text-[var(--color-text-secondary)] shadow-[var(--shadow-small)]">
-            Notes are stored in the customer record and surfaced here for quick workspace review.
+            Timeline events are sourced from Orion and scoped to this customer.
           </article>
         </div>
       </TabCard>
@@ -745,7 +798,7 @@
             </EnterpriseTableBody>
           </EnterpriseTable>
         ) : (
-          <EmptyState compact title="No estimates yet" description="Estimates for this customer will appear here once they are created." />
+          <EmptyState compact title="No estimates yet" description="No estimates are linked to this customer yet." />
         )}
       </TabCard>
     );
@@ -802,7 +855,7 @@
             </EnterpriseTableBody>
           </EnterpriseTable>
         ) : (
-          <EmptyState compact title="No invoices yet" description="Invoices for this customer will appear here once they are created." />
+          <EmptyState compact title="No invoices yet" description="No invoices are linked to this customer yet." />
         )}
       </TabCard>
     );
@@ -857,33 +910,19 @@
     );
   }
 
-  function TimelineList({ profile, compact = false }: { profile: CustomerProfile; compact?: boolean; }) {
-    const items = buildActivityFeed(profile).slice(0, compact ? 4 : 8);
+  function TimelineList({ compact = false, locale, t, timelineItems, timelineLoading, timelineError }: { compact?: boolean; locale: string; t: (key: string, params?: Record<string, string | number>) => string; timelineItems: OrionTimelineItem[]; timelineLoading: boolean; timelineError: string | null; }) {
+    const items = timelineItems.slice(0, compact ? 4 : 12);
+
+    if (timelineLoading) {
+      return <TableLoadingState rows={compact ? 2 : 4} columns={1} />;
+    }
+
+    if (timelineError) {
+      return <ErrorState compact title={t("customers.errorCustomerTitle")} description={timelineError} />;
+    }
 
     if (items.length === 0) {
-      const placeholderItems = [
-        { id: "placeholder-1", title: "Workspace created", description: "Customer workspace initialized and ready for activity.", timestamp: "Just now", tone: "bg-[var(--color-brand-600)]/15 text-[var(--color-brand-700)]", icon: <Users size={16} /> },
-        { id: "placeholder-2", title: "Awaiting linked records", description: "Projects, estimates, invoices, and notes will appear here.", timestamp: "Pending", tone: "bg-[var(--color-info-500)]/15 text-[var(--color-info-700)]", icon: <Clock3 size={16} /> },
-      ];
-
-      return (
-        <div className="space-y-3">
-          {placeholderItems.map((item) => (
-            <article key={item.id} className="relative rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 transition-all duration-200 hover:-translate-y-px hover:shadow-[var(--shadow-card)] sm:pl-14">
-              <span aria-hidden="true" className={`absolute left-0 top-4 hidden h-10 w-10 items-center justify-center rounded-full ${item.tone} shadow-[0_10px_18px_-14px_rgb(15_23_42/0.45)] sm:flex`}>
-                {item.icon}
-              </span>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.description}</p>
-                </div>
-                <p className="text-xs font-medium text-[var(--color-text-secondary)]">{item.timestamp}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      );
+      return <EmptyState compact title="No activity recorded yet" description="Orion has not recorded customer activity for this workspace yet." />;
     }
 
     return (
@@ -891,15 +930,15 @@
         <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-5 top-2 hidden w-px bg-[var(--color-border-subtle)] sm:block" />
         {items.map((item) => (
           <article key={item.id} className="relative rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 transition-all duration-200 hover:-translate-y-px hover:shadow-[var(--shadow-card)] sm:pl-14">
-            <span aria-hidden="true" className={`absolute left-0 top-4 hidden h-10 w-10 items-center justify-center rounded-full ${item.tone} shadow-[0_10px_18px_-14px_rgb(15_23_42/0.45)] sm:flex`}>
-              {item.icon}
+            <span aria-hidden="true" className="absolute left-0 top-4 hidden h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-600)]/10 text-[var(--color-brand-700)] shadow-[0_10px_18px_-14px_rgb(15_23_42/0.45)] sm:flex">
+              <History size={16} />
             </span>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.description}</p>
+                <p className="font-semibold text-[var(--color-text-primary)]">{formatTimelineText(item, t).title}</p>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{formatTimelineText(item, t).summary}</p>
               </div>
-              <p className="text-xs font-medium text-[var(--color-text-secondary)]">{item.timestamp}</p>
+              <p className="text-xs font-medium text-[var(--color-text-secondary)]">{formatTimelineOccurredAt(item.occurredAt, localeTag(locale))}</p>
             </div>
           </article>
         ))}
@@ -1013,65 +1052,6 @@
 
   function InvoiceStatusPill({ status }: { status: string; }) {
     return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${getInvoiceStatusClass(status)}`}>{toTitleCase(status.replace(/_/g, " "))}</span>;
-  }
-
-  function buildActivityFeed(profile: CustomerProfile) {
-    const items: Array<{ id: string; title: string; description: string; timestamp: string; tone: string; icon: ReactNode; }> = [];
-
-    items.push({
-      id: "customer-created",
-      title: "Customer created",
-      description: profile.customerName,
-      timestamp: formatDate(profile.customer.created_at),
-      tone: "bg-[var(--color-brand-600)]/15 text-[var(--color-brand-700)]",
-      icon: <Users size={16} />,
-    });
-
-    if (profile.customer.updated_at !== profile.customer.created_at) {
-      items.push({
-        id: "customer-updated",
-        title: "Customer updated",
-        description: "Record details were updated.",
-        timestamp: formatDate(profile.customer.updated_at),
-        tone: "bg-[var(--color-info-500)]/15 text-[var(--color-info-700)]",
-        icon: <Clock3 size={16} />,
-      });
-    }
-
-    profile.activeProjects.slice(0, 5).forEach((project) => {
-      items.push({
-        id: `project-${project.id}`,
-        title: "Project linked",
-        description: project.name,
-        timestamp: formatDate(project.created_at),
-        tone: "bg-[var(--color-success-500)]/15 text-[var(--color-success-700)]",
-        icon: <Building2 size={16} />,
-      });
-    });
-
-    profile.estimates.slice(0, 5).forEach((estimate) => {
-      items.push({
-        id: `estimate-${estimate.id}`,
-        title: estimate.status === "approved" ? "Estimate approved" : "Estimate created",
-        description: estimate.title,
-        timestamp: formatDate(estimate.created_at),
-        tone: "bg-[var(--color-analytics-700)]/15 text-[var(--color-analytics-700)]",
-        icon: <ReceiptText size={16} />,
-      });
-    });
-
-    profile.invoices.slice(0, 5).forEach((invoice) => {
-      items.push({
-        id: `invoice-${invoice.id}`,
-        title: "Invoice issued",
-        description: invoice.title,
-        timestamp: formatDate(invoice.issue_date || invoice.created_at),
-        tone: "bg-[var(--color-warning-500)]/15 text-[var(--color-warning-700)]",
-        icon: <ReceiptText size={16} />,
-      });
-    });
-
-    return items.sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime());
   }
 
   function getCustomerName(row: CustomerRow) {

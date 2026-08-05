@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createEmployeeService, type EmployeeService } from "./service";
 import type {
   AvailabilityStatus,
@@ -18,6 +18,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export function useEmployees({ service }: UseEmployeesParams = {}) {
   const employeeService = useMemo(() => service ?? createEmployeeService(), [service]);
+  const latestRequestId = useRef(0);
   const [items, setItems] = useState<Employee[]>([]);
   const [summary, setSummary] = useState<EmployeeDashboardSummary>({
     totalEmployees: 0,
@@ -80,6 +81,9 @@ export function useEmployees({ service }: UseEmployeesParams = {}) {
   }, []);
 
   const refresh = useCallback(async () => {
+    const requestId = latestRequestId.current + 1;
+    latestRequestId.current = requestId;
+
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -96,6 +100,10 @@ export function useEmployees({ service }: UseEmployeesParams = {}) {
         pageSize,
       });
 
+      if (requestId !== latestRequestId.current) {
+        return;
+      }
+
       setItems(listResult.items);
       setTotal(listResult.total);
       setTotalPages(listResult.totalPages);
@@ -107,19 +115,31 @@ export function useEmployees({ service }: UseEmployeesParams = {}) {
       setProjectOptions(listResult.options.projectOptions);
       setPartialNotices(listResult.partialNotices);
     } catch {
+      if (requestId !== latestRequestId.current) {
+        return;
+      }
+
       setErrorMessage("employees.errorLoad");
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequestId.current) {
+        setIsLoading(false);
+      }
     }
   }, [availabilityStatus, crewId, employmentStatus, page, pageSize, projectId, query, employeeService, sortBy, supervisorId]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    let active = true;
+
+    queueMicrotask(() => {
+      if (!active) {
+        return;
+      }
+
       void refresh();
-    }, 0);
+    });
 
     return () => {
-      window.clearTimeout(timer);
+      active = false;
     };
   }, [refresh]);
 

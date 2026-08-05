@@ -27,7 +27,7 @@ class MockQueryBuilder {
     this.db = db;
   }
 
-  select(_columns: string) {
+  select() {
     return this;
   }
 

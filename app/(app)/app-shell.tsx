@@ -4,10 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { MotionProvider } from "@/components/motion";
+import { OrionCommandCenterOverlay } from "@/components/orion/command-center";
 import { PersistentOrion } from "@/components/orion/persistent";
+import { GlobalOrionVoiceProvider } from "@/components/orion/voice";
 import { DepartmentNavigator, LayerManager, NavigationBreadcrumb } from "@/components/bangoflow";
 import { LanguageSelector, ProfileMenu, SearchBar } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
+import { ORION_SIDEBAR_NAVIGATION_GROUPS } from "@/lib/orion/navigation";
 
 type AppShellProps = {
   children: ReactNode;
@@ -16,68 +19,21 @@ type AppShellProps = {
   companyName: string | null;
 };
 
-const navigationGroups = [
-  {
-    key: "dashboard",
-    label: "Dashboard",
-    items: [{ key: "dashboard", href: "/dashboard", icon: "◉" }],
-  },
-  {
-    key: "operations",
-    label: "Operations",
-    items: [
-      { key: "operations", href: "/operations", icon: "◈" },
-      { key: "timeline", href: "/timeline", icon: "◔" },
-      { key: "dispatch", href: "/dispatch", icon: "⌁" },
-      { key: "dailyReports", href: "/daily-reports", icon: "◨" },
-      { key: "schedule", href: "/schedule", icon: "◑" },
-      { key: "projects", href: "/projects", icon: "◍" },
-    ],
-  },
-  {
-    key: "financial",
-    label: "Financial",
-    items: [
-      { key: "estimates", href: "/estimates", icon: "◎" },
-      { key: "invoices", href: "/invoices", icon: "◐" },
-      { key: "changeOrders", href: "/change-orders", icon: "◔" },
-      { key: "laborRates", href: "/labor-rates", icon: "◈" },
-    ],
-  },
-  {
-    key: "resources",
-    label: "Resources",
-    items: [
-      { key: "customers", href: "/customers", icon: "◌" },
-      { key: "materials", href: "/materials", icon: "◉" },
-      { key: "unitsOfMeasure", href: "/units-of-measure", icon: "◍" },
-      { key: "equipment", href: "/equipment", icon: "◍" },
-      { key: "vendors", href: "/vendors", icon: "◇" },
-    ],
-  },
-  {
-    key: "administration",
-    label: "Administration",
-    items: [
-      { key: "employees", href: "/employees", icon: "◒" },
-      { key: "crew", href: "/crews", icon: "◒" },
-      { key: "settings", href: "/settings", icon: "◓" },
-    ],
-  },
-];
-
 export function AppShell({ children, userName, userEmail, companyName }: AppShellProps) {
   return (
     <MotionProvider>
-      <AppShellFrame userName={userName} userEmail={userEmail} companyName={companyName}>
-        {children}
-      </AppShellFrame>
+      <GlobalOrionVoiceProvider>
+        <AppShellFrame userName={userName} userEmail={userEmail} companyName={companyName}>
+          {children}
+        </AppShellFrame>
+      </GlobalOrionVoiceProvider>
     </MotionProvider>
   );
 }
 
 function AppShellFrame({ children, userName, userEmail, companyName }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
   const { t } = useI18n();
@@ -112,6 +68,24 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
       window.removeEventListener("keydown", handleEscape);
     };
   }, [mobileOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isCommandKey = event.key.toLowerCase() === "k";
+      if (!isCommandKey || (!event.ctrlKey && !event.metaKey)) {
+        return;
+      }
+
+      event.preventDefault();
+      setCommandCenterOpen(true);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--color-surface-app)] text-[var(--color-text-primary)] enterprise-shell">
@@ -154,7 +128,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
 
           <div className="mt-7 flex min-h-0 flex-1 flex-col overflow-hidden">
             <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
-              {navigationGroups.map((group) => {
+              {ORION_SIDEBAR_NAVIGATION_GROUPS.map((group) => {
                 const isCollapsed = collapsedGroups[group.key] ?? false;
 
                 return (
@@ -237,6 +211,15 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
                   <div className="hidden min-w-[220px] md:block">
                     <SearchBar placeholder={t("common.search")} />
                   </div>
+                  <button
+                    type="button"
+                    className="hidden rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] md:inline-flex md:items-center md:gap-2"
+                    onClick={() => setCommandCenterOpen(true)}
+                    aria-label="Open Orion Command Center"
+                  >
+                    <span>Orion</span>
+                    <span className="rounded border border-[var(--color-border-subtle)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]">Ctrl+K</span>
+                  </button>
                   <LanguageSelector />
                   <button
                     type="button"
@@ -259,6 +242,12 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
           <main className="flex-1 p-4 sm:p-6 lg:p-7">{children}</main>
         </div>
       </div>
+
+      <OrionCommandCenterOverlay
+        open={commandCenterOpen}
+        onClose={() => setCommandCenterOpen(false)}
+        currentPath={pathname || "/dashboard"}
+      />
     </div>
   );
 }

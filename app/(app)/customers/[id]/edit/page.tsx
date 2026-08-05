@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button, EmptyState, ErrorState, Input, Select, SkeletonLoader } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
@@ -237,6 +238,28 @@ export default function EditCustomerPage() {
         setErrorMessage(t("customers.errorSaveCustomer", { message: error.message }));
         return;
       }
+
+      const orion = createSupabaseOrionEventPublisher(supabase);
+      await orion.publishEvent({
+        company_id: workspace.context.companyId,
+        actor_profile_id: workspace.context.userId,
+        event_type: "customer.updated",
+        aggregate_type: "customer",
+        aggregate_id: customer.id,
+        source_module: "customers",
+        payload: {
+          customer_id: customer.id,
+          customer_type: formData.customerType,
+          customer_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
+          company_name: formData.companyName.trim() || null,
+          related_project_id: null,
+        },
+        metadata: {
+          event_category: "customers",
+          event_severity: "info",
+          deep_link: `/customers/${customer.id}`,
+        },
+      });
 
       router.push(`/customers/${customer.id}`);
       router.refresh();

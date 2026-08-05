@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseOrionEventPublisher, type OrionEventRecord } from "@/lib/orion/events";
+import { createOrionCommandRouter } from "@/lib/orion/commands";
 import type { Database } from "@/types/database.types";
 import type {
   OrionAutomationActionContext,
@@ -211,6 +212,129 @@ export async function createProjectFromEstimateStep(input: OrionAutomationAction
   };
 }
 
+export async function bootstrapProjectWorkspaceStep(input: OrionAutomationActionContext): Promise<OrionAutomationStepResult> {
+  const estimate = await loadEstimateForAutomation(input.context, input.companyId, input.event.aggregate_id);
+  const projectId = input.context.state.projectId || estimate.converted_project_id || estimate.project_id;
+
+  if (!projectId) {
+    throw new Error("No project id available for workspace bootstrap.");
+  }
+
+  const db = input.context.supabase as unknown as LooseSupabase;
+  const existingPhasesResponse = await db
+    .from("project_phases")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", input.companyId)
+    .eq("project_id", projectId);
+
+  if (existingPhasesResponse.error) {
+    throw new Error(existingPhasesResponse.error.message || "Unable to inspect existing project phases.");
+  }
+
+  const existingPhaseCount = existingPhasesResponse.count || 0;
+  if (existingPhaseCount > 0) {
+    return {
+      status: "completed",
+      details: "Project workspace phases already exist.",
+      output: {
+        project_id: projectId,
+        seeded_phases: existingPhaseCount,
+        idempotent: true,
+      },
+    };
+  }
+
+  const sectionsResponse = await db
+    .from("estimate_sections")
+    .select("name, sort_order")
+    .eq("company_id", input.companyId)
+    .eq("estimate_id", estimate.id)
+    .order("sort_order", { ascending: true });
+
+  if (sectionsResponse.error) {
+    throw new Error(sectionsResponse.error.message || "Unable to load estimate sections for workspace bootstrap.");
+  }
+
+  const sectionRows = (sectionsResponse.data || []) as Array<{ name: string; sort_order: number }>;
+
+  const fallbackPhases = [
+    { name: "Pre-Construction", sort_order: 100 },
+    { name: "Execution", sort_order: 200 },
+    { name: "Closeout", sort_order: 300 },
+  ];
+
+  const dedupe = new Set<string>();
+  const phaseSeed = (sectionRows.length > 0 ? sectionRows : fallbackPhases)
+    .map((row, index) => ({
+      name: row.name.trim(),
+      sortOrder: Number.isFinite(row.sort_order) ? row.sort_order : (index + 1) * 100,
+    }))
+    .filter((row) => row.name.length > 0)
+    .filter((row) => {
+      const normalized = row.name.toLowerCase();
+      if (dedupe.has(normalized)) {
+        return false;
+      }
+
+      dedupe.add(normalized);
+      return true;
+    });
+
+  if (phaseSeed.length === 0) {
+    return {
+      status: "skipped",
+      details: "No estimate sections were available for workspace bootstrap.",
+      output: {
+        project_id: projectId,
+      },
+    };
+  }
+
+  const insertRows = phaseSeed.map((phase) => ({
+    company_id: input.companyId,
+    project_id: projectId,
+    name: phase.name,
+    sort_order: phase.sortOrder,
+  }));
+
+  const insertResponse = await db
+    .from("project_phases")
+    .insert(insertRows)
+    .select("id");
+
+  if (insertResponse.error) {
+    throw new Error(insertResponse.error.message || "Unable to create project phases from estimate sections.");
+  }
+
+  const publisher = createSupabaseOrionEventPublisher(input.context.supabase);
+  await publisher.publishEvent({
+    company_id: input.companyId,
+    actor_profile_id: input.event.actor_profile_id,
+    event_type: "project.workspace_bootstrapped",
+    aggregate_type: "project",
+    aggregate_id: projectId,
+    source_module: "automation",
+    correlation_id: input.event.event_id,
+    causation_id: input.event.event_id,
+    idempotency_key: `${input.runId}:project-workspace-bootstrap`,
+    payload: {
+      project_id: projectId,
+      estimate_id: estimate.id,
+      seeded_phases: phaseSeed.map((phase) => phase.name),
+      seeded_phase_count: phaseSeed.length,
+    },
+  });
+
+  return {
+    status: "completed",
+    details: "Project workspace phases seeded from estimate sections.",
+    output: {
+      project_id: projectId,
+      seeded_phase_count: phaseSeed.length,
+    },
+  };
+}
+
 export async function createDepositInvoiceStep(input: OrionAutomationActionContext): Promise<OrionAutomationStepResult> {
   const estimateId = input.event.aggregate_id;
   const estimate = await loadEstimateForAutomation(input.context, input.companyId, estimateId);
@@ -239,98 +363,43 @@ export async function createDepositInvoiceStep(input: OrionAutomationActionConte
     };
   }
 
-  const issueDate = input.context.now().toISOString().slice(0, 10);
-  const dueDate = new Date(input.context.now().getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-  const db = input.context.supabase as unknown as LooseSupabase;
-  const { data: invoice, error: invoiceError } = await db
-    .from("invoices")
-    .insert({
-      company_id: input.companyId,
-      title: `Deposit - ${estimate.title}`,
-      customer_id: estimate.customer_id,
-      project_id: input.context.state.projectId,
-      estimate_id: estimate.id,
-      issue_date: issueDate,
-      due_date: dueDate,
-      status: "draft",
-      description: "Deposit invoice generated by Orion automation.",
-      subtotal: depositAmount,
-      discount_type: "none",
-      discount_value: 0,
-      discount_total: 0,
-      tax_rate: 0,
-      tax_amount: 0,
-      additional_fee: 0,
-      total_amount: depositAmount,
-      amount_paid: 0,
-      notes: "Automated deposit invoice.",
-      payment_terms: estimate.payment_terms,
-      created_by: input.event.actor_profile_id,
-      updated_by: input.event.actor_profile_id,
-    })
-    .select("id")
-    .single();
-
-  if (invoiceError || !invoice?.id) {
-    throw new Error(invoiceError?.message || "Unable to create deposit invoice.");
-  }
-
-  const invoiceId = invoice.id as string;
-
-  const { error: linkError } = await db
-    .from("invoice_estimate_links")
-    .upsert({
-      company_id: input.companyId,
-      invoice_id: invoiceId,
-      estimate_id: estimate.id,
-      link_type: "converted",
-      created_by: input.event.actor_profile_id,
-      metadata: {
-        kind: "deposit",
-        source: "orion_automation",
-      },
-    }, {
-      onConflict: "invoice_id,estimate_id",
-    });
-
-  if (linkError) {
-    throw new Error(linkError.message || "Unable to create invoice-estimate link.");
-  }
-
-  const { error: estimateUpdateError } = await db
-    .from("estimates")
-    .update({
-      deposit_invoice_id: invoiceId,
-      deposit_amount: depositAmount,
-      updated_by: input.event.actor_profile_id,
-    })
-    .eq("company_id", input.companyId)
-    .eq("id", estimate.id);
-
-  if (estimateUpdateError) {
-    throw new Error(estimateUpdateError.message || "Unable to update estimate deposit fields.");
-  }
-
-  const publisher = createSupabaseOrionEventPublisher(input.context.supabase);
-  await publisher.publishEvent({
-    company_id: input.companyId,
-    actor_profile_id: input.event.actor_profile_id,
-    event_type: "invoice.created",
-    aggregate_type: "invoice",
-    aggregate_id: invoiceId,
-    source_module: "invoices",
-    correlation_id: input.event.event_id,
-    causation_id: input.event.event_id,
-    idempotency_key: `${input.runId}:deposit-invoice-created`,
-    payload: {
-      estimate_id: estimate.id,
-      project_id: input.context.state.projectId,
-      customer_id: estimate.customer_id,
-      total_amount: depositAmount,
-      kind: "deposit",
-    },
+  const router = createOrionCommandRouter({
+    supabase: input.context.supabase,
   });
+
+  const execution = await router.executeCommand({
+    commandId: "estimate.generate_deposit_invoice",
+    params: {
+      estimateId,
+      action: "deposit_invoice",
+    },
+    companyContext: {
+      companyId: input.companyId,
+    },
+    userContext: {
+      actorProfileId: input.event.actor_profile_id,
+      role: "accountant",
+    },
+    executionContext: {
+      origin: "automation",
+      automationRunId: input.runId,
+      automationRuleId: input.event.event_type,
+    },
+    correlationId: input.event.event_id,
+    idempotencyKey: `${input.runId}:deposit-invoice`,
+  });
+
+  if (!execution.success || execution.status === "failed" || execution.status === "rejected") {
+    throw new Error(execution.failure || execution.userMessage || "Unable to create deposit invoice.");
+  }
+
+  const invoiceId = (execution.details?.invoiceId as string | undefined)
+    || (execution.entityId && execution.entityType === "invoice" ? execution.entityId : null)
+    || estimate.deposit_invoice_id;
+
+  if (!invoiceId) {
+    throw new Error("Deposit invoice command completed without invoice id.");
+  }
 
   input.context.state.depositInvoiceId = invoiceId;
 
@@ -520,17 +589,34 @@ export async function assignProjectStatusStep(input: OrionAutomationActionContex
     throw new Error("No project id available for status assignment.");
   }
 
-  const db = input.context.supabase as unknown as LooseSupabase;
-  const { error } = await db
-    .from("projects")
-    .update({
-      status: "scheduled",
-    })
-    .eq("company_id", input.companyId)
-    .eq("id", projectId);
+  const router = createOrionCommandRouter({
+    supabase: input.context.supabase,
+  });
 
-  if (error) {
-    throw new Error(error.message || "Unable to set project status.");
+  const execution = await router.executeCommand({
+    commandId: "project.update_status",
+    params: {
+      projectId,
+      status: "scheduled",
+    },
+    companyContext: {
+      companyId: input.companyId,
+    },
+    userContext: {
+      actorProfileId: input.event.actor_profile_id,
+      role: "operations_manager",
+    },
+    executionContext: {
+      origin: "automation",
+      automationRunId: input.runId,
+      automationRuleId: input.event.event_type,
+    },
+    correlationId: input.event.event_id,
+    idempotencyKey: `${input.runId}:project-status`,
+  });
+
+  if (!execution.success || execution.status === "failed" || execution.status === "rejected") {
+    throw new Error(execution.failure || execution.userMessage || "Unable to set project status.");
   }
 
   input.context.state.projectId = projectId;

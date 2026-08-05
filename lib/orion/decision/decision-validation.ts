@@ -6,6 +6,7 @@ import {
   type OrionDecisionRecord,
   type OrionDecisionRule,
 } from "./decision-types";
+import { createOrionCommandRegistry } from "@/lib/orion/commands";
 
 export type OrionDecisionValidationResult =
   | { ok: true }
@@ -35,6 +36,7 @@ export function validateDecisionRule(rule: OrionDecisionRule): OrionDecisionVali
 
 export function validateDecisionRecord(decision: OrionDecisionRecord): OrionDecisionValidationResult {
   const errors: string[] = [];
+  const registry = createOrionCommandRegistry();
 
   if (!decision.decisionId.trim()) {
     errors.push("decisionId is required");
@@ -66,6 +68,26 @@ export function validateDecisionRecord(decision: OrionDecisionRecord): OrionDeci
 
   if (!decision.relatedEntity.href.startsWith("/")) {
     errors.push("action href must be a relative app route");
+  }
+
+  if (!decision.commandKey.trim()) {
+    errors.push("commandKey is required");
+  }
+
+  if (!registry.getById(decision.commandKey)) {
+    errors.push(`commandKey is not registered: ${decision.commandKey}`);
+  }
+
+  if (!decision.commandInput || typeof decision.commandInput !== "object" || Array.isArray(decision.commandInput)) {
+    errors.push("commandInput must be an object");
+  }
+
+  if (!decision.hrefFallback.startsWith("/")) {
+    errors.push("hrefFallback must be a relative app route");
+  }
+
+  if (!Array.isArray(decision.permissionRequirement) || decision.permissionRequirement.length === 0) {
+    errors.push("permissionRequirement must include at least one role");
   }
 
   if (errors.length > 0) {

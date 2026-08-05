@@ -186,4 +186,5 @@ export type OperationsPayload = {
     dispatchDelayed: number;
   };
   projectOptions: string[];
+  partialNotices?: string[];
 };

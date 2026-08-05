@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import {
   createAutomationEngine,
   createAutomationRegistry,
+  ORION_AUTOMATION_TRIGGER_EVENTS,
   type OrionAutomationExecutionContext,
   type OrionAutomationHistory,
   type OrionAutomationRule,
@@ -113,9 +114,11 @@ async function main() {
     const registry = createAutomationRegistry();
     const approvedRules = registry.listForEvent("cmp-100", "estimate.approved");
     const viewedRules = registry.listForEvent("cmp-100", "estimate.viewed");
+    const approvedWorkflow = approvedRules.find((rule) => rule.id === "estimate-approved-workflow") || null;
 
     check(approvedRules.some((rule) => rule.id === "estimate-approved-workflow"), "estimate approved workflow rule exists");
     check(viewedRules.some((rule) => rule.id === "estimate-viewed-followup"), "estimate viewed followup rule exists");
+    check(Boolean(approvedWorkflow?.actions.some((action) => action.id === "bootstrap-project-workspace")), "estimate approved workflow includes project workspace bootstrap step");
   });
 
   await test("3. engine executes in order and stops on first failure", async () => {
@@ -210,6 +213,7 @@ async function main() {
   await test("5. supported trigger gate allows only configured event types", () => {
     check(supportsAutomationTrigger(makeEvent("estimate.approved")), "supported trigger is accepted");
     check(!supportsAutomationTrigger(makeEvent("workflow.executed")), "unsupported trigger is rejected");
+    check(!ORION_AUTOMATION_TRIGGER_EVENTS.includes("workflow.executed" as never), "workflow.executed is excluded from automation triggers");
   });
 
   await test("6. workflow engine is wired to automation runner", () => {
@@ -217,6 +221,15 @@ async function main() {
 
     check(workflowEngineSource.includes("createOrionAutomationRunner"), "workflow engine imports automation runner");
     check(workflowEngineSource.includes("runForWorkflowEventId"), "workflow engine dispatches event id to automation runner");
+  });
+
+  await test("7. automation mutation steps use command router with origin metadata", () => {
+    const source = readFileSync(resolve(process.cwd(), "lib", "orion", "automation", "automation-context.ts"), "utf8");
+
+    check(source.includes("createOrionCommandRouter"), "automation context routes safe mutations through command router");
+    check(source.includes("origin: \"automation\""), "automation command executions are marked with automation origin metadata");
+    check(source.includes("commandId: \"project.update_status\""), "project status automation uses executeCommand");
+    check(source.includes("commandId: \"estimate.generate_deposit_invoice\""), "deposit invoice automation uses executeCommand");
   });
 
   console.log(`\nOrion automation phase 4A results: ${passed} passed, ${failed} failed`);

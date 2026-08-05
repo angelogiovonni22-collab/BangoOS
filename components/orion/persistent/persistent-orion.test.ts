@@ -49,7 +49,7 @@ function testSourceSafetyContracts() {
   assert.equal(mountMatches.length, 1, "PersistentOrion mount count should remain one");
   assert.ok(shellSource.includes("<LayerManager layer=\"backdrop\">"), "Sidebar uses navigation-safe backdrop layer instead of dialog/modal layer");
   assert.ok(shellSource.includes("id=\"bangoos-sidebar\""), "Sidebar structure remains unchanged");
-  assert.ok(!shellSource.includes("pointer-events-none"), "Sidebar pointer behavior remains unchanged");
+  assert.ok(shellSource.includes("pointer-events-none opacity-0"), "Mobile-open state temporarily disables Orion pointer capture");
 
   assert.ok(persistentSource.includes("usePathname"), "Persistent Orion uses pathname for context fixtures");
   assert.ok(persistentSource.includes("useMotionPreferences"), "Persistent Orion consumes motion preference");
@@ -70,6 +70,8 @@ function testSourceSafetyContracts() {
   );
   assert.ok(persistentSource.includes("if (!isFiniteNumber(parsed.x) || !isFiniteNumber(parsed.y))") || persistentSource.includes("return null;"), "10. invalid stored positions fall back safely");
   assert.ok(persistentSource.includes("if (typeof window === \"undefined\")") && persistentSource.includes("readStoredPosition"), "11. server-render safety exists");
+  assert.ok(persistentSource.includes("useState<FloatingPosition>(SSR_SAFE_DEFAULT_POSITION)"), "11b. hydration-safe initial position is deterministic for server and first client render");
+  assert.ok(persistentSource.includes("const stored = readStoredPosition();") && persistentSource.includes("setPosition(next);"), "11c. stored browser position is restored after mount");
   assert.ok(persistentSource.includes("event.key === \"ArrowLeft\"") && persistentSource.includes("event.key === \"ArrowDown\""), "12. keyboard arrow repositioning exists");
   assert.ok(persistentSource.includes("const step = event.shiftKey ? 24 : 12"), "13. Shift + Arrow larger movement exists");
   assert.ok(buttonSource.includes("aria-describedby={instructionsId}") && persistentSource.includes("Drag Orion to reposition it. Use arrow keys when focused."), "14. accessible drag instructions exist");

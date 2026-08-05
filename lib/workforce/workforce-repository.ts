@@ -240,12 +240,18 @@ export function createWorkforceRepository(supabase: SupabaseClient<Database>): W
 
       const employee = data as WorkforceEmployeeRow;
 
+      const eventType = (before.employment_status !== "active" && employee.employment_status === "active")
+        ? "workforce.employee.restored"
+        : "workforce.employee.updated";
+
+      const action = eventType === "workforce.employee.restored" ? "update" : "update";
+
       await events.recordEvent({
         companyId,
-        eventType: "workforce.employee.updated",
+        eventType,
         entityType: "employee",
         entityId: employee.id,
-        action: "update",
+        action,
         actorProfileId,
         payload: buildChangedFieldPayload({
           idKey: "employee_id",

@@ -10,6 +10,15 @@ function diffDays(fromIso: string, to: Date) {
   return Math.floor((to.getTime() - from) / (24 * 60 * 60 * 1000));
 }
 
+function daysUntil(fromIso: string, from: Date) {
+  const target = new Date(fromIso).getTime();
+  if (!Number.isFinite(target)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.ceil((target - from.getTime()) / (24 * 60 * 60 * 1000));
+}
+
 function isStatus(value: string, statuses: string[]) {
   const normalized = value.trim().toLowerCase();
   return statuses.includes(normalized);
@@ -409,24 +418,174 @@ export function createDecisionRegistry(): OrionDecisionRule[] {
       async evaluate(context) {
         const now = context.now();
         const projects = await context.load.projects();
+        const permits = await context.load.permits();
+        const requiredStatuses = new Set(["required", "preparing", "submitted", "under_review", "renewal_required"]);
+
+        const openPermitCountByProject = new Map<string, number>();
+        for (const permit of permits) {
+          if (!requiredStatuses.has(permit.status.trim().toLowerCase())) {
+            continue;
+          }
+
+          openPermitCountByProject.set(permit.project_id, (openPermitCountByProject.get(permit.project_id) || 0) + 1);
+        }
 
         return projects
-          .filter((project) => isStatus(project.status, ["approved", "scheduled"]))
-          .filter((project) => !project.description || !project.description.toLowerCase().includes("permit"))
+          .filter((project) => isStatus(project.status, ["approved", "scheduled", "in_progress"]))
+          .filter((project) => (openPermitCountByProject.get(project.id) || 0) > 0)
           .map((project) => buildDecisionCandidate({
             companyId: context.companyId,
             ruleId: "project-missing-permits",
-            priority: "medium",
+            priority: "high",
             category: "projects",
-            title: "Missing permits",
-            summary: `Project ${project.name} has no permit confirmation in project notes.`,
-            recommendation: "Verify permits and attach permit details to project record.",
+            title: "Required permit still open",
+            summary: `Project ${project.name} has permit items that are not yet issued or closed.`,
+            recommendation: "Submit and advance required permits before field execution is blocked.",
             entityType: "project",
             entityId: project.id,
-            href: `/projects/${project.id}`,
+            href: `/projects/${project.id}/permits`,
             detectedAt: now.toISOString(),
-            actionLabel: "Open Project",
+            actionLabel: "Open Permits",
           }));
+      },
+    }),
+    defineDecisionRule({
+      id: "permit-under-review-too-long",
+      enabled: true,
+      category: "projects",
+      async evaluate(context) {
+        const now = context.now();
+        const permits = await context.load.permits();
+
+        return permits
+          .filter((permit) => isStatus(permit.status, ["submitted", "under_review"]))
+          .filter((permit) => permit.submitted_at && diffDays(permit.submitted_at, now) >= 7)
+          .map((permit) => buildDecisionCandidate({
+            companyId: context.companyId,
+            ruleId: "permit-under-review-too-long",
+            priority: "high",
+            category: "projects",
+            title: "Permit under review too long",
+            summary: `Permit ${permit.permit_type} has been waiting more than 7 days for authority response.`,
+            recommendation: "Follow up with the jurisdiction and capture response notes.",
+            entityType: "project",
+            entityId: permit.project_id,
+            href: `/projects/${permit.project_id}/permits?permitId=${permit.id}`,
+            detectedAt: now.toISOString(),
+            actionLabel: "Open Permit",
+          }));
+      },
+    }),
+    defineDecisionRule({
+      id: "permit-expiring-soon",
+      enabled: true,
+      category: "projects",
+      async evaluate(context) {
+        const now = context.now();
+        const permits = await context.load.permits();
+
+        return permits
+          .filter((permit) => isStatus(permit.status, ["issued", "renewal_required"]))
+          .filter((permit) => Boolean(permit.expiration_date))
+          .filter((permit) => {
+            const days = daysUntil(permit.expiration_date as string, now);
+            return days >= 0 && days <= 14;
+          })
+          .map((permit) => buildDecisionCandidate({
+            companyId: context.companyId,
+            ruleId: "permit-expiring-soon",
+            priority: "high",
+            category: "projects",
+            title: "Permit expires soon",
+            summary: `Permit ${permit.permit_type} expires within 14 days.`,
+            recommendation: "Prepare renewal paperwork before expiration.",
+            entityType: "project",
+            entityId: permit.project_id,
+            href: `/projects/${permit.project_id}/permits?permitId=${permit.id}`,
+            detectedAt: now.toISOString(),
+            actionLabel: "Open Permit",
+          }));
+      },
+    }),
+    defineDecisionRule({
+      id: "permit-expired-or-rejected",
+      enabled: true,
+      category: "projects",
+      async evaluate(context) {
+        const now = context.now();
+        const permits = await context.load.permits();
+
+        return permits
+          .filter((permit) => isStatus(permit.status, ["expired", "rejected"]))
+          .map((permit) => buildDecisionCandidate({
+            companyId: context.companyId,
+            ruleId: "permit-expired-or-rejected",
+            priority: "critical",
+            category: "projects",
+            title: "Permit expired or rejected",
+            summary: isStatus(permit.status, ["expired"])
+              ? `Permit ${permit.permit_type} has expired and may block work.`
+              : `Permit ${permit.permit_type} was rejected${permit.rejection_reason ? `: ${permit.rejection_reason}` : "."}`,
+            recommendation: "Escalate permit correction and resubmission immediately.",
+            entityType: "project",
+            entityId: permit.project_id,
+            href: `/projects/${permit.project_id}/permits?permitId=${permit.id}`,
+            detectedAt: now.toISOString(),
+            actionLabel: "Open Permit",
+          }));
+      },
+    }),
+    defineDecisionRule({
+      id: "project-closeout-blocked",
+      enabled: true,
+      category: "projects",
+      async evaluate(context) {
+        const now = context.now();
+        const projects = await context.load.projects();
+        const closeouts = await context.load.closeouts();
+        const punchItems = await context.load.punchItems();
+
+        const projectById = new Map(projects.map((project) => [project.id, project]));
+        const openPunchCountByProject = new Map<string, number>();
+        for (const item of punchItems) {
+          if (!isStatus(item.status, ["open", "in_progress", "reopened"])) {
+            continue;
+          }
+          openPunchCountByProject.set(item.project_id, (openPunchCountByProject.get(item.project_id) || 0) + 1);
+        }
+
+        return closeouts
+          .filter((closeout) => isStatus(closeout.status, ["in_progress", "blocked"]))
+          .filter((closeout) => {
+            const blockers = [
+              !closeout.required_documents_completed,
+              !closeout.permit_closure_completed,
+              !closeout.final_payment_recorded,
+              !closeout.customer_approval_recorded,
+              !closeout.crew_removal_completed,
+              !closeout.equipment_return_completed,
+              !isStatus(closeout.handover_status, ["completed"]),
+              (openPunchCountByProject.get(closeout.project_id) || 0) > 0,
+            ];
+            return blockers.some(Boolean);
+          })
+          .map((closeout) => {
+            const project = projectById.get(closeout.project_id);
+            return buildDecisionCandidate({
+              companyId: context.companyId,
+              ruleId: "project-closeout-blocked",
+              priority: "high",
+              category: "projects",
+              title: "Project closeout blocked",
+              summary: `Project ${project?.name || closeout.project_id} has unresolved closeout blockers.`,
+              recommendation: "Resolve closeout checklist items before marking project complete.",
+              entityType: "project",
+              entityId: closeout.project_id,
+              href: `/projects/${closeout.project_id}/closeout?closeoutId=${closeout.id}`,
+              detectedAt: now.toISOString(),
+              actionLabel: "Open Closeout",
+            });
+          });
       },
     }),
     defineDecisionRule({

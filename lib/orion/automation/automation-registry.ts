@@ -1,6 +1,7 @@
 import { byDescendingPriority, defineAutomationRule } from "./automation-rule";
 import {
   assignProjectStatusStep,
+  bootstrapProjectWorkspaceStep,
   createCustomerPortalStep,
   createDepositInvoiceStep,
   createEstimateFollowupReminderStep,
@@ -41,6 +42,7 @@ export function createAutomationRegistry(): OrionAutomationRegistry {
       ],
       actions: [
         { id: "create-project", description: "Create project", execute: createProjectFromEstimateStep },
+        { id: "bootstrap-project-workspace", description: "Seed project phases and workspace context", execute: bootstrapProjectWorkspaceStep },
         { id: "generate-deposit-invoice", description: "Generate deposit invoice", execute: createDepositInvoiceStep },
         { id: "create-customer-portal", description: "Create customer portal", execute: createCustomerPortalStep },
         { id: "generate-service-agreement", description: "Generate service agreement record", execute: generateServiceAgreementStep },

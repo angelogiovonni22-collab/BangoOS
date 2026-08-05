@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, type CSSProperties, type RefObject } from "react";
 import { useFocusTrap } from "@/components/motion";
+import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, useGlobalOrionVoice } from "@/components/orion/voice";
 import type { PersistentOrionFixture } from "./types";
 
 type PersistentOrionPanelProps = {
@@ -27,6 +28,7 @@ export function PersistentOrionPanel({
   panelStyle,
 }: PersistentOrionPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const voice = useGlobalOrionVoice();
 
   useFocusTrap({
     active: open,
@@ -79,6 +81,76 @@ export function PersistentOrionPanel({
       <section className="persistentOrionSection">
         <p className="persistentOrionEyebrow">Why it matters</p>
         <p>{fixture.whyItMatters}</p>
+      </section>
+
+      <section className="persistentOrionSection" aria-label="Orion voice controls">
+        <p className="persistentOrionEyebrow">Voice</p>
+        <div className="mt-2 flex items-center gap-2">
+          <OrionVoiceButton
+            state={voice.micActive ? "listening" : "idle"}
+            mode={voice.mode === "hands_free" ? "tap_to_listen" : voice.mode}
+            onStart={() => {
+              if (!voice.settings.enabled) {
+                voice.enableGlobalVoice();
+              }
+              if (voice.mode === "push_to_talk") {
+                voice.startPressToTalk();
+              } else {
+                voice.toggleTapListening();
+              }
+            }}
+            onStop={() => {
+              if (voice.mode === "push_to_talk") {
+                voice.stopPressToTalk();
+              } else {
+                voice.toggleTapListening();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="persistentOrionMinimize"
+            onClick={() => voice.setSpokenResponsesEnabled(!voice.settings.spokenResponsesEnabled)}
+          >
+            {voice.settings.spokenResponsesEnabled ? "Mute Voice" : "Unmute Voice"}
+          </button>
+          <button
+            type="button"
+            className="persistentOrionMinimize"
+            onClick={() => {
+              if (voice.settings.enabled) {
+                voice.disableGlobalVoice();
+              } else {
+                voice.enableGlobalVoice();
+              }
+            }}
+          >
+            {voice.settings.enabled ? "Disable Voice" : "Enable Voice"}
+          </button>
+        </div>
+        <div className="mt-2">
+          <OrionVoiceStatus
+            state={voice.phase}
+            message={voice.statusMessage || voice.supportMessage}
+            showNotice
+          />
+        </div>
+        <div className="mt-2">
+          <OrionVoiceTranscript
+            interimTranscript={voice.interimTranscript}
+            finalTranscript={voice.finalTranscript}
+            onStop={() => voice.stopAllListening()}
+            onCancel={() => voice.stopAllListening()}
+            onRestart={() => {
+              if (voice.mode === "push_to_talk") {
+                voice.startPressToTalk();
+              } else {
+                voice.toggleTapListening();
+              }
+            }}
+            onRetry={() => voice.retryFromError()}
+          />
+        </div>
       </section>
 
       <dl className="persistentOrionFacts">

@@ -270,7 +270,53 @@ export default function NewProjectPage() {
           estimated_cost: parseCurrencyInput(formData.estimatedCost),
           contract_amount: parseCurrencyInput(formData.contractAmount),
         },
+        metadata: {
+          event_category: "projects",
+          event_severity: "info",
+          deep_link: `/projects/${createdProjectId}`,
+        },
       });
+
+      if (formData.status !== "lead") {
+        await orion.publishEvent({
+          company_id: workspace.context.companyId,
+          actor_profile_id: workspace.context.userId,
+          event_type: "project.status_changed",
+          aggregate_type: "project",
+          aggregate_id: createdProjectId,
+          source_module: "projects",
+          payload: {
+            project_id: createdProjectId,
+            previous_status: "lead",
+            next_status: formData.status,
+          },
+          metadata: {
+            event_category: "projects",
+            event_severity: "info",
+            deep_link: `/projects/${createdProjectId}`,
+          },
+        });
+      }
+
+      if (formData.status === "in_progress") {
+        await orion.publishEvent({
+          company_id: workspace.context.companyId,
+          actor_profile_id: workspace.context.userId,
+          event_type: "project.started",
+          aggregate_type: "project",
+          aggregate_id: createdProjectId,
+          source_module: "projects",
+          payload: {
+            project_id: createdProjectId,
+            status: formData.status,
+          },
+          metadata: {
+            event_category: "projects",
+            event_severity: "info",
+            deep_link: `/projects/${createdProjectId}`,
+          },
+        });
+      }
 
       setSuccessMessage(t("projects.projectCreated"));
       router.push(`/projects/${createdProjectId}`);

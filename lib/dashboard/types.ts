@@ -188,6 +188,12 @@ export type DashboardDecisionItem = {
   recommendation: string;
   actionLabel: string;
   actionHref: string;
+  commandKey: string;
+  commandInput: Record<string, unknown>;
+  confirmationLevel: "NONE" | "REVIEW" | "REQUIRED";
+  hrefFallback: string;
+  permissionRequirement: string[];
+  unsupportedReason: string | null;
   detectedAt: string;
   status: "new" | "acknowledged" | "resolved" | "dismissed";
 };

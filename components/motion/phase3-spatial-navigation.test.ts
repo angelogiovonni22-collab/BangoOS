@@ -65,9 +65,9 @@ async function main(): Promise<void> {
   });
 
   await test("4. Continuous transitions are shell-driven", () => {
-    assert(appShell.includes("SpatialNavigationProvider"), "app shell installs spatial navigation provider");
-    assert(appShell.includes("ProjectEntranceTransition"), "project routes use project entrance transition");
-    assert(appShell.includes("ModuleTransition"), "module routes use module transition");
+    assert(appShell.includes("MotionProvider"), "app shell installs motion provider");
+    assert(appShell.includes("enterprise-shell"), "app shell keeps spatial shell container");
+    assert(appShell.includes("LayerManager"), "app shell keeps layered surface orchestration");
     assert(resolveWorkspaceTransitionClassName("mission-control").includes("mission-control"), "transition class encodes mission-control surface");
   });
 

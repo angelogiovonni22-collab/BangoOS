@@ -4,6 +4,7 @@ import { normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import { calculateProjectIntelligence } from "@/lib/project-intelligence/calculate-project-intelligence";
 import { normalizeProjectStatus } from "@/lib/projects";
 import { createOrionTimelineService } from "@/lib/orion/timeline";
+import type { OrionTimelineItem } from "@/lib/orion/timeline";
 import { createOrionDecisionEngine } from "@/lib/orion/decision";
 import type { CompanyRole } from "@/lib/supabase/authorization";
 import type { WorkspaceContext } from "@/lib/supabase/workspace";
@@ -530,6 +531,12 @@ function mapDecisionItem(input: {
   recommendation: string;
   actionLabel: string;
   actionHref: string;
+  commandKey: string;
+  commandInput: Record<string, unknown>;
+  confirmationLevel: "NONE" | "REVIEW" | "REQUIRED";
+  hrefFallback: string;
+  permissionRequirement: string[];
+  unsupportedReason: string | null;
   detectedAt: string;
   status: "new" | "acknowledged" | "resolved" | "dismissed";
 }): DashboardDecisionItem {
@@ -542,6 +549,12 @@ function mapDecisionItem(input: {
     recommendation: input.recommendation,
     actionLabel: input.actionLabel,
     actionHref: input.actionHref,
+    commandKey: input.commandKey,
+    commandInput: input.commandInput,
+    confirmationLevel: input.confirmationLevel,
+    hrefFallback: input.hrefFallback,
+    permissionRequirement: input.permissionRequirement,
+    unsupportedReason: input.unsupportedReason,
     detectedAt: input.detectedAt,
     status: input.status,
   };
@@ -1482,6 +1495,81 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function readDisplayString(item: OrionTimelineItem, key: string) {
+  const value = item.displayData?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readDisplayBoolean(item: OrionTimelineItem, key: string) {
+  const value = item.displayData?.[key];
+  return typeof value === "boolean" ? value : null;
+}
+
+function isNavigationCommand(commandId: string | null) {
+  if (!commandId) {
+    return false;
+  }
+
+  return commandId.endsWith(".open") || commandId.endsWith(".view");
+}
+
+export function suppressWorkflowExecutedFromBusinessActivity(items: OrionTimelineItem[]) {
+  const domainCorrelationKeys = new Set<string>();
+
+  for (const item of items) {
+    if (item.eventType === "workflow.executed") {
+      continue;
+    }
+
+    if (item.correlationId) {
+      domainCorrelationKeys.add(item.correlationId);
+    }
+
+    if (item.causationId) {
+      domainCorrelationKeys.add(item.causationId);
+    }
+  }
+
+  return items.filter((item) => {
+    if (item.eventType !== "workflow.executed") {
+      return true;
+    }
+
+    const commandId = readDisplayString(item, "command_id");
+    const commandSuccess = readDisplayBoolean(item, "success");
+
+    if (isNavigationCommand(commandId)) {
+      return false;
+    }
+
+    if (commandSuccess === false) {
+      return false;
+    }
+
+    if ((item.correlationId && domainCorrelationKeys.has(item.correlationId)) || (item.causationId && domainCorrelationKeys.has(item.causationId))) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+export function dedupeBusinessActivityCards(items: OrionTimelineItem[]) {
+  const byKey = new Map<string, OrionTimelineItem>();
+
+  for (const item of items) {
+    const correlation = item.correlationId || item.causationId || "";
+    const key = [item.eventType, item.entityType, item.entityId, correlation, item.occurredAt.slice(0, 16)].join("|");
+    const existing = byKey.get(key);
+
+    if (!existing || item.occurredAt > existing.occurredAt) {
+      byKey.set(key, item);
+    }
+  }
+
+  return [...byKey.values()];
+}
+
 async function buildTimelineActivities(params: {
   supabase: SupabaseClient<Database>;
   companyId: string;
@@ -1493,10 +1581,14 @@ async function buildTimelineActivities(params: {
     const timeline = createOrionTimelineService(params.supabase);
     const result = await timeline.listCompanyTimeline(params.companyId, {
       pageSize: 24,
-      includeLegacyAdapters: true,
+      includeLegacyAdapters: false,
     });
 
-    return result.items.map((item) => {
+    const businessItems = dedupeBusinessActivityCards(
+      suppressWorkflowExecutedFromBusinessActivity(result.items),
+    );
+
+    return businessItems.map((item) => {
       const user = item.actorName || formatProfileName(params.profileById.get(item.actorProfileId || ""));
       const projectName = item.projectName
         || (item.projectId ? params.projectById.get(item.projectId)?.name : undefined)

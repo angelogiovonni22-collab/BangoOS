@@ -180,11 +180,19 @@ export default function NewCustomerPage() {
         aggregate_id: data.id,
         source_module: "customers",
         payload: {
+          customer_id: data.id,
           customer_type: formData.customerType,
           first_name: formData.firstName.trim(),
           last_name: formData.lastName.trim(),
+          customer_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
           company_name: formData.companyName.trim() || null,
           email: formData.email.trim(),
+          related_project_id: null,
+        },
+        metadata: {
+          event_category: "customers",
+          event_severity: "info",
+          deep_link: `/customers/${data.id}`,
         },
       });
 

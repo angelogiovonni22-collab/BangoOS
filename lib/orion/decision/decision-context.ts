@@ -138,6 +138,62 @@ export function createDecisionContext(supabase: SupabaseClient<Database>, compan
 
         return (data ?? []) as OrionDecisionContext["load"]["invoices"] extends () => Promise<infer T> ? T : never;
       }),
+      inspections: async () => readCached("inspections", async () => {
+        const { data, error } = await db
+          .from("project_inspections")
+          .select("id, company_id, project_id, inspection_type, status, scheduled_at, reinspection_required, reinspection_date, updated_at")
+          .eq("company_id", companyId)
+          .order("updated_at", { ascending: false })
+          .limit(600);
+
+        if (error) {
+          throw new Error(error.message || "Unable to load inspections for decision context.");
+        }
+
+        return (data ?? []) as OrionDecisionContext["load"]["inspections"] extends () => Promise<infer T> ? T : never;
+      }),
+      permits: async () => readCached("permits", async () => {
+        const { data, error } = await db
+          .from("project_permits")
+          .select("id, company_id, project_id, permit_type, status, submitted_at, expiration_date, rejection_reason, updated_at")
+          .eq("company_id", companyId)
+          .order("updated_at", { ascending: false })
+          .limit(600);
+
+        if (error) {
+          throw new Error(error.message || "Unable to load permits for decision context.");
+        }
+
+        return (data ?? []) as OrionDecisionContext["load"]["permits"] extends () => Promise<infer T> ? T : never;
+      }),
+      closeouts: async () => readCached("closeouts", async () => {
+        const { data, error } = await db
+          .from("project_closeouts")
+          .select("id, company_id, project_id, status, handover_status, final_payment_recorded, customer_approval_recorded, required_documents_completed, permit_closure_completed, crew_removal_completed, equipment_return_completed, completion_blockers, updated_at")
+          .eq("company_id", companyId)
+          .order("updated_at", { ascending: false })
+          .limit(400);
+
+        if (error) {
+          throw new Error(error.message || "Unable to load closeouts for decision context.");
+        }
+
+        return (data ?? []) as OrionDecisionContext["load"]["closeouts"] extends () => Promise<infer T> ? T : never;
+      }),
+      punchItems: async () => readCached("punchItems", async () => {
+        const { data, error } = await db
+          .from("project_punch_items")
+          .select("id, company_id, project_id, status, due_date, updated_at")
+          .eq("company_id", companyId)
+          .order("updated_at", { ascending: false })
+          .limit(800);
+
+        if (error) {
+          throw new Error(error.message || "Unable to load punch items for decision context.");
+        }
+
+        return (data ?? []) as OrionDecisionContext["load"]["punchItems"] extends () => Promise<infer T> ? T : never;
+      }),
       workflowEvents: async (eventTypes?: string[], limit = 300) => {
         const cacheKey = `workflowEvents:${(eventTypes || []).join(",")}:${limit}`;
 

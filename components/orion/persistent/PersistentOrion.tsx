@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMotionPreferences } from "@/components/motion";
+import { useGlobalOrionVoice } from "@/components/orion/voice";
 import { getPersistentOrionFixture } from "./fixtures";
 import { PersistentOrionButton } from "./PersistentOrionButton";
 import { PersistentOrionPanel } from "./PersistentOrionPanel";
@@ -21,6 +22,10 @@ const DEFAULT_MIN_CONTROL_SIZE = 92;
 const DESKTOP_BREAKPOINT_PX = 1024;
 const DESKTOP_SIDEBAR_WIDTH_PX = 288;
 const DESKTOP_TOP_OFFSET_PX = 88;
+const SSR_SAFE_DEFAULT_POSITION: FloatingPosition = Object.freeze({
+  x: FLOAT_MARGIN,
+  y: FLOAT_MARGIN,
+});
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -103,10 +108,11 @@ function writeStoredPosition(position: FloatingPosition) {
 export function PersistentOrion() {
   const pathname = usePathname();
   const { reducedMotion } = useMotionPreferences();
+  const globalVoice = useGlobalOrionVoice();
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [position, setPosition] = useState<FloatingPosition | null>(() => readStoredPosition());
+  const [position, setPosition] = useState<FloatingPosition>(SSR_SAFE_DEFAULT_POSITION);
   const [panelStyle, setPanelStyle] = useState<CSSProperties | undefined>(undefined);
   const panelId = "persistent-orion-panel";
   const instructionsId = "persistent-orion-instructions";
@@ -147,10 +153,23 @@ export function PersistentOrion() {
 
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => {
+      const { width, height } = getControlSize();
+      const fallback = getDefaultPosition(width, height);
+      const stored = readStoredPosition();
+      const next = clampPosition(stored ?? fallback);
+      setPosition(next);
+      writeStoredPosition(next);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [clampPosition, getControlSize]);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
       setPosition((current) => {
-        const fallback = getDefaultPosition(getControlSize().width, getControlSize().height);
-        const next = current ?? fallback;
-        const clamped = clampPosition(next);
+        const clamped = clampPosition(current);
         writeStoredPosition(clamped);
         return clamped;
       });
@@ -187,16 +206,8 @@ export function PersistentOrion() {
   }, [open]);
 
   useEffect(() => {
-    if (position === null) {
-      return;
-    }
-
     const handleResize = () => {
       setPosition((current) => {
-        if (!current) {
-          return current;
-        }
-
         const clamped = clampPosition(current);
         writeStoredPosition(clamped);
         return clamped;
@@ -210,7 +221,7 @@ export function PersistentOrion() {
       window.removeEventListener("resize", handleResize);
       window.visualViewport?.removeEventListener("resize", handleResize);
     };
-  }, [clampPosition, minimized, position]);
+  }, [clampPosition, minimized]);
 
   useEffect(() => {
     if (!open) {
@@ -257,9 +268,7 @@ export function PersistentOrion() {
     };
   }, [clampPosition, minimized, open, position]);
 
-  const rootStyle = position
-    ? { left: `${position.x}px`, top: `${position.y}px`, right: "auto", bottom: "auto" }
-    : undefined;
+  const rootStyle = { left: `${position.x}px`, top: `${position.y}px`, right: "auto", bottom: "auto" };
 
   return (
     <div ref={shellRef} className={styles.persistentOrionRoot} style={rootStyle} aria-label="Persistent Orion surface">
@@ -268,6 +277,8 @@ export function PersistentOrion() {
         minimized={minimized}
         dragging={dragging}
         reducedMotion={reducedMotion}
+        micActive={globalVoice.micActive}
+        voicePhase={globalVoice.phase}
         fixture={fixture}
         panelId={panelId}
         instructionsId={instructionsId}
@@ -278,7 +289,7 @@ export function PersistentOrion() {
           }
 
           const button = buttonRef.current;
-          const current = position ?? getDefaultPosition(getControlSize().width, getControlSize().height);
+          const current = position;
           dragStateRef.current = {
             pointerId: event.pointerId,
             startX: event.clientX,
@@ -351,9 +362,9 @@ export function PersistentOrion() {
         }}
         onKeyDown={(event) => {
           const buttonRect = buttonRef.current?.getBoundingClientRect();
-          const basePosition = position ?? {
-            x: buttonRect?.left ?? getDefaultPosition(getControlSize().width, getControlSize().height).x,
-            y: buttonRect?.top ?? getDefaultPosition(getControlSize().width, getControlSize().height).y,
+          const basePosition = {
+            x: buttonRect?.left ?? position.x,
+            y: buttonRect?.top ?? position.y,
           };
           const step = event.shiftKey ? 24 : 12;
           let next = basePosition;

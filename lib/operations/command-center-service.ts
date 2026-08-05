@@ -406,7 +406,7 @@ async function buildTimelineActivityFeed(params: {
   const timeline = createOrionTimelineService(params.supabase);
   const result = await timeline.listCompanyTimeline(params.companyId, {
     pageSize: 24,
-    includeLegacyAdapters: true,
+    includeLegacyAdapters: false,
   });
 
   return result.items.map((item) => {

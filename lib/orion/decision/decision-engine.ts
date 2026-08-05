@@ -1,4 +1,6 @@
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
+import { createOrionCommandRegistry } from "@/lib/orion/commands";
+import type { OrionCommandConfirmationLevel, OrionCommandPermission } from "@/lib/orion/commands";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { createDecisionContext } from "./decision-context";
@@ -40,6 +42,101 @@ const DECISION_EVENT_TYPES: OrionDecisionEventType[] = [
   "decision.resolved",
   "decision.dismissed",
 ];
+
+const DECISION_DEFAULT_COMMAND_KEYS: Record<OrionDecisionRecord["relatedEntity"]["type"], string> = {
+  estimate: "estimate.open",
+  customer: "customer.open",
+  project: "project.open",
+  invoice: "invoice.open",
+  crew: "crew.open",
+  employee: "employee.open",
+  schedule: "schedule.open",
+  company: "dashboard.open",
+};
+
+const DECISION_RULE_COMMAND_KEYS: Partial<Record<string, string>> = {
+  "project-no-daily-reports": "daily_report.create",
+};
+
+export function buildCommandInputForDecision(decision: OrionDecisionRecord, commandKey: string): Record<string, unknown> {
+  if (commandKey === "daily_report.create") {
+    return {
+      projectId: decision.relatedEntity.id,
+      reportDate: new Date(decision.detectedAt).toISOString().slice(0, 10),
+    };
+  }
+
+  if (commandKey === "dashboard.open") {
+    return {
+      entityType: "workflow",
+      entityId: "dashboard",
+      deepLink: decision.actionHref,
+    };
+  }
+
+  if (commandKey === "schedule.open") {
+    return {
+      entityType: "schedule",
+      entityId: decision.relatedEntity.id || "schedule",
+      deepLink: decision.actionHref || "/schedule",
+    };
+  }
+
+  if (commandKey.endsWith(".open") || commandKey.endsWith(".view")) {
+    return {
+      entityType: decision.relatedEntity.type,
+      entityId: decision.relatedEntity.id || "company",
+      deepLink: decision.actionHref,
+    };
+  }
+
+  return {
+    entityId: decision.relatedEntity.id,
+  };
+}
+
+export function resolveDecisionCommandContract(decision: OrionDecisionRecord) {
+  const registry = createOrionCommandRegistry();
+  const commandKey = DECISION_RULE_COMMAND_KEYS[decision.ruleId]
+    || DECISION_DEFAULT_COMMAND_KEYS[decision.relatedEntity.type]
+    || "dashboard.open";
+  const command = registry.getById(commandKey);
+
+  if (!command) {
+    return {
+      commandKey,
+      commandInput: {},
+      confirmationLevel: "NONE" as OrionCommandConfirmationLevel,
+      permissionRequirement: [] as OrionCommandPermission[],
+      unsupportedReason: `Command key is not registered: ${commandKey}`,
+    };
+  }
+
+  const unsupportedReason = command.coverage.status === "unsupported"
+    ? `${command.coverage.reason || "Unsupported command."}${command.coverage.missingDependency ? ` Missing dependency: ${command.coverage.missingDependency}` : ""}`
+    : null;
+
+  return {
+    commandKey,
+    commandInput: buildCommandInputForDecision(decision, commandKey),
+    confirmationLevel: command.confirmationLevel,
+    permissionRequirement: command.requiredPermissions,
+    unsupportedReason,
+  };
+}
+
+export function withDecisionCommandContract(decision: OrionDecisionRecord): OrionDecisionRecord {
+  const contract = resolveDecisionCommandContract(decision);
+  return {
+    ...decision,
+    commandKey: contract.commandKey,
+    commandInput: contract.commandInput,
+    confirmationLevel: contract.confirmationLevel,
+    hrefFallback: decision.actionHref,
+    permissionRequirement: contract.permissionRequirement,
+    unsupportedReason: contract.unsupportedReason,
+  };
+}
 
 function decisionEventToStatus(eventType: OrionDecisionEventType): OrionDecisionStatus {
   if (eventType === "decision.acknowledged") {
@@ -150,6 +247,12 @@ async function publishDecisionStatusEvent(input: {
       recommendation: input.decision.recommendation,
       action_label: input.decision.actionLabel,
       action_href: input.decision.actionHref,
+      command_key: input.decision.commandKey,
+      command_input: input.decision.commandInput,
+      confirmation_level: input.decision.confirmationLevel,
+      href_fallback: input.decision.hrefFallback,
+      permission_requirement: input.decision.permissionRequirement,
+      unsupported_reason: input.decision.unsupportedReason,
       related_entity_type: input.decision.relatedEntity.type,
       related_entity_id: input.decision.relatedEntity.id,
       related_entity_href: input.decision.relatedEntity.href,
@@ -224,18 +327,18 @@ export function createOrionDecisionEngine(supabase: SupabaseClient<Database>): O
       const decisions = Array.from(candidateMap.values()).map((decision) => {
         const prior = history.get(decision.decisionId);
         if (!prior) {
-          return decision;
+          return withDecisionCommandContract(decision);
         }
 
         if (prior.status === "acknowledged") {
-          return applyStatus(decision, "acknowledged", prior.occurredAt);
+          return withDecisionCommandContract(applyStatus(decision, "acknowledged", prior.occurredAt));
         }
 
         if (prior.status === "dismissed") {
-          return applyStatus(decision, "dismissed", prior.occurredAt);
+          return withDecisionCommandContract(applyStatus(decision, "dismissed", prior.occurredAt));
         }
 
-        return decision;
+        return withDecisionCommandContract(decision);
       });
 
       const activeDecisionIds = new Set(decisions
@@ -291,6 +394,16 @@ export function createOrionDecisionEngine(supabase: SupabaseClient<Database>): O
           dismissedAt: null,
           actionLabel: "Open Schedule",
           actionHref: "/dashboard",
+          commandKey: "dashboard.open",
+          commandInput: {
+            entityType: "workflow",
+            entityId: "dashboard",
+            deepLink: "/dashboard",
+          },
+          confirmationLevel: "NONE",
+          hrefFallback: "/dashboard",
+          permissionRequirement: ["owner", "administrator", "operations_manager", "project_manager", "superintendent", "employee"],
+          unsupportedReason: null,
         } as OrionDecisionRecord;
 
         await publishDecisionStatusEvent({

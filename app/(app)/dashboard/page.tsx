@@ -25,7 +25,7 @@ import {
 } from "@/components/dashboard";
 import { Button, Card, CardContent, ErrorState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
-import { getWidgetSequenceRank, shouldShowDashboardPreviewDataBadge } from "@/lib/dashboard/motion-helpers";
+import { getWidgetAnimationDelayMs, shouldShowDashboardPreviewDataBadge } from "@/lib/dashboard/motion-helpers";
 import { useDashboardLayout } from "@/lib/dashboard/use-dashboard-layout";
 import { useExecutiveDashboard } from "@/lib/dashboard/use-executive-dashboard";
 import type { DashboardMetric, WidgetId } from "@/lib/dashboard/types";
@@ -188,8 +188,7 @@ export default function DashboardPage() {
         <section className="grid gap-6 xl:grid-cols-3">
           {visibleWidgetOrder.map((widgetId) => {
             const isCollapsed = layout.collapsed.includes(widgetId);
-            const sequenceRank = getWidgetSequenceRank(widgetId);
-            const delayMs = Math.min(260, sequenceRank * 28);
+            const delayMs = getWidgetAnimationDelayMs(widgetId);
 
             if (isCollapsed) {
               return (

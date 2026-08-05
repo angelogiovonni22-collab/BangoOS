@@ -432,9 +432,36 @@ export async function saveInvoice(params: {
         project_id: invoicePayload.project_id,
         total_amount: invoicePayload.total_amount,
         estimate_id: invoicePayload.estimate_id,
+        deep_link: `/invoices/${invoiceId}`,
       },
       metadata: {
         workflow_name: "invoice_lifecycle",
+        event_category: "finance",
+        event_severity: "info",
+        deep_link: `/invoices/${invoiceId}`,
+      },
+    });
+  } else if (invoicePayload.status === "viewed" || invoicePayload.status === "overdue") {
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: invoicePayload.status === "overdue" ? "invoice.overdue" : "invoice.viewed",
+      aggregate_type: "invoice",
+      aggregate_id: invoiceId,
+      source_module: "invoices",
+      payload: {
+        invoice_id: invoiceId,
+        status: invoicePayload.status,
+        due_date: invoicePayload.due_date,
+        total_amount: invoicePayload.total_amount,
+        amount_paid: invoicePayload.amount_paid,
+        deep_link: `/invoices/${invoiceId}`,
+      },
+      metadata: {
+        workflow_name: "invoice_lifecycle",
+        event_category: "finance",
+        event_severity: invoicePayload.status === "overdue" ? "attention" : "info",
+        deep_link: `/invoices/${invoiceId}`,
       },
     });
   }
@@ -469,9 +496,13 @@ export async function sendInvoice(params: {
       source_module: "invoices",
       payload: {
         invoice_id: params.invoiceId,
+        deep_link: `/invoices/${params.invoiceId}`,
       },
       metadata: {
         workflow_name: "invoice_lifecycle",
+        event_category: "finance",
+        event_severity: "attention",
+        deep_link: `/invoices/${params.invoiceId}`,
       },
     });
   }
@@ -534,9 +565,35 @@ export async function markInvoicePaid(params: {
         invoice_id: params.invoiceId,
         amount_paid: record.data.invoice.total_amount,
         paid_date: now.slice(0, 10),
+        deep_link: `/invoices/${params.invoiceId}`,
       },
       metadata: {
         workflow_name: "invoice_lifecycle",
+        event_category: "finance",
+        event_severity: "success",
+        deep_link: `/invoices/${params.invoiceId}`,
+      },
+    });
+
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: "payment.received",
+      aggregate_type: "payment",
+      aggregate_id: params.invoiceId,
+      source_module: "payments",
+      occurred_at: now,
+      payload: {
+        invoice_id: params.invoiceId,
+        amount: record.data.invoice.total_amount,
+        paid_date: now.slice(0, 10),
+        deep_link: `/invoices/${params.invoiceId}`,
+      },
+      metadata: {
+        workflow_name: "invoice_lifecycle",
+        event_category: "finance",
+        event_severity: "success",
+        deep_link: `/invoices/${params.invoiceId}`,
       },
     });
   }
@@ -550,15 +607,40 @@ export async function voidInvoice(params: {
   invoiceId: string;
   userId: string;
 }) {
+  const nowIso = new Date().toISOString();
   const { error } = await params.supabase
     .from("invoices")
     .update({
       status: "void",
-      archived_at: new Date().toISOString(),
+      archived_at: nowIso,
       updated_by: params.userId,
     })
     .eq("company_id", params.companyId)
     .eq("id", params.invoiceId);
+
+  if (!error) {
+    const orion = createSupabaseOrionEventPublisher(params.supabase);
+    await orion.publishEvent({
+      company_id: params.companyId,
+      actor_profile_id: params.userId,
+      event_type: "invoice.cancelled",
+      aggregate_type: "invoice",
+      aggregate_id: params.invoiceId,
+      source_module: "invoices",
+      occurred_at: nowIso,
+      payload: {
+        invoice_id: params.invoiceId,
+        cancelled_at: nowIso,
+        deep_link: `/invoices/${params.invoiceId}`,
+      },
+      metadata: {
+        workflow_name: "invoice_lifecycle",
+        event_category: "finance",
+        event_severity: "attention",
+        deep_link: `/invoices/${params.invoiceId}`,
+      },
+    });
+  }
 
   return { error: error?.message || null };
 }

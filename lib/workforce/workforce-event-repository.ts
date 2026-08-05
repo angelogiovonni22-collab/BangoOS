@@ -14,8 +14,11 @@ export function createWorkforceEventRepository(supabase: SupabaseClient<Database
     switch (eventType) {
       case "workforce.employee.created":
         return "employee.created" as const;
-      case "workforce.employee.updated":
       case "workforce.employee.archived":
+        return "employee.archived" as const;
+      case "workforce.employee.restored":
+        return "employee.restored" as const;
+      case "workforce.employee.updated":
         return "employee.updated" as const;
       case "workforce.crew.created":
         return "crew.created" as const;
@@ -23,8 +26,9 @@ export function createWorkforceEventRepository(supabase: SupabaseClient<Database
         return "crew.updated" as const;
       case "workforce.crew_membership.added":
       case "workforce.crew_membership.updated":
-      case "workforce.crew_membership.ended":
         return "crew.assigned" as const;
+      case "workforce.crew_membership.ended":
+        return "crew.unassigned" as const;
       default:
         return null;
     }

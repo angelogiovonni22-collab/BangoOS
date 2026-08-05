@@ -638,6 +638,71 @@ async function main() {
     assert(!workforceServiceSource.includes("mock-data"), "workforce service has no mock fallback");
   });
 
+  await test("5. empty employee directory settles to empty state semantics (not loading semantics)", async () => {
+    const emptyDirectory = normalizeEmployeeDirectory({
+      employees: [],
+      crews: [],
+      memberships: [],
+      assignments: [],
+      projects: [],
+      phases: [],
+      tasks: [],
+      profiles: [],
+      equipment: [],
+      filters: {
+        query: "",
+        employmentStatus: "all",
+        availabilityStatus: "all",
+        crewId: "all",
+        supervisorId: "all",
+        projectId: "all",
+        sortBy: "name_asc",
+        page: 1,
+        pageSize: 10,
+      },
+    });
+
+    assert(emptyDirectory.items.length === 0, "empty directory returns zero rows");
+    assert(emptyDirectory.total === 0, "empty directory total is zero");
+    assert(emptyDirectory.page === 1, "empty directory page remains 1");
+    assert(emptyDirectory.totalPages === 1, "empty directory totalPages is clamped to 1");
+
+    const service = createEmployeeService({
+      loadDirectory: async () => emptyDirectory,
+      loadEmployeeProfile: async () => null,
+    });
+
+    const listResult = await service.getEmployees({
+      query: "",
+      crewId: "all",
+      supervisorId: "all",
+      projectId: "all",
+      employmentStatus: "all",
+      availabilityStatus: "all",
+      sortBy: "name_asc",
+      page: 1,
+      pageSize: 10,
+    });
+
+    assert(listResult.items.length === 0, "service propagates empty employee list");
+    assert(listResult.total === 0 && listResult.page === 1 && listResult.totalPages === 1, "service preserves stable empty pagination values");
+    assert(!JSON.stringify(listResult).includes("Alicia Stone"), "empty service result does not leak fixture data");
+  });
+
+  await test("6. employee hook and page keep stable service wiring and empty-state branch", () => {
+    const hookSource = read("lib/employees/use-employees.ts");
+    const pageSource = read("app/(app)/employees/page.tsx");
+
+    assert(hookSource.includes("const employeeService = useMemo(() => service ?? createEmployeeService(), [service]);"), "useEmployees memoizes a stable service instance");
+    assert(!hookSource.includes("useEmployees({ service = createEmployeeService() }"), "useEmployees does not create a new default service on each render");
+    assert(hookSource.includes("await employeeService.getEmployees({"), "refresh uses the memoized service instance");
+    assert(!hookSource.includes("window.setTimeout"), "refresh is triggered directly without timeout cancellation races");
+
+    assert(pageSource.includes("{isLoading ? ("), "page has explicit loading branch");
+    assert(pageSource.includes(") : items.length === 0 ? ("), "page has explicit empty-state branch");
+    assert(pageSource.indexOf(") : items.length === 0 ? (") > pageSource.indexOf("{isLoading ? ("), "empty-state branch evaluates after loading settles");
+  });
+
   console.log(`\nEmployees Phase 1 live integration results: ${passed} passed, ${failed} failed`);
 
   if (failed > 0) {

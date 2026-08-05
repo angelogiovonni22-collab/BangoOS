@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createWorkflowEngine } from "@/lib/workflows";
 import type {
   CreateDepositInvoiceInput,
@@ -727,6 +728,28 @@ export function createEstimateWorkflowService(supabase: SupabaseClient<Database>
       },
     });
 
+    const orion = createSupabaseOrionEventPublisher(db as unknown as SupabaseClient<Database>);
+    await orion.publishEvent({
+      company_id: input.companyId,
+      actor_profile_id: input.actorProfileId,
+      event_type: "estimate.deposit_requested",
+      aggregate_type: "estimate",
+      aggregate_id: input.estimateId,
+      source_module: "estimates",
+      payload: {
+        estimate_id: input.estimateId,
+        invoice_id: invoice.id,
+        amount: depositAmount,
+        deep_link: `/estimates/${input.estimateId}`,
+      },
+      metadata: {
+        workflow_name: "estimate_lifecycle",
+        event_category: "sales",
+        event_severity: "attention",
+        deep_link: `/estimates/${input.estimateId}`,
+      },
+    });
+
     return {
       invoiceId: invoice.id as string,
       amount: depositAmount,
@@ -758,6 +781,29 @@ export function createEstimateWorkflowService(supabase: SupabaseClient<Database>
     if (!row?.conversion_id) {
       throw new Error("Conversion returned no result.");
     }
+
+    const orion = createSupabaseOrionEventPublisher(db as unknown as SupabaseClient<Database>);
+    await orion.publishEvent({
+      company_id: input.companyId,
+      actor_profile_id: input.actorProfileId,
+      event_type: "estimate.converted",
+      aggregate_type: "estimate",
+      aggregate_id: input.estimateId,
+      source_module: "estimates",
+      payload: {
+        estimate_id: input.estimateId,
+        project_id: (row.project_id as string | null) || null,
+        project_number: (row.project_number as string | null) || null,
+        deposit_invoice_id: (row.deposit_invoice_id as string | null) || null,
+        deep_link: (row.project_id as string | null) ? `/projects/${row.project_id as string}` : `/estimates/${input.estimateId}`,
+      },
+      metadata: {
+        workflow_name: "estimate_lifecycle",
+        event_category: "sales",
+        event_severity: "success",
+        deep_link: `/estimates/${input.estimateId}`,
+      },
+    });
 
     return {
       conversionId: row.conversion_id as string,

@@ -8,6 +8,7 @@ import {
   ProjectKpiGrid,
   ProjectHealthHero,
   ProjectOverview,
+  ProjectOperatingSystemPanel,
   ProjectTabs,
   ProjectWorkWorkspace,
   ProjectWorkspaceHeader,
@@ -108,11 +109,30 @@ type InvoiceSummary = Pick<
 type WorkspaceCounts = {
   estimates: number;
   changeOrders: number;
+  dailyReports: number;
   photos: number;
+  inspections: number;
+  pendingInspections: number;
+  permits: number;
+  openPermits: number;
+  communications: number;
+  openPunchItems: number;
   assignedEquipment: number;
   availableEquipment: number;
   equipmentConflicts: number;
 };
+
+type CloseoutSnapshot = {
+  id: string;
+  status: string;
+  handoverStatus: string;
+  finalPaymentRecorded: boolean;
+  customerApprovalRecorded: boolean;
+  requiredDocumentsCompleted: boolean;
+  permitClosureCompleted: boolean;
+  crewRemovalCompleted: boolean;
+  equipmentReturnCompleted: boolean;
+} | null;
 
 type WorkspaceState = {
   project: ProjectSummary;
@@ -121,6 +141,7 @@ type WorkspaceState = {
   tasks: TaskSummary[];
   invoices: InvoiceSummary[];
   counts: WorkspaceCounts;
+  closeout: CloseoutSnapshot;
   workspaceContext: WorkspaceContext;
 };
 
@@ -230,6 +251,10 @@ export default function ProjectWorkspacePage() {
         }
 
         const loadedProject = projectResponse.data;
+        const timelineDb = client as unknown as {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          from: (table: string) => any;
+        };
         const customerQuery = loadedProject.customer_id
           ? client
               .from("customers")
@@ -239,7 +264,7 @@ export default function ProjectWorkspacePage() {
               .maybeSingle<CustomerSummary>()
           : Promise.resolve({ data: null, error: null });
 
-        const [profilesResponse, tasksResponse, invoicesResponse, customerResponse, estimatesCountResponse, changeOrdersCountResponse, photosCountResponse, assignedEquipmentCountResponse, availableEquipmentCountResponse, equipmentConflictCountResponse] = await Promise.all([
+        const [profilesResponse, tasksResponse, invoicesResponse, customerResponse, estimatesCountResponse, changeOrdersCountResponse, dailyReportsCountResponse, photosCountResponse, inspectionsCountResponse, pendingInspectionsCountResponse, permitsCountResponse, openPermitsCountResponse, communicationsCountResponse, openPunchItemsCountResponse, closeoutResponse, assignedEquipmentCountResponse, availableEquipmentCountResponse, equipmentConflictCountResponse] = await Promise.all([
           client
             .from("profiles")
             .select("id, first_name, last_name, role")
@@ -268,11 +293,57 @@ export default function ProjectWorkspacePage() {
             .select("id", { count: "exact", head: true })
             .eq("company_id", workspaceResult.context.companyId)
             .eq("project_id", projectId),
+          timelineDb
+            .from("workflow_events")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("reference_entity", "daily_report")
+            .eq("event_type", "daily_report.created")
+            .eq("payload->>project_id", projectId),
           client
             .from("project_photos")
             .select("id", { count: "exact", head: true })
             .eq("company_id", workspaceResult.context.companyId)
             .eq("project_id", projectId),
+          timelineDb
+            .from("project_inspections")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId),
+          timelineDb
+            .from("project_inspections")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .in("status", ["scheduled", "in_progress", "failed", "reinspection_required"]),
+          timelineDb
+            .from("project_permits")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId),
+          timelineDb
+            .from("project_permits")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .in("status", ["required", "preparing", "submitted", "under_review", "renewal_required", "expired", "rejected"]),
+          timelineDb
+            .from("project_communications")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId),
+          timelineDb
+            .from("project_punch_items")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .in("status", ["open", "in_progress", "reopened"]),
+          timelineDb
+            .from("project_closeouts")
+            .select("id, status, handover_status, final_payment_recorded, customer_approval_recorded, required_documents_completed, permit_closure_completed, crew_removal_completed, equipment_return_completed")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .maybeSingle(),
           client
             .from("equipment")
             .select("id", { count: "exact", head: true })
@@ -293,7 +364,7 @@ export default function ProjectWorkspacePage() {
             .or(PROJECT_WORKSPACE_EQUIPMENT_CONFLICT_OR_FILTER),
         ]);
 
-        if (profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || photosCountResponse.error || assignedEquipmentCountResponse.error || availableEquipmentCountResponse.error || equipmentConflictCountResponse.error) {
+        if (profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || dailyReportsCountResponse.error || photosCountResponse.error || inspectionsCountResponse.error || pendingInspectionsCountResponse.error || permitsCountResponse.error || openPermitsCountResponse.error || communicationsCountResponse.error || openPunchItemsCountResponse.error || closeoutResponse.error || assignedEquipmentCountResponse.error || availableEquipmentCountResponse.error || equipmentConflictCountResponse.error) {
           if (isSubscribed) {
             setErrorKind("database");
             setErrorMessage(t("projects.errorLoadProject"));
@@ -318,11 +389,31 @@ export default function ProjectWorkspacePage() {
             counts: {
               estimates: estimatesCountResponse.count || 0,
               changeOrders: changeOrdersCountResponse.count || 0,
+              dailyReports: dailyReportsCountResponse.count || 0,
               photos: photosCountResponse.count || 0,
+              inspections: inspectionsCountResponse.count || 0,
+              pendingInspections: pendingInspectionsCountResponse.count || 0,
+              permits: permitsCountResponse.count || 0,
+              openPermits: openPermitsCountResponse.count || 0,
+              communications: communicationsCountResponse.count || 0,
+              openPunchItems: openPunchItemsCountResponse.count || 0,
               assignedEquipment: assignedEquipmentCountResponse.count || 0,
               availableEquipment: availableEquipmentCountResponse.count || 0,
               equipmentConflicts: equipmentConflictCountResponse.count || 0,
             },
+            closeout: closeoutResponse.data
+              ? {
+                id: String(closeoutResponse.data.id),
+                status: String(closeoutResponse.data.status || "draft"),
+                handoverStatus: String(closeoutResponse.data.handover_status || "pending"),
+                finalPaymentRecorded: Boolean(closeoutResponse.data.final_payment_recorded),
+                customerApprovalRecorded: Boolean(closeoutResponse.data.customer_approval_recorded),
+                requiredDocumentsCompleted: Boolean(closeoutResponse.data.required_documents_completed),
+                permitClosureCompleted: Boolean(closeoutResponse.data.permit_closure_completed),
+                crewRemovalCompleted: Boolean(closeoutResponse.data.crew_removal_completed),
+                equipmentReturnCompleted: Boolean(closeoutResponse.data.equipment_return_completed),
+              }
+              : null,
             workspaceContext: workspaceResult.context,
           });
 
@@ -522,6 +613,13 @@ export default function ProjectWorkspacePage() {
                 recentActivity={recentActivity}
                 upcomingDates={upcomingDates}
               />
+              <ProjectOperatingSystemPanel
+                intelligence={projectIntelligence}
+                briefing={projectBriefing}
+                timelineCount={timeline.length}
+                formatCurrency={briefingFormatCurrency}
+                t={t}
+              />
             </div>
           ) : activeTab === "work" ? (
             <ProjectWorkWorkspace
@@ -613,12 +711,24 @@ export default function ProjectWorkspacePage() {
             metricValue={String(workspace.counts.photos)}
           />
           <ProjectWorkspaceModuleCard
-            title="Files"
-            description="Project file storage will appear here when document records are available."
+            title="Daily Reports"
+            description="Daily execution logs captured for this project."
+            metricLabel="Reports"
+            metricValue={String(workspace.counts.dailyReports)}
+            href={`/daily-reports?projectId=${project.id}`}
+            actionLabel="Open Daily Reports"
           />
           <ProjectWorkspaceModuleCard
-            title="Contracts"
-            description="Contract records and signed artifacts will appear here once connected."
+            title="Inspections"
+            description="Track inspection lifecycle, failures, and reinspection needs for this project."
+            metricLabel="Total / Pending"
+            metricValue={`${workspace.counts.inspections} / ${workspace.counts.pendingInspections}`}
+          />
+          <ProjectWorkspaceModuleCard
+            title="Permits"
+            description="Monitor permit approvals, expirations, and renewal obligations."
+            metricLabel="Total / Open"
+            metricValue={`${workspace.counts.permits} / ${workspace.counts.openPermits}`}
           />
           <ProjectWorkspaceModuleCard
             title="Drawings"
@@ -627,8 +737,18 @@ export default function ProjectWorkspacePage() {
             actionLabel="Open Plans"
           />
           <ProjectWorkspaceModuleCard
-            title="Permits"
-            description="Permit tracking will appear here when permitting records are available."
+            title="Communications"
+            description="Customer updates and communication records logged for the project."
+            metricLabel="Records"
+            metricValue={String(workspace.counts.communications)}
+          />
+          <ProjectWorkspaceModuleCard
+            title="Closeout"
+            description={workspace.closeout
+              ? `Closeout ${workspace.closeout.status.replace(/_/g, " ")} · Handover ${workspace.closeout.handoverStatus.replace(/_/g, " ")}`
+              : "Closeout has not been started for this project."}
+            metricLabel="Open Punch Items"
+            metricValue={String(workspace.counts.openPunchItems)}
           />
         </ModuleGrid>
           ) : (

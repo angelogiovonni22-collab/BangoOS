@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createOrionTimelineService } from "@/lib/orion/timeline";
 import type { Database } from "@/types/database.types";
 import type {
@@ -16,6 +17,14 @@ export type ProjectIntelligenceService = {
   getProjectRiskEvents: (projectId: string) => Promise<ProjectTimelineRiskItem[]>;
   getProjectFinancialEvents: (projectId: string) => Promise<ProjectEvent[]>;
   getProjectScheduleEvents: (projectId: string) => Promise<ProjectEvent[]>;
+  publishProjectIntelligenceEvent: (input: {
+    projectId: string;
+    actorProfileId: string | null;
+    eventType: "project.updated" | "project.status_changed" | "project.health_changed";
+    title: string;
+    note: string;
+    metadata?: Record<string, unknown>;
+  }) => Promise<void>;
 };
 
 export function createProjectIntelligenceService(params: {
@@ -27,7 +36,7 @@ export function createProjectIntelligenceService(params: {
   async function getProjectEvents(projectId: string) {
     const result = await timeline.listProjectTimeline(params.companyId, projectId, {
       pageSize: 80,
-      includeLegacyAdapters: true,
+      includeLegacyAdapters: false,
     });
 
     return result.items.map((item) => mapTimelineToProjectEvent(projectId, item));
@@ -85,6 +94,30 @@ export function createProjectIntelligenceService(params: {
     async getProjectScheduleEvents(projectId) {
       const events = await getProjectEvents(projectId);
       return events.filter((event) => event.category === "schedule" || event.category === "task" || event.category === "project");
+    },
+
+    async publishProjectIntelligenceEvent(input) {
+      const publisher = createSupabaseOrionEventPublisher(params.supabase);
+      await publisher.publishEvent({
+        company_id: params.companyId,
+        actor_profile_id: input.actorProfileId,
+        event_type: input.eventType,
+        aggregate_type: "project",
+        aggregate_id: input.projectId,
+        source_module: "project_intelligence",
+        payload: {
+          project_id: input.projectId,
+          title: input.title,
+          note: input.note,
+          deep_link: `/projects/${input.projectId}`,
+        },
+        metadata: {
+          event_category: "projects",
+          event_severity: input.eventType === "project.health_changed" ? "attention" : "info",
+          deep_link: `/projects/${input.projectId}`,
+          ...(input.metadata || {}),
+        },
+      });
     },
   };
 }

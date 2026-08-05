@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createWorkforceRepository } from "@/lib/workforce/workforce-repository";
 import { buildScheduleHealth, detectSchedulingConflicts } from "./conflict-engine";
@@ -568,6 +569,7 @@ export function createSupabaseSchedulingService(): SchedulingService {
 
     async createAssignment(draft) {
       const { companyId, userId, supabase } = await loadLivePayload();
+      const orion = createSupabaseOrionEventPublisher(supabase);
 
       const startsAt = combineDateAndTime(draft.date, draft.startTime);
       const endsAt = combineDateAndTime(draft.date, draft.endTime);
@@ -576,7 +578,7 @@ export function createSupabaseSchedulingService(): SchedulingService {
       const crewId = useEmployee ? null : draft.assignedCrewIds[0] ?? null;
       const assignmentType: WorkforceAssignmentRow["assignment_type"] = useEmployee ? "employee" : "crew";
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from("workforce_assignments")
         .insert({
           company_id: companyId,
@@ -597,10 +599,39 @@ export function createSupabaseSchedulingService(): SchedulingService {
           notes: draft.notes || null,
           created_by: userId,
           updated_by: userId,
-        });
+        })
+        .select("id")
+        .single();
 
       if (error) {
         throw error;
+      }
+
+      if (inserted?.id) {
+        await orion.publishEvent({
+          company_id: companyId,
+          actor_profile_id: userId,
+          event_type: "schedule.created",
+          aggregate_type: "schedule",
+          aggregate_id: inserted.id,
+          source_module: "scheduling",
+          payload: {
+            schedule_id: inserted.id,
+            project_id: draft.projectId,
+            title: draft.title,
+            starts_at: startsAt,
+            ends_at: endsAt,
+            assignment_type: assignmentType,
+            crew_id: crewId,
+            employee_id: employeeId,
+            deep_link: "/scheduling",
+          },
+          metadata: {
+            event_category: "scheduling",
+            event_severity: "info",
+            deep_link: "/scheduling",
+          },
+        });
       }
 
       const { payload } = await loadLivePayload();
@@ -629,6 +660,7 @@ export function createSupabaseSchedulingService(): SchedulingService {
 
     async moveAssignment(assignmentId, changes) {
       const { companyId, userId, supabase } = await loadLivePayload();
+      const orion = createSupabaseOrionEventPublisher(supabase);
 
       const { data: current, error: fetchError } = await supabase
         .from("workforce_assignments")
@@ -659,6 +691,29 @@ export function createSupabaseSchedulingService(): SchedulingService {
       if (error) {
         throw error;
       }
+
+      await orion.publishEvent({
+        company_id: companyId,
+        actor_profile_id: userId,
+        event_type: "schedule.updated",
+        aggregate_type: "schedule",
+        aggregate_id: assignmentId,
+        source_module: "scheduling",
+        payload: {
+          schedule_id: assignmentId,
+          project_id: current.project_id,
+          starts_at: patch.starts_at,
+          ends_at: patch.ends_at,
+          crew_id: patch.crew_id,
+          employee_id: patch.employee_id,
+          deep_link: "/scheduling",
+        },
+        metadata: {
+          event_category: "scheduling",
+          event_severity: "info",
+          deep_link: "/scheduling",
+        },
+      });
 
       const { payload } = await loadLivePayload();
       return payload;

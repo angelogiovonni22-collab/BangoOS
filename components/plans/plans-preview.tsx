@@ -1,4 +1,4 @@
-import { Bot, FileBadge2, Files, Link2, Rss } from "lucide-react";
+import { ExternalLink, FileBadge2 } from "lucide-react";
 import { EmptyState } from "@/components/ui";
 import { RevisionHistory } from "./revision-history";
 import type { PlanDocument } from "./types";
@@ -15,12 +15,14 @@ export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProp
         <EmptyState
           compact
           icon="P"
-          title="Select a drawing"
-          description="Choose a file from the register to view revision history, links, and AI-ready metadata placeholders."
+          title="Plan preview unavailable"
+          description="Plan preview is unavailable because no project plan file is connected."
         />
       </section>
     );
   }
+
+  const previewType = resolvePreviewType(selectedDocument.fileName);
 
   return (
     <section
@@ -36,8 +38,26 @@ export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProp
         <div className="flex h-56 items-center justify-center rounded-[var(--radius-xl)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)]/75">
           <div className="text-center">
             <FileBadge2 size={28} aria-hidden="true" className="mx-auto text-[var(--color-text-muted)]" />
-            <p className="mt-2 text-sm font-semibold text-[var(--color-text-primary)]">Preview Placeholder</p>
-            <p className="text-xs text-[var(--color-text-secondary)]">PDF rendering will be enabled in a future sprint.</p>
+            {previewType === "pdf" ? (
+              <>
+                <p className="mt-2 text-sm font-semibold text-[var(--color-text-primary)]">PDF file detected</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">Secure preview is unavailable because no connected file URL is present for this record.</p>
+              </>
+            ) : null}
+
+            {previewType === "image" ? (
+              <>
+                <p className="mt-2 text-sm font-semibold text-[var(--color-text-primary)]">Image file detected</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">Preview is unavailable because no connected file URL is present for this record.</p>
+              </>
+            ) : null}
+
+            {previewType === "unsupported" ? (
+              <>
+                <p className="mt-2 text-sm font-semibold text-[var(--color-text-primary)]">Unsupported file type</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">This format cannot be previewed in the workspace.</p>
+              </>
+            ) : null}
           </div>
         </div>
 
@@ -60,30 +80,42 @@ export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProp
 
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-            AI preparation
+            Preview status
           </p>
-          <ul className="mt-2 space-y-2 text-sm text-[var(--color-text-secondary)]">
-            <li className="flex items-center gap-2 rounded-[var(--radius-lg)] bg-[var(--color-surface-subtle)] px-3 py-2">
-              <Bot size={15} aria-hidden="true" />
-              Drawing summary placeholder
-            </li>
-            <li className="flex items-center gap-2 rounded-[var(--radius-lg)] bg-[var(--color-surface-subtle)] px-3 py-2">
-              <Rss size={15} aria-hidden="true" />
-              Specification search placeholder
-            </li>
-            <li className="flex items-center gap-2 rounded-[var(--radius-lg)] bg-[var(--color-surface-subtle)] px-3 py-2">
-              <Link2 size={15} aria-hidden="true" />
-              Cross-sheet references placeholder
-            </li>
-            <li className="flex items-center gap-2 rounded-[var(--radius-lg)] bg-[var(--color-surface-subtle)] px-3 py-2">
-              <Files size={15} aria-hidden="true" />
-              Missing detail detection and revision comparison placeholders
-            </li>
-          </ul>
+          <div className="mt-2 rounded-[var(--radius-lg)] bg-[var(--color-surface-subtle)] px-3 py-3 text-sm text-[var(--color-text-secondary)]">
+            {previewType === "unsupported"
+              ? "Only image and PDF files are currently supported for preview workflows."
+              : "Plan preview is unavailable because no project plan file is connected."}
+          </div>
+
+          <div className="mt-3">
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] opacity-70"
+            >
+              <ExternalLink size={14} aria-hidden="true" />
+              Open file
+            </button>
+          </div>
         </div>
       </div>
     </section>
   );
+}
+
+function resolvePreviewType(fileName: string) {
+  const extension = fileName.split(".").pop()?.trim().toLowerCase() || "";
+
+  if (["png", "jpg", "jpeg", "gif", "webp"].includes(extension)) {
+    return "image" as const;
+  }
+
+  if (extension === "pdf") {
+    return "pdf" as const;
+  }
+
+  return "unsupported" as const;
 }
 
 function MetadataRow({ label, value }: { label: string; value: string }) {

@@ -8,6 +8,8 @@ type PersistentOrionButtonProps = {
   minimized: boolean;
   dragging: boolean;
   reducedMotion: boolean;
+  micActive: boolean;
+  voicePhase: string;
   fixture: PersistentOrionFixture;
   panelId: string;
   instructionsId: string;
@@ -25,6 +27,8 @@ export function PersistentOrionButton({
   minimized,
   dragging,
   reducedMotion,
+  micActive,
+  voicePhase,
   fixture,
   panelId,
   instructionsId,
@@ -54,7 +58,7 @@ export function PersistentOrionButton({
       aria-expanded={open}
       aria-controls={panelId}
       aria-describedby={instructionsId}
-      aria-label={`Open Orion. Current state: ${stateLabel}. Workspace: ${fixture.workspace}.`}
+      aria-label={`Open Orion. Current state: ${stateLabel}. Voice phase: ${voicePhase}. Microphone ${micActive ? "on" : "off"}. Workspace: ${fixture.workspace}.`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -65,6 +69,11 @@ export function PersistentOrionButton({
       <span className="persistentOrionVisual" aria-hidden="true">
         <PersistentOrionMiniSphere state={fixture.state} reducedMotion={reducedMotion} minimized={minimized} />
       </span>
+      <span
+        aria-hidden="true"
+        className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full"
+        style={{ background: micActive ? "#22c55e" : "#94a3b8" }}
+      />
       <span className="persistentOrionSr">
         Open Orion. Current state: {stateLabel}. {minimized ? "Orion is minimized." : "Orion is available."}
       </span>
