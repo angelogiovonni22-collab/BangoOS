@@ -3,6 +3,7 @@ import { createOrionCommandRouter, type OrionCommandPermission } from "@/lib/ori
 import { createOrionCommandRegistry } from "@/lib/orion/commands";
 import { getCustomerRelatedRecords, getOrionCommandCenterCatalog, parseRouteContext } from "@/lib/orion/command-center";
 import { resolveOrionIntent, type OrionIntentInput } from "@/lib/orion/intent-engine";
+import { resolveVoiceWorkflowTurn } from "@/lib/orion/workflows/voice-workflow-assistant";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -248,8 +249,44 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         return NextResponse.json({ ok: false, error: "intent.input is required." }, { status: 400 });
       }
 
+      const isVoiceTurn = req.headers.get("x-orion-voice-turn") === "1";
+
       const fallbackRoute = parseRouteContext(new URL(req.url));
       const route = intentPayload.route || fallbackRoute;
+
+      if (isVoiceTurn) {
+        const workflowHandled = await resolveVoiceWorkflowTurn({
+          supabase: context.supabase,
+          workspace: context.workspace,
+          input: {
+            input: intentPayload.input,
+            route,
+            selectedCandidateId: typeof intentPayload.selectedCandidateId === "string"
+              ? intentPayload.selectedCandidateId
+              : null,
+            pinnedCommandIds: Array.isArray(intentPayload.pinnedCommandIds)
+              ? intentPayload.pinnedCommandIds.filter((entry): entry is string => typeof entry === "string")
+              : [],
+            recentCommandIds: Array.isArray(intentPayload.recentCommandIds)
+              ? intentPayload.recentCommandIds.filter((entry): entry is string => typeof entry === "string")
+              : [],
+          },
+        });
+
+        if (workflowHandled.handled && workflowHandled.intent) {
+          logApiTiming("intent.request.end", intentStartedAt, {
+            hasSuggestion: Boolean(workflowHandled.intent.suggestedCommand),
+            requiresClarification: workflowHandled.intent.requiresClarification,
+            workflowStatus: workflowHandled.statusCategory,
+          });
+
+          return NextResponse.json({
+            ok: true,
+            intent: workflowHandled.intent,
+            statusCategory: workflowHandled.statusCategory,
+          });
+        }
+      }
 
       const result = await resolveOrionIntent({
         supabase: context.supabase,

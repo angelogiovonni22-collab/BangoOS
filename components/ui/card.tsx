@@ -16,11 +16,11 @@ export function Card({ as = "article", variant = "default", className, ...props 
 
   const variantClass: Record<NonNullable<CardProps["variant"]>, string> = {
     default:
-      "rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] shadow-[0_10px_22px_-14px_rgb(15_23_42/0.16)]",
+      "rounded-[var(--radius-card)] border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)] shadow-[var(--shadow-medium)]",
     elevated:
-      "rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] shadow-[0_16px_30px_-20px_rgb(15_23_42/0.2)]",
+      "rounded-[var(--radius-card)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel-elevated)] shadow-[var(--shadow-large)]",
     kpi:
-      "rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] shadow-[0_12px_24px_-16px_rgb(15_23_42/0.18)] motion-hover-card",
+      "rounded-[var(--radius-xl)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] shadow-[var(--shadow-medium)] motion-hover-card",
   };
 
   const composedClassName = [
@@ -35,7 +35,7 @@ export function Card({ as = "article", variant = "default", className, ...props 
 
 export function CardHeader({ className, ...props }: CardHeaderProps) {
   const composedClassName = [
-    "border-b border-[var(--color-border-subtle)] px-5 py-4",
+    "border-b border-[var(--bos-border-subtle)] px-5 py-4",
     className || "",
   ]
     .filter(Boolean)
@@ -46,7 +46,7 @@ export function CardHeader({ className, ...props }: CardHeaderProps) {
 
 export function CardTitle({ className, ...props }: CardTitleProps) {
   const composedClassName = [
-    "text-card-title text-[var(--color-text-primary)]",
+    "text-card-title text-[var(--bos-text-primary)]",
     className || "",
   ]
     .filter(Boolean)
@@ -57,7 +57,7 @@ export function CardTitle({ className, ...props }: CardTitleProps) {
 
 export function CardDescription({ className, ...props }: CardDescriptionProps) {
   const composedClassName = [
-    "mt-1 text-body-secondary text-[var(--color-text-secondary)]",
+    "mt-1 text-body-secondary text-[var(--bos-text-secondary)]",
     className || "",
   ]
     .filter(Boolean)
@@ -74,7 +74,7 @@ export function CardContent({ className, ...props }: CardContentProps) {
 
 export function CardFooter({ className, ...props }: CardFooterProps) {
   const composedClassName = [
-    "border-t border-[var(--color-border-subtle)] px-5 py-4",
+    "border-t border-[var(--bos-border-subtle)] px-5 py-4",
     className || "",
   ]
     .filter(Boolean)
@@ -85,7 +85,7 @@ export function CardFooter({ className, ...props }: CardFooterProps) {
 
 export function CardIcon({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-control)] bg-[var(--color-primary-50)] text-[var(--color-brand-700)]">
+    <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-control)] bg-[rgba(74,144,255,0.16)] text-[var(--orion-cyan)]">
       {children}
     </div>
   );

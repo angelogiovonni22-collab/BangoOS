@@ -113,6 +113,7 @@ export async function resolveOrionIntent(params: {
     && (
       fastPathResolution.suggestedCommand.commandId === "dashboard.open"
       || fastPathResolution.suggestedCommand.commandId === "schedule.open"
+      || fastPathResolution.suggestedCommand.commandId === "schedule.read_range"
       || fastPathResolution.suggestedCommand.commandId === "navigation.back"
     )
   ) {
@@ -186,13 +187,15 @@ export async function resolveOrionIntent(params: {
   const entities: OrionIntentEntityRecord[] = [];
 
   for (const row of customers.data || []) {
-    const label = [row.company_name, row.first_name, row.last_name].filter(Boolean).join(" ") || "Customer";
+    const companyName = (row.company_name || "").trim();
+    const contactName = [row.first_name, row.last_name].map((value) => (value || "").trim()).filter(Boolean).join(" ");
+    const label = companyName || contactName || "Customer";
     entities.push({
       entityType: "customer",
       entityId: row.id,
       label,
       subtitle: `Customer ${row.status}`,
-      terms: customerTerms(row),
+      terms: [...customerTerms(row), contactName].filter((value): value is string => Boolean(value && value.trim())),
     });
   }
 

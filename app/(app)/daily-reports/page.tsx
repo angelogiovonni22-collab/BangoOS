@@ -1,150 +1,164 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ReportDashboardMetrics,
-  ReportEmptyState,
-  ReportHistoryTable,
-  ReportLoadingState,
-} from "@/components/daily-reports";
-import { ErrorState, Input, Select } from "@/components/ui";
-import { useDailyReports } from "@/lib/daily-reports";
-import { useI18n } from "@/lib/i18n/provider";
+import { useEffect, useRef, useState } from "react";
+import { createDailyReportsService, type DailyReportsService } from "@/lib/daily-reports";
+import { loadDailyReportsPageData, type DailyReportsPageData, type DailyReportsPageReport } from "@/lib/daily-reports/daily-reports-page-data";
+
+type PageState = {
+  loading: boolean;
+  error: string | null;
+  data: DailyReportsPageData | null;
+};
+
+const INITIAL_STATE: PageState = {
+  loading: true,
+  error: null,
+  data: null,
+};
 
 export default function DailyReportsPage() {
-  const { t } = useI18n();
-  const {
-    items,
-    metrics,
-    analytics,
-    projectOptions,
-    superintendentOptions,
-    filters,
-    total,
-    totalPages,
-    canPrev,
-    canNext,
-    isLoading,
-    errorMessage,
-    setFilter,
-    setQuery,
-    setSortBy,
-    setStatus,
-  } = useDailyReports();
+  const [service] = useState<DailyReportsService>(() => createDailyReportsService());
+  const requestIdRef = useRef(0);
+  const [pageState, setPageState] = useState<PageState>(INITIAL_STATE);
 
-  if (isLoading) {
-    return <ReportLoadingState />;
-  }
+  useEffect(() => {
+    let cancelled = false;
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
 
-  if (errorMessage) {
-    return <ErrorState title={t("dailyReports.error.title")} description={t(errorMessage)} />;
-  }
+    const run = async () => {
+      try {
+        const data = await loadDailyReportsPageData(service);
+
+        if (cancelled || requestId !== requestIdRef.current) {
+          return;
+        }
+
+        setPageState({ loading: false, error: null, data });
+      } catch {
+        if (cancelled || requestId !== requestIdRef.current) {
+          return;
+        }
+
+        setPageState({ loading: false, error: "Daily Reports could not be loaded.", data: null });
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-6 shadow-[var(--shadow-card)]">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-brand-700)]">{t("dailyReports.dashboard.badge")}</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{t("dailyReports.dashboard.title")}</h1>
-            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{t("dailyReports.dashboard.description")}</p>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">Daily Reports</h1>
+            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">A stable, minimal view of company reports.</p>
           </div>
 
           <Link href="/daily-reports/new" className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-5 text-sm font-semibold text-white shadow-[var(--shadow-sm)]">
-            + {t("dailyReports.actions.quickCreate")}
+            Create Report
           </Link>
         </div>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)] xl:col-span-2">
-            <span>{t("dailyReports.filters.search")}</span>
-            <Input
-              value={filters.query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("dailyReports.filters.searchPlaceholder")}
-            />
-          </label>
-
-          <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
-            <span>{t("dailyReports.filters.date")}</span>
-            <Input type="date" value={filters.date} onChange={(event) => setFilter("date", event.target.value)} />
-          </label>
-
-          <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
-            <span>{t("dailyReports.filters.project")}</span>
-            <Select value={filters.projectId} onChange={(event) => setFilter("projectId", event.target.value)}>
-              <option value="all">{t("dailyReports.filters.allProjects")}</option>
-              {projectOptions.map((option) => (
-                <option key={option.id} value={option.id}>{option.name}</option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
-            <span>{t("dailyReports.filters.superintendent")}</span>
-            <Select value={filters.superintendentId} onChange={(event) => setFilter("superintendentId", event.target.value)}>
-              <option value="all">{t("dailyReports.filters.allSuperintendents")}</option>
-              {superintendentOptions.map((option) => (
-                <option key={option.id} value={option.id}>{option.name}</option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
-            <span>{t("dailyReports.filters.status")}</span>
-            <Select value={filters.status} onChange={(event) => setStatus(event.target.value as typeof filters.status)}>
-              <option value="all">{t("dailyReports.filters.allStatuses")}</option>
-              <option value="draft">{t("dailyReports.status.draft")}</option>
-              <option value="submitted">{t("dailyReports.status.submitted")}</option>
-              <option value="reviewed">{t("dailyReports.status.reviewed")}</option>
-              <option value="approved">{t("dailyReports.status.approved")}</option>
-            </Select>
-          </label>
-        </div>
       </section>
 
-      <ReportDashboardMetrics metrics={metrics} t={t} />
+      {pageState.loading ? (
+        <StaticMessage>Loading daily reports...</StaticMessage>
+      ) : pageState.error ? (
+        <StaticMessage error>{pageState.error}</StaticMessage>
+      ) : pageState.data ? (
+        <ReportsView reports={pageState.data.reports} summary={pageState.data.summary} />
+      ) : null}
+    </div>
+  );
+}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <AnalyticsCard label={t("dailyReports.analytics.laborHours")} value={analytics.laborHours.toFixed(1)} />
-        <AnalyticsCard label={t("dailyReports.analytics.production")} value={analytics.productionUnits.toFixed(1)} />
-        <AnalyticsCard label={t("dailyReports.analytics.delayTrends")} value={String(analytics.delayEvents)} />
-        <AnalyticsCard label={t("dailyReports.analytics.incidentCounts")} value={String(analytics.incidentCount)} />
-        <AnalyticsCard label={t("dailyReports.analytics.completionRate")} value={`${analytics.completionRate}%`} />
-        <AnalyticsCard label={t("dailyReports.analytics.averageSubmissionTime")} value={`${analytics.averageSubmissionHours.toFixed(1)}h`} />
+function ReportsView({ reports, summary }: { reports: DailyReportsPageReport[]; summary: DailyReportsPageData["summary"] }) {
+  return (
+    <div className="space-y-6">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard label="Total reports" value={summary.total} />
+        <SummaryCard label="Pending" value={summary.pending} />
+        <SummaryCard label="Approved" value={summary.approved} />
+        <SummaryCard label="Rejected" value={summary.rejected} />
       </section>
 
-      {items.length === 0 ? (
-        <ReportEmptyState
-          title={t("dailyReports.empty.title")}
-          description={t("dailyReports.empty.description")}
-          actionLabel={t("dailyReports.actions.quickCreate")}
-        />
+      {reports.length === 0 ? (
+        <StaticMessage>No daily reports found.</StaticMessage>
       ) : (
-        <ReportHistoryTable
-          items={items}
-          sortBy={filters.sortBy}
-          page={filters.page}
-          totalPages={totalPages}
-          total={total}
-          canPrev={canPrev}
-          canNext={canNext}
-          onSortChange={setSortBy}
-          onPageChange={(page) => setFilter("page", page)}
-          onStatusChange={setStatus}
-          currentStatus={filters.status}
-          t={t}
-        />
+        <section className="overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-card)]">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-[var(--color-border-subtle)]">
+              <thead className="bg-[var(--color-surface-subtle)]">
+                <tr>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Date</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Project</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Employee or author</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Status</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">View</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border-subtle)] bg-white">
+                {reports.map((report) => (
+                  <tr key={report.id}>
+                    <td className="px-5 py-3 text-sm text-[var(--color-text-primary)]">{report.date}</td>
+                    <td className="px-5 py-3 text-sm text-[var(--color-text-primary)]">{report.projectName}</td>
+                    <td className="px-5 py-3 text-sm text-[var(--color-text-primary)]">{report.authorName}</td>
+                    <td className="px-5 py-3 text-sm text-[var(--color-text-primary)]">
+                      <StatusPill status={report.status} />
+                    </td>
+                    <td className="px-5 py-3 text-sm">
+                      <Link href={`/daily-reports/${report.id}`} className="font-semibold text-[var(--color-brand-700)] hover:underline">
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
     </div>
   );
 }
 
-function AnalyticsCard({ label, value }: { label: string; value: string }) {
+function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
     <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-card)]">
       <p className="text-sm font-semibold text-[var(--color-text-secondary)]">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-[var(--color-text-primary)]">{value}</p>
+      <p className="mt-2 text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{value}</p>
     </article>
   );
+}
+
+function StaticMessage({ children, error = false }: { children: string; error?: boolean }) {
+  return (
+    <section
+      className={[
+        "rounded-[var(--radius-2xl)] border p-5",
+        error ? "border-[var(--color-danger-200)] bg-[var(--color-danger-50)]" : "border-[var(--color-border-subtle)] bg-white",
+      ].join(" ")}
+    >
+      <p className={error ? "text-sm font-semibold text-[var(--color-danger-700)]" : "text-sm text-[var(--color-text-secondary)]"}>{children}</p>
+    </section>
+  );
+}
+
+function StatusPill({ status }: { status: DailyReportsPageReport["status"] }) {
+  const tone =
+    status === "approved"
+      ? "bg-[var(--color-success-50)] text-[var(--color-success-700)]"
+      : status === "reviewed"
+        ? "bg-[var(--color-brand-50)] text-[var(--color-brand-700)]"
+        : status === "submitted"
+          ? "bg-[var(--color-warning-50)] text-[var(--color-warning-700)]"
+          : "bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]";
+
+  return <span className={["inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize", tone].join(" ")}>{status}</span>;
 }

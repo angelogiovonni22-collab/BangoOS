@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { getPersistentOrionPalette } from "./fixtures";
-import type { PersistentOrionStateId } from "./types";
+import type { PersistentOrionVisualState } from "./types";
 
 type PersistentOrionMiniSphereProps = {
-  state: PersistentOrionStateId;
+  state: PersistentOrionVisualState;
   reducedMotion: boolean;
   minimized: boolean;
+  voiceLevel: number;
 };
 
 type MiniParticle = {
@@ -42,63 +42,85 @@ function randomMiniParticle(index: number): MiniParticle {
   };
 }
 
-function motionProfile(state: PersistentOrionStateId) {
-  if (state === "ANALYZING") {
+function motionProfile(state: PersistentOrionVisualState) {
+  if (state === "listening") {
+    return {
+      base: 1,
+      amp: 0.06,
+      speed: 1.35,
+      rotation: 0.32,
+      static: false,
+      lineDistance: 0.54,
+    };
+  }
+
+  if (state === "thinking") {
     return {
       base: 0.99,
-      amp: 0.045,
-      speed: 1.2,
-      rotation: 0.38,
+      amp: 0.04,
+      speed: 1.4,
+      rotation: 0.4,
       static: false,
       lineDistance: 0.52,
     };
   }
 
-  if (state === "NEW_INSIGHT") {
+  if (state === "executing") {
     return {
-      base: 0.99,
-      amp: 0.036,
-      speed: 1.08,
-      rotation: 0.26,
+      base: 1.02,
+      amp: 0.03,
+      speed: 1.55,
+      rotation: 0.58,
       static: false,
-      lineDistance: 0.5,
+      lineDistance: 0.56,
     };
   }
 
-  if (state === "ATTENTION") {
+  if (state === "speaking") {
     return {
       base: 1,
-      amp: 0.008,
+      amp: 0.04,
+      speed: 1.2,
+      rotation: 0.26,
+      static: false,
+      lineDistance: 0.53,
+    };
+  }
+
+  if (state === "confirmation") {
+    return {
+      base: 0.99,
+      amp: 0.015,
       speed: 0.82,
-      rotation: 0.16,
+      rotation: 0.15,
       static: false,
       lineDistance: 0.48,
     };
   }
 
-  if (state === "CRITICAL") {
+  if (state === "success") {
     return {
-      base: 1,
-      amp: 0.006,
-      speed: 0.78,
-      rotation: 0.14,
+      base: 1.01,
+      amp: 0.02,
+      speed: 1.05,
+      rotation: 0.22,
       static: false,
-      lineDistance: 0.46,
+      lineDistance: 0.5,
     };
   }
 
-  if (state === "STALE_DATA") {
+  if (state === "error") {
     return {
-      base: 0.98,
-      amp: 0.01,
-      speed: 0.64,
-      rotation: 0.1,
+      base: 0.99,
+      amp: 0.02,
+      speed: 0.9,
+      rotation: 0.2,
       static: false,
-      lineDistance: 0.42,
+      lineDistance: 0.47,
     };
   }
 
-  if (state === "UNAVAILABLE") {
+  if (state === "disabled") {
     return {
       base: 0.97,
       amp: 0,
@@ -111,11 +133,51 @@ function motionProfile(state: PersistentOrionStateId) {
 
   return {
     base: 0.99,
-    amp: 0.05,
-    speed: 1.02,
-    rotation: 0.24,
+    amp: 0.02,
+    speed: 0.78,
+    rotation: 0.16,
     static: false,
-    lineDistance: 0.5,
+    lineDistance: 0.48,
+  };
+}
+
+function paletteForState(state: PersistentOrionVisualState) {
+  if (state === "error") {
+    return {
+      ring: "164, 88, 72",
+      glow: "152, 82, 66",
+      core: "250, 141, 112",
+      accent: "242, 118, 86",
+      line: "158, 98, 83",
+    };
+  }
+
+  if (state === "success") {
+    return {
+      ring: "69, 132, 161",
+      glow: "63, 126, 154",
+      core: "132, 226, 255",
+      accent: "94, 197, 244",
+      line: "82, 150, 186",
+    };
+  }
+
+  if (state === "confirmation") {
+    return {
+      ring: "89, 131, 182",
+      glow: "78, 119, 165",
+      core: "162, 204, 255",
+      accent: "126, 176, 232",
+      line: "97, 139, 189",
+    };
+  }
+
+  return {
+    ring: "61, 111, 194",
+    glow: "54, 99, 178",
+    core: "131, 201, 255",
+    accent: "92, 167, 232",
+    line: "82, 139, 212",
   };
 }
 
@@ -123,6 +185,7 @@ export function PersistentOrionMiniSphere({
   state,
   reducedMotion,
   minimized,
+  voiceLevel,
 }: PersistentOrionMiniSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -130,10 +193,7 @@ export function PersistentOrionMiniSphere({
   const loopTokenRef = useRef(0);
   const hiddenRef = useRef(false);
 
-  const palette = useMemo(
-    () => getPersistentOrionPalette(state),
-    [state],
-  );
+  const palette = useMemo(() => paletteForState(state), [state]);
 
   const profile = useMemo(
     () => motionProfile(state),
@@ -253,10 +313,16 @@ export function PersistentOrionMiniSphere({
       const staticMode = reducedMotion || profile.static;
       const animate = !staticMode && !hiddenRef.current;
       const time = timestamp / 1000;
+      const speakingBoost = state === "speaking"
+        ? Math.min(Math.max(voiceLevel, 0), 1) * 0.2
+        : 0;
+      const speakingWaveIntensity = state === "speaking"
+        ? Math.min(Math.max(voiceLevel, 0), 1)
+        : 0;
 
       const breath = animate
         ? profile.base +
-          Math.sin(time * profile.speed) * profile.amp
+          Math.sin(time * profile.speed) * profile.amp + speakingBoost
         : profile.base;
 
       const rotation = animate
@@ -265,12 +331,21 @@ export function PersistentOrionMiniSphere({
 
       ctx.clearRect(0, 0, width, height);
 
-      const projected = particles.map((particle) =>
-        project(particle, rotation, breath),
-      );
+      const projected = particles.map((particle) => {
+        const point = project(particle, rotation, breath);
 
-      ctx.lineWidth =
-        state === "STALE_DATA" ? 0.26 : 0.34;
+        if (speakingWaveIntensity > 0) {
+          const radial = radius > 0
+            ? (point.x - centerX) / radius
+            : 0;
+          const ripple = Math.sin((radial * 2.6) + (time * 8.4) + particle.twinkle) * radius * 0.018 * speakingWaveIntensity;
+          point.y += ripple;
+        }
+
+        return point;
+      });
+
+      ctx.lineWidth = state === "disabled" ? 0.24 : 0.34;
 
       for (const [leftIndex, rightIndex] of edges) {
         const left = projected[leftIndex];
@@ -379,7 +454,7 @@ export function PersistentOrionMiniSphere({
         });
 
       const corePulse = animate
-        ? 1 + Math.sin(time * 2.05) * 0.07
+        ? 1 + Math.sin(time * 2.05) * 0.07 + speakingBoost * 0.7
         : 1;
 
       const coreRadius =
@@ -434,6 +509,41 @@ export function PersistentOrionMiniSphere({
         Math.PI * 2,
       );
       ctx.fill();
+
+      if (state === "listening" || state === "speaking") {
+        const ringPulse = animate
+          ? Math.sin(time * (state === "speaking" ? 2.6 : 2.1))
+          : 0;
+        const expansion = state === "speaking"
+          ? 5 + (8 * speakingWaveIntensity)
+          : 4;
+        const ringRadius = (radius * 0.9) + expansion + (ringPulse * 2.2);
+        const ringAlpha = state === "speaking"
+          ? 0.24 + (0.2 * speakingWaveIntensity)
+          : 0.2;
+
+        ctx.lineWidth = 1.05;
+        ctx.strokeStyle = `rgba(${palette.accent}, ${Math.min(0.45, ringAlpha)})`;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      if (state === "thinking") {
+        const orbitRadius = radius * 0.78;
+        const dotSize = minimized ? 1.2 : 1.45;
+
+        for (let index = 0; index < 3; index += 1) {
+          const angle = (time * 1.42) + (index * ((Math.PI * 2) / 3));
+          const orbitX = centerX + Math.cos(angle) * orbitRadius;
+          const orbitY = centerY + Math.sin(angle) * orbitRadius * 0.7;
+
+          ctx.fillStyle = `rgba(${palette.core}, ${0.4 - (index * 0.08)})`;
+          ctx.beginPath();
+          ctx.arc(orbitX, orbitY, dotSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
 
       if (animate) {
         rafRef.current =
@@ -532,6 +642,7 @@ export function PersistentOrionMiniSphere({
     profile,
     reducedMotion,
     state,
+    voiceLevel,
   ]);
 
   return (

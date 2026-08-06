@@ -1,15 +1,8 @@
 .persistentOrionRoot {
-  --po-ready: #54a8e2;
-  --po-analyzing: #8260c4;
-  --po-insight: #44a872;
-  --po-attention: #bc9052;
-  --po-critical: #a6464e;
-  --po-stale: #a8afbc;
-  --po-unavailable: #626770;
-  --po-glow: rgba(88, 130, 190, 0.32);
-  --po-panel: rgba(11, 21, 34, 0.96);
-  --po-border: rgba(153, 174, 202, 0.24);
-  --po-motion: 220ms;
+  --po-glow: rgba(74, 144, 255, 0.28);
+  --po-panel: rgba(11, 22, 39, 0.97);
+  --po-border: rgba(121, 156, 206, 0.3);
+  --po-motion: var(--motion-standard);
   --po-min-size: 86px;
   --po-full-size: 116px;
 
@@ -17,7 +10,7 @@
   right: clamp(0.7rem, 2.2vw, 1.35rem);
   bottom: max(0.8rem, calc(env(safe-area-inset-bottom) + 0.55rem));
 
-  z-index: calc(var(--z-backdrop, 1000) + 10);
+  z-index: var(--z-orion-persistent, 46);
   isolation: isolate;
 
   pointer-events: auto;
@@ -40,7 +33,7 @@
   border: 0;
   background: transparent;
   box-shadow: none;
-  color: #eef5ff;
+  color: var(--bos-text-primary);
   padding: 0;
   cursor: grab;
   transition: transform var(--po-motion) ease;
@@ -76,7 +69,7 @@
   height: var(--po-full-size);
   display: inline-grid;
   place-items: center;
-  filter: drop-shadow(0 0 12px rgba(90, 152, 220, 0.18));
+  filter: drop-shadow(0 0 12px rgba(83, 159, 255, 0.22));
   pointer-events: none;
 }
 
@@ -114,9 +107,9 @@
   overflow: auto;
   border: 1px solid var(--po-border);
   border-radius: 1rem;
-  background: var(--po-panel);
-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.48);
-  color: #edf5ff;
+  background: linear-gradient(180deg, rgba(13, 24, 43, 0.98), rgba(10, 20, 36, 0.97));
+  box-shadow: 0 22px 48px rgba(1, 8, 18, 0.76);
+  color: var(--bos-text-primary);
   padding: 0.9rem;
 }
 
@@ -136,22 +129,22 @@
   font-size: 0.66rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #a8bfdc;
+  color: var(--bos-text-muted);
 }
 
 .persistentOrionRoot :global(.persistentOrionStateLine) {
   margin: 0.22rem 0 0;
-  color: #cad6e8;
+  color: var(--bos-text-secondary);
   font-size: 0.79rem;
 }
 
 .persistentOrionRoot :global(.persistentOrionClose),
 .persistentOrionRoot :global(.persistentOrionMinimize) {
   all: unset;
-  border: 1px solid rgba(165, 186, 213, 0.3);
+  border: 1px solid var(--bos-border-default);
   border-radius: 0.6rem;
   padding: 0.35rem 0.55rem;
-  color: #e4efff;
+  color: var(--bos-text-primary);
   cursor: pointer;
 }
 
@@ -164,11 +157,11 @@
 
 .persistentOrionRoot :global(.persistentOrionFixtureTags span) {
   border-radius: 999px;
-  border: 1px solid rgba(171, 192, 219, 0.25);
+  border: 1px solid var(--bos-border-subtle);
   padding: 0.18rem 0.5rem;
   font-size: 0.68rem;
-  color: #d5e4f9;
-  background: rgba(24, 36, 56, 0.8);
+  color: var(--bos-text-secondary);
+  background: rgba(20, 36, 64, 0.7);
 }
 
 .persistentOrionRoot :global(.persistentOrionSection) {
@@ -178,7 +171,7 @@
 .persistentOrionRoot :global(.persistentOrionSection p) {
   margin: 0.18rem 0 0;
   font-size: 0.83rem;
-  color: #d5e3f4;
+  color: var(--bos-text-secondary);
 }
 
 .persistentOrionRoot :global(.persistentOrionFacts) {
@@ -188,19 +181,19 @@
 }
 
 .persistentOrionRoot :global(.persistentOrionFacts div) {
-  border-top: 1px solid rgba(158, 176, 200, 0.18);
+  border-top: 1px solid var(--bos-border-subtle);
   padding-top: 0.5rem;
 }
 
 .persistentOrionRoot :global(.persistentOrionFacts dt) {
   font-size: 0.72rem;
-  color: #a9bed9;
+  color: var(--bos-text-muted);
 }
 
 .persistentOrionRoot :global(.persistentOrionFacts dd) {
   margin: 0.16rem 0 0;
   font-size: 0.82rem;
-  color: #ddeaf9;
+  color: var(--bos-text-secondary);
 }
 
 .persistentOrionRoot :global(.persistentOrionPanelFooter) {
@@ -213,7 +206,7 @@
 }
 
 .persistentOrionRoot :global(.persistentOrionLinkAction) {
-  color: #9ad0ff;
+  color: var(--orion-cyan);
   font-size: 0.8rem;
   text-decoration: underline;
   text-underline-offset: 0.18rem;

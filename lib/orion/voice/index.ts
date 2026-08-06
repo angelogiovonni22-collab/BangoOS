@@ -9,3 +9,4 @@ export * from "./wake-word-normalizer";
 export * from "./wake-word-support";
 export * from "./wake-word-session";
 export * from "./voice-controller";
+export * from "./speech-output-adapter";

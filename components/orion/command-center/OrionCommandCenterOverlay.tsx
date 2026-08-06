@@ -12,7 +12,7 @@ import { OrionHandsFreeToggle, OrionMicrophoneIndicator, OrionVoiceButton, Orion
 import { rankActionsWithWorkspaceContext } from "@/lib/orion/command-center";
 import type { OrionIntentResult } from "@/lib/orion/intent-engine";
 import { applyOrionCommandNavigationResult } from "@/lib/orion/navigation";
-import { buildVoiceConfirmationSummary, buildVoiceResponse, detectWakeWord, isCancelPhrase, isWakeWordSupported, parseVoiceConfirmationPhrase, resolveSpokenCandidate } from "@/lib/orion/voice";
+import { buildVoiceConfirmationSummary, detectWakeWord, isCancelPhrase, isWakeWordSupported, parseVoiceConfirmationPhrase, resolveSpokenCandidate } from "@/lib/orion/voice";
 import type { OrionVoiceCaptureMode, OrionVoiceErrorCategory, OrionVoiceState } from "@/lib/orion/voice";
 import type {
   OrionCommandCenterAction,
@@ -400,11 +400,7 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
       setWakeListening(false);
       setVoiceUiState("listening");
       setWakeStatusMessage("Wake phrase detected.");
-      setVoiceStatusMessage("I'm listening.");
-
-      if (spokenResponsesEnabled) {
-        voice.speak("I'm listening.");
-      }
+      setVoiceStatusMessage("Listening for your command.");
 
       if (!wakeDetection.cleanedCommand) {
         return;
@@ -478,6 +474,7 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-orion-voice-turn": "1",
           "x-orion-company-id": catalog.context.currentCompany.id,
           "x-orion-context-hint": `${catalog.context.currentRoute}:${catalog.context.currentAuthenticatedUser.id}`,
         },
@@ -531,15 +528,32 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
       const failureMessage = payload.error || userMessageForVoiceCategory(category, "Voice intent failed.");
       setVoiceStatusMessage("Unable to resolve voice intent. You can still type your request.");
       setVoiceResultMessage(failureMessage);
-      const spokenFailure = buildVoiceResponse({ status: "error", message: failureMessage });
-      if (spokenResponsesEnabled) {
-        voice.speak(spokenFailure.text);
-      }
+      globalVoice.requestSpokenResponse({
+        status: "error",
+        message: failureMessage,
+      });
       return;
     }
 
     const nextIntent = payload.intent;
     setIntentResult(nextIntent);
+
+    if ((payload.statusCategory || "").startsWith("workflow_") && !nextIntent.suggestedCommand) {
+      const workflowMessage = nextIntent.message || "Workflow step ready.";
+      const isCanceled = payload.statusCategory === "workflow_canceled";
+      const isNotEnabled = payload.statusCategory === "workflow_not_enabled";
+      const isDone = payload.statusCategory === "workflow_completed";
+
+      setVoiceErrorCategory(isNotEnabled ? "intent_no_match" : null);
+      setVoiceUiState(isDone ? "success" : isCanceled || isNotEnabled ? "error" : "understanding");
+      setVoiceStatusMessage(workflowMessage);
+      setVoiceResultMessage(workflowMessage);
+      globalVoice.requestSpokenResponse({
+        status: isNotEnabled ? "error" : isDone ? "success" : "processing",
+        message: workflowMessage,
+      });
+      return;
+    }
 
     if (nextIntent.requiresClarification) {
       const spokenCandidate = resolveSpokenCandidate(trimmed, nextIntent.candidates.map((candidate) => ({
@@ -561,10 +575,9 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
       setVoiceErrorCategory("intent_ambiguous");
       setVoiceStatusMessage("I found multiple matches. Please choose one.");
       setVoiceResultMessage("I found multiple matches. Please choose one.");
-      const spokenClarification = buildVoiceResponse({ status: "clarification" });
-      if (spokenResponsesEnabled) {
-        voice.speak(spokenClarification.text);
-      }
+      globalVoice.requestSpokenResponse({
+        status: "clarification",
+      });
       return;
     }
 
@@ -574,10 +587,10 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
       setVoiceErrorCategory("intent_no_match");
       setVoiceStatusMessage(noMatchMessage);
       setVoiceResultMessage(noMatchMessage);
-      const spokenNoMatch = buildVoiceResponse({ status: "error", message: noMatchMessage });
-      if (spokenResponsesEnabled) {
-        voice.speak(spokenNoMatch.text);
-      }
+      globalVoice.requestSpokenResponse({
+        status: "error",
+        message: noMatchMessage,
+      });
       return;
     }
 
@@ -605,10 +618,9 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
       setVoiceErrorCategory("confirmation_required");
       setVoiceUiState("understanding");
       setVoiceStatusMessage(`Confirmation required. ${summary} Say confirm to continue or cancel to stop.`);
-      const spokenConfirmation = buildVoiceResponse({ status: "confirmation_required" });
-      if (spokenResponsesEnabled) {
-        voice.speak(spokenConfirmation.text);
-      }
+      globalVoice.requestSpokenResponse({
+        status: "confirmation_required",
+      });
       return;
     }
 
@@ -674,9 +686,6 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
     },
     retry: () => {
       globalVoice.retryFromError();
-    },
-    speak: (_text: string) => {
-      return false;
     },
     setMuted: (next: boolean) => {
       globalVoice.setSpokenResponsesEnabled(!next);
@@ -1353,10 +1362,11 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
         setVoiceResultMessage(message);
         setVoiceStatusMessage(userMessageForVoiceCategory(category, message));
         voice.setState("error");
-        const spoken = buildVoiceResponse({ status: "error", message });
-        if (spokenResponsesEnabled) {
-          voice.speak(spoken.text);
-        }
+        globalVoice.requestSpokenResponse({
+          status: "error",
+          commandId: params.commandId,
+          message,
+        });
         return;
       }
 
@@ -1383,14 +1393,12 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
         }
       }
 
-      const spoken = buildVoiceResponse({
+      globalVoice.requestSpokenResponse({
         status: "success",
+        commandId: params.commandId,
         targetLabel: result.href || undefined,
         message: result.userMessage,
       });
-      if (spokenResponsesEnabled) {
-        voice.speak(spoken.text);
-      }
 
       const canGoBack = typeof window !== "undefined" && window.history.length > 1;
       const navigationOutcome = applyOrionCommandNavigationResult({
@@ -1437,10 +1445,11 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
       setVoiceResultMessage(message);
       setVoiceStatusMessage(message);
       voice.setState("error");
-      const spoken = buildVoiceResponse({ status: "error", message });
-      if (spokenResponsesEnabled) {
-        voice.speak(spoken.text);
-      }
+      globalVoice.requestSpokenResponse({
+        status: "error",
+        commandId: params.commandId,
+        message,
+      });
     } finally {
       setIsRunning(false);
     }

@@ -1,4 +1,5 @@
 import { detectWakeWord } from "./wake-word-normalizer";
+import type { OrionWakeWordPolicy } from "./wake-word-types";
 
 let passed = 0;
 let failed = 0;
@@ -19,7 +20,7 @@ function test(name: string, run: () => void) {
 }
 
 function main() {
-  const policy = { enabled: ["hey_orion", "orion", "okay_orion"] };
+  const policy: OrionWakeWordPolicy = { enabled: ["hey_orion", "orion", "okay_orion"] };
 
   test("1. wake phrase is detected", () => {
     const result = detectWakeWord("Hey Orion", policy);

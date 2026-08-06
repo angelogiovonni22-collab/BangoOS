@@ -11,6 +11,7 @@ import { DepartmentNavigator, LayerManager, NavigationBreadcrumb } from "@/compo
 import { LanguageSelector, ProfileMenu, SearchBar } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import { ORION_SIDEBAR_NAVIGATION_GROUPS } from "@/lib/orion/navigation";
+import { shouldIgnoreGlobalShortcut } from "@/lib/ui/keyboard";
 
 type AppShellProps = {
   children: ReactNode;
@@ -71,6 +72,10 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (shouldIgnoreGlobalShortcut(event)) {
+        return;
+      }
+
       const isCommandKey = event.key.toLowerCase() === "k";
       if (!isCommandKey || (!event.ctrlKey && !event.metaKey)) {
         return;
@@ -88,31 +93,29 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
   }, []);
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface-app)] text-[var(--color-text-primary)] enterprise-shell">
-      <div className={mobileOpen ? "pointer-events-none opacity-0 transition-opacity lg:pointer-events-auto lg:opacity-100" : ""}>
-        <PersistentOrion />
-      </div>
-      <div className="flex min-h-screen">
-        <LayerManager layer="dialog">
+    <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
+      <PersistentOrion />
+      <div className="flex min-h-screen min-w-0">
+        <LayerManager layer="popover">
           <aside
             id="bangoos-sidebar"
             role={mobileOpen ? "dialog" : undefined}
             aria-modal={mobileOpen ? true : undefined}
             aria-label={mobileOpen ? t("common.openSidebar") : undefined}
-            className={`fixed inset-y-0 left-0 z-[var(--z-modal)] flex w-72 flex-col overflow-hidden border-r border-[#1e2b45] bg-[var(--color-sidebar)] px-5 py-6 text-white shadow-[0_24px_50px_-24px_rgba(15,23,42,0.85)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] px-5 py-6 text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
           <div className="shrink-0 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 text-lg font-semibold text-white shadow-lg shadow-blue-500/20">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2f5ec9] to-[#2d9ad4] text-lg font-semibold text-white shadow-lg shadow-blue-500/20">
                 B
               </div>
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-300">
+                <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#8ec3ff]">
                   B.O.S.
                 </p>
-                <p className="text-sm text-slate-400">{t("common.constructionOs")}</p>
+                <p className="text-sm text-[var(--bos-text-muted)]">{t("common.constructionOs")}</p>
               </div>
             </div>
 
@@ -127,7 +130,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
           </div>
 
           <div className="mt-7 flex min-h-0 flex-1 flex-col overflow-hidden">
-            <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+            <nav className="h-full min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
               {ORION_SIDEBAR_NAVIGATION_GROUPS.map((group) => {
                 const isCollapsed = collapsedGroups[group.key] ?? false;
 
@@ -135,7 +138,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
                   <section key={group.key} className="space-y-2">
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:bg-white/5 hover:text-white"
+                      className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--bos-text-muted)] transition hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)]"
                       onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))}
                       aria-expanded={!isCollapsed}
                     >
@@ -162,9 +165,9 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
               })}
             </nav>
 
-            <div className="mt-auto shrink-0 rounded-[var(--radius-xl)] border border-white/10 bg-white/5 p-4 backdrop-blur">
-              <p className="text-sm font-semibold text-white">{t("common.projectPulse")}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
+            <div className="mt-auto shrink-0 rounded-[var(--radius-xl)] border border-[var(--bos-border-subtle)] bg-[linear-gradient(180deg,rgba(17,31,55,0.86),rgba(11,22,39,0.86))] p-4 backdrop-blur">
+              <p className="text-sm font-semibold text-[var(--bos-text-primary)]">{t("common.projectPulse")}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--bos-text-secondary)]">
                 {t("common.projectPulseDescription")}
               </p>
             </div>
@@ -183,9 +186,9 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
           </LayerManager>
         ) : null}
 
-        <div className="flex min-h-screen flex-1 flex-col">
+        <div className="flex min-h-screen min-h-0 flex-1 flex-col">
           <LayerManager layer="header">
-            <header className="sticky top-0 z-20 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-card)]/95 px-4 py-3.5 backdrop-blur-sm sm:px-6 lg:px-8">
+            <header className="sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[color:rgb(10_18_34/0.92)] px-4 py-3.5 backdrop-blur-sm sm:px-6 lg:px-8">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <button
@@ -193,13 +196,13 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
                     aria-label={t("common.openSidebar")}
                     aria-controls="bangoos-sidebar"
                     aria-expanded={mobileOpen}
-                    className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--color-surface-subtle)] lg:hidden"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] lg:hidden"
                     onClick={() => setMobileOpen(true)}
                   >
                     <span className="text-lg">☰</span>
                   </button>
                   <div className="space-y-1.5">
-                    <p className="text-sm font-medium text-[var(--color-text-secondary)]">
+                    <p className="text-sm font-medium text-[var(--bos-text-secondary)]">
                       {companyName || t("common.operationsWorkspace")}
                     </p>
                     <NavigationBreadcrumb />
@@ -213,17 +216,17 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
                   </div>
                   <button
                     type="button"
-                    className="hidden rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] md:inline-flex md:items-center md:gap-2"
+                    className="hidden rounded-[var(--radius-md)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 py-2 text-sm font-semibold text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] md:inline-flex md:items-center md:gap-2"
                     onClick={() => setCommandCenterOpen(true)}
                     aria-label="Open Orion Command Center"
                   >
                     <span>Orion</span>
-                    <span className="rounded border border-[var(--color-border-subtle)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]">Ctrl+K</span>
+                    <span className="rounded border border-[var(--bos-border-subtle)] px-1.5 py-0.5 text-xs text-[var(--bos-text-secondary)]">Ctrl+K</span>
                   </button>
                   <LanguageSelector />
                   <button
                     type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--color-border-subtle)] bg-white text-[var(--color-text-primary)] transition hover:bg-[var(--color-surface-subtle)]"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] transition hover:bg-[var(--bos-bg-hover)]"
                     aria-label={t("common.notifications")}
                   >
                     🔔
@@ -239,7 +242,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
             </header>
           </LayerManager>
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-7">{children}</main>
+          <main className="min-h-0 flex-1 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,0.08),transparent_26%)] p-4 sm:p-6 lg:p-7">{children}</main>
         </div>
       </div>
 
@@ -271,8 +274,8 @@ function SidebarItem({
       onClick={onNavigate}
       className={`flex items-center gap-3 rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold motion-nav transition-colors duration-200 ${
         active
-          ? "bg-[var(--color-brand-600)] text-white shadow-[0_16px_26px_-18px_rgba(37,99,235,0.75)]"
-          : "text-slate-300 hover:bg-white/8 hover:text-white"
+            ? "bg-[linear-gradient(135deg,rgba(56,116,227,0.42),rgba(40,72,140,0.62))] text-white shadow-[0_16px_26px_-18px_rgba(37,99,235,0.55)]"
+            : "text-[var(--bos-text-secondary)] hover:bg-[rgba(82,130,210,0.16)] hover:text-[var(--bos-text-primary)]"
       }`}
     >
       <span className="text-base">{icon}</span>

@@ -9,6 +9,7 @@ import {
   executeCreateEstimateCommand,
   executeCreateInvoiceCommand,
   executeCreateProjectCommand,
+  executeScheduleReadRangeCommand,
   executeCreateTaskCommand,
   executeEstimateWorkflowCommand,
   executeInvoiceActionCommand,
@@ -25,7 +26,7 @@ import {
   executeUpdateProjectStatusCommand,
 } from "./handlers";
 import type { OrionCommandDefinition, OrionCommandPermission } from "./types";
-import { validateObject, validateRequiredKeys } from "./validators";
+import { validateCustomerCreateParams, validateCustomerUpdateParams, validateObject, validateRequiredKeys, validateScheduleReadRangeParams } from "./validators";
 
 const OWNER_AND_ADMIN: OrionCommandPermission[] = ["owner", "administrator"];
 const MANAGEMENT: OrionCommandPermission[] = ["owner", "administrator", "operations_manager", "project_manager", "superintendent"];
@@ -65,7 +66,7 @@ const ORION_COMMAND_DRAFTS: OrionCommandDraft[] = [
     entityType: "customer",
     inputSchema: "{ firstName: string, lastName: string, customerType?: string, ... }",
     undoCapable: true,
-    validate: (params) => validateRequiredKeys(params, ["firstName", "lastName"]),
+    validate: validateCustomerCreateParams,
     execute: executeCreateCustomerCommand,
   },
   {
@@ -76,7 +77,7 @@ const ORION_COMMAND_DRAFTS: OrionCommandDraft[] = [
     entityType: "customer",
     inputSchema: "{ customerId: string, updates: object }",
     undoCapable: true,
-    validate: (params) => validateRequiredKeys(params, ["customerId"]),
+    validate: validateCustomerUpdateParams,
     execute: executeUpdateCustomerCommand,
   },
   {
@@ -210,6 +211,17 @@ const ORION_COMMAND_DRAFTS: OrionCommandDraft[] = [
     inputSchema: "{ entityType: 'schedule', entityId: string, deepLink?: string }",
     undoCapable: false,
     ...openDefinition(),
+  },
+  {
+    id: "schedule.read_range",
+    name: "Read Schedule Range",
+    description: "Read a schedule summary for today, tomorrow, or this week.",
+    requiredPermissions: TEAM,
+    entityType: "schedule",
+    inputSchema: "{ rangeType: 'day' | 'week', rangeKey: 'today' | 'tomorrow' | 'this_week', timezone?: string | null }",
+    undoCapable: false,
+    validate: validateScheduleReadRangeParams,
+    execute: executeScheduleReadRangeCommand,
   },
   {
     id: "project.update_status",

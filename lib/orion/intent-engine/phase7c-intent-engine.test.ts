@@ -1,5 +1,6 @@
 import { normalizeIntentInput } from "./parser";
 import { resolveIntentFromEntitySet } from "./resolver";
+import { createOrionCommandRegistry } from "@/lib/orion/commands";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { OrionIntentEntityRecord, OrionIntentInput } from "./types";
@@ -36,6 +37,13 @@ const entities: OrionIntentEntityRecord[] = [
     label: "Robert Mason",
     subtitle: "Customer active",
     terms: ["robert mason", "122 maple street", "maple", "robert", "mason"],
+  },
+  {
+    entityType: "customer",
+    entityId: "cust-abc",
+    label: "ABC Construction",
+    subtitle: "Customer active",
+    terms: ["abc construction", "abc", "construction"],
   },
   {
     entityType: "project",
@@ -249,7 +257,7 @@ function main() {
       { phrase: "go to customers", commandId: "dashboard.open" },
       { phrase: "open timeline", commandId: "dashboard.open" },
       { phrase: "open reports", commandId: "dashboard.open" },
-      { phrase: "show today's schedule", commandId: "schedule.open" },
+      { phrase: "open schedule", commandId: "schedule.open" },
     ];
 
     for (const item of checks) {
@@ -270,7 +278,7 @@ function main() {
       { phrase: "Okay Orion, show projects", commandId: "dashboard.open", deepLink: "/projects" },
       { phrase: "Hey Orion, open customers", commandId: "dashboard.open", deepLink: "/customers" },
       { phrase: "Orion, show estimates", commandId: "dashboard.open", deepLink: "/estimates" },
-      { phrase: "Hey Orion, show today's schedule", commandId: "schedule.open", deepLink: "/schedule?range=today" },
+      { phrase: "Hey Orion, open schedule", commandId: "schedule.open", deepLink: "/schedule" },
       { phrase: "Open dashboard", commandId: "dashboard.open", deepLink: "/dashboard" },
       { phrase: "Open operations", commandId: "dashboard.open", deepLink: "/operations" },
     ];
@@ -339,6 +347,107 @@ function main() {
 
     assert(result.requiresClarification, "complex ambiguous query still uses normal candidate scoring flow");
     assert(result.suggestedCommand === null, "ambiguous complex query is not forced into deterministic navigation");
+  });
+
+  test("21. create phrases resolve to semantic create previews without execution", () => {
+    const checks = [
+      { phrase: "create customer", commandId: "customer.create" },
+      { phrase: "new customer", commandId: "customer.create" },
+      { phrase: "add client", commandId: "customer.create" },
+      { phrase: "create project", commandId: "project.create" },
+      { phrase: "start a project", commandId: "project.create" },
+      { phrase: "create estimate", commandId: "estimate.create" },
+      { phrase: "make an estimate", commandId: "estimate.create" },
+      { phrase: "create invoice", commandId: "invoice.create" },
+      { phrase: "new invoice", commandId: "invoice.create" },
+      { phrase: "create task", commandId: "task.create" },
+      { phrase: "add task", commandId: "task.create" },
+    ];
+
+    for (const item of checks) {
+      const result = resolveIntentFromEntitySet({
+        input: buildInput(item.phrase),
+        role: "owner",
+        entities,
+      });
+
+      assert(result.commandPreview?.commandId === item.commandId, `${item.phrase} resolves to ${item.commandId} preview`);
+      assert(result.suggestedCommand === null, `${item.phrase} does not execute before clarification`);
+      assert(result.requiresClarification, `${item.phrase} requires clarification for missing required fields`);
+    }
+  });
+
+  test("22. create phrase context is preserved without premature writes", () => {
+    const result = resolveIntentFromEntitySet({
+      input: buildInput("create an estimate for abc construction"),
+      role: "owner",
+      entities,
+    });
+
+    assert(result.commandPreview?.commandId === "estimate.create", "estimate create phrase resolves semantic estimate.create preview");
+    assert(result.resolvedEntity?.entityType === "customer", "customer context is preserved when unambiguous customer phrase is included");
+    assert(result.suggestedCommand === null, "no create command is executed before required fields are complete");
+    assert(result.message.toLowerCase().includes("customer"), "clarification message asks for required estimate context");
+  });
+
+  test("23. navigation phrases remain navigation-only", () => {
+    const checks = [
+      { phrase: "open customers", forbidden: "customer.create" },
+      { phrase: "open projects", forbidden: "project.create" },
+      { phrase: "open estimates", forbidden: "estimate.create" },
+      { phrase: "open invoices", forbidden: "invoice.create" },
+      { phrase: "open tasks", forbidden: "task.create" },
+    ];
+
+    for (const item of checks) {
+      const result = resolveIntentFromEntitySet({
+        input: buildInput(item.phrase),
+        role: "owner",
+        entities,
+      });
+
+      assert(result.suggestedCommand?.commandId !== item.forbidden, `${item.phrase} does not resolve to ${item.forbidden}`);
+      if (result.suggestedCommand) {
+        assert(result.suggestedCommand.commandId === "dashboard.open" || result.suggestedCommand.commandId === "schedule.open", `${item.phrase} remains navigation behavior`);
+      }
+    }
+  });
+
+  test("24. create targets exist in registry with stable metadata", () => {
+    const registry = createOrionCommandRegistry();
+    const ids = ["customer.create", "project.create", "estimate.create", "invoice.create", "task.create"];
+
+    for (const id of ids) {
+      const command = registry.getById(id);
+      assert(Boolean(command), `${id} exists in command registry`);
+      assert(command?.coverage.status === "implemented", `${id} remains implemented`);
+      assert(command?.confirmationLevel === "NONE", `${id} confirmation metadata remains unchanged`);
+      assert(typeof command?.execute === "function", `${id} handler lookup succeeds`);
+    }
+  });
+
+  test("25. schedule read phrases resolve to schedule.read_range", () => {
+    const checks = [
+      { phrase: "what is on the schedule today", rangeType: "day", rangeKey: "today" },
+      { phrase: "show today's schedule", rangeType: "day", rangeKey: "today" },
+      { phrase: "what do i have today", rangeType: "day", rangeKey: "today" },
+      { phrase: "what is scheduled tomorrow", rangeType: "day", rangeKey: "tomorrow" },
+      { phrase: "show this week's schedule", rangeType: "week", rangeKey: "this_week" },
+    ];
+
+    for (const item of checks) {
+      const result = resolveIntentFromEntitySet({
+        input: buildInput(item.phrase),
+        role: "owner",
+        entities,
+      });
+
+      assert(result.suggestedCommand?.commandId === "schedule.read_range", `${item.phrase} resolves to schedule.read_range`);
+      assert(result.suggestedCommand?.params.rangeType === item.rangeType, `${item.phrase} keeps the correct range type`);
+      assert(result.suggestedCommand?.params.rangeKey === item.rangeKey, `${item.phrase} keeps the correct range key`);
+      assert(result.commandPreview?.commandId === "schedule.read_range", `${item.phrase} keeps the correct preview`);
+      assert(!result.requiresClarification, `${item.phrase} does not require clarification`);
+    }
   });
 
   console.log(`\nPhase 7C intent engine results: ${passed} passed, ${failed} failed`);

@@ -101,7 +101,7 @@ async function main() {
       { phrase: "Okay Orion, show projects", commandId: "dashboard.open", deepLink: "/projects" },
       { phrase: "Hey Orion, open customers", commandId: "dashboard.open", deepLink: "/customers" },
       { phrase: "Orion, show estimates", commandId: "dashboard.open", deepLink: "/estimates" },
-      { phrase: "Hey Orion, show today's schedule", commandId: "schedule.open", deepLink: "/schedule?range=today" },
+      { phrase: "Hey Orion, show today's schedule", commandId: "schedule.read_range", deepLink: null },
       { phrase: "Orion, open dispatch center", commandId: "dashboard.open", deepLink: "/dispatch" },
       { phrase: "Hey Orion, open vendors", commandId: "dashboard.open", deepLink: "/vendors" },
       { phrase: "Orion, open team", commandId: "dashboard.open", deepLink: "/team" },
@@ -127,11 +127,17 @@ async function main() {
       assert(result.suggestedCommand?.commandId === item.commandId, `${item.phrase} maps to ${item.commandId}`);
       const resolvedHref = item.commandId === "navigation.back"
         ? result.suggestedCommand?.params.fallbackHref
-        : result.suggestedCommand?.params.deepLink;
+        : item.commandId === "schedule.read_range"
+          ? null
+          : result.suggestedCommand?.params.deepLink;
       assert(resolvedHref === item.deepLink, `${item.phrase} maps to deterministic deep link`);
       assert(result.confidence >= 0.95, `${item.phrase} keeps deterministic confidence`);
       assert(!result.requiresClarification, `${item.phrase} does not require clarification`);
       assert(fromCalls === 0, `${item.phrase} bypasses entity lookup`);
+      if (item.commandId === "schedule.read_range") {
+        assert(result.suggestedCommand?.params.rangeType === "day", `${item.phrase} resolves a day range`);
+        assert(result.suggestedCommand?.params.rangeKey === "today", `${item.phrase} resolves the today key`);
+      }
     }
   });
 

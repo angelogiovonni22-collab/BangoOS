@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createEmployeeService, type EmployeeService } from "./service";
 import type { EmployeeProfile } from "./types";
 
@@ -9,7 +9,8 @@ type UseEmployeeProfileParams = {
   service?: EmployeeService;
 };
 
-export function useEmployeeProfile({ employeeId, service = createEmployeeService() }: UseEmployeeProfileParams) {
+export function useEmployeeProfile({ employeeId, service }: UseEmployeeProfileParams) {
+  const employeeService = useMemo(() => service ?? createEmployeeService(), [service]);
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(employeeId));
   const [errorMessage, setErrorMessage] = useState<string | null>(employeeId ? null : "employees.errorMissingId");
@@ -24,7 +25,7 @@ export function useEmployeeProfile({ employeeId, service = createEmployeeService
       setNotFound(false);
 
       try {
-        const result = await service.getEmployee(employeeId);
+        const result = await employeeService.getEmployee(employeeId);
 
         if (!active) {
           return;
@@ -57,7 +58,7 @@ export function useEmployeeProfile({ employeeId, service = createEmployeeService
     return () => {
       active = false;
     };
-  }, [employeeId, service]);
+  }, [employeeId, employeeService]);
 
   return {
     employee,

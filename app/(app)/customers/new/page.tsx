@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Select } from "@/components/ui";
-import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
+import { createCustomer, CustomerCreateError } from "@/lib/customers";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
@@ -142,64 +142,58 @@ export default function NewCustomerPage() {
         return;
       }
 
-      const { data, error: insertError } = await supabase.from("customers").insert({
-        company_id: workspace.context.companyId,
-        customer_type: formData.customerType,
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        company_name: formData.companyName.trim() || null,
-        email: formData.email.trim(),
-        phone: formData.phoneNumber.trim() || null,
-        address_line_1: formData.streetAddress.trim() || null,
-        address_line_2: null,
-        city: formData.city.trim() || null,
-        state: formData.state.trim() || null,
-        postal_code: formData.zipCode.trim() || null,
-        notes: formData.notes.trim() || null,
-        created_by: workspace.context.userId,
-      })
-        .select("id")
-        .single();
-
-      if (insertError) {
-        setErrorMessage(t("customers.errorSaveCustomer", { message: insertError.message }));
-        return;
-      }
-
-      if (!data?.id) {
-        setErrorMessage(t("customers.errorMissingCustomerLink"));
-        return;
-      }
-
-      const orion = createSupabaseOrionEventPublisher(supabase);
-      await orion.publishEvent({
-        company_id: workspace.context.companyId,
-        actor_profile_id: workspace.context.userId,
-        event_type: "customer.created",
-        aggregate_type: "customer",
-        aggregate_id: data.id,
-        source_module: "customers",
-        payload: {
-          customer_id: data.id,
-          customer_type: formData.customerType,
-          first_name: formData.firstName.trim(),
-          last_name: formData.lastName.trim(),
-          customer_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
-          company_name: formData.companyName.trim() || null,
-          email: formData.email.trim(),
-          related_project_id: null,
+      const created = await createCustomer({
+        supabase,
+        companyId: workspace.context.companyId,
+        actorProfileId: workspace.context.userId,
+        role: workspace.context.role,
+        input: {
+          customerType: formData.customerType,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phoneNumber,
+          addressLine1: formData.streetAddress,
+          city: formData.city,
+          state: formData.state,
+          postalCode: formData.zipCode,
+          companyName: formData.companyName,
+          addressLine2: null,
+          notes: formData.notes,
         },
-        metadata: {
-          event_category: "customers",
-          event_severity: "info",
-          deep_link: `/customers/${data.id}`,
-        },
+        duplicateMode: "allow",
       });
 
-      router.push(`/customers/${data.id}`);
+      router.push(created.deepLink);
       router.refresh();
     } catch (caughtError) {
       console.error("Save customer error:", caughtError);
+
+      if (caughtError instanceof CustomerCreateError) {
+        if (caughtError.code === "VALIDATION") {
+          const firstError = Array.isArray(caughtError.details.validationErrors)
+            ? String(caughtError.details.validationErrors[0] || "")
+            : caughtError.message;
+          setErrorMessage(firstError || t("customers.errorSaveUnexpected"));
+          return;
+        }
+
+        if (caughtError.code === "PERMISSION") {
+          setErrorMessage(t("customers.errorSaveUnexpected"));
+          return;
+        }
+
+        if (caughtError.code === "DUPLICATE") {
+          setErrorMessage(caughtError.message);
+          return;
+        }
+
+        if (caughtError.code === "PERSISTENCE") {
+          setErrorMessage(t("customers.errorSaveCustomer", { message: caughtError.message }));
+          return;
+        }
+      }
+
       setErrorMessage(t("customers.errorSaveUnexpected"));
     } finally {
       setIsSaving(false);

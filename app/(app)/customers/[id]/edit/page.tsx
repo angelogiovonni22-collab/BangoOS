@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button, EmptyState, ErrorState, Input, Select, SkeletonLoader } from "@/components/ui";
+import { CustomerDomainError, updateCustomer } from "@/lib/customers";
 import { useI18n } from "@/lib/i18n/provider";
-import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
@@ -25,6 +25,12 @@ type CustomerFormData = {
   state: string;
   zipCode: string;
   notes: string;
+};
+
+type WorkspaceContext = {
+  companyId: string;
+  userId: string;
+  role: string | null;
 };
 
 const emptyFormData: CustomerFormData = {
@@ -50,6 +56,7 @@ export default function EditCustomerPage() {
 
   const [customer, setCustomer] = useState<CustomerRow | null>(null);
   const [formData, setFormData] = useState<CustomerFormData>(emptyFormData);
+  const [workspaceContext, setWorkspaceContext] = useState<WorkspaceContext | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -91,6 +98,14 @@ export default function EditCustomerPage() {
           }
 
           return;
+        }
+
+        if (active) {
+          setWorkspaceContext({
+            companyId: workspace.context.companyId,
+            userId: workspace.context.userId,
+            role: workspace.context.role,
+          });
         }
 
         const { data, error } = await supabase
@@ -166,7 +181,10 @@ export default function EditCustomerPage() {
   const isSubmitDisabled = isSaving || hasMissingRequiredValues;
 
   const handleFieldChange = <K extends keyof CustomerFormData>(field: K, value: CustomerFormData[K]) => {
-    setFormData((previous) => ({ ...previous, [field]: value }));
+    setFormData((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
 
     if (errorMessage) {
       setErrorMessage(null);
@@ -177,7 +195,7 @@ export default function EditCustomerPage() {
     event.preventDefault();
     setErrorMessage(null);
 
-    if (!customer || !supabase) {
+    if (!customer || !supabase || !workspaceContext) {
       return;
     }
 
@@ -185,86 +203,58 @@ export default function EditCustomerPage() {
       return;
     }
 
-    if (!formData.customerType) {
-      setErrorMessage(t("customers.validationSelectType"));
-      return;
-    }
-
-    if (!formData.firstName.trim()) {
-      setErrorMessage(t("customers.validationFirstName"));
-      return;
-    }
-
-    if (!formData.lastName.trim()) {
-      setErrorMessage(t("customers.validationLastName"));
-      return;
-    }
-
-    if (!formData.email.trim()) {
-      setErrorMessage(t("customers.validationEmail"));
-      return;
-    }
-
     setIsSaving(true);
 
     try {
-      const workspace = await resolveWorkspaceContext(supabase);
-
-      if (workspace.errorMessage || !workspace.context) {
-        setErrorMessage(workspace.errorMessage || t("customers.errorSaveUnexpected"));
-        return;
-      }
-
-      const { error } = await supabase
-        .from("customers")
-        .update({
-          customer_type: formData.customerType,
-          company_name: formData.companyName.trim() || null,
-          first_name: formData.firstName.trim(),
-          last_name: formData.lastName.trim(),
-          email: formData.email.trim(),
-          phone: formData.phoneNumber.trim() || null,
-          address_line_1: formData.streetAddress.trim() || null,
-          address_line_2: null,
-          city: formData.city.trim() || null,
-          state: formData.state.trim() || null,
-          postal_code: formData.zipCode.trim() || null,
-          notes: formData.notes.trim() || null,
-        })
-        .eq("id", customer.id)
-        .eq("company_id", workspace.context.companyId);
-
-      if (error) {
-        setErrorMessage(t("customers.errorSaveCustomer", { message: error.message }));
-        return;
-      }
-
-      const orion = createSupabaseOrionEventPublisher(supabase);
-      await orion.publishEvent({
-        company_id: workspace.context.companyId,
-        actor_profile_id: workspace.context.userId,
-        event_type: "customer.updated",
-        aggregate_type: "customer",
-        aggregate_id: customer.id,
-        source_module: "customers",
-        payload: {
-          customer_id: customer.id,
-          customer_type: formData.customerType,
-          customer_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
-          company_name: formData.companyName.trim() || null,
-          related_project_id: null,
-        },
-        metadata: {
-          event_category: "customers",
-          event_severity: "info",
-          deep_link: `/customers/${customer.id}`,
+      const result = await updateCustomer({
+        supabase,
+        companyId: workspaceContext.companyId,
+        actorProfileId: workspaceContext.userId,
+        role: workspaceContext.role,
+        customerId: customer.id,
+        input: {
+          customerType: formData.customerType,
+          companyName: formData.companyName,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phoneNumber,
+          addressLine1: formData.streetAddress,
+          addressLine2: null,
+          city: formData.city,
+          state: formData.state,
+          postalCode: formData.zipCode,
+          notes: formData.notes,
         },
       });
 
-      router.push(`/customers/${customer.id}`);
+      router.push(result.deepLink);
       router.refresh();
     } catch (caughtError) {
       console.error("Save customer error:", caughtError);
+
+      if (caughtError instanceof CustomerDomainError) {
+        if (caughtError.code === "VALIDATION") {
+          setErrorMessage(caughtError.message || t("customers.errorSaveUnexpected"));
+          return;
+        }
+
+        if (caughtError.code === "PERMISSION") {
+          setErrorMessage(caughtError.message || t("customers.errorSaveUnexpected"));
+          return;
+        }
+
+        if (caughtError.code === "NOT_FOUND") {
+          setErrorMessage(t("customers.customerNotFoundDescription"));
+          return;
+        }
+
+        if (caughtError.code === "PERSISTENCE") {
+          setErrorMessage(t("customers.errorSaveCustomer", { message: caughtError.message }));
+          return;
+        }
+      }
+
       setErrorMessage(t("customers.errorSaveUnexpected"));
     } finally {
       setIsSaving(false);
@@ -417,6 +407,7 @@ function EditCustomerLoadingState() {
     <div className="space-y-6">
       <SkeletonLoader className="h-7 w-40" />
       <SkeletonLoader className="h-10 w-64" />
+      <SkeletonLoader className="h-10 w-full" />
       <SkeletonLoader className="h-10 w-full" />
       <SkeletonLoader className="h-10 w-full" />
       <SkeletonLoader className="h-10 w-full" />

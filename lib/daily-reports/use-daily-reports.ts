@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createDailyReportsService, type DailyReportsService } from "./service";
 import type {
   DailyReport,
@@ -28,7 +28,40 @@ type UseDailyReportsParams = {
   service?: DailyReportsService;
 };
 
-export function useDailyReports({ service = createDailyReportsService() }: UseDailyReportsParams = {}) {
+export function mergePaginationFilters(
+  current: DailyReportFilters,
+  page: number,
+  pageSize: number,
+): DailyReportFilters {
+  if (current.page === page && current.pageSize === pageSize) {
+    return current;
+  }
+
+  return {
+    ...current,
+    page,
+    pageSize,
+  };
+}
+
+export function useDailyReports({ service }: UseDailyReportsParams = {}) {
+  const serviceRef = useRef<DailyReportsService>(service ?? createDailyReportsService());
+  const activeRequestRef = useRef(0);
+  const unmountedRef = useRef(false);
+  const hasSettledOnceRef = useRef(false);
+
+  useEffect(() => {
+    if (service) {
+      serviceRef.current = service;
+    }
+  }, [service]);
+
+  useEffect(() => {
+    return () => {
+      unmountedRef.current = true;
+    };
+  }, []);
+
   const [items, setItems] = useState<DailyReport[]>([]);
   const [metrics, setMetrics] = useState<DailyReportDashboardMetrics>({
     reportsCreatedToday: 0,
@@ -54,17 +87,32 @@ export function useDailyReports({ service = createDailyReportsService() }: UseDa
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasSettledOnce, setHasSettledOnce] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
+    const requestId = activeRequestRef.current + 1;
+    activeRequestRef.current = requestId;
+
+    const shouldShowInitialLoading = !hasSettledOnceRef.current;
+
+    if (shouldShowInitialLoading) {
+      setIsLoading(true);
+      setErrorMessage(null);
+    } else {
+      setIsRefreshing(true);
+    }
 
     try {
       const [dashboard, list] = await Promise.all([
-        service.getDashboard(),
-        service.listReports(filters),
+        serviceRef.current.getDashboard(),
+        serviceRef.current.listReports(filters),
       ]);
+
+      if (unmountedRef.current || requestId !== activeRequestRef.current) {
+        return;
+      }
 
       setMetrics(dashboard.metrics);
       setAnalytics(dashboard.analytics);
@@ -73,17 +121,26 @@ export function useDailyReports({ service = createDailyReportsService() }: UseDa
       setItems(list.items);
       setTotal(list.total);
       setTotalPages(list.totalPages);
-      setFilters((current) => ({
-        ...current,
-        page: list.page,
-        pageSize: list.pageSize,
-      }));
+      setFilters((current) => mergePaginationFilters(current, list.page, list.pageSize));
+      hasSettledOnceRef.current = true;
+      setHasSettledOnce(true);
     } catch {
-      setErrorMessage("dailyReports.error.loadDashboard");
+      if (unmountedRef.current || requestId !== activeRequestRef.current) {
+        return;
+      }
+
+      if (!hasSettledOnceRef.current) {
+        setErrorMessage("dailyReports.error.loadDashboard");
+      }
     } finally {
+      if (unmountedRef.current || requestId !== activeRequestRef.current) {
+        return;
+      }
+
       setIsLoading(false);
+      setIsRefreshing(false);
     }
-  }, [filters, service]);
+  }, [filters]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -157,6 +214,8 @@ export function useDailyReports({ service = createDailyReportsService() }: UseDa
     canNext,
     activeFilters,
     isLoading,
+    isRefreshing,
+    hasSettledOnce,
     errorMessage,
     refresh,
     setFilter: updateFilter,

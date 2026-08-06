@@ -28,6 +28,7 @@ function main() {
   const persistentPanel = read("components/orion/persistent/PersistentOrionPanel.tsx");
   const voiceSession = read("lib/orion/voice/voice-session.ts");
   const globalProvider = read("components/orion/voice/GlobalOrionVoiceProvider.tsx");
+  const settingsPanel = read("components/orion/voice/OrionVoiceSettingsPanel.tsx");
 
   test("1. explicit user activation", () => {
     assert(overlay.includes("<OrionVoiceButton"), "overlay has voice push-to-talk button");
@@ -69,7 +70,7 @@ function main() {
 
   test("8. spoken response mute behavior", () => {
     assert(overlay.includes("voice.setMuted(") && overlay.includes("Mute Voice"), "voice mute toggle exists");
-    assert(voiceSession.includes("if (muted || !support.synthesisSupported"), "tts is blocked when muted or unsupported");
+    assert(globalProvider.includes("(!settings.spokenResponsesEnabled && !options?.force) || !voice.support.synthesisSupported"), "spoken responses are blocked when muted/disabled or synthesis is unsupported");
   });
 
   test("9. overlay-close and visibility stop", () => {
@@ -115,6 +116,12 @@ function main() {
   test("15. canonical voice status phases are present", () => {
     assert(overlay.includes('type OrionVoiceUiState =') && overlay.includes('"understanding"') && overlay.includes('"executing"') && overlay.includes('"waiting_for_wake"'), "overlay defines canonical voice UI states");
     assert(overlay.includes('setVoiceStatusMessage("Understanding...")'), "overlay shows immediate Understanding status after microphone release");
+  });
+
+  test("16. voice settings panel supports persistent voice preferences", () => {
+    assert(settingsPanel.includes("Spoken responses") && settingsPanel.includes("Preview voice"), "settings panel exposes spoken toggle and preview");
+    assert(settingsPanel.includes("Rate") && settingsPanel.includes("Pitch") && settingsPanel.includes("Volume"), "settings panel exposes speech tuning controls");
+    assert(globalProvider.includes("setVoiceId") && globalProvider.includes("previewVoice"), "global provider exposes voice selection and preview controls");
   });
 
   console.log(`\nPhase 7D voice UI contract results: ${passed} passed, ${failed} failed`);

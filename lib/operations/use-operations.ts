@@ -17,7 +17,8 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function useOperations({ service = createOperationsService() }: UseOperationsParams = {}) {
+export function useOperations({ service }: UseOperationsParams = {}) {
+  const operationsService = useMemo(() => service ?? createOperationsService(), [service]);
   const [filters, setFilters] = useState<OperationsFilters>({
     date: todayIsoDate(),
     shift: "day",
@@ -50,14 +51,14 @@ export function useOperations({ service = createOperationsService() }: UseOperat
     setErrorMessage(null);
 
     try {
-      const result = await service.getOperations(filters);
+      const result = await operationsService.getOperations(filters);
       setPayload(result);
     } catch {
       setErrorMessage("operations.errorLoad");
     } finally {
       setIsLoading(false);
     }
-  }, [filters, service]);
+  }, [filters, operationsService]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

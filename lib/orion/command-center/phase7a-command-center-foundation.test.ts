@@ -29,13 +29,22 @@ function main() {
   const overlaySource = read("components/orion/command-center/OrionCommandCenterOverlay.tsx");
   const commandCenterApi = read("app/api/orion/command-center/route.ts");
   const commandCenterService = read("lib/orion/command-center/service.ts");
+  const keyboardGuardSource = read("lib/ui/keyboard.ts");
   const voiceButtonSource = read("components/orion/voice/OrionVoiceButton.tsx");
 
   test("1. App shell has global command-center entry points", () => {
     assert(appShellSource.includes("OrionCommandCenterOverlay"), "app shell mounts Orion command center overlay");
     assert(appShellSource.includes("event.key.toLowerCase() === \"k\""), "app shell listens for keyboard shortcut K");
     assert(appShellSource.includes("event.ctrlKey &&" ) || appShellSource.includes("!event.ctrlKey && !event.metaKey"), "app shell checks ctrl or meta modifier");
+    assert(appShellSource.includes("shouldIgnoreGlobalShortcut(event)"), "app shell bails from global shortcut handling for editable/default/composing events");
     assert(appShellSource.includes("setCommandCenterOpen(true)"), "app shell opens command center from shortcut and button");
+  });
+
+  test("1B. Global shortcut guard is shared and role-aware", () => {
+    assert(keyboardGuardSource.includes("export function isEditableKeyboardTarget"), "keyboard guard exposes shared editable target helper");
+    assert(keyboardGuardSource.includes("[role='textbox']") && keyboardGuardSource.includes("[role='searchbox']") && keyboardGuardSource.includes("[role='combobox']"), "keyboard guard protects aria textbox/searchbox/combobox targets");
+    assert(keyboardGuardSource.includes("event.defaultPrevented"), "keyboard guard skips prevented events");
+    assert(keyboardGuardSource.includes("event.isComposing") || keyboardGuardSource.includes("keyCode === 229"), "keyboard guard skips IME composition events");
   });
 
   test("2. Overlay is keyboard-first and executes through API", () => {

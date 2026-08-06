@@ -27,3 +27,15 @@ export type PersistentOrionPalette = {
   line: string;
   shadow: string;
 };
+
+export type PersistentOrionVisualState =
+  | "disabled"
+  | "idle"
+  | "waiting"
+  | "listening"
+  | "thinking"
+  | "executing"
+  | "speaking"
+  | "confirmation"
+  | "success"
+  | "error";

@@ -28,8 +28,36 @@ import { useI18n } from "@/lib/i18n/provider";
 import { getWidgetAnimationDelayMs, shouldShowDashboardPreviewDataBadge } from "@/lib/dashboard/motion-helpers";
 import { useDashboardLayout } from "@/lib/dashboard/use-dashboard-layout";
 import { useExecutiveDashboard } from "@/lib/dashboard/use-executive-dashboard";
-import type { DashboardMetric, WidgetId } from "@/lib/dashboard/types";
+import type { DashboardMetric, ExecutiveDashboardData, WidgetId } from "@/lib/dashboard/types";
 import { ExecutiveIntelligenceBar } from "@/components/orion/ExecutiveIntelligenceBar";
+
+function hasWidgetContent(widgetId: WidgetId, data: ExecutiveDashboardData) {
+  if (widgetId === "kpi") return data.metrics.length > 0;
+  if (widgetId === "schedule") return data.schedule.length > 0;
+  if (widgetId === "project-health") {
+    return data.projectHealth.projects.length > 0
+      || data.projectHealth.onScheduleCount > 0
+      || data.projectHealth.atRiskCount > 0
+      || data.projectHealth.behindScheduleCount > 0;
+  }
+  if (widgetId === "weather") return Boolean(data.weather);
+  if (widgetId === "activity") return data.activities.length > 0;
+  if (widgetId === "pending-followups") return data.pendingFollowups.length > 0;
+  if (widgetId === "automation-queue") return data.automationQueue.length > 0;
+  if (widgetId === "recent-automations") return data.recentAutomations.length > 0;
+  if (widgetId === "estimate-pipeline") return data.estimatePipeline.total > 0;
+  if (widgetId === "top-priorities") return data.topPriorities.length > 0;
+  if (widgetId === "business-health") return data.businessHealth.length > 0;
+  if (widgetId === "risk-summary") {
+    return data.riskSummary.critical + data.riskSummary.high + data.riskSummary.medium + data.riskSummary.low > 0;
+  }
+  if (widgetId === "decision-recommendations") return data.decisionRecommendations.length > 0;
+  if (widgetId === "todays-decisions") return data.todaysDecisions.length > 0;
+  if (widgetId === "critical-alerts") return data.criticalAlerts.length > 0;
+  if (widgetId === "business-score") return Boolean(data.businessScore || data.businessSummary);
+  if (widgetId === "command-center") return data.recommendations.length > 0;
+  return true;
+}
 
 function getGreetingKey(currentHour: number) {
   if (currentHour < 12) {
@@ -145,6 +173,17 @@ export default function DashboardPage() {
     [data.widgetDefinitions, t],
   );
 
+  const visibleExecutiveWidgetOrder = useMemo(
+    () => visibleWidgetOrder.filter((widgetId) => {
+      if (isLoading || sectionErrors[widgetId]) {
+        return true;
+      }
+
+      return hasWidgetContent(widgetId, data);
+    }),
+    [data, isLoading, sectionErrors, visibleWidgetOrder],
+  );
+
   if (errorMessage) {
     return <ErrorState compact title={t("dashboard.dashboardLoadError")} description={errorMessage} />;
   }
@@ -186,7 +225,7 @@ export default function DashboardPage() {
         />
 
         <section className="grid gap-6 xl:grid-cols-3">
-          {visibleWidgetOrder.map((widgetId) => {
+          {visibleExecutiveWidgetOrder.map((widgetId) => {
             const isCollapsed = layout.collapsed.includes(widgetId);
             const delayMs = getWidgetAnimationDelayMs(widgetId);
 
@@ -215,7 +254,7 @@ export default function DashboardPage() {
           })}
         </section>
 
-        {visibleWidgetOrder.length === 0 ? (
+        {visibleExecutiveWidgetOrder.length === 0 ? (
           <ErrorState
             compact
             title={t("dashboard.noWidgetsVisible")}

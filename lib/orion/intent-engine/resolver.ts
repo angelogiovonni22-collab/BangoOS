@@ -1,7 +1,7 @@
 import { createOrionCommandRegistry } from "@/lib/orion/commands";
 import type { OrionCommandDefinition, OrionCommandPermission } from "@/lib/orion/commands";
 import { resolveDeterministicNavigationRoute } from "@/lib/orion/navigation";
-import { normalizeIntentInput, parseEntityHint, parseIntent, normalizeIntentText } from "./parser";
+import { normalizeIntentInput, parseEntityHint, parseIntent, parseScheduleReadPhrase, normalizeIntentText } from "./parser";
 import type {
   OrionIntentCandidate,
   OrionIntentCommandPreview,
@@ -24,6 +24,17 @@ const NICKNAME_MAP: Record<string, string[]> = {
   bill: ["william"],
   jen: ["jennifer"],
   dave: ["david"],
+};
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type CustomerMatchTier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+type RankedCustomerCandidate = {
+  record: OrionIntentEntityRecord;
+  tier: CustomerMatchTier;
+  score: number;
+  discriminator: string | null;
 };
 
 function normalizeRole(role: string | null): OrionCommandPermission {
@@ -60,6 +71,281 @@ function tokenize(input: string) {
   }
 
   return [...new Set(expanded)];
+}
+
+function normalizeLookupText(value: string) {
+  return normalizeIntentText(value)
+    .replace(/[\s.,!?;:]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function compactLookupDisplay(value: string) {
+  return value
+    .replace(/[\s.,!?;:]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractCustomerLookupTerm(input: string) {
+  const raw = compactLookupDisplay(input);
+  if (!raw) {
+    return "";
+  }
+
+  const patterns = [
+    /^(open|show|view|find|search|lookup|go to|navigate to|update|edit|archive|restore)\s+(the\s+)?(customer|client|cust)\s+/i,
+    /^(customer|client|cust)\s+/i,
+  ];
+
+  let value = raw;
+  for (const pattern of patterns) {
+    value = value.replace(pattern, "");
+  }
+
+  return compactLookupDisplay(value);
+}
+
+function extractCreateCustomerProposedName(input: string) {
+  const match = compactLookupDisplay(input).match(/\b(?:create|add|new)\s+(?:a\s+)?(?:new\s+)?(?:customer|client|cust)\s+(?:named|called)\s+(.+)$/i);
+  if (!match) {
+    return null;
+  }
+
+  const value = compactLookupDisplay(match[1]);
+  return value || null;
+}
+
+function extractDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function asDistinct<T>(values: T[]) {
+  return [...new Set(values)];
+}
+
+function readCandidateEmails(candidate: OrionIntentEntityRecord) {
+  const sources = [candidate.label, ...candidate.terms];
+  return asDistinct(
+    sources
+      .map((value) => value.trim().toLowerCase())
+      .filter((value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)),
+  );
+}
+
+function readCandidatePhones(candidate: OrionIntentEntityRecord) {
+  const sources = [candidate.label, ...candidate.terms];
+  return asDistinct(
+    sources
+      .map((value) => extractDigits(value))
+      .filter((digits) => digits.length >= 7),
+  );
+}
+
+function readCandidateStrings(candidate: OrionIntentEntityRecord) {
+  return asDistinct(
+    [candidate.label, ...candidate.terms]
+      .map((value) => normalizeLookupText(value))
+      .filter(Boolean),
+  );
+}
+
+function candidateDiscriminator(candidate: OrionIntentEntityRecord) {
+  const emails = readCandidateEmails(candidate);
+  if (emails.length > 0) {
+    return `email ${emails[0]}`;
+  }
+
+  const phones = readCandidatePhones(candidate);
+  if (phones.length > 0) {
+    const phone = phones[0];
+    return `phone ending in ${phone.slice(-4)}`;
+  }
+
+  const location = candidate.terms
+    .map((value) => normalizeLookupText(value))
+    .find((value) => value.includes(" ") && !value.includes("@") && extractDigits(value).length < 7);
+
+  if (location) {
+    return `location ${location}`;
+  }
+
+  return `ID ${candidate.entityId.slice(0, 8)}`;
+}
+
+function rankCustomerCandidate(query: string, candidate: OrionIntentEntityRecord): RankedCustomerCandidate | null {
+  const normalizedQuery = normalizeLookupText(query);
+  if (!normalizedQuery) {
+    return null;
+  }
+
+  const queryDigits = extractDigits(normalizedQuery);
+  const queryIsUuid = UUID_PATTERN.test(normalizedQuery);
+  const queryLooksLikeEmail = normalizedQuery.includes("@");
+
+  const strings = readCandidateStrings(candidate);
+  const emails = readCandidateEmails(candidate);
+  const phones = readCandidatePhones(candidate);
+
+  const exactStringMatch = strings.some((value) => value === normalizedQuery);
+  const exactEmailMatch = queryLooksLikeEmail && emails.includes(normalizedQuery);
+  const exactPhoneMatch = queryDigits.length >= 7 && phones.includes(queryDigits);
+  const prefixMatch = strings.some((value) => value.startsWith(normalizedQuery));
+  const fuzzyMatch = strings.some((value) => value.includes(normalizedQuery));
+
+  let tier: CustomerMatchTier | null = null;
+  let score = 0;
+
+  if (queryIsUuid && candidate.entityId.toLowerCase() === normalizedQuery.toLowerCase()) {
+    tier = 1;
+    score = 1000;
+  } else if (exactStringMatch) {
+    tier = 2;
+    score = 900;
+  } else if (exactEmailMatch) {
+    tier = 4;
+    score = 700;
+  } else if (exactPhoneMatch) {
+    tier = 5;
+    score = 650;
+  } else if (prefixMatch) {
+    tier = 6;
+    score = 500;
+  } else if (fuzzyMatch) {
+    tier = 7;
+    score = 350;
+  }
+
+  if (!tier) {
+    return null;
+  }
+
+  return {
+    record: candidate,
+    tier,
+    score,
+    discriminator: candidateDiscriminator(candidate),
+  };
+}
+
+function isCustomerSelectionIntent(intent: OrionIntentKind, normalizedInput: string, hintedEntity: OrionIntentEntityType | null) {
+  if (intent === "create" || intent === "generate_estimate" || intent === "start") {
+    return false;
+  }
+
+  if (hintedEntity === "customer") {
+    return true;
+  }
+
+  const mentionsCustomer = /\b(customer|client|cust)\b/.test(normalizedInput);
+  if (!mentionsCustomer) {
+    return false;
+  }
+
+  return intent === "open"
+    || intent === "view"
+    || intent === "search"
+    || intent === "update"
+    || intent === "archive"
+    || /\brestore\b/.test(normalizedInput);
+}
+
+function formatCustomerAmbiguityMessage(queryDisplay: string, queryNormalized: string, matches: RankedCustomerCandidate[]) {
+  const distinctNames = asDistinct(matches.map((entry) => normalizeLookupText(entry.record.label)));
+  const exactDuplicateName = distinctNames.length === 1 && distinctNames[0] === queryNormalized;
+  const displayName = queryDisplay.trim() || "that customer";
+
+  if (matches.length === 2 && exactDuplicateName) {
+    const first = matches[0].discriminator || `ID ${matches[0].record.entityId.slice(0, 8)}`;
+    const second = matches[1].discriminator || `ID ${matches[1].record.entityId.slice(0, 8)}`;
+    return `I found two customers named ${displayName}. One has ${first} and one has ${second}. Which one do you mean?`;
+  }
+
+  const options = matches
+    .slice(0, 3)
+    .map((entry) => `${entry.record.label} (${entry.discriminator || `ID ${entry.record.entityId.slice(0, 8)}`})`)
+    .join("; ");
+
+  return `I found multiple customers matching ${displayName}: ${options}. Which one do you mean?`;
+}
+
+function resolveCustomerCandidates(params: {
+  intent: OrionIntentKind;
+  normalizedInput: string;
+  hintedEntity: OrionIntentEntityType | null;
+  entities: OrionIntentEntityRecord[];
+  selectedCandidateId?: string | null;
+}) {
+  if (!isCustomerSelectionIntent(params.intent, params.normalizedInput, params.hintedEntity)) {
+    return null;
+  }
+
+  const queryDisplay = extractCustomerLookupTerm(params.normalizedInput);
+  if (!queryDisplay) {
+    return null;
+  }
+
+  const query = normalizeLookupText(queryDisplay);
+
+  const rankedById = new Map<string, RankedCustomerCandidate>();
+
+  for (const candidate of params.entities) {
+    if (candidate.entityType !== "customer") {
+      continue;
+    }
+
+    const ranked = rankCustomerCandidate(query, candidate);
+    if (!ranked) {
+      continue;
+    }
+
+    const existing = rankedById.get(candidate.entityId);
+    if (!existing || ranked.score > existing.score) {
+      rankedById.set(candidate.entityId, ranked);
+    }
+  }
+
+  const ranked = [...rankedById.values()].sort((a, b) => b.score - a.score);
+  if (ranked.length === 0) {
+    return {
+      query,
+      candidates: [] as OrionIntentCandidate[],
+      selected: null as OrionIntentCandidate | null,
+      requiresClarification: false,
+      message: `I couldn't find a customer named ${queryDisplay}.`,
+    };
+  }
+
+  const bestTier = ranked[0].tier;
+  const bestMatches = ranked.filter((entry) => entry.tier === bestTier);
+  const rankedCandidates = bestMatches.map((entry) => ({
+    entityType: "customer" as OrionIntentEntityType,
+    entityId: entry.record.entityId,
+    label: entry.record.label,
+    subtitle: entry.discriminator ? `${entry.record.subtitle} • ${entry.discriminator}` : entry.record.subtitle,
+    score: entry.score,
+  }));
+
+  let selected = rankedCandidates[0] || null;
+  if (params.selectedCandidateId) {
+    const explicit = rankedCandidates.find((candidate) => candidate.entityId === params.selectedCandidateId);
+    if (explicit) {
+      selected = explicit;
+    }
+  }
+
+  const requiresClarification = rankedCandidates.length > 1 && !params.selectedCandidateId;
+  const message = requiresClarification
+    ? formatCustomerAmbiguityMessage(queryDisplay, query, bestMatches)
+    : null;
+
+  return {
+    query: queryDisplay,
+    candidates: rankedCandidates,
+    selected,
+    requiresClarification,
+    message,
+  };
 }
 
 function resolveDeterministicNavigation(input: string) {
@@ -116,6 +402,66 @@ function resolveNextWeekday(input: string) {
   date.setDate(date.getDate() + delta);
   date.setHours(9, 0, 0, 0);
   return date.toISOString();
+}
+
+function resolveCreateSemanticTarget(params: {
+  intent: OrionIntentKind;
+  hintedEntity: OrionIntentEntityType | null;
+  inputText: string;
+}) {
+  const normalized = compact(params.inputText);
+  const contains = (pattern: RegExp) => pattern.test(normalized);
+
+  const createIntentFromStart = params.intent === "start" && contains(/\b(start|begin)\b\s+(a|an)?\s*(project|estimate|invoice|customer|client)\b/);
+  const createIntent = params.intent === "create" || params.intent === "generate_estimate" || createIntentFromStart;
+
+  if (!createIntent) {
+    return null;
+  }
+
+  const wantsEstimate = params.intent === "generate_estimate"
+    || params.hintedEntity === "estimate"
+    || contains(/\bestimate\b|\bquote\b|\best\b/);
+  if (wantsEstimate) {
+    return {
+      commandId: "estimate.create",
+      missingDataPrompt: "Which customer is this estimate for?",
+    } as const;
+  }
+
+  const wantsInvoice = params.hintedEntity === "invoice" || contains(/\binvoice\b|\bbill\b|\binv\b/);
+  if (wantsInvoice) {
+    return {
+      commandId: "invoice.create",
+      missingDataPrompt: "Which customer or project is this invoice for?",
+    } as const;
+  }
+
+  const wantsCustomer = params.hintedEntity === "customer" || contains(/\bcustomer\b|\bclient\b|\bcust\b/);
+  if (wantsCustomer) {
+    return {
+      commandId: "customer.create",
+      missingDataPrompt: "What is the customer name?",
+    } as const;
+  }
+
+  const wantsTask = params.hintedEntity === "task" || contains(/\btask\b|\btodo\b/);
+  if (wantsTask) {
+    return {
+      commandId: "task.create",
+      missingDataPrompt: "Which project should this task belong to?",
+    } as const;
+  }
+
+  const wantsProject = params.hintedEntity === "project" || contains(/\bproject\b|\bjob\b|\bproj\b/);
+  if (wantsProject) {
+    return {
+      commandId: "project.create",
+      missingDataPrompt: "What would you like to name the project?",
+    } as const;
+  }
+
+  return null;
 }
 
 function candidateBaseScore(params: {
@@ -237,8 +583,62 @@ function buildCommandResolution(params: {
   commandsById: Map<string, OrionCommandDefinition>;
   route: OrionIntentRouteContext;
   inputText: string;
+  hintedEntity: OrionIntentEntityType | null;
 }): { suggested: OrionIntentSuggestedCommand | null; preview: OrionIntentCommandPreview | null; message: string | null } {
-  const { intent, entity, commandsById, route, inputText } = params;
+  const { intent, entity, commandsById, route, inputText, hintedEntity } = params;
+  const normalizedInput = normalizeLookupText(inputText);
+
+  if (entity?.entityType === "customer") {
+    if (intent === "archive") {
+      const command = findAllowedCommand(commandsById, "customer.archive");
+      if (!command) {
+        return { suggested: null, preview: null, message: "You do not have permission to archive customers." };
+      }
+
+      return {
+        suggested: {
+          commandId: command.id,
+          params: { customerId: entity.entityId },
+          entityType: "customer",
+          entityId: entity.entityId,
+        },
+        preview: buildCommandPreview(command, `/customers/${entity.entityId}`),
+        message: null,
+      };
+    }
+
+    if (/\brestore\b/.test(normalizedInput)) {
+      const command = findAllowedCommand(commandsById, "customer.restore");
+      if (!command) {
+        return { suggested: null, preview: null, message: "You do not have permission to restore customers." };
+      }
+
+      return {
+        suggested: {
+          commandId: command.id,
+          params: { customerId: entity.entityId },
+          entityType: "customer",
+          entityId: entity.entityId,
+        },
+        preview: buildCommandPreview(command, `/customers/${entity.entityId}`),
+        message: null,
+      };
+    }
+
+    if (intent === "update") {
+      const command = findAllowedCommand(commandsById, "customer.update");
+      if (!command) {
+        return { suggested: null, preview: null, message: "You do not have permission to update customers." };
+      }
+
+      return {
+        suggested: null,
+        preview: buildCommandPreview(command, entity.label),
+        message: `I found ${entity.label}. What would you like to update?`,
+      };
+    }
+  }
+
   if (intent === "inspection_schedule") {
     if (entity?.entityType === "inspection") {
       const reinspection = normalizeIntentText(inputText).includes("reinspection");
@@ -563,6 +963,33 @@ function buildCommandResolution(params: {
     };
   }
 
+  const createTarget = resolveCreateSemanticTarget({
+    intent,
+    hintedEntity,
+    inputText,
+  });
+
+  if (createTarget) {
+    const command = findAllowedCommand(commandsById, createTarget.commandId);
+    if (!command) {
+      return { suggested: null, preview: null, message: "You do not have permission for this create command." };
+    }
+
+    const contextHints: string[] = [];
+    if (entity?.entityType === "customer") {
+      contextHints.push(`Customer in context: ${entity.label}.`);
+    }
+    if (entity?.entityType === "project") {
+      contextHints.push(`Project in context: ${entity.label}.`);
+    }
+
+    return {
+      suggested: null,
+      preview: buildCommandPreview(command, command.name),
+      message: `${createTarget.missingDataPrompt}${contextHints.length > 0 ? ` ${contextHints.join(" ")}` : ""}`,
+    };
+  }
+
   if (intent === "start") {
     const command = findAllowedCommand(commandsById, "task.start");
     if (!command) {
@@ -674,6 +1101,19 @@ function buildCommandResolution(params: {
     };
   }
 
+  if ((intent === "open" || intent === "view" || intent === "navigation") && hintedEntity === "task" && navigationCommand) {
+    return {
+      suggested: {
+        commandId: navigationCommand.id,
+        params: { entityType: "workflow", entityId: "tasks", deepLink: "/projects" },
+        entityType: "workflow",
+        entityId: "tasks",
+      },
+      preview: buildCommandPreview(navigationCommand, "/projects"),
+      message: null,
+    };
+  }
+
   if ((intent === "open" || intent === "view" || intent === "navigation" || intent === "search" || intent === "show_dashboard") && entity) {
     const openCommandIdByEntity: Partial<Record<OrionIntentEntityType, string>> = {
       customer: "customer.open",
@@ -733,33 +1173,6 @@ function buildCommandResolution(params: {
     };
   }
 
-  if (intent === "create" || intent === "generate_estimate") {
-    const command = findAllowedCommand(commandsById, "dashboard.open");
-    if (!command) {
-      return { suggested: null, preview: null, message: "You do not have permission for create navigation." };
-    }
-
-    const hintedEstimate = intent === "generate_estimate" || entity?.entityType === "estimate";
-    const deepLink = hintedEstimate
-      ? `/estimates/new${route.customerId ? `?customerId=${route.customerId}` : ""}`
-      : `/projects/new${route.customerId ? `?customerId=${route.customerId}` : ""}`;
-
-    return {
-      suggested: {
-        commandId: command.id,
-        params: {
-          entityType: "workflow",
-          entityId: "create",
-          deepLink,
-        },
-        entityType: null,
-        entityId: null,
-      },
-      preview: buildCommandPreview(command, deepLink),
-      message: null,
-    };
-  }
-
   return { suggested: null, preview: null, message: "No matching command mapping for the detected intent." };
 }
 
@@ -791,6 +1204,42 @@ export function resolveIntentFromEntitySet(params: {
   const registry = createOrionCommandRegistry();
   const allowedCommands = registry.list().filter((command) => command.requiredPermissions.includes(params.role));
   const commandsById = new Map(allowedCommands.map((command) => [command.id, command]));
+
+  const scheduleRead = parseScheduleReadPhrase(normalizedInput);
+  if (scheduleRead) {
+    const command = commandsById.get("schedule.read_range");
+    if (!command) {
+      return {
+        resolvedIntent: "view",
+        resolvedEntity: null,
+        confidence: 0.97,
+        candidates: [],
+        suggestedCommand: null,
+        commandPreview: null,
+        requiresClarification: false,
+        message: "You do not have permission to read the schedule.",
+      };
+    }
+
+    return {
+      resolvedIntent: "view",
+      resolvedEntity: null,
+      confidence: 0.97,
+      candidates: [],
+      suggestedCommand: {
+        commandId: command.id,
+        params: {
+          rangeType: scheduleRead.rangeType,
+          rangeKey: scheduleRead.rangeKey,
+        },
+        entityType: null,
+        entityId: null,
+      },
+      commandPreview: buildCommandPreview(command, `schedule ${scheduleRead.label}`),
+      requiresClarification: false,
+      message: "Intent resolved.",
+    };
+  }
 
   const deterministicNavigation = resolveDeterministicNavigation(normalizedInput);
   if (deterministicNavigation) {
@@ -842,6 +1291,42 @@ export function resolveIntentFromEntitySet(params: {
     };
   }
 
+  const explicitCustomerCreate = intent === "create"
+    && hintedEntity === "customer"
+    && /\b(customer|client|cust)\b/.test(normalizedInput);
+
+  if (explicitCustomerCreate) {
+    const command = commandsById.get("customer.create");
+    if (!command) {
+      return {
+        resolvedIntent: intent,
+        resolvedEntity: null,
+        confidence: 0.95,
+        candidates: [],
+        suggestedCommand: null,
+        commandPreview: null,
+        requiresClarification: false,
+        message: "You do not have permission for this create command.",
+      };
+    }
+
+    const proposedName = extractCreateCustomerProposedName(normalizedInput);
+    const prompt = proposedName
+      ? `I captured ${proposedName} as the proposed customer name. What is the customer first name?`
+      : "What is the customer name?";
+
+    return {
+      resolvedIntent: intent,
+      resolvedEntity: null,
+      confidence: 0.99,
+      candidates: [],
+      suggestedCommand: null,
+      commandPreview: buildCommandPreview(command, command.name),
+      requiresClarification: true,
+      message: prompt,
+    };
+  }
+
   const scored = params.entities
     .map((candidate) => {
       const baseScore = candidateBaseScore({
@@ -872,7 +1357,7 @@ export function resolveIntentFromEntitySet(params: {
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  const candidates: OrionIntentCandidate[] = scored.slice(0, 6).map((entry) => ({
+  let candidates: OrionIntentCandidate[] = scored.slice(0, 6).map((entry) => ({
     entityType: entry.candidate.entityType,
     entityId: entry.candidate.entityId,
     label: entry.candidate.label,
@@ -880,7 +1365,35 @@ export function resolveIntentFromEntitySet(params: {
     score: entry.score,
   }));
 
-  const allowRouteOnlyResolution = intent === "inspection_schedule" || intent === "customer_update_log";
+  const allowRouteOnlyResolution = intent === "inspection_schedule"
+    || intent === "customer_update_log"
+    || intent === "create"
+    || intent === "generate_estimate";
+
+  const customerResolution = resolveCustomerCandidates({
+    intent,
+    normalizedInput,
+    hintedEntity,
+    entities: params.entities,
+    selectedCandidateId: params.input.selectedCandidateId,
+  });
+
+  if (customerResolution?.candidates.length) {
+    candidates = customerResolution.candidates;
+  }
+
+  if (customerResolution && customerResolution.candidates.length === 0) {
+    return {
+      resolvedIntent: intent,
+      resolvedEntity: null,
+      confidence: 0,
+      candidates: [],
+      suggestedCommand: null,
+      commandPreview: null,
+      requiresClarification: false,
+      message: customerResolution.message || "No matching record found.",
+    };
+  }
 
   if (candidates.length === 0 && !allowRouteOnlyResolution && hintedEntity !== "dashboard" && hintedEntity !== "timeline" && hintedEntity !== "settings" && hintedEntity !== "operations") {
     return {
@@ -895,7 +1408,7 @@ export function resolveIntentFromEntitySet(params: {
     };
   }
 
-  let selected = candidates[0] || null;
+  let selected = customerResolution?.selected || candidates[0] || null;
 
   if (params.input.selectedCandidateId) {
     const explicit = candidates.find((candidate) => candidate.entityId === params.input.selectedCandidateId);
@@ -904,13 +1417,17 @@ export function resolveIntentFromEntitySet(params: {
     }
   }
 
-  const requiresClarification = Boolean(
-    !params.input.selectedCandidateId
-    && candidates.length > 1
-    && candidates[0]
-    && candidates[1]
-    && (candidates[0].score - candidates[1].score) <= 8,
-  );
+  const requiresClarification = customerResolution
+    ? customerResolution.requiresClarification
+    : Boolean(
+      !allowRouteOnlyResolution
+      &&
+      !params.input.selectedCandidateId
+      && candidates.length > 1
+      && candidates[0]
+      && candidates[1]
+      && (candidates[0].score - candidates[1].score) <= 8,
+    );
 
   const resolvedEntityRecord = selected
     ? params.entities.find((entry) => entry.entityType === selected.entityType && entry.entityId === selected.entityId) || null
@@ -922,6 +1439,7 @@ export function resolveIntentFromEntitySet(params: {
     commandsById,
     route: params.input.route,
     inputText: normalizedInput,
+    hintedEntity,
   });
 
   const hasNavKeyword = /(dashboard|projects|customers|estimates|invoices|timeline|schedule)/.test(normalizedInput);
@@ -946,7 +1464,7 @@ export function resolveIntentFromEntitySet(params: {
       suggestedCommand: null,
       commandPreview: null,
       requiresClarification: true,
-      message: "Multiple matches found. Please select a specific record.",
+      message: customerResolution?.message || "Multiple matches found. Please select a specific record.",
     };
   }
 

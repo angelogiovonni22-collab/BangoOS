@@ -3,7 +3,7 @@ import { forwardRef, type InputHTMLAttributes } from "react";
 type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
 export function getInputClassName() {
-  return "w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]";
+  return "w-full rounded-[var(--radius-lg)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-4 py-3 text-sm text-[var(--bos-text-primary)] outline-none transition placeholder:text-[var(--bos-text-muted)] focus-visible:border-[var(--orion-blue)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]";
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ className, ...props }, ref) {

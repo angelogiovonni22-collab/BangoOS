@@ -34,6 +34,11 @@ export type DailyReportsService = {
   toUpsertInput: (report: DailyReport) => DailyReportUpsertInput;
 };
 
+type CreateDailyReportsServiceDeps = {
+  supabaseClient?: ReturnType<typeof createClient>;
+  resolveWorkspace?: typeof resolveWorkspaceContext;
+};
+
 const DAILY_REPORT_EVENT_TYPES = ["daily_report.created", "daily_report.updated"];
 
 type WorkflowDailyReportEventRow = {
@@ -176,8 +181,11 @@ async function buildLiveDraft(date: string): Promise<DailyReportUpsertInput> {
   };
 }
 
-export function createDailyReportsService(): DailyReportsService {
-  const supabase = createClient();
+export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = {}): DailyReportsService {
+  const supabase = deps.supabaseClient ?? createClient();
+  const resolveWorkspace = deps.resolveWorkspace ?? resolveWorkspaceContext;
+  let inFlightContext: Promise<{ supabase: NonNullable<typeof supabase>; workspace: NonNullable<Awaited<ReturnType<typeof resolveWorkspaceContext>>["context"]> }> | null = null;
+  const inFlightReportsByCompany = new Map<string, Promise<DailyReport[]>>();
 
   type LooseSupabase = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -185,11 +193,16 @@ export function createDailyReportsService(): DailyReportsService {
   };
 
   async function resolveContext() {
+    if (inFlightContext) {
+      return inFlightContext;
+    }
+
+    inFlightContext = (async () => {
     if (!supabase) {
       throw new Error("Unable to connect to storage.");
     }
 
-    const workspace = await resolveWorkspaceContext(supabase);
+    const workspace = await resolveWorkspace(supabase);
 
     if (workspace.errorMessage || !workspace.context) {
       throw new Error(workspace.errorMessage || "Unable to resolve workspace context.");
@@ -199,6 +212,13 @@ export function createDailyReportsService(): DailyReportsService {
       supabase,
       workspace: workspace.context,
     };
+    })();
+
+    try {
+      return await inFlightContext;
+    } finally {
+      inFlightContext = null;
+    }
   }
 
   function calculateLaborTotals(labor: LaborEntry[]): LaborTotals {
@@ -328,6 +348,22 @@ export function createDailyReportsService(): DailyReportsService {
     return [...byReportId.values()];
   }
 
+  async function loadReportsFromEventsShared(companyId: string) {
+    const existing = inFlightReportsByCompany.get(companyId);
+
+    if (existing) {
+      return existing;
+    }
+
+    const request = loadReportsFromEvents(companyId)
+      .finally(() => {
+        inFlightReportsByCompany.delete(companyId);
+      });
+
+    inFlightReportsByCompany.set(companyId, request);
+    return request;
+  }
+
   async function loadReportById(companyId: string, reportId: string) {
     const rows = await fetchDailyReportEvents(companyId, reportId);
     const row = rows[0] || null;
@@ -398,7 +434,7 @@ export function createDailyReportsService(): DailyReportsService {
   return {
     async getDashboard() {
       const { workspace } = await resolveContext();
-      const reports = await loadReportsFromEvents(workspace.companyId);
+      const reports = await loadReportsFromEventsShared(workspace.companyId);
       const today = new Date().toISOString().slice(0, 10);
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
@@ -438,7 +474,7 @@ export function createDailyReportsService(): DailyReportsService {
 
     async listReports(filters) {
       const { workspace } = await resolveContext();
-      const reports = await loadReportsFromEvents(workspace.companyId);
+      const reports = await loadReportsFromEventsShared(workspace.companyId);
 
       const query = filters.query.trim().toLowerCase();
       const filtered = reports.filter((item) => {

@@ -7,6 +7,7 @@ export const DEPTH_TOKENS = {
   popover: "var(--z-popover)",
   overlay: "var(--z-overlay)",
   backdrop: "var(--z-backdrop)",
+  orionPersistent: "var(--z-orion-persistent)",
   dialog: "var(--z-modal)",
   spotlight: "var(--z-spotlight)",
   criticalAlert: "var(--z-critical)",
@@ -17,6 +18,7 @@ export const LAYER_HIERARCHY = [
   "stickyNav",
   "popover",
   "backdrop",
+  "orionPersistent",
   "dialog",
   "spotlight",
   "criticalAlert",
@@ -44,6 +46,10 @@ export function classifyDepthLayer(layer: DepthLayer): LayerHierarchy {
 
   if (layer === "backdrop") {
     return "backdrop";
+  }
+
+  if (layer === "orionPersistent") {
+    return "orionPersistent" as LayerHierarchy;
   }
 
   if (layer === "dialog") {

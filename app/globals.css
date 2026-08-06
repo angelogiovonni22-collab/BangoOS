@@ -1,16 +1,56 @@
 @import "tailwindcss";
 
 :root {
+  --bos-bg-root: #050b16;
+  --bos-bg-shell: #091427;
+  --bos-bg-sidebar: #070f1f;
+  --bos-bg-panel: #0d182b;
+  --bos-bg-panel-elevated: #12203a;
+  --bos-bg-control: #14243f;
+  --bos-bg-hover: #1a2c4a;
+
+  --bos-border-subtle: rgb(99 130 174 / 0.22);
+  --bos-border-default: rgb(121 156 206 / 0.32);
+  --bos-border-strong: rgb(144 180 230 / 0.48);
+  --bos-border-orion: rgb(96 171 255 / 0.52);
+
+  --bos-text-primary: #eff6ff;
+  --bos-text-secondary: #c2d2ea;
+  --bos-text-muted: #8ba1bf;
+  --bos-text-inverse: #031122;
+
+  --orion-core: #dbf2ff;
+  --orion-blue: #4a90ff;
+  --orion-cyan: #63deff;
+  --orion-glow-soft: rgb(74 144 255 / 0.24);
+  --orion-glow-strong: rgb(74 144 255 / 0.42);
+  --orion-state-listening: #60c6ff;
+  --orion-state-thinking: #89b7ff;
+  --orion-state-speaking: #66dcff;
+  --orion-state-confirming: #95b6df;
+  --orion-state-success: #76c4ff;
+  --orion-state-error: #ff9a74;
+
+  --status-success: #46d2a4;
+  --status-warning: #f4b15b;
+  --status-danger: #f78b7f;
+  --status-info: #6ab8ff;
+
+  --motion-fast: 140ms;
+  --motion-standard: 220ms;
+  --motion-slow: 360ms;
+  --motion-orion-pulse: 900ms;
+
   --color-primary: #1d4ed8;
-  --color-sidebar: #0b1220;
-  --color-background-app: #f6f8fc;
+  --color-sidebar: var(--bos-bg-sidebar);
+  --color-background-app: var(--bos-bg-root);
   --color-success: #15803d;
   --color-warning: #ea580c;
   --color-danger: #dc2626;
   --color-analytics: #7c3aed;
   --color-info: #0891b2;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #334155;
+  --color-text-primary: var(--bos-text-primary);
+  --color-text-secondary: var(--bos-text-secondary);
   --gradient-ai: linear-gradient(135deg, #6d28d9 0%, #1d4ed8 50%, #0891b2 100%);
 
   --color-primary-50: #eff6ff;
@@ -41,13 +81,13 @@
   --color-analytics-100: #ede9fe;
   --color-analytics-700: #6d28d9;
 
-  --color-surface-card: #ffffff;
-  --color-surface-subtle: #f8fafc;
-  --color-surface-muted: #e8eef6;
-  --color-border-subtle: #e3e8f1;
-  --color-border-strong: #bac7d8;
-  --color-text-muted: #94a3b8;
-  --color-text-inverse: #f8fafc;
+  --color-surface-card: var(--bos-bg-panel);
+  --color-surface-subtle: var(--bos-bg-control);
+  --color-surface-muted: var(--bos-bg-hover);
+  --color-border-subtle: var(--bos-border-subtle);
+  --color-border-strong: var(--bos-border-default);
+  --color-text-muted: var(--bos-text-muted);
+  --color-text-inverse: var(--bos-text-inverse);
   --color-neutral-100: #f1f5f9;
   --color-neutral-50: #f8fafc;
   --color-neutral-200: #e2e8f0;
@@ -103,17 +143,17 @@
   --radius-row: var(--radius-xl);
   --radius-badge: 999px;
 
-  --shadow-small: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-medium: 0 10px 22px -14px rgb(15 23 42 / 0.16);
-  --shadow-large: 0 16px 30px -20px rgb(15 23 42 / 0.2);
-  --shadow-hover: 0 18px 34px -20px rgb(15 23 42 / 0.26);
+  --shadow-small: 0 1px 1px rgb(1 8 17 / 0.5);
+  --shadow-medium: 0 18px 28px -18px rgb(1 8 17 / 0.72);
+  --shadow-large: 0 24px 42px -24px rgb(1 8 17 / 0.84);
+  --shadow-hover: 0 24px 42px -22px rgb(1 8 17 / 0.9);
 
   --shadow-card: var(--shadow-medium);
   --shadow-raised: var(--shadow-large);
 
-  --focus-ring-primary: rgb(29 78 216 / 0.24);
-  --focus-ring-neutral: rgb(100 116 139 / 0.18);
-  --focus-ring-danger: rgb(220 38 38 / 0.18);
+  --focus-ring-primary: rgb(92 167 255 / 0.36);
+  --focus-ring-neutral: rgb(123 154 196 / 0.3);
+  --focus-ring-danger: rgb(247 139 127 / 0.32);
 
   --container-page-max: 96rem;
   --container-content-max: 80rem;
@@ -158,6 +198,7 @@
   --z-popover: 30;
   --z-overlay: 30;
   --z-backdrop: 40;
+  --z-orion-persistent: 46;
   --z-modal: 60;
   --z-spotlight: 70;
   --z-toast: 70;
@@ -196,9 +237,9 @@
 
 body {
   background:
-    radial-gradient(circle at top left, rgb(37 99 235 / 0.06), transparent 28%),
-    radial-gradient(circle at top right, rgb(148 163 184 / 0.08), transparent 24%),
-    linear-gradient(180deg, #ffffff 0%, var(--background) 10%, var(--background) 100%);
+    radial-gradient(circle at 18% 0%, rgb(59 130 246 / 0.2), transparent 34%),
+    radial-gradient(circle at 85% 12%, rgb(34 211 238 / 0.14), transparent 28%),
+    linear-gradient(180deg, #040a16 0%, #050b16 100%);
   color: var(--foreground);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-body);

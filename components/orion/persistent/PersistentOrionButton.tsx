@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 import type { KeyboardEvent, PointerEvent, MouseEvent } from "react";
-import type { PersistentOrionFixture } from "./types";
+import type { PersistentOrionFixture, PersistentOrionVisualState } from "./types";
 import { PersistentOrionMiniSphere } from "./PersistentOrionMiniSphere";
 
 type PersistentOrionButtonProps = {
@@ -13,6 +13,8 @@ type PersistentOrionButtonProps = {
   fixture: PersistentOrionFixture;
   panelId: string;
   instructionsId: string;
+  sphereState: PersistentOrionVisualState;
+  voiceLevel: number;
   buttonRef: RefObject<HTMLButtonElement | null>;
   onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
   onPointerMove: (event: PointerEvent<HTMLButtonElement>) => void;
@@ -32,6 +34,8 @@ export function PersistentOrionButton({
   fixture,
   panelId,
   instructionsId,
+  sphereState,
+  voiceLevel,
   buttonRef,
   onPointerDown,
   onPointerMove,
@@ -67,13 +71,8 @@ export function PersistentOrionButton({
       onClick={onClick}
     >
       <span className="persistentOrionVisual" aria-hidden="true">
-        <PersistentOrionMiniSphere state={fixture.state} reducedMotion={reducedMotion} minimized={minimized} />
+        <PersistentOrionMiniSphere state={sphereState} reducedMotion={reducedMotion} minimized={minimized} voiceLevel={voiceLevel} />
       </span>
-      <span
-        aria-hidden="true"
-        className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full"
-        style={{ background: micActive ? "#22c55e" : "#94a3b8" }}
-      />
       <span className="persistentOrionSr">
         Open Orion. Current state: {stateLabel}. {minimized ? "Orion is minimized." : "Orion is available."}
       </span>

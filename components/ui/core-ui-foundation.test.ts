@@ -52,6 +52,9 @@ async function main(): Promise<void> {
     });
 
     assert(resolvePortalContainer() === mockBody, "portal host defaults to document.body");
+    assert(portalHost.includes("useSyncExternalStore"), "portal host uses hydration-safe mounted snapshot gating");
+    assert(portalHost.includes("getServerMountedSnapshot") && portalHost.includes("return false;"), "portal host server snapshot keeps SSR and first client render aligned");
+    assert(portalHost.includes("if (!mounted) {") && portalHost.includes("return null;"), "portal host renders null until mounted to keep first client render aligned with SSR");
     assert(portalHost.includes("createPortal(children, target)"), "portal host renders through React portal");
 
     Object.assign(globalThis, {

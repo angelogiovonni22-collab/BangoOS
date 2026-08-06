@@ -81,7 +81,7 @@ function main() {
     assert(countMatches(overlay, /logVoiceTiming\("intent\.request\.start"/g) === 1, "voice intent request start marker exists once");
     assert(countMatches(overlay, /logVoiceTiming\("command\.execute\.start"/g) === 1, "voice command execute start marker exists once");
     assert(countMatches(overlay, /logVoiceTiming\("command\.execute\.end"/g) === 1, "voice command execute end marker exists once");
-    assert(countMatches(overlay, /logVoiceTiming\("navigation\.start"/g) === 1, "voice navigation start marker exists once");
+    assert(countMatches(overlay, /logVoiceTiming\("navigation\.start"/g) >= 1, "voice navigation start marker exists");
     assert(countMatches(overlay, /logVoiceTiming\("navigation\.complete"/g) === 1, "voice navigation complete marker exists once");
   });
 

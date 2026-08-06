@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createDailyReportsService, type DailyReportsService } from "./service";
 import type { DailyReportStatus, DailyReportUpsertInput } from "./types";
 import { validateDailyReportInput } from "./validation";
@@ -11,7 +11,23 @@ type UseDailyReportParams = {
   service?: DailyReportsService;
 };
 
-export function useDailyReport({ reportId, initialDate, service = createDailyReportsService() }: UseDailyReportParams = {}) {
+export function useDailyReport({ reportId, initialDate, service }: UseDailyReportParams = {}) {
+  const serviceRef = useRef<DailyReportsService>(service ?? createDailyReportsService());
+  const activeRequestRef = useRef(0);
+  const unmountedRef = useRef(false);
+
+  useEffect(() => {
+    if (service) {
+      serviceRef.current = service;
+    }
+  }, [service]);
+
+  useEffect(() => {
+    return () => {
+      unmountedRef.current = true;
+    };
+  }, []);
+
   const [draft, setDraft] = useState<DailyReportUpsertInput | null>(null);
   const [resolvedReportId, setResolvedReportId] = useState<string | null>(reportId || null);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,12 +37,19 @@ export function useDailyReport({ reportId, initialDate, service = createDailyRep
   const [status, setStatus] = useState<DailyReportStatus>("draft");
 
   const load = useCallback(async () => {
+    const requestId = activeRequestRef.current + 1;
+    activeRequestRef.current = requestId;
+
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
       if (reportId) {
-        const report = await service.getReport(reportId);
+        const report = await serviceRef.current.getReport(reportId);
+
+        if (unmountedRef.current || requestId !== activeRequestRef.current) {
+          return;
+        }
 
         if (!report) {
           setErrorMessage("dailyReports.error.notFound");
@@ -34,21 +57,34 @@ export function useDailyReport({ reportId, initialDate, service = createDailyRep
           return;
         }
 
-        setDraft(service.toUpsertInput(report));
+        setDraft(serviceRef.current.toUpsertInput(report));
         setStatus(report.header.overallStatus);
         setResolvedReportId(report.id);
       } else {
         const date = initialDate || new Date().toISOString().slice(0, 10);
-        const seeded = await service.createDraftFromSchedule(date);
+        const seeded = await serviceRef.current.createDraftFromSchedule(date);
+
+        if (unmountedRef.current || requestId !== activeRequestRef.current) {
+          return;
+        }
+
         setDraft(seeded);
         setStatus("draft");
       }
     } catch {
+      if (unmountedRef.current || requestId !== activeRequestRef.current) {
+        return;
+      }
+
       setErrorMessage("dailyReports.error.loadReport");
     } finally {
+      if (unmountedRef.current || requestId !== activeRequestRef.current) {
+        return;
+      }
+
       setIsLoading(false);
     }
-  }, [initialDate, reportId, service]);
+  }, [initialDate, reportId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -78,21 +114,21 @@ export function useDailyReport({ reportId, initialDate, service = createDailyRep
 
     try {
       if (resolvedReportId) {
-        const updated = await service.updateReport(resolvedReportId, draft, nextStatus);
+        const updated = await serviceRef.current.updateReport(resolvedReportId, draft, nextStatus);
 
         if (!updated) {
           setErrorMessage("dailyReports.error.notFound");
           return null;
         }
 
-        setDraft(service.toUpsertInput(updated));
+        setDraft(serviceRef.current.toUpsertInput(updated));
         setStatus(updated.header.overallStatus);
         return updated.id;
       }
 
-      const created = await service.createReport(draft, nextStatus);
+      const created = await serviceRef.current.createReport(draft, nextStatus);
       setResolvedReportId(created.id);
-      setDraft(service.toUpsertInput(created));
+      setDraft(serviceRef.current.toUpsertInput(created));
       setStatus(created.header.overallStatus);
       return created.id;
     } catch {
@@ -101,20 +137,20 @@ export function useDailyReport({ reportId, initialDate, service = createDailyRep
     } finally {
       setIsSaving(false);
     }
-  }, [draft, resolvedReportId, service]);
+  }, [draft, resolvedReportId]);
 
   const regenerateSummary = useCallback(async () => {
     if (!resolvedReportId) {
       return;
     }
 
-    const refreshed = await service.regenerateSummary(resolvedReportId);
+    const refreshed = await serviceRef.current.regenerateSummary(resolvedReportId);
 
     if (refreshed) {
-      setDraft(service.toUpsertInput(refreshed));
+      setDraft(serviceRef.current.toUpsertInput(refreshed));
       setStatus(refreshed.header.overallStatus);
     }
-  }, [resolvedReportId, service]);
+  }, [resolvedReportId]);
 
   return {
     draft,

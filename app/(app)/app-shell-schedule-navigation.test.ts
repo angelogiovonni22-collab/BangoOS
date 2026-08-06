@@ -34,6 +34,7 @@ async function test(name: string, fn: () => void | Promise<void>) {
 
 async function main() {
   const appShellSource = read("app/(app)/app-shell.tsx");
+  const navigationCatalogSource = read("lib/orion/navigation/catalog.ts");
   const scheduleSource = read("app/(app)/schedule/page.tsx");
   const schedulingSource = read("app/(app)/scheduling/page.tsx");
   const schedulingDispatchSource = read("app/(app)/scheduling/dispatch/page.tsx");
@@ -41,7 +42,7 @@ async function main() {
   const schedulingForecastSource = read("app/(app)/scheduling/forecast/page.tsx");
   const dispatchSource = read("app/(app)/dispatch/page.tsx");
   const navigationLocale = read("locales/en/navigation.json");
-  const items = parseNavigationItems(appShellSource);
+  const items = parseNavigationItems(navigationCatalogSource);
   const scheduleItem = items.find((item) => item.key === "schedule");
   const dispatchItem = items.find((item) => item.key === "dispatch");
 

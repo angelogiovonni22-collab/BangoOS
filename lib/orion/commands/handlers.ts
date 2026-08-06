@@ -3,7 +3,17 @@ import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service"
 import { saveInvoice, sendInvoice, markInvoicePaid } from "@/lib/invoices/service";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createProjectExecutionService } from "@/lib/projects/execution";
+import { createCustomer, mapOrionCustomerCreateParamsToInput, archiveCustomer, restoreCustomer, updateCustomer, mapOrionCustomerUpdateParamsToInput } from "@/lib/customers";
+import { createWorkforceRepository } from "@/lib/workforce/workforce-repository";
 import { createWorkforceService } from "@/lib/workforce/workforce-service";
+import type {
+  WorkforceAssignmentRow,
+  WorkforceCrewRow,
+  WorkforceEmployeeRow,
+  WorkforceMembershipRow,
+  WorkforceProfileRow,
+  WorkforceProjectRow,
+} from "@/lib/workforce/workforce-types";
 import type { Database } from "@/types/database.types";
 import type { OrionCommandDependencies, OrionCommandExecutionContext, OrionCommandExecutionOutput } from "./types";
 
@@ -79,6 +89,359 @@ function parseLineItems(params: Record<string, unknown>, key: string) {
   });
 }
 
+type ScheduleReadRangeType = "day" | "week";
+type ScheduleReadRangeKey = "today" | "tomorrow" | "this_week";
+
+type ScheduleSummaryItem = {
+  id: string;
+  type: string;
+  title: string;
+  startAt: string;
+  endAt: string;
+  project: string | null;
+  crew: string | null;
+  assignee: string | null;
+  location: string | null;
+  status: string;
+  deepLink: string;
+};
+
+function readTimezoneOffsetMinutes(instant: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const zonePart = formatter.formatToParts(instant).find((part) => part.type === "timeZoneName")?.value || "GMT";
+  const match = zonePart.match(/^GMT(?:(\+|-)(\d{1,2})(?::?(\d{2}))?)?$/i);
+  if (!match) {
+    return 0;
+  }
+
+  const sign = match[1] === "-" ? -1 : 1;
+  const hours = Number.parseInt(match[2] || "0", 10);
+  const minutes = Number.parseInt(match[3] || "0", 10);
+  return sign * ((hours * 60) + minutes);
+}
+
+function zonedDateKey(instant: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(instant);
+}
+
+function zonedWeekday(instant: Date, timeZone: string) {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "long",
+  }).format(instant).toLowerCase();
+
+  const weekdayMap: Record<string, number> = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+  };
+
+  return weekdayMap[weekday] ?? 0;
+}
+
+function addDays(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map((value) => Number.parseInt(value, 10));
+  const value = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0));
+  return value.toISOString().slice(0, 10);
+}
+
+function zonedMidnightIso(dateKey: string, timeZone: string) {
+  const [year, month, day] = dateKey.split("-").map((value) => Number.parseInt(value, 10));
+  const utcGuess = Date.UTC(year, month - 1, day, 0, 0, 0);
+  const firstOffset = readTimezoneOffsetMinutes(new Date(utcGuess), timeZone);
+  let utcMs = utcGuess - (firstOffset * 60_000);
+  const resolvedOffset = readTimezoneOffsetMinutes(new Date(utcMs), timeZone);
+  if (resolvedOffset !== firstOffset) {
+    utcMs = utcGuess - (resolvedOffset * 60_000);
+  }
+
+  return new Date(utcMs).toISOString();
+}
+
+function resolveScheduleTimezone(companyTimezone: string | null, requestedTimezone: string | null) {
+  const candidates = [companyTimezone, requestedTimezone, Intl.DateTimeFormat().resolvedOptions().timeZone, "UTC"];
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format(new Date());
+      return candidate;
+    } catch {
+      // Try next candidate.
+    }
+  }
+
+  return "UTC";
+}
+
+function resolveScheduleRange(params: {
+  rangeType: ScheduleReadRangeType;
+  rangeKey: ScheduleReadRangeKey;
+  timeZone: string;
+  now?: Date;
+}) {
+  const now = params.now || new Date();
+  const todayKey = zonedDateKey(now, params.timeZone);
+
+  if (params.rangeType === "day") {
+    const dateKey = params.rangeKey === "tomorrow" ? addDays(todayKey, 1) : todayKey;
+    const nextDateKey = addDays(dateKey, 1);
+    return {
+      startAt: zonedMidnightIso(dateKey, params.timeZone),
+      endAt: zonedMidnightIso(nextDateKey, params.timeZone),
+      label: params.rangeKey === "tomorrow" ? "tomorrow" : "today",
+      weekStartsOn: "monday",
+    } as const;
+  }
+
+  const weekday = zonedWeekday(now, params.timeZone);
+  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
+  const startDateKey = addDays(todayKey, mondayOffset);
+  const endDateKey = addDays(startDateKey, 7);
+
+  return {
+    startAt: zonedMidnightIso(startDateKey, params.timeZone),
+    endAt: zonedMidnightIso(endDateKey, params.timeZone),
+    label: "this week",
+    weekStartsOn: "monday",
+  } as const;
+}
+
+function assignmentSortRank(row: WorkforceAssignmentRow) {
+  if (row.status === "in_progress") {
+    return 0;
+  }
+
+  if (row.status === "confirmed") {
+    return 1;
+  }
+
+  if (row.status === "planned") {
+    return 2;
+  }
+
+  if (row.status === "completed") {
+    return 3;
+  }
+
+  return 4;
+}
+
+function fullName(profile: WorkforceProfileRow | null | undefined) {
+  if (!profile) {
+    return null;
+  }
+
+  const value = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
+  return value || null;
+}
+
+function summarizeScheduleItems(params: {
+  items: ScheduleSummaryItem[];
+  rangeLabel: string;
+  timeZone: string;
+}) {
+  if (params.items.length === 0) {
+    return `You have nothing scheduled ${params.rangeLabel}.`;
+  }
+
+  const formatTime = (iso: string) => new Intl.DateTimeFormat("en-US", {
+    timeZone: params.timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+
+  if (params.items.length <= 3) {
+    const entries = params.items.map((item) => `${formatTime(item.startAt)} ${item.title}`);
+    return `You have ${params.items.length} scheduled ${params.items.length === 1 ? "item" : "items"} ${params.rangeLabel}: ${entries.join("; ")}.`;
+  }
+
+  const first = params.items[0];
+  if (params.items.length <= 8) {
+    return `You have ${params.items.length} scheduled items ${params.rangeLabel}. Your first is ${first.title} at ${formatTime(first.startAt)}.`;
+  }
+
+  return `You have ${params.items.length} scheduled items ${params.rangeLabel}. Your first is ${first.title} at ${formatTime(first.startAt)}. The full schedule is visible in Orion.`;
+}
+
+function buildScheduleVisualMessage(params: {
+  items: ScheduleSummaryItem[];
+  rangeLabel: string;
+}) {
+  if (params.items.length === 0) {
+    return `Nothing scheduled ${params.rangeLabel}.`;
+  }
+
+  const lines = params.items.slice(0, 8).map((item) => {
+    const parts = [item.startAt, item.title, item.project, item.crew, item.status, item.deepLink].filter(Boolean);
+    return parts.join(" | ");
+  });
+  return [`Schedule ${params.rangeLabel} (${params.items.length})`, ...lines].join("\n");
+}
+
+export async function executeScheduleReadRangeCommand(
+  params: Record<string, unknown>,
+  context: OrionCommandExecutionContext,
+  deps: OrionCommandDependencies,
+): Promise<OrionCommandExecutionOutput> {
+  const rangeType = requireString(params, "rangeType") as ScheduleReadRangeType;
+  const rangeKey = requireString(params, "rangeKey") as ScheduleReadRangeKey;
+  const requestedTimezone = optionalString(params, "timezone");
+
+  const { data: company, error: companyError } = await deps.supabase
+    .from("companies")
+    .select("timezone")
+    .eq("id", context.companyId)
+    .maybeSingle<{ timezone: string | null }>();
+
+  if (companyError) {
+    throw new Error(companyError.message || "Unable to resolve company timezone.");
+  }
+
+  const timeZone = resolveScheduleTimezone(company?.timezone ?? null, requestedTimezone);
+  const range = resolveScheduleRange({
+    rangeType,
+    rangeKey,
+    timeZone,
+  });
+
+  const repository = createWorkforceRepository(deps.supabase);
+  const assignments = await repository.listWorkforceAssignments(context.companyId);
+  const [projectsResult, crewsResult, membershipsResult, employeesResult, profilesResult] = await Promise.allSettled([
+    repository.listProjects(context.companyId),
+    repository.listCrews(context.companyId),
+    repository.listCrewMemberships(context.companyId),
+    repository.listEmployees(context.companyId),
+    repository.listProfiles(context.companyId),
+  ]);
+
+  const projects = projectsResult.status === "fulfilled" ? projectsResult.value : [];
+  const crews = crewsResult.status === "fulfilled" ? crewsResult.value : [];
+  const memberships = membershipsResult.status === "fulfilled" ? membershipsResult.value : [];
+  const employees = employeesResult.status === "fulfilled" ? employeesResult.value : [];
+  const profiles = profilesResult.status === "fulfilled" ? profilesResult.value : [];
+
+  const projectsById = new Map(projects.map((project: WorkforceProjectRow) => [project.id, project.name]));
+  const crewsById = new Map(crews.map((crew: WorkforceCrewRow) => [crew.id, crew.name]));
+  const employeesById = new Map(employees.map((employee: WorkforceEmployeeRow) => [employee.id, employee]));
+  const profilesById = new Map(profiles.map((profile: WorkforceProfileRow) => [profile.id, profile]));
+  const membershipByCrew = new Map<string, WorkforceMembershipRow[]>();
+
+  for (const membership of memberships as WorkforceMembershipRow[]) {
+    if (membership.status !== "active") {
+      continue;
+    }
+
+    const current = membershipByCrew.get(membership.crew_id) || [];
+    current.push(membership);
+    membershipByCrew.set(membership.crew_id, current);
+  }
+
+  const matching = assignments
+    .filter((assignment) => assignment.starts_at < range.endAt && assignment.ends_at > range.startAt)
+    .sort((left, right) => {
+      if (left.starts_at !== right.starts_at) {
+        return left.starts_at.localeCompare(right.starts_at);
+      }
+
+      const rankDiff = assignmentSortRank(left) - assignmentSortRank(right);
+      if (rankDiff !== 0) {
+        return rankDiff;
+      }
+
+      return left.id.localeCompare(right.id);
+    });
+
+  const items: ScheduleSummaryItem[] = matching.map((assignment) => {
+    const project = projectsById.get(assignment.project_id) ?? null;
+    const crew = assignment.crew_id ? crewsById.get(assignment.crew_id) ?? null : null;
+    const directEmployee = assignment.employee_id ? employeesById.get(assignment.employee_id) ?? null : null;
+    const directAssignee = directEmployee?.profile_id ? fullName(profilesById.get(directEmployee.profile_id)) : null;
+    const crewAssignee = assignment.crew_id
+      ? (membershipByCrew.get(assignment.crew_id) || [])
+        .map((membership) => {
+          const employee = employeesById.get(membership.employee_id);
+          return employee?.profile_id ? fullName(profilesById.get(employee.profile_id)) : null;
+        })
+        .filter((value): value is string => Boolean(value))[0] ?? null
+      : null;
+
+    return {
+      id: assignment.id,
+      type: assignment.source_type === "project"
+        ? "milestone"
+        : assignment.assignment_type === "crew"
+          ? "crew_assignment"
+          : assignment.source_type === "task"
+            ? "task"
+            : "schedule_item",
+      title: assignment.title,
+      startAt: assignment.starts_at,
+      endAt: assignment.ends_at,
+      project,
+      crew,
+      assignee: directAssignee || crewAssignee,
+      location: null,
+      status: assignment.status,
+      deepLink: assignment.project_id ? `/projects/${assignment.project_id}` : "/schedule",
+    };
+  });
+
+  const spokenMessage = summarizeScheduleItems({
+    items,
+    rangeLabel: range.label,
+    timeZone,
+  });
+
+  return {
+    entityId: null,
+    href: null,
+    userMessage: spokenMessage,
+    details: {
+      resultType: "schedule_summary",
+      range: {
+        startAt: range.startAt,
+        endAt: range.endAt,
+        timezone: timeZone,
+        label: range.label,
+        weekStartsOn: range.weekStartsOn,
+      },
+      items,
+      count: items.length,
+      spokenMessage,
+      visualMessage: buildScheduleVisualMessage({
+        items,
+        rangeLabel: range.label,
+      }),
+      usedCompanyTimezone: Boolean(company?.timezone),
+      partialData: projectsResult.status === "rejected"
+        || crewsResult.status === "rejected"
+        || membershipsResult.status === "rejected"
+        || employeesResult.status === "rejected"
+        || profilesResult.status === "rejected",
+    },
+  };
+}
+
 export async function executeOpenEntityCommand(
   params: Record<string, unknown>,
   context: OrionCommandExecutionContext,
@@ -122,64 +485,28 @@ export async function executeCreateCustomerCommand(
   context: OrionCommandExecutionContext,
   deps: OrionCommandDependencies,
 ): Promise<OrionCommandExecutionOutput> {
-  const firstName = requireString(params, "firstName");
-  const lastName = requireString(params, "lastName");
-  const customerType = optionalString(params, "customerType") || "residential";
-
-  const { data, error } = await deps.supabase
-    .from("customers")
-    .insert({
-      company_id: context.companyId,
-      customer_type: customerType,
-      first_name: firstName,
-      last_name: lastName,
-      company_name: optionalString(params, "companyName"),
-      email: optionalString(params, "email"),
-      phone: optionalString(params, "phone"),
-      address_line_1: optionalString(params, "addressLine1"),
-      address_line_2: optionalString(params, "addressLine2"),
-      city: optionalString(params, "city"),
-      state: optionalString(params, "state"),
-      postal_code: optionalString(params, "postalCode"),
-      notes: optionalString(params, "notes"),
-      created_by: context.actorProfileId,
-      status: "active",
-    })
-    .select("id")
-    .single();
-
-  if (error || !data?.id) {
-    throw new Error(error?.message || "Unable to create customer.");
+  if (!context.actorProfileId) {
+    throw new Error("You do not have permission to create customers.");
   }
 
-  const orion = createSupabaseOrionEventPublisher(deps.supabase);
-  await orion.publishEvent({
-    company_id: context.companyId,
-    actor_profile_id: context.actorProfileId,
-    event_type: "customer.created",
-    aggregate_type: "customer",
-    aggregate_id: data.id,
-    source_module: "customers",
-    correlation_id: context.correlationId,
-    idempotency_key: `${context.idempotencyKey}:customer-created`,
-    payload: {
-      customer_id: data.id,
-      customer_type: customerType,
-      customer_name: `${firstName} ${lastName}`.trim(),
-      company_name: optionalString(params, "companyName"),
-      deep_link: `/customers/${data.id}`,
-    },
-    metadata: {
-      event_category: "customers",
-      event_severity: "info",
-      deep_link: `/customers/${data.id}`,
-    },
+  const created = await createCustomer({
+    supabase: deps.supabase,
+    companyId: context.companyId,
+    actorProfileId: context.actorProfileId,
+    role: context.request.userContext.role,
+    input: mapOrionCustomerCreateParamsToInput(params),
+    correlationId: context.correlationId,
+    idempotencyKey: context.idempotencyKey,
+    duplicateMode: "allow",
   });
 
   return {
-    entityCreated: { type: "customer", id: data.id },
+    entityCreated: { type: "customer", id: created.customerId },
     publishedEvent: "customer.created",
-    deepLink: `/customers/${data.id}`,
+    deepLink: created.deepLink,
+    details: {
+      duplicateCandidates: created.duplicateCandidates,
+    },
   };
 }
 
@@ -188,93 +515,26 @@ export async function executeUpdateCustomerCommand(
   context: OrionCommandExecutionContext,
   deps: OrionCommandDependencies,
 ): Promise<OrionCommandExecutionOutput> {
+  if (!context.actorProfileId) {
+    throw new Error("You do not have permission to update customers.");
+  }
+
   const customerId = requireString(params, "customerId");
-  const updates = asRecord(params, "updates");
-
-  const { data: current, error: loadError } = await deps.supabase
-    .from("customers")
-    .select("id, customer_type, first_name, last_name, company_name, status")
-    .eq("company_id", context.companyId)
-    .eq("id", customerId)
-    .maybeSingle();
-
-  if (loadError || !current) {
-    throw new Error(loadError?.message || "Customer not found.");
-  }
-
-  const patch: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-  };
-
-  for (const [key, value] of Object.entries(updates)) {
-    patch[key] = value;
-  }
-
-  const customerPatch: Database["public"]["Tables"]["customers"]["Update"] = patch;
-
-  const { error } = await deps.supabase
-    .from("customers")
-    .update(customerPatch)
-    .eq("company_id", context.companyId)
-    .eq("id", customerId);
-
-  if (error) {
-    throw new Error(error.message || "Unable to update customer.");
-  }
-
-  const orion = createSupabaseOrionEventPublisher(deps.supabase);
-  await orion.publishEvent({
-    company_id: context.companyId,
-    actor_profile_id: context.actorProfileId,
-    event_type: "customer.updated",
-    aggregate_type: "customer",
-    aggregate_id: customerId,
-    source_module: "customers",
-    correlation_id: context.correlationId,
-    idempotency_key: `${context.idempotencyKey}:customer-updated`,
-    payload: {
-      customer_id: customerId,
-      customer_type: (updates.customer_type as string | undefined) || current.customer_type,
-      customer_name: `${(updates.first_name as string | undefined) || current.first_name || ""} ${(updates.last_name as string | undefined) || current.last_name || ""}`.trim(),
-      company_name: (updates.company_name as string | undefined) || current.company_name,
-      deep_link: `/customers/${customerId}`,
-    },
-    metadata: {
-      event_category: "customers",
-      event_severity: "info",
-      deep_link: `/customers/${customerId}`,
-    },
+  const result = await updateCustomer({
+    supabase: deps.supabase,
+    companyId: context.companyId,
+    actorProfileId: context.actorProfileId,
+    role: context.request.userContext.role,
+    customerId,
+    input: mapOrionCustomerUpdateParamsToInput(params),
+    correlationId: context.correlationId,
+    idempotencyKey: context.idempotencyKey,
   });
-
-  const nextType = (updates.customer_type as string | undefined) || current.customer_type;
-  if (nextType !== current.customer_type) {
-    await orion.publishEvent({
-      company_id: context.companyId,
-      actor_profile_id: context.actorProfileId,
-      event_type: "customer.converted",
-      aggregate_type: "customer",
-      aggregate_id: customerId,
-      source_module: "customers",
-      correlation_id: context.correlationId,
-      idempotency_key: `${context.idempotencyKey}:customer-converted`,
-      payload: {
-        customer_id: customerId,
-        previous_type: current.customer_type,
-        next_type: nextType,
-        deep_link: `/customers/${customerId}`,
-      },
-      metadata: {
-        event_category: "customers",
-        event_severity: "success",
-        deep_link: `/customers/${customerId}`,
-      },
-    });
-  }
 
   return {
     entityUpdated: { type: "customer", id: customerId },
-    publishedEvent: nextType !== current.customer_type ? "customer.converted" : "customer.updated",
-    deepLink: `/customers/${customerId}`,
+    publishedEvent: "customer.updated",
+    deepLink: result.deepLink,
   };
 }
 
@@ -283,47 +543,25 @@ export async function executeArchiveCustomerCommand(
   context: OrionCommandExecutionContext,
   deps: OrionCommandDependencies,
 ): Promise<OrionCommandExecutionOutput> {
-  const customerId = requireString(params, "customerId");
-
-  const { error } = await deps.supabase
-    .from("customers")
-    .update({
-      status: "archived",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("company_id", context.companyId)
-    .eq("id", customerId);
-
-  if (error) {
-    throw new Error(error.message || "Unable to archive customer.");
+  if (!context.actorProfileId) {
+    throw new Error("You do not have permission to archive customers.");
   }
 
-  const orion = createSupabaseOrionEventPublisher(deps.supabase);
-  await orion.publishEvent({
-    company_id: context.companyId,
-    actor_profile_id: context.actorProfileId,
-    event_type: "customer.archived",
-    aggregate_type: "customer",
-    aggregate_id: customerId,
-    source_module: "customers",
-    correlation_id: context.correlationId,
-    idempotency_key: `${context.idempotencyKey}:customer-archived`,
-    payload: {
-      customer_id: customerId,
-      status: "archived",
-      deep_link: `/customers/${customerId}`,
-    },
-    metadata: {
-      event_category: "customers",
-      event_severity: "attention",
-      deep_link: `/customers/${customerId}`,
-    },
+  const customerId = requireString(params, "customerId");
+  const result = await archiveCustomer({
+    supabase: deps.supabase,
+    companyId: context.companyId,
+    actorProfileId: context.actorProfileId,
+    role: context.request.userContext.role,
+    customerId,
+    correlationId: context.correlationId,
+    idempotencyKey: context.idempotencyKey,
   });
 
   return {
     entityUpdated: { type: "customer", id: customerId },
     publishedEvent: "customer.archived",
-    deepLink: `/customers/${customerId}`,
+    deepLink: result.deepLink,
   };
 }
 
@@ -332,47 +570,25 @@ export async function executeRestoreCustomerCommand(
   context: OrionCommandExecutionContext,
   deps: OrionCommandDependencies,
 ): Promise<OrionCommandExecutionOutput> {
-  const customerId = requireString(params, "customerId");
-
-  const { error } = await deps.supabase
-    .from("customers")
-    .update({
-      status: "active",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("company_id", context.companyId)
-    .eq("id", customerId);
-
-  if (error) {
-    throw new Error(error.message || "Unable to restore customer.");
+  if (!context.actorProfileId) {
+    throw new Error("You do not have permission to restore customers.");
   }
 
-  const orion = createSupabaseOrionEventPublisher(deps.supabase);
-  await orion.publishEvent({
-    company_id: context.companyId,
-    actor_profile_id: context.actorProfileId,
-    event_type: "customer.restored",
-    aggregate_type: "customer",
-    aggregate_id: customerId,
-    source_module: "customers",
-    correlation_id: context.correlationId,
-    idempotency_key: `${context.idempotencyKey}:customer-restored`,
-    payload: {
-      customer_id: customerId,
-      status: "active",
-      deep_link: `/customers/${customerId}`,
-    },
-    metadata: {
-      event_category: "customers",
-      event_severity: "success",
-      deep_link: `/customers/${customerId}`,
-    },
+  const customerId = requireString(params, "customerId");
+  const result = await restoreCustomer({
+    supabase: deps.supabase,
+    companyId: context.companyId,
+    actorProfileId: context.actorProfileId,
+    role: context.request.userContext.role,
+    customerId,
+    correlationId: context.correlationId,
+    idempotencyKey: context.idempotencyKey,
   });
 
   return {
     entityUpdated: { type: "customer", id: customerId },
     publishedEvent: "customer.restored",
-    deepLink: `/customers/${customerId}`,
+    deepLink: result.deepLink,
   };
 }
 

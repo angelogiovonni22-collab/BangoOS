@@ -8,6 +8,8 @@ import { useCompany } from "@/lib/company";
 import type { OrionIntentResult } from "@/lib/orion/intent-engine";
 import { normalizeIntentInput } from "@/lib/orion/intent-engine";
 import { applyOrionCommandNavigationResult } from "@/lib/orion/navigation";
+import { isOrionVoiceAutomationEnabled, ORION_VOICE_FREEZE_MESSAGE } from "@/lib/orion/runtime-config";
+import { getBrowserSpeechOutputAdapter, type OrionSpeechVoiceOption } from "@/lib/orion/voice";
 import { buildVoiceConfirmationSummary } from "@/lib/orion/voice/voice-confirmation";
 import { buildVoiceResponse } from "@/lib/orion/voice/voice-response";
 import { isCancelPhrase, parseVoiceConfirmationPhrase, resolveSpokenCandidate } from "@/lib/orion/voice/voice-transcript";
@@ -25,6 +27,7 @@ export type GlobalOrionVoicePhase =
   | "starting"
   | "waiting_for_wake"
   | "wake_detected"
+  | "awaiting_wake_command"
   | "listening"
   | "finalizing"
   | "understanding"
@@ -60,6 +63,7 @@ type GlobalOrionVoiceSettings = {
   voiceVolume: number;
   voiceRate: number;
   voicePitch: number;
+  voiceId: string | null;
   wakeAcknowledge: "sound" | "spoken" | "visual_only";
   consentAcknowledged: boolean;
 };
@@ -82,6 +86,14 @@ type VoiceConfirmationPending = {
   summary: string;
 };
 
+type OrionSpeechResponseRequest = {
+  status: "success" | "clarification" | "confirmation_required" | "error" | "unsupported" | "processing";
+  commandId?: string | null;
+  targetLabel?: string | null;
+  message?: string | null;
+  force?: boolean;
+};
+
 type GlobalOrionVoiceContextValue = {
   phase: GlobalOrionVoicePhase;
   mode: OrionVoiceCaptureMode | "hands_free";
@@ -100,6 +112,9 @@ type GlobalOrionVoiceContextValue = {
   canUseHandsFree: boolean;
   reactivationRequired: boolean;
   consentRequired: boolean;
+  speaking: boolean;
+  voiceLevel: number;
+  availableVoices: OrionSpeechVoiceOption[];
   enableGlobalVoice: () => void;
   disableGlobalVoice: () => void;
   startPressToTalk: () => void;
@@ -108,6 +123,13 @@ type GlobalOrionVoiceContextValue = {
   setMode: (mode: OrionVoiceCaptureMode | "hands_free") => void;
   setSpokenResponsesEnabled: (enabled: boolean) => void;
   setReturnToWakeAfterCommand: (enabled: boolean) => void;
+  setVoiceId: (voiceId: string | null) => void;
+  setVoiceRate: (rate: number) => void;
+  setVoicePitch: (pitch: number) => void;
+  setVoiceVolume: (volume: number) => void;
+  requestSpokenResponse: (request: OrionSpeechResponseRequest) => void;
+  previewVoice: (text?: string) => void;
+  cancelSpeech: () => void;
   acknowledgeConsent: () => void;
   startVoiceCommandMode: () => void;
   endVoiceCommandMode: () => void;
@@ -120,6 +142,7 @@ type GlobalOrionVoiceContextValue = {
 const GlobalOrionVoiceContext = createContext<GlobalOrionVoiceContextValue | null>(null);
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const WAKE_COMMAND_CONTINUATION_TIMEOUT_MS = 4_000;
 
 function toTimeoutMs(value: GlobalVoiceInactivityTimeout) {
   if (value === "30s") return 30_000;
@@ -270,9 +293,10 @@ function defaultSettings(): GlobalOrionVoiceSettings {
     showTranscript: true,
     diagnosticsEnabled: false,
     voiceVolume: 1,
-    voiceRate: 1,
-    voicePitch: 1,
-    wakeAcknowledge: "spoken",
+    voiceRate: 0.95,
+    voicePitch: 0.9,
+    voiceId: null,
+    wakeAcknowledge: "visual_only",
     consentAcknowledged: false,
   };
 }
@@ -316,6 +340,19 @@ function logVoiceTrace(event: string, details?: Record<string, unknown>) {
   console.info(`[orion-trace] ${event}`);
 }
 
+function logOrionSpeech(event: string, details?: Record<string, unknown>) {
+  if (IS_PRODUCTION || typeof console === "undefined") {
+    return;
+  }
+
+  if (details) {
+    console.info(`[orion-speech] ${event}`, details);
+    return;
+  }
+
+  console.info(`[orion-speech] ${event}`);
+}
+
 export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -341,12 +378,15 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
   const [reactivationRequired, setReactivationRequired] = useState(false);
   const [consentRequired, setConsentRequired] = useState(true);
   const [speechActive, setSpeechActive] = useState(false);
+  const [voiceLevel, setVoiceLevel] = useState(0);
+  const [availableVoices, setAvailableVoices] = useState<OrionSpeechVoiceOption[]>([]);
   const [lastCommandAt, setLastCommandAt] = useState<number | null>(null);
 
   const routeContext = useMemo(
     () => buildRouteContext(pathname || "/dashboard", searchParams),
     [pathname, searchParams],
   );
+  const voiceAutomationEnabled = isOrionVoiceAutomationEnabled();
 
   const isMountedRef = useRef(true);
   const inFlightIntentRef = useRef<AbortController | null>(null);
@@ -355,6 +395,9 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
   const lastProcessedTranscriptRef = useRef<{ token: number; transcript: string } | null>(null);
   const lastModeSwitchAtRef = useRef(0);
   const inactivityTimerRef = useRef<number | null>(null);
+  const wakeContinuationTimerRef = useRef<number | null>(null);
+  const wakeContinuationTokenRef = useRef<string | null>(null);
+  const wakeContinuationActiveRef = useRef(false);
   const hiddenPauseRef = useRef(false);
   const visibleResumeAttemptRef = useRef(false);
   const lastStartRequestAtRef = useRef(0);
@@ -369,15 +412,91 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
   const voiceStateRef = useRef<OrionVoiceState>("idle");
   const voiceRecognitionSupportedRef = useRef(false);
   const voiceSupportMessageRef = useRef("Voice control is not supported in this browser.");
+  const speechAdapterRef = useRef(getBrowserSpeechOutputAdapter());
+  const currentSpeechTokenRef = useRef(0);
+  const activeSpeechTokenRef = useRef<number | null>(null);
+  const lastSpeakingRef = useRef(false);
+  const previewActiveRef = useRef(false);
+  const previewResumeWakeRef = useRef(false);
+  const previewResumeCommandRef = useRef(false);
+
+  const clearWakeContinuation = useCallback((reason: string) => {
+    const hadContinuation = wakeContinuationActiveRef.current
+      || wakeContinuationTokenRef.current !== null
+      || wakeContinuationTimerRef.current !== null;
+
+    if (wakeContinuationTimerRef.current !== null) {
+      window.clearTimeout(wakeContinuationTimerRef.current);
+      wakeContinuationTimerRef.current = null;
+    }
+
+    wakeContinuationTokenRef.current = null;
+    wakeContinuationActiveRef.current = false;
+
+    if (hadContinuation) {
+      logVoiceTrace("wake.continuation.cleared", {
+        reason,
+      });
+    }
+  }, []);
+
+  const startWakeContinuation = useCallback((token: number) => {
+    if (!voiceAutomationEnabled) {
+      setWakeListening(false);
+      setCommandSessionActive(false);
+      setPhase("disabled");
+      setErrorCategory(null);
+      setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+      return;
+    }
+
+    clearWakeContinuation("restart");
+
+    const continuationToken = `wake-${token}-${Date.now()}`;
+    wakeContinuationTokenRef.current = continuationToken;
+    wakeContinuationActiveRef.current = true;
+    setWakeListening(true);
+    setPhase("awaiting_wake_command");
+    setStatusMessage("Listening for your command.");
+
+    logVoiceTrace("wake.continuation.started", {
+      token: continuationToken,
+      timeoutMs: WAKE_COMMAND_CONTINUATION_TIMEOUT_MS,
+    });
+
+    wakeContinuationTimerRef.current = window.setTimeout(() => {
+      if (!isMountedRef.current || wakeContinuationTokenRef.current !== continuationToken) {
+        return;
+      }
+
+      logVoiceTrace("wake.continuation.expired");
+      clearWakeContinuation("timeout");
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      if (settingsRef.current.enabled && settingsRef.current.mode === "hands_free" && settingsRef.current.returnToWakeAfterCommand) {
+        setWakeListening(true);
+        setPhase("waiting_for_wake");
+        setStatusMessage("Waiting for wake phrase.");
+        return;
+      }
+
+      setWakeListening(false);
+    }, WAKE_COMMAND_CONTINUATION_TIMEOUT_MS);
+  }, [clearWakeContinuation, voiceAutomationEnabled]);
 
   const voice = useOrionVoiceSession({
     lang: "en-US",
     onPermissionDenied: () => {
+      clearWakeContinuation("permission_error");
       setPhase("permission_denied");
       setErrorCategory("permission_denied");
       setStatusMessage("Microphone permission is denied.");
     },
     onErrorCategory: (category, message) => {
+      clearWakeContinuation("recognition_error");
       const mapped = mapVoiceErrorCategory(category);
       setErrorCategory(mapped);
       setPhase(mapped === "permission_denied" ? "permission_denied" : "error");
@@ -399,6 +518,54 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
 
   const canUseHandsFree = voice.support.recognitionSupported;
   const micActive = voice.state === "listening";
+
+  useEffect(() => {
+    const adapter = speechAdapterRef.current;
+
+    const unsubscribeVoices = adapter.subscribeToVoices((voices) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setAvailableVoices(voices);
+    });
+
+    const unsubscribeLevel = adapter.subscribeToVoiceLevel((level) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setVoiceLevel(level);
+    });
+
+    const unsubscribeSpeaking = adapter.subscribeToSpeaking((speaking) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      if (speaking && !lastSpeakingRef.current) {
+        logOrionSpeech("response.started", {
+          token: activeSpeechTokenRef.current,
+        });
+      }
+
+      if (!speaking && lastSpeakingRef.current) {
+        logOrionSpeech("response.ended", {
+          token: activeSpeechTokenRef.current,
+        });
+        activeSpeechTokenRef.current = null;
+      }
+
+      lastSpeakingRef.current = speaking;
+      setSpeechActive(speaking);
+    });
+
+    return () => {
+      unsubscribeVoices();
+      unsubscribeLevel();
+      unsubscribeSpeaking();
+    };
+  }, []);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -427,56 +594,134 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     }
   }, [storageKey]);
 
-  const speak = useCallback((text: string) => {
-    if (!settings.spokenResponsesEnabled || typeof window === "undefined") {
-      return;
+  const speak = useCallback((text: string, options?: { force?: boolean; reason?: string }) => {
+    const trimmed = text.trim();
+
+    if (typeof window === "undefined" || !trimmed) {
+      logOrionSpeech("response.skipped", {
+        reason: options?.reason || "empty_or_window_unavailable",
+      });
+      return false;
     }
 
-    if (!voice.support.synthesisSupported || !text.trim()) {
-      return;
+    if ((!settings.spokenResponsesEnabled && !options?.force) || !voice.support.synthesisSupported) {
+      logOrionSpeech("response.skipped", {
+        reason: !settings.spokenResponsesEnabled && !options?.force
+          ? "spoken_responses_disabled"
+          : "synthesis_unsupported",
+      });
+      return false;
     }
 
     if (micActive || voice.state === "requesting_permission" || voice.state === "processing") {
       voice.stop();
     }
 
-    setSpeechActive(true);
+    currentSpeechTokenRef.current += 1;
+    activeSpeechTokenRef.current = currentSpeechTokenRef.current;
+
+    logOrionSpeech("response.requested", {
+      token: currentSpeechTokenRef.current,
+      reason: options?.reason || "unspecified",
+      text: trimmed,
+    });
+    logOrionSpeech("adapter.selected", {
+      token: currentSpeechTokenRef.current,
+      voiceId: settings.voiceId,
+      rate: settings.voiceRate,
+      pitch: settings.voicePitch,
+      volume: settings.voiceVolume,
+    });
+
     setPhase("speaking");
 
-    const utterance = new SpeechSynthesisUtterance(text.trim());
-    utterance.lang = "en-US";
-    utterance.volume = settings.voiceVolume;
-    utterance.rate = settings.voiceRate;
-    utterance.pitch = settings.voicePitch;
+    const didSpeak = speechAdapterRef.current.speak(trimmed, {
+      voiceId: settings.voiceId,
+      volume: settings.voiceVolume,
+      rate: settings.voiceRate,
+      pitch: settings.voicePitch,
+    });
 
-    utterance.onend = () => {
-      setSpeechActive(false);
-      if (!isMountedRef.current) {
+    if (!didSpeak) {
+      logOrionSpeech("response.skipped", {
+        token: currentSpeechTokenRef.current,
+        reason: "adapter_rejected",
+      });
+      activeSpeechTokenRef.current = null;
+      return false;
+    }
+
+    return true;
+  }, [micActive, settings.spokenResponsesEnabled, settings.voiceId, settings.voicePitch, settings.voiceRate, settings.voiceVolume, voice]);
+
+  const requestSpokenResponse = useCallback((request: OrionSpeechResponseRequest) => {
+    const response = buildVoiceResponse({
+      status: request.status,
+      commandId: request.commandId,
+      targetLabel: request.targetLabel,
+      message: request.message,
+    });
+
+    speak(response.text, {
+      force: request.force,
+      reason: `response:${request.status}`,
+    });
+  }, [speak]);
+
+  const cancelSpeech = useCallback(() => {
+    speechAdapterRef.current.cancel();
+    setVoiceLevel(0);
+  }, []);
+
+  useEffect(() => {
+    if (speechActive) {
+      if (phase !== "speaking") {
+        setPhase("speaking");
+      }
+      return;
+    }
+
+    if (phase !== "speaking") {
+      return;
+    }
+
+    if (previewActiveRef.current) {
+      previewActiveRef.current = false;
+
+      if (previewResumeCommandRef.current) {
+        previewResumeCommandRef.current = false;
+        setPhase("listening");
+        setStatusMessage("Voice Command Mode activated.");
+        voiceStartRef.current();
         return;
       }
 
-      if (settings.enabled && settings.mode === "hands_free" && settings.returnToWakeAfterCommand && !commandSessionActive) {
+      if (previewResumeWakeRef.current && settings.enabled && settings.mode === "hands_free") {
+        previewResumeWakeRef.current = false;
         setWakeListening(true);
         setPhase("waiting_for_wake");
         setStatusMessage("Waiting for wake phrase.");
-      }
-    };
-
-    utterance.onerror = () => {
-      setSpeechActive(false);
-      if (!isMountedRef.current) {
+        voiceStartRef.current();
         return;
       }
+    }
 
-      if (settings.enabled && settings.mode === "hands_free" && settings.returnToWakeAfterCommand && !commandSessionActive) {
-        setWakeListening(true);
-        setPhase("waiting_for_wake");
-      }
-    };
+    if (wakeContinuationActiveRef.current) {
+      setWakeListening(true);
+      setPhase("awaiting_wake_command");
+      setStatusMessage("Listening for your command.");
+      return;
+    }
 
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-  }, [commandSessionActive, micActive, settings.enabled, settings.mode, settings.returnToWakeAfterCommand, settings.spokenResponsesEnabled, settings.voicePitch, settings.voiceRate, settings.voiceVolume, voice]);
+    if (settings.enabled && settings.mode === "hands_free" && settings.returnToWakeAfterCommand && !commandSessionActive) {
+      setWakeListening(true);
+      setPhase("waiting_for_wake");
+      setStatusMessage("Waiting for wake phrase.");
+      return;
+    }
+
+    setPhase(settings.enabled ? "success" : "disabled");
+  }, [commandSessionActive, phase, settings.enabled, settings.mode, settings.returnToWakeAfterCommand, speechActive]);
 
   const fetchCatalog = useCallback(async (): Promise<OrionCommandCenterCatalog | null> => {
     if (!settings.enabled) {
@@ -585,7 +830,11 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
         setErrorCategory(category);
         setStatusMessage(userMessageForVoiceCategory(category, payload.error || "Command execution failed."));
         setResultMessage(payload.error || "Command execution failed.");
-        speak(buildVoiceResponse({ status: "error", message: payload.error || "Command execution failed." }).text);
+        requestSpokenResponse({
+          status: "error",
+          commandId,
+          message: payload.error || "Command execution failed.",
+        });
         logVoiceTrace("command.execute.end", {
           commandId,
           ok: false,
@@ -603,10 +852,13 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
 
       const responseText = buildVoiceResponse({
         status: "success",
+        commandId,
         targetLabel: payload.result.href || undefined,
         message: payload.result.userMessage,
       }).text;
-      speak(responseText);
+      speak(responseText, {
+        reason: "response:success",
+      });
 
       const canGoBack = typeof window !== "undefined" && window.history.length > 1;
       const navigationOutcome = applyOrionCommandNavigationResult({
@@ -653,7 +905,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
         statusCategory: "network_error",
       });
     }
-  }, [catalog, commandSessionActive, router, settings.mode, settings.returnToWakeAfterCommand, speak]);
+  }, [catalog, commandSessionActive, requestSpokenResponse, router, settings.mode, settings.returnToWakeAfterCommand, speak]);
 
   const handleTranscript = useCallback(async (rawTranscript: string, token: number) => {
     logVoiceTrace("provider.processTranscript", {
@@ -669,6 +921,16 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
         settingsEnabled: settings.enabled,
       });
       setPhase("disabled");
+      return;
+    }
+
+    if (!voiceAutomationEnabled) {
+      clearWakeContinuation("voice_automation_disabled");
+      setWakeListening(false);
+      setCommandSessionActive(false);
+      setPhase("disabled");
+      setErrorCategory(null);
+      setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
       return;
     }
 
@@ -711,13 +973,13 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       setCommandSessionActive(true);
       setWakeListening(false);
       setPhase("listening");
-      setStatusMessage("Voice Command Mode activated. I'm listening.");
+      setStatusMessage("Voice Command Mode activated.");
       setResultMessage("Voice Command Mode activated.");
-      speak("Voice Command Mode activated. I'm listening.");
       return;
     }
 
     if (controlPhrase === "end_voice_command") {
+      clearWakeContinuation("stop_voice");
       logVoiceTrace("provider.processTranscript.skip.control_phrase_end", {
         token,
         transcript: trimmed,
@@ -742,6 +1004,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     if (pendingConfirmation) {
       const phrase = parseVoiceConfirmationPhrase(trimmed);
       if (phrase === "cancel") {
+        clearWakeContinuation("explicit_cancel");
         logVoiceTrace("provider.processTranscript.skip.pending_confirmation_cancel", {
           token,
           transcript: trimmed,
@@ -775,6 +1038,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     }
 
     if (isCancelPhrase(trimmed)) {
+      clearWakeContinuation("explicit_cancel");
       logVoiceTrace("provider.processTranscript.skip.cancel_phrase", {
         token,
         transcript: trimmed,
@@ -787,7 +1051,14 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
 
     let normalized = trimmed;
 
-    if (!commandSessionActive) {
+    if (!commandSessionActive && wakeContinuationActiveRef.current) {
+      logVoiceTrace("wake.continuation.command_received", {
+        token: wakeContinuationTokenRef.current || `wake-${token}`,
+        transcriptLength: trimmed.length,
+      });
+      clearWakeContinuation("command_received");
+      normalized = trimmed;
+    } else if (!commandSessionActive) {
       if (settings.mode === "hands_free" || wakeListening) {
         const wakeVariants: Array<GlobalWakePhrase> = ["hey_orion", "okay_orion"];
         if (settings.shortWakePhraseAllowed) {
@@ -809,9 +1080,6 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
 
         setPhase("wake_detected");
         setWakeListening(false);
-        if (settings.wakeAcknowledge === "spoken" && settings.spokenResponsesEnabled) {
-          speak("I'm listening.");
-        }
 
         if (!wakeDetection.cleanedCommand) {
           logVoiceTrace("provider.processTranscript.skip.wake_missing_command", {
@@ -819,8 +1087,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
             transcript: trimmed,
             matchedVariant: wakeDetection.matchedVariant,
           });
-          setPhase("listening");
-          setStatusMessage("I'm listening.");
+          startWakeContinuation(token);
           return;
         }
 
@@ -873,6 +1140,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
         signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
+          "x-orion-voice-turn": "1",
           "x-orion-company-id": activeCatalog.context.currentCompany.id,
           "x-orion-context-hint": `${activeCatalog.context.currentRoute}:${activeCatalog.context.currentAuthenticatedUser.id}`,
         },
@@ -918,12 +1186,38 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
         setErrorCategory(category);
         setStatusMessage(userMessageForVoiceCategory(category, payload.error || "Voice intent failed."));
         setResultMessage(payload.error || "No match found.");
-        speak(buildVoiceResponse({ status: "error", message: payload.error || "No match found." }).text);
+        requestSpokenResponse({
+          status: "error",
+          message: payload.error || "No match found.",
+        });
         return;
       }
 
       const nextIntent = payload.intent;
       setIntentResult(nextIntent);
+
+      const workflowStatus = payload.statusCategory || "";
+      if (
+        workflowStatus.startsWith("workflow_")
+        && (
+          workflowStatus === "workflow_collecting"
+          || workflowStatus === "workflow_awaiting_confirmation"
+          || workflowStatus === "workflow_complete"
+          || workflowStatus === "workflow_completed"
+        )
+        && !nextIntent.suggestedCommand
+      ) {
+        const workflowMessage = nextIntent.message || "Workflow step ready.";
+        setPhase(workflowStatus === "workflow_complete" || workflowStatus === "workflow_completed" ? "success" : "understanding");
+        setErrorCategory(null);
+        setStatusMessage(workflowMessage);
+        setResultMessage(workflowMessage);
+        requestSpokenResponse({
+          status: "success",
+          message: workflowMessage,
+        });
+        return;
+      }
 
       if (nextIntent.requiresClarification) {
         const spokenCandidate = resolveSpokenCandidate(normalizedInput, nextIntent.candidates.map((candidate) => ({
@@ -939,7 +1233,9 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
           setErrorCategory("intent_ambiguous");
           setStatusMessage("I found multiple matches. Which one do you mean?");
           setResultMessage("I found multiple matches. Which one do you mean?");
-          speak("I found multiple matches. Which one do you mean?");
+          requestSpokenResponse({
+            status: "clarification",
+          });
           return;
         }
       }
@@ -972,10 +1268,13 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
         setPhase("confirmation_required");
         setErrorCategory("confirmation_required");
         setStatusMessage(`${summary} Say Confirm or Cancel.`);
-        speak("Confirmation is required. Say Confirm or Cancel.");
+        requestSpokenResponse({
+          status: "confirmation_required",
+        });
         return;
       }
 
+      clearWakeContinuation("command_dispatched");
       await executeCommand(nextIntent.suggestedCommand.commandId, nextIntent.suggestedCommand.params);
     } catch {
       if (controller.signal.aborted) {
@@ -986,9 +1285,11 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       setErrorCategory("network_error");
       setStatusMessage("Network error while resolving voice intent.");
     }
-  }, [catalog, commandSessionActive, executeCommand, fetchCatalog, pendingConfirmation, routeContext, searchParams, settings.enabled, settings.mode, settings.shortWakePhraseAllowed, settings.spokenResponsesEnabled, settings.wakeAcknowledge, speak, voice]);
+  }, [catalog, clearWakeContinuation, commandSessionActive, executeCommand, fetchCatalog, pendingConfirmation, requestSpokenResponse, routeContext, searchParams, settings.enabled, settings.mode, settings.shortWakePhraseAllowed, settings.spokenResponsesEnabled, settings.wakeAcknowledge, speak, startWakeContinuation, voice, voiceAutomationEnabled]);
 
   const stopAllListening = useCallback(() => {
+    clearWakeContinuation("stop_all_listening");
+    cancelSpeech();
     setPhase("stopping");
     setWakeListening(false);
     setCommandSessionActive(false);
@@ -998,12 +1299,31 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     voice.cancel();
     setStatusMessage("Voice stopped.");
 
-    if (settings.enabled) {
+    if (settings.enabled && voiceAutomationEnabled) {
       setPhase(settings.mode === "hands_free" ? "waiting_for_wake" : "disabled");
+      return;
     }
-  }, [settings.enabled, settings.mode, voice]);
+
+    setPhase("disabled");
+    setErrorCategory(null);
+    setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+  }, [cancelSpeech, clearWakeContinuation, settings.enabled, settings.mode, voice, voiceAutomationEnabled]);
 
   const enableGlobalVoice = useCallback(() => {
+    if (!voiceAutomationEnabled) {
+      const next = { ...settings, enabled: false };
+      persistSettings(next);
+      setConsentRequired(!next.consentAcknowledged);
+      setWakeListening(false);
+      setCommandSessionActive(false);
+      setErrorCategory(null);
+      setResultMessage(null);
+      setReactivationRequired(false);
+      setPhase("disabled");
+      setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+      return;
+    }
+
     const next = { ...settings, enabled: true };
     persistSettings(next);
     setConsentRequired(!next.consentAcknowledged);
@@ -1012,7 +1332,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     setReactivationRequired(false);
     setPhase("permission_required");
     setStatusMessage("Tap once to start Orion voice.");
-  }, [persistSettings, settings]);
+  }, [persistSettings, settings, voiceAutomationEnabled]);
 
   const disableGlobalVoice = useCallback(() => {
     const next = { ...settings, enabled: false };
@@ -1023,6 +1343,16 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
   }, [persistSettings, settings, stopAllListening]);
 
   const requestVoiceStart = useCallback((reason: "manual" | "hands_free" | "visible_resume") => {
+    if (!voiceAutomationEnabled) {
+      clearWakeContinuation("voice_automation_disabled");
+      setWakeListening(false);
+      setCommandSessionActive(false);
+      setPhase("disabled");
+      setErrorCategory(null);
+      setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+      return;
+    }
+
     if (!settingsRef.current.enabled) {
       return;
     }
@@ -1053,9 +1383,16 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     setErrorCategory(null);
     setResultMessage(null);
     voiceStartRef.current();
-  }, []);
+  }, [clearWakeContinuation, voiceAutomationEnabled]);
 
   const startVoiceCapture = useCallback(() => {
+    if (!voiceAutomationEnabled) {
+      setPhase("disabled");
+      setErrorCategory(null);
+      setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+      return;
+    }
+
     if (!settings.enabled) {
       setPhase("disabled");
       setErrorCategory("voice_disabled");
@@ -1075,7 +1412,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     }
 
     requestVoiceStart("manual");
-  }, [requestVoiceStart, settings.enabled, speechActive, voice.support.message, voice.support.recognitionSupported]);
+  }, [requestVoiceStart, settings.enabled, speechActive, voice.support.message, voice.support.recognitionSupported, voiceAutomationEnabled]);
 
   const startPressToTalk = useCallback(() => {
     if (settings.mode !== "push_to_talk") {
@@ -1091,10 +1428,11 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     }
 
     if (voice.state === "listening" || voice.state === "requesting_permission") {
+      clearWakeContinuation("stop_voice");
       setPhase("finalizing");
       voice.stop();
     }
-  }, [settings.mode, voice]);
+  }, [clearWakeContinuation, settings.mode, voice]);
 
   const toggleTapListening = useCallback(() => {
     if (settings.mode !== "tap_to_listen") {
@@ -1102,15 +1440,27 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     }
 
     if (voice.state === "listening" || voice.state === "requesting_permission") {
+      clearWakeContinuation("stop_voice");
       setPhase("finalizing");
       voice.stop();
       return;
     }
 
     startVoiceCapture();
-  }, [settings.mode, startVoiceCapture, voice]);
+  }, [clearWakeContinuation, settings.mode, startVoiceCapture, voice]);
 
   const setMode = useCallback((mode: OrionVoiceCaptureMode | "hands_free") => {
+    if (!voiceAutomationEnabled) {
+      setWakeListening(false);
+      setCommandSessionActive(false);
+      setPendingConfirmation(null);
+      setPhase("disabled");
+      setErrorCategory(null);
+      setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+      return;
+    }
+
+    clearWakeContinuation("mode_changed");
     const next = { ...settings, mode };
     persistSettings(next);
     setWakeListening(mode === "hands_free");
@@ -1118,7 +1468,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     setPendingConfirmation(null);
     setPhase(mode === "hands_free" ? "waiting_for_wake" : settings.enabled ? "permission_required" : "disabled");
     setStatusMessage(mode === "hands_free" ? "Waiting for wake phrase." : "Voice mode updated.");
-  }, [persistSettings, settings]);
+  }, [clearWakeContinuation, persistSettings, settings, voiceAutomationEnabled]);
 
   const setSpokenResponsesEnabled = useCallback((enabled: boolean) => {
     persistSettings({ ...settings, spokenResponsesEnabled: enabled });
@@ -1128,6 +1478,47 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     persistSettings({ ...settings, returnToWakeAfterCommand: enabled });
   }, [persistSettings, settings]);
 
+  const setVoiceId = useCallback((voiceId: string | null) => {
+    persistSettings({ ...settings, voiceId });
+  }, [persistSettings, settings]);
+
+  const setVoiceRate = useCallback((rate: number) => {
+    persistSettings({ ...settings, voiceRate: Math.min(Math.max(rate, 0.75), 1.25) });
+  }, [persistSettings, settings]);
+
+  const setVoicePitch = useCallback((pitch: number) => {
+    persistSettings({ ...settings, voicePitch: Math.min(Math.max(pitch, 0.75), 1.15) });
+  }, [persistSettings, settings]);
+
+  const setVoiceVolume = useCallback((volume: number) => {
+    persistSettings({ ...settings, voiceVolume: Math.min(Math.max(volume, 0), 1) });
+  }, [persistSettings, settings]);
+
+  const previewVoice = useCallback((text?: string) => {
+    const previewText = (text || "Hello. I'm Orion, your Bango Operating System assistant.").trim();
+    if (!previewText || typeof window === "undefined") {
+      return;
+    }
+
+    previewActiveRef.current = true;
+    previewResumeWakeRef.current = wakeListening || settings.mode === "hands_free";
+    previewResumeCommandRef.current = commandSessionActive;
+
+    if (micActive || voice.state === "requesting_permission" || voice.state === "processing") {
+      voice.stop();
+    }
+
+    speechAdapterRef.current.cancel();
+    speechAdapterRef.current.preview(previewText, {
+      voiceId: settings.voiceId,
+      rate: settings.voiceRate,
+      pitch: settings.voicePitch,
+      volume: settings.voiceVolume,
+    });
+    setPhase("speaking");
+    setStatusMessage("Previewing voice output.");
+  }, [commandSessionActive, micActive, settings.mode, settings.voiceId, settings.voicePitch, settings.voiceRate, settings.voiceVolume, voice, wakeListening]);
+
   const acknowledgeConsent = useCallback(() => {
     const next = { ...settings, consentAcknowledged: true };
     persistSettings(next);
@@ -1135,20 +1526,28 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
   }, [persistSettings, settings]);
 
   const startVoiceCommandMode = useCallback(() => {
+    if (!voiceAutomationEnabled) {
+      setWakeListening(false);
+      setCommandSessionActive(false);
+      setPhase("disabled");
+      setErrorCategory(null);
+      setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+      return;
+    }
+
     setCommandSessionActive(true);
     setWakeListening(false);
     setPhase("listening");
-    setStatusMessage("Voice Command Mode activated. I'm listening.");
-    speak("Voice Command Mode activated. I'm listening.");
-  }, [speak]);
+    setStatusMessage("Voice Command Mode activated.");
+  }, [voiceAutomationEnabled]);
 
   const endVoiceCommandMode = useCallback(() => {
+    clearWakeContinuation("voice_command_mode_ended");
     setCommandSessionActive(false);
     setPendingConfirmation(null);
     setIntentResult(null);
     setStatusMessage("Voice Command Mode ended.");
     setResultMessage("Voice Command Mode ended.");
-    speak("Voice Command Mode ended.");
 
     if (settings.mode === "hands_free" && settings.returnToWakeAfterCommand) {
       setWakeListening(true);
@@ -1157,7 +1556,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       setPhase("disabled");
       voice.stop();
     }
-  }, [settings.mode, settings.returnToWakeAfterCommand, speak, voice]);
+  }, [clearWakeContinuation, settings.mode, settings.returnToWakeAfterCommand, voice]);
 
   const confirmPendingCommand = useCallback(() => {
     if (!pendingConfirmation) {
@@ -1170,13 +1569,24 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
   }, [executeCommand, pendingConfirmation]);
 
   const cancelPendingCommand = useCallback(() => {
+    clearWakeContinuation("explicit_cancel");
     setPendingConfirmation(null);
     setPhase("success");
     setStatusMessage("Canceled.");
     setResultMessage("Canceled.");
-  }, []);
+  }, [clearWakeContinuation]);
 
   const retryFromError = useCallback(() => {
+    if (!voiceAutomationEnabled) {
+      setErrorCategory(null);
+      setResultMessage(null);
+      setWakeListening(false);
+      setCommandSessionActive(false);
+      setPhase("disabled");
+      setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+      return;
+    }
+
     setErrorCategory(null);
     setResultMessage(null);
     if (reactivationRequired) {
@@ -1187,7 +1597,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
 
     setPhase(settings.mode === "hands_free" ? "waiting_for_wake" : "permission_required");
     setStatusMessage("Ready.");
-  }, [reactivationRequired, settings.mode]);
+  }, [reactivationRequired, settings.mode, voiceAutomationEnabled]);
 
   useEffect(() => {
     const stored = typeof window !== "undefined"
@@ -1195,42 +1605,65 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       : null;
 
     if (stored) {
-      setSettings({ ...defaultSettings(), ...stored });
+      setSettings({ ...defaultSettings(), ...stored, enabled: voiceAutomationEnabled ? Boolean(stored.enabled) : false });
       setConsentRequired(!stored.consentAcknowledged);
     }
 
     setSettingsHydrated(true);
-  }, [storageKey]);
+  }, [storageKey, voiceAutomationEnabled]);
 
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      clearWakeContinuation("provider_unmount");
+      speechAdapterRef.current.cancel();
       inFlightIntentRef.current?.abort();
       inFlightExecuteRef.current?.abort();
       voiceCancelRef.current();
     };
-  }, []);
+  }, [clearWakeContinuation]);
 
   useEffect(() => {
+    clearWakeContinuation("company_or_workspace_switch");
+    speechAdapterRef.current.cancel();
     inFlightIntentRef.current?.abort();
     inFlightExecuteRef.current?.abort();
-    voice.cancel();
+    voiceCancelRef.current();
     setCatalog(null);
     setWakeListening(false);
     setCommandSessionActive(false);
     setPendingConfirmation(null);
     setIntentResult(null);
-    setStatusMessage("Workspace changed. Voice paused.");
-    setPhase(settings.enabled ? "reactivation_required" : "disabled");
-  }, [company.companyId, company.userId]);
+    if (voiceAutomationEnabled) {
+      setStatusMessage("Workspace changed. Voice paused.");
+      setPhase(settings.enabled ? "reactivation_required" : "disabled");
+      return;
+    }
+
+    setErrorCategory(null);
+    setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+    setPhase("disabled");
+  }, [clearWakeContinuation, company.companyId, company.userId, settings.enabled, voiceAutomationEnabled]);
 
   useEffect(() => {
     if (!settingsHydrated) {
       return;
     }
 
+    if (!voiceAutomationEnabled) {
+      clearWakeContinuation("voice_automation_disabled");
+      setWakeListening(false);
+      setCommandSessionActive(false);
+      setPendingConfirmation(null);
+      setErrorCategory(null);
+      setPhase("disabled");
+      setStatusMessage(ORION_VOICE_FREEZE_MESSAGE);
+      return;
+    }
+
     if (!settings.enabled) {
+      clearWakeContinuation("voice_disabled");
       setPhase("disabled");
       setWakeListening(false);
       setCommandSessionActive(false);
@@ -1245,18 +1678,18 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
 
     setPhase(settings.mode === "hands_free" ? "waiting_for_wake" : "permission_required");
     setWakeListening(settings.mode === "hands_free");
-  }, [settings.enabled, settings.mode, settingsHydrated, voice.support.recognitionSupported]);
+  }, [clearWakeContinuation, settings.enabled, settings.mode, settingsHydrated, voice.support.recognitionSupported, voiceAutomationEnabled]);
 
   useEffect(() => {
-    if (!settings.enabled) {
+    if (!settings.enabled || !voiceAutomationEnabled) {
       return;
     }
 
     void fetchCatalog();
-  }, [fetchCatalog, routeContext.pathname, settings.enabled]);
+  }, [fetchCatalog, routeContext.pathname, settings.enabled, voiceAutomationEnabled]);
 
   useEffect(() => {
-    if (!settings.enabled) {
+    if (!settings.enabled || !voiceAutomationEnabled) {
       return;
     }
 
@@ -1264,6 +1697,9 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       if (commandSessionActive || settings.mode !== "hands_free") {
         setPhase("listening");
         setStatusMessage("Listening...");
+      } else if (wakeContinuationActiveRef.current) {
+        setPhase("awaiting_wake_command");
+        setStatusMessage("Listening for your command.");
       } else if (wakeListening) {
         setPhase("waiting_for_wake");
         setStatusMessage("Waiting for wake phrase.");
@@ -1301,10 +1737,14 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
         requestVoiceStart("hands_free");
       }
     }
-  }, [commandSessionActive, pendingConfirmation, reactivationRequired, requestVoiceStart, settings.enabled, settings.mode, speechActive, voice.errorCategory, voice.state, wakeListening]);
+  }, [commandSessionActive, pendingConfirmation, reactivationRequired, requestVoiceStart, settings.enabled, settings.mode, speechActive, voice.errorCategory, voice.state, wakeListening, voiceAutomationEnabled]);
 
   useEffect(() => {
     const onVisibility = () => {
+      if (!voiceAutomationEnabled) {
+        return;
+      }
+
       const hidden = document.hidden || document.visibilityState === "hidden";
       const currentSettings = settingsRef.current;
 
@@ -1370,10 +1810,10 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [requestVoiceStart]);
+  }, [requestVoiceStart, voiceAutomationEnabled]);
 
   useEffect(() => {
-    if (!settings.enabled || !commandSessionActive) {
+    if (!settings.enabled || !commandSessionActive || !voiceAutomationEnabled) {
       if (inactivityTimerRef.current !== null) {
         window.clearTimeout(inactivityTimerRef.current);
         inactivityTimerRef.current = null;
@@ -1414,10 +1854,10 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
         inactivityTimerRef.current = null;
       }
     };
-  }, [commandSessionActive, lastCommandAt, settings.enabled, settings.inactivityTimeout, settings.mode, settings.returnToWakeAfterCommand]);
+  }, [commandSessionActive, lastCommandAt, settings.enabled, settings.inactivityTimeout, settings.mode, settings.returnToWakeAfterCommand, voiceAutomationEnabled]);
 
   useEffect(() => {
-    if (!settings.enabled || settings.mode !== "hands_free") {
+    if (!settings.enabled || settings.mode !== "hands_free" || !voiceAutomationEnabled) {
       return;
     }
 
@@ -1427,9 +1867,13 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       setErrorCategory("reactivation_required");
       setStatusMessage("Global Orion Voice is enabled. Tap once to reactivate the microphone.");
     }
-  }, [settings.enabled, settings.mode, voice.errorCategory]);
+  }, [settings.enabled, settings.mode, voice.errorCategory, voiceAutomationEnabled]);
 
   useEffect(() => {
+    if (!voiceAutomationEnabled) {
+      return;
+    }
+
     if (!visibleResumeAttemptRef.current) {
       return;
     }
@@ -1451,7 +1895,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       setStatusMessage("Global Orion Voice is enabled. Tap once to reactivate the microphone.");
       logGlobalVisibility("reactivation required");
     }
-  }, [voice.errorCategory, voice.state]);
+  }, [voice.errorCategory, voice.state, voiceAutomationEnabled]);
 
   useEffect(() => {
     logDiagnostics(settings.diagnosticsEnabled, "phase", {
@@ -1463,11 +1907,15 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     });
   }, [commandSessionActive, micActive, phase, routeContext.pathname, settings.diagnosticsEnabled, wakeListening]);
 
+  const effectiveSettings = voiceAutomationEnabled
+    ? settings
+    : { ...settings, enabled: false };
+
   const value = useMemo<GlobalOrionVoiceContextValue>(() => ({
     phase,
-    mode: settings.mode,
-    settings,
-    supportMessage: voice.support.message,
+    mode: effectiveSettings.mode,
+    settings: effectiveSettings,
+    supportMessage: voiceAutomationEnabled ? voice.support.message : ORION_VOICE_FREEZE_MESSAGE,
     micActive,
     wakeListening,
     commandSessionActive,
@@ -1481,6 +1929,9 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     canUseHandsFree,
     reactivationRequired,
     consentRequired,
+    speaking: speechActive,
+    voiceLevel,
+    availableVoices,
     enableGlobalVoice,
     disableGlobalVoice,
     startPressToTalk,
@@ -1489,6 +1940,13 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     setMode,
     setSpokenResponsesEnabled,
     setReturnToWakeAfterCommand,
+    setVoiceId,
+    setVoiceRate,
+    setVoicePitch,
+    setVoiceVolume,
+    requestSpokenResponse,
+    previewVoice,
+    cancelSpeech,
     acknowledgeConsent,
     startVoiceCommandMode,
     endVoiceCommandMode,
@@ -1499,6 +1957,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
   }), [
     acknowledgeConsent,
     canUseHandsFree,
+    cancelSpeech,
     cancelPendingCommand,
     commandSessionActive,
     confirmPendingCommand,
@@ -1511,13 +1970,20 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     micActive,
     pendingConfirmation,
     phase,
+    previewVoice,
     reactivationRequired,
     resultMessage,
     retryFromError,
     setMode,
     setReturnToWakeAfterCommand,
     setSpokenResponsesEnabled,
-    settings,
+    setVoiceId,
+    setVoicePitch,
+    setVoiceRate,
+    setVoiceVolume,
+    requestSpokenResponse,
+    effectiveSettings,
+    speechActive,
     startPressToTalk,
     startVoiceCommandMode,
     statusMessage,
@@ -1527,7 +1993,10 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     voice.finalTranscript,
     voice.interimTranscript,
     voice.support.message,
+    voiceAutomationEnabled,
+    voiceLevel,
     wakeListening,
+    availableVoices,
   ]);
 
   return (

@@ -2,11 +2,14 @@
 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { LayerManager } from "@/components/bangoflow";
 import { useMotionPreferences } from "@/components/motion";
+import { PortalHost } from "@/components/ui";
 import { useGlobalOrionVoice } from "@/components/orion/voice";
 import { getPersistentOrionFixture } from "./fixtures";
 import { PersistentOrionButton } from "./PersistentOrionButton";
 import { PersistentOrionPanel } from "./PersistentOrionPanel";
+import type { PersistentOrionVisualState } from "./types";
 import styles from "./persistent-orion.module.css";
 
 type FloatingPosition = {
@@ -105,6 +108,49 @@ function writeStoredPosition(position: FloatingPosition) {
   }
 }
 
+function mapVoicePhaseToSphereState(
+  phase: string,
+  enabled: boolean,
+): PersistentOrionVisualState {
+  if (!enabled || phase === "disabled" || phase === "unsupported" || phase === "permission_denied") {
+    return "disabled";
+  }
+
+  if (phase === "awaiting_wake_command" || phase === "listening") {
+    return "listening";
+  }
+
+  if (phase === "waiting_for_wake" || phase === "starting" || phase === "wake_detected") {
+    return "waiting";
+  }
+
+  if (phase === "understanding" || phase === "finalizing") {
+    return "thinking";
+  }
+
+  if (phase === "executing") {
+    return "executing";
+  }
+
+  if (phase === "speaking") {
+    return "speaking";
+  }
+
+  if (phase === "clarification_required" || phase === "confirmation_required") {
+    return "confirmation";
+  }
+
+  if (phase === "success") {
+    return "success";
+  }
+
+  if (phase === "error" || phase === "no_match" || phase === "reactivation_required") {
+    return "error";
+  }
+
+  return "idle";
+}
+
 export function PersistentOrion() {
   const pathname = usePathname();
   const { reducedMotion } = useMotionPreferences();
@@ -132,6 +178,10 @@ export function PersistentOrion() {
   const restoreUserSelectRef = useRef<string | null>(null);
 
   const fixture = useMemo(() => getPersistentOrionFixture(pathname || "/dashboard"), [pathname]);
+  const sphereState = useMemo(
+    () => mapVoicePhaseToSphereState(globalVoice.phase, globalVoice.settings.enabled),
+    [globalVoice.phase, globalVoice.settings.enabled],
+  );
 
   const getControlSize = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect();
@@ -271,7 +321,9 @@ export function PersistentOrion() {
   const rootStyle = { left: `${position.x}px`, top: `${position.y}px`, right: "auto", bottom: "auto" };
 
   return (
-    <div ref={shellRef} className={styles.persistentOrionRoot} style={rootStyle} aria-label="Persistent Orion surface">
+    <PortalHost>
+      <LayerManager layer="orionPersistent">
+        <div ref={shellRef} className={styles.persistentOrionRoot} style={rootStyle} aria-label="Persistent Orion surface">
       <PersistentOrionButton
         open={open}
         minimized={minimized}
@@ -394,6 +446,8 @@ export function PersistentOrion() {
 
           setOpen((current) => !current);
         }}
+        sphereState={sphereState}
+        voiceLevel={globalVoice.voiceLevel}
       />
 
       <PersistentOrionPanel
@@ -410,6 +464,8 @@ export function PersistentOrion() {
       <span id={instructionsId} className={styles.persistentOrionInstructions}>
         Drag Orion to reposition it. Use arrow keys when focused.
       </span>
-    </div>
+        </div>
+      </LayerManager>
+    </PortalHost>
   );
 }

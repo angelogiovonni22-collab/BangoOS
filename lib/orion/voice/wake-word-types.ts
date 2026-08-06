@@ -16,7 +16,7 @@ export type OrionWakeWordDetection = {
 export type OrionHandsFreeSettings = {
   enabled: boolean;
   spokenResponses: boolean;
-  wakeAcknowledge: "sound" | "spoken";
+  wakeAcknowledge: "sound" | "spoken" | "visual_only";
   autoStopAfterCommand: boolean;
   returnToWakeListening: boolean;
 };

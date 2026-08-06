@@ -227,6 +227,7 @@ async function main() {
       "daily_report.update",
       "daily_report.open",
       "schedule.open",
+      "schedule.read_range",
       "dashboard.open",
       "navigation.back",
       "document.upload",

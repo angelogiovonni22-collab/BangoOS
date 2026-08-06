@@ -43,16 +43,21 @@ function testSourceSafetyContracts() {
   const sphereSource = read("components/orion/persistent/PersistentOrionMiniSphere.tsx");
   const stylesSource = read("components/orion/persistent/persistent-orion.module.css");
   const globalsSource = read("app/globals.css");
+  const portalHostSource = read("components/ui/portal-host.tsx");
 
   assert.ok(shellSource.includes("<PersistentOrion />"), "App shell mounts PersistentOrion once");
   const mountMatches = shellSource.match(/<PersistentOrion \/>/g) ?? [];
   assert.equal(mountMatches.length, 1, "PersistentOrion mount count should remain one");
+  assert.ok(shellSource.includes("<div className=\"flex min-h-screen min-w-0\">"), "App shell retains stable root child structure");
   assert.ok(shellSource.includes("<LayerManager layer=\"backdrop\">"), "Sidebar uses navigation-safe backdrop layer instead of dialog/modal layer");
+  assert.ok(shellSource.includes("<LayerManager layer=\"popover\">"), "Sidebar navigation uses popover layer instead of modal dialog layer");
   assert.ok(shellSource.includes("id=\"bangoos-sidebar\""), "Sidebar structure remains unchanged");
-  assert.ok(shellSource.includes("pointer-events-none opacity-0"), "Mobile-open state temporarily disables Orion pointer capture");
 
   assert.ok(persistentSource.includes("usePathname"), "Persistent Orion uses pathname for context fixtures");
   assert.ok(persistentSource.includes("useMotionPreferences"), "Persistent Orion consumes motion preference");
+  assert.ok(persistentSource.includes("<PortalHost>"), "Persistent Orion renders in a body-level portal host");
+  assert.ok(persistentSource.includes("<LayerManager layer=\"orionPersistent\">"), "Persistent Orion uses dedicated layer token");
+  assert.ok(portalHostSource.includes("useSyncExternalStore") && portalHostSource.includes("getServerMountedSnapshot") && portalHostSource.includes("if (!mounted) {") && portalHostSource.includes("return null;"), "PortalHost defers portal activation until after hydration so SSR and first client render match");
   assert.ok(!stylesSource.includes(".persistentOrionRoot :global(.persistentOrionVisual)::before"), "1. dark circular background is removed");
   assert.ok(!stylesSource.includes(".persistentOrionRoot :global(.persistentOrionVisual)::after"), "2. outer visual halo backdrop is removed");
   assert.ok(!buttonSource.includes("persistentOrionText"), "2. pill layout remains removed");
@@ -77,13 +82,13 @@ function testSourceSafetyContracts() {
   assert.ok(buttonSource.includes("aria-describedby={instructionsId}") && persistentSource.includes("Drag Orion to reposition it. Use arrow keys when focused."), "14. accessible drag instructions exist");
   assert.ok(stylesSource.includes(".persistentOrionRoot {") && stylesSource.includes("pointer-events: auto;"), "interactive wrapper has pointer-events enabled");
   assert.ok(
-    stylesSource.includes("z-index: calc(var(--z-backdrop) + 10);")
-      || stylesSource.includes("z-index: calc(var(--z-backdrop, 1000) + 10);"),
-    "Persistent Orion root z-index is above sidebar navigation layer",
+    stylesSource.includes("z-index: var(--z-orion-persistent, 46);")
+      || stylesSource.includes("z-index: var(--z-orion-persistent);"),
+    "Persistent Orion root uses dedicated z-orion-persistent layer",
   );
   assert.ok(stylesSource.includes(".persistentOrionRoot :global(.persistentOrionPanel)") && stylesSource.includes("z-index: 2;"), "Persistent Orion panel stacks above floating sphere");
   assert.ok(stylesSource.includes(".persistentOrionRoot :global(.persistentOrionButton)") && stylesSource.includes("z-index: 1;"), "Persistent Orion sphere remains below its panel");
-  assert.ok(globalsSource.includes("--z-modal: 60;") && globalsSource.includes("--z-backdrop: 40;"), "Repository modal/dialog layer remains above Orion z-index scale");
+  assert.ok(globalsSource.includes("--z-modal: 60;") && globalsSource.includes("--z-backdrop: 40;") && globalsSource.includes("--z-orion-persistent: 46;"), "Repository layer scale includes dedicated persistent Orion token below modal dialogs");
   assert.ok(stylesSource.includes("touch-action: none;"), "touch-action is none on the visible control");
   assert.ok(stylesSource.includes(".persistentOrionRoot :global(.persistentOrionCanvas)") && stylesSource.includes("pointer-events: none;"), "decorative canvas does not intercept events");
   assert.ok(persistentSource.includes("position: \"fixed\""), "Orion panel uses fixed positioning for viewport-level rendering");
@@ -92,11 +97,12 @@ function testSourceSafetyContracts() {
   assert.ok(buttonSource.includes("onPointerDown={onPointerDown}") && buttonSource.includes("onPointerMove={onPointerMove}"), "pointer handlers are attached to the visible control");
   assert.ok(buttonSource.includes("aria-expanded={open}"), "Sphere-only control preserves aria-expanded");
   assert.ok(buttonSource.includes("aria-controls={panelId}"), "Sphere-only control preserves aria-controls");
-  assert.ok(buttonSource.includes("aria-label={`Open Orion. Current state: ${stateLabel}. Workspace: ${fixture.workspace}.`}"), "Sphere-only control preserves complete accessible name");
+  assert.ok(buttonSource.includes("aria-label={`Open Orion. Current state: ${stateLabel}. Voice phase: ${voicePhase}. Microphone ${micActive ? \"on\" : \"off\"}. Workspace: ${fixture.workspace}.`}"), "Sphere-only control preserves complete accessible name");
   assert.ok(buttonSource.includes("onClick={onClick}"), "15. panel still opens on click");
-  assert.ok(persistentSource.includes("if (suppressClickRef.current)") && persistentSource.includes("event.preventDefault();"), "16. panel does not open after drag");
-  assert.ok(panelSource.includes("style={panelStyle}") && persistentSource.includes("setPanelStyle({ left, top, position: \"fixed\" })"), "17. panel positioning remains viewport-safe");
-  assert.ok(buttonSource.includes("persistentOrionButtonMinimized") && persistentSource.includes("minimized"), "18. minimized Orion remains draggable");
+  assert.ok(!buttonSource.includes("absolute right-2 top-2"), "16. no decorative top-right dot is rendered on the Orion sphere control");
+  assert.ok(persistentSource.includes("if (suppressClickRef.current)") && persistentSource.includes("event.preventDefault();"), "17. panel does not open after drag");
+  assert.ok(panelSource.includes("style={panelStyle}") && persistentSource.includes("setPanelStyle({ left, top, position: \"fixed\" })"), "18. panel positioning remains viewport-safe");
+  assert.ok(buttonSource.includes("persistentOrionButtonMinimized") && persistentSource.includes("minimized"), "19. minimized Orion remains draggable");
   assert.ok(panelSource.includes("Prototype Intelligence"), "Panel includes Prototype Intelligence label");
   assert.ok(panelSource.includes("Fixture Data"), "Panel includes Fixture Data label");
   assert.ok(panelSource.includes("Open Orion Core Lab"), "Panel links to Orion Core Lab");
@@ -104,7 +110,8 @@ function testSourceSafetyContracts() {
   assert.ok(panelSource.includes("Restore Orion"), "Panel includes restore action");
 
   assert.ok(sphereSource.includes("DESKTOP_PARTICLES = 184") && sphereSource.includes("MOBILE_PARTICLES = 124"), "Mini sphere particle density increased for larger control");
-  assert.ok(!sphereSource.includes("const ringRadius =") && !sphereSource.includes("ctx.setLineDash([2, 2])"), "Mini sphere no longer renders outer boundary rings");
+  assert.ok(sphereSource.includes("const ringRadius =") && sphereSource.includes("state === \"listening\" || state === \"speaking\""), "Mini sphere renders state-aware outer pulse rings for listening/speaking without legacy dashed rings");
+  assert.ok(!sphereSource.includes("ctx.setLineDash([2, 2])"), "Mini sphere does not use legacy dashed ring rendering");
   assert.ok(!sphereSource.includes("const shadow = ctx.createRadialGradient(") && !sphereSource.includes("ctx.ellipse("), "Mini sphere no longer renders outer shadow shell");
   assert.ok(
     sphereSource.includes("rgba(248, 252, 255, 1)")

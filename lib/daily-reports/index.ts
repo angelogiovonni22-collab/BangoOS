@@ -4,3 +4,4 @@ export * from "./validation";
 export * from "./ai-summary";
 export * from "./use-daily-reports";
 export * from "./use-daily-report";
+export * from "./daily-reports-page-data";

@@ -26,7 +26,8 @@ const initialFilters: ScheduleFilterState = {
   groupBy: "project",
 };
 
-export function useScheduling({ service = createSchedulingService() }: UseSchedulingParams = {}) {
+export function useScheduling({ service }: UseSchedulingParams = {}) {
+  const schedulingService = useMemo(() => service ?? createSchedulingService(), [service]);
   const [payload, setPayload] = useState<SchedulingPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -40,14 +41,14 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     setErrorMessage(null);
 
     try {
-      const next = await service.getScheduling();
+      const next = await schedulingService.getScheduling();
       setPayload(next);
     } catch {
       setErrorMessage("scheduling.errorLoad");
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, [schedulingService]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -72,7 +73,7 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     setErrorMessage(null);
 
     try {
-      const next = await service.createAssignment(draft);
+      const next = await schedulingService.createAssignment(draft);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.assignmentCreated");
     } catch {
@@ -80,14 +81,14 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, [schedulingService]);
 
   const moveDispatch = useCallback(async (dispatchId: string, status: DispatchStatus, delayReason: string | null = null) => {
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      const next = await service.moveDispatchResource(dispatchId, status, delayReason);
+      const next = await schedulingService.moveDispatchResource(dispatchId, status, delayReason);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.dispatchUpdated");
     } catch {
@@ -95,14 +96,14 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, [schedulingService]);
 
   const fillOpenShift = useCallback(async (openShiftId: string, employeeId: string | null, crewId: string | null) => {
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      const next = await service.assignOpenShift(openShiftId, employeeId, crewId);
+      const next = await schedulingService.assignOpenShift(openShiftId, employeeId, crewId);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.openShiftFilled");
     } catch {
@@ -110,13 +111,13 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, [schedulingService]);
 
   const resolveConflict = useCallback(async (conflictId: string, status: "acknowledged" | "dismissed" | "resolved") => {
     setIsLoading(true);
 
     try {
-      const next = await service.resolveConflict(conflictId, status);
+      const next = await schedulingService.resolveConflict(conflictId, status);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.conflictUpdated");
     } catch {
@@ -124,13 +125,13 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, [schedulingService]);
 
   const acceptInsight = useCallback(async (insightId: string) => {
     setIsLoading(true);
 
     try {
-      const next = await service.acceptInsight(insightId);
+      const next = await schedulingService.acceptInsight(insightId);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.insightAccepted");
     } catch {
@@ -138,13 +139,13 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, [schedulingService]);
 
   const dismissInsight = useCallback(async (insightId: string) => {
     setIsLoading(true);
 
     try {
-      const next = await service.dismissInsight(insightId);
+      const next = await schedulingService.dismissInsight(insightId);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.insightDismissed");
     } catch {
@@ -152,7 +153,7 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, [schedulingService]);
 
   const moveAssignmentCard = useCallback(async (
     assignmentId: string,
@@ -161,7 +162,7 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     setIsLoading(true);
 
     try {
-      const next = await service.moveAssignment(assignmentId, changes);
+      const next = await schedulingService.moveAssignment(assignmentId, changes);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.assignmentMoved");
     } catch {
@@ -169,7 +170,7 @@ export function useScheduling({ service = createSchedulingService() }: UseSchedu
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, [schedulingService]);
 
   const filteredAssignments = useMemo(() => {
     if (!payload) {

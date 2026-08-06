@@ -257,11 +257,19 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
         eventType: lifecycleEvent.type || "error",
       });
       logVoiceDev("recognition error", { error: event.error });
+
+      if (event.error === "no-speech" || event.error === "aborted") {
+        // These are expected lifecycle outcomes during normal stop/restart/wake flows.
+        setInterimTranscript("");
+        setState(support.recognitionSupported ? "idle" : "unsupported");
+        return;
+      }
+
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         onPermissionDeniedRef.current?.();
         reportError("microphone_permission_denied", "Microphone permission was denied.");
-      } else if (event.error === "no-speech") {
-        reportError("no_speech", "No speech detected. Try again.");
+      } else if (event.error === "audio-capture") {
+        reportError("microphone_unavailable", "Microphone is unavailable.");
       } else {
         reportError("speech_recognition_error", "Voice capture failed. Try again.");
       }
@@ -386,25 +394,6 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
     storeMutedValue(muteStorageKey, next);
   }, [muteStorageKey]);
 
-  const speak = useCallback((text: string) => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    if (muted || !support.synthesisSupported || !text.trim()) {
-      return false;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(text.trim());
-    utterance.lang = lang;
-    utterance.rate = 1;
-    utterance.pitch = 1;
-
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-    return true;
-  }, [lang, muted, support.synthesisSupported]);
-
   useEffect(() => {
     return () => {
       const recognition = recognitionRef.current;
@@ -434,7 +423,6 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
     cancel,
     restart,
     retry,
-    speak,
     setMuted: setMutedValue,
     clearFinalTranscript: () => setFinalTranscript(""),
     clearError: () => {
