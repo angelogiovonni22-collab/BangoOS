@@ -38,7 +38,7 @@ export function MissionDigitalTwin({ nodes, links }: MissionDigitalTwinProps) {
   return (
     <section aria-labelledby="mc-digital-twin-heading" className="rounded-2xl border border-[color:color-mix(in_oklab,var(--mc-border)_74%,transparent)] bg-[color:color-mix(in_oklab,var(--mc-surface)_74%,black)] p-4">
       <header className="mb-3">
-        <h2 id="mc-digital-twin-heading" className="text-lg font-semibold tracking-tight text-[var(--mc-text)]">Mission Digital Twin</h2>
+        <h2 id="mc-digital-twin-heading" className="text-lg font-semibold tracking-tight text-[var(--mc-text)]">Operational Network</h2>
         <p className="text-sm text-[var(--mc-text-muted)]">Projects, crews, equipment, and schedule links with keyboard-accessible focus nodes.</p>
       </header>
 
@@ -46,7 +46,7 @@ export function MissionDigitalTwin({ nodes, links }: MissionDigitalTwinProps) {
         <svg
           viewBox="0 0 100 70"
           role="group"
-          aria-label="Mission Digital Twin graph"
+          aria-label="Operational network graph"
           className="h-[280px] w-full sm:h-[320px]"
         >
           {links.map((link) => {

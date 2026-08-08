@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Button, EmptyState, ErrorState, Input, Select, SkeletonLoader } from "@/components/ui";
+import { Button, EmptyState, ErrorState, FormField, Input, Select, SkeletonLoader, Textarea } from "@/components/ui";
 import { CustomerDomainError, updateCustomer } from "@/lib/customers";
 import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
@@ -298,33 +298,29 @@ export default function EditCustomerPage() {
         <p className="mt-2 text-[var(--color-text-secondary)]">Update the customer record and keep the profile details aligned.</p>
       </section>
 
-      <form id="edit-customer-form" onSubmit={handleSubmit} className="space-y-6">
+      <form id="edit-customer-form" onSubmit={handleSubmit} className="space-y-[var(--space-section)]">
         <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-small)] sm:p-6">
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Customer Information</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field>
-              <Label htmlFor="customerType">Customer Type</Label>
+            <FormField label="Customer Type" htmlFor="customerType" required>
               <Select id="customerType" value={formData.customerType} onChange={(event) => handleFieldChange("customerType", event.target.value as CustomerType)} required>
                 <option value="residential">Residential</option>
                 <option value="commercial">Commercial</option>
               </Select>
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="companyName">Company Name (optional)</Label>
+            <FormField label="Company Name (optional)" htmlFor="companyName">
               <Input id="companyName" type="text" value={formData.companyName} onChange={(event) => handleFieldChange("companyName", event.target.value)} placeholder="Bango Construction LLC" />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="firstName">First Name</Label>
+            <FormField label="First Name" htmlFor="firstName" required>
               <Input id="firstName" type="text" value={formData.firstName} onChange={(event) => handleFieldChange("firstName", event.target.value)} required />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="lastName">Last Name</Label>
+            <FormField label="Last Name" htmlFor="lastName" required>
               <Input id="lastName" type="text" value={formData.lastName} onChange={(event) => handleFieldChange("lastName", event.target.value)} required />
-            </Field>
+            </FormField>
           </div>
         </section>
 
@@ -332,15 +328,13 @@ export default function EditCustomerPage() {
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Contact Information</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field>
-              <Label htmlFor="email">Email</Label>
+            <FormField label="Email" htmlFor="email" required>
               <Input id="email" type="email" value={formData.email} onChange={(event) => handleFieldChange("email", event.target.value)} required />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="phoneNumber">Phone Number</Label>
+            <FormField label="Phone Number" htmlFor="phoneNumber" required>
               <Input id="phoneNumber" type="tel" value={formData.phoneNumber} onChange={(event) => handleFieldChange("phoneNumber", event.target.value)} required />
-            </Field>
+            </FormField>
           </div>
         </section>
 
@@ -348,41 +342,37 @@ export default function EditCustomerPage() {
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Address</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field className="md:col-span-2">
-              <Label htmlFor="streetAddress">Street Address</Label>
+            <FormField label="Street Address" htmlFor="streetAddress" required className="md:col-span-2">
               <Input id="streetAddress" type="text" value={formData.streetAddress} onChange={(event) => handleFieldChange("streetAddress", event.target.value)} required />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="city">City</Label>
+            <FormField label="City" htmlFor="city" required>
               <Input id="city" type="text" value={formData.city} onChange={(event) => handleFieldChange("city", event.target.value)} required />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="state">State</Label>
+            <FormField label="State" htmlFor="state" required>
               <Input id="state" type="text" value={formData.state} onChange={(event) => handleFieldChange("state", event.target.value)} required />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="zipCode">ZIP Code</Label>
+            <FormField label="ZIP Code" htmlFor="zipCode" required>
               <Input id="zipCode" type="text" value={formData.zipCode} onChange={(event) => handleFieldChange("zipCode", event.target.value)} required />
-            </Field>
+            </FormField>
           </div>
         </section>
 
         <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-small)] sm:p-6">
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Additional Information</h2>
 
-          <Field className="mt-5">
-            <Label htmlFor="notes">Notes</Label>
-            <textarea
+          <div className="mt-5">
+            <FormField label="Notes" htmlFor="notes">
+            <Textarea
               id="notes"
               value={formData.notes}
               onChange={(event) => handleFieldChange("notes", event.target.value)}
               rows={5}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
             />
-          </Field>
+            </FormField>
+          </div>
         </section>
 
         {errorMessage ? (
@@ -413,14 +403,6 @@ function EditCustomerLoadingState() {
       <SkeletonLoader className="h-10 w-full" />
     </div>
   );
-}
-
-function Field({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={className}>{children}</div>;
-}
-
-function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor: string }) {
-  return <label htmlFor={htmlFor} className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">{children}</label>;
 }
 
 function getCustomerName(row: CustomerRow) {

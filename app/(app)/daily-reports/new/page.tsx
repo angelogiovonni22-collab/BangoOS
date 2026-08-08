@@ -32,12 +32,12 @@ function NewDailyReportPageContent() {
     save,
   } = useDailyReport({ initialDate: selectedDate });
 
-  if (isLoading || !draft) {
-    return <ReportLoadingState />;
-  }
-
   if (errorMessage) {
     return <ErrorState title={t("dailyReports.error.title")} description={t(errorMessage)} />;
+  }
+
+  if (isLoading || !draft) {
+    return <ReportLoadingState />;
   }
 
   return (

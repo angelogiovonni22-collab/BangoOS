@@ -241,7 +241,7 @@ export function buildSummaryMetrics(input: {
     {
       ...metric("scheduleEventsToday", "Schedule events today", input.schedule.length, "/schedule", input.schedule.length > 0 ? "default" : "muted"),
       availability: input.scheduleAvailability,
-      description: input.scheduleAvailability === "partial" ? "Derived from live task dates because the scheduling service is still mock-backed." : undefined,
+      description: input.scheduleAvailability === "partial" ? "Derived from live task dates while dispatch calendar integration is in progress." : undefined,
     },
     metric("pendingApprovals", "Pending approvals", pendingApprovals, "/change-orders", pendingApprovals > 0 ? "warning" : "default"),
     metric("newSitecamActivity", "New SiteCam activity", newSitecamActivity, "/projects", newSitecamActivity > 0 ? "success" : "default"),

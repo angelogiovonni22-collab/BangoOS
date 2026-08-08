@@ -258,18 +258,23 @@ export function MaterialsListClient() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
         eyebrow="Materials"
         title="Materials Management"
         description={`Manage material catalog, costs, and inventory for ${companyName || "your company"}.`}
         primaryAction={
-          <Link href="/materials/new">
-            <Button>
-              <Plus size={16} />
-              New material
-            </Button>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/materials/procurement">
+              <Button variant="outline">Procurement Workflow</Button>
+            </Link>
+            <Link href="/materials/new">
+              <Button>
+                <Plus size={16} />
+                New material
+              </Button>
+            </Link>
+          </div>
         }
       />
 

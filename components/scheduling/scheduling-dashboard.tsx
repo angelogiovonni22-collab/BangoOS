@@ -15,7 +15,6 @@ import { LaborShortageTable } from "./labor-shortage-table";
 import { OpenShiftsPanel } from "./open-shifts-panel";
 import { ScheduleCalendar } from "./schedule-calendar";
 import { ScheduleHealthCard } from "./schedule-health-card";
-import { SchedulingAiAssistant } from "./scheduling-ai-assistant";
 import { SchedulingAnalytics } from "./scheduling-analytics";
 import { SchedulingEmptyState } from "./scheduling-empty-state";
 import { SchedulingHeader } from "./scheduling-header";
@@ -77,7 +76,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
     return <SchedulingLoadingState />;
   }
 
-  if (scheduling.errorMessage || !scheduling.payload) {
+  if (!scheduling.payload) {
     return <ErrorState title={t("scheduling.errorTitle")} description={t(scheduling.errorMessage || "scheduling.errorLoad")} />;
   }
 
@@ -143,6 +142,12 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         }}
         t={t}
       />
+
+      {scheduling.errorMessage ? (
+        <div className="rounded-[var(--radius-lg)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">
+          {t(scheduling.errorMessage)}
+        </div>
+      ) : null}
 
       {undoSnapshot ? (
         <div className="flex items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-info-200)] bg-[var(--color-info-50)] px-4 py-3 text-sm text-[var(--color-info-700)]">
@@ -232,19 +237,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         <ScheduleHealthCard health={payload.health} t={t} />
       </div>
 
-      <div className="grid gap-5 2xl:grid-cols-2">
-        <SchedulingAiAssistant
-          insights={payload.insights}
-          onAccept={(insightId) => {
-            void scheduling.acceptInsight(insightId);
-          }}
-          onDismiss={(insightId) => {
-            void scheduling.dismissInsight(insightId);
-          }}
-          t={t}
-        />
-        <SchedulingAnalytics analytics={payload.analytics} t={t} />
-      </div>
+      <SchedulingAnalytics analytics={payload.analytics} t={t} />
 
       <Dialog
         open={isCreateOpen}

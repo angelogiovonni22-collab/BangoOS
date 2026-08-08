@@ -35,7 +35,11 @@ export default function TimelinePage() {
   const [nextCursor, setNextCursor] = useState<OrionTimelineCursor | null>(null);
   const [hasMore, setHasMore] = useState(false);
 
-  const loadTimeline = useCallback(async (mode: "replace" | "append") => {
+  // cursor is passed explicitly on append calls so that nextCursor state does not
+  // appear in the useCallback dependency array.  Including nextCursor there caused
+  // a render loop: every fetch updated nextCursor → re-created loadTimeline →
+  // re-fired the useEffect → fetched again, indefinitely.
+  const loadTimeline = useCallback(async (mode: "replace" | "append", cursor?: OrionTimelineCursor | null) => {
     if (!supabase) {
       setErrorMessage(t("common.errorGeneric"));
       setIsLoading(false);
@@ -60,7 +64,7 @@ export default function TimelinePage() {
       const service = createOrionTimelineService(supabase);
       const result = await service.listCompanyTimeline(workspace.context.companyId, {
         pageSize: PAGE_SIZE,
-        cursor: mode === "append" ? nextCursor || undefined : undefined,
+        cursor: mode === "append" ? cursor || undefined : undefined,
         categories: filters.category === "all" ? undefined : [filters.category],
         severities: filters.severity === "all" ? undefined : [filters.severity],
         searchText: filters.searchText || undefined,
@@ -84,7 +88,7 @@ export default function TimelinePage() {
         setIsLoadingMore(false);
       }
     }
-  }, [filters.category, filters.searchText, filters.severity, nextCursor, supabase, t]);
+  }, [filters.category, filters.searchText, filters.severity, supabase, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -206,7 +210,7 @@ export default function TimelinePage() {
 
       {hasMore ? (
         <div className="flex justify-center">
-          <Button type="button" variant="secondary" disabled={isLoadingMore} onClick={() => void loadTimeline("append")}>
+          <Button type="button" variant="secondary" disabled={isLoadingMore} onClick={() => void loadTimeline("append", nextCursor)}>
             {isLoadingMore ? t("orion.timeline.loadingMore") : t("orion.timeline.loadMore")}
           </Button>
         </div>

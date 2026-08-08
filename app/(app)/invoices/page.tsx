@@ -107,7 +107,7 @@ export default function InvoicesPage() {
   }, [load]);
 
   return (
-    <div className="space-y-8">
+    <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
         compact
         eyebrow="COMPANY WORKSPACE"

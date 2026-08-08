@@ -210,7 +210,7 @@ export function VendorsListClient() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
         eyebrow="Supply Chain"
         title="Vendors"

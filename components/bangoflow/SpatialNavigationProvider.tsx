@@ -33,7 +33,7 @@ type SpatialNavigationProviderProps = {
 };
 
 const DEPARTMENT_LOOKUP: Record<string, { department: SpatialDepartment; label: string; href: string }> = {
-  dashboard: { department: "dashboard", label: "Mission Control", href: "/dashboard" },
+  dashboard: { department: "dashboard", label: "Operations Overview", href: "/dashboard" },
   operations: { department: "operations", label: "Operations", href: "/operations" },
   scheduling: { department: "operations", label: "Operations", href: "/operations" },
   dispatch: { department: "operations", label: "Operations", href: "/operations" },
@@ -66,7 +66,7 @@ export function deriveSpatialRouteState(pathname: string): SpatialRouteState {
       : "module";
 
   const moduleLabel = surfaceKind === "mission-control"
-    ? "Mission Control"
+    ? "Operations Overview"
     : surfaceKind === "workspace"
       ? "Project Workspace"
       : moduleKey === "dispatch"
@@ -104,12 +104,12 @@ export function useSpatialNavigation() {
 function buildBreadcrumbs(segments: string[], surfaceKind: SpatialSurfaceKind): SpatialBreadcrumb[] {
   if (segments.length === 0 || (segments.length === 1 && segments[0] === "dashboard")) {
     return [
-      { id: "dashboard", label: "Mission Control", href: null },
+      { id: "dashboard", label: "Operations Overview", href: null },
     ];
   }
 
   const items: SpatialBreadcrumb[] = [
-    { id: "dashboard", label: "Mission Control", href: "/dashboard" },
+    { id: "dashboard", label: "Operations Overview", href: "/dashboard" },
   ];
 
   let accumulated = "";

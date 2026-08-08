@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, Input, Select } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, FormField, Input, Select } from "@/components/ui";
 import { ConversionPreview } from "./conversion-preview";
 import {
   UNIT_CATEGORIES,
@@ -220,13 +220,5 @@ function Field({
   className?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <div className={className}>
-      <label className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">
-        {label}
-        {required ? <span className="ml-1 text-[var(--color-danger-700)]">*</span> : null}
-      </label>
-      {children}
-    </div>
-  );
+  return <FormField label={label} required={required} className={className}>{children}</FormField>;
 }

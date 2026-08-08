@@ -81,7 +81,7 @@ export const missionControlScenarios: Record<MissionScenarioId, MissionScenario>
     ],
     actions: [
       { id: "a1", title: "Review handoff sequence", purpose: "Protect continuous flow between finishing and inspection prep.", owner: "Project Manager", due: "Today 13:00", urgency: "moderate", status: "attention", evidenceSource: "Dispatch and schedule logs", approvalRequired: "Superintendent approval required", previewLabel: "Preview plan" },
-      { id: "a2", title: "Inspect delayed telemetry", purpose: "Confirm reliability of one delayed equipment feed.", owner: "Operations Analyst", due: "Today 11:30", urgency: "low", status: "info", evidenceSource: "Fleet polling monitor", approvalRequired: "No write action from Mission Control", previewLabel: "Inspect details" },
+      { id: "a2", title: "Inspect delayed telemetry", purpose: "Confirm reliability of one delayed equipment feed.", owner: "Operations Analyst", due: "Today 11:30", urgency: "low", status: "info", evidenceSource: "Fleet polling monitor", approvalRequired: "No write action from operations overview", previewLabel: "Inspect details" },
     ],
   },
   "weather-risk": {

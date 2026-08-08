@@ -17,28 +17,28 @@ export function getButtonClassName(options: ButtonClassOptions = {}) {
   const size = options.size || "md";
 
   const base =
-    "motion-hover-button inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold outline-none transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:ring-4";
+    "motion-hover-button text-button-label inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold leading-none outline-none transition focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-55";
 
   const variantClass: Record<ButtonVariant, string> = {
     primary:
-      "bg-[linear-gradient(135deg,#2f63cc,#2d8fcf)] text-white shadow-[var(--shadow-medium)] hover:brightness-110 active:brightness-95 focus-visible:ring-[var(--focus-ring-primary)]",
+      "border border-transparent bg-[linear-gradient(135deg,var(--color-action-primary),var(--color-action-primary-hover))] text-white shadow-[var(--shadow-medium)] hover:brightness-105 active:translate-y-px active:brightness-95 focus-visible:ring-[var(--focus-ring-primary)]",
     secondary:
-      "border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] hover:bg-[var(--bos-bg-hover)] active:brightness-95 focus-visible:ring-[var(--focus-ring-neutral)]",
+      "border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] hover:border-[var(--bos-border-strong)] hover:bg-[var(--bos-bg-hover)] active:translate-y-px active:bg-[var(--bos-bg-panel)] focus-visible:ring-[var(--focus-ring-neutral)]",
     outline:
-      "border border-[var(--bos-border-default)] bg-transparent text-[var(--bos-text-primary)] shadow-none hover:bg-[var(--bos-bg-hover)] active:bg-[var(--bos-bg-control)] focus-visible:ring-[var(--focus-ring-neutral)]",
+      "border border-[var(--bos-border-default)] bg-transparent text-[var(--bos-text-primary)] shadow-none hover:border-[var(--bos-border-strong)] hover:bg-[var(--bos-bg-hover)] active:translate-y-px active:bg-[var(--bos-bg-control)] focus-visible:ring-[var(--focus-ring-neutral)]",
     ghost:
-      "text-[var(--bos-text-secondary)] hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)] focus-visible:ring-[var(--focus-ring-neutral)]",
+      "border border-transparent bg-transparent text-[var(--bos-text-secondary)] hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)] active:translate-y-px active:bg-[var(--bos-bg-control)] focus-visible:ring-[var(--focus-ring-neutral)]",
     danger:
-      "border border-[rgba(247,139,127,0.45)] bg-[rgba(247,139,127,0.09)] text-[var(--status-danger)] shadow-[var(--shadow-small)] hover:bg-[rgba(247,139,127,0.18)] active:bg-[rgba(247,139,127,0.22)] focus-visible:ring-[var(--focus-ring-danger)]",
+      "border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] text-[var(--color-danger-700)] shadow-[var(--shadow-small)] hover:bg-[var(--color-danger-100)] active:translate-y-px active:bg-[var(--color-danger-200)] focus-visible:ring-[var(--focus-ring-danger)]",
     toolbar:
-      "border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)] text-[var(--bos-text-primary)] shadow-none hover:bg-[var(--bos-bg-hover)] focus-visible:ring-[var(--focus-ring-neutral)]",
+      "border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)] text-[var(--bos-text-secondary)] shadow-none hover:border-[var(--bos-border-default)] hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)] active:translate-y-px active:bg-[var(--bos-bg-control)] focus-visible:ring-[var(--focus-ring-neutral)]",
   };
 
   const sizeClass: Record<ButtonSize, string> = {
-    sm: "rounded-[var(--radius-md)] px-3 py-1.5 text-xs",
-    md: "rounded-[var(--radius-lg)] px-4 py-2.5 text-sm",
-    lg: "rounded-[var(--radius-lg)] px-5 py-3 text-sm",
-    icon: "h-9 w-9 rounded-[var(--radius-md)] p-0",
+    sm: "h-[var(--control-height-sm)] rounded-[var(--radius-md)] px-3.5",
+    md: "h-[var(--control-height-md)] rounded-[var(--radius-control)] px-4",
+    lg: "h-[var(--control-height-lg)] rounded-[var(--radius-control)] px-5",
+    icon: "h-[var(--control-height-md)] w-[var(--control-height-md)] rounded-[var(--radius-md)] p-0",
   };
 
   return [

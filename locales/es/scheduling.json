@@ -1,7 +1,7 @@
 {
   "pageTitleDispatch": "Centro de Despacho",
   "pageTitleSchedule": "Calendario",
-  "header.badge": "Control Aereo de Obra",
+  "header.badge": "Centro de Despacho de Obra",
   "dateRange.currentWeek": "Semana Operativa Actual",
   "summary.dispatchOperational": "Asigna cuadrillas, equipos, vehiculos y recursos con inteligencia de programacion consciente de conflictos.",
   "summary.scheduleOperational": "Administra el calendario maestro de la empresa con hitos, vencimientos, entregas, reservas y fechas clave.",
@@ -179,14 +179,14 @@
   "severity.informational": "Informativa",
 
   "health.title": "Puntaje de salud del calendario",
-  "health.mockNote": "Indicador operativo simulado calculado con senales deterministas de conflicto y dotacion.",
+  "health.mockNote": "Indicador operativo calculado con senales deterministas de conflicto y dotacion.",
   "health.unresolvedConflicts": "Conflictos sin resolver",
   "health.openShifts": "Turnos abiertos",
   "health.overtimeRisks": "Riesgos de horas extra",
   "health.travelConflicts": "Conflictos de traslado",
 
   "ai.title": "Asistente de programacion IA",
-  "ai.mockNotice": "Solo inteligencia simulada. Recomendaciones con salida mock determinista.",
+  "ai.mockNotice": "Asistente de programacion determinista. Las recomendaciones se generan con senales actuales y requieren revision del despacho.",
   "ai.confidence": "Confianza: {{value}}%",
   "ai.accept": "Aceptar",
   "ai.dismiss": "Descartar",

@@ -40,7 +40,7 @@ async function main() {
       "# 2. Product Identity",
       "# 3. Product Promise",
       "# 4. Primary User Architecture",
-      "# 5. Role-Based Mission Control",
+      "# 5. Role-Based Operations Overview",
       "# 6. Core Product Modules",
       "# 7. Orion",
       "# 8. Orion Intelligence Architecture",

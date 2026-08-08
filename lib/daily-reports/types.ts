@@ -82,6 +82,16 @@ export type MaterialItem = {
   notes: string;
 };
 
+export type EquipmentUsageItem = {
+  id: string;
+  equipmentId: string;
+  operatorName: string;
+  runtimeHours: number;
+  idleHours: number;
+  downtimeHours: number;
+  maintenanceNotes: string;
+};
+
 export type SafetyItem = {
   id: string;
   type: "toolbox_talk" | "inspection" | "incident" | "near_miss" | "ppe" | "corrective_action";
@@ -144,6 +154,7 @@ export type DailyReport = {
   laborTotals: LaborTotals;
   workCompleted: WorkCompletedItem[];
   materials: MaterialItem[];
+  equipment?: EquipmentUsageItem[];
   safety: SafetyItem[];
   delays: DelayItem[];
   attachments: AttachmentItem[];
@@ -163,6 +174,7 @@ export type DailyReportUpsertInput = {
   labor: LaborEntry[];
   workCompleted: WorkCompletedItem[];
   materials: MaterialItem[];
+  equipment?: EquipmentUsageItem[];
   safety: SafetyItem[];
   delays: DelayItem[];
   attachments: AttachmentItem[];

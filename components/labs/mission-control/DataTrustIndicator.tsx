@@ -20,7 +20,7 @@ export function DataTrustIndicator({ companyState }: DataTrustIndicatorProps) {
         <MissionStatusPill label="Fixture-only" severity="orion" />
       </div>
       <p className="mt-2 text-sm text-[var(--mc-text-muted)]">
-        This Mission Control pilot is deterministic fixture data with read-only advisory interactions.
+        This operations overview pilot is deterministic fixture data with read-only advisory interactions.
       </p>
     </section>
   );

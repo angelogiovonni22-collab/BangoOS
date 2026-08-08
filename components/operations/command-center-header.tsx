@@ -47,7 +47,7 @@ export function CommandCenterHeader({
       <CardHeader className="bg-[var(--color-surface-subtle)]/45">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Operations Command Center</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-brand-700)]">Operations Overview</p>
             <div>
               <CardTitle className="text-h2">{companyName}</CardTitle>
               <p className="mt-2 text-body text-[var(--color-text-secondary)]">Live executive operations view for projects, workforce, schedule pressure, approvals, and activity.</p>

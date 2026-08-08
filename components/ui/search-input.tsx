@@ -6,14 +6,14 @@ type SearchInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
 
 export function SearchInput({ className, ...props }: SearchInputProps) {
   const { t } = useI18n();
-  const composedClassName = ["pl-10 pr-4", className || ""].filter(Boolean).join(" ");
+  const composedClassName = ["peer pl-10 pr-4", className || ""].filter(Boolean).join(" ");
 
   return (
     <label className="relative block">
       <span className="sr-only">{t("common.search")}</span>
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[var(--color-text-muted)]"
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[var(--color-text-muted)] transition peer-hover:text-[var(--color-text-secondary)] peer-focus-visible:text-[var(--color-focus)] peer-disabled:text-[var(--color-text-muted)]"
       >
         ⌕
       </span>

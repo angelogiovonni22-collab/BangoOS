@@ -1,4 +1,4 @@
-import { Input, Select } from "@/components/ui";
+import { FormField, Input, Select, Textarea } from "@/components/ui";
 import type { MaterialFormInput, VendorOption } from "@/lib/materials";
 
 type MaterialFormProps = {
@@ -29,12 +29,11 @@ export function MaterialForm({ value, vendorOptions, onChange, disabled = false 
             <Input value={value.name} onChange={(event) => onChange("name", event.target.value)} disabled={disabled} required />
           </Field>
           <Field label="Description" className="md:col-span-2">
-            <textarea
+            <Textarea
               rows={4}
               value={value.description}
               onChange={(event) => onChange("description", event.target.value)}
               disabled={disabled}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
             />
           </Field>
           <Field label="Category">
@@ -153,12 +152,11 @@ export function MaterialForm({ value, vendorOptions, onChange, disabled = false 
             <Input type="date" value={value.last_purchase_date} onChange={(event) => onChange("last_purchase_date", event.target.value)} disabled={disabled} />
           </Field>
           <Field label="Notes" className="md:col-span-2">
-            <textarea
+            <Textarea
               rows={5}
               value={value.notes}
               onChange={(event) => onChange("notes", event.target.value)}
               disabled={disabled}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
             />
           </Field>
         </div>
@@ -178,13 +176,5 @@ function Field({
   className?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <div className={className}>
-      <label className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">
-        {label}
-        {required ? <span className="ml-1 text-[var(--color-danger-700)]">*</span> : null}
-      </label>
-      {children}
-    </div>
-  );
+  return <FormField label={label} required={required} className={className}>{children}</FormField>;
 }

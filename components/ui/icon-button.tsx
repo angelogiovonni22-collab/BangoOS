@@ -19,13 +19,13 @@ export function IconButton({
 }: IconButtonProps) {
   const sizeOverride =
     size === "sm"
-      ? "h-8 w-8 p-0"
+      ? "h-10 w-10 p-0"
       : size === "lg"
         ? "h-12 w-12 p-0"
-        : "h-10 w-10 p-0";
+        : "h-11 w-11 p-0";
 
   const composedClassName = [
-    getButtonClassName({ variant, size }),
+    getButtonClassName({ variant, size: "icon" }),
     sizeOverride,
     "shrink-0",
     className || "",

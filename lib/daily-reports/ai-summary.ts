@@ -20,7 +20,7 @@ export function buildDeterministicDailySummary(report: DailyReport): string {
   const incidentCount = report.safety.filter((item) => item.type === "incident" || item.type === "near_miss").length;
 
   const lines = [
-    "SIMULATED AI DAILY SUMMARY - deterministic output",
+    "AI DAILY SUMMARY - deterministic output",
     `${report.header.date} ${report.header.shift.toUpperCase()} shift at ${report.header.projectName}.`,
     `Weather: ${report.header.weather}, ${report.header.temperatureF}F, site ${report.header.siteConditions}.`,
     `Labor: ${summarizeLabor(report.laborTotals)}.`,

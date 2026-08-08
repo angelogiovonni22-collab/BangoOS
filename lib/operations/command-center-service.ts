@@ -164,7 +164,7 @@ export async function getOperationsCommandCenter(
       availability,
       partialNotices: [
         availability.workforce === "partial" ? "Workforce assignments use live task owners because crew scheduling and time-entry services are not live yet." : "",
-        availability.schedule === "partial" ? "Today's schedule is derived from live task dates because the shared scheduling service is still mock-backed." : "",
+        availability.schedule === "partial" ? "Today's schedule is derived from live task dates because dispatch calendar integration is still in progress." : "",
       ].filter(Boolean),
     },
   };

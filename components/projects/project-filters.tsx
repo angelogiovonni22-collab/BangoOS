@@ -49,7 +49,6 @@ export function ProjectFilters({
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder={t("projects.searchPlaceholder")}
             aria-label={t("projects.filterSearch")}
-            className="h-10 py-2"
           />
         </label>
 
@@ -59,7 +58,6 @@ export function ProjectFilters({
             value={statusValue}
             onChange={(event) => onStatusChange(event.target.value)}
             aria-label={t("projects.filterStatus")}
-            className="h-10 py-2"
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -73,7 +71,6 @@ export function ProjectFilters({
             value={managerValue}
             onChange={(event) => onManagerChange(event.target.value)}
             aria-label="Superintendent"
-            className="h-10 py-2"
           >
             {managerOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -87,7 +84,6 @@ export function ProjectFilters({
             value={customerValue}
             onChange={(event) => onCustomerChange(event.target.value)}
             aria-label={t("projects.filterCustomerLabel")}
-            className="h-10 py-2"
           >
             {customerOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -101,7 +97,6 @@ export function ProjectFilters({
             value={typeValue}
             onChange={(event) => onTypeChange(event.target.value)}
             aria-label={t("projects.filterProjectType")}
-            className="h-10 py-2"
           >
             {typeOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>

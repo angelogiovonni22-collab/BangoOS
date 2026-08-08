@@ -99,7 +99,7 @@ export function Dialog({
               aria-describedby={resolvedDescriptionId}
               tabIndex={-1}
               className={[
-                "pointer-events-auto mx-auto w-full rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-6 shadow-[var(--shadow-large)]",
+                "pointer-events-auto mx-auto w-full rounded-[var(--radius-2xl)] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-card)] p-6 shadow-[var(--shadow-large)]",
                 panelClassName || "",
               ].filter(Boolean).join(" ")}
             >

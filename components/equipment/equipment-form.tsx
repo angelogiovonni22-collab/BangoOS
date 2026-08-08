@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle, Input, Select } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, FormField, Input, Select, Textarea } from "@/components/ui";
 import {
   calculateEquipmentSummary,
   formatPercent,
@@ -61,7 +61,7 @@ export function EquipmentForm({ value, vendorOptions, costCodeOptions, onChange,
             <Input value={value.name} onChange={(event) => onChange("name", event.target.value)} disabled={disabled} required />
           </Field>
           <Field label="Description" className="md:col-span-2">
-            <textarea rows={4} value={value.description} onChange={(event) => onChange("description", event.target.value)} disabled={disabled} className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]" />
+            <Textarea rows={4} value={value.description} onChange={(event) => onChange("description", event.target.value)} disabled={disabled} />
           </Field>
           <Field label="Equipment Type">
             <Select value={value.equipment_type} onChange={(event) => onChange("equipment_type", event.target.value as EquipmentFormInput["equipment_type"])} disabled={disabled}>
@@ -194,7 +194,7 @@ export function EquipmentForm({ value, vendorOptions, costCodeOptions, onChange,
           <Field label="Next Service Meter"><Input type="number" min="0" step="0.001" value={value.next_service_meter} onChange={(event) => onChange("next_service_meter", event.target.value)} disabled={disabled} /></Field>
           <Field label="Service Interval Days"><Input type="number" min="0" step="1" value={value.service_interval_days} onChange={(event) => onChange("service_interval_days", event.target.value)} disabled={disabled} /></Field>
           <Field label="Service Interval Meter"><Input type="number" min="0" step="0.001" value={value.service_interval_meter} onChange={(event) => onChange("service_interval_meter", event.target.value)} disabled={disabled} /></Field>
-          <Field label="Maintenance Notes" className="md:col-span-2 lg:col-span-3"><textarea rows={4} value={value.maintenance_notes} onChange={(event) => onChange("maintenance_notes", event.target.value)} disabled={disabled} className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]" /></Field>
+          <Field label="Maintenance Notes" className="md:col-span-2 lg:col-span-3"><Textarea rows={4} value={value.maintenance_notes} onChange={(event) => onChange("maintenance_notes", event.target.value)} disabled={disabled} /></Field>
         </div>
       </section>
 
@@ -207,7 +207,7 @@ export function EquipmentForm({ value, vendorOptions, costCodeOptions, onChange,
           <Field label="Certification Expiration Date"><Input type="date" value={value.certification_expiration_date} onChange={(event) => onChange("certification_expiration_date", event.target.value)} disabled={disabled} /></Field>
           <Field label="Requires Operator Certification" className="md:col-span-2"><label className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-2 text-sm font-medium text-[var(--color-text-primary)]"><input type="checkbox" checked={value.requires_operator_certification} onChange={(event) => onChange("requires_operator_certification", event.target.checked)} disabled={disabled} /> Required for operation</label></Field>
           <ConditionalField label="Required Certification Type" show={value.requires_operator_certification}><Input value={value.required_certification_type} onChange={(event) => onChange("required_certification_type", event.target.value)} disabled={disabled} /></ConditionalField>
-          <Field label="Safety Notes" className="md:col-span-2 lg:col-span-3"><textarea rows={4} value={value.safety_notes} onChange={(event) => onChange("safety_notes", event.target.value)} disabled={disabled} className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]" /></Field>
+          <Field label="Safety Notes" className="md:col-span-2 lg:col-span-3"><Textarea rows={4} value={value.safety_notes} onChange={(event) => onChange("safety_notes", event.target.value)} disabled={disabled} /></Field>
         </div>
       </section>
 
@@ -224,20 +224,20 @@ export function EquipmentForm({ value, vendorOptions, costCodeOptions, onChange,
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-small)] sm:p-6">
         <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">11. Intelligence Foundation</h2>
         <div className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          <Field label="Criticality Level"><Select value={value.criticality_level} onChange={(event) => onChange("criticality_level", event.target.value as EquipmentFormInput["criticality_level"])} disabled={disabled}><option value="low">Low</option><option value="standard">Standard</option><option value="high">High</option><option value="mission_critical">Mission critical</option></Select></Field>
+          <Field label="Criticality Level"><Select value={value.criticality_level} onChange={(event) => onChange("criticality_level", event.target.value as EquipmentFormInput["criticality_level"])} disabled={disabled}><option value="low">Low</option><option value="standard">Standard</option><option value="high">High</option><option value="mission_critical">Critical</option></Select></Field>
           <Field label="Utilization Target %"><Input type="number" min="0" max="100" step="0.0001" value={value.utilization_target_percent} onChange={(event) => onChange("utilization_target_percent", event.target.value)} disabled={disabled} /></Field>
           <Field label="Replacement Priority"><Select value={value.replacement_priority} onChange={(event) => onChange("replacement_priority", event.target.value as EquipmentFormInput["replacement_priority"])} disabled={disabled}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></Select></Field>
           <Field label="Replacement Score"><Input type="number" min="0" max="100" step="0.0001" value={value.replacement_score} onChange={(event) => onChange("replacement_score", event.target.value)} disabled={disabled} /></Field>
           <Field label="Condition Score"><Input type="number" min="0" max="100" step="0.0001" value={value.condition_score} onChange={(event) => onChange("condition_score", event.target.value)} disabled={disabled} /></Field>
           <Field label="Reliability Score"><Input type="number" min="0" max="100" step="0.0001" value={value.reliability_score} onChange={(event) => onChange("reliability_score", event.target.value)} disabled={disabled} /></Field>
-          <Field label="AI Notes" className="md:col-span-2 lg:col-span-3"><textarea rows={4} value={value.ai_notes} onChange={(event) => onChange("ai_notes", event.target.value)} disabled={disabled} className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]" /></Field>
+          <Field label="AI Notes" className="md:col-span-2 lg:col-span-3"><Textarea rows={4} value={value.ai_notes} onChange={(event) => onChange("ai_notes", event.target.value)} disabled={disabled} /></Field>
         </div>
       </section>
 
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-small)] sm:p-6">
         <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">12. Notes</h2>
         <div className="mt-5 grid gap-5">
-          <Field label="Notes"><textarea rows={5} value={value.notes} onChange={(event) => onChange("notes", event.target.value)} disabled={disabled} className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]" /></Field>
+          <Field label="Notes"><Textarea rows={5} value={value.notes} onChange={(event) => onChange("notes", event.target.value)} disabled={disabled} /></Field>
         </div>
       </section>
     </div>
@@ -245,7 +245,7 @@ export function EquipmentForm({ value, vendorOptions, costCodeOptions, onChange,
 }
 
 function Field({ label, required, className, children }: { label: string; required?: boolean; className?: string; children: React.ReactNode; }) {
-  return <div className={className}><label className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">{label}{required ? <span className="ml-1 text-[var(--color-danger-700)]">*</span> : null}</label>{children}</div>;
+  return <FormField label={label} required={required} className={className}>{children}</FormField>;
 }
 
 function ConditionalField({ label, show, children }: { label: string; show: boolean; children: React.ReactNode; }) {

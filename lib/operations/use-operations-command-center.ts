@@ -56,7 +56,7 @@ export function useOperationsCommandCenter({ localeTag, t }: UseOperationsComman
       const result = await getOperationsCommandCenter(supabase, workspace.context, localeTag, t);
       setData(result.data);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to load operations command center.");
+      setErrorMessage(error instanceof Error ? error.message : "Unable to load operations overview.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

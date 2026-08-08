@@ -41,7 +41,7 @@ export function EnterpriseTable({ children, className, minWidthClassName = "min-
 export function EnterpriseTableHead({ children, className, ...props }: TableHTMLAttributes<HTMLTableSectionElement>) {
   return (
     <thead
-      className={["bg-[var(--color-primary-50)]/35", className || ""].filter(Boolean).join(" ")}
+      className={["bg-[var(--color-selected)]/50", className || ""].filter(Boolean).join(" ")}
       {...props}
     >
       {children}
@@ -64,7 +64,7 @@ export function EnterpriseTableHeading({ children, align = "left", className }: 
     <th
       scope="col"
       className={[
-        "px-5 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]",
+        "px-3 py-3 text-table-header text-[var(--bos-text-secondary)] sm:px-5",
         align === "right" ? "text-right" : "text-left",
         className || "",
       ]
@@ -80,8 +80,8 @@ export function EnterpriseTableRow({ children, className, selected = false, ...p
   return (
     <tr
       className={[
-        "align-top transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-primary-50)]/45",
-        selected ? "bg-[var(--color-brand-50)]/70" : "",
+        "align-top transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-selected)]/45",
+        selected ? "bg-[var(--color-selected)]/75" : "",
         className || "",
       ]
         .filter(Boolean)
@@ -97,7 +97,7 @@ export function EnterpriseTableCell({ children, align = "left", className }: Ent
   return (
     <td
       className={[
-        "whitespace-nowrap px-5 py-3 text-sm text-[var(--color-text-primary)]",
+        "text-table-body whitespace-nowrap px-3 py-3 text-[var(--bos-text-primary)] sm:px-5",
         align === "right" ? "text-right" : "text-left",
         className || "",
       ]
@@ -110,5 +110,5 @@ export function EnterpriseTableCell({ children, align = "left", className }: Ent
 }
 
 export function EnterpriseTableFooter({ children }: { children: ReactNode }) {
-  return <div className="border-t border-[var(--color-border-subtle)] px-5 py-3">{children}</div>;
+  return <div className="border-t border-[var(--color-border-subtle)] px-3 py-3 sm:px-5">{children}</div>;
 }

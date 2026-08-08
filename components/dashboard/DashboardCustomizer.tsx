@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { useRef } from "react";
 import { LayerManager } from "@/components/bangoflow";
 import { FadeIn, useFocusTrap } from "@/components/motion";
-import { ModalHeader, OverlayBackdrop, PortalHost, useBodyScrollLock } from "@/components/ui";
+import { ModalHeader, PortalHost } from "@/components/ui";
 import { useTopmostOverlay } from "@/components/ui/overlay-runtime";
 import type { DashboardLayoutState, DashboardWidgetDefinition, WidgetId } from "@/lib/dashboard/types";
 
@@ -34,7 +34,7 @@ export function DashboardCustomizer({
   const descriptionId = useId();
   const isTopmost = useTopmostOverlay(open);
 
-  useBodyScrollLock(open);
+  // Body scroll lock is not needed for a popover panel.
   useFocusTrap({
     active: open,
     containerRef: panelRef,
@@ -99,11 +99,34 @@ export function DashboardCustomizer({
     };
   }, [open]);
 
+  // Click-outside handler — closes the popover when the user clicks anywhere
+  // outside the panel or its trigger button.  This replaces the full-viewport
+  // OverlayBackdrop, which sat at z-backdrop (40) and intercepted pointer
+  // events on the panel itself even though the panel was at z-spotlight (70).
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
   const panel = open
     ? (
         <PortalHost>
-          <OverlayBackdrop closeLabel={t("dashboard.customizeTitle")} onClick={() => setOpen(false)} className="bg-slate-950/40" />
-
           <LayerManager layer="spotlight">
             <div className="fixed pointer-events-none" style={{ top: `${position.top}px`, left: `${position.left}px` }}>
               <FadeIn delayMs={0} distancePx={4}>

@@ -12,7 +12,9 @@ export {
 export { SummaryCard } from "./summary-card";
 export { Badge } from "./badge";
 export { Input, getInputClassName } from "./input";
+export { Textarea, getTextareaClassName } from "./textarea";
 export { Select, getSelectClassName } from "./select";
+export { FormField, FormLabel, getFormLabelClassName } from "./form-field";
 export { SearchInput } from "./search-input";
 export { SearchBar } from "./search-bar";
 export { LanguageSelector } from "./language-selector";

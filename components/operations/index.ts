@@ -18,3 +18,4 @@ export { LiveProjectStatus } from "./live-project-status";
 export { WorkforceBoard } from "./workforce-board";
 export { PendingDecisions } from "./pending-decisions";
 export { OrionOperationsBrief } from "./orion-operations-brief";
+export { CompanyFinancialReportingPanel } from "./company-financial-reporting-panel";

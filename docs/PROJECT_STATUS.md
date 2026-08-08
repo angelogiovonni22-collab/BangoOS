@@ -217,7 +217,7 @@ Legend for Current Status:
 ### Operations
 
 8) Route: /operations
-- Purpose: operations command center
+- Purpose: operations overview
 - Current status: Functional but incomplete (loop-risk owner)
 - Visual quality: good
 - Data source: useOperationsCommandCenter
@@ -624,7 +624,7 @@ Legend for Current Status:
 - Definition of done: app shell/nav tests pass, no layout overlaps, responsive pass on phone/tablet sizes.
 - Routes: all /(app) routes.
 - Tests required: app-shell mobile scroll, schedule navigation, hydration regressions.
-- Manual checklist: open/close sidebar, command center, persistent Orion across breakpoints.
+- Manual checklist: open/close sidebar, operations overlay, persistent Orion across breakpoints.
 - Git checkpoint: checkpoint/m2-shell-navigation
 - Exclusions: no module business logic changes.
 
@@ -710,9 +710,9 @@ Legend for Current Status:
 - Exclusions: no new product features.
 
 ### Milestone 12: Orion Typed Completion
-- Scope: typed command center reliability and UX polish.
+- Scope: typed operations overlay reliability and UX polish.
 - Definition of done: typed flows stable, no accidental navigation bugs.
-- Routes: command center overlay usage across app.
+- Routes: operations overlay usage across app.
 - Tests required: keyboard and typed command regression suites.
 - Manual checklist: execute core commands from dashboard and detail pages.
 - Git checkpoint: checkpoint/m12-orion-typed

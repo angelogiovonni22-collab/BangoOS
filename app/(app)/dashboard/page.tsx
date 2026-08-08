@@ -190,7 +190,7 @@ export default function DashboardPage() {
 
   return (
     <MotionProvider>
-      <div className="space-y-6 overflow-x-hidden">
+      <div className="container-page space-y-[var(--space-section)] overflow-x-hidden">
         <FadeIn delayMs={0} distancePx={4}>
           <DashboardHeader
             title={t("navigation.dashboard")}

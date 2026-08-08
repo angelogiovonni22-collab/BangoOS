@@ -55,6 +55,12 @@ export default function EmployeeProfilePage() {
             >
               {t("employees.actions.backToDirectory")}
             </Link>
+            <Link
+              href={`/employees/${employeeId}/edit`}
+              className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]"
+            >
+              Edit Employee
+            </Link>
           </div>
         }
       />

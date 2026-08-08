@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EquipmentFilters, EquipmentTable } from "@/components/equipment";
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, PartialDataNotice, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, PartialDataNotice, Select, SkeletonLoader, SummaryCard } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   buildEquipmentQueryPlan,
@@ -364,7 +364,7 @@ export function EquipmentListClient() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
         eyebrow="Equipment"
         title="Equipment & Fleet Intelligence"
@@ -426,7 +426,7 @@ export function EquipmentListClient() {
 
           <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-white p-3">
             <label htmlFor="equipment-saved-view" className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Saved Views</label>
-            <select
+            <Select
               id="equipment-saved-view"
               value={savedViewId}
               onChange={(event) => applySavedView(event.target.value)}
@@ -436,7 +436,7 @@ export function EquipmentListClient() {
               {savedViews.map((view) => (
                 <option key={view.id} value={view.id}>{view.name}</option>
               ))}
-            </select>
+            </Select>
             <Button type="button" variant="outline" size="sm" onClick={saveCurrentView}>Save current view</Button>
           </div>
 

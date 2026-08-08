@@ -977,7 +977,7 @@ Future sequence example:
 - Synchronizing Operations
 - Loading Workforce Intelligence
 - Starting Orion
-- Mission Control Ready
+- Operations Overview Ready
 
 ### Rules
 - Maximum perceived duration: short and bounded.

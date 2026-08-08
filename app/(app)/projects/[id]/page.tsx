@@ -5,20 +5,27 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FadeIn, MotionProvider, PageTransition } from "@/components/motion";
 import {
+  CommandCenterTimelineEntry,
+  ProjectCommandCenterFoundation,
+  ProjectComplianceWorkflow,
+  ProjectCommandCenterTabPlaceholder,
+  ProjectFinancialReporting,
+  ProjectExecutionCalendarEvent,
+  ProjectExecutionIssue,
+  ProjectExecutionNote,
+  ProjectExecutionTask,
+  ProjectExecutionWorkspace,
   ProjectKpiGrid,
-  ProjectHealthHero,
-  ProjectOverview,
-  ProjectOperatingSystemPanel,
   ProjectTabs,
-  ProjectWorkWorkspace,
+  ProjectTradePartnersWorkspace,
   ProjectWorkspaceHeader,
-  ProjectWorkspaceModuleCard,
-  calculateProjectHealth,
+  ProjectWorkspaceHero,
   type ProjectWorkspaceTabKey,
   type WorkspaceActivityItem,
-  type WorkspaceMilestoneItem,
 } from "@/components/projects/workspace";
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, SkeletonLoader } from "@/components/ui";
+import { WorkspaceLoadingState, WorkspaceShell } from "@/components/workspace";
+import { Button, EmptyState, ErrorState } from "@/components/ui";
+import { buildProjectFinancialReport, type ProjectFinancialReport } from "@/lib/financial-reporting";
 import {
   formatProjectAddress,
   formatProjectCurrency,
@@ -31,9 +38,6 @@ import { useI18n } from "@/lib/i18n/provider";
 import { PROJECT_WORKSPACE_ASSIGNED_EQUIPMENT_STATUSES, PROJECT_WORKSPACE_EQUIPMENT_CONFLICT_OR_FILTER } from "@/lib/equipment";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
-import { calculateProjectIntelligence } from "@/lib/project-intelligence/calculate-project-intelligence";
-import { createOrionTimelineService, formatTimelineText, type OrionTimelineItem } from "@/lib/orion/timeline";
-import { generateProjectBriefing } from "@/lib/project-intelligence/briefing/generate-project-briefing";
 import type { Database } from "@/types/database.types";
 
 type ProjectSummary = Pick<
@@ -106,6 +110,56 @@ type InvoiceSummary = Pick<
   | "updated_at"
 >;
 
+type ProjectCommunicationSummary = Pick<
+  Database["public"]["Tables"]["project_communications"]["Row"],
+  "id" | "channel" | "status" | "subject" | "created_at"
+>;
+
+type ProjectInspectionSummary = Pick<
+  Database["public"]["Tables"]["project_inspections"]["Row"],
+  "id" | "inspection_type" | "status" | "created_at" | "scheduled_at" | "completed_at"
+>;
+
+type ProjectPermitSummary = Pick<
+  Database["public"]["Tables"]["project_permits"]["Row"],
+  "id" | "permit_type" | "status" | "created_at"
+>;
+
+type ProjectPunchItemSummary = Pick<
+  Database["public"]["Tables"]["project_punch_items"]["Row"],
+  "id" | "title" | "status" | "created_at"
+>;
+
+type ProjectPunchItemDetailSummary = Pick<
+  Database["public"]["Tables"]["project_punch_items"]["Row"],
+  "id" | "title" | "status" | "priority" | "due_date" | "assigned_profile_id" | "updated_at" | "created_at"
+>;
+
+type WorkforceAssignmentSummary = Pick<
+  Database["public"]["Tables"]["workforce_assignments"]["Row"],
+  "id" | "title" | "status" | "starts_at" | "ends_at" | "crew_id" | "employee_id" | "task_id" | "updated_at"
+>;
+
+type CrewSummary = Pick<
+  Database["public"]["Tables"]["crews"]["Row"],
+  "id" | "name"
+>;
+
+type WorkflowDailyReportSummary = Pick<
+  Database["public"]["Tables"]["workflow_events"]["Row"],
+  "id" | "event_type" | "occurred_at" | "created_at" | "payload"
+>;
+
+type ProjectPhotoActivitySummary = Pick<
+  Database["public"]["Tables"]["project_photos"]["Row"],
+  "id" | "note" | "category" | "created_at"
+>;
+
+type ChangeOrderActivitySummary = Pick<
+  Database["public"]["Tables"]["change_orders"]["Row"],
+  "id" | "title" | "change_order_number" | "status" | "requested_date" | "created_at" | "updated_at"
+>;
+
 type WorkspaceCounts = {
   estimates: number;
   changeOrders: number;
@@ -137,11 +191,22 @@ type CloseoutSnapshot = {
 type WorkspaceState = {
   project: ProjectSummary;
   customer: CustomerSummary | null;
+  heroImageUrl: string | null;
   profilesById: Record<string, string>;
   tasks: TaskSummary[];
   invoices: InvoiceSummary[];
   counts: WorkspaceCounts;
   closeout: CloseoutSnapshot;
+  timelineEntries: CommandCenterTimelineEntry[];
+  punchItems: ProjectPunchItemDetailSummary[];
+  assignments: WorkforceAssignmentSummary[];
+  crews: CrewSummary[];
+  dailyReportEvents: WorkflowDailyReportSummary[];
+  photoEvents: ProjectPhotoActivitySummary[];
+  changeOrderEvents: ChangeOrderActivitySummary[];
+  communications: ProjectCommunicationSummary[];
+  inspections: ProjectInspectionSummary[];
+  financialReport: ProjectFinancialReport | null;
   workspaceContext: WorkspaceContext;
 };
 
@@ -163,7 +228,6 @@ export default function ProjectWorkspacePage() {
   const [errorKind, setErrorKind] = useState<WorkspaceErrorKind | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
-  const [projectTimeline, setProjectTimeline] = useState<OrionTimelineItem[]>([]);
 
   const activeTab = resolveWorkspaceTab(searchParams.get("tab"));
 
@@ -251,6 +315,11 @@ export default function ProjectWorkspacePage() {
         }
 
         const loadedProject = projectResponse.data;
+        const financialReportPromise = buildProjectFinancialReport({
+          supabase: client,
+          companyId: workspaceResult.context.companyId,
+          projectId,
+        });
         const timelineDb = client as unknown as {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           from: (table: string) => any;
@@ -264,7 +333,7 @@ export default function ProjectWorkspacePage() {
               .maybeSingle<CustomerSummary>()
           : Promise.resolve({ data: null, error: null });
 
-        const [profilesResponse, tasksResponse, invoicesResponse, customerResponse, estimatesCountResponse, changeOrdersCountResponse, dailyReportsCountResponse, photosCountResponse, inspectionsCountResponse, pendingInspectionsCountResponse, permitsCountResponse, openPermitsCountResponse, communicationsCountResponse, openPunchItemsCountResponse, closeoutResponse, assignedEquipmentCountResponse, availableEquipmentCountResponse, equipmentConflictCountResponse] = await Promise.all([
+        const [profilesResponse, tasksResponse, invoicesResponse, customerResponse, estimatesCountResponse, changeOrdersCountResponse, dailyReportsCountResponse, photosCountResponse, latestProjectPhotoResponse, inspectionsCountResponse, pendingInspectionsCountResponse, permitsCountResponse, openPermitsCountResponse, communicationsCountResponse, openPunchItemsCountResponse, closeoutResponse, assignedEquipmentCountResponse, availableEquipmentCountResponse, equipmentConflictCountResponse, communicationsRecentResponse, inspectionsRecentResponse, permitsRecentResponse, punchItemsRecentResponse, punchItemsDetailResponse, assignmentsResponse, crewsResponse, dailyReportEventsResponse, photoEventsResponse, changeOrdersRecentResponse] = await Promise.all([
           client
             .from("profiles")
             .select("id, first_name, last_name, role")
@@ -305,6 +374,16 @@ export default function ProjectWorkspacePage() {
             .select("id", { count: "exact", head: true })
             .eq("company_id", workspaceResult.context.companyId)
             .eq("project_id", projectId),
+          client
+            .from("project_photos")
+            .select("storage_path")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .not("storage_path", "is", null)
+            .order("captured_at", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle<{ storage_path: string | null }>(),
           timelineDb
             .from("project_inspections")
             .select("id", { count: "exact", head: true })
@@ -362,9 +441,79 @@ export default function ProjectWorkspacePage() {
             .eq("company_id", workspaceResult.context.companyId)
             .eq("assigned_job_id", projectId)
             .or(PROJECT_WORKSPACE_EQUIPMENT_CONFLICT_OR_FILTER),
+          timelineDb
+            .from("project_communications")
+            .select("id, channel, status, subject, created_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("created_at", { ascending: false })
+            .limit(6),
+          timelineDb
+            .from("project_inspections")
+            .select("id, inspection_type, status, created_at, scheduled_at, completed_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("created_at", { ascending: false })
+            .limit(6),
+          timelineDb
+            .from("project_permits")
+            .select("id, permit_type, status, created_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("created_at", { ascending: false })
+            .limit(6),
+          timelineDb
+            .from("project_punch_items")
+            .select("id, title, status, created_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("created_at", { ascending: false })
+            .limit(6),
+          timelineDb
+            .from("project_punch_items")
+            .select("id, title, status, priority, due_date, assigned_profile_id, updated_at, created_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("updated_at", { ascending: false })
+            .limit(40),
+          timelineDb
+            .from("workforce_assignments")
+            .select("id, title, status, starts_at, ends_at, crew_id, employee_id, task_id, updated_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("starts_at", { ascending: true })
+            .limit(60),
+          timelineDb
+            .from("crews")
+            .select("id, name")
+            .eq("company_id", workspaceResult.context.companyId)
+            .order("name", { ascending: true }),
+          timelineDb
+            .from("workflow_events")
+            .select("id, event_type, occurred_at, created_at, payload")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("reference_entity", "daily_report")
+            .eq("event_type", "daily_report.created")
+            .eq("payload->>project_id", projectId)
+            .order("occurred_at", { ascending: false })
+            .limit(20),
+          timelineDb
+            .from("project_photos")
+            .select("id, note, category, created_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          timelineDb
+            .from("change_orders")
+            .select("id, title, change_order_number, status, requested_date, created_at, updated_at")
+            .eq("company_id", workspaceResult.context.companyId)
+            .eq("project_id", projectId)
+            .order("updated_at", { ascending: false })
+            .limit(20),
         ]);
 
-        if (profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || dailyReportsCountResponse.error || photosCountResponse.error || inspectionsCountResponse.error || pendingInspectionsCountResponse.error || permitsCountResponse.error || openPermitsCountResponse.error || communicationsCountResponse.error || openPunchItemsCountResponse.error || closeoutResponse.error || assignedEquipmentCountResponse.error || availableEquipmentCountResponse.error || equipmentConflictCountResponse.error) {
+        if (profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || dailyReportsCountResponse.error || photosCountResponse.error || latestProjectPhotoResponse.error || inspectionsCountResponse.error || pendingInspectionsCountResponse.error || permitsCountResponse.error || openPermitsCountResponse.error || communicationsCountResponse.error || openPunchItemsCountResponse.error || closeoutResponse.error || assignedEquipmentCountResponse.error || availableEquipmentCountResponse.error || equipmentConflictCountResponse.error || communicationsRecentResponse.error || inspectionsRecentResponse.error || permitsRecentResponse.error || punchItemsRecentResponse.error || punchItemsDetailResponse.error || assignmentsResponse.error || crewsResponse.error || dailyReportEventsResponse.error || photoEventsResponse.error || changeOrdersRecentResponse.error) {
           if (isSubscribed) {
             setErrorKind("database");
             setErrorMessage(t("projects.errorLoadProject"));
@@ -377,12 +526,47 @@ export default function ProjectWorkspacePage() {
         const taskRows = (tasksResponse.data ?? []) as TaskSummary[];
         const invoiceRows = (invoicesResponse.data ?? []) as InvoiceSummary[];
         const customerRow = (customerResponse.data ?? null) as CustomerSummary | null;
+        const communicationRows = (communicationsRecentResponse.data ?? []) as ProjectCommunicationSummary[];
+        const inspectionRows = (inspectionsRecentResponse.data ?? []) as ProjectInspectionSummary[];
+        const permitRows = (permitsRecentResponse.data ?? []) as ProjectPermitSummary[];
+        const punchRows = (punchItemsRecentResponse.data ?? []) as ProjectPunchItemSummary[];
+        const punchItemDetails = (punchItemsDetailResponse.data ?? []) as ProjectPunchItemDetailSummary[];
+        const assignmentRows = (assignmentsResponse.data ?? []) as WorkforceAssignmentSummary[];
+        const crewRows = (crewsResponse.data ?? []) as CrewSummary[];
+        const dailyReportRows = (dailyReportEventsResponse.data ?? []) as WorkflowDailyReportSummary[];
+        const photoRows = (photoEventsResponse.data ?? []) as ProjectPhotoActivitySummary[];
+        const changeOrderRows = (changeOrdersRecentResponse.data ?? []) as ChangeOrderActivitySummary[];
+        let financialReport: ProjectFinancialReport | null = null;
+
+        try {
+          financialReport = await financialReportPromise;
+        } catch (financialError) {
+          console.error("Project financial report load error:", financialError);
+        }
+
         const profileMap = buildProfileNameMap(profileRows, t("projects.notAssigned"));
+        const timelineEntries = buildCommandCenterTimeline({
+          communications: communicationRows,
+          inspections: inspectionRows,
+          permits: permitRows,
+          punchItems: punchRows,
+          localeTag: locale === "es" ? "es-ES" : "en-US",
+        });
+        let heroImageUrl: string | null = null;
+
+        if (latestProjectPhotoResponse.data?.storage_path) {
+          const signedImage = await client.storage
+            .from("project-photos")
+            .createSignedUrl(latestProjectPhotoResponse.data.storage_path, 60 * 30);
+
+          heroImageUrl = signedImage.error ? null : signedImage.data?.signedUrl || null;
+        }
 
         if (isSubscribed) {
           setWorkspace({
             project: loadedProject,
             customer: customerRow,
+            heroImageUrl,
             profilesById: profileMap,
             tasks: taskRows,
             invoices: invoiceRows,
@@ -414,15 +598,18 @@ export default function ProjectWorkspacePage() {
                 equipmentReturnCompleted: Boolean(closeoutResponse.data.equipment_return_completed),
               }
               : null,
+            timelineEntries,
+            punchItems: punchItemDetails,
+            assignments: assignmentRows,
+            crews: crewRows,
+            dailyReportEvents: dailyReportRows,
+            photoEvents: photoRows,
+            changeOrderEvents: changeOrderRows,
+            communications: communicationRows,
+            inspections: inspectionRows,
+            financialReport,
             workspaceContext: workspaceResult.context,
           });
-
-          const timeline = createOrionTimelineService(client);
-          const timelineResult = await timeline.listProjectTimeline(workspaceResult.context.companyId, projectId, {
-            pageSize: 24,
-            includeLegacyAdapters: true,
-          });
-          setProjectTimeline(timelineResult.items);
         }
       } catch (caughtError) {
         console.error("Load project workspace error:", caughtError);
@@ -443,10 +630,10 @@ export default function ProjectWorkspacePage() {
     return () => {
       isSubscribed = false;
     };
-  }, [projectId, supabase, t]);
+  }, [locale, projectId, supabase, t]);
 
   if (isLoading) {
-    return <ProjectWorkspaceLoadingState />;
+    return <WorkspaceLoadingState rows={4} />;
   }
 
   if (errorMessage && !workspace) {
@@ -474,7 +661,6 @@ export default function ProjectWorkspacePage() {
   const customerName = workspace.customer ? getCustomerDisplayName(workspace.customer, t("customers.unnamedCustomer")) : t("projects.notLinked");
   const customerHref = workspace.customer?.id ? `/customers/${workspace.customer.id}` : null;
   const customerProjectsHref = workspace.customer?.id ? `/customers/${workspace.customer.id}?tab=projects` : "/projects";
-  const projectManager = workspace.project.created_by ? workspace.profilesById[workspace.project.created_by] || t("projects.notAssigned") : t("projects.notAssigned");
   const location = formatProjectAddress(project as ProjectRow) || t("projects.notProvided");
   const status = normalizeProjectStatus(project.status);
   const statusLabel = getProjectStatusLabel(status.key, t);
@@ -484,54 +670,9 @@ export default function ProjectWorkspacePage() {
 
   const budgetValueRaw = project.contract_amount ?? project.estimated_cost;
   const spentValueRaw = workspace.invoices.reduce((sum, invoice) => sum + Math.max(0, invoice.amount_paid), 0);
-  const remainingValueRaw = typeof budgetValueRaw === "number" ? budgetValueRaw - spentValueRaw : null;
 
   const budgetValue = formatProjectCurrency(budgetValueRaw, localeTag, t("projects.notProvided"));
   const spentValue = formatProjectCurrency(spentValueRaw, localeTag, "$0");
-  const remainingValue = formatProjectCurrency(remainingValueRaw, localeTag, t("projects.notProvided"));
-  const profitMarginValue = formatProfitMargin(budgetValueRaw, spentValueRaw);
-
-  const projectHealth = calculateProjectHealth({
-    projectStatus: project.status,
-    progressPercent: progress,
-    targetCompletionDate: project.estimated_end_date,
-    budget: budgetValueRaw,
-    spent: spentValueRaw,
-  });
-
-  const projectIntelligence = calculateProjectIntelligence({
-    project: {
-      status: project.status,
-      estimated_end_date: project.estimated_end_date,
-      contract_amount: project.contract_amount ?? null,
-      estimated_cost: project.estimated_cost ?? null,
-      description: project.description ?? null,
-    },
-    tasks: workspace.tasks.map((t) => ({
-      id: t.id,
-      status: t.status,
-      completion_percentage: t.completion_percentage,
-      planned_finish: t.planned_finish ?? null,
-      assigned_profile_id: t.assigned_profile_id ?? null,
-      phase_id: t.phase_id ?? null,
-    })),
-    invoices: workspace.invoices.map((inv) => ({
-      total_amount: inv.total_amount,
-      amount_paid: inv.amount_paid,
-      due_date: inv.due_date ?? null,
-    })),
-    counts: workspace.counts,
-  });
-
-  const projectBriefing = generateProjectBriefing({
-    intelligence: projectIntelligence,
-    projectId: project.id,
-    projectName,
-    localeTag,
-  });
-
-  const briefingFormatCurrency = (amount: number) =>
-    formatProjectCurrency(amount, localeTag, "$0");
 
   const recentActivity = buildRecentActivity({
     project,
@@ -543,278 +684,173 @@ export default function ProjectWorkspacePage() {
     t,
   });
 
-  const upcomingDates = buildUpcomingDates(project, workspace.tasks, localeTag, t);
-  const timeline = projectTimeline;
-
-  const headerProjectHrefSuffix = project.customer_id ? `&customerId=${project.customer_id}` : "";
-  const details = [
-    { label: "Customer", value: customerName, href: customerHref || undefined },
-    { label: "Address", value: location },
-    { label: "Project Type", value: project.project_type || t("projects.notProvided") },
-    { label: "Status", value: statusLabel, badgeTone: mapStatusToBadgeTone(status.key) },
-    { label: "Start Date", value: startDate },
-    { label: "Target Completion", value: completionDate },
-    { label: "Project Manager", value: projectManager },
-    { label: "Created", value: formatProjectDateLong(project.created_at, localeTag, t("projects.notProvided")) },
-  ];
+  const timeline = workspace.timelineEntries;
+  const completedTasks = workspace.tasks.filter((task) => task.status.trim().toLowerCase() === "completed").length;
+  const remainingBudgetRaw = budgetValueRaw !== null ? budgetValueRaw - spentValueRaw : null;
+  const remainingBudgetLabel = remainingBudgetRaw !== null
+    ? formatProjectCurrency(Math.max(remainingBudgetRaw, 0), localeTag, "$0")
+    : t("projects.notProvided");
+  const closeoutReady = Boolean(
+    workspace.closeout
+    && workspace.closeout.finalPaymentRecorded
+    && workspace.closeout.customerApprovalRecorded
+    && workspace.closeout.requiredDocumentsCompleted
+    && workspace.closeout.permitClosureCompleted
+    && workspace.closeout.crewRemovalCompleted
+    && workspace.closeout.equipmentReturnCompleted,
+  );
+  const closeoutStatusLabel = workspace.closeout ? `${workspace.closeout.status} / ${workspace.closeout.handoverStatus}` : "Not started";
+  const executionTasks = buildExecutionTasks(workspace.tasks, workspace.profilesById);
+  const executionIssues = buildExecutionIssues(workspace.punchItems, executionTasks, workspace.profilesById);
+  const executionNotes = buildExecutionNotes({
+    project,
+    dailyReportEvents: workspace.dailyReportEvents,
+    communications: workspace.communications,
+  });
+  const executionActivity = buildExecutionActivity({
+    tasks: executionTasks,
+    assignments: workspace.assignments,
+    dailyReports: workspace.dailyReportEvents,
+    photos: workspace.photoEvents,
+    documents: workspace.communications,
+    changeOrders: workspace.changeOrderEvents,
+    milestones: executionTasks.filter((task) => task.kind === "milestone"),
+    localeTag,
+  });
+  const executionCalendarEvents = buildExecutionCalendarEvents({
+    projectId: project.id,
+    tasks: executionTasks,
+    assignments: workspace.assignments,
+    crews: workspace.crews,
+    inspections: workspace.inspections,
+    milestones: executionTasks.filter((task) => task.kind === "milestone"),
+    changeOrders: workspace.changeOrderEvents,
+  });
+  const inspectionMilestones = workspace.inspections.map((item) => ({
+    id: item.id,
+    label: item.inspection_type,
+    status: item.status,
+    date: item.scheduled_at || item.completed_at || item.created_at,
+  }));
+  const completionPercent = executionTasks.length
+    ? Math.round((executionTasks.filter((task) => task.status === "completed").length / executionTasks.length) * 100)
+    : 0;
+  const progressLabel = `${executionTasks.filter((task) => task.status === "completed").length} completed / ${executionTasks.length} total`;
+  const openTasksCount = executionTasks.filter((task) => task.status !== "completed").length;
+  const upcomingMilestonesCount = executionTasks.filter((task) => task.kind === "milestone" && task.status !== "completed").length;
+  const inspectionPendingCount = workspace.counts.pendingInspections;
+  const blockedCount = executionTasks.filter((task) => task.status === "blocked").length;
 
   return (
     <MotionProvider>
-      <div className="space-y-6">
-        <FadeIn delayMs={0} distancePx={4}>
+      <WorkspaceShell>
+        <FadeIn className="min-w-0" delayMs={0} distancePx={4}>
           <ProjectWorkspaceHeader
             projectName={projectName}
-            customerName={customerName}
-            customerHref={customerHref}
+            projectNumber={project.project_number}
+            customerLabel={customerName}
             customerProjectsHref={customerProjectsHref}
             statusLabel={statusLabel}
             statusKey={status.key}
-            projectTypeLabel={project.project_type || t("projects.notProvided")}
-            projectNumber={project.project_number}
-            address={location}
-            projectManager={projectManager}
-            startDate={startDate}
-            targetCompletionDate={completionDate}
-            progressPercent={progress}
-            newDailyReportHref="/daily-reports/new"
-            newInvoiceHref={`/invoices/new?projectId=${project.id}${headerProjectHrefSuffix}`}
-            newChangeOrderHref={`/change-orders/new?projectId=${project.id}${headerProjectHrefSuffix}`}
+            customerHref={customerHref}
+            editProjectHref={`/projects/${project.id}/edit`}
           />
         </FadeIn>
 
-        <FadeIn delayMs={50} distancePx={6}>
-          <ProjectHealthHero health={projectHealth} />
+        <FadeIn className="min-w-0" delayMs={50} distancePx={6}>
+          <ProjectWorkspaceHero
+            projectName={projectName}
+            customerName={customerName}
+            statusLabel={statusLabel}
+            statusKey={status.key}
+            customerHref={customerHref}
+            address={location}
+            imageUrl={workspace.heroImageUrl}
+            photoCount={workspace.counts.photos}
+          />
         </FadeIn>
 
-        <FadeIn delayMs={90} distancePx={6}>
+        <FadeIn className="min-w-0" delayMs={90} distancePx={6}>
           <ProjectKpiGrid
+            statusLabel={statusLabel}
+            statusKey={status.key}
             budgetLabel={budgetValue}
             spentLabel={spentValue}
-            remainingLabel={remainingValue}
-            profitMarginLabel={profitMarginValue}
+            startDate={startDate}
+            targetDate={completionDate}
+            progressPercent={progress}
+            taskCount={workspace.tasks.length}
+            completedTaskCount={completedTasks}
           />
         </FadeIn>
 
-        <FadeIn delayMs={130} distancePx={4}>
+        <FadeIn className="min-w-0" delayMs={130} distancePx={4}>
           <ProjectTabs activeTab={activeTab} onChange={handleTabChange} t={t} />
         </FadeIn>
 
-        <PageTransition transitionKey={`workspace-tab-${activeTab}`}>
-          {activeTab === "overview" ? (
-            <div className="space-y-6">
-              <ProjectOverview
-                details={details}
-                description={project.description?.trim() || "No project scope description has been provided yet."}
-                health={projectHealth}
+        <div className="min-w-0 rounded-[20px] border border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-surface),var(--bos-bg-workspace-surface-soft))] p-3 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)]">
+          <PageTransition transitionKey={`workspace-tab-${activeTab}`} className="min-w-0 max-w-full">
+            {activeTab === "overview" ? (
+              <ProjectCommandCenterFoundation
+                projectId={project.id}
+                projectName={projectName}
+                tasks={workspace.tasks}
                 budgetLabel={budgetValue}
                 spentLabel={spentValue}
-                remainingLabel={remainingValue}
-                profitMarginLabel={profitMarginValue}
-                recentActivity={recentActivity}
-                upcomingDates={upcomingDates}
+                remainingLabel={remainingBudgetLabel}
+                estimatesCount={workspace.counts.estimates}
+                changeOrdersCount={workspace.counts.changeOrders}
+                invoicesCount={workspace.invoices.length}
+                photosCount={workspace.counts.photos}
+                permitsCount={workspace.counts.permits}
+                inspectionsCount={workspace.counts.inspections}
+                dailyReportsCount={workspace.counts.dailyReports}
+                openPunchItemsCount={workspace.counts.openPunchItems}
+                openPermitsCount={workspace.counts.openPermits}
+                pendingInspectionsCount={workspace.counts.pendingInspections}
+                closeoutStatusLabel={closeoutStatusLabel}
+                closeoutReady={closeoutReady}
+                activityItems={recentActivity}
+                timelineEntries={timeline}
               />
-              <ProjectOperatingSystemPanel
-                intelligence={projectIntelligence}
-                briefing={projectBriefing}
-                timelineCount={timeline.length}
-                formatCurrency={briefingFormatCurrency}
-                t={t}
+            ) : activeTab === "tasks" ? (
+              <ProjectExecutionWorkspace
+                projectId={project.id}
+                projectName={projectName}
+                tasks={executionTasks}
+                issues={executionIssues}
+                notes={executionNotes}
+                activity={executionActivity}
+                calendarEvents={executionCalendarEvents}
+                inspectionMilestones={inspectionMilestones}
+                crewAssignmentCount={workspace.assignments.length}
+                completionPercent={completionPercent}
+                progressLabel={progressLabel}
+                openTasksCount={openTasksCount}
+                upcomingMilestonesCount={upcomingMilestonesCount}
+                inspectionPendingCount={inspectionPendingCount}
+                blockedCount={blockedCount}
               />
-            </div>
-          ) : activeTab === "work" ? (
-            <ProjectWorkWorkspace
-              companyId={workspace.workspaceContext.companyId}
-              projectId={project.id}
-              projectName={projectName}
-              projectStatus={project.status}
-              customerId={workspace.customer?.id ?? null}
-              userId={workspace.workspaceContext.userId}
-              locale={localeTag}
-              tasks={workspace.tasks}
-              profiles={workspace.profilesById}
-              briefing={projectBriefing}
-              formatCurrency={briefingFormatCurrency}
-              t={t}
-            />
-          ) : activeTab === "financial" ? (
-        <ModuleGrid>
-          <ProjectWorkspaceModuleCard
-            title="Budget"
-            description="Review baseline budget and monitor remaining financial runway."
-            metricLabel="Remaining"
-            metricValue={remainingValue}
-          />
-          <ProjectWorkspaceModuleCard
-            title="Estimates"
-            description="Review estimate history connected to this project."
-            metricLabel="Records"
-            metricValue={String(workspace.counts.estimates)}
-            href="/estimates"
-            actionLabel="Open Estimates"
-          />
-          <ProjectWorkspaceModuleCard
-            title="Change Orders"
-            description="Track approved and pending change scope impacting budget and delivery."
-            metricLabel="Records"
-            metricValue={String(workspace.counts.changeOrders)}
-            href={`/change-orders?projectId=${project.id}`}
-            actionLabel="Open Change Orders"
-          />
-          <ProjectWorkspaceModuleCard
-            title="Invoices"
-            description="Track billing progress and paid amount recorded to date."
-            metricLabel="Records"
-            metricValue={String(workspace.invoices.length)}
-            href={`/invoices?projectId=${project.id}`}
-            actionLabel="Open Invoices"
-          />
-          <ProjectWorkspaceModuleCard
-            title="Job Costing"
-            description="Detailed job costing will appear here as cost categories are connected beyond paid invoice data."
-          />
-        </ModuleGrid>
-          ) : activeTab === "resources" ? (
-        <ModuleGrid>
-          <ProjectWorkspaceModuleCard
-            title="Crew"
-            description="View crew allocation and team availability for this project."
-            href="/crews"
-            actionLabel="Open Crew"
-          />
-          <ProjectWorkspaceModuleCard
-            title="Equipment"
-            description="Track assigned equipment and availability across active jobs."
-            metricLabel="Assigned / Available / Conflicts"
-            metricValue={`${workspace.counts.assignedEquipment} / ${workspace.counts.availableEquipment} / ${workspace.counts.equipmentConflicts}`}
-            href="/equipment"
-            actionLabel="Open Equipment"
-          />
-          <ProjectWorkspaceModuleCard
-            title="Materials"
-            description="Manage material supply and project-specific usage details."
-            href="/materials"
-            actionLabel="Open Materials"
-          />
-          <ProjectWorkspaceModuleCard
-            title="Vendors"
-            description="Manage vendor and subcontractor partners supporting project delivery."
-            href="/vendors"
-            actionLabel="Open Vendors"
-          />
-        </ModuleGrid>
-          ) : activeTab === "documents" ? (
-        <ModuleGrid>
-          <ProjectWorkspaceModuleCard
-            title="Photos"
-            description="Field photos uploaded to this project are tracked here."
-            metricLabel="Uploaded"
-            metricValue={String(workspace.counts.photos)}
-          />
-          <ProjectWorkspaceModuleCard
-            title="Daily Reports"
-            description="Daily execution logs captured for this project."
-            metricLabel="Reports"
-            metricValue={String(workspace.counts.dailyReports)}
-            href={`/daily-reports?projectId=${project.id}`}
-            actionLabel="Open Daily Reports"
-          />
-          <ProjectWorkspaceModuleCard
-            title="Inspections"
-            description="Track inspection lifecycle, failures, and reinspection needs for this project."
-            metricLabel="Total / Pending"
-            metricValue={`${workspace.counts.inspections} / ${workspace.counts.pendingInspections}`}
-          />
-          <ProjectWorkspaceModuleCard
-            title="Permits"
-            description="Monitor permit approvals, expirations, and renewal obligations."
-            metricLabel="Total / Open"
-            metricValue={`${workspace.counts.permits} / ${workspace.counts.openPermits}`}
-          />
-          <ProjectWorkspaceModuleCard
-            title="Drawings"
-            description="Plan and drawing workflows are available in the plans workspace."
-            href={`/projects/${project.id}?tab=plans`}
-            actionLabel="Open Plans"
-          />
-          <ProjectWorkspaceModuleCard
-            title="Communications"
-            description="Customer updates and communication records logged for the project."
-            metricLabel="Records"
-            metricValue={String(workspace.counts.communications)}
-          />
-          <ProjectWorkspaceModuleCard
-            title="Closeout"
-            description={workspace.closeout
-              ? `Closeout ${workspace.closeout.status.replace(/_/g, " ")} · Handover ${workspace.closeout.handoverStatus.replace(/_/g, " ")}`
-              : "Closeout has not been started for this project."}
-            metricLabel="Open Punch Items"
-            metricValue={String(workspace.counts.openPunchItems)}
-          />
-        </ModuleGrid>
-          ) : (
-        <Card as="section" variant="elevated" className="shadow-[var(--shadow-small)]">
-          <CardHeader className="bg-[var(--color-surface-subtle)]/45">
-            <CardTitle>Project Timeline</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 p-5">
-            {timeline.length === 0 ? (
-              <EmptyState
-                compact
-                icon="T"
-                title="No activity has been recorded yet."
-                description="No activity has been recorded yet."
+            ) : activeTab === "inspections" ? (
+              <ProjectComplianceWorkflow
+                projectId={project.id}
+                workspaceContext={workspace.workspaceContext}
               />
+            ) : activeTab === "financials" ? (
+              workspace.financialReport ? (
+                <ProjectFinancialReporting report={workspace.financialReport} />
+              ) : (
+                <ProjectCommandCenterTabPlaceholder tabLabel="Financials data unavailable" />
+              )
+            ) : activeTab === "subcontractors" ? (
+              <ProjectTradePartnersWorkspace projectId={project.id} />
             ) : (
-              timeline.map((item) => (
-                <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)]">
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{formatTimelineText(item, t).title}</p>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{formatTimelineText(item, t).summary}</p>
-                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">{formatDateTime(item.occurredAt, localeTag)}</p>
-                </article>
-              ))
+              <ProjectCommandCenterTabPlaceholder tabLabel={getWorkspaceTabLabel(activeTab, t)} />
             )}
-          </CardContent>
-        </Card>
-          )}
-        </PageTransition>
-      </div>
+          </PageTransition>
+        </div>
+      </WorkspaceShell>
     </MotionProvider>
-  );
-}
-
-function ModuleGrid({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-6 lg:grid-cols-2">{children}</div>;
-}
-
-function ProjectWorkspaceLoadingState() {
-  return (
-    <div className="space-y-5">
-      <div className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-5 shadow-[var(--shadow-card)]">
-        <div className="space-y-2">
-          <SkeletonLoader className="h-8 w-72" />
-          <SkeletonLoader className="h-5 w-96" />
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <SkeletonLoader className="h-20 w-full" />
-          <SkeletonLoader className="h-20 w-full" />
-          <SkeletonLoader className="h-20 w-full" />
-          <SkeletonLoader className="h-20 w-full" />
-          <SkeletonLoader className="h-20 w-full" />
-        </div>
-      </div>
-      <SkeletonLoader className="h-56 w-full" />
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SkeletonLoader className="h-32 w-full" />
-        <SkeletonLoader className="h-32 w-full" />
-        <SkeletonLoader className="h-32 w-full" />
-        <SkeletonLoader className="h-32 w-full" />
-      </section>
-      <SkeletonLoader className="h-14 w-full" />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SkeletonLoader className="h-72 w-full" />
-        <SkeletonLoader className="h-72 w-full" />
-      </div>
-    </div>
   );
 }
 
@@ -839,13 +875,55 @@ function getWorkspaceErrorTitle(errorKind: WorkspaceErrorKind | null, t: (key: s
 }
 
 function resolveWorkspaceTab(tabParam: string | null): WorkspaceTab {
-  const validTabs: WorkspaceTab[] = ["overview", "work", "financial", "resources", "documents", "timeline"];
+  const validTabs: WorkspaceTab[] = [
+    "overview",
+    "tasks",
+    "daily_logs",
+    "photos",
+    "documents",
+    "subcontractors",
+    "crew",
+    "financials",
+    "change_orders",
+    "rfis",
+    "inspections",
+    "activity",
+  ];
+  const aliases: Record<string, WorkspaceTab> = {
+    work: "tasks",
+    financial: "financials",
+    resources: "crew",
+    timeline: "activity",
+  };
 
   if (!tabParam) {
     return "overview";
   }
 
+  if (aliases[tabParam]) {
+    return aliases[tabParam];
+  }
+
   return validTabs.includes(tabParam as WorkspaceTab) ? (tabParam as WorkspaceTab) : "overview";
+}
+
+function getWorkspaceTabLabel(tab: WorkspaceTab, t: (key: string) => string) {
+  const keyByTab: Record<WorkspaceTab, string> = {
+    overview: "projects.workspaceTabOverview",
+    tasks: "projects.workspaceTabTasks",
+    daily_logs: "projects.workspaceTabDailyLogs",
+    photos: "projects.workspaceTabPhotos",
+    documents: "projects.workspaceTabDocuments",
+    subcontractors: "projects.workspaceTabSubcontractors",
+    crew: "projects.workspaceTabCrew",
+    financials: "projects.workspaceTabFinancials",
+    change_orders: "projects.workspaceTabChangeOrders",
+    rfis: "projects.workspaceTabRfis",
+    inspections: "projects.workspaceTabInspections",
+    activity: "projects.workspaceTabActivity",
+  };
+
+  return t(keyByTab[tab]);
 }
 
 function getWorkspaceErrorDescription(fallback: string, t: (key: string) => string) {
@@ -887,26 +965,6 @@ function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
   return statusLabelKey[statusKey] ? t(statusLabelKey[statusKey]) : normalizeProjectStatus(statusKey).label;
 }
 
-function mapStatusToBadgeTone(statusKey: string): "brand" | "success" | "warning" | "danger" | "neutral" {
-  if (statusKey === "completed") {
-    return "success";
-  }
-
-  if (statusKey === "cancelled") {
-    return "danger";
-  }
-
-  if (statusKey === "on_hold") {
-    return "warning";
-  }
-
-  if (statusKey === "lead") {
-    return "neutral";
-  }
-
-  return "brand";
-}
-
 function buildProfileNameMap(rows: ProfileSummary[], fallbackLabel: string) {
   return Object.fromEntries(
     rows.map((row) => {
@@ -943,15 +1001,6 @@ function calculateProjectProgress(tasks: TaskSummary[]) {
   }, 0);
 
   return Math.round(completion / tasks.length);
-}
-
-function formatProfitMargin(budget: number | null, spent: number) {
-  if (typeof budget !== "number" || budget <= 0) {
-    return "-";
-  }
-
-  const margin = ((budget - spent) / budget) * 100;
-  return `${margin.toFixed(1)}%`;
 }
 
 function buildRecentActivity({
@@ -1027,50 +1076,6 @@ function buildRecentActivity({
   return items;
 }
 
-function buildUpcomingDates(
-  project: ProjectSummary,
-  tasks: TaskSummary[],
-  localeTag: string,
-  t: (key: string, params?: Record<string, string | number>) => string,
-): WorkspaceMilestoneItem[] {
-  const dates: WorkspaceMilestoneItem[] = [];
-
-  if (project.estimated_start_date) {
-    dates.push({
-      id: "project-start",
-      title: "Planned Start",
-      detail: "Project baseline start date",
-      dateLabel: formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided")),
-      tone: "indigo",
-    });
-  }
-
-  if (project.estimated_end_date) {
-    dates.push({
-      id: "project-end",
-      title: "Target Completion",
-      detail: "Current completion target",
-      dateLabel: formatProjectDateLong(project.estimated_end_date, localeTag, t("projects.notProvided")),
-      tone: "blue",
-    });
-  }
-
-  tasks
-    .filter((task) => Boolean(task.planned_finish))
-    .slice(0, 4)
-    .forEach((task) => {
-      dates.push({
-        id: `task-${task.id}`,
-        title: task.title,
-        detail: "Planned task finish",
-        dateLabel: formatProjectDateLong(task.planned_finish, localeTag, t("projects.notProvided")),
-        tone: "amber",
-      });
-    });
-
-  return dates;
-}
-
 function formatDateTime(value: string, localeTag: string) {
   return new Intl.DateTimeFormat(localeTag, {
     month: "short",
@@ -1079,4 +1084,432 @@ function formatDateTime(value: string, localeTag: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function buildCommandCenterTimeline({
+  communications,
+  inspections,
+  permits,
+  punchItems,
+  localeTag,
+}: {
+  communications: ProjectCommunicationSummary[];
+  inspections: ProjectInspectionSummary[];
+  permits: ProjectPermitSummary[];
+  punchItems: ProjectPunchItemSummary[];
+  localeTag: string;
+}): CommandCenterTimelineEntry[] {
+  const entries: Array<CommandCenterTimelineEntry & { orderDate: string }> = [];
+
+  for (const item of communications) {
+    entries.push({
+      id: `comm-${item.id}`,
+      title: `Communication ${item.channel}`,
+      detail: `${item.status}${item.subject ? ` - ${item.subject}` : ""}`,
+      occurredAt: formatDateTime(item.created_at, localeTag),
+      tone: item.status === "failed" ? "warning" : "info",
+      orderDate: item.created_at,
+    });
+  }
+
+  for (const item of inspections) {
+    entries.push({
+      id: `inspection-${item.id}`,
+      title: `Inspection ${item.inspection_type}`,
+      detail: `Status: ${item.status}`,
+      occurredAt: formatDateTime(item.created_at, localeTag),
+      tone: item.status === "passed" ? "success" : item.status === "failed" ? "warning" : "neutral",
+      orderDate: item.created_at,
+    });
+  }
+
+  for (const item of permits) {
+    entries.push({
+      id: `permit-${item.id}`,
+      title: `Permit ${item.permit_type}`,
+      detail: `Status: ${item.status}`,
+      occurredAt: formatDateTime(item.created_at, localeTag),
+      tone: item.status === "approved" || item.status === "issued" || item.status === "closed" ? "success" : "warning",
+      orderDate: item.created_at,
+    });
+  }
+
+  for (const item of punchItems) {
+    entries.push({
+      id: `punch-${item.id}`,
+      title: item.title,
+      detail: `Punch item ${item.status}`,
+      occurredAt: formatDateTime(item.created_at, localeTag),
+      tone: item.status === "completed" ? "success" : "warning",
+      orderDate: item.created_at,
+    });
+  }
+
+  return entries
+    .sort((left, right) => right.orderDate.localeCompare(left.orderDate))
+    .slice(0, 16)
+    .map((entry) => ({
+      id: entry.id,
+      title: entry.title,
+      detail: entry.detail,
+      occurredAt: entry.occurredAt,
+      tone: entry.tone,
+    }));
+}
+
+function buildExecutionTasks(tasks: TaskSummary[], profilesById: Record<string, string>): ProjectExecutionTask[] {
+  return tasks.map((task) => {
+    const normalized = normalizeExecutionStatus(task.status);
+    const lowerTitle = task.title.trim().toLowerCase();
+    const kind = lowerTitle.includes("milestone")
+      ? "milestone"
+      : lowerTitle.includes("deliverable") || lowerTitle.includes("delivery")
+        ? "deliverable"
+        : "task";
+
+    return {
+      id: task.id,
+      kind,
+      title: task.title,
+      description: task.description?.trim() || task.notes?.trim() || "",
+      priority: task.priority || "medium",
+      status: normalized,
+      dueDate: task.planned_finish,
+      assigneeId: task.assigned_profile_id,
+      assigneeLabel: task.assigned_profile_id ? profilesById[task.assigned_profile_id] || "Unassigned" : "Unassigned",
+      completedAt: task.actual_finish || (normalized === "completed" ? task.updated_at : null),
+      dependencyIds: [],
+    };
+  });
+}
+
+function buildExecutionIssues(
+  punchItems: ProjectPunchItemDetailSummary[],
+  tasks: ProjectExecutionTask[],
+  profilesById: Record<string, string>,
+): ProjectExecutionIssue[] {
+  const issueFromPunch = punchItems.map((item) => ({
+    id: `punch-${item.id}`,
+    title: item.title,
+    status: normalizeIssueStatus(item.status),
+    priority: item.priority || "medium",
+    ownerId: item.assigned_profile_id,
+    ownerLabel: item.assigned_profile_id ? profilesById[item.assigned_profile_id] || "Unassigned" : "Unassigned",
+    dueDate: item.due_date,
+    source: "punch_item" as const,
+  }));
+
+  const issueFromTasks = tasks
+    .filter((task) => task.status === "blocked")
+    .map((task) => ({
+      id: `task-${task.id}`,
+      title: task.title,
+      status: "blocked" as const,
+      priority: task.priority,
+      ownerId: task.assigneeId,
+      ownerLabel: task.assigneeLabel,
+      dueDate: task.dueDate,
+      source: "task" as const,
+    }));
+
+  return [...issueFromPunch, ...issueFromTasks].sort((left, right) => {
+    const leftDue = left.dueDate || "9999-12-31";
+    const rightDue = right.dueDate || "9999-12-31";
+    return leftDue.localeCompare(rightDue);
+  });
+}
+
+function buildExecutionNotes({
+  project,
+  dailyReportEvents,
+  communications,
+}: {
+  project: ProjectSummary;
+  dailyReportEvents: WorkflowDailyReportSummary[];
+  communications: ProjectCommunicationSummary[];
+}): ProjectExecutionNote[] {
+  const notes: ProjectExecutionNote[] = [];
+
+  if (project.description?.trim()) {
+    notes.push({
+      id: "note-general-project",
+      category: "general",
+      body: project.description.trim(),
+      createdAt: project.updated_at,
+      createdByLabel: "Project Workspace",
+    });
+  }
+
+  for (const row of dailyReportEvents.slice(0, 6)) {
+    const payloadRecord = toRecord(row.payload);
+    const payloadSummary = typeof payloadRecord.summary === "string" ? payloadRecord.summary : null;
+    const payloadTitle = typeof payloadRecord.report_number === "string" ? payloadRecord.report_number : null;
+
+    notes.push({
+      id: `note-field-${row.id}`,
+      category: "field",
+      body: payloadSummary || payloadTitle || "Daily report submitted",
+      createdAt: row.occurred_at || row.created_at,
+      createdByLabel: "Field",
+    });
+  }
+
+  for (const item of communications.slice(0, 6)) {
+    notes.push({
+      id: `note-office-${item.id}`,
+      category: "office",
+      body: `${item.channel} ${item.subject ? `- ${item.subject}` : ""}`.trim(),
+      createdAt: item.created_at,
+      createdByLabel: "Office",
+    });
+  }
+
+  notes.push({
+    id: "note-private-template",
+    category: "private",
+    body: "Private notes are kept in your local session draft.",
+    createdAt: project.updated_at,
+    createdByLabel: "You",
+  });
+
+  return notes
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, 24);
+}
+
+function buildExecutionCalendarEvents({
+  projectId,
+  tasks,
+  assignments,
+  crews,
+  inspections,
+  milestones,
+  changeOrders,
+}: {
+  projectId: string;
+  tasks: ProjectExecutionTask[];
+  assignments: WorkforceAssignmentSummary[];
+  crews: CrewSummary[];
+  inspections: ProjectInspectionSummary[];
+  milestones: ProjectExecutionTask[];
+  changeOrders: ChangeOrderActivitySummary[];
+}): ProjectExecutionCalendarEvent[] {
+  const crewNameById = Object.fromEntries(crews.map((crew) => [crew.id, crew.name]));
+  const events: ProjectExecutionCalendarEvent[] = [];
+
+  for (const task of tasks) {
+    if (!task.dueDate) {
+      continue;
+    }
+
+    events.push({
+      id: `task-${task.id}`,
+      type: task.kind === "milestone" ? "milestone" : "task",
+      title: task.title,
+      date: task.dueDate,
+      href: `/projects/${projectId}?tab=tasks`,
+    });
+  }
+
+  for (const assignment of assignments) {
+    events.push({
+      id: `assign-${assignment.id}`,
+      type: "crew_assignment",
+      title: assignment.crew_id ? `Crew: ${crewNameById[assignment.crew_id] || assignment.crew_id}` : assignment.title,
+      date: assignment.starts_at.slice(0, 10),
+      href: `/projects/${projectId}?tab=crew`,
+    });
+  }
+
+  for (const inspection of inspections) {
+    const inspectionDate = inspection.scheduled_at || inspection.completed_at || inspection.created_at;
+    events.push({
+      id: `inspection-${inspection.id}`,
+      type: "inspection",
+      title: inspection.inspection_type,
+      date: inspectionDate.slice(0, 10),
+      href: `/projects/${projectId}?tab=inspections`,
+    });
+  }
+
+  for (const milestone of milestones) {
+    if (!milestone.dueDate) {
+      continue;
+    }
+
+    events.push({
+      id: `milestone-${milestone.id}`,
+      type: "milestone",
+      title: milestone.title,
+      date: milestone.dueDate,
+      href: `/projects/${projectId}?tab=tasks`,
+    });
+  }
+
+  for (const item of changeOrders) {
+    const deliveryDate = item.requested_date || item.updated_at || item.created_at;
+    events.push({
+      id: `delivery-${item.id}`,
+      type: "delivery",
+      title: item.change_order_number?.trim() || item.title,
+      date: deliveryDate.slice(0, 10),
+      href: `/projects/${projectId}?tab=change_orders`,
+    });
+  }
+
+  return events.sort((left, right) => left.date.localeCompare(right.date)).slice(0, 140);
+}
+
+function buildExecutionActivity({
+  tasks,
+  assignments,
+  dailyReports,
+  photos,
+  documents,
+  changeOrders,
+  milestones,
+  localeTag,
+}: {
+  tasks: ProjectExecutionTask[];
+  assignments: WorkforceAssignmentSummary[];
+  dailyReports: WorkflowDailyReportSummary[];
+  photos: ProjectPhotoActivitySummary[];
+  documents: ProjectCommunicationSummary[];
+  changeOrders: ChangeOrderActivitySummary[];
+  milestones: ProjectExecutionTask[];
+  localeTag: string;
+}): Array<{ id: string; title: string; detail: string; occurredAt: string; tone: "neutral" | "info" | "warning" | "success" }> {
+  const entries: Array<{ id: string; title: string; detail: string; occurredAtRaw: string; occurredAt: string; tone: "neutral" | "info" | "warning" | "success" }> = [];
+
+  for (const task of tasks.slice(0, 30)) {
+    entries.push({
+      id: `activity-task-${task.id}`,
+      title: "Task Update",
+      detail: `${task.title} moved to ${task.status}`,
+      occurredAtRaw: task.completedAt || task.dueDate || new Date().toISOString(),
+      occurredAt: formatDateTime(task.completedAt || task.dueDate || new Date().toISOString(), localeTag),
+      tone: task.status === "completed" ? "success" : task.status === "blocked" ? "warning" : "info",
+    });
+  }
+
+  for (const milestone of milestones.slice(0, 16)) {
+    entries.push({
+      id: `activity-milestone-${milestone.id}`,
+      title: "Milestone Change",
+      detail: `${milestone.title} is ${milestone.status}`,
+      occurredAtRaw: milestone.completedAt || milestone.dueDate || new Date().toISOString(),
+      occurredAt: formatDateTime(milestone.completedAt || milestone.dueDate || new Date().toISOString(), localeTag),
+      tone: milestone.status === "completed" ? "success" : "neutral",
+    });
+  }
+
+  for (const row of dailyReports.slice(0, 12)) {
+    entries.push({
+      id: `activity-daily-${row.id}`,
+      title: "Daily Report",
+      detail: row.event_type,
+      occurredAtRaw: row.occurred_at || row.created_at,
+      occurredAt: formatDateTime(row.occurred_at || row.created_at, localeTag),
+      tone: "info",
+    });
+  }
+
+  for (const row of assignments.slice(0, 20)) {
+    entries.push({
+      id: `activity-crew-${row.id}`,
+      title: "Crew Update",
+      detail: `${row.title} (${row.status})`,
+      occurredAtRaw: row.updated_at,
+      occurredAt: formatDateTime(row.updated_at, localeTag),
+      tone: row.status === "completed" ? "success" : "neutral",
+    });
+  }
+
+  for (const row of photos.slice(0, 12)) {
+    entries.push({
+      id: `activity-photo-${row.id}`,
+      title: "Photo Uploaded",
+      detail: row.note?.trim() || row.category,
+      occurredAtRaw: row.created_at,
+      occurredAt: formatDateTime(row.created_at, localeTag),
+      tone: "info",
+    });
+  }
+
+  for (const row of documents.slice(0, 12)) {
+    entries.push({
+      id: `activity-doc-${row.id}`,
+      title: "Document Activity",
+      detail: `${row.channel} ${row.subject ? `- ${row.subject}` : ""}`.trim(),
+      occurredAtRaw: row.created_at,
+      occurredAt: formatDateTime(row.created_at, localeTag),
+      tone: row.status === "failed" ? "warning" : "neutral",
+    });
+  }
+
+  for (const row of changeOrders.slice(0, 12)) {
+    entries.push({
+      id: `activity-co-${row.id}`,
+      title: "Change Order",
+      detail: `${row.change_order_number || row.title} (${row.status})`,
+      occurredAtRaw: row.updated_at || row.created_at,
+      occurredAt: formatDateTime(row.updated_at || row.created_at, localeTag),
+      tone: row.status === "approved" ? "success" : row.status === "rejected" ? "warning" : "info",
+    });
+  }
+
+  return entries
+    .sort((left, right) => right.occurredAtRaw.localeCompare(left.occurredAtRaw))
+    .slice(0, 48)
+    .map((entry) => ({
+      id: entry.id,
+      title: entry.title,
+      detail: entry.detail,
+      occurredAt: entry.occurredAt,
+      tone: entry.tone,
+    }));
+}
+
+function normalizeExecutionStatus(status: string): ProjectExecutionTask["status"] {
+  const normalized = status.trim().toLowerCase();
+
+  if (normalized === "completed" || normalized === "done") {
+    return "completed";
+  }
+
+  if (normalized === "in_progress") {
+    return "in_progress";
+  }
+
+  if (normalized === "blocked") {
+    return "blocked";
+  }
+
+  if (normalized === "waiting" || normalized === "on_hold") {
+    return "waiting";
+  }
+
+  return "not_started";
+}
+
+function normalizeIssueStatus(status: string): ProjectExecutionIssue["status"] {
+  const normalized = status.trim().toLowerCase();
+
+  if (normalized === "completed" || normalized === "closed") {
+    return "resolved";
+  }
+
+  if (normalized === "blocked") {
+    return "blocked";
+  }
+
+  return "open";
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
 }

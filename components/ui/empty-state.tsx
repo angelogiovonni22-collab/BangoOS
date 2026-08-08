@@ -19,21 +19,21 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`flex items-center justify-center px-6 py-10 ${compact ? "min-h-52" : "min-h-80"}`}
+      className={`flex items-center justify-center px-[var(--space-6)] py-[var(--space-8)] ${compact ? "min-h-44" : "min-h-72"}`}
     >
-      <div className="max-w-lg text-center">
+      <div className="w-full max-w-lg rounded-[var(--radius-2xl)] border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-control)] px-[var(--space-6)] py-7 text-center shadow-[var(--shadow-small)]">
         {icon ? (
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-primary-50)] text-2xl font-bold text-[var(--color-brand-700)] shadow-[var(--shadow-small)]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel-elevated)] text-2xl font-bold text-[var(--orion-cyan)] shadow-[var(--shadow-small)]">
             {icon}
           </div>
         ) : null}
 
-        <h3 className="mt-5 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{title}</h3>
+        <h3 className="mt-4 text-h3 font-bold text-[var(--bos-text-primary)]">{title}</h3>
 
-        <p className="mt-3 leading-7 text-[var(--color-text-secondary)]">{description}</p>
+        <p className="mt-2.5 text-body font-medium text-[var(--bos-text-secondary)]">{description}</p>
 
         {action || secondaryAction ? (
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-[var(--space-action-gap)]">
             {secondaryAction}
             {action}
           </div>

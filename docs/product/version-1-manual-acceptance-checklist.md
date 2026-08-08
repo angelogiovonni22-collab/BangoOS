@@ -404,7 +404,7 @@ Scope: Major production workflows only, no feature expansion
 
 ## Module: Operations And Timeline
 
-### OPS-01 Operations Command Center Surface
+### OPS-01 Operations Overview Surface
 
 | Field | Details |
 |---|---|

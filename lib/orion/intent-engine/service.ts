@@ -56,7 +56,7 @@ function addStaticEntities(records: OrionIntentEntityRecord[]) {
       entityType: "operations",
       entityId: "operations",
       label: "Operations",
-      subtitle: "Operations command center",
+      subtitle: "Operations overview",
       terms: ["operations", "ops", "dispatch"],
     },
   );

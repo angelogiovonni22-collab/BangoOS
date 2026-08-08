@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle, Input, Select } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, FormField, Input, Select } from "@/components/ui";
 import type { ReactNode } from "react";
 import { INVOICE_STATUS_OPTIONS } from "@/lib/invoices/constants";
 import type { InvoiceFormErrors, InvoiceFormValues } from "@/lib/invoices/types";
@@ -75,12 +75,15 @@ function Field({
   required?: boolean;
 }) {
   return (
-    <label htmlFor={htmlFor} className={["space-y-2", className || ""].join(" ")}>
-      <span className="block text-xs font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">
-        {label} {required ? <span className="text-[var(--color-danger-700)]">*</span> : null}
-      </span>
+    <FormField
+      label={label}
+      htmlFor={htmlFor}
+      required={required}
+      className={className}
+      error={error}
+      labelClassName="tracking-[0.01em]"
+    >
       {children}
-      {error ? <span className="text-xs text-[var(--color-danger-700)]">{error}</span> : null}
-    </label>
+    </FormField>
   );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, SkeletonLoader, StatusBadge, SummaryCard } from "@/components/ui";
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader, StatusBadge, SummaryCard } from "@/components/ui";
 import { formatPercent, formatUsdCurrency, type LaborRateFormInput, type LaborRateRow } from "@/lib/labor-rates";
 import { calculateLaborRateSummary } from "@/lib/labor-rates/validation";
 import { createClient } from "@/lib/supabase/client";
@@ -182,27 +182,28 @@ export function LaborRateDetailClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
-        <Link href="/labor-rates" className="text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">Labor Rates</Link>
-        <span>/</span>
-        <span>{laborRate.code}</span>
-      </div>
-
-      <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-medium)]">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{laborRate.code}</h1>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{laborRate.name}</p>
-            <div className="mt-3 flex items-center gap-2">
-              <StatusBadge status={laborRate.status} />
-            </div>
-          </div>
-
+      <PageHeader
+        eyebrow="COMPANY WORKSPACE"
+        title={`${laborRate.code} · ${laborRate.name}`}
+        description="Review burden, pricing, and productivity assumptions for this labor profile."
+        secondaryActions={(
+          <Link
+            href="/labor-rates"
+            className="inline-flex h-10 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 text-sm font-semibold text-[var(--color-text-secondary)]"
+          >
+            Back to Labor Rates
+          </Link>
+        )}
+        primaryAction={(
           <Link href={`/labor-rates/${laborRate.id}/edit`} className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]">
             Edit Labor Rate
           </Link>
-        </div>
-      </section>
+        )}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge status={laborRate.status} />
+      </div>
 
       <section className="grid gap-3 sm:grid-cols-3">
         <SummaryCard icon={<span>B</span>} label="Base Rate" value={formatUsdCurrency(calculations.baseRate, laborRate.currency_code)} context="Hourly" tone="brand" />

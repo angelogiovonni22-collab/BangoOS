@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, Input, PageHeader, Select, SkeletonLoader } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, FormField, Input, PageHeader, Select, SkeletonLoader } from "@/components/ui";
 import { CHANGE_ORDER_STATUS_OPTIONS, CHANGE_ORDER_UNIT_OPTIONS } from "@/lib/change-orders/constants";
 import { calculateChangeOrderTotals, changeOrderLineItemMoney, formatUsd } from "@/lib/change-orders/calculations";
 import { getNextChangeOrderNumber } from "@/lib/change-orders/numbering";
@@ -755,13 +755,16 @@ function Field({
   required?: boolean;
 }) {
   return (
-    <label htmlFor={htmlFor} className={["space-y-2", className || ""].join(" ")}>
-      <span className="block text-xs font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">
-        {label} {required ? <span className="text-[var(--color-danger-700)]">*</span> : null}
-      </span>
+    <FormField
+      label={label}
+      htmlFor={htmlFor}
+      required={required}
+      className={className}
+      error={error}
+      labelClassName="tracking-[0.01em]"
+    >
       {children}
-      {error ? <span className="text-xs text-[var(--color-danger-700)]">{error}</span> : null}
-    </label>
+    </FormField>
   );
 }
 
@@ -775,15 +778,14 @@ function TextareaField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="space-y-2">
-      <span className="block text-xs font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{label}</span>
+    <FormField label={label} labelClassName="tracking-[0.01em]">
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
         rows={5}
         className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
       />
-    </label>
+    </FormField>
   );
 }
 

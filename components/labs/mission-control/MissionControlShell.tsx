@@ -26,7 +26,7 @@ type MissionControlShellProps = {
 export function MissionControlShell({ children, reducedMotion }: MissionControlShellProps) {
   return (
     <section
-      aria-label="Mission Control workspace"
+      aria-label="Operations overview workspace"
       style={missionControlTokens}
       className={[
         "relative overflow-hidden rounded-[1.5rem] border border-[var(--mc-border)] bg-[var(--mc-bg)] px-4 py-4 text-[var(--mc-text)] shadow-[var(--mc-shadow)] sm:px-6 sm:py-6",

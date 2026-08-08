@@ -1,4 +1,4 @@
-import { Input, Select } from "@/components/ui";
+import { FormField, Input, Select } from "@/components/ui";
 import type { CostCodeFormInput, CostCodeParentOption } from "@/lib/cost-codes";
 
 type CostCodeFormProps = {
@@ -106,13 +106,5 @@ function Field({
   className?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <div className={className}>
-      <label className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">
-        {label}
-        {required ? <span className="ml-1 text-[var(--color-danger-700)]">*</span> : null}
-      </label>
-      {children}
-    </div>
-  );
+  return <FormField label={label} required={required} className={className}>{children}</FormField>;
 }

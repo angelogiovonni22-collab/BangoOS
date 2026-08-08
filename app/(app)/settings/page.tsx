@@ -2,14 +2,21 @@
 
 import Link from "next/link";
 import { OrionVoiceSettingsPanel } from "@/components/orion/voice";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, PageHeader } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 
 export default function SettingsPage() {
   const { t } = useI18n();
 
   return (
-    <div className="space-y-6">
+    <div className="container-narrow space-y-[var(--space-section)]">
+      <PageHeader
+        compact
+        eyebrow="Workspace"
+        title={t("navigation.settings")}
+        description="Manage memory review and Orion voice preferences for this company workspace."
+      />
+
       <Card as="section" variant="elevated" className="rounded-[16px] shadow-[var(--shadow-small)]">
         <CardHeader className="bg-[var(--bos-bg-control)]/70">
           <CardTitle className="text-[1.1rem] font-bold text-[var(--bos-text-primary)]">{t("navigation.settings")}</CardTitle>

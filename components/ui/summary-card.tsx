@@ -35,13 +35,13 @@ export function SummaryCard({ icon, label, value, context, tone = "brand", trend
           >
             {icon}
           </div>
-          {trend ? <div className="text-right text-xs font-semibold text-[var(--color-text-secondary)]">{trend}</div> : null}
+          {trend ? <div className="text-right text-xs font-semibold text-[var(--bos-text-secondary)]">{trend}</div> : null}
         </div>
 
         <div className={compact ? "mt-3" : "mt-4"}>
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{label}</p>
-          <p className={`font-bold tracking-tight text-[var(--color-text-primary)] ${compact ? "mt-1.5 text-[1.45rem]" : "mt-2 text-2xl"}`}>{value}</p>
-          {context ? <p className="mt-1 text-xs font-semibold text-[var(--color-text-secondary)]">{context}</p> : null}
+          <p className="text-table-header text-[var(--bos-text-secondary)]">{label}</p>
+          <p className={`font-bold tracking-tight text-[var(--bos-text-primary)] ${compact ? "mt-1.5 text-[1.5rem]" : "mt-2 text-[1.62rem]"}`}>{value}</p>
+          {context ? <p className="mt-1 text-xs font-semibold text-[var(--bos-text-secondary)]">{context}</p> : null}
         </div>
       </CardContent>
     </Card>

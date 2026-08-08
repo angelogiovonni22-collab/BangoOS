@@ -2,9 +2,15 @@ import type { ProjectWorkspaceTabKey } from "./types";
 
 export const PROJECT_WORKSPACE_TABS: Array<{ key: ProjectWorkspaceTabKey; labelKey: string }> = [
   { key: "overview", labelKey: "projects.workspaceTabOverview" },
-  { key: "work", labelKey: "projects.workspaceTabWork" },
-  { key: "financial", labelKey: "projects.workspaceTabFinancial" },
-  { key: "resources", labelKey: "projects.workspaceTabResources" },
+  { key: "tasks", labelKey: "projects.workspaceTabTasks" },
+  { key: "daily_logs", labelKey: "projects.workspaceTabDailyLogs" },
+  { key: "photos", labelKey: "projects.workspaceTabPhotos" },
   { key: "documents", labelKey: "projects.workspaceTabDocuments" },
-  { key: "timeline", labelKey: "projects.workspaceTabTimeline" },
+  { key: "subcontractors", labelKey: "projects.workspaceTabSubcontractors" },
+  { key: "crew", labelKey: "projects.workspaceTabCrew" },
+  { key: "financials", labelKey: "projects.workspaceTabFinancials" },
+  { key: "change_orders", labelKey: "projects.workspaceTabChangeOrders" },
+  { key: "rfis", labelKey: "projects.workspaceTabRfis" },
+  { key: "inspections", labelKey: "projects.workspaceTabInspections" },
+  { key: "activity", labelKey: "projects.workspaceTabActivity" },
 ];

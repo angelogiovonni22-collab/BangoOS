@@ -225,7 +225,7 @@ export function EquipmentFilters({
           <option value="low">Low</option>
           <option value="standard">Standard</option>
           <option value="high">High</option>
-          <option value="mission_critical">Mission critical</option>
+          <option value="mission_critical">Critical</option>
         </Select>
       </label>
 

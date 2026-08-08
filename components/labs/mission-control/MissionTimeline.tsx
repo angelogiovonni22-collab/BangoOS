@@ -10,11 +10,11 @@ export function MissionTimeline({ events, reducedMotion }: MissionTimelineProps)
   return (
     <section aria-labelledby="mc-timeline-heading" className="rounded-2xl border border-[color:color-mix(in_oklab,var(--mc-border)_74%,transparent)] bg-[color:color-mix(in_oklab,var(--mc-surface)_76%,black)] p-4">
       <header className="mb-3">
-        <h2 id="mc-timeline-heading" className="text-lg font-semibold tracking-tight text-[var(--mc-text)]">Mission Timeline</h2>
+        <h2 id="mc-timeline-heading" className="text-lg font-semibold tracking-tight text-[var(--mc-text)]">Operational Timeline</h2>
         <p className="text-sm text-[var(--mc-text-muted)]">Deterministic fixture events with source and freshness context.</p>
       </header>
 
-      <ol className="space-y-2" aria-label="Mission timeline events">
+      <ol className="space-y-2" aria-label="Operational timeline events">
         {events.map((event, index) => (
           <li
             key={event.id}

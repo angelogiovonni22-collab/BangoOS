@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AiSummaryPanel, ReportLoadingState, ReportStatusChip } from "@/components/daily-reports";
-import { Card, CardContent, CardHeader, CardTitle, ErrorState } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader } from "@/components/ui";
 import { createDailyReportsService } from "@/lib/daily-reports";
 import { useI18n } from "@/lib/i18n/provider";
 import { useEffect, useState } from "react";
@@ -23,6 +23,7 @@ export default function DailyReportDetailsPage() {
     const run = async () => {
       setIsLoading(true);
       setErrorMessage(null);
+      setReport(null);
 
       try {
         const next = await service.getReport(reportId);
@@ -43,30 +44,37 @@ export default function DailyReportDetailsPage() {
     void run();
   }, [reportId]);
 
-  if (isLoading || !report) {
-    return <ReportLoadingState />;
-  }
-
   if (errorMessage) {
     return <ErrorState title={t("dailyReports.error.title")} description={t(errorMessage)} />;
   }
 
+  if (isLoading || !report) {
+    return <ReportLoadingState />;
+  }
+
   return (
     <div className="space-y-5">
-      <section className="flex flex-col gap-3 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-5 shadow-[var(--shadow-card)] sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{report.reportNumber}</p>
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">{report.header.projectName}</h2>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{report.header.date} · {t(`dailyReports.shift.${report.header.shift}`)} · {report.header.superintendentName}</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <ReportStatusChip status={report.header.overallStatus} t={t} />
+      <PageHeader
+        eyebrow="COMPANY WORKSPACE"
+        title={`${report.reportNumber} · ${report.header.projectName}`}
+        description={`${report.header.date} · ${t(`dailyReports.shift.${report.header.shift}`)} · ${report.header.superintendentName}`}
+        secondaryActions={(
+          <div className="flex items-center gap-2">
+            <Link
+              href="/daily-reports"
+              className="inline-flex h-10 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 text-sm font-semibold text-[var(--color-text-secondary)]"
+            >
+              Back to reports
+            </Link>
+            <ReportStatusChip status={report.header.overallStatus} t={t} />
+          </div>
+        )}
+        primaryAction={(
           <Link href={`/daily-reports/${report.id}/edit`} className="rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-3 py-2 text-sm font-semibold text-white">
             {t("dailyReports.actions.edit")}
           </Link>
-        </div>
-      </section>
+        )}
+      />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card as="section">
@@ -108,6 +116,23 @@ export default function DailyReportDetailsPage() {
             <div key={item.id} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] p-3 text-sm">
               <p className="font-semibold text-[var(--color-text-primary)]">{item.activity}</p>
               <p className="text-[var(--color-text-secondary)]">{item.quantity} {item.unit} · {item.percentComplete}% · {item.productionNotes || t("dailyReports.common.none")}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card as="section">
+        <CardHeader><CardTitle>{t("dailyReports.sections.equipment")}</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {(report.equipment || []).length === 0 ? (
+            <p className="text-sm text-[var(--color-text-secondary)]">{t("dailyReports.common.none")}</p>
+          ) : (report.equipment || []).map((item) => (
+            <div key={item.id} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] p-3 text-sm">
+              <p className="font-semibold text-[var(--color-text-primary)]">{item.equipmentId} · {item.operatorName || t("dailyReports.common.none")}</p>
+              <p className="text-[var(--color-text-secondary)]">
+                {t("dailyReports.fields.runtime")}: {item.runtimeHours}h · {t("dailyReports.fields.idle")}: {item.idleHours}h · {t("dailyReports.fields.downtime")}: {item.downtimeHours}h
+              </p>
+              <p className="text-[var(--color-text-secondary)]">{item.maintenanceNotes || t("dailyReports.common.none")}</p>
             </div>
           ))}
         </CardContent>

@@ -43,7 +43,6 @@ export function CustomerFilters({
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder={t("customers.filters.searchPlaceholder")}
             aria-label={t("customers.filters.search")}
-            className="h-10 py-2"
           />
         </label>
 
@@ -53,7 +52,6 @@ export function CustomerFilters({
             value={typeValue}
             onChange={(event) => onTypeChange(event.target.value)}
             aria-label={t("customers.filters.customerType")}
-            className="h-10 py-2"
           >
             {typeOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -67,7 +65,6 @@ export function CustomerFilters({
             value={statusValue}
             onChange={(event) => onStatusChange(event.target.value)}
             aria-label={t("customers.filters.status")}
-            className="h-10 py-2"
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -81,7 +78,6 @@ export function CustomerFilters({
             value={assignedValue}
             onChange={(event) => onAssignedChange(event.target.value)}
             aria-label={t("customers.filters.assignedTo")}
-            className="h-10 py-2"
           >
             {assignedOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>

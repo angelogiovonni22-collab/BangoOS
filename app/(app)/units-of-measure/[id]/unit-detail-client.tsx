@@ -12,6 +12,7 @@ import {
   CardTitle,
   EmptyState,
   ErrorState,
+  PageHeader,
   SkeletonLoader,
   StatusBadge,
   SummaryCard,
@@ -308,25 +309,20 @@ export function UnitDetailClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
-        <Link href="/units-of-measure" className="text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">Units of Measure</Link>
-        <span>/</span>
-        <span>{unit.code}</span>
-      </div>
-
-      <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-medium)]">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{unit.code}</h1>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{unit.name}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <UnitSystemBadge isSystem={unit.is_system} />
-              <UnitCategoryBadge category={unit.category as never} />
-              <StatusBadge status={unit.is_active ? "active" : "inactive"} />
-            </div>
-          </div>
-
-          {unit.is_system ? (
+      <PageHeader
+        eyebrow="COMPANY WORKSPACE"
+        title={`${unit.code} · ${unit.name}`}
+        description="Review unit behavior, conversions, and governance controls for this measurement record."
+        secondaryActions={(
+          <Link
+            href="/units-of-measure"
+            className="inline-flex h-10 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 text-sm font-semibold text-[var(--color-text-secondary)]"
+          >
+            Back to Units
+          </Link>
+        )}
+        primaryAction={(
+          unit.is_system ? (
             <Badge tone="neutral">Managed by BangoOS</Badge>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
@@ -342,9 +338,15 @@ export function UnitDetailClient() {
                 </Button>
               ) : null}
             </div>
-          )}
-        </div>
-      </section>
+          )
+        )}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <UnitSystemBadge isSystem={unit.is_system} />
+        <UnitCategoryBadge category={unit.category as never} />
+        <StatusBadge status={unit.is_active ? "active" : "inactive"} />
+      </div>
 
       {actionMessage ? <ErrorState compact title="Action result" description={actionMessage} /> : null}
 

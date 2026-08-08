@@ -294,7 +294,7 @@ export function LaborRatesListClient() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
         eyebrow="Resource Costs"
         title="Labor Rates"

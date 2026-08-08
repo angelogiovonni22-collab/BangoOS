@@ -2,6 +2,8 @@ export type EnterpriseStatusTone = "neutral" | "brand" | "info" | "success" | "w
 
 export const typographyTokens = {
   display: "text-display",
+  pageTitle: "text-h1",
+  workspaceTitle: "text-h2",
   h1: "text-h1",
   h2: "text-h2",
   h3: "text-h3",
@@ -9,10 +11,14 @@ export const typographyTokens = {
   cardTitle: "text-card-title",
   body: "text-body",
   bodySecondary: "text-body-secondary",
+  label: "text-label",
+  metadata: "text-metadata",
   caption: "text-caption",
   badgeText: "text-badge",
   tableHeader: "text-table-header",
+  tableBody: "text-table-body",
   buttonLabel: "text-button-label",
+  formControl: "text-control",
 } as const;
 
 export const spacingTokens = {
@@ -20,10 +26,19 @@ export const spacingTokens = {
   cardPadding: "var(--space-5)",
   compactCardPadding: "var(--space-4)",
   toolbarPadding: "var(--space-4)",
+  mobilePagePadding: "var(--space-4)",
   controlGap: "var(--space-3)",
+  formFieldGap: "var(--space-3)",
+  actionGap: "var(--space-3)",
   gridGap: "var(--space-3)",
   tableCellX: "var(--space-5)",
   tableCellY: "var(--space-3)",
+} as const;
+
+export const controlTokens = {
+  heightSm: "var(--control-height-sm)",
+  heightMd: "var(--control-height-md)",
+  heightLg: "var(--control-height-lg)",
 } as const;
 
 export const radiusTokens = {
@@ -68,12 +83,23 @@ export const zIndexTokens = {
 } as const;
 
 export const colorTokens = {
+  appBackground: "var(--color-background-root)",
+  workspaceBackground: "var(--color-background-workspace)",
   surface: "var(--color-surface-card)",
+  surfaceElevated: "var(--color-surface-elevated)",
   surfaceSubtle: "var(--color-surface-subtle)",
   borderSubtle: "var(--color-border-subtle)",
+  borderStrong: "var(--color-border-strong)",
   textPrimary: "var(--color-text-primary)",
   textSecondary: "var(--color-text-secondary)",
   textMuted: "var(--color-text-muted)",
+  actionPrimary: "var(--color-action-primary)",
+  actionPrimaryHover: "var(--color-action-primary-hover)",
+  focus: "var(--color-focus)",
+  selected: "var(--color-selected)",
+  disabledBg: "var(--color-disabled-bg)",
+  disabledText: "var(--color-disabled-text)",
+  disabledBorder: "var(--color-disabled-border)",
   accent: "var(--color-brand-600)",
   brand: "var(--color-brand-600)",
   success: "var(--color-success-500)",
@@ -84,15 +110,32 @@ export const colorTokens = {
   neutral: "var(--color-neutral-500)",
 } as const;
 
+export const gradientTokens = {
+  workspaceShell: "var(--workspace-shell-surface)",
+  workspaceLoading: "var(--workspace-loading-surface)",
+  workspaceHeader: "var(--workspace-header-surface)",
+  workspaceHero: "var(--workspace-hero-surface)",
+  workspaceHeroPanel: "var(--workspace-hero-panel-surface)",
+  workspaceTabs: "var(--workspace-tabs-surface)",
+  workspaceTabActive: "var(--workspace-tab-active-surface)",
+} as const;
+
 export const statusTones = {
   active: "success",
   completed: "success",
+  complete: "success",
+  done: "success",
   planning: "info",
+  "in progress": "info",
+  in_progress: "info",
+  open: "info",
   "on hold": "warning",
+  on_hold: "warning",
   overdue: "danger",
   pending: "warning",
   draft: "neutral",
   archived: "neutral",
+  closed: "neutral",
   sent: "brand",
   viewed: "info",
   submitted: "warning",

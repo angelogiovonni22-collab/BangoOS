@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, FormField, Input, PageHeader, Select, Textarea } from "@/components/ui";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -14,8 +14,59 @@ import { useI18n } from "@/lib/i18n/provider";
 
 type CustomerSummaryRow = Pick<
   Database["public"]["Tables"]["customers"]["Row"],
-  "id" | "first_name" | "last_name" | "company_name" | "customer_type"
+  | "id"
+  | "first_name"
+  | "last_name"
+  | "company_name"
+  | "customer_type"
+  | "email"
+  | "phone"
+  | "address_line_1"
+  | "address_line_2"
+  | "city"
+  | "state"
+  | "postal_code"
 >;
+
+type CustomerOption = {
+  id: string;
+  label: string;
+  snapshot: {
+    jobSiteName: string;
+    primaryContactName: string;
+    primaryContactPhone: string;
+    primaryContactEmail: string;
+    addressLine1: string;
+    addressLine2: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+};
+
+type SnapshotTouchedState = {
+  jobSiteName: boolean;
+  primaryContactName: boolean;
+  primaryContactPhone: boolean;
+  primaryContactEmail: boolean;
+  addressLine1: boolean;
+  addressLine2: boolean;
+  city: boolean;
+  state: boolean;
+  postalCode: boolean;
+};
+
+const initialSnapshotTouchedState: SnapshotTouchedState = {
+  jobSiteName: false,
+  primaryContactName: false,
+  primaryContactPhone: false,
+  primaryContactEmail: false,
+  addressLine1: false,
+  addressLine2: false,
+  city: false,
+  state: false,
+  postalCode: false,
+};
 
 type ProjectFormData = {
   projectName: string;
@@ -24,6 +75,10 @@ type ProjectFormData = {
   projectType: string;
   status: string;
   description: string;
+  jobSiteName: string;
+  primaryContactName: string;
+  primaryContactPhone: string;
+  primaryContactEmail: string;
   addressLine1: string;
   addressLine2: string;
   city: string;
@@ -33,6 +88,7 @@ type ProjectFormData = {
   estimatedEndDate: string;
   estimatedCost: string;
   contractAmount: string;
+  requiredDownPayment: string;
 };
 
 const initialFormData: ProjectFormData = {
@@ -42,6 +98,10 @@ const initialFormData: ProjectFormData = {
   projectType: "",
   status: "lead",
   description: "",
+  jobSiteName: "",
+  primaryContactName: "",
+  primaryContactPhone: "",
+  primaryContactEmail: "",
   addressLine1: "",
   addressLine2: "",
   city: "",
@@ -51,19 +111,30 @@ const initialFormData: ProjectFormData = {
   estimatedEndDate: "",
   estimatedCost: "",
   contractAmount: "",
+  requiredDownPayment: "",
 };
 
 export default function NewProjectPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const localeTag = locale === "es" ? "es-ES" : "en-US";
+  const requestedCustomerId = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return new URLSearchParams(window.location.search).get("customerId")?.trim() || "";
+  }, []);
 
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
-  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
+  const [snapshotTouched, setSnapshotTouched] = useState<SnapshotTouchedState>(initialSnapshotTouchedState);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [prefillMessage, setPrefillMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -71,6 +142,7 @@ export default function NewProjectPage() {
     const loadCustomers = async () => {
       setIsLoading(true);
       setErrorMessage(null);
+      setPrefillMessage(null);
 
       const workspace = await resolveWorkspaceContext(supabase);
 
@@ -97,7 +169,7 @@ export default function NewProjectPage() {
       try {
         const { data, error } = await client
           .from("customers")
-          .select("id, first_name, last_name, company_name, customer_type")
+          .select("id, first_name, last_name, company_name, customer_type, email, phone, address_line_1, address_line_2, city, state, postal_code")
           .eq("company_id", workspace.context.companyId)
           .order("created_at", { ascending: false });
 
@@ -109,13 +181,22 @@ export default function NewProjectPage() {
           return;
         }
 
-        const mappedOptions = (data ?? []).map((customer) => ({
-          id: customer.id,
-          label: getCustomerDisplayName(customer, t("customers.unnamedCustomer")),
-        }));
+        const mappedOptions = (data ?? []).map((customer) => toCustomerOption(customer, t("customers.unnamedCustomer")));
 
         if (isSubscribed) {
           setCustomerOptions(mappedOptions);
+
+          if (requestedCustomerId) {
+            const matchedCustomer = mappedOptions.find((customer) => customer.id === requestedCustomerId);
+
+            if (matchedCustomer) {
+              setFormData((current) => applyCustomerSnapshot(current, matchedCustomer, initialSnapshotTouchedState));
+              setSnapshotTouched(initialSnapshotTouchedState);
+              setPrefillMessage(t("projects.prefillLoadedCustomer"));
+            } else {
+              setPrefillMessage(t("projects.prefillCustomerUnavailable"));
+            }
+          }
         }
       } catch (caughtError) {
         console.error("Load customer options error:", caughtError);
@@ -137,16 +218,36 @@ export default function NewProjectPage() {
     return () => {
       isSubscribed = false;
     };
-  }, [supabase, t]);
+  }, [requestedCustomerId, supabase, t]);
 
   function updateField<K extends keyof ProjectFormData>(
     field: K,
     value: ProjectFormData[K],
+    options?: { markSnapshotDirty?: boolean },
   ) {
     setFormData((current) => ({
       ...current,
       [field]: value,
     }));
+
+    if ((field in initialSnapshotTouchedState) && options?.markSnapshotDirty !== false) {
+      const snapshotField = field as keyof SnapshotTouchedState;
+      setSnapshotTouched((current) => ({
+        ...current,
+        [snapshotField]: true,
+      }));
+    }
+  }
+
+  function handleCustomerChange(customerId: string) {
+    const selectedCustomer = customerOptions.find((customer) => customer.id === customerId);
+
+    if (!selectedCustomer) {
+      updateField("customerId", customerId);
+      return;
+    }
+
+    setFormData((current) => applyCustomerSnapshot(current, selectedCustomer, snapshotTouched));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -210,6 +311,10 @@ export default function NewProjectPage() {
             created_by: workspace.context.userId,
             customer_id: formData.customerId,
             name: formData.projectName.trim(),
+            job_site_name: formData.jobSiteName.trim() || null,
+            primary_contact_name: formData.primaryContactName.trim() || null,
+            primary_contact_phone: formData.primaryContactPhone.trim() || null,
+            primary_contact_email: formData.primaryContactEmail.trim() || null,
             project_number: generatedProjectNumber,
             project_type: formData.projectType,
             status: formData.status,
@@ -223,6 +328,7 @@ export default function NewProjectPage() {
             estimated_end_date: formData.estimatedEndDate || null,
             estimated_cost: parseCurrencyInput(formData.estimatedCost),
             contract_amount: parseCurrencyInput(formData.contractAmount),
+            required_down_payment: parseCurrencyInput(formData.requiredDownPayment) ?? 0,
           })
           .select("id")
           .single();
@@ -269,6 +375,7 @@ export default function NewProjectPage() {
           status: formData.status,
           estimated_cost: parseCurrencyInput(formData.estimatedCost),
           contract_amount: parseCurrencyInput(formData.contractAmount),
+          required_down_payment: parseCurrencyInput(formData.requiredDownPayment),
         },
         metadata: {
           event_category: "projects",
@@ -329,36 +436,32 @@ export default function NewProjectPage() {
     }
   }
 
+  const contractAmountValue = parseCurrencyInput(formData.contractAmount) ?? 0;
+  const paymentsReceivedValue = 0;
+  const remainingBalanceValue = Math.max(contractAmountValue - paymentsReceivedValue, 0);
+  const paymentsReceivedLabel = formatProjectMoney(paymentsReceivedValue, localeTag);
+  const remainingBalanceLabel = formatProjectMoney(remainingBalanceValue, localeTag);
+
   return (
-    <div className="space-y-8">
-      <section className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{t("projects.workspace")}</p>
+    <div className="container-content space-y-[var(--space-section)]">
+      <PageHeader
+        compact
+        eyebrow={t("projects.workspace")}
+        title={t("projects.newTitle")}
+        description={t("projects.newDescription")}
+        secondaryActions={(
+          <Link href="/projects">
+            <Button variant="outline" size="md">{t("projects.backToProjects")}</Button>
+          </Link>
+        )}
+      />
 
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-            {t("projects.newTitle")}
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-slate-600">
-            {t("projects.newDescription")}
-          </p>
-        </div>
-
-        <Link
-          href="/projects"
-          className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-        >
-          {t("projects.backToProjects")}
-        </Link>
-      </section>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-[var(--space-section)]">
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">{t("projects.sectionProjectInfo")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field>
-              <Label htmlFor="projectName">{t("projects.projectName")}</Label>
+            <FormField label={t("projects.projectName")} htmlFor="projectName" required>
               <Input
                 id="projectName"
                 value={formData.projectName}
@@ -366,14 +469,13 @@ export default function NewProjectPage() {
                 placeholder={t("projects.projectNameExample")}
                 required
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="customerId">{t("projects.fieldCustomer")}</Label>
+            <FormField label={t("projects.fieldCustomer")} htmlFor="customerId" required>
               <Select
                 id="customerId"
                 value={formData.customerId}
-                onChange={(event) => updateField("customerId", event.target.value)}
+                onChange={(event) => handleCustomerChange(event.target.value)}
                 required
                 disabled={isLoading || customerOptions.length === 0}
               >
@@ -389,20 +491,18 @@ export default function NewProjectPage() {
                   {t("projects.customerRequiredInfo")}
                 </p>
               ) : null}
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="projectNumber">{t("projects.projectNumberLabel")}</Label>
+            <FormField label={t("projects.projectNumberLabel")} htmlFor="projectNumber">
               <Input
                 id="projectNumber"
                 value={formData.projectNumber}
                 onChange={(event) => updateField("projectNumber", event.target.value)}
                 placeholder={t("projects.projectNumberExample")}
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="projectType">{t("projects.projectType")}</Label>
+            <FormField label={t("projects.projectType")} htmlFor="projectType" required>
               <Select
                 id="projectType"
                 value={formData.projectType}
@@ -416,10 +516,9 @@ export default function NewProjectPage() {
                   </option>
                 ))}
               </Select>
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="status">{t("projects.status")}</Label>
+            <FormField label={t("projects.status")} htmlFor="status" required>
               <Select
                 id="status"
                 value={formData.status}
@@ -432,30 +531,27 @@ export default function NewProjectPage() {
                   </option>
                 ))}
               </Select>
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="estimatedStartDate">{t("projects.estimatedStart")}</Label>
+            <FormField label={t("projects.estimatedStart")} htmlFor="estimatedStartDate">
               <Input
                 id="estimatedStartDate"
                 type="date"
                 value={formData.estimatedStartDate}
                 onChange={(event) => updateField("estimatedStartDate", event.target.value)}
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="estimatedEndDate">{t("projects.estimatedCompletion")}</Label>
+            <FormField label={t("projects.estimatedCompletion")} htmlFor="estimatedEndDate">
               <Input
                 id="estimatedEndDate"
                 type="date"
                 value={formData.estimatedEndDate}
                 onChange={(event) => updateField("estimatedEndDate", event.target.value)}
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="estimatedCost">{t("projects.estimatedCost")}</Label>
+            <FormField label={t("projects.estimatedCost")} htmlFor="estimatedCost">
               <Input
                 id="estimatedCost"
                 type="number"
@@ -465,10 +561,117 @@ export default function NewProjectPage() {
                 onChange={(event) => updateField("estimatedCost", event.target.value)}
                 placeholder={t("projects.estimatedCostExample")}
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="contractAmount">{t("projects.contractAmount")}</Label>
+            <FormField label={t("projects.jobSiteName")} htmlFor="jobSiteName">
+              <Input
+                id="jobSiteName"
+                value={formData.jobSiteName}
+                onChange={(event) => updateField("jobSiteName", event.target.value)}
+                placeholder={t("projects.jobSiteNameExample")}
+              />
+            </FormField>
+
+            <FormField label={t("projects.primaryContactName")} htmlFor="primaryContactName">
+              <Input
+                id="primaryContactName"
+                value={formData.primaryContactName}
+                onChange={(event) => updateField("primaryContactName", event.target.value)}
+                placeholder={t("projects.primaryContactNameExample")}
+              />
+            </FormField>
+
+            <FormField label={t("projects.primaryContactPhone")} htmlFor="primaryContactPhone">
+              <Input
+                id="primaryContactPhone"
+                value={formData.primaryContactPhone}
+                onChange={(event) => updateField("primaryContactPhone", event.target.value)}
+                placeholder={t("projects.primaryContactPhoneExample")}
+              />
+            </FormField>
+
+            <FormField label={t("projects.primaryContactEmail")} htmlFor="primaryContactEmail">
+              <Input
+                id="primaryContactEmail"
+                type="email"
+                value={formData.primaryContactEmail}
+                onChange={(event) => updateField("primaryContactEmail", event.target.value)}
+                placeholder={t("projects.primaryContactEmailExample")}
+              />
+            </FormField>
+          </div>
+
+          <p className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            {t("projects.snapshotNotice")}
+          </p>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <h2 className="text-lg font-semibold text-slate-950">{t("projects.sectionDescriptionAddress")}</h2>
+
+          <div className="mt-5 grid gap-5 md:grid-cols-2">
+            <FormField label={t("projects.description")} htmlFor="description" className="md:col-span-2">
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(event) => updateField("description", event.target.value)}
+                className="min-h-32"
+                placeholder={t("projects.descriptionExample")}
+              />
+            </FormField>
+
+            <FormField label={t("projects.addressLine1")} htmlFor="addressLine1" className="md:col-span-2">
+              <Input
+                id="addressLine1"
+                value={formData.addressLine1}
+                onChange={(event) => updateField("addressLine1", event.target.value)}
+                placeholder={t("projects.addressLine1Example")}
+              />
+            </FormField>
+
+            <FormField label={t("projects.addressLine2")} htmlFor="addressLine2" className="md:col-span-2">
+              <Input
+                id="addressLine2"
+                value={formData.addressLine2}
+                onChange={(event) => updateField("addressLine2", event.target.value)}
+                placeholder={t("projects.addressLine2Example")}
+              />
+            </FormField>
+
+            <FormField label={t("projects.city")} htmlFor="city">
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(event) => updateField("city", event.target.value)}
+                placeholder={t("projects.cityExample")}
+              />
+            </FormField>
+
+            <FormField label={t("projects.state")} htmlFor="state">
+              <Input
+                id="state"
+                value={formData.state}
+                onChange={(event) => updateField("state", event.target.value)}
+                placeholder={t("projects.stateExample")}
+              />
+            </FormField>
+
+            <FormField label={t("projects.postalCode")} htmlFor="postalCode">
+              <Input
+                id="postalCode"
+                value={formData.postalCode}
+                onChange={(event) => updateField("postalCode", event.target.value)}
+                placeholder={t("projects.postalCodeExample")}
+              />
+            </FormField>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <h2 className="text-lg font-semibold text-slate-950">{t("projects.sectionContractFinancials")}</h2>
+
+          <div className="mt-5 grid gap-5 md:grid-cols-2">
+            <FormField label={t("projects.contractAmount")} htmlFor="contractAmount">
               <Input
                 id="contractAmount"
                 type="number"
@@ -478,76 +681,35 @@ export default function NewProjectPage() {
                 onChange={(event) => updateField("contractAmount", event.target.value)}
                 placeholder={t("projects.contractAmountExample")}
               />
-            </Field>
+            </FormField>
+
+            <FormField label={t("projects.requiredDownPayment")} htmlFor="requiredDownPayment">
+              <Input
+                id="requiredDownPayment"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.requiredDownPayment}
+                onChange={(event) => updateField("requiredDownPayment", event.target.value)}
+                placeholder={t("projects.requiredDownPaymentExample")}
+              />
+            </FormField>
+
+            <DisplayField
+              label={t("projects.paymentsReceived")}
+              value={paymentsReceivedLabel}
+              helper={t("projects.availableAfterInvoices")}
+            />
+
+            <DisplayField
+              label={t("projects.remainingBalance")}
+              value={remainingBalanceLabel}
+              helper={t("projects.availableAfterInvoices")}
+            />
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold text-slate-950">{t("projects.sectionDescriptionAddress")}</h2>
-
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field className="md:col-span-2">
-              <Label htmlFor="description">{t("projects.description")}</Label>
-              <textarea
-                id="description"
-                value={formData.description}
-                onChange={(event) => updateField("description", event.target.value)}
-                className={`${inputClassName} min-h-32`}
-                placeholder={t("projects.descriptionExample")}
-              />
-            </Field>
-
-            <Field className="md:col-span-2">
-              <Label htmlFor="addressLine1">{t("projects.addressLine1")}</Label>
-              <Input
-                id="addressLine1"
-                value={formData.addressLine1}
-                onChange={(event) => updateField("addressLine1", event.target.value)}
-                placeholder={t("projects.addressLine1Example")}
-              />
-            </Field>
-
-            <Field className="md:col-span-2">
-              <Label htmlFor="addressLine2">{t("projects.addressLine2")}</Label>
-              <Input
-                id="addressLine2"
-                value={formData.addressLine2}
-                onChange={(event) => updateField("addressLine2", event.target.value)}
-                placeholder={t("projects.addressLine2Example")}
-              />
-            </Field>
-
-            <Field>
-              <Label htmlFor="city">{t("projects.city")}</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(event) => updateField("city", event.target.value)}
-                placeholder={t("projects.cityExample")}
-              />
-            </Field>
-
-            <Field>
-              <Label htmlFor="state">{t("projects.state")}</Label>
-              <Input
-                id="state"
-                value={formData.state}
-                onChange={(event) => updateField("state", event.target.value)}
-                placeholder={t("projects.stateExample")}
-              />
-            </Field>
-
-            <Field>
-              <Label htmlFor="postalCode">{t("projects.postalCode")}</Label>
-              <Input
-                id="postalCode"
-                value={formData.postalCode}
-                onChange={(event) => updateField("postalCode", event.target.value)}
-                placeholder={t("projects.postalCodeExample")}
-              />
-            </Field>
-          </div>
-        </section>
+        {prefillMessage ? <FormAlert tone="info">{prefillMessage}</FormAlert> : null}
 
         {errorMessage ? <FormAlert tone="error">{errorMessage}</FormAlert> : null}
         {successMessage ? <FormAlert tone="success">{successMessage}</FormAlert> : null}
@@ -570,26 +732,25 @@ export default function NewProjectPage() {
   );
 }
 
-function Field({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`grid gap-2 ${className}`}>{children}</div>;
-}
-
-function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor: string }) {
+function DisplayField({ label, value, helper }: { label: string; value: string; helper: string }) {
   return (
-    <label htmlFor={htmlFor} className="text-sm font-semibold text-slate-700">
-      {children}
-    </label>
+    <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="text-sm font-semibold text-slate-700">{label}</p>
+      <p className="text-lg font-semibold text-slate-950">{value}</p>
+      <p className="text-xs text-slate-500">{helper}</p>
+    </div>
   );
 }
 
-function FormAlert({ tone, children }: { tone: "error" | "success"; children: React.ReactNode }) {
-  const styles = tone === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700";
+function FormAlert({ tone, children }: { tone: "error" | "success" | "info"; children: React.ReactNode }) {
+  const styles = tone === "error"
+    ? "border-rose-200 bg-rose-50 text-rose-700"
+    : tone === "success"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : "border-sky-200 bg-sky-50 text-sky-700";
 
   return <div className={`rounded-2xl border px-4 py-3 text-sm ${styles}`}>{children}</div>;
 }
-
-const inputClassName =
-  "w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]";
 
 async function generateNextProjectNumber(
   client: NonNullable<ReturnType<typeof createClient>>,
@@ -640,6 +801,59 @@ function parseCurrencyInput(value: string) {
   const numericValue = Number(value);
 
   return Number.isNaN(numericValue) ? null : numericValue;
+}
+
+function formatProjectMoney(value: number, localeTag: string) {
+  return new Intl.NumberFormat(localeTag, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function getPrimaryContactName(customer: CustomerSummaryRow) {
+  const firstName = customer.first_name?.trim() || "";
+  const lastName = customer.last_name?.trim() || "";
+  return [firstName, lastName].filter(Boolean).join(" ");
+}
+
+function toCustomerOption(customer: CustomerSummaryRow, fallbackLabel: string): CustomerOption {
+  return {
+    id: customer.id,
+    label: getCustomerDisplayName(customer, fallbackLabel),
+    snapshot: {
+      jobSiteName: getCustomerDisplayName(customer, fallbackLabel),
+      primaryContactName: getPrimaryContactName(customer),
+      primaryContactPhone: customer.phone?.trim() || "",
+      primaryContactEmail: customer.email?.trim() || "",
+      addressLine1: customer.address_line_1?.trim() || "",
+      addressLine2: customer.address_line_2?.trim() || "",
+      city: customer.city?.trim() || "",
+      state: customer.state?.trim() || "",
+      postalCode: customer.postal_code?.trim() || "",
+    },
+  };
+}
+
+function applyCustomerSnapshot(
+  current: ProjectFormData,
+  customer: CustomerOption,
+  touched: SnapshotTouchedState,
+): ProjectFormData {
+  return {
+    ...current,
+    customerId: customer.id,
+    jobSiteName: touched.jobSiteName ? current.jobSiteName : customer.snapshot.jobSiteName,
+    primaryContactName: touched.primaryContactName ? current.primaryContactName : customer.snapshot.primaryContactName,
+    primaryContactPhone: touched.primaryContactPhone ? current.primaryContactPhone : customer.snapshot.primaryContactPhone,
+    primaryContactEmail: touched.primaryContactEmail ? current.primaryContactEmail : customer.snapshot.primaryContactEmail,
+    addressLine1: touched.addressLine1 ? current.addressLine1 : customer.snapshot.addressLine1,
+    addressLine2: touched.addressLine2 ? current.addressLine2 : customer.snapshot.addressLine2,
+    city: touched.city ? current.city : customer.snapshot.city,
+    state: touched.state ? current.state : customer.snapshot.state,
+    postalCode: touched.postalCode ? current.postalCode : customer.snapshot.postalCode,
+  };
 }
 
 function getCustomerDisplayName(customer: CustomerSummaryRow, fallbackLabel = "Unnamed Customer") {

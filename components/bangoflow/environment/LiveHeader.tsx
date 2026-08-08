@@ -27,7 +27,7 @@ export function LiveHeader({ workspace, moduleLabel, departmentLabel, phase }: L
 
 function getWorkspaceTitle(workspace: WorkspaceIdentity) {
   if (workspace === "mission-control") {
-    return "Mission Control Workspace";
+    return "Operations Overview Workspace";
   }
 
   if (workspace === "blueprint") {

@@ -34,9 +34,9 @@ async function main() {
     assert(source.includes("z-[var(--z-popover)]"), "sidebar sets explicit popover z-index to avoid fixed layering anomalies");
     assert(source.includes("z-[var(--z-backdrop)]"), "backdrop sets explicit backdrop z-index under the sidebar");
     assert(source.includes("flex min-h-screen min-w-0"), "outer shell row remains width-bounded when viewport narrows");
-    assert(source.includes("flex min-h-screen min-h-0 flex-1 flex-col"), "content column keeps min-h-0 in flex chain");
+    assert(source.includes("flex min-h-screen min-h-0 min-w-0 flex-1 flex-col"), "content column keeps min-h-0 in flex chain");
     assert(source.includes("fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden"), "narrow-layout drawer keeps explicit min-h-0 with bounded viewport height");
-    assert(source.includes("<main className=\"min-h-0 flex-1 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,0.08),transparent_26%)] p-4 sm:p-6 lg:p-7\">"), "main content keeps min-h-0 and does not break sibling sidebar scroll chain");
+    assert(source.includes("<main className=\"min-h-0 min-w-0 flex-1 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,0.08),transparent_26%)] p-4 sm:p-6 lg:p-7\">"), "main content keeps min-h-0 and does not break sibling sidebar scroll chain");
   });
 
   await test("2. shell visual and theme classes remain unchanged", () => {

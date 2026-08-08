@@ -358,6 +358,14 @@ export async function saveEstimate(params: {
     }
   }
 
+  const { error: recalcError } = await params.supabase.rpc("recalc_estimate_totals", {
+    p_estimate_id: estimateId,
+  });
+
+  if (recalcError) {
+    return { error: recalcError.message, estimateId: null };
+  }
+
   if (isCreate) {
     await orion.publishEvent({
       company_id: params.companyId,

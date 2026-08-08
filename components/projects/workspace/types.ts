@@ -2,11 +2,17 @@ import type { ReactNode } from "react";
 
 export type ProjectWorkspaceTabKey =
   | "overview"
-  | "work"
-  | "financial"
-  | "resources"
+  | "tasks"
+  | "daily_logs"
+  | "photos"
   | "documents"
-  | "timeline";
+  | "subcontractors"
+  | "crew"
+  | "financials"
+  | "change_orders"
+  | "rfis"
+  | "inspections"
+  | "activity";
 
 export type WorkspaceSummaryCardItem = {
   label: string;
@@ -54,5 +60,56 @@ export type WorkspaceQuickAction = {
   label: string;
   disabled?: boolean;
   title?: string;
+  href?: string;
+};
+
+export type ProjectExecutionTaskStatus = "not_started" | "in_progress" | "waiting" | "blocked" | "completed";
+
+export type ProjectExecutionTaskKind = "task" | "milestone" | "deliverable";
+
+export type ProjectExecutionTask = {
+  id: string;
+  kind: ProjectExecutionTaskKind;
+  title: string;
+  description: string;
+  priority: string;
+  status: ProjectExecutionTaskStatus;
+  dueDate: string | null;
+  assigneeId: string | null;
+  assigneeLabel: string;
+  completedAt: string | null;
+  dependencyIds: string[];
+};
+
+export type ProjectExecutionNoteCategory = "general" | "field" | "office" | "private";
+
+export type ProjectExecutionNote = {
+  id: string;
+  category: ProjectExecutionNoteCategory;
+  body: string;
+  createdAt: string;
+  createdByLabel: string;
+};
+
+export type ProjectExecutionIssueStatus = "open" | "resolved" | "blocked";
+
+export type ProjectExecutionIssue = {
+  id: string;
+  title: string;
+  status: ProjectExecutionIssueStatus;
+  priority: string;
+  ownerId: string | null;
+  ownerLabel: string;
+  dueDate: string | null;
+  source: "punch_item" | "task";
+};
+
+export type ProjectExecutionCalendarEventType = "task" | "delivery" | "inspection" | "crew_assignment" | "milestone";
+
+export type ProjectExecutionCalendarEvent = {
+  id: string;
+  type: ProjectExecutionCalendarEventType;
+  title: string;
+  date: string;
   href?: string;
 };

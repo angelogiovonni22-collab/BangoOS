@@ -233,7 +233,7 @@
   "businessSummarySchedulingDetails": "La salud de programacion se basa en estado de tareas activas y vencimientos.",
   "businessSummaryDocumentationDetails": "La salud documental se basa en actividad reciente de fotos del proyecto.",
   "businessSummarySafetyDetails": "El resumen de seguridad no esta disponible porque no se detecto una fuente compatible.",
-  "commandCenterTitle": "Centro de Comando IA",
+  "commandCenterTitle": "Resumen Operativo IA",
   "commandCenterDescription": "Recomendaciones priorizadas generadas con datos operativos en vivo.",
   "commandCenterEmpty": "No hay recomendaciones por ahora.",
   "previewData": "Datos de vista previa del panel",

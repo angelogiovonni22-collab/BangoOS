@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, SkeletonLoader, StatusBadge } from "@/components/ui";
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader, StatusBadge } from "@/components/ui";
+import { createProcurementService } from "@/lib/materials/procurement-service";
+import type { ProcurementVendorSummary } from "@/lib/materials/procurement-types";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { VendorRow } from "@/lib/vendors";
@@ -13,8 +15,10 @@ export function VendorDetailClient() {
   const params = useParams<{ id?: string | string[] }>();
   const vendorId = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
   const supabase = useMemo(() => createClient(), []);
+  const procurementService = useMemo(() => createProcurementService(), []);
 
   const [vendor, setVendor] = useState<VendorRow | null>(null);
+  const [procurement, setProcurement] = useState<ProcurementVendorSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -80,6 +84,17 @@ export function VendorDetailClient() {
         }
 
         setVendor(data);
+
+        try {
+          const summary = await procurementService.getVendorSummary(data.id);
+          if (active) {
+            setProcurement(summary);
+          }
+        } catch {
+          if (active) {
+            setProcurement(null);
+          }
+        }
       } catch (error) {
         if (active) {
           setErrorMessage(error instanceof Error ? error.message : "Unable to load vendor.");
@@ -96,7 +111,7 @@ export function VendorDetailClient() {
     return () => {
       active = false;
     };
-  }, [supabase, vendorId]);
+  }, [procurementService, supabase, vendorId]);
 
   if (isLoading) {
     return (
@@ -126,30 +141,34 @@ export function VendorDetailClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
-        <Link href="/vendors" className="text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">Vendors</Link>
-        <span>/</span>
-        <span>{vendor.display_name}</span>
-      </div>
-
-      <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-medium)]">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{vendor.display_name}</h1>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{vendor.company_name}</p>
-            <div className="mt-3 flex items-center gap-2">
-              <StatusBadge status={vendor.status} />
-              {vendor.preferred_vendor ? (
-                <Badge tone="warning" className="inline-flex items-center gap-1"><Star size={12} className="fill-amber-400 text-amber-500" /> Preferred</Badge>
-              ) : null}
-            </div>
-          </div>
-
+      <PageHeader
+        eyebrow="COMPANY WORKSPACE"
+        title={vendor.display_name}
+        description="Review vendor profile, commercial terms, and procurement performance in one workspace."
+        secondaryActions={(
+          <Link
+            href="/vendors"
+            className="inline-flex h-10 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 text-sm font-semibold text-[var(--color-text-secondary)]"
+          >
+            Back to Vendors
+          </Link>
+        )}
+        primaryAction={(
           <Link href={`/vendors/${vendor.id}/edit`} className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]">
             Edit Vendor
           </Link>
+        )}
+      />
+
+      <div className="space-y-2">
+        <p className="text-sm text-[var(--color-text-secondary)]">{vendor.company_name}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={vendor.status} />
+          {vendor.preferred_vendor ? (
+            <Badge tone="warning" className="inline-flex items-center gap-1"><Star size={12} className="fill-amber-400 text-amber-500" /> Preferred</Badge>
+          ) : null}
         </div>
-      </section>
+      </div>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -193,6 +212,30 @@ export function VendorDetailClient() {
             <InfoRow label="Quality rating" value={vendor.quality_rating !== null ? vendor.quality_rating.toFixed(1) : null} />
             <InfoRow label="Delivery rating" value={vendor.delivery_rating !== null ? vendor.delivery_rating.toFixed(1) : null} />
             <InfoRow label="Notes" value={vendor.notes} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Procurement</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm text-[var(--color-text-secondary)]">
+            <InfoRow label="Active purchase orders" value={procurement ? String(procurement.activePurchaseOrders) : "-"} />
+            <InfoRow label="Order history" value={procurement ? String(procurement.orderHistoryCount) : "-"} />
+            <InfoRow label="Delivery performance" value={procurement ? `${procurement.deliveryPerformancePercent}%` : "-"} />
+            <InfoRow label="Outstanding balances" value={procurement ? `$${procurement.outstandingBalanceAmount.toFixed(2)}` : "-"} />
+            <div>
+              <p className="text-xs uppercase tracking-[0.06em] text-[var(--color-text-muted)]">Associated projects</p>
+              {procurement && procurement.associatedProjects.length > 0 ? (
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {procurement.associatedProjects.slice(0, 6).map((project) => (
+                    <Link key={project.id} href={`/projects/${project.id}`} className="inline-flex rounded-full border border-[var(--color-border-subtle)] px-2.5 py-1 text-xs text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">
+                      {project.name}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-0.5 text-sm text-[var(--color-text-primary)]">-</p>
+              )}
+            </div>
           </CardContent>
         </Card>
       </section>

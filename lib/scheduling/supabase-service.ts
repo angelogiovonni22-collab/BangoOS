@@ -1,34 +1,64 @@
+﻿import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
-import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createWorkforceRepository } from "@/lib/workforce/workforce-repository";
-import { buildScheduleHealth, detectSchedulingConflicts } from "./conflict-engine";
-import type { SchedulingService } from "./service";
-import type {
-  AssignmentDraft,
-  AssignmentStatus,
-  OpenShift,
-  ResourceAvailability,
-  ScheduleAssignment,
-  ScheduleConflict,
-  SchedulingPayload,
-  TimeOffEntry,
-} from "./types";
 import type {
   WorkforceAssignmentRow,
   WorkforceCrewRow,
   WorkforceEmployeeRow,
+  WorkforceEquipmentRow,
   WorkforceMembershipRow,
   WorkforcePhaseRow,
   WorkforceProfileRow,
   WorkforceProjectRow,
   WorkforceTaskRow,
 } from "@/lib/workforce/workforce-types";
+import { buildScheduleHealth, detectSchedulingConflicts } from "./conflict-engine";
+import type { SchedulingService } from "./service";
+import type {
+  AssignmentDraft,
+  AssignmentStatus,
+  DispatchResource,
+  DispatchStatus,
+  OpenShift,
+  ResourceAvailability,
+  ScheduleAssignment,
+  ScheduleConflict,
+  SchedulingInsight,
+  SchedulingPayload,
+  TimeOffEntry,
+} from "./types";
 
-const UNSUPPORTED_DISPATCH_ERROR = "Persistent dispatch state is not implemented in the current production schema.";
-const UNSUPPORTED_OPEN_SHIFT_ERROR = "Persistent open shift state is not implemented in the current production schema.";
-const UNSUPPORTED_CONFLICT_RESOLUTION_ERROR = "Persistent conflict resolution state is not implemented in the current production schema.";
-const UNSUPPORTED_INSIGHT_ERROR = "Persistent insight status is not implemented in the current production schema.";
+type SchedulingEventRow = {
+  id: string;
+  event_type: string;
+  entity_type: string;
+  entity_id: string;
+  payload: Record<string, unknown> | null;
+  occurred_at: string;
+};
+
+type LoadedRows = {
+  assignments: WorkforceAssignmentRow[];
+  projects: WorkforceProjectRow[];
+  phases: WorkforcePhaseRow[];
+  tasks: WorkforceTaskRow[];
+  crews: WorkforceCrewRow[];
+  employees: WorkforceEmployeeRow[];
+  memberships: WorkforceMembershipRow[];
+  profiles: WorkforceProfileRow[];
+  equipment: WorkforceEquipmentRow[];
+  events: SchedulingEventRow[];
+};
+
+type EventStateMaps = {
+  dispatchByResource: Map<string, DispatchStatus>;
+  openShiftDismissedById: Map<string, boolean>;
+  conflictResolutionById: Map<string, ScheduleConflict["resolutionStatus"]>;
+  insightStatusById: Map<string, SchedulingInsight["status"]>;
+};
+
+type SchedulingSupabaseClient = NonNullable<ReturnType<typeof createClient>>;
 
 function toIsoDate(iso: string) {
   return iso.slice(0, 10);
@@ -38,12 +68,31 @@ function toTime(iso: string) {
   return iso.slice(11, 16);
 }
 
-function mapAssignmentType(sourceType: WorkforceAssignmentRow["source_type"], assignmentType: WorkforceAssignmentRow["assignment_type"]): ScheduleAssignment["type"] {
-  if (sourceType === "task") {
-    return "project_work";
+function combineDateAndTime(date: string, time: string) {
+  return `${date}T${time}:00Z`;
+}
+
+function durationHours(startIso: string, endIso: string) {
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIso).getTime();
+  const hours = (end - start) / (1000 * 60 * 60);
+  if (!Number.isFinite(hours) || hours < 0) {
+    return 0;
   }
 
-  if (sourceType === "schedule") {
+  return Number(hours.toFixed(2));
+}
+
+function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string) {
+  const aStartMs = new Date(aStart).getTime();
+  const aEndMs = new Date(aEnd).getTime();
+  const bStartMs = new Date(bStart).getTime();
+  const bEndMs = new Date(bEnd).getTime();
+  return aStartMs < bEndMs && bStartMs < aEndMs;
+}
+
+function mapAssignmentType(sourceType: WorkforceAssignmentRow["source_type"], assignmentType: WorkforceAssignmentRow["assignment_type"]): ScheduleAssignment["type"] {
+  if (sourceType === "task" || sourceType === "schedule") {
     return "project_work";
   }
 
@@ -104,15 +153,51 @@ function mapPriority(status: WorkforceAssignmentRow["status"]): "low" | "medium"
     return "high";
   }
 
-  if (status === "completed") {
-    return "low";
-  }
-
-  if (status === "cancelled") {
+  if (status === "completed" || status === "cancelled") {
     return "low";
   }
 
   return "medium";
+}
+
+function mapDispatchStatusFromAssignment(assignment: ScheduleAssignment | null): DispatchStatus {
+  if (!assignment) {
+    return "available";
+  }
+
+  if (assignment.status === "completed") {
+    return "completed";
+  }
+
+  if (assignment.status === "cancelled") {
+    return "off_shift";
+  }
+
+  if (assignment.status === "in_progress") {
+    return "on_site";
+  }
+
+  return "assigned";
+}
+
+function mapDispatchStatusToAssignmentStatus(status: DispatchStatus): WorkforceAssignmentRow["status"] | null {
+  if (status === "assigned") {
+    return "confirmed";
+  }
+
+  if (status === "in_transit" || status === "on_site") {
+    return "in_progress";
+  }
+
+  if (status === "completed") {
+    return "completed";
+  }
+
+  if (status === "off_shift") {
+    return "cancelled";
+  }
+
+  return null;
 }
 
 function profileNameMap(profiles: WorkforceProfileRow[]) {
@@ -124,24 +209,459 @@ function profileNameMap(profiles: WorkforceProfileRow[]) {
   );
 }
 
-function assignmentsToConflicts(assignments: ScheduleAssignment[]): { conflicts: ScheduleConflict[]; availability: ResourceAvailability[]; timeOff: TimeOffEntry[]; openShifts: OpenShift[] } {
-  const openShifts: OpenShift[] = [];
-  const availability: ResourceAvailability[] = [];
-  const timeOff: TimeOffEntry[] = [];
+function toEventStateMaps(events: SchedulingEventRow[]): EventStateMaps {
+  const dispatchByResource = new Map<string, DispatchStatus>();
+  const openShiftDismissedById = new Map<string, boolean>();
+  const conflictResolutionById = new Map<string, ScheduleConflict["resolutionStatus"]>();
+  const insightStatusById = new Map<string, SchedulingInsight["status"]>();
 
-  const conflicts = detectSchedulingConflicts({
-    assignments,
-    openShifts,
-    availability,
-    timeOff,
-  });
+  const ordered = [...events].sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
+
+  for (const event of ordered) {
+    const payload = event.payload ?? {};
+
+    if (event.event_type === "workforce.dispatch.status.updated") {
+      const resourceType = typeof payload.resource_type === "string" ? payload.resource_type : event.entity_type;
+      const nextStatus = typeof payload.dispatch_status === "string" ? payload.dispatch_status : "";
+      if ((resourceType === "crew" || resourceType === "employee" || resourceType === "equipment")
+        && (nextStatus === "available" || nextStatus === "assigned" || nextStatus === "in_transit" || nextStatus === "on_site" || nextStatus === "delayed" || nextStatus === "completed" || nextStatus === "off_shift")) {
+        dispatchByResource.set(`${resourceType}:${event.entity_id}`, nextStatus);
+      }
+    }
+
+    if (event.event_type === "workforce.scheduling.open_shift.updated") {
+      const openShiftId = typeof payload.open_shift_id === "string" ? payload.open_shift_id : "";
+      const dismissed = Boolean(payload.dismissed);
+      if (openShiftId) {
+        openShiftDismissedById.set(openShiftId, dismissed);
+      }
+    }
+
+    if (event.event_type === "workforce.scheduling.conflict.resolution.updated") {
+      const conflictId = typeof payload.conflict_id === "string" ? payload.conflict_id : "";
+      const status = typeof payload.resolution_status === "string" ? payload.resolution_status : "";
+      if (conflictId && (status === "open" || status === "acknowledged" || status === "dismissed" || status === "resolved")) {
+        conflictResolutionById.set(conflictId, status);
+      }
+    }
+
+    if (event.event_type === "workforce.scheduling.insight.status.updated") {
+      const insightId = typeof payload.insight_id === "string" ? payload.insight_id : "";
+      const status = typeof payload.insight_status === "string" ? payload.insight_status : "";
+      if (insightId && (status === "open" || status === "accepted" || status === "dismissed")) {
+        insightStatusById.set(insightId, status);
+      }
+    }
+  }
 
   return {
-    conflicts,
-    availability,
-    timeOff,
-    openShifts,
+    dispatchByResource,
+    openShiftDismissedById,
+    conflictResolutionById,
+    insightStatusById,
   };
+}
+
+function toScheduleAssignment(
+  row: WorkforceAssignmentRow,
+  projects: Map<string, WorkforceProjectRow>,
+  phases: Map<string, WorkforcePhaseRow>,
+  tasks: Map<string, WorkforceTaskRow>,
+  crews: Map<string, WorkforceCrewRow>,
+  employees: Map<string, WorkforceEmployeeRow>,
+  profileNames: Map<string, string>,
+  crewMembershipsByCrew: Map<string, WorkforceMembershipRow[]>,
+): ScheduleAssignment {
+  const project = projects.get(row.project_id);
+  const phase = row.phase_id ? phases.get(row.phase_id) : null;
+  const task = row.task_id ? tasks.get(row.task_id) : null;
+  const crew = row.crew_id ? crews.get(row.crew_id) : null;
+  const employee = row.employee_id ? employees.get(row.employee_id) : null;
+
+  const membershipEmployeeIds = crew?.id
+    ? (crewMembershipsByCrew.get(crew.id) ?? []).map((membership) => membership.employee_id)
+    : [];
+
+  const employeeIds = row.employee_id ? [row.employee_id] : membershipEmployeeIds;
+  const requiredTrade = employee?.trade ?? "";
+  const location = phase?.name ?? task?.title ?? "";
+  const supervisorName = crew?.supervisor_profile_id ? profileNames.get(crew.supervisor_profile_id) ?? "" : "";
+
+  return {
+    id: row.id,
+    title: row.title,
+    type: mapAssignmentType(row.source_type, row.assignment_type),
+    status: mapAssignmentStatus(row.status),
+    shift: mapShift(row.starts_at),
+    priority: mapPriority(row.status),
+    date: toIsoDate(row.starts_at),
+    startTime: toTime(row.starts_at),
+    endTime: toTime(row.ends_at),
+    plannedStart: row.starts_at,
+    plannedEnd: row.ends_at,
+    plannedLaborHours: Number(row.planned_hours ?? 0),
+    requiredHeadcount: Math.max(employeeIds.length, row.assignment_type === "crew" ? 1 : 0),
+    requiredTrade,
+    assignedCrewIds: row.crew_id ? [row.crew_id] : [],
+    assignedEmployeeIds: employeeIds,
+    scope: {
+      projectId: row.project_id,
+      projectName: project?.name ?? "",
+      location,
+      supervisor: supervisorName,
+    },
+    notes: row.notes ?? row.description ?? row.source_id ?? "",
+    travelTimeMinutes: 0,
+    recurrence: {
+      enabled: false,
+      frequency: "weekly",
+      interval: 1,
+      endDate: null,
+    },
+    safetyRequirement: "",
+    certificationRequirement: "",
+    equipment: {
+      requiredEquipment: [],
+      assignedEquipment: [],
+      operatorRequired: false,
+    },
+    isOpenShift: false,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function buildTradeOptions(employees: WorkforceEmployeeRow[]) {
+  const unique = new Set<string>();
+  for (const employee of employees) {
+    const trade = employee.trade?.trim();
+    if (trade) {
+      unique.add(trade);
+    }
+  }
+
+  return Array.from(unique).sort((a, b) => a.localeCompare(b));
+}
+
+function buildTimeOffFromEmployees(employees: WorkforceEmployeeRow[], profileNames: Map<string, string>, periodDate: string): TimeOffEntry[] {
+  const start = `${periodDate}T00:00:00Z`;
+  const end = `${periodDate}T23:59:59Z`;
+
+  return employees
+    .filter((employee) => employee.availability_status === "unavailable" || employee.availability_status === "restricted" || employee.employment_status === "leave")
+    .map((employee) => ({
+      id: `pto-${employee.id}-${periodDate}`,
+      employeeId: employee.id,
+      employeeName: employee.profile_id ? profileNames.get(employee.profile_id) ?? employee.employee_number : employee.employee_number,
+      type: employee.employment_status === "leave" ? "pto" : "unavailable",
+      start,
+      end,
+      partialDay: false,
+      reason: employee.availability_status === "restricted" ? "Restricted availability" : "Unavailable",
+    }));
+}
+
+function buildAvailability(
+  assignments: ScheduleAssignment[],
+  employees: WorkforceEmployeeRow[],
+  crews: WorkforceCrewRow[],
+  profileNames: Map<string, string>,
+): ResourceAvailability[] {
+  const activeEmployeeIds = new Set(assignments.flatMap((assignment) => assignment.assignedEmployeeIds));
+  const activeCrewIds = new Set(assignments.flatMap((assignment) => assignment.assignedCrewIds));
+
+  const employeeAvailability: ResourceAvailability[] = employees.map((employee) => {
+    const employeeName = employee.profile_id ? profileNames.get(employee.profile_id) ?? employee.employee_number : employee.employee_number;
+    const assigned = activeEmployeeIds.has(employee.id);
+    const restricted = employee.availability_status === "restricted";
+    const unavailable = employee.availability_status === "unavailable" || employee.employment_status === "leave" || employee.employment_status === "terminated";
+
+    return {
+      id: `availability-employee-${employee.id}`,
+      resourceType: "employee",
+      resourceId: employee.id,
+      name: employeeName,
+      trade: employee.trade ?? "",
+      location: "",
+      shift: "day",
+      availability: unavailable ? "unavailable" : restricted ? "partial" : assigned ? "partial" : "available",
+      availableFrom: "06:00",
+      availableTo: "18:00",
+      overtimeEligible: !unavailable,
+      certificationSummary: "",
+      utilization: assigned ? 80 : 20,
+    };
+  });
+
+  const crewAvailability: ResourceAvailability[] = crews.map((crew) => ({
+    id: `availability-crew-${crew.id}`,
+    resourceType: "crew",
+    resourceId: crew.id,
+    name: crew.name,
+    trade: "",
+    location: crew.home_location ?? "",
+    shift: "day",
+    availability: crew.status !== "active" ? "unavailable" : activeCrewIds.has(crew.id) ? "partial" : "available",
+    availableFrom: "06:00",
+    availableTo: "18:00",
+    overtimeEligible: crew.status === "active",
+    certificationSummary: "",
+    utilization: activeCrewIds.has(crew.id) ? 85 : 15,
+  }));
+
+  return [...employeeAvailability, ...crewAvailability];
+}
+
+function toResourceCurrentAssignment(assignments: ScheduleAssignment[], predicate: (assignment: ScheduleAssignment) => boolean) {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const candidates = assignments.filter((assignment) => predicate(assignment));
+  const sameDay = candidates.filter((assignment) => assignment.date === today);
+
+  if (sameDay.length > 0) {
+    return sameDay.sort((a, b) => a.startTime.localeCompare(b.startTime))[0] ?? null;
+  }
+
+  const upcoming = candidates
+    .filter((assignment) => new Date(assignment.plannedStart).getTime() >= now.getTime())
+    .sort((a, b) => a.plannedStart.localeCompare(b.plannedStart));
+
+  return upcoming[0] ?? candidates.sort((a, b) => b.plannedStart.localeCompare(a.plannedStart))[0] ?? null;
+}
+
+function buildDispatchResources(
+  assignments: ScheduleAssignment[],
+  crews: WorkforceCrewRow[],
+  employees: WorkforceEmployeeRow[],
+  equipment: WorkforceEquipmentRow[],
+  profiles: Map<string, string>,
+  events: EventStateMaps,
+): DispatchResource[] {
+  const resources: DispatchResource[] = [];
+
+  for (const crew of crews) {
+    const current = toResourceCurrentAssignment(assignments, (assignment) => assignment.assignedCrewIds.includes(crew.id));
+    const key = `crew:${crew.id}`;
+    const status = events.dispatchByResource.get(key) ?? mapDispatchStatusFromAssignment(current);
+
+    resources.push({
+      id: key,
+      type: "crew",
+      resourceId: crew.id,
+      name: crew.name,
+      trade: "",
+      specialty: "",
+      status,
+      currentAssignmentId: current?.id ?? null,
+      currentAssignmentTitle: current?.title ?? null,
+      destination: current?.scope.location ?? crew.home_location ?? "",
+      shift: current?.shift ?? "day",
+      startTime: current?.startTime ?? "06:00",
+      estimatedTravelMinutes: current?.travelTimeMinutes ?? 0,
+      utilization: current ? 85 : 20,
+      alerts: status === "delayed" ? ["Dispatch delay"] : [],
+      certificationWarnings: [],
+      contact: crew.supervisor_profile_id ? profiles.get(crew.supervisor_profile_id) ?? "" : "",
+      relatedProjectId: current?.scope.projectId ?? null,
+      relatedProjectName: current?.scope.projectName ?? null,
+      delayReason: status === "delayed" ? "Manual delay" : null,
+    });
+  }
+
+  for (const employee of employees) {
+    const current = toResourceCurrentAssignment(assignments, (assignment) => assignment.assignedEmployeeIds.includes(employee.id));
+    const key = `employee:${employee.id}`;
+    const status = events.dispatchByResource.get(key)
+      ?? (employee.availability_status === "unavailable" || employee.employment_status === "leave" ? "off_shift" : mapDispatchStatusFromAssignment(current));
+    const name = employee.profile_id ? profiles.get(employee.profile_id) ?? employee.employee_number : employee.employee_number;
+
+    resources.push({
+      id: key,
+      type: "employee",
+      resourceId: employee.id,
+      name,
+      trade: employee.trade ?? "",
+      specialty: employee.position_title,
+      status,
+      currentAssignmentId: current?.id ?? null,
+      currentAssignmentTitle: current?.title ?? null,
+      destination: current?.scope.location ?? "",
+      shift: current?.shift ?? "day",
+      startTime: current?.startTime ?? "06:00",
+      estimatedTravelMinutes: current?.travelTimeMinutes ?? 0,
+      utilization: current ? 80 : 10,
+      alerts: status === "delayed" ? ["Dispatch delay"] : [],
+      certificationWarnings: [],
+      contact: "",
+      relatedProjectId: current?.scope.projectId ?? null,
+      relatedProjectName: current?.scope.projectName ?? null,
+      delayReason: status === "delayed" ? "Manual delay" : null,
+    });
+  }
+
+  for (const item of equipment) {
+    const current = toResourceCurrentAssignment(assignments, (assignment) => {
+      if (item.assigned_job_id && assignment.scope.projectId === item.assigned_job_id) {
+        return true;
+      }
+
+      if (item.assigned_crew_id && assignment.assignedCrewIds.includes(item.assigned_crew_id)) {
+        return true;
+      }
+
+      if (item.assigned_employee_id && assignment.assignedEmployeeIds.includes(item.assigned_employee_id)) {
+        return true;
+      }
+
+      return false;
+    });
+
+    const key = `equipment:${item.id}`;
+    const maintenanceIssue = item.maintenance_status.toLowerCase().includes("due") || item.maintenance_status.toLowerCase().includes("overdue");
+    const defaultStatus: DispatchStatus = item.status === "active"
+      ? (current ? "assigned" : "available")
+      : "off_shift";
+
+    const status = events.dispatchByResource.get(key) ?? defaultStatus;
+    const alerts: string[] = [];
+    if (maintenanceIssue) {
+      alerts.push("Maintenance conflict");
+    }
+    if (status === "delayed") {
+      alerts.push("Dispatch delay");
+    }
+
+    resources.push({
+      id: key,
+      type: "equipment",
+      resourceId: item.id,
+      name: item.name,
+      trade: "Equipment",
+      specialty: item.equipment_number,
+      status,
+      currentAssignmentId: current?.id ?? null,
+      currentAssignmentTitle: current?.title ?? null,
+      destination: current?.scope.location ?? "",
+      shift: current?.shift ?? "day",
+      startTime: current?.startTime ?? "06:00",
+      estimatedTravelMinutes: current?.travelTimeMinutes ?? 0,
+      utilization: current ? 75 : 15,
+      alerts,
+      certificationWarnings: [],
+      contact: "",
+      relatedProjectId: current?.scope.projectId ?? item.assigned_job_id,
+      relatedProjectName: current?.scope.projectName ?? null,
+      delayReason: status === "delayed" ? "Manual delay" : null,
+    });
+  }
+
+  return resources;
+}
+
+function buildOpenShifts(
+  assignments: ScheduleAssignment[],
+  availability: ResourceAvailability[],
+  events: EventStateMaps,
+): OpenShift[] {
+  const employeeCandidates = availability.filter((item) => item.resourceType === "employee" && item.availability === "available");
+  const crewCandidates = availability.filter((item) => item.resourceType === "crew" && item.availability === "available");
+
+  return assignments
+    .filter((assignment) => assignment.status !== "completed" && assignment.status !== "cancelled")
+    .filter((assignment) => assignment.requiredHeadcount > assignment.assignedEmployeeIds.length || assignment.assignedCrewIds.length === 0)
+    .map((assignment) => {
+      const workersNeeded = Math.max(1, assignment.requiredHeadcount - assignment.assignedEmployeeIds.length);
+      const matchingEmployees = employeeCandidates
+        .filter((candidate) => !assignment.requiredTrade || !candidate.trade || candidate.trade === assignment.requiredTrade)
+        .map((candidate) => candidate.resourceId)
+        .slice(0, 8);
+
+      const matchingCrews = crewCandidates
+        .filter((candidate) => !assignment.requiredTrade || !candidate.trade || candidate.trade === assignment.requiredTrade)
+        .map((candidate) => candidate.resourceId)
+        .slice(0, 6);
+
+      const openShiftId = `open-${assignment.id}`;
+
+      return {
+        id: openShiftId,
+        assignmentId: assignment.id,
+        projectId: assignment.scope.projectId,
+        projectName: assignment.scope.projectName,
+        tradeRequired: assignment.requiredTrade,
+        workersNeeded,
+        date: assignment.date,
+        shift: assignment.shift,
+        startTime: assignment.startTime,
+        endTime: assignment.endTime,
+        location: assignment.scope.location,
+        urgency: assignment.priority,
+        supervisor: assignment.scope.supervisor,
+        certificationRequirements: assignment.certificationRequirement ? [assignment.certificationRequirement] : [],
+        estimatedHours: assignment.plannedLaborHours,
+        reason: "Coverage gap",
+        candidateEmployeeIds: matchingEmployees,
+        candidateCrewIds: matchingCrews,
+        dismissed: events.openShiftDismissedById.get(openShiftId) ?? false,
+      } satisfies OpenShift;
+    });
+}
+
+function applyConflictResolutions(conflicts: ScheduleConflict[], events: EventStateMaps) {
+  return conflicts.map((conflict) => {
+    const resolution = events.conflictResolutionById.get(conflict.id);
+    if (!resolution) {
+      return conflict;
+    }
+
+    return {
+      ...conflict,
+      resolutionStatus: resolution,
+    };
+  });
+}
+
+function buildInsights(conflicts: ScheduleConflict[], openShifts: OpenShift[], events: EventStateMaps): SchedulingInsight[] {
+  const insights: SchedulingInsight[] = [];
+
+  const criticalConflicts = conflicts
+    .filter((conflict) => conflict.resolutionStatus === "open")
+    .sort((left, right) => left.severity.localeCompare(right.severity))
+    .slice(0, 4);
+
+  for (const conflict of criticalConflicts) {
+    const id = `insight-conflict-${conflict.id}`;
+    insights.push({
+      id,
+      title: conflict.title,
+      category: "conflict",
+      severity: conflict.severity,
+      explanation: conflict.explanation,
+      expectedImpact: conflict.recommendedAction,
+      affectedResources: conflict.affectedResources,
+      recommendedAction: conflict.recommendedAction,
+      confidence: 0.82,
+      status: events.insightStatusById.get(id) ?? "open",
+    });
+  }
+
+  for (const shift of openShifts.filter((item) => !item.dismissed).slice(0, 3)) {
+    const id = `insight-open-shift-${shift.id}`;
+    insights.push({
+      id,
+      title: `Fill open shift: ${shift.projectName}`,
+      category: "staffing",
+      severity: shift.urgency === "critical" ? "critical" : shift.urgency === "high" ? "high" : "medium",
+      explanation: `${shift.workersNeeded} workers needed for ${shift.tradeRequired || "field work"}.`,
+      expectedImpact: "Reduces schedule slip risk and dispatch delays.",
+      affectedResources: [shift.projectId],
+      recommendedAction: "Assign candidate crew or employee from available pool.",
+      confidence: 0.79,
+      status: events.insightStatusById.get(id) ?? "open",
+    });
+  }
+
+  return insights;
 }
 
 function summarize(
@@ -250,11 +770,18 @@ function summarize(
   };
 }
 
-function buildAnalytics(assignments: ScheduleAssignment[], conflicts: ScheduleConflict[], openShifts: OpenShift[]): SchedulingPayload["analytics"] {
+function buildAnalytics(
+  assignments: ScheduleAssignment[],
+  conflicts: ScheduleConflict[],
+  openShifts: OpenShift[],
+  dispatch: DispatchResource[],
+): SchedulingPayload["analytics"] {
   const totalAssignments = assignments.length;
   const totalScheduled = assignments.reduce((sum, assignment) => sum + assignment.assignedEmployeeIds.length, 0);
   const required = assignments.reduce((sum, assignment) => sum + assignment.requiredHeadcount, 0);
   const openShiftCount = openShifts.filter((item) => !item.dismissed).length;
+  const delayedDispatch = dispatch.filter((item) => item.status === "delayed").length;
+  const activeDispatch = dispatch.filter((item) => item.status !== "off_shift").length;
 
   return {
     laborUtilization: required > 0 ? Math.min(100, Math.round((totalScheduled / required) * 100)) : 0,
@@ -262,14 +789,14 @@ function buildAnalytics(assignments: ScheduleAssignment[], conflicts: ScheduleCo
     idleTimeHours: 0,
     overtimeRiskCount: conflicts.filter((item) => item.type === "overtime_threshold_risk" && item.resolutionStatus === "open").length,
     assignmentCompletionRate: totalAssignments > 0 ? Math.round((assignments.filter((item) => item.status === "completed").length / totalAssignments) * 100) : 0,
-    openShiftFillRate: openShiftCount > 0 ? 0 : 0,
+    openShiftFillRate: assignments.length > 0 ? Math.max(0, Math.round(((assignments.length - openShiftCount) / assignments.length) * 100)) : 100,
     scheduleConflictCount: conflicts.length,
     averageReassignmentCount: 0,
     understaffingCount: conflicts.filter((item) => item.type === "understaffed_project" && item.resolutionStatus === "open").length,
     overstaffingCount: conflicts.filter((item) => item.type === "overstaffed_project" && item.resolutionStatus === "open").length,
     scheduleHealth: 0,
     travelEfficiencyPlaceholder: 0,
-    dispatchPunctuality: 0,
+    dispatchPunctuality: activeDispatch > 0 ? Math.max(0, Math.round(((activeDispatch - delayedDispatch) / activeDispatch) * 100)) : 100,
     missedStartTimesPlaceholder: 0,
     previousPeriodDelta: {
       laborUtilization: 0,
@@ -280,105 +807,7 @@ function buildAnalytics(assignments: ScheduleAssignment[], conflicts: ScheduleCo
   };
 }
 
-function toScheduleAssignment(
-  row: WorkforceAssignmentRow,
-  projects: Map<string, WorkforceProjectRow>,
-  phases: Map<string, WorkforcePhaseRow>,
-  tasks: Map<string, WorkforceTaskRow>,
-  crews: Map<string, WorkforceCrewRow>,
-  employees: Map<string, WorkforceEmployeeRow>,
-  profileNames: Map<string, string>,
-  crewMembershipsByCrew: Map<string, WorkforceMembershipRow[]>,
-): ScheduleAssignment {
-  const project = projects.get(row.project_id);
-  const phase = row.phase_id ? phases.get(row.phase_id) : null;
-  const task = row.task_id ? tasks.get(row.task_id) : null;
-  const crew = row.crew_id ? crews.get(row.crew_id) : null;
-  const employee = row.employee_id ? employees.get(row.employee_id) : null;
-
-  const membershipEmployeeIds = crew?.id
-    ? (crewMembershipsByCrew.get(crew.id) ?? []).map((membership) => membership.employee_id)
-    : [];
-
-  const employeeIds = row.employee_id
-    ? [row.employee_id]
-    : membershipEmployeeIds;
-
-  const requiredTrade = employee?.trade ?? "";
-  const location = phase?.name ?? task?.title ?? "";
-  const supervisorName = crew?.supervisor_profile_id
-    ? profileNames.get(crew.supervisor_profile_id) ?? ""
-    : "";
-
-  const startDate = toIsoDate(row.starts_at);
-
-  return {
-    id: row.id,
-    title: row.title,
-    type: mapAssignmentType(row.source_type, row.assignment_type),
-    status: mapAssignmentStatus(row.status),
-    shift: mapShift(row.starts_at),
-    priority: mapPriority(row.status),
-    date: startDate,
-    startTime: toTime(row.starts_at),
-    endTime: toTime(row.ends_at),
-    plannedStart: row.starts_at,
-    plannedEnd: row.ends_at,
-    plannedLaborHours: Number(row.planned_hours ?? 0),
-    requiredHeadcount: Math.max(employeeIds.length, row.assignment_type === "crew" ? 1 : 0),
-    requiredTrade,
-    assignedCrewIds: row.crew_id ? [row.crew_id] : [],
-    assignedEmployeeIds: employeeIds,
-    scope: {
-      projectId: row.project_id,
-      projectName: project?.name ?? "",
-      location,
-      supervisor: supervisorName,
-    },
-    notes: row.notes ?? row.description ?? row.source_id ?? "",
-    travelTimeMinutes: 0,
-    recurrence: {
-      enabled: false,
-      frequency: "weekly",
-      interval: 1,
-      endDate: null,
-    },
-    safetyRequirement: "",
-    certificationRequirement: "",
-    equipment: {
-      requiredEquipment: [],
-      assignedEquipment: [],
-      operatorRequired: false,
-    },
-    isOpenShift: false,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function buildTradeOptions(employees: WorkforceEmployeeRow[]) {
-  const unique = new Set<string>();
-  for (const employee of employees) {
-    const trade = employee.trade?.trim();
-    if (trade) {
-      unique.add(trade);
-    }
-  }
-
-  return Array.from(unique).sort((a, b) => a.localeCompare(b));
-}
-
-function buildPayloadFromRows(rows: {
-  assignments: WorkforceAssignmentRow[];
-  projects: WorkforceProjectRow[];
-  phases: WorkforcePhaseRow[];
-  tasks: WorkforceTaskRow[];
-  crews: WorkforceCrewRow[];
-  employees: WorkforceEmployeeRow[];
-  memberships: WorkforceMembershipRow[];
-  profiles: WorkforceProfileRow[];
-  timeOff: TimeOffEntry[];
-}): SchedulingPayload {
+function buildPayloadFromRows(rows: LoadedRows): SchedulingPayload {
   const projectsById = new Map(rows.projects.map((project) => [project.id, project]));
   const phasesById = new Map(rows.phases.map((phase) => [phase.id, phase]));
   const tasksById = new Map(rows.tasks.map((task) => [task.id, task]));
@@ -391,7 +820,6 @@ function buildPayloadFromRows(rows: {
     if (membership.status !== "active") {
       continue;
     }
-
     const existing = membershipsByCrew.get(membership.crew_id);
     if (existing) {
       existing.push(membership);
@@ -413,9 +841,23 @@ function buildPayloadFromRows(rows: {
     ),
   );
 
-  const { conflicts, availability, openShifts } = assignmentsToConflicts(assignments);
-  const health = buildScheduleHealth({ assignments, conflicts, openShifts, dispatch: [] });
-  const analytics = buildAnalytics(assignments, conflicts, openShifts);
+  const events = toEventStateMaps(rows.events);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const timeOff = buildTimeOffFromEmployees(rows.employees, profilesById, todayIso);
+  const availability = buildAvailability(assignments, rows.employees, rows.crews, profilesById);
+  const openShifts = buildOpenShifts(assignments, availability, events);
+  const baseConflicts = detectSchedulingConflicts({
+    assignments,
+    openShifts,
+    availability,
+    timeOff,
+  });
+  const conflicts = applyConflictResolutions(baseConflicts, events);
+  const dispatch = buildDispatchResources(assignments, rows.crews, rows.employees, rows.equipment, profilesById, events);
+  const insights = buildInsights(conflicts, openShifts, events);
+
+  const health = buildScheduleHealth({ assignments, conflicts, openShifts, dispatch });
+  const analytics = buildAnalytics(assignments, conflicts, openShifts, dispatch);
   analytics.scheduleHealth = health.score;
 
   const summary = summarize(assignments, conflicts, openShifts, availability);
@@ -428,12 +870,12 @@ function buildPayloadFromRows(rows: {
   return {
     summary,
     assignments,
-    dispatch: [],
+    dispatch,
     openShifts,
     conflicts,
     availability,
-    insights: [],
-    timeOff: rows.timeOff,
+    insights,
+    timeOff,
     health: {
       ...health,
       isMock: false,
@@ -443,10 +885,9 @@ function buildPayloadFromRows(rows: {
     crewOptions: rows.crews.map((crew) => ({ id: crew.id, name: crew.name })),
     employeeOptions: rows.employees.map((employee) => {
       const profileName = employee.profile_id ? profilesById.get(employee.profile_id) ?? "" : "";
-      const fallbackName = employee.employee_number;
       return {
         id: employee.id,
-        name: profileName || fallbackName,
+        name: profileName || employee.employee_number,
         trade: employee.trade ?? "",
       };
     }),
@@ -479,6 +920,7 @@ async function loadLivePayload() {
     employees,
     profiles,
     equipment,
+    eventsResponse,
   ] = await Promise.all([
     repository.listWorkforceAssignments(companyId),
     repository.listProjects(companyId),
@@ -489,9 +931,23 @@ async function loadLivePayload() {
     repository.listEmployees(companyId),
     repository.listProfiles(companyId),
     repository.listEquipment(companyId),
+    supabase
+      .from("workforce_events")
+      .select("id, event_type, entity_type, entity_id, payload, occurred_at")
+      .eq("company_id", companyId)
+      .in("event_type", [
+        "workforce.dispatch.status.updated",
+        "workforce.scheduling.open_shift.updated",
+        "workforce.scheduling.conflict.resolution.updated",
+        "workforce.scheduling.insight.status.updated",
+      ])
+      .order("occurred_at", { ascending: false })
+      .limit(500),
   ]);
 
-  void equipment;
+  if (eventsResponse.error) {
+    throw eventsResponse.error;
+  }
 
   return {
     payload: buildPayloadFromRows({
@@ -503,27 +959,13 @@ async function loadLivePayload() {
       memberships,
       employees,
       profiles,
-      timeOff: [],
+      equipment,
+      events: (eventsResponse.data ?? []) as SchedulingEventRow[],
     }),
     companyId,
     userId: workspace.context.userId,
     supabase,
   };
-}
-
-function combineDateAndTime(date: string, time: string) {
-  return `${date}T${time}:00Z`;
-}
-
-function durationHours(startIso: string, endIso: string) {
-  const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
-  const hours = (end - start) / (1000 * 60 * 60);
-  if (!Number.isFinite(hours) || hours < 0) {
-    return 0;
-  }
-
-  return Number(hours.toFixed(2));
 }
 
 function assignmentUpdateFromChanges(
@@ -538,26 +980,104 @@ function assignmentUpdateFromChanges(
     ? combineDateAndTime(changes.date ?? toIsoDate(base.ends_at), changes.endTime ?? toTime(base.ends_at))
     : base.ends_at;
 
-  const requestedCrewId = changes.assignedCrewIds
-    ? (changes.assignedCrewIds[0] ?? null)
-    : base.crew_id;
-
-  const requestedEmployeeId = changes.assignedEmployeeIds
-    ? (changes.assignedEmployeeIds[0] ?? null)
-    : base.employee_id;
+  const requestedCrewId = changes.assignedCrewIds ? (changes.assignedCrewIds[0] ?? null) : base.crew_id;
+  const requestedEmployeeId = changes.assignedEmployeeIds ? (changes.assignedEmployeeIds[0] ?? null) : base.employee_id;
 
   const useEmployee = Boolean(requestedEmployeeId);
-  const nextEmployeeId = useEmployee ? requestedEmployeeId : null;
-  const nextCrewId = useEmployee ? null : requestedCrewId;
-  const nextAssignmentType: WorkforceAssignmentRow["assignment_type"] = useEmployee ? "employee" : "crew";
 
   return {
     starts_at: nextStartsAt,
     ends_at: nextEndsAt,
-    crew_id: nextCrewId,
-    employee_id: nextEmployeeId,
-    assignment_type: nextAssignmentType,
+    crew_id: useEmployee ? null : requestedCrewId,
+    employee_id: useEmployee ? requestedEmployeeId : null,
+    assignment_type: useEmployee ? "employee" : "crew",
+    planned_hours: durationHours(nextStartsAt, nextEndsAt),
   };
+}
+
+function parseDispatchId(dispatchId: string): { resourceType: "crew" | "employee" | "equipment"; resourceId: string } | null {
+  const [resourceType, resourceId] = dispatchId.split(":");
+  if (!resourceId) {
+    return null;
+  }
+
+  if (resourceType === "crew" || resourceType === "employee" || resourceType === "equipment") {
+    return { resourceType, resourceId };
+  }
+
+  return null;
+}
+
+async function validateNoOverlap(params: {
+  supabase: SchedulingSupabaseClient;
+  companyId: string;
+  startsAt: string;
+  endsAt: string;
+  employeeId: string | null;
+  crewId: string | null;
+  excludeAssignmentId?: string;
+}) {
+  if (!params.employeeId && !params.crewId) {
+    return;
+  }
+
+  let query = params.supabase
+    .from("workforce_assignments")
+    .select("id, starts_at, ends_at, status")
+    .eq("company_id", params.companyId)
+    .in("status", ["planned", "confirmed", "in_progress"]);
+
+  if (params.employeeId) {
+    query = query.eq("employee_id", params.employeeId);
+  }
+
+  if (params.crewId) {
+    query = query.eq("crew_id", params.crewId);
+  }
+
+  if (params.excludeAssignmentId) {
+    query = query.neq("id", params.excludeAssignmentId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw error;
+  }
+
+  const conflicting = (data ?? []).find((row) => overlaps(params.startsAt, params.endsAt, row.starts_at, row.ends_at));
+  if (conflicting) {
+    throw new Error("Assignment conflicts with an existing schedule for this resource.");
+  }
+}
+
+async function updateAssignmentStatusFromDispatch(params: {
+  supabase: SchedulingSupabaseClient;
+  companyId: string;
+  userId: string;
+  assignmentId: string | null;
+  dispatchStatus: DispatchStatus;
+}) {
+  if (!params.assignmentId) {
+    return;
+  }
+
+  const nextStatus = mapDispatchStatusToAssignmentStatus(params.dispatchStatus);
+  if (!nextStatus) {
+    return;
+  }
+
+  const { error } = await params.supabase
+    .from("workforce_assignments")
+    .update({
+      status: nextStatus,
+      updated_by: params.userId,
+    })
+    .eq("company_id", params.companyId)
+    .eq("id", params.assignmentId);
+
+  if (error) {
+    throw error;
+  }
 }
 
 export function createSupabaseSchedulingService(): SchedulingService {
@@ -577,6 +1097,15 @@ export function createSupabaseSchedulingService(): SchedulingService {
       const employeeId = useEmployee ? draft.assignedEmployeeIds[0] ?? null : null;
       const crewId = useEmployee ? null : draft.assignedCrewIds[0] ?? null;
       const assignmentType: WorkforceAssignmentRow["assignment_type"] = useEmployee ? "employee" : "crew";
+
+      await validateNoOverlap({
+        supabase,
+        companyId,
+        startsAt,
+        endsAt,
+        employeeId,
+        crewId,
+      });
 
       const { data: inserted, error } = await supabase
         .from("workforce_assignments")
@@ -638,24 +1167,204 @@ export function createSupabaseSchedulingService(): SchedulingService {
       return payload;
     },
 
-    async moveDispatchResource() {
-      throw new Error(UNSUPPORTED_DISPATCH_ERROR);
+    async moveDispatchResource(dispatchId, status, delayReason) {
+      const { companyId, userId, supabase } = await loadLivePayload();
+
+      const parsed = parseDispatchId(dispatchId);
+      if (!parsed) {
+        throw new Error("Invalid dispatch resource id.");
+      }
+
+      const current = (await loadLivePayload()).payload.dispatch.find((item) => item.id === dispatchId) ?? null;
+
+      const { error } = await supabase
+        .from("workforce_events")
+        .insert({
+          company_id: companyId,
+          event_type: "workforce.dispatch.status.updated",
+          entity_type: parsed.resourceType,
+          entity_id: parsed.resourceId,
+          action: "update",
+          actor_profile_id: userId,
+          payload: {
+            dispatch_id: dispatchId,
+            resource_type: parsed.resourceType,
+            resource_id: parsed.resourceId,
+            dispatch_status: status,
+            delay_reason: delayReason,
+            current_assignment_id: current?.currentAssignmentId ?? null,
+          },
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      await updateAssignmentStatusFromDispatch({
+        supabase,
+        companyId,
+        userId,
+        assignmentId: current?.currentAssignmentId ?? null,
+        dispatchStatus: status,
+      });
+
+      const { payload } = await loadLivePayload();
+      return payload;
     },
 
-    async assignOpenShift() {
-      throw new Error(UNSUPPORTED_OPEN_SHIFT_ERROR);
+    async assignOpenShift(openShiftId, employeeId, crewId) {
+      const { companyId, userId, supabase } = await loadLivePayload();
+      const assignmentId = openShiftId.startsWith("open-") ? openShiftId.slice(5) : openShiftId;
+
+      const { data: current, error: fetchError } = await supabase
+        .from("workforce_assignments")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("id", assignmentId)
+        .maybeSingle<WorkforceAssignmentRow>();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (!current) {
+        throw new Error("Open shift assignment not found.");
+      }
+
+      const nextEmployeeId = employeeId ?? null;
+      const nextCrewId = employeeId ? null : (crewId ?? current.crew_id);
+      const startsAt = current.starts_at;
+      const endsAt = current.ends_at;
+
+      await validateNoOverlap({
+        supabase,
+        companyId,
+        startsAt,
+        endsAt,
+        employeeId: nextEmployeeId,
+        crewId: nextCrewId,
+        excludeAssignmentId: assignmentId,
+      });
+
+      const { error } = await supabase
+        .from("workforce_assignments")
+        .update({
+          assignment_type: nextEmployeeId ? "employee" : "crew",
+          employee_id: nextEmployeeId,
+          crew_id: nextEmployeeId ? null : nextCrewId,
+          status: "confirmed",
+          updated_by: userId,
+        })
+        .eq("company_id", companyId)
+        .eq("id", assignmentId);
+
+      if (error) {
+        throw error;
+      }
+
+      const { error: eventError } = await supabase
+        .from("workforce_events")
+        .insert({
+          company_id: companyId,
+          event_type: "workforce.scheduling.open_shift.updated",
+          entity_type: "assignment",
+          entity_id: assignmentId,
+          action: "update",
+          actor_profile_id: userId,
+          payload: {
+            open_shift_id: openShiftId,
+            assignment_id: assignmentId,
+            assigned_employee_id: nextEmployeeId,
+            assigned_crew_id: nextCrewId,
+            dismissed: false,
+          },
+        });
+
+      if (eventError) {
+        throw eventError;
+      }
+
+      const { payload } = await loadLivePayload();
+      return payload;
     },
 
-    async resolveConflict() {
-      throw new Error(UNSUPPORTED_CONFLICT_RESOLUTION_ERROR);
+    async resolveConflict(conflictId, status) {
+      const { companyId, userId, supabase } = await loadLivePayload();
+      const assignmentEntityId = conflictId.split("-").reverse().find((token) => token.length > 20) ?? companyId;
+
+      const { error } = await supabase
+        .from("workforce_events")
+        .insert({
+          company_id: companyId,
+          event_type: "workforce.scheduling.conflict.resolution.updated",
+          entity_type: "assignment",
+          entity_id: assignmentEntityId,
+          action: "update",
+          actor_profile_id: userId,
+          payload: {
+            conflict_id: conflictId,
+            resolution_status: status,
+          },
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { payload } = await loadLivePayload();
+      return payload;
     },
 
-    async acceptInsight() {
-      throw new Error(UNSUPPORTED_INSIGHT_ERROR);
+    async acceptInsight(insightId) {
+      const { companyId, userId, supabase } = await loadLivePayload();
+
+      const { error } = await supabase
+        .from("workforce_events")
+        .insert({
+          company_id: companyId,
+          event_type: "workforce.scheduling.insight.status.updated",
+          entity_type: "company",
+          entity_id: companyId,
+          action: "update",
+          actor_profile_id: userId,
+          payload: {
+            insight_id: insightId,
+            insight_status: "accepted",
+          },
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { payload } = await loadLivePayload();
+      return payload;
     },
 
-    async dismissInsight() {
-      throw new Error(UNSUPPORTED_INSIGHT_ERROR);
+    async dismissInsight(insightId) {
+      const { companyId, userId, supabase } = await loadLivePayload();
+
+      const { error } = await supabase
+        .from("workforce_events")
+        .insert({
+          company_id: companyId,
+          event_type: "workforce.scheduling.insight.status.updated",
+          entity_type: "company",
+          entity_id: companyId,
+          action: "update",
+          actor_profile_id: userId,
+          payload: {
+            insight_id: insightId,
+            insight_status: "dismissed",
+          },
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { payload } = await loadLivePayload();
+      return payload;
     },
 
     async moveAssignment(assignmentId, changes) {
@@ -678,6 +1387,16 @@ export function createSupabaseSchedulingService(): SchedulingService {
       }
 
       const patch = assignmentUpdateFromChanges(current, changes);
+
+      await validateNoOverlap({
+        supabase,
+        companyId,
+        startsAt: patch.starts_at ?? current.starts_at,
+        endsAt: patch.ends_at ?? current.ends_at,
+        employeeId: patch.employee_id ?? current.employee_id,
+        crewId: patch.crew_id ?? current.crew_id,
+        excludeAssignmentId: assignmentId,
+      });
 
       const { error } = await supabase
         .from("workforce_assignments")

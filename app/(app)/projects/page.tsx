@@ -374,7 +374,7 @@ export default function ProjectsPage() {
   }, [t]);
 
   return (
-    <div className="space-y-6">
+    <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
         compact
         eyebrow={t("projects.headerEyebrow")}
@@ -382,10 +382,7 @@ export default function ProjectsPage() {
         description={t("projects.pageDescription")}
         primaryAction={(
           <Link href="/projects/new">
-            <Button
-              size="md"
-              className="h-11 rounded-[var(--radius-lg)] px-5 shadow-[0_10px_24px_-14px_rgba(37,99,235,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-14px_rgba(37,99,235,0.85)]"
-            >
+            <Button size="md">
               <Plus size={16} aria-hidden="true" />
               {t("projects.newProject")}
             </Button>

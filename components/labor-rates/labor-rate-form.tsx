@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle, Input, Select } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, FormField, Input, Select, Textarea } from "@/components/ui";
 import {
   calculateLaborRateSummary,
   formatPercent,
@@ -51,12 +51,11 @@ export function LaborRateForm({ value, costCodeOptions, onChange, disabled = fal
             <Input value={value.name} onChange={(event) => onChange("name", event.target.value)} disabled={disabled} required />
           </Field>
           <Field label="Description" className="md:col-span-2">
-            <textarea
+            <Textarea
               rows={4}
               value={value.description}
               onChange={(event) => onChange("description", event.target.value)}
               disabled={disabled}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
             />
           </Field>
         </div>
@@ -207,12 +206,11 @@ export function LaborRateForm({ value, costCodeOptions, onChange, disabled = fal
         <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">7. Notes</h2>
         <div className="mt-5 grid gap-5">
           <Field label="Notes">
-            <textarea
+            <Textarea
               rows={5}
               value={value.notes}
               onChange={(event) => onChange("notes", event.target.value)}
               disabled={disabled}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
             />
           </Field>
         </div>
@@ -232,15 +230,7 @@ function Field({
   className?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <div className={className}>
-      <label className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">
-        {label}
-        {required ? <span className="ml-1 text-[var(--color-danger-700)]">*</span> : null}
-      </label>
-      {children}
-    </div>
-  );
+  return <FormField label={label} required={required} className={className}>{children}</FormField>;
 }
 
 function MoneyInput({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled?: boolean }) {

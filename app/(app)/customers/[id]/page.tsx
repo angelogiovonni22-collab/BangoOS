@@ -39,9 +39,10 @@
     normalizeProjectStatus,
     type ProjectRow,
   } from "@/lib/projects";
-  import { getEstimateStatusBadgeClass } from "@/lib/estimates/statuses";
+  import { EstimateStatusBadge } from "@/components/estimates";
+  import { InvoiceStatusBadge } from "@/components/invoices";
+  import { ProjectStatusBadge } from "@/components/projects";
   import { createOrionTimelineService, formatTimelineOccurredAt, formatTimelineText, type OrionTimelineItem } from "@/lib/orion/timeline";
-  import { getProjectStatusBadgeClass } from "@/lib/projects/statuses";
   import { createClient } from "@/lib/supabase/client";
   import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
   import type { Database } from "@/types/database.types";
@@ -650,9 +651,7 @@
                   </EnterpriseTableCell>
                   <EnterpriseTableCell>{project.project_number || t("customers.notProvided")}</EnterpriseTableCell>
                   <EnterpriseTableCell>
-                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${getProjectStatusBadgeClass(project.status)}`}>
-                      {normalizeProjectStatus(project.status).label}
-                    </span>
+                    <ProjectStatusBadge statusKey={project.status} label={normalizeProjectStatus(project.status).label} />
                   </EnterpriseTableCell>
                   <EnterpriseTableCell>{formatProjectLocation(project) || t("customers.notProvided")}</EnterpriseTableCell>
                   <EnterpriseTableCell>{formatProjectDate(project.estimated_start_date, localeTag(locale), t("customers.notProvided"))}</EnterpriseTableCell>
@@ -789,7 +788,7 @@
                   <EnterpriseTableCell>{estimate.estimate_number || t("customers.notProvided")}</EnterpriseTableCell>
                   <EnterpriseTableCell>{estimate.title}</EnterpriseTableCell>
                   <EnterpriseTableCell>{estimate.project_id || t("customers.notProvided")}</EnterpriseTableCell>
-                  <EnterpriseTableCell><span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${getEstimateStatusBadgeClass(estimate.status)}`}>{toTitleCase(estimate.status.replace(/_/g, " "))}</span></EnterpriseTableCell>
+                  <EnterpriseTableCell><EstimateStatusBadge label={toTitleCase(estimate.status.replace(/_/g, " "))} status={estimate.status} /></EnterpriseTableCell>
                   <EnterpriseTableCell>{formatProjectDate(estimate.issue_date, localeTag(locale), t("customers.notProvided"))}</EnterpriseTableCell>
                   <EnterpriseTableCell>{formatProjectCurrency(estimate.total_amount, localeTag(locale), t("customers.notProvided"))}</EnterpriseTableCell>
                   <EnterpriseTableCell align="right"><Link href={`/estimates/${estimate.id}`} className="font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">View</Link></EnterpriseTableCell>
@@ -843,7 +842,7 @@
                     <EnterpriseTableCell>{invoice.invoice_number || t("customers.notProvided")}</EnterpriseTableCell>
                     <EnterpriseTableCell>{invoice.title}</EnterpriseTableCell>
                     <EnterpriseTableCell>{invoice.project_id || t("customers.notProvided")}</EnterpriseTableCell>
-                    <EnterpriseTableCell><InvoiceStatusPill status={invoice.status} /></EnterpriseTableCell>
+                    <EnterpriseTableCell><InvoiceStatusBadge status={invoice.status} /></EnterpriseTableCell>
                     <EnterpriseTableCell>{formatProjectDate(invoice.issue_date, localeTag(locale), t("customers.notProvided"))}</EnterpriseTableCell>
                     <EnterpriseTableCell>{formatProjectDate(invoice.due_date, localeTag(locale), t("customers.notProvided"))}</EnterpriseTableCell>
                     <EnterpriseTableCell>{formatProjectCurrency(invoice.total_amount, localeTag(locale), t("customers.notProvided"))}</EnterpriseTableCell>
@@ -1050,10 +1049,6 @@
     );
   }
 
-  function InvoiceStatusPill({ status }: { status: string; }) {
-    return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${getInvoiceStatusClass(status)}`}>{toTitleCase(status.replace(/_/g, " "))}</span>;
-  }
-
   function getCustomerName(row: CustomerRow) {
     const firstName = row.first_name?.trim() || "";
     const lastName = row.last_name?.trim() || "";
@@ -1142,22 +1137,6 @@
 
   function formatCustomerTypeLabel(label: string) {
     return label.replace(/\s+Customer$/i, "").replace(/\s+/g, " ").trim();
-  }
-
-  function getInvoiceStatusClass(status: string) {
-    const normalized = status.trim().toLowerCase();
-    const map: Record<string, string> = {
-      draft: "bg-slate-100 text-slate-700 ring-slate-500/20",
-      sent: "bg-blue-50 text-blue-700 ring-blue-600/20",
-      viewed: "bg-cyan-50 text-cyan-700 ring-cyan-600/20",
-      paid: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-      partial: "bg-amber-50 text-amber-700 ring-amber-600/20",
-      partially_paid: "bg-amber-50 text-amber-700 ring-amber-600/20",
-      overdue: "bg-rose-50 text-rose-700 ring-rose-600/20",
-      void: "bg-zinc-100 text-zinc-700 ring-zinc-500/20",
-    };
-
-    return map[normalized] || map.draft;
   }
 
   function statusToneForChangeOrder(status: string): "neutral" | "brand" | "info" | "success" | "warning" | "danger" | "error" | "analytics" {

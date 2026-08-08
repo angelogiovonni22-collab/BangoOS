@@ -1,4 +1,4 @@
-import { Input, Select } from "@/components/ui";
+import { FormField, Input, Select, Textarea } from "@/components/ui";
 import type { VendorFormInput } from "@/lib/vendors";
 
 type VendorFormProps = {
@@ -131,12 +131,11 @@ export function VendorForm({ value, onChange, disabled = false }: VendorFormProp
             <Input type="number" min="0" max="5" step="0.1" value={value.delivery_rating} onChange={(event) => onChange("delivery_rating", event.target.value)} disabled={disabled} />
           </Field>
           <Field label="Notes" className="md:col-span-2">
-            <textarea
+            <Textarea
               rows={5}
               value={value.notes}
               onChange={(event) => onChange("notes", event.target.value)}
               disabled={disabled}
-              className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
             />
           </Field>
         </div>
@@ -156,13 +155,5 @@ function Field({
   className?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <div className={className}>
-      <label className="mb-2 block text-sm font-semibold text-[var(--color-text-primary)]">
-        {label}
-        {required ? <span className="ml-1 text-[var(--color-danger-700)]">*</span> : null}
-      </label>
-      {children}
-    </div>
-  );
+  return <FormField label={label} required={required} className={className}>{children}</FormField>;
 }

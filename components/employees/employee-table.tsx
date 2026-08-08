@@ -56,6 +56,9 @@ export function EmployeeTable({ items, t }: EmployeeTableProps) {
                     <Link href={`/employees/${employee.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
                       {t("employees.actions.view")}
                     </Link>
+                    <Link href={`/employees/${employee.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
+                      Edit
+                    </Link>
                   </div>
                 </td>
               </tr>
@@ -92,6 +95,9 @@ export function EmployeeTable({ items, t }: EmployeeTableProps) {
             <div className="mt-4 flex gap-2">
               <Link href={`/employees/${employee.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-sm font-semibold text-[var(--color-brand-700)]">
                 {t("employees.actions.view")}
+              </Link>
+              <Link href={`/employees/${employee.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-sm font-semibold text-[var(--color-brand-700)]">
+                Edit
               </Link>
             </div>
           </article>

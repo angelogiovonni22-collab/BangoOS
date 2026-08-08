@@ -69,7 +69,10 @@ export function useScheduling({ service }: UseSchedulingParams = {}) {
   }, []);
 
   const createNewAssignment = useCallback(async (draft: AssignmentDraft) => {
-    setIsLoading(true);
+    const hadPayload = Boolean(payload);
+    if (!hadPayload) {
+      setIsLoading(true);
+    }
     setErrorMessage(null);
 
     try {
@@ -79,9 +82,11 @@ export function useScheduling({ service }: UseSchedulingParams = {}) {
     } catch {
       setErrorMessage("scheduling.errorSaveAssignment");
     } finally {
-      setIsLoading(false);
+      if (!hadPayload) {
+        setIsLoading(false);
+      }
     }
-  }, [schedulingService]);
+  }, [payload, schedulingService]);
 
   const moveDispatch = useCallback(async (dispatchId: string, status: DispatchStatus, delayReason: string | null = null) => {
     setIsLoading(true);

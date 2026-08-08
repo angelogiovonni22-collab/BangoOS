@@ -2,8 +2,21 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { ReportStatusChip } from "@/components/daily-reports";
+import {
+  Button,
+  EnterpriseTable,
+  EnterpriseTableBody,
+  EnterpriseTableCell,
+  EnterpriseTableHead,
+  EnterpriseTableHeading,
+  EnterpriseTableRow,
+  PageHeader,
+  TableContainer,
+} from "@/components/ui";
 import { createDailyReportsService, type DailyReportsService } from "@/lib/daily-reports";
 import { loadDailyReportsPageData, type DailyReportsPageData, type DailyReportsPageReport } from "@/lib/daily-reports/daily-reports-page-data";
+import { useI18n } from "@/lib/i18n/provider";
 
 type PageState = {
   loading: boolean;
@@ -18,6 +31,7 @@ const INITIAL_STATE: PageState = {
 };
 
 export default function DailyReportsPage() {
+  const { t } = useI18n();
   const [service] = useState<DailyReportsService>(() => createDailyReportsService());
   const requestIdRef = useRef(0);
   const [pageState, setPageState] = useState<PageState>(INITIAL_STATE);
@@ -53,32 +67,31 @@ export default function DailyReportsPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-6 shadow-[var(--shadow-card)]">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">Daily Reports</h1>
-            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">A stable, minimal view of company reports.</p>
-          </div>
-
-          <Link href="/daily-reports/new" className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-5 text-sm font-semibold text-white shadow-[var(--shadow-sm)]">
-            Create Report
+    <div className="container-content space-y-[var(--space-section)]">
+      <PageHeader
+        compact
+        eyebrow="Field Operations"
+        title="Daily Reports"
+        description="A stable, minimal view of company reports."
+        primaryAction={(
+          <Link href="/daily-reports/new">
+            <Button size="lg">Create Report</Button>
           </Link>
-        </div>
-      </section>
+        )}
+      />
 
       {pageState.loading ? (
         <StaticMessage>Loading daily reports...</StaticMessage>
       ) : pageState.error ? (
         <StaticMessage error>{pageState.error}</StaticMessage>
       ) : pageState.data ? (
-        <ReportsView reports={pageState.data.reports} summary={pageState.data.summary} />
+        <ReportsView reports={pageState.data.reports} summary={pageState.data.summary} t={t} />
       ) : null}
     </div>
   );
 }
 
-function ReportsView({ reports, summary }: { reports: DailyReportsPageReport[]; summary: DailyReportsPageData["summary"] }) {
+function ReportsView({ reports, summary, t }: { reports: DailyReportsPageReport[]; summary: DailyReportsPageData["summary"]; t: (key: string, params?: Record<string, string | number>) => string }) {
   return (
     <div className="space-y-6">
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -91,38 +104,36 @@ function ReportsView({ reports, summary }: { reports: DailyReportsPageReport[]; 
       {reports.length === 0 ? (
         <StaticMessage>No daily reports found.</StaticMessage>
       ) : (
-        <section className="overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-card)]">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-[var(--color-border-subtle)]">
-              <thead className="bg-[var(--color-surface-subtle)]">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Date</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Project</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Employee or author</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Status</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">View</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border-subtle)] bg-white">
-                {reports.map((report) => (
-                  <tr key={report.id}>
-                    <td className="px-5 py-3 text-sm text-[var(--color-text-primary)]">{report.date}</td>
-                    <td className="px-5 py-3 text-sm text-[var(--color-text-primary)]">{report.projectName}</td>
-                    <td className="px-5 py-3 text-sm text-[var(--color-text-primary)]">{report.authorName}</td>
-                    <td className="px-5 py-3 text-sm text-[var(--color-text-primary)]">
-                      <StatusPill status={report.status} />
-                    </td>
-                    <td className="px-5 py-3 text-sm">
-                      <Link href={`/daily-reports/${report.id}`} className="font-semibold text-[var(--color-brand-700)] hover:underline">
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <TableContainer title="Reports" description="Daily report directory with status visibility and direct access.">
+          <EnterpriseTable ariaLabel="Daily reports directory" minWidthClassName="min-w-[920px]">
+            <EnterpriseTableHead>
+              <tr>
+                <EnterpriseTableHeading>Date</EnterpriseTableHeading>
+                <EnterpriseTableHeading>Project</EnterpriseTableHeading>
+                <EnterpriseTableHeading>Employee or author</EnterpriseTableHeading>
+                <EnterpriseTableHeading>Status</EnterpriseTableHeading>
+                <EnterpriseTableHeading>View</EnterpriseTableHeading>
+              </tr>
+            </EnterpriseTableHead>
+            <EnterpriseTableBody>
+              {reports.map((report) => (
+                <EnterpriseTableRow key={report.id}>
+                  <EnterpriseTableCell>{report.date}</EnterpriseTableCell>
+                  <EnterpriseTableCell>{report.projectName}</EnterpriseTableCell>
+                  <EnterpriseTableCell>{report.authorName}</EnterpriseTableCell>
+                  <EnterpriseTableCell>
+                    <ReportStatusChip status={report.status} t={t} />
+                  </EnterpriseTableCell>
+                  <EnterpriseTableCell>
+                    <Link href={`/daily-reports/${report.id}`} className="font-semibold text-[var(--color-brand-700)] hover:underline">
+                      View
+                    </Link>
+                  </EnterpriseTableCell>
+                </EnterpriseTableRow>
+              ))}
+            </EnterpriseTableBody>
+          </EnterpriseTable>
+        </TableContainer>
       )}
     </div>
   );
@@ -150,15 +161,3 @@ function StaticMessage({ children, error = false }: { children: string; error?: 
   );
 }
 
-function StatusPill({ status }: { status: DailyReportsPageReport["status"] }) {
-  const tone =
-    status === "approved"
-      ? "bg-[var(--color-success-50)] text-[var(--color-success-700)]"
-      : status === "reviewed"
-        ? "bg-[var(--color-brand-50)] text-[var(--color-brand-700)]"
-        : status === "submitted"
-          ? "bg-[var(--color-warning-50)] text-[var(--color-warning-700)]"
-          : "bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]";
-
-  return <span className={["inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize", tone].join(" ")}>{status}</span>;
-}

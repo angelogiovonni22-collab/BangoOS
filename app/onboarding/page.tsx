@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Input } from "@/components/ui";
+import { Button, FormLabel, Input } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import type { Database } from "@/types/database.types";
 
@@ -509,15 +509,10 @@ function Field({
   const id = label.toLowerCase().replaceAll(" ", "-").replaceAll("(", "").replaceAll(")", "");
 
   return (
-    <div>
-      <label
-        htmlFor={id}
-        className="block text-sm font-semibold text-[var(--color-text-primary)]"
-      >
-        {label}
-
-        {required && <span className="ml-1 text-[var(--color-danger-700)]">*</span>}
-      </label>
+      <div className="space-y-2">
+        <FormLabel htmlFor={id} required={required}>
+          {label}
+        </FormLabel>
 
       <Input
         id={id}
@@ -532,7 +527,7 @@ function Field({
       />
 
       {helperText && (
-        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{helperText}</p>
+        <p className="text-sm text-[var(--color-text-secondary)]">{helperText}</p>
       )}
     </div>
   );

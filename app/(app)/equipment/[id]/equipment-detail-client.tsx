@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PartialDataNotice, SectionLoadingState, StatusBadge, SummaryCard } from "@/components/ui";
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, PartialDataNotice, SectionLoadingState, StatusBadge, SummaryCard } from "@/components/ui";
 import { equipmentRowToListItem, formatPercent, formatUsdCurrency, type EquipmentListItem } from "@/lib/equipment";
 import { calculateEquipmentSummary } from "@/lib/equipment/validation";
 import { createClient } from "@/lib/supabase/client";
@@ -265,27 +265,30 @@ export function EquipmentDetailClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
-        <Link href="/equipment" className="text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">Equipment</Link>
-        <span>/</span>
-        <span>{equipment.equipmentNumber}</span>
+      <PageHeader
+        eyebrow="COMPANY WORKSPACE"
+        title={`${equipment.equipmentNumber} · ${equipment.name}`}
+        description="Monitor assignments, maintenance context, and operating performance from a single equipment workspace."
+        secondaryActions={(
+          <Link
+            href="/equipment"
+            className="inline-flex h-10 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 text-sm font-semibold text-[var(--color-text-secondary)]"
+          >
+            Back to Equipment
+          </Link>
+        )}
+        primaryAction={(
+          <Link href={`/equipment/${equipment.id}/edit`} className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]">
+            Edit Equipment
+          </Link>
+        )}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge status={equipment.status} />
+        <Badge tone="neutral">{equipment.ownershipType.replace(/_/g, " ")}</Badge>
+        <Badge tone="info">{equipment.equipmentType?.replace(/_/g, " ") || "Unclassified"}</Badge>
       </div>
-
-      <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-medium)]">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{equipment.equipmentNumber}</h1>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{equipment.name}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <StatusBadge status={equipment.status} />
-              <Badge tone="neutral">{equipment.ownershipType.replace(/_/g, " ")}</Badge>
-              <Badge tone="info">{equipment.equipmentType?.replace(/_/g, " ") || "Unclassified"}</Badge>
-            </div>
-          </div>
-
-          <Link href={`/equipment/${equipment.id}/edit`} className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]">Edit Equipment</Link>
-        </div>
-      </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <SummaryCard icon={<span>T</span>} label="Total Cost / Hour" value={formatUsdCurrency(calculations.effectiveInternalHourlyCost)} context="Live" tone="brand" />

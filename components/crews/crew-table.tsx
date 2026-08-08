@@ -52,9 +52,14 @@ export function CrewTable({ items, t }: CrewTableProps) {
                 <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.nextAssignmentTitle || "None"}</td>
                 <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{formatDate(crew.updatedAt)}</td>
                 <td className="whitespace-nowrap px-6 py-5 text-right text-sm font-semibold">
-                  <Link href={`/crews/${crew.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
-                    {t("crews.actions.view")}
-                  </Link>
+                  <div className="inline-flex gap-2">
+                    <Link href={`/crews/${crew.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
+                      {t("crews.actions.view")}
+                    </Link>
+                    <Link href={`/crews/${crew.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
+                      Edit
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -90,6 +95,9 @@ export function CrewTable({ items, t }: CrewTableProps) {
             <div className="mt-4 flex gap-2">
               <Link href={`/crews/${crew.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-sm font-semibold text-[var(--color-brand-700)]">
                 {t("crews.actions.view")}
+              </Link>
+              <Link href={`/crews/${crew.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-sm font-semibold text-[var(--color-brand-700)]">
+                Edit
               </Link>
             </div>
           </article>

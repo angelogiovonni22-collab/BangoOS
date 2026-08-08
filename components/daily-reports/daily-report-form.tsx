@@ -1,13 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui";
-import { buildDeterministicDailySummary } from "@/lib/daily-reports";
 import type {
   DailyReportStatus,
   DailyReportUpsertInput,
 } from "@/lib/daily-reports";
 import { AttachmentsSection } from "./attachments-section";
-import { AiSummaryPanel } from "./ai-summary-panel";
 import { DailyReportHeader } from "./daily-report-header";
 import { DelaysSection } from "./delays-section";
 import { EquipmentSection } from "./equipment-section";
@@ -36,38 +34,8 @@ export function DailyReportForm({
   isSaving,
   onChange,
   onSave,
-  onRegenerateSummary,
   t,
 }: DailyReportFormProps) {
-  const previewSummary = buildDeterministicDailySummary({
-    id: "preview",
-    reportNumber: "preview",
-    header: value.header,
-    schedulingPreload: value.schedulingPreload,
-    labor: value.labor,
-    laborTotals: {
-      scheduledWorkers: value.labor.filter((item) => item.scheduled).length,
-      presentWorkers: value.labor.filter((item) => item.present).length,
-      absentWorkers: Math.max(value.labor.filter((item) => item.scheduled).length - value.labor.filter((item) => item.present).length, 0),
-      lateWorkers: value.labor.filter((item) => item.late).length,
-      overtimeWorkers: value.labor.filter((item) => item.overtimeHours > 0).length,
-      totalLaborHours: value.labor.reduce((acc, item) => acc + item.regularHours + item.overtimeHours, 0),
-    },
-    workCompleted: value.workCompleted,
-    materials: value.materials,
-    safety: value.safety,
-    delays: value.delays,
-    attachments: value.attachments,
-    timeline: value.timeline,
-    aiSummary: "",
-    aiSummaryVersion: value.aiSummaryVersion,
-    submittedAt: null,
-    reviewedAt: null,
-    approvedAt: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-
   return (
     <div className="space-y-5">
       {validationErrors.length > 0 ? (
@@ -93,7 +61,7 @@ export function DailyReportForm({
       <LaborSection value={value.labor} onChange={(labor) => onChange({ ...value, labor })} t={t} />
       <WorkCompletedSection value={value.workCompleted} onChange={(workCompleted) => onChange({ ...value, workCompleted })} t={t} />
       <MaterialsSection value={value.materials} onChange={(materials) => onChange({ ...value, materials })} t={t} />
-      <EquipmentSection t={t} />
+      <EquipmentSection value={value.equipment || []} onChange={(equipment) => onChange({ ...value, equipment })} t={t} />
       <SafetySection value={value.safety} onChange={(safety) => onChange({ ...value, safety })} t={t} />
       <DelaysSection value={value.delays} onChange={(delays) => onChange({ ...value, delays })} t={t} />
       <AttachmentsSection value={value.attachments} onChange={(attachments) => onChange({ ...value, attachments })} t={t} />
@@ -116,8 +84,6 @@ export function DailyReportForm({
           )}
         </div>
       </section>
-
-      <AiSummaryPanel summary={previewSummary} onRegenerate={onRegenerateSummary} t={t} />
 
       <section className="flex flex-wrap justify-end gap-2">
         <Button variant="outline" disabled={isSaving} onClick={() => void onSave("draft")}>

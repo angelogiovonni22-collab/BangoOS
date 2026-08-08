@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, SkeletonLoader, StatusBadge } from "@/components/ui";
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader, StatusBadge } from "@/components/ui";
 import { getStockBadgeLabel, getStockBadgeTone, type MaterialListItem, type MaterialRow } from "@/lib/materials";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -145,29 +145,30 @@ export function MaterialDetailClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
-        <Link href="/materials" className="text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">Materials</Link>
-        <span>/</span>
-        <span>{material.name}</span>
-      </div>
-
-      <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-medium)]">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{material.name}</h1>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{material.material_code}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <StatusBadge status={material.status} />
-              <Badge tone={getStockBadgeTone(stockBadgeInput)}>{getStockBadgeLabel(stockBadgeInput)}</Badge>
-              <Badge tone="info">Std Cost ${material.standard_cost.toFixed(2)}</Badge>
-            </div>
-          </div>
-
+      <PageHeader
+        eyebrow="COMPANY WORKSPACE"
+        title={`${material.name} · ${material.material_code}`}
+        description="Manage inventory posture, pricing references, and vendor context for this material."
+        secondaryActions={(
+          <Link
+            href="/materials"
+            className="inline-flex h-10 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 text-sm font-semibold text-[var(--color-text-secondary)]"
+          >
+            Back to Materials
+          </Link>
+        )}
+        primaryAction={(
           <Link href={`/materials/${material.id}/edit`} className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]">
             Edit Material
           </Link>
-        </div>
-      </section>
+        )}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge status={material.status} />
+        <Badge tone={getStockBadgeTone(stockBadgeInput)}>{getStockBadgeLabel(stockBadgeInput)}</Badge>
+        <Badge tone="info">Std Cost ${material.standard_cost.toFixed(2)}</Badge>
+      </div>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card>

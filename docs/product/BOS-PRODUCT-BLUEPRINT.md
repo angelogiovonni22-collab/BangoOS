@@ -142,7 +142,7 @@ Permanent rule:
 
 "Every screen must have a clearly defined primary user."
 
-# 5. Role-Based Mission Control
+# 5. Role-Based Operations Overview
 
 Future role-based home experiences are defined for:
 - Executive
@@ -377,7 +377,7 @@ Product security requirements:
 - backup and recovery
 - financial approval separation
 - suspicious-activity detection
-- future Security Command Center
+- future Security Operations Workspace
 - future Trust Center
 
 This blueprint does not claim certifications B.O.S. has not earned.

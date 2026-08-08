@@ -1,7 +1,7 @@
 {
   "pageTitleDispatch": "Dispatch Center",
   "pageTitleSchedule": "Schedule",
-  "header.badge": "Construction Air Traffic Control",
+  "header.badge": "Construction Dispatch Center",
   "dateRange.currentWeek": "Current Operational Week",
   "summary.dispatchOperational": "Assign crews, equipment, vehicles, and resources with conflict-aware scheduling intelligence.",
   "summary.scheduleOperational": "Manage the master company calendar across milestones, deadlines, deliveries, reservations, and key dates.",
@@ -179,14 +179,14 @@
   "severity.informational": "Informational",
 
   "health.title": "Schedule Health Score",
-  "health.mockNote": "Mock operational indicator calculated from deterministic conflict and staffing signals.",
+  "health.mockNote": "Operational indicator calculated from deterministic conflict and staffing signals.",
   "health.unresolvedConflicts": "Unresolved conflicts",
   "health.openShifts": "Open shifts",
   "health.overtimeRisks": "Overtime risks",
   "health.travelConflicts": "Travel conflicts",
 
   "ai.title": "AI Scheduling Assistant",
-  "ai.mockNotice": "Simulated intelligence only. Recommendations are deterministic mock outputs.",
+  "ai.mockNotice": "Deterministic scheduling assistant. Recommendations are generated from current scheduling signals and require dispatcher review.",
   "ai.confidence": "Confidence: {{value}}%",
   "ai.accept": "Accept",
   "ai.dismiss": "Dismiss",

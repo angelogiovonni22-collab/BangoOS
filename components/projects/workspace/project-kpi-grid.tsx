@@ -1,50 +1,55 @@
-import { CircleDollarSign, PiggyBank, TrendingUp, Wallet } from "lucide-react";
-import type { ReactNode } from "react";
+import { CalendarDays, CircleDollarSign, Gauge, ShieldCheck } from "lucide-react";
 import { CountUp } from "@/components/motion";
 
 type ProjectKpiGridProps = {
+  statusLabel: string;
+  statusKey: string;
   budgetLabel: string;
   spentLabel: string;
-  remainingLabel: string;
-  profitMarginLabel: string;
+  startDate: string;
+  targetDate: string;
+  progressPercent: number;
+  taskCount: number;
+  completedTaskCount: number;
 };
 
 export function ProjectKpiGrid({
+  statusLabel,
+  statusKey,
   budgetLabel,
   spentLabel,
-  remainingLabel,
-  profitMarginLabel,
+  startDate,
+  targetDate,
+  progressPercent,
+  taskCount,
+  completedTaskCount,
 }: ProjectKpiGridProps) {
+  const normalizedProgress = Math.max(0, Math.min(100, Math.round(progressPercent)));
+
   return (
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project financial KPI widgets">
+    <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project workspace KPI widgets">
       <KpiCard
-        label="Budget"
+        label="Project Status"
+        value={statusLabel}
+        context={toStatusContext(statusKey)}
+        icon={<ShieldCheck size={18} aria-hidden="true" />}
+        tone="status"
+      />
+      <KpiCard
+        label="Financial Summary"
         value={budgetLabel}
-        context="Approved financial baseline"
-        icon={<CircleDollarSign size={19} aria-hidden="true" />}
-        tone="budget"
+        context={`Paid ${spentLabel}`}
+        icon={<CircleDollarSign size={18} aria-hidden="true" />}
+        tone="financial"
       />
       <KpiCard
-        label="Spent"
-        value={spentLabel}
-        context="Recorded paid invoices"
-        icon={<Wallet size={19} aria-hidden="true" />}
-        tone="spent"
+        label="Project Dates"
+        value={startDate}
+        context={`Target ${targetDate}`}
+        icon={<CalendarDays size={18} aria-hidden="true" />}
+        tone="dates"
       />
-      <KpiCard
-        label="Remaining"
-        value={remainingLabel}
-        context="Budget minus spent"
-        icon={<PiggyBank size={19} aria-hidden="true" />}
-        tone="remaining"
-      />
-      <KpiCard
-        label="Profit Margin"
-        value={profitMarginLabel}
-        context="Derived from budget and spent"
-        icon={<TrendingUp size={19} aria-hidden="true" />}
-        tone="margin"
-      />
+      <ProgressCard progress={normalizedProgress} taskCount={taskCount} completedTaskCount={completedTaskCount} />
     </section>
   );
 }
@@ -59,138 +64,114 @@ function KpiCard({
   label: string;
   value: string;
   context: string;
-  icon: ReactNode;
-  tone: "budget" | "spent" | "remaining" | "margin";
+  icon: React.ReactNode;
+  tone: "status" | "financial" | "dates";
 }) {
   const classes = toneClasses(tone);
-  const parsed = parseDisplayNumber(value);
+  const statusDot = tone === "status"
+    ? "bg-[var(--color-success-500)]"
+    : tone === "financial"
+      ? "bg-[var(--color-info-500)]"
+      : "bg-[var(--color-warning-500)]";
 
   return (
-    <article className={`min-h-[194px] rounded-[16px] border p-5 shadow-[0_16px_28px_-18px_rgba(15,23,42,0.3)] ${classes.card}`}>
+    <article className={`group relative min-h-[178px] min-w-0 overflow-hidden rounded-[18px] border p-5 shadow-[0_18px_30px_-20px_rgba(6,16,40,0.36)] transition duration-200 hover:shadow-[0_22px_36px_-22px_rgba(6,16,40,0.44)] ${classes.card}`}>
+      <div className="absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,rgba(37,99,235,0.16),rgba(14,165,233,0.38),rgba(34,197,94,0.12))]" aria-hidden="true" />
+
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{label}</p>
-          <p className="mt-2 text-[2rem] font-bold leading-tight tracking-[-0.02em] text-[var(--color-navy-900)]">
-            {parsed ? (
-              <>
-                {parsed.prefix}
-                <CountUp
-                  value={parsed.numericValue}
-                  precision={parsed.precision}
-                  durationMs={280}
-                  formatter={(n) => n.toLocaleString(undefined, {
-                    minimumFractionDigits: parsed.precision,
-                    maximumFractionDigits: parsed.precision,
-                  })}
-                />
-                {parsed.suffix}
-              </>
-            ) : value}
-          </p>
-          <p className="mt-1.5 text-xs font-medium text-[var(--color-text-secondary)]">{context}</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#3d5678]">{label}</p>
+          <p className="mt-2 text-[1.58rem] font-extrabold leading-tight tracking-[-0.02em] text-[#071125]">{value}</p>
+          <p className="mt-1.5 text-[0.84rem] font-medium leading-5 text-[#365274]">{context}</p>
         </div>
-        <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${classes.icon}`}>{icon}</span>
+        <span className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition duration-200 group-hover:scale-[1.02] ${classes.icon}`}>{icon}</span>
       </div>
 
-      <div className="mt-4 rounded-[10px] border border-white/50 bg-white/45 px-2.5 py-2">
-        {tone === "margin" ? <BarsDecor className={classes.decor} /> : <LineDecor className={classes.decor} />}
+      <div className="mt-4 flex items-center justify-between rounded-[11px] border border-[#c9d8eb] bg-[#f8fbff] px-3 py-2">
+        <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#3a5678]">
+          <span className={`h-2.5 w-2.5 rounded-full ${statusDot}`} aria-hidden="true" />
+          Live signal
+        </span>
+        <span className="text-xs font-semibold text-[#324d72] group-hover:text-[#1f3b63]">Updated now</span>
       </div>
-      <p className="mt-2 text-[11px] font-medium text-[var(--color-text-muted)]">Decorative visual only</p>
     </article>
   );
 }
 
-function parseDisplayNumber(value: string): {
-  prefix: string;
-  suffix: string;
-  numericValue: number;
-  precision: number;
-} | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const match = trimmed.match(/^([^\d(\-]*)(\(?-?[\d,]+(?:\.\d+)?\)?)(.*)$/);
-  if (!match) {
-    return null;
-  }
-
-  const [, prefix, numberPart, suffix] = match;
-  const isAccountingNegative = numberPart.startsWith("(") && numberPart.endsWith(")");
-  const normalized = numberPart
-    .replace(/[(),\s]/g, "")
-    .replace(/,/g, "");
-  const numericValue = Number.parseFloat(normalized);
-
-  if (!Number.isFinite(numericValue)) {
-    return null;
-  }
-
-  const fraction = normalized.split(".")[1] ?? "";
-  return {
-    prefix,
-    suffix,
-    numericValue: isAccountingNegative ? -Math.abs(numericValue) : numericValue,
-    precision: fraction.length,
-  };
-}
-
-function LineDecor({ className }: { className: string }) {
+function ProgressCard({
+  progress,
+  taskCount,
+  completedTaskCount,
+}: {
+  progress: number;
+  taskCount: number;
+  completedTaskCount: number;
+}) {
   return (
-    <svg viewBox="0 0 220 34" className={`h-8 w-full ${className}`} aria-hidden="true">
-      <path
-        d="M2 28 C 24 22, 40 12, 60 18 C 82 24, 102 10, 124 12 C 146 14, 166 3, 188 8 C 198 10, 208 6, 218 4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
+    <article className="group relative min-h-[178px] min-w-0 overflow-hidden rounded-[18px] border border-[#bfd3eb] bg-[linear-gradient(180deg,#f7fbff,#f2f8ff)] p-5 shadow-[0_18px_30px_-20px_rgba(6,16,40,0.36)] transition duration-200 hover:shadow-[0_22px_36px_-22px_rgba(6,16,40,0.44)]">
+      <div className="absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,rgba(37,99,235,0.2),rgba(14,165,233,0.5),rgba(56,189,248,0.24))]" aria-hidden="true" />
+
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#3d5678]">Project Progress</p>
+          <p className="mt-2 text-[2.05rem] font-extrabold leading-tight tracking-[-0.02em] text-[#071125]">
+            <CountUp value={progress} durationMs={260} />%
+          </p>
+          <p className="mt-1.5 text-[0.84rem] font-medium text-[#365274]">{completedTaskCount} of {taskCount} tasks completed</p>
+        </div>
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#9fbce3] bg-[#d8e7fb] text-[#17447f] transition duration-200 group-hover:scale-[1.02]">
+          <Gauge size={18} aria-hidden="true" />
+        </span>
+      </div>
+
+      <div className="mt-4 h-2.5 overflow-hidden rounded-full border border-[#c8d8f1] bg-[#dce7f8]">
+        <div
+          className="h-full rounded-full bg-[linear-gradient(90deg,#2563eb,#0ea5e9)] shadow-[0_0_12px_rgba(37,99,235,0.35)] transition-[width] duration-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <div className="mt-3 flex items-center justify-between rounded-[11px] border border-[#c9d8eb] bg-[#f8fbff] px-3 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#3a5678]">Completion trend</span>
+        <span className="text-xs font-semibold text-[#274f82] group-hover:text-[#1f4475]">Stable</span>
+      </div>
+    </article>
   );
 }
 
-function BarsDecor({ className }: { className: string }) {
-  return (
-    <svg viewBox="0 0 220 34" className={`h-8 w-full ${className}`} aria-hidden="true">
-      <rect x="10" y="17" width="20" height="12" rx="2" fill="currentColor" opacity="0.45" />
-      <rect x="40" y="13" width="20" height="16" rx="2" fill="currentColor" opacity="0.56" />
-      <rect x="70" y="10" width="20" height="19" rx="2" fill="currentColor" opacity="0.64" />
-      <rect x="100" y="7" width="20" height="22" rx="2" fill="currentColor" opacity="0.74" />
-      <rect x="130" y="5" width="20" height="24" rx="2" fill="currentColor" opacity="0.84" />
-      <rect x="160" y="2" width="20" height="27" rx="2" fill="currentColor" />
-    </svg>
-  );
+function toStatusContext(statusKey: string) {
+  if (statusKey === "completed") {
+    return "Project closed successfully";
+  }
+
+  if (statusKey === "on_hold") {
+    return "Delivery temporarily paused";
+  }
+
+  if (statusKey === "in_progress") {
+    return "Execution currently active";
+  }
+
+  return "Status based on live project record";
 }
 
-function toneClasses(tone: "budget" | "spent" | "remaining" | "margin") {
-  if (tone === "spent") {
+function toneClasses(tone: "status" | "financial" | "dates") {
+  if (tone === "status") {
     return {
-      card: "border-[var(--color-warning-200)] bg-[linear-gradient(180deg,rgba(249,115,22,0.26),rgba(255,255,255,0.96))]",
-      icon: "bg-[var(--color-warning-100)] text-[var(--color-warning-700)]",
-      decor: "text-[var(--color-warning-600)]",
+      card: "border-[#bccfe8] bg-[linear-gradient(180deg,#f9fcff,#f2f7ff)]",
+      icon: "border-[#9ebce1] bg-[#d7e6fb] text-[#1c4a86]",
     };
   }
 
-  if (tone === "remaining") {
+  if (tone === "dates") {
     return {
-      card: "border-[var(--color-info-100)] bg-[linear-gradient(180deg,rgba(20,184,166,0.24),rgba(255,255,255,0.96))]",
-      icon: "bg-[var(--color-info-100)] text-[var(--color-info-700)]",
-      decor: "text-[var(--color-info-700)]",
-    };
-  }
-
-  if (tone === "margin") {
-    return {
-      card: "border-[var(--color-success-100)] bg-[linear-gradient(180deg,rgba(34,197,94,0.24),rgba(255,255,255,0.96))]",
-      icon: "bg-[var(--color-success-100)] text-[var(--color-success-700)]",
-      decor: "text-[var(--color-success-700)]",
+      card: "border-[#bfd8ea] bg-[linear-gradient(180deg,#f8fcff,#f2f8fd)]",
+      icon: "border-[#a8cfe6] bg-[#d4e9f8] text-[#0f5681]",
     };
   }
 
   return {
-    card: "border-[var(--color-primary-100)] bg-[linear-gradient(180deg,rgba(37,99,235,0.24),rgba(255,255,255,0.96))]",
-    icon: "bg-[var(--color-primary-100)] text-[var(--color-brand-700)]",
-    decor: "text-[var(--color-brand-700)]",
+    card: "border-[#bfdcc9] bg-[linear-gradient(180deg,#f7fff9,#f1fcf6)]",
+    icon: "border-[#a9dbc0] bg-[#d7f2e4] text-[#14603f]",
   };
 }

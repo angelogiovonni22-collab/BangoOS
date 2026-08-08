@@ -135,7 +135,7 @@
   "quickActionsDescription": "Start common tasks for your team in one click.",
   "aiInsights": "AI Insights",
   "aiInsightsDescription": "Recommendations based on current pipeline, billing, and field execution.",
-  "commandCenterTitle": "AI Command Center",
+  "commandCenterTitle": "AI Operations Brief",
   "commandCenterDescription": "Prioritized recommendations generated from live operations data.",
   "commandCenterEmpty": "No recommendations right now.",
   "previewData": "Dashboard preview data",

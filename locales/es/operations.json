@@ -1,7 +1,7 @@
 {
-  "header.badge": "Centro de Mando",
+  "header.badge": "Resumen Operativo",
   "header.title": "Resumen Diario Operativo",
-  "header.updatedHint": "Los datos se actualizan desde flujos operativos simulados y deterministas.",
+  "header.updatedHint": "Los datos se actualizan desde registros operativos en vivo y señales deterministas de respaldo cuando las integraciones son parciales.",
   "summary.default": "Hoy hay alta actividad en operaciones de campo con ventanas de riesgo manejables que requieren seguimiento puntual.",
 
   "filters.date": "Fecha Operativa",
@@ -131,7 +131,7 @@
   "workforce.overtimeRisk": "Riesgo de horas extra",
   "workforce.certificationRisk": "Riesgo de certificación",
   "workforce.attentionTitle": "Lista de empleados con atención",
-  "workforce.checkInNote": "El estado de registro es dato simulado determinista para este sprint.",
+  "workforce.checkInNote": "El estado de registro se obtiene de registros operativos actuales y puede usar estado de respaldo cuando las integraciones son parciales.",
 
   "workforceAttention.no_show_risk": "Riesgo de inasistencia",
   "workforceAttention.overtime_risk": "Riesgo de horas extra",
@@ -182,7 +182,7 @@
   "sitecamCategory.inspection": "Inspección",
   "sitecamCategory.punchlist": "Lista de pendientes",
 
-  "ai.mockNotice": "Estas recomendaciones de IA son simuladas y deterministas para validación del sprint, no inteligencia de producción en vivo.",
+  "ai.mockNotice": "Estas recomendaciones de IA son deterministas y se basan en señales operativas actuales; el equipo de operaciones debe revisarlas antes de ejecutarlas.",
   "ai.nextAction": "Acción recomendada:",
   "ai.related": "Relacionado:",
 
@@ -209,7 +209,7 @@
   "insight.action.certExpiring": "Programar renovaciones y verificar cobertura de turnos afectados.",
 
   "insight.confidence.high": "Confianza: alta por señales convergentes de agenda y actividad.",
-  "insight.confidence.mediumHigh": "Confianza: media-alta por patrones simulados consistentes.",
+  "insight.confidence.mediumHigh": "Confianza: media-alta por patrones operativos consistentes.",
   "insight.confidence.medium": "Confianza: media pendiente de reporte diario adicional.",
 
   "attentionScope.all": "Todo",

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, SkeletonLoader, StatusBadge, SummaryCard } from "@/components/ui";
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader, StatusBadge, SummaryCard } from "@/components/ui";
 import type { CostCodeRow } from "@/lib/cost-codes";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -170,29 +170,30 @@ export function CostCodeDetailClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
-        <Link href="/cost-codes" className="text-[var(--color-brand-700)] transition hover:text-[var(--color-brand-800)]">Cost Codes</Link>
-        <span>/</span>
-        <span>{costCode.code}</span>
-      </div>
-
-      <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-medium)]">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{costCode.code}</h1>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{costCode.name}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <StatusBadge status={costCode.status} />
-              {parentLabel ? <Badge tone="info">Child of {parentLabel}</Badge> : <Badge tone="brand">Top-level</Badge>}
-              {children.length > 0 ? <Badge tone="warning">{children.length} child codes</Badge> : null}
-            </div>
-          </div>
-
+      <PageHeader
+        eyebrow="COMPANY WORKSPACE"
+        title={`${costCode.code} · ${costCode.name}`}
+        description="Track classification, hierarchy, and budget posture for this cost code."
+        secondaryActions={(
+          <Link
+            href="/cost-codes"
+            className="inline-flex h-10 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 text-sm font-semibold text-[var(--color-text-secondary)]"
+          >
+            Back to Cost Codes
+          </Link>
+        )}
+        primaryAction={(
           <Link href={`/cost-codes/${costCode.id}/edit`} className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]">
             Edit Cost Code
           </Link>
-        </div>
-      </section>
+        )}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge status={costCode.status} />
+        {parentLabel ? <Badge tone="info">Child of {parentLabel}</Badge> : <Badge tone="brand">Top-level</Badge>}
+        {children.length > 0 ? <Badge tone="warning">{children.length} child codes</Badge> : null}
+      </div>
 
       <section className="grid gap-3 sm:grid-cols-3">
         <SummaryCard icon={<span>B</span>} label="Budget" value={`$${costCode.budget.toFixed(2)}`} context="Planned total" tone="brand" />
