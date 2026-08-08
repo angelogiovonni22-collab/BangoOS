@@ -96,7 +96,7 @@ export function BottomSheet({
             aria-labelledby={resolvedTitleId}
             aria-describedby={resolvedDescriptionId}
             className={[
-              "pointer-events-auto w-full max-h-[86vh] overflow-y-auto rounded-t-[18px] border border-b-0 border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-card)] p-4 shadow-[var(--shadow-large)]",
+              "pointer-events-auto w-full max-h-[86vh] overflow-y-auto rounded-t-[18px] border border-b-0 border-[var(--bos-border-light)] bg-white bg-[var(--bos-bg-workspace-card)] p-4 shadow-[var(--shadow-large)]",
               panelClassName || "",
             ].filter(Boolean).join(" ")}
           >
