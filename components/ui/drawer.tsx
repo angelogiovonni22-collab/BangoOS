@@ -98,7 +98,7 @@ export function Drawer({
             aria-labelledby={resolvedTitleId}
             aria-describedby={resolvedDescriptionId}
             className={[
-              "pointer-events-auto h-full w-full max-w-[min(32rem,100vw)] overflow-y-auto border-l border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-card)] p-5 shadow-[var(--shadow-large)]",
+              "pointer-events-auto h-full w-full max-w-[min(32rem,100vw)] overflow-y-auto border-l border-[var(--bos-border-light)] bg-white bg-[var(--bos-bg-workspace-card)] p-5 shadow-[var(--shadow-large)]",
               panelClassName || "",
             ].filter(Boolean).join(" ")}
           >
