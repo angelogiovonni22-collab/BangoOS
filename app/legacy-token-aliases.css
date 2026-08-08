@@ -1,0 +1,11 @@
+:root {
+  /* Compatibility aliases for phase-built modules that predate the BOS token names. */
+  --text-primary: var(--bos-text-primary);
+  --text-secondary: var(--bos-text-secondary);
+  --text-muted: var(--bos-text-muted);
+  --surface-default: var(--bos-bg-panel);
+  --surface-raised: var(--bos-bg-panel-elevated);
+  --border-subtle: var(--bos-border-subtle);
+  --border-default: var(--bos-border-default);
+  --border-strong: var(--bos-border-strong);
+}
