@@ -26,6 +26,9 @@ function read(relativePath: string): string {
 
 async function main(): Promise<void> {
   const dialogSource = read("components/ui/dialog.tsx");
+  const drawerSource = read("components/ui/drawer.tsx");
+  const bottomSheetSource = read("components/ui/bottom-sheet.tsx");
+  const sharedSurfaceSource = read("components/bangoflow/SharedSurface.tsx");
   const focusTrapSource = read("components/motion/focus-trap.ts");
   const operationsPage = read("app/(app)/operations/page.tsx");
   const schedulingDashboard = read("components/scheduling/scheduling-dashboard.tsx");
@@ -55,7 +58,14 @@ async function main(): Promise<void> {
     assert(focusTrapSource.includes("previousActiveRef.current.focus()"), "focus trap restores focus on cleanup");
   });
 
-  await test("3. scheduling modal and operations page remain on shared UI infrastructure", () => {
+  await test("3. light overlay and workspace surfaces inherit readable light-surface tokens", () => {
+    assert(dialogSource.includes("bg-white bg-[var(--bos-bg-workspace-card)]"), "dialog opts into global light-surface token cascade");
+    assert(drawerSource.includes("bg-white bg-[var(--bos-bg-workspace-card)]"), "drawer opts into global light-surface token cascade");
+    assert(bottomSheetSource.includes("bg-white bg-[var(--bos-bg-workspace-card)]"), "bottom sheet opts into global light-surface token cascade");
+    assert(sharedSurfaceSource.includes('"bg-white bf-shared-surface"'), "shared workspace surface opts into global light-surface token cascade");
+  });
+
+  await test("4. scheduling modal and operations page remain on shared UI infrastructure", () => {
     assert(operationsPage.includes("<PageLoadingState"), "operations page uses shared page loading state");
     assert(operationsPage.includes("<PermissionState"), "operations page uses shared permission state");
     assert(!operationsPage.includes("fixed inset-0 z-40"), "operations page no longer owns a hard-coded overlay shell");
@@ -65,7 +75,7 @@ async function main(): Promise<void> {
     assert(!schedulingDashboard.includes("fixed inset-0 z-50"), "scheduling dashboard no longer owns a hard-coded overlay shell");
   });
 
-  await test("4. representative confirm flows moved to ConfirmDialog", () => {
+  await test("5. representative confirm flows moved to ConfirmDialog", () => {
     assert(changeOrderDetail.includes("<ConfirmDialog"), "change-order approval uses ConfirmDialog");
     assert(!changeOrderDetail.includes('window.confirm("Approve this change order?")'), "change-order approval no longer uses window.confirm");
 
