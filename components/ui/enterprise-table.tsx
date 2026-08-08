@@ -25,7 +25,7 @@ type EnterpriseTableCellProps = {
 
 export function EnterpriseTable({ children, className, minWidthClassName = "min-w-full", ariaLabel }: EnterpriseTableProps) {
   return (
-    <div className="overflow-x-auto border-t border-[var(--color-border-subtle)]">
+    <div className="max-w-full overflow-x-auto border-t border-[var(--color-border-subtle)] overscroll-x-contain">
       <table
         aria-label={ariaLabel}
         className={["w-full divide-y divide-[var(--color-border-subtle)]", minWidthClassName, className || ""]
@@ -41,7 +41,7 @@ export function EnterpriseTable({ children, className, minWidthClassName = "min-
 export function EnterpriseTableHead({ children, className, ...props }: TableHTMLAttributes<HTMLTableSectionElement>) {
   return (
     <thead
-      className={["bg-[var(--color-selected)]/50", className || ""].filter(Boolean).join(" ")}
+      className={["bg-[var(--bos-bg-control)]", className || ""].filter(Boolean).join(" ")}
       {...props}
     >
       {children}
@@ -80,8 +80,8 @@ export function EnterpriseTableRow({ children, className, selected = false, ...p
   return (
     <tr
       className={[
-        "align-top transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-selected)]/45",
-        selected ? "bg-[var(--color-selected)]/75" : "",
+        "align-top transition-colors duration-[var(--duration-fast)] hover:bg-[rgba(82,130,210,0.16)]",
+        selected ? "bg-[rgba(56,116,227,0.28)]" : "",
         className || "",
       ]
         .filter(Boolean)
