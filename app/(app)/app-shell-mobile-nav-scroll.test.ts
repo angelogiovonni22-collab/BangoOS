@@ -29,10 +29,10 @@ async function main() {
     assert(!source.includes("<nav className=\"mt-7 space-y-3\">"), "legacy non-scroll nav container is removed");
     assert(source.includes("lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh]"), "desktop sidebar keeps a constrained full-height sticky scroll container");
     assert(!source.includes("lg:h-auto"), "desktop sidebar no longer switches to unconstrained auto height");
-    assert(source.includes("<LayerManager layer=\"popover\">"), "sidebar is rendered in popover layer for stable stacking with persistent Orion");
+    assert(source.includes("<LayerManager layer={mobileOpen ? \"dialog\" : \"popover\"}>"), "mobile sidebar moves above the backdrop while desktop keeps popover depth");
     assert(source.includes("<LayerManager layer=\"backdrop\">"), "mobile backdrop is rendered in dedicated backdrop layer");
-    assert(source.includes("z-[var(--z-popover)]"), "sidebar sets explicit popover z-index to avoid fixed layering anomalies");
-    assert(source.includes("z-[var(--z-backdrop)]"), "backdrop sets explicit backdrop z-index under the sidebar");
+    assert(source.includes("z-[var(--z-popover)]"), "sidebar keeps its explicit local z-index inside the selected layer");
+    assert(source.includes("z-[var(--z-backdrop)]"), "backdrop keeps its explicit backdrop z-index");
     assert(source.includes("flex min-h-screen min-w-0"), "outer shell row remains width-bounded when viewport narrows");
     assert(source.includes("flex min-h-screen min-h-0 min-w-0 flex-1 flex-col"), "content column keeps min-h-0 in flex chain");
     assert(source.includes("fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden"), "narrow-layout drawer keeps explicit min-h-0 with bounded viewport height");
@@ -58,11 +58,13 @@ async function main() {
     assert(sidebarMatches.length === 1, "sidebar remains singular and is not duplicated");
   });
 
-  await test("4. opening mobile nav locks page scroll", () => {
+  await test("4. opening mobile nav uses the shared reference-counted scroll lock", () => {
     const source = readFileSync(join(process.cwd(), "app", "(app)", "app-shell.tsx"), "utf8");
 
-    assert(source.includes("document.body.style.overflow = \"hidden\";"), "mobile nav open locks body scroll");
-    assert(source.includes("document.body.style.removeProperty(\"overflow\");"), "mobile nav close restores body scroll");
+    assert(source.includes("import { useBodyScrollLock } from \"@/components/ui/use-body-scroll-lock\";"), "app shell imports the shared body scroll lock");
+    assert(source.includes("useBodyScrollLock(mobileOpen);"), "mobile nav participates in the shared reference-counted scroll lock");
+    assert(!source.includes("document.body.style.overflow = \"hidden\";"), "mobile nav no longer mutates body overflow directly");
+    assert(!source.includes("document.body.style.removeProperty(\"overflow\");"), "mobile nav no longer clears another overlay's scroll lock");
   });
 
   console.log(`\nApp shell mobile nav scroll results: ${passed} passed, ${failed} failed`);
