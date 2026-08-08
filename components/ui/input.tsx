@@ -10,9 +10,9 @@ export function getControlClassName(options: ControlClassOptions = {}) {
   return [
     "w-full h-[var(--control-height-lg)] rounded-[var(--radius-control)] border bg-[var(--color-surface-subtle)]",
     "px-4 text-control text-[var(--color-text-primary)]",
-    "placeholder:font-medium placeholder:text-[var(--bos-text-muted)]",
+    "placeholder:font-medium placeholder:text-[var(--color-text-muted)]",
     "outline-none motion-hover-button",
-    "border-[var(--color-border-strong)] hover:border-[var(--bos-border-strong)] hover:bg-[var(--color-surface-muted)]",
+    "border-[var(--color-border-strong)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-muted)]",
     "focus-visible:border-[var(--color-focus)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]",
     "disabled:cursor-not-allowed disabled:border-[var(--color-disabled-border)] disabled:bg-[var(--color-disabled-bg)] disabled:text-[var(--color-disabled-text)] disabled:placeholder:text-[var(--color-text-muted)]",
     options.invalid ? "border-[var(--color-danger-500)] focus-visible:ring-[var(--focus-ring-danger)]" : "",
