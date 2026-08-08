@@ -8,5 +8,5 @@ type SharedSurfaceProps = {
 };
 
 export function SharedSurface({ children, className }: SharedSurfaceProps) {
-  return <div className={["bf-shared-surface", className || ""].filter(Boolean).join(" ")}>{children}</div>;
+  return <div className={["bg-white bf-shared-surface", className || ""].filter(Boolean).join(" ")}>{children}</div>;
 }

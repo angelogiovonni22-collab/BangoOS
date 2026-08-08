@@ -133,10 +133,12 @@ async function main(): Promise<void> {
     assert(classes.includes("bf-panel-bottom"), "slide panel keeps bottom-sheet direction class");
   });
 
-  await test("7. dashboard customizer regressed onto shared overlay primitives", () => {
+  await test("7. dashboard customizer uses a non-blocking popover interaction model", () => {
     assert(dashboardCustomizer.includes("PortalHost"), "dashboard customizer mounts through shared portal host");
-    assert(dashboardCustomizer.includes("OverlayBackdrop"), "dashboard customizer uses shared backdrop");
-    assert(dashboardCustomizer.includes("useBodyScrollLock"), "dashboard customizer uses shared body scroll lock");
+    assert(dashboardCustomizer.includes("LayerManager layer=\"spotlight\""), "dashboard customizer renders above standard overlays");
+    assert(!dashboardCustomizer.includes("<OverlayBackdrop") && !dashboardCustomizer.includes("import { OverlayBackdrop"), "dashboard customizer does not render a click-blocking viewport backdrop");
+    assert(!dashboardCustomizer.includes("useBodyScrollLock"), "dashboard customizer does not lock body scroll for a popover panel");
+    assert(dashboardCustomizer.includes("document.addEventListener(\"mousedown\", handlePointerDown)"), "dashboard customizer closes through click-outside handling");
     assert(dashboardCustomizer.includes("useFocusTrap"), "dashboard customizer retains focus trap behavior");
   });
 

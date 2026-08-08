@@ -1,0 +1,56 @@
+name: BangoOS Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - feature/bos-3d-command-center
+  push:
+    branches:
+      - chatgpt/bos-hardening
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run shell hardening regression
+        run: npx -y tsx 'app/(app)/app-shell-mobile-nav-scroll.test.ts'
+
+      - name: Run timeline render-loop regression
+        run: npx -y tsx 'app/(app)/timeline/timeline-render-loop.test.ts'
+
+      - name: Run core UI foundation regression
+        run: npx -y tsx components/ui/core-ui-foundation.test.ts
+
+      - name: Run core UI Phase 2 regression
+        run: npx -y tsx components/ui/core-ui-foundation-phase2.test.ts
+
+      - name: Run hardening contract regression
+        run: npx -y tsx components/ui/hardening-contract.test.ts
+
+      - name: Run repository checks
+        run: npm run check
+
+      - name: Audit production dependencies
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high

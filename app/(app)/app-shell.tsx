@@ -9,6 +9,7 @@ import { PersistentOrion } from "@/components/orion/persistent";
 import { GlobalOrionVoiceProvider } from "@/components/orion/voice";
 import { DepartmentNavigator, LayerManager, NavigationBreadcrumb } from "@/components/bangoflow";
 import { LanguageSelector, ProfileMenu, SearchBar } from "@/components/ui";
+import { useBodyScrollLock } from "@/components/ui/use-body-scroll-lock";
 import { useI18n } from "@/lib/i18n/provider";
 import { ORION_SIDEBAR_NAVIGATION_GROUPS } from "@/lib/orion/navigation";
 import { shouldIgnoreGlobalShortcut } from "@/lib/ui/keyboard";
@@ -39,18 +40,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
   const pathname = usePathname();
   const { t } = useI18n();
 
-  useEffect(() => {
-    if (!mobileOpen) {
-      document.body.style.removeProperty("overflow");
-      return;
-    }
-
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.removeProperty("overflow");
-    };
-  }, [mobileOpen]);
+  useBodyScrollLock(mobileOpen);
 
   useEffect(() => {
     if (!mobileOpen) {
@@ -96,7 +86,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
     <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
       <PersistentOrion />
       <div className="flex min-h-screen min-w-0">
-        <LayerManager layer="popover">
+        <LayerManager layer={mobileOpen ? "dialog" : "popover"}>
           <aside
             id="bangoos-sidebar"
             role={mobileOpen ? "dialog" : undefined}
