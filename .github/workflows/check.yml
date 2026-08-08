@@ -36,6 +36,9 @@ jobs:
       - name: Run shell hardening regression
         run: npx -y tsx 'app/(app)/app-shell-mobile-nav-scroll.test.ts'
 
+      - name: Run timeline render-loop regression
+        run: npx -y tsx 'app/(app)/timeline/timeline-render-loop.test.ts'
+
       - name: Run core UI foundation regression
         run: npx -y tsx components/ui/core-ui-foundation.test.ts
 
