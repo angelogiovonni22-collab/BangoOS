@@ -42,5 +42,12 @@ jobs:
       - name: Run core UI Phase 2 regression
         run: npx -y tsx components/ui/core-ui-foundation-phase2.test.ts
 
+      - name: Run hardening contract regression
+        run: npx -y tsx components/ui/hardening-contract.test.ts
+
       - name: Run repository checks
         run: npm run check
+
+      - name: Audit production dependencies
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
