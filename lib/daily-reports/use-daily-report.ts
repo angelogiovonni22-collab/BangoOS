@@ -23,6 +23,11 @@ export function useDailyReport({ reportId, initialDate, service }: UseDailyRepor
   }, [service]);
 
   useEffect(() => {
+    // React Strict Mode intentionally mounts, cleans up, and mounts effects
+    // again in development. Reset the guard on every effect mount so the
+    // second mount can accept the draft initialization request.
+    unmountedRef.current = false;
+
     return () => {
       unmountedRef.current = true;
     };
