@@ -87,6 +87,9 @@ jobs:
       - name: Run Orion estimate voice workflow regression
         run: npx -y tsx lib/orion/workflows/orion-estimate-voice-workflow.contract.test.ts
 
+      - name: Run Orion Realtime foundation regression
+        run: npx -y tsx lib/orion/realtime/orion-realtime-foundation.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
