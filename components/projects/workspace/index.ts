@@ -1,4 +1,5 @@
 export { ProjectActivity } from "./project-activity";
+export { ProjectActivityWorkspace } from "./project-activity-workspace";
 export { ProjectBudget } from "./project-budget";
 export { ProjectCommandCenterOverviewPlaceholder } from "./project-command-center-overview-placeholder";
 export { ProjectCommandCenterFoundation } from "./project-command-center-foundation";
