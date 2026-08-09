@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, type CSSProperties, type RefObject } from "react";
 import { useFocusTrap } from "@/components/motion";
-import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, type OrionUnifiedVoiceController } from "@/components/orion/voice";
+import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, type OrionRealtimeVoice, type OrionUnifiedVoiceController } from "@/components/orion/voice";
 import type { PersistentOrionFixture } from "./types";
 
 type PersistentOrionPanelProps = {
@@ -17,6 +17,11 @@ type PersistentOrionPanelProps = {
   panelRef: RefObject<HTMLDivElement | null>;
   panelStyle?: CSSProperties;
 };
+
+function voiceLabel(voice: OrionRealtimeVoice) {
+  const label = voice.charAt(0).toUpperCase() + voice.slice(1);
+  return voice === "marin" ? `${label} — Recommended` : label;
+}
 
 export function PersistentOrionPanel({
   panelId,
@@ -40,6 +45,8 @@ export function PersistentOrionPanel({
   if (!open) {
     return null;
   }
+
+  const realtimeSessionActive = voice.engine === "realtime" && voice.realtimeState !== "closed" && voice.realtimeState !== "idle";
 
   return (
     <section
@@ -86,7 +93,7 @@ export function PersistentOrionPanel({
 
       <section className="persistentOrionSection" aria-label="Orion voice controls">
         <p className="persistentOrionEyebrow">Voice</p>
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <OrionVoiceButton
             state={voice.micActive ? "listening" : "idle"}
             mode="tap_to_listen"
@@ -114,6 +121,25 @@ export function PersistentOrionPanel({
             {voice.settings.enabled ? "Disable Voice" : "Enable Voice"}
           </button>
         </div>
+
+        <label className="mt-3 block text-xs font-semibold uppercase tracking-wide" htmlFor="orion-realtime-voice-select">
+          Realtime voice
+        </label>
+        <select
+          id="orion-realtime-voice-select"
+          className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-3 py-2 text-sm"
+          value={voice.realtimeVoice}
+          disabled={realtimeSessionActive}
+          onChange={(event) => voice.setRealtimeVoice(event.target.value as OrionRealtimeVoice)}
+        >
+          {voice.availableRealtimeVoices.map((option) => (
+            <option key={option} value={option}>{voiceLabel(option)}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs opacity-70">
+          {realtimeSessionActive ? "End the current Realtime conversation to change voices." : "Your Realtime voice choice is saved on this device."}
+        </p>
+
         <div className="mt-2 text-xs font-medium uppercase tracking-wide opacity-70">
           Engine: {voice.engine === "realtime" ? "Realtime conversation" : "Browser fallback"}
         </div>
