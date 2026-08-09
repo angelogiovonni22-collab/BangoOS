@@ -238,12 +238,6 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
     if (client) {
       void client.disconnect();
     }
-    setRealtimeSpeaking(false);
-    setRealtimeState("closed");
-    setRealtimePhase("disabled");
-    setRealtimeStatus(ORION_VOICE_FREEZE_MESSAGE);
-    setFallbackNotice(ORION_VOICE_FREEZE_MESSAGE);
-    setEngine("browser");
   }, [browser, clearFallbackTimer, voiceAutomationEnabled]);
 
   useEffect(() => () => {
@@ -256,9 +250,10 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
   }, [clearFallbackTimer]);
 
   return useMemo(() => {
-    const realtimeActive = engine === "realtime";
+    const effectiveEngine: OrionVoiceEngine = voiceAutomationEnabled ? engine : "browser";
+    const realtimeActive = effectiveEngine === "realtime";
     return {
-      engine,
+      engine: effectiveEngine,
       realtimeState,
       phase: voiceAutomationEnabled ? (realtimeActive ? realtimePhase : browser.phase) : "disabled",
       statusMessage: voiceAutomationEnabled
