@@ -7,6 +7,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 const OPENAI_REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const DEFAULT_REALTIME_VOICE = "marin";
 const CONFIRM_TOOL_NAME = "bos_confirm_pending_action";
+const RESEARCH_TOOL_NAME = "orion_web_research";
 
 function openAIKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -29,6 +30,29 @@ function realtimeBosTools() {
 
   return [
     ...canonicalTools,
+    {
+      type: "function" as const,
+      name: RESEARCH_TOOL_NAME,
+      description: "Answer questions that need current external information or web research. Use this for current news, weather-like external facts, regulations, market information, businesses, products, or anything where up-to-date web information is needed. Do not use it for BOS company actions when a canonical BOS tool applies.",
+      parameters: {
+        type: "object",
+        properties: {
+          params: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "The complete research question to answer using Orion general intelligence and web search.",
+              },
+            },
+            required: ["query"],
+            additionalProperties: false,
+          },
+        },
+        required: ["params"],
+        additionalProperties: false,
+      },
+    },
     {
       type: "function" as const,
       name: CONFIRM_TOOL_NAME,
@@ -108,6 +132,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "Be concise, warm, natural, and conversational.",
         "Allow natural interruptions and do not force the user to repeat a wake phrase during an active conversation.",
         "Use BOS function tools for company navigation, reads, and operational actions whenever a canonical tool applies.",
+        `Use ${RESEARCH_TOOL_NAME} when the user asks for current external information, web research, or facts that should not be guessed from model memory.`,
+        "For ordinary timeless questions that you can answer confidently without current information, answer conversationally without calling a tool.",
         "A tool request is not proof that an action succeeded. Wait for the function output before claiming success.",
         "If a function output says confirmationRequired=true, ask the user for explicit confirmation and remember its confirmationToken. Do not claim the action ran.",
         `Only after the user clearly confirms that pending action, call ${CONFIRM_TOOL_NAME} with the exact confirmationToken.`,
