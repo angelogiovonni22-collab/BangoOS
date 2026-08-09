@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
 import "./legacy-token-aliases.css";
+import "./app-content-surface.css";
 import { I18nProvider } from "@/lib/i18n/provider";
 
 const inter = Inter({
