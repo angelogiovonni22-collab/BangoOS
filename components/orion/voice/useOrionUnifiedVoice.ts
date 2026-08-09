@@ -51,6 +51,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
   const clientRef = useRef<OrionRealtimeClient | null>(null);
   const fallbackStartedRef = useRef(false);
   const fallbackTimerRef = useRef<number | null>(null);
+  const browserWasEnabledRef = useRef(false);
   const voiceAutomationEnabled = isOrionVoiceAutomationEnabled();
   const [engine, setEngine] = useState<OrionVoiceEngine>("browser");
   const [realtimeState, setRealtimeState] = useState<OrionRealtimeConnectionState>("idle");
@@ -99,9 +100,12 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
   }, [beginBrowserCapture]);
 
   const fallbackToBrowser = useCallback((reason?: string) => {
+    if (fallbackStartedRef.current) return;
     fallbackStartedRef.current = true;
     clearFallbackTimer();
+    clientRef.current = null;
     setEngine("browser");
+    setRealtimeSpeaking(false);
     setRealtimePhase("fallback");
     const notice = reason || "Realtime voice is unavailable. Using browser voice fallback.";
     setRealtimeStatus(notice);
@@ -111,6 +115,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
 
   const stop = useCallback(async () => {
     clearFallbackTimer();
+    fallbackStartedRef.current = true;
     const client = clientRef.current;
     clientRef.current = null;
     if (client) {
@@ -122,6 +127,11 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
     setRealtimeStatus("Realtime conversation ended.");
     setFallbackNotice(null);
     setEngine("browser");
+
+    if (browserWasEnabledRef.current && !browserRef.current.settings.enabled) {
+      browserRef.current.enableGlobalVoice();
+    }
+    browserWasEnabledRef.current = false;
   }, [clearFallbackTimer]);
 
   const start = useCallback(async () => {
@@ -142,7 +152,11 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
     clearFallbackTimer();
     fallbackStartedRef.current = false;
     setFallbackNotice(null);
+    browserWasEnabledRef.current = browser.settings.enabled;
     browser.stopAllListening();
+    if (browser.settings.enabled) {
+      browser.disableGlobalVoice();
+    }
     setEngine("realtime");
     setRealtimePhase("starting");
     setRealtimeStatus("Starting Orion Realtime voice...");
@@ -180,11 +194,11 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
         if (event.type === "response.created") {
           setRealtimePhase("understanding");
           setRealtimeStatus("Orion is thinking...");
-        } else if (event.type === "response.output_audio.delta") {
+        } else if (event.type === "response.output_audio.delta" || event.type === "output_audio_buffer.started") {
           setRealtimeSpeaking(true);
           setRealtimePhase("speaking");
           setRealtimeStatus("Orion is speaking.");
-        } else if (event.type === "response.output_audio.done" || event.type === "response.done") {
+        } else if (event.type === "response.output_audio.done" || event.type === "output_audio_buffer.stopped" || event.type === "response.done") {
           setRealtimeSpeaking(false);
           setRealtimePhase("listening");
           setRealtimeStatus("Orion Realtime is listening.");
@@ -198,9 +212,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
         }
       },
       onError: (error) => {
-        if (!fallbackStartedRef.current) {
-          fallbackToBrowser(`${error.message} Using browser voice fallback.`);
-        }
+        fallbackToBrowser(`${error.message} Using browser voice fallback.`);
       },
     });
 
@@ -211,10 +223,8 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
       if (clientRef.current === client) {
         clientRef.current = null;
       }
-      if (!fallbackStartedRef.current) {
-        const message = error instanceof Error ? error.message : "Realtime voice is unavailable.";
-        fallbackToBrowser(`${message} Using browser voice fallback.`);
-      }
+      const message = error instanceof Error ? error.message : "Realtime voice is unavailable.";
+      fallbackToBrowser(`${message} Using browser voice fallback.`);
     }
   }, [browser, clearFallbackTimer, fallbackToBrowser, realtimeState, router, voiceAutomationEnabled]);
 
@@ -224,10 +234,37 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
   }, [start, stop]);
 
   const disableVoice = useCallback(async () => {
+    browserWasEnabledRef.current = false;
     await stop();
     browserRef.current.stopAllListening();
     browserRef.current.disableGlobalVoice();
   }, [stop]);
+
+  useEffect(() => {
+    if (engine !== "realtime" || realtimeState !== "closed" || !clientRef.current || fallbackStartedRef.current) return;
+    fallbackToBrowser("Realtime connection ended unexpectedly. Using browser voice fallback.");
+  }, [engine, fallbackToBrowser, realtimeState]);
+
+  useEffect(() => {
+    const handleOffline = () => {
+      if (engine === "realtime") {
+        setRealtimeStatus("Network connection lost. Orion will fall back if the Realtime session closes.");
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && engine === "realtime" && realtimeState === "connected") {
+        setRealtimeStatus("Orion Realtime is listening.");
+      }
+    };
+
+    window.addEventListener("offline", handleOffline);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [engine, realtimeState]);
 
   useEffect(() => {
     if (voiceAutomationEnabled) return;
@@ -252,6 +289,10 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
   return useMemo(() => {
     const effectiveEngine: OrionVoiceEngine = voiceAutomationEnabled ? engine : "browser";
     const realtimeActive = effectiveEngine === "realtime";
+    const effectiveSettings = realtimeActive
+      ? { ...browser.settings, enabled: true }
+      : browser.settings;
+
     return {
       engine: effectiveEngine,
       realtimeState,
@@ -266,7 +307,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
       finalTranscript: realtimeActive ? realtimeFinalTranscript : browser.finalTranscript,
       voiceLevel: voiceAutomationEnabled && !realtimeActive ? browser.voiceLevel : 0,
       mode: browser.mode,
-      settings: voiceAutomationEnabled ? browser.settings : { ...browser.settings, enabled: false },
+      settings: voiceAutomationEnabled ? effectiveSettings : { ...effectiveSettings, enabled: false },
       start,
       stop,
       retry,
