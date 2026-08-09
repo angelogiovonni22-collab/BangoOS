@@ -5,6 +5,8 @@ import {
   buildOrionRealtimeFunctionOutputEvent,
   executeOrionRealtimeTool,
   extractOrionRealtimeFunctionCall,
+  extractOrionRealtimeUserTranscript,
+  ORION_REALTIME_CONFIRM_TOOL,
 } from "./tool-bridge";
 import type {
   OrionRealtimeClientCallbacks,
@@ -12,6 +14,9 @@ import type {
   OrionRealtimeServerEvent,
   OrionRealtimeSessionOptions,
 } from "./types";
+
+const CONFIRMATION_TRANSCRIPT_MAX_AGE_MS = 8_000;
+const CONFIRMATION_TRANSCRIPT_WAIT_MS = 2_000;
 
 function setState(callbacks: OrionRealtimeClientCallbacks, state: OrionRealtimeConnectionState) {
   callbacks.onStateChange?.(state);
@@ -27,6 +32,10 @@ function parseServerEvent(raw: string): OrionRealtimeServerEvent | null {
   }
 }
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
 export class OrionRealtimeClient {
   private peerConnection: RTCPeerConnection | null = null;
   private dataChannel: RTCDataChannel | null = null;
@@ -34,20 +43,49 @@ export class OrionRealtimeClient {
   private remoteAudio: HTMLAudioElement | null = null;
   private callbacks: OrionRealtimeClientCallbacks;
   private activeToolCalls = new Set<string>();
+  private lastUserTranscript: { text: string; at: number } | null = null;
 
   constructor(callbacks: OrionRealtimeClientCallbacks = {}) {
     this.callbacks = callbacks;
   }
 
+  private recentUserTranscript() {
+    if (!this.lastUserTranscript) return null;
+    if (Date.now() - this.lastUserTranscript.at > CONFIRMATION_TRANSCRIPT_MAX_AGE_MS) return null;
+    return this.lastUserTranscript.text;
+  }
+
+  private async waitForRecentUserTranscript() {
+    const existing = this.recentUserTranscript();
+    if (existing) return existing;
+
+    const deadline = Date.now() + CONFIRMATION_TRANSCRIPT_WAIT_MS;
+    while (Date.now() < deadline) {
+      await sleep(100);
+      const transcript = this.recentUserTranscript();
+      if (transcript) return transcript;
+    }
+
+    return null;
+  }
+
   private async handleServerEvent(event: OrionRealtimeServerEvent) {
     this.callbacks.onEvent?.(event);
+
+    const userTranscript = extractOrionRealtimeUserTranscript(event);
+    if (userTranscript) {
+      this.lastUserTranscript = { text: userTranscript, at: Date.now() };
+    }
 
     const call = extractOrionRealtimeFunctionCall(event);
     if (!call || this.activeToolCalls.has(call.callId)) return;
 
     this.activeToolCalls.add(call.callId);
     try {
-      const result = await executeOrionRealtimeTool(call);
+      const confirmationTranscript = call.toolName === ORION_REALTIME_CONFIRM_TOOL
+        ? await this.waitForRecentUserTranscript()
+        : null;
+      const result = await executeOrionRealtimeTool(call, { confirmationTranscript });
       this.callbacks.onToolResult?.(result);
       this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId, result));
       this.sendEvent(buildOrionRealtimeContinueResponseEvent());
@@ -161,6 +199,7 @@ export class OrionRealtimeClient {
     }
 
     this.activeToolCalls.clear();
+    this.lastUserTranscript = null;
     this.dataChannel?.close();
     this.dataChannel = null;
 
