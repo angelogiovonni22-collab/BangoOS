@@ -22,6 +22,7 @@ function main(): void {
   const layout = read("app/layout.tsx");
   const aliases = read("app/legacy-token-aliases.css");
   const globals = read("app/globals.css");
+  const appContentSurface = read("app/app-content-surface.css");
   const pageHeader = read("components/ui/page-header.tsx");
   const sectionHeader = read("components/ui/section-header.tsx");
   const input = read("components/ui/input.tsx");
@@ -32,6 +33,7 @@ function main(): void {
   const workspaceShell = read("components/workspace/workspace-shell.tsx");
 
   assert(layout.includes('import "./legacy-token-aliases.css";'), "root layout loads legacy token aliases");
+  assert(layout.includes('import "./app-content-surface.css";'), "root layout loads the app content surface contract");
 
   for (const token of [
     "--text-primary",
@@ -50,6 +52,13 @@ function main(): void {
   assert(globals.includes("--color-text-primary: var(--bos-text-strong-on-light);"), "light surface primary text resolves to dark readable text");
   assert(globals.includes("--color-text-secondary: var(--bos-text-medium-on-light);"), "light surface secondary text resolves to readable supporting text");
 
+  assert(appContentSurface.includes(".enterprise-shell main {"), "authenticated main content establishes a light-surface semantic context");
+  assert(appContentSurface.includes("color: var(--bos-text-strong-on-light);"), "plain inherited main-content text is dark on the light shell");
+  assert(appContentSurface.includes("--color-text-primary: var(--bos-text-strong-on-light);"), "main-content semantic primary text is dark on light");
+  assert(appContentSurface.includes("--color-text-secondary: var(--bos-text-medium-on-light);"), "main-content semantic secondary text is readable on light");
+  assert(appContentSurface.includes("--color-surface-card: var(--bos-bg-workspace-card);"), "semantic cards default to a light surface inside the light application canvas");
+  assert(appContentSurface.includes(".enterprise-shell main .bf-material-blueprint"), "light BangoFlow materials reassert the light-surface contract");
+
   assert(pageHeader.includes("var(--bos-text-strong-on-light)"), "page header title uses explicit readable on-light text");
   assert(pageHeader.includes("var(--bos-text-medium-on-light)"), "page header eyebrow and supporting copy use explicit readable on-light text");
   assert(pageHeader.includes("border-[var(--bos-border-light)]"), "page header divider uses the light-surface border token");
@@ -62,6 +71,8 @@ function main(): void {
   assert(card.includes("text-[var(--color-text-primary)]"), "card title follows surface-aware primary text token");
   assert(card.includes("text-[var(--color-text-secondary)]"), "card description follows surface-aware secondary text token");
   assert(card.includes("border-[var(--color-border-subtle)]"), "card borders follow surface-aware border tokens");
+  assert(card.includes("[--color-text-primary:var(--bos-text-primary)]"), "dark Card surfaces reset semantic primary text to light-on-dark");
+  assert(card.includes("[--color-text-secondary:var(--bos-text-secondary)]"), "dark Card surfaces reset semantic secondary text to light-on-dark");
 
   assert(input.includes("placeholder:text-[var(--color-text-muted)]"), "input placeholder follows surface-aware muted text token");
   assert(input.includes("hover:border-[var(--color-border-strong)]"), "input hover border follows surface-aware border token");
