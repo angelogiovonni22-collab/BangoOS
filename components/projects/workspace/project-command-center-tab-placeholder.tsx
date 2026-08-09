@@ -38,8 +38,6 @@ export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandC
     let isSubscribed = true;
 
     if (!isActivityTab || !projectId) {
-      setActivityIdentity(null);
-      setActivityIdentityResolved(false);
       return () => {
         isSubscribed = false;
       };
