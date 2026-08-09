@@ -1,0 +1,51 @@
+/*
+ * Application content surface contract.
+ *
+ * The authenticated BangoOS shell paints the main content area as a light
+ * enterprise surface. Semantic --color-* aliases therefore need to resolve to
+ * dark-on-light values inside <main>. Dark primitives that intentionally own a
+ * dark BOS surface reset these aliases at their own component boundary.
+ */
+.enterprise-shell main {
+  color: var(--bos-text-strong-on-light);
+
+  --color-text-primary: var(--bos-text-strong-on-light);
+  --color-text-secondary: var(--bos-text-medium-on-light);
+  --color-text-muted: #4d7097;
+  --color-text-inverse: var(--bos-text-primary);
+
+  --color-border-subtle: var(--bos-border-light);
+  --color-border-strong: var(--bos-border-light-strong);
+
+  --color-surface-card: var(--bos-bg-workspace-card);
+  --color-surface-subtle: #eef4fb;
+  --color-surface-muted: #e4edf8;
+  --color-surface-elevated: #ffffff;
+  --color-background-workspace: var(--bos-bg-workspace-surface);
+
+  --color-disabled-bg: #edf2f7;
+  --color-disabled-text: #64748b;
+  --color-disabled-border: var(--bos-border-light);
+}
+
+/* Explicit light material surfaces can appear below dark intermediate nodes.
+ * Reassert the light semantic contract at the material boundary so nested
+ * headings, labels, metadata and controls stay readable.
+ */
+.enterprise-shell main .bg-white,
+.enterprise-shell main .bf-shared-surface,
+.enterprise-shell main .bf-material-mission,
+.enterprise-shell main .bf-material-blueprint,
+.enterprise-shell main .bf-material-glass {
+  color: var(--bos-text-strong-on-light);
+
+  --color-text-primary: var(--bos-text-strong-on-light);
+  --color-text-secondary: var(--bos-text-medium-on-light);
+  --color-text-muted: #4d7097;
+  --color-border-subtle: var(--bos-border-light);
+  --color-border-strong: var(--bos-border-light-strong);
+  --color-surface-card: var(--bos-bg-workspace-card);
+  --color-surface-subtle: #eef4fb;
+  --color-surface-muted: #e4edf8;
+  --color-surface-elevated: #ffffff;
+}
