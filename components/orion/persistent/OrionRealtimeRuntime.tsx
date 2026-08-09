@@ -4,7 +4,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useRouter } from "next/navigation";
 import { useGlobalOrionVoice } from "@/components/orion/voice";
 import { OrionRealtimeClient, type OrionRealtimeConnectionState, type OrionRealtimeServerEvent, type OrionRealtimeToolExecutionResult } from "@/lib/orion/realtime";
-import { PersistentOrion as PersistentOrionSurface } from "./PersistentOrion";
 import type { PersistentOrionVisualState } from "./types";
 
 type OrionRealtimeRuntimeValue = {
@@ -69,7 +68,7 @@ export function OrionRealtimeRuntimeProvider({ children }: { children: ReactNode
   const [toolRunning, setToolRunning] = useState(false);
 
   const restoreBrowserFallback = useCallback(() => {
-    if (!browserVoiceWasEnabledRef.current || fallbackAttemptedRef.current) return;
+    if (fallbackAttemptedRef.current) return;
     fallbackAttemptedRef.current = true;
     browserVoice.enableGlobalVoice();
     setStatusMessage("Realtime voice is unavailable. Browser voice fallback is active.");
@@ -105,9 +104,7 @@ export function OrionRealtimeRuntimeProvider({ children }: { children: ReactNode
     setToolRunning(false);
     setStatusMessage("Natural Realtime voice stopped.");
 
-    if (browserVoiceWasEnabledRef.current) {
-      browserVoice.enableGlobalVoice();
-    }
+    if (browserVoiceWasEnabledRef.current) browserVoice.enableGlobalVoice();
     browserVoiceWasEnabledRef.current = false;
     fallbackAttemptedRef.current = false;
   }, [browserVoice]);
@@ -184,12 +181,4 @@ export function useOrionRealtimeRuntime() {
   const context = useContext(OrionRealtimeRuntimeContext);
   if (!context) throw new Error("useOrionRealtimeRuntime must be used within OrionRealtimeRuntimeProvider.");
   return context;
-}
-
-export function PersistentOrionRuntime() {
-  return (
-    <OrionRealtimeRuntimeProvider>
-      <PersistentOrionSurface />
-    </OrionRealtimeRuntimeProvider>
-  );
 }
