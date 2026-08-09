@@ -69,6 +69,9 @@ jobs:
       - name: Run Orion project operations voice regression
         run: npx -y tsx lib/orion/voice/orion-project-ops-readouts.contract.test.ts
 
+      - name: Run Orion zero-pause wake regression
+        run: npx -y tsx lib/orion/voice/orion-zero-pause-wake.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
