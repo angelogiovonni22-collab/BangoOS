@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { ProjectActivityWorkspace } from "./project-activity-workspace";
+import { ProjectCustomerSnapshotBridge } from "./project-customer-snapshot-bridge";
 import { ProjectLinkedModuleWorkspace, type ProjectLinkedModuleTab } from "./project-linked-module-workspace";
 
 type ProjectCommandCenterTabPlaceholderProps = {
@@ -90,11 +91,14 @@ export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandC
 
   if (projectId && linkedTab) {
     return (
-      <ProjectLinkedModuleWorkspace
-        projectId={projectId}
-        tab={linkedTab}
-        localeTag={locale === "es" ? "es-ES" : "en-US"}
-      />
+      <div className="space-y-4">
+        <ProjectCustomerSnapshotBridge projectId={projectId} projectName={tabLabel} />
+        <ProjectLinkedModuleWorkspace
+          projectId={projectId}
+          tab={linkedTab}
+          localeTag={locale === "es" ? "es-ES" : "en-US"}
+        />
+      </div>
     );
   }
 
