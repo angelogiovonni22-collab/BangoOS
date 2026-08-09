@@ -6,4 +6,10 @@ export { OrionWakeStatus } from "./OrionWakeStatus";
 export { OrionMicrophoneIndicator } from "./OrionMicrophoneIndicator";
 export { OrionVoiceSettingsPanel } from "./OrionVoiceSettingsPanel";
 export { GlobalOrionVoiceProvider, useGlobalOrionVoice } from "./GlobalOrionVoiceProvider";
-export { useOrionUnifiedVoice, type OrionUnifiedVoiceController, type OrionVoiceEngine } from "./useOrionUnifiedVoice";
+export {
+  ORION_REALTIME_VOICES,
+  useOrionUnifiedVoice,
+  type OrionRealtimeVoice,
+  type OrionUnifiedVoiceController,
+  type OrionVoiceEngine,
+} from "./useOrionUnifiedVoice";
