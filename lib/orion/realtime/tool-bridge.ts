@@ -3,6 +3,7 @@
 import type { OrionRealtimeServerEvent, OrionRealtimeToolExecutionResult } from "./types";
 
 export const ORION_REALTIME_CONFIRM_TOOL = "bos_confirm_pending_action";
+export const ORION_REALTIME_RESEARCH_TOOL = "orion_web_research";
 
 export type OrionRealtimeFunctionCall = {
   callId: string;
@@ -37,10 +38,33 @@ export function extractOrionRealtimeFunctionCall(event: OrionRealtimeServerEvent
   };
 }
 
+async function executeRealtimeResearch(call: OrionRealtimeFunctionCall): Promise<OrionRealtimeToolExecutionResult> {
+  const query = typeof call.params.query === "string" ? call.params.query.trim() : "";
+  const response = await fetch("/api/orion/realtime/research", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+
+  const payload = await response.json() as Partial<OrionRealtimeToolExecutionResult> & { error?: string };
+  return {
+    ok: Boolean(response.ok && payload.ok),
+    statusCategory: payload.statusCategory || (response.ok ? "completed" : "intelligence_error"),
+    userMessage: payload.userMessage || payload.error || "Orion research could not be completed.",
+    href: null,
+    confirmationRequired: false,
+    confirmationToken: null,
+  };
+}
+
 export async function executeOrionRealtimeTool(
   call: OrionRealtimeFunctionCall,
   options?: { confirmationTranscript?: string | null },
 ): Promise<OrionRealtimeToolExecutionResult> {
+  if (call.toolName === ORION_REALTIME_RESEARCH_TOOL) {
+    return executeRealtimeResearch(call);
+  }
+
   const response = await fetch("/api/orion/realtime/tool", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
