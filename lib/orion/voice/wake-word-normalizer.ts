@@ -1,4 +1,4 @@
-import { consumeOrionConversationContinuation } from "./conversation-continuation";
+import { clearOrionConversationContinuation, consumeOrionConversationContinuation } from "./conversation-continuation";
 import type { OrionWakeWordDetection, OrionWakeWordPolicy, OrionWakeWordVariant } from "./wake-word-types";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -47,6 +47,7 @@ export function detectWakeWord(input: string, policy: OrionWakeWordPolicy): Orio
     }
 
     if (pattern.test(transcript)) {
+      clearOrionConversationContinuation();
       const cleaned = normalizeWakeInput(transcript.replace(pattern, ""));
       logWakeTrace("wake.detect.result", {
         originalTranscript: input,
