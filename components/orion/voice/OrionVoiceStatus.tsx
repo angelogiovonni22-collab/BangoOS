@@ -15,7 +15,7 @@ export function OrionVoiceStatus({ state, message, showNotice }: OrionVoiceStatu
       </p>
       {showNotice ? (
         <p className="rounded border border-cyan-300/30 bg-cyan-500/10 px-2.5 py-2 text-xs text-cyan-100">
-          Orion uses your device microphone only while you are actively speaking. Voice requests are converted to text and processed through your B.O.S. workspace.
+          Orion processes microphone audio while an Orion voice session is active. B.O.S. does not store the raw microphone audio; voice requests are processed through your B.O.S. workspace.
         </p>
       ) : null}
     </div>

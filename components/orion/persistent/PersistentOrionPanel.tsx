@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, type CSSProperties, type RefObject } from "react";
 import { useFocusTrap } from "@/components/motion";
-import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, useGlobalOrionVoice } from "@/components/orion/voice";
+import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, type OrionUnifiedVoiceController } from "@/components/orion/voice";
 import type { PersistentOrionFixture } from "./types";
 
 type PersistentOrionPanelProps = {
@@ -11,6 +11,7 @@ type PersistentOrionPanelProps = {
   open: boolean;
   fixture: PersistentOrionFixture;
   minimized: boolean;
+  voice: OrionUnifiedVoiceController;
   onClose: () => void;
   onToggleMinimized: () => void;
   panelRef: RefObject<HTMLDivElement | null>;
@@ -22,13 +23,13 @@ export function PersistentOrionPanel({
   open,
   fixture,
   minimized,
+  voice,
   onClose,
   onToggleMinimized,
   panelRef,
   panelStyle,
 }: PersistentOrionPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-  const voice = useGlobalOrionVoice();
 
   useFocusTrap({
     active: open,
@@ -69,8 +70,8 @@ export function PersistentOrionPanel({
       </header>
 
       <div className="persistentOrionFixtureTags" aria-label="Fixture labels">
-        <span>Prototype Intelligence</span>
-        <span>Fixture Data</span>
+        <span>{voice.engine === "realtime" ? "Realtime Intelligence" : "Browser Voice Fallback"}</span>
+        <span>Controlled BOS Tools</span>
       </div>
 
       <section className="persistentOrionSection">
@@ -88,24 +89,9 @@ export function PersistentOrionPanel({
         <div className="mt-2 flex items-center gap-2">
           <OrionVoiceButton
             state={voice.micActive ? "listening" : "idle"}
-            mode={voice.mode === "hands_free" ? "tap_to_listen" : voice.mode}
-            onStart={() => {
-              if (!voice.settings.enabled) {
-                voice.enableGlobalVoice();
-              }
-              if (voice.mode === "push_to_talk") {
-                voice.startPressToTalk();
-              } else {
-                voice.toggleTapListening();
-              }
-            }}
-            onStop={() => {
-              if (voice.mode === "push_to_talk") {
-                voice.stopPressToTalk();
-              } else {
-                voice.toggleTapListening();
-              }
-            }}
+            mode="tap_to_listen"
+            onStart={() => void voice.start()}
+            onStop={() => void voice.stop()}
           />
           <button
             type="button"
@@ -119,14 +105,17 @@ export function PersistentOrionPanel({
             className="persistentOrionMinimize"
             onClick={() => {
               if (voice.settings.enabled) {
-                voice.disableGlobalVoice();
+                void voice.disableVoice();
               } else {
-                voice.enableGlobalVoice();
+                voice.enableVoice();
               }
             }}
           >
             {voice.settings.enabled ? "Disable Voice" : "Enable Voice"}
           </button>
+        </div>
+        <div className="mt-2 text-xs font-medium uppercase tracking-wide opacity-70">
+          Engine: {voice.engine === "realtime" ? "Realtime conversation" : "Browser fallback"}
         </div>
         <div className="mt-2">
           <OrionVoiceStatus
@@ -139,16 +128,10 @@ export function PersistentOrionPanel({
           <OrionVoiceTranscript
             interimTranscript={voice.interimTranscript}
             finalTranscript={voice.finalTranscript}
-            onStop={() => voice.stopAllListening()}
-            onCancel={() => voice.stopAllListening()}
-            onRestart={() => {
-              if (voice.mode === "push_to_talk") {
-                voice.startPressToTalk();
-              } else {
-                voice.toggleTapListening();
-              }
-            }}
-            onRetry={() => voice.retryFromError()}
+            onStop={() => void voice.stop()}
+            onCancel={() => void voice.stop()}
+            onRestart={() => void voice.start()}
+            onRetry={() => void voice.retry()}
           />
         </div>
       </section>

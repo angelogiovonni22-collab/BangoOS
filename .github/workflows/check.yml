@@ -51,6 +51,9 @@ jobs:
       - name: Run hardening contract regression
         run: npx -y tsx components/ui/hardening-contract.test.ts
 
+      - name: Run Orion workflow speech handoff regression
+        run: npx -y tsx lib/orion/voice/phase11c-workflow-prompt-speech-handoff.test.ts
+
       - name: Run Orion operational voice gate regression
         run: npx -y tsx lib/orion/voice/phase11d-voice-freeze-gate.test.ts
 
@@ -92,6 +95,9 @@ jobs:
 
       - name: Run Orion Realtime BOS tool bridge regression
         run: npx -y tsx lib/orion/realtime/orion-realtime-tool-bridge.contract.test.ts
+
+      - name: Run Orion persistent Realtime integration regression
+        run: npx -y tsx components/orion/voice/orion-realtime-persistent-integration.contract.test.ts
 
       - name: Run repository checks
         run: npm run check

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { LayerManager } from "@/components/bangoflow";
 import { useMotionPreferences } from "@/components/motion";
 import { PortalHost } from "@/components/ui";
-import { useGlobalOrionVoice } from "@/components/orion/voice";
+import { useOrionUnifiedVoice } from "@/components/orion/voice";
 import { getPersistentOrionFixture } from "./fixtures";
 import { PersistentOrionButton } from "./PersistentOrionButton";
 import { PersistentOrionPanel } from "./PersistentOrionPanel";
@@ -154,7 +154,7 @@ function mapVoicePhaseToSphereState(
 export function PersistentOrion() {
   const pathname = usePathname();
   const { reducedMotion } = useMotionPreferences();
-  const globalVoice = useGlobalOrionVoice();
+  const voice = useOrionUnifiedVoice();
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -179,8 +179,8 @@ export function PersistentOrion() {
 
   const fixture = useMemo(() => getPersistentOrionFixture(pathname || "/dashboard"), [pathname]);
   const sphereState = useMemo(
-    () => mapVoicePhaseToSphereState(globalVoice.phase, globalVoice.settings.enabled),
-    [globalVoice.phase, globalVoice.settings.enabled],
+    () => mapVoicePhaseToSphereState(voice.phase, voice.settings.enabled),
+    [voice.phase, voice.settings.enabled],
   );
 
   const getControlSize = useCallback(() => {
@@ -329,8 +329,8 @@ export function PersistentOrion() {
         minimized={minimized}
         dragging={dragging}
         reducedMotion={reducedMotion}
-        micActive={globalVoice.micActive}
-        voicePhase={globalVoice.phase}
+        micActive={voice.micActive}
+        voicePhase={voice.phase}
         fixture={fixture}
         panelId={panelId}
         instructionsId={instructionsId}
@@ -447,7 +447,7 @@ export function PersistentOrion() {
           setOpen((current) => !current);
         }}
         sphereState={sphereState}
-        voiceLevel={globalVoice.voiceLevel}
+        voiceLevel={voice.voiceLevel}
       />
 
       <PersistentOrionPanel
@@ -455,6 +455,7 @@ export function PersistentOrion() {
         open={open}
         fixture={fixture}
         minimized={minimized}
+        voice={voice}
         onClose={() => setOpen(false)}
         onToggleMinimized={() => setMinimized((current) => !current)}
         panelRef={panelRef}

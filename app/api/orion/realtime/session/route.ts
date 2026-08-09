@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildOrionSystemPolicy, buildUniversalBosToolCatalog, getOrionModelConfig } from "@/lib/orion/intelligence";
+import { isOrionVoiceAutomationEnabled, ORION_VOICE_FREEZE_MESSAGE } from "@/lib/orion/runtime-config";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -56,6 +57,14 @@ function realtimeBosTools() {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
+    if (!isOrionVoiceAutomationEnabled()) {
+      return NextResponse.json({
+        ok: false,
+        error: ORION_VOICE_FREEZE_MESSAGE,
+        statusCategory: "voice_automation_paused",
+      }, { status: 503 });
+    }
+
     const apiKey = openAIKey();
     if (!apiKey || process.env.ORION_REALTIME_ENABLED === "0") {
       return NextResponse.json({
