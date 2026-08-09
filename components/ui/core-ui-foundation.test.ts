@@ -140,6 +140,9 @@ async function main(): Promise<void> {
     assert(!dashboardCustomizer.includes("useBodyScrollLock"), "dashboard customizer does not lock body scroll for a popover panel");
     assert(dashboardCustomizer.includes("document.addEventListener(\"mousedown\", handlePointerDown)"), "dashboard customizer closes through click-outside handling");
     assert(dashboardCustomizer.includes("useFocusTrap"), "dashboard customizer retains focus trap behavior");
+    assert(dashboardCustomizer.includes('window.addEventListener("scroll", updatePosition);'), "dashboard customizer only follows viewport scrolling");
+    assert(!dashboardCustomizer.includes('window.addEventListener("scroll", updatePosition, true);'), "dashboard customizer does not capture its own internal scroll events");
+    assert(dashboardCustomizer.includes("overscroll-contain"), "dashboard customizer contains scroll chaining at panel boundaries");
   });
 
   console.log(`\nCore UI foundation results: ${passed} passed, ${failed} failed`);
