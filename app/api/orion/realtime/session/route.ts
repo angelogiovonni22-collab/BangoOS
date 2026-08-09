@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildOrionSystemPolicy, getOrionModelConfig } from "@/lib/orion/intelligence";
+import { buildOrionSystemPolicy, buildUniversalBosToolCatalog, getOrionModelConfig } from "@/lib/orion/intelligence";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -15,6 +15,15 @@ function realtimeVoice(requested: unknown) {
   if (typeof requested === "string" && requested.trim()) return requested.trim();
   const configured = process.env.ORION_REALTIME_VOICE;
   return typeof configured === "string" && configured.trim() ? configured.trim() : DEFAULT_REALTIME_VOICE;
+}
+
+function realtimeBosTools() {
+  return buildUniversalBosToolCatalog().map((tool) => ({
+    type: tool.type,
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+  }));
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -49,6 +58,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const modelConfig = getOrionModelConfig();
     const voice = realtimeVoice(body.voice);
+    const tools = realtimeBosTools();
     const form = new FormData();
     form.set("sdp", new Blob([body.sdp], { type: "application/sdp" }), "offer.sdp");
     form.set("session", new Blob([JSON.stringify({
@@ -60,7 +70,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "You are speaking with the user in realtime voice.",
         "Be concise, warm, natural, and conversational.",
         "Allow natural interruptions and do not force the user to repeat a wake phrase during an active conversation.",
-        "Do not claim that you changed BOS data unless a BOS command tool has actually completed successfully.",
+        "Use BOS function tools for company navigation, reads, and operational actions whenever a canonical tool applies.",
+        "A tool request is not proof that an action succeeded. Wait for the function output before claiming success.",
+        "If a function output says confirmationRequired=true, ask the user for explicit confirmation. Do not claim the action ran.",
+        "If a function output reports validation failure, ask naturally for the missing information instead of presenting a generic error.",
         `Current BOS company id: ${workspace.context.companyId}.`,
       ].join("\n"),
       audio: {
@@ -78,7 +91,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           speed: 1,
         },
       },
-      tool_choice: "none",
+      tools,
+      tool_choice: "auto",
     })], { type: "application/json" }), "session.json");
 
     const openAIResponse = await fetch(OPENAI_REALTIME_CALLS_URL, {
@@ -102,6 +116,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       sdp: answerSdp,
       model: modelConfig.realtimeModel,
       voice,
+      toolCount: tools.length,
     });
   } catch (error) {
     return NextResponse.json({
