@@ -25,7 +25,7 @@ export function OrionVoiceSettingsPanel() {
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--bos-text-muted)]" htmlFor="orion-voice-id">
+        <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]" htmlFor="orion-voice-id">
           Voice
         </label>
         <Select
@@ -92,7 +92,7 @@ export function OrionVoiceSettingsPanel() {
         >
           Stop preview
         </Button>
-        <span className="text-xs text-[var(--bos-text-muted)]" aria-live="polite" aria-atomic="true">
+        <span className="text-xs text-[var(--color-text-muted)]" aria-live="polite" aria-atomic="true">
           {voice.speaking ? "Preview playing..." : "Preview idle"}
         </span>
       </div>

@@ -26,7 +26,9 @@ function main(): void {
   const pageHeader = read("components/ui/page-header.tsx");
   const sectionHeader = read("components/ui/section-header.tsx");
   const input = read("components/ui/input.tsx");
+  const button = read("components/ui/button.tsx");
   const card = read("components/ui/card.tsx");
+  const summaryCard = read("components/ui/summary-card.tsx");
   const table = read("components/ui/enterprise-table.tsx");
   const tableContainer = read("components/ui/table-container.tsx");
   const workspaceNavigation = read("components/workspace/workspace-navigation.tsx");
@@ -71,8 +73,16 @@ function main(): void {
   assert(card.includes("text-[var(--color-text-primary)]"), "card title follows surface-aware primary text token");
   assert(card.includes("text-[var(--color-text-secondary)]"), "card description follows surface-aware secondary text token");
   assert(card.includes("border-[var(--color-border-subtle)]"), "card borders follow surface-aware border tokens");
-  assert(card.includes("[--color-text-primary:var(--bos-text-primary)]"), "dark Card surfaces reset semantic primary text to light-on-dark");
-  assert(card.includes("[--color-text-secondary:var(--bos-text-secondary)]"), "dark Card surfaces reset semantic secondary text to light-on-dark");
+  assert(card.includes("bg-[var(--color-surface-card)]"), "default and KPI Card materials follow the active surface context");
+  assert(card.includes("bg-[var(--color-surface-elevated)]"), "elevated Card material follows the active surface context");
+  assert(!card.includes("[--color-text-primary:var(--bos-text-primary)]"), "Card no longer forces light-on-dark text into light workspaces");
+  assert(!card.includes("[--color-text-secondary:var(--bos-text-secondary)]"), "Card no longer forces light secondary text into light workspaces");
+  assert(summaryCard.includes("text-[var(--color-text-primary)]"), "summary card values follow the active surface text context");
+  assert(summaryCard.includes("text-[var(--color-text-secondary)]"), "summary card labels and context follow the active surface text context");
+
+  assert(button.includes("outline:\n      \"border border-[var(--color-border-strong)] bg-transparent text-[var(--color-text-primary)]"), "outline buttons use surface-aware readable text and borders");
+  assert(button.includes("ghost:\n      \"border border-transparent bg-transparent text-[var(--color-text-secondary)]"), "ghost buttons use surface-aware supporting text");
+  assert(button.includes("toolbar:\n      \"border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] text-[var(--color-text-secondary)]"), "toolbar buttons use context-aware surfaces and text");
 
   assert(input.includes("placeholder:text-[var(--color-text-muted)]"), "input placeholder follows surface-aware muted text token");
   assert(input.includes("hover:border-[var(--color-border-strong)]"), "input hover border follows surface-aware border token");
