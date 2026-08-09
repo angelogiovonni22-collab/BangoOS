@@ -5,6 +5,7 @@ export { ProjectCommandCenterFoundation } from "./project-command-center-foundat
 export { ProjectCommandCenterTabPlaceholder } from "./project-command-center-tab-placeholder";
 export { ProjectComplianceWorkflow } from "./project-compliance-workflow";
 export { ProjectCrewSummary } from "./project-crew-summary";
+export { ProjectCustomerSnapshot } from "./project-customer-snapshot";
 export { ProjectExecutionWorkspace } from "./project-execution-workspace";
 export { ProjectEmptyTab } from "./project-empty-tab";
 export { ProjectFinancialReporting } from "./project-financial-reporting";
