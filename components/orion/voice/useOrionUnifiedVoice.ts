@@ -45,26 +45,62 @@ function eventAssistantTranscript(event: OrionRealtimeServerEvent) {
 
 export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
   const browser = useGlobalOrionVoice();
+  const browserRef = useRef(browser);
+  browserRef.current = browser;
   const router = useRouter();
   const clientRef = useRef<OrionRealtimeClient | null>(null);
   const fallbackStartedRef = useRef(false);
+  const fallbackTimerRef = useRef<number | null>(null);
   const [engine, setEngine] = useState<OrionVoiceEngine>("browser");
   const [realtimeState, setRealtimeState] = useState<OrionRealtimeConnectionState>("idle");
   const [realtimePhase, setRealtimePhase] = useState("idle");
   const [realtimeStatus, setRealtimeStatus] = useState("Realtime voice is ready.");
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
   const [realtimeFinalTranscript, setRealtimeFinalTranscript] = useState("");
   const [realtimeInterimTranscript] = useState("");
   const [realtimeSpeaking, setRealtimeSpeaking] = useState(false);
 
+  const clearFallbackTimer = useCallback(() => {
+    if (fallbackTimerRef.current !== null) {
+      window.clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+  }, []);
+
+  const startCurrentBrowserCapture = useCallback(() => {
+    const current = browserRef.current;
+    if (!current.settings.enabled) {
+      current.enableGlobalVoice();
+      fallbackTimerRef.current = window.setTimeout(startCurrentBrowserCapture, 75);
+      return;
+    }
+
+    if (current.mode === "hands_free") {
+      current.setMode("tap_to_listen");
+      fallbackTimerRef.current = window.setTimeout(startCurrentBrowserCapture, 75);
+      return;
+    }
+
+    if (current.mode === "push_to_talk") {
+      current.startPressToTalk();
+    } else {
+      current.toggleTapListening();
+    }
+  }, []);
+
   const fallbackToBrowser = useCallback((reason?: string) => {
     fallbackStartedRef.current = true;
+    clearFallbackTimer();
     setEngine("browser");
     setRealtimePhase("fallback");
-    setRealtimeStatus(reason || "Realtime voice is unavailable. Using browser voice fallback.");
-    browser.startBrowserFallback();
-  }, [browser]);
+    const notice = reason || "Realtime voice is unavailable. Using browser voice fallback.";
+    setRealtimeStatus(notice);
+    setFallbackNotice(notice);
+    fallbackTimerRef.current = window.setTimeout(startCurrentBrowserCapture, 75);
+  }, [clearFallbackTimer, startCurrentBrowserCapture]);
 
   const stop = useCallback(async () => {
+    clearFallbackTimer();
     const client = clientRef.current;
     clientRef.current = null;
     if (client) {
@@ -74,15 +110,18 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
     setRealtimeState("closed");
     setRealtimePhase("idle");
     setRealtimeStatus("Realtime conversation ended.");
+    setFallbackNotice(null);
     setEngine("browser");
-  }, []);
+  }, [clearFallbackTimer]);
 
   const start = useCallback(async () => {
     if (realtimeState === "requesting_microphone" || realtimeState === "connecting" || realtimeState === "connected") {
       return;
     }
 
+    clearFallbackTimer();
     fallbackStartedRef.current = false;
+    setFallbackNotice(null);
     browser.stopAllListening();
     setEngine("realtime");
     setRealtimePhase("starting");
@@ -157,7 +196,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
         fallbackToBrowser(`${message} Using browser voice fallback.`);
       }
     }
-  }, [browser, fallbackToBrowser, realtimeState, router]);
+  }, [browser, clearFallbackTimer, fallbackToBrowser, realtimeState, router]);
 
   const retry = useCallback(async () => {
     await stop();
@@ -166,16 +205,18 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
 
   const disableVoice = useCallback(async () => {
     await stop();
-    browser.disableGlobalVoice();
-  }, [browser, stop]);
+    browserRef.current.stopAllListening();
+    browserRef.current.disableGlobalVoice();
+  }, [stop]);
 
   useEffect(() => () => {
+    clearFallbackTimer();
     const client = clientRef.current;
     clientRef.current = null;
     if (client) {
       void client.disconnect();
     }
-  }, []);
+  }, [clearFallbackTimer]);
 
   return useMemo(() => {
     const realtimeActive = engine === "realtime";
@@ -183,7 +224,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
       engine,
       realtimeState,
       phase: realtimeActive ? realtimePhase : browser.phase,
-      statusMessage: realtimeActive ? realtimeStatus : browser.statusMessage,
+      statusMessage: realtimeActive ? realtimeStatus : fallbackNotice || browser.statusMessage,
       supportMessage: realtimeActive ? "OpenAI Realtime voice with controlled BOS tools." : browser.supportMessage,
       micActive: realtimeActive ? realtimeState === "connected" : browser.micActive,
       speaking: realtimeActive ? realtimeSpeaking : browser.speaking,
@@ -203,6 +244,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
     browser,
     disableVoice,
     engine,
+    fallbackNotice,
     realtimeFinalTranscript,
     realtimeInterimTranscript,
     realtimePhase,
