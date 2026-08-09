@@ -3,6 +3,7 @@ import { createOrionCommandRegistry } from "@/lib/orion/commands";
 import type { OrionIntentInput, OrionIntentResult } from "@/lib/orion/intent-engine";
 import type { WorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
+import { resolveProjectOpsVoiceIntent } from "./project-ops-voice-intent";
 
 function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ").trim();
@@ -122,6 +123,11 @@ export async function resolveOperationalVoiceIntent(params: {
   workspace: WorkspaceContext;
   input: OrionIntentInput;
 }): Promise<{ handled: boolean; intent: OrionIntentResult | null; statusCategory: string | null }> {
+  const projectOps = await resolveProjectOpsVoiceIntent(params);
+  if (projectOps.handled) {
+    return projectOps;
+  }
+
   const projectHealthRequested = isProjectHealthRequest(params.input.input, params.input.route.pathname);
   const dailyReportRequested = isDailyReportCreateRequest(params.input.input, params.input.route.pathname);
 
