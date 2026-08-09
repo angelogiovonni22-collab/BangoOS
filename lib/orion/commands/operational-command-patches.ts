@@ -1,14 +1,25 @@
 import { createDailyReportsService } from "@/lib/daily-reports";
 import type { DailyReportStatus, DailyReportUpsertInput } from "@/lib/daily-reports";
+import { getOperationsCommandCenter } from "@/lib/operations/command-center-service";
 import { ORION_INITIAL_COMMANDS } from "./registry";
 import type {
   OrionCommandDependencies,
   OrionCommandExecutionContext,
   OrionCommandExecutionOutput,
+  OrionCommandPermission,
   OrionCommandValidationResult,
 } from "./types";
 
 const DAILY_REPORT_STATUSES = new Set<DailyReportStatus>(["draft", "submitted", "reviewed", "approved"]);
+const PROJECT_HEALTH_ROLES: OrionCommandPermission[] = [
+  "owner",
+  "administrator",
+  "operations_manager",
+  "project_manager",
+  "superintendent",
+  "accountant",
+  "employee",
+];
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -25,6 +36,16 @@ function requireString(params: Record<string, unknown>, key: string) {
   }
 
   return value.trim();
+}
+
+function validateProjectId(params: unknown): OrionCommandValidationResult {
+  const row = asRecord(params);
+  const projectId = row && typeof row.projectId === "string" ? row.projectId.trim() : "";
+  return {
+    ok: Boolean(projectId),
+    errors: projectId ? [] : ["projectId is required."],
+    normalizedParams: projectId ? { ...row, projectId } : undefined,
+  };
 }
 
 function validateCreateDailyReport(params: unknown): OrionCommandValidationResult {
@@ -247,6 +268,60 @@ async function executeUpdateDailyReportCommand(
   };
 }
 
+async function executeProjectHealthSummaryCommand(
+  params: Record<string, unknown>,
+  context: OrionCommandExecutionContext,
+  deps: OrionCommandDependencies,
+): Promise<OrionCommandExecutionOutput> {
+  const projectId = requireString(params, "projectId");
+  const operations = await getOperationsCommandCenter(
+    deps.supabase,
+    {
+      userId: context.actorProfileId || "orion",
+      companyId: context.companyId,
+      role: context.request.userContext.role,
+      companyName: null,
+      companySlug: null,
+      membershipId: null,
+      membershipStatus: null,
+    },
+    "en-US",
+    (key) => key,
+  );
+
+  const project = operations.data.projectStatus.find((row) => row.id === projectId);
+  if (!project) {
+    throw new Error("Project health data is unavailable for the selected project.");
+  }
+
+  const riskLabel = project.riskLevel === "high" ? "high risk" : project.riskLevel === "medium" ? "medium risk" : "low risk";
+  const taskSummary = project.overdueTaskCount > 0 || project.blockedTaskCount > 0
+    ? `${project.overdueTaskCount} overdue task${project.overdueTaskCount === 1 ? "" : "s"} and ${project.blockedTaskCount} blocked task${project.blockedTaskCount === 1 ? "" : "s"}.`
+    : "There are no overdue or blocked tasks.";
+  const milestoneSummary = project.nextMilestone ? ` Next milestone: ${project.nextMilestone}.` : "";
+  const varianceSummary = project.scheduleVarianceLabel ? ` Schedule: ${project.scheduleVarianceLabel}.` : "";
+  const userMessage = `${project.projectName} health is ${project.healthScore} out of 100, ${riskLabel}, and ${project.progressPercent}% complete. Current phase: ${project.currentPhase}. ${taskSummary}${milestoneSummary}${varianceSummary}`;
+
+  return {
+    status: "completed",
+    entityType: "project",
+    entityId: project.id,
+    href: `/projects/${project.id}`,
+    userMessage,
+    details: {
+      healthScore: project.healthScore,
+      progressPercent: project.progressPercent,
+      riskLevel: project.riskLevel,
+      currentPhase: project.currentPhase,
+      overdueTaskCount: project.overdueTaskCount,
+      blockedTaskCount: project.blockedTaskCount,
+      assignedWorkerCount: project.assignedWorkerCount,
+      nextMilestone: project.nextMilestone,
+      scheduleVarianceLabel: project.scheduleVarianceLabel,
+    },
+  };
+}
+
 function applyOperationalDailyReportCommands() {
   const createCommand = ORION_INITIAL_COMMANDS.find((command) => command.id === "daily_report.create");
   if (createCommand) {
@@ -273,4 +348,28 @@ function applyOperationalDailyReportCommands() {
   }
 }
 
+function applyProjectHealthReadCommand() {
+  if (ORION_INITIAL_COMMANDS.some((command) => command.id === "project.health_summary")) {
+    return;
+  }
+
+  ORION_INITIAL_COMMANDS.push({
+    id: "project.health_summary",
+    name: "Read Project Health",
+    description: "Read the live operational health summary for a project.",
+    requiredPermissions: PROJECT_HEALTH_ROLES,
+    entityType: "project",
+    confirmationLevel: "NONE",
+    coverage: {
+      status: "implemented",
+      ownerModule: "projects",
+    },
+    inputSchema: "{ projectId: string }",
+    undoCapable: false,
+    validate: validateProjectId,
+    execute: executeProjectHealthSummaryCommand,
+  });
+}
+
 applyOperationalDailyReportCommands();
+applyProjectHealthReadCommand();
