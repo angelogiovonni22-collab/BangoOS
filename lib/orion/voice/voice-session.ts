@@ -168,12 +168,14 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
     logVoiceDev("recognition created", {
       lang,
       interimResults: true,
-      continuous: false,
+      continuous: true,
       maxAlternatives: 1,
     });
     recognition.lang = lang;
     recognition.interimResults = true;
-    recognition.continuous = false;
+    // Keep one recognition session open so users can say “Hey Orion” and continue
+    // speaking immediately even when the browser finalizes the wake phrase first.
+    recognition.continuous = true;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
