@@ -1,3 +1,4 @@
+import { consumeOrionConversationContinuation } from "./conversation-continuation";
 import type { OrionWakeWordDetection, OrionWakeWordPolicy, OrionWakeWordVariant } from "./wake-word-types";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -63,6 +64,23 @@ export function detectWakeWord(input: string, policy: OrionWakeWordPolicy): Orio
         matchedVariant: variant,
       };
     }
+  }
+
+  const continuationReason = consumeOrionConversationContinuation();
+  if (continuationReason) {
+    logWakeTrace("wake.detect.conversation_follow_up", {
+      originalTranscript: input,
+      normalizedTranscript: transcript,
+      cleanedCommand: transcript,
+      detected: true,
+      continuationReason,
+    });
+    return {
+      detected: true,
+      transcript,
+      cleanedCommand: transcript,
+      matchedVariant: null,
+    };
   }
 
   logWakeTrace("wake.detect.result", {
