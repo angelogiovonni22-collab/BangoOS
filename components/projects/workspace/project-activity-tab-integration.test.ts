@@ -18,11 +18,19 @@ function test(name: string, run: () => void) {
 }
 
 const projectPagePath = path.join(process.cwd(), "app", "(app)", "projects", "[id]", "page.tsx");
+const placeholderPath = path.join(process.cwd(), "components", "projects", "workspace", "project-command-center-tab-placeholder.tsx");
 const projectPage = fs.readFileSync(projectPagePath, "utf8");
+const placeholder = fs.readFileSync(placeholderPath, "utf8");
 
-test("project activity tab renders the existing activity intelligence workspace", () => {
-  assert(projectPage.includes("ProjectActivityWorkspace"), "Project page should import ProjectActivityWorkspace");
-  assert(projectPage.includes('activeTab === "activity"'), "Project page should branch on the activity tab");
-  assert(projectPage.includes("currentUserId={workspace.workspaceContext.userId}"), "Activity workspace should receive current user id");
-  assert(projectPage.includes("localeTag={localeTag}"), "Activity workspace should receive the resolved locale tag");
+test("project activity tab routes through the workspace fallback branch", () => {
+  assert(projectPage.includes('"activity"'), "Project page should register the activity workspace tab");
+  assert(projectPage.includes("ProjectCommandCenterTabPlaceholder"), "Project page should retain the shared fallback branch");
+});
+
+test("activity fallback renders the existing activity intelligence workspace", () => {
+  assert(placeholder.includes("ProjectActivityWorkspace"), "Fallback bridge should import ProjectActivityWorkspace");
+  assert(placeholder.includes('tabParam === "activity"'), "Fallback bridge should recognize the activity tab");
+  assert(placeholder.includes('tabParam === "timeline"'), "Fallback bridge should preserve the timeline alias");
+  assert(placeholder.includes("currentUserId={activityIdentity.userId}"), "Activity workspace should receive current user id");
+  assert(placeholder.includes("currentUserName={activityIdentity.userName}"), "Activity workspace should receive current user name");
 });
