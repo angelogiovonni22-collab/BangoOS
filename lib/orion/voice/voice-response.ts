@@ -1,3 +1,4 @@
+import { armOrionConversationContinuation } from "./conversation-continuation";
 import type { OrionVoiceResultTone } from "./voice-types";
 
 type VoiceResponseInput = {
@@ -71,25 +72,60 @@ function buildSuccessResponse(commandId: string | null | undefined, targetLabel:
   return "Request completed successfully.";
 }
 
+function asksForFollowUp(text: string) {
+  const normalized = text.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  if (normalized.includes("?")) {
+    return true;
+  }
+
+  return /\b(please say|say confirm|say the|tell me|which one|which project|which customer|what project|what customer|what would you like|what are we|who is this for)\b/.test(normalized);
+}
+
+function armContinuationForResponse(status: VoiceResponseInput["status"], text: string) {
+  if (status === "clarification") {
+    armOrionConversationContinuation("clarification");
+    return;
+  }
+
+  if (status === "confirmation_required") {
+    armOrionConversationContinuation("confirmation");
+    return;
+  }
+
+  if (status === "success" && asksForFollowUp(text)) {
+    armOrionConversationContinuation("workflow_follow_up");
+  }
+}
+
 export function buildVoiceResponse(input: VoiceResponseInput): { tone: OrionVoiceResultTone; text: string } {
   if (input.status === "success") {
+    const text = buildSuccessResponse(input.commandId, input.targetLabel, input.message);
+    armContinuationForResponse(input.status, text);
     return {
       tone: "success",
-      text: buildSuccessResponse(input.commandId, input.targetLabel, input.message),
+      text,
     };
   }
 
   if (input.status === "clarification") {
+    const text = "I found multiple matches. Please choose one.";
+    armContinuationForResponse(input.status, text);
     return {
       tone: "info",
-      text: "I found multiple matches. Please choose one.",
+      text,
     };
   }
 
   if (input.status === "confirmation_required") {
+    const text = "Confirmation is required. Say confirm to continue or cancel to stop.";
+    armContinuationForResponse(input.status, text);
     return {
       tone: "warning",
-      text: "Confirmation is required. Say confirm to continue or cancel to stop.",
+      text,
     };
   }
 
