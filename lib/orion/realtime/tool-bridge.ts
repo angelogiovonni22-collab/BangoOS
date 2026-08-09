@@ -2,6 +2,8 @@
 
 import type { OrionRealtimeServerEvent, OrionRealtimeToolExecutionResult } from "./types";
 
+export const ORION_REALTIME_CONFIRM_TOOL = "bos_confirm_pending_action";
+
 export type OrionRealtimeFunctionCall = {
   callId: string;
   toolName: string;
@@ -35,11 +37,18 @@ export function extractOrionRealtimeFunctionCall(event: OrionRealtimeServerEvent
   };
 }
 
-export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall): Promise<OrionRealtimeToolExecutionResult> {
+export async function executeOrionRealtimeTool(
+  call: OrionRealtimeFunctionCall,
+  options?: { confirmationTranscript?: string | null },
+): Promise<OrionRealtimeToolExecutionResult> {
   const response = await fetch("/api/orion/realtime/tool", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ toolName: call.toolName, params: call.params }),
+    body: JSON.stringify({
+      toolName: call.toolName,
+      params: call.params,
+      confirmationTranscript: options?.confirmationTranscript || undefined,
+    }),
   });
 
   const payload = await response.json() as Partial<OrionRealtimeToolExecutionResult> & { error?: string };
@@ -52,6 +61,11 @@ export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall):
     confirmationRequired: Boolean(payload.confirmationRequired),
     confirmationToken: typeof payload.confirmationToken === "string" ? payload.confirmationToken : null,
   };
+}
+
+export function extractOrionRealtimeUserTranscript(event: OrionRealtimeServerEvent) {
+  if (event.type !== "conversation.item.input_audio_transcription.completed") return null;
+  return typeof event.transcript === "string" && event.transcript.trim() ? event.transcript.trim() : null;
 }
 
 export function buildOrionRealtimeFunctionOutputEvent(callId: string, result: OrionRealtimeToolExecutionResult) {
