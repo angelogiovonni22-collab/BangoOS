@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Layers3 } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
+import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { ProjectActivityWorkspace } from "./project-activity-workspace";
@@ -17,6 +18,7 @@ type ActivityIdentity = {
 };
 
 export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandCenterTabPlaceholderProps) {
+  const { locale } = useI18n();
   const normalizedTab = tabLabel.toLowerCase();
   const params = useParams<{ id?: string | string[] }>();
   const searchParams = useSearchParams();
@@ -95,7 +97,7 @@ export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandC
       return (
         <ProjectActivityWorkspace
           projectId={projectId}
-          localeTag={document.documentElement.lang === "es" ? "es-ES" : "en-US"}
+          localeTag={locale === "es" ? "es-ES" : "en-US"}
           currentUserId={activityIdentity.userId}
           currentUserName={activityIdentity.userName}
         />
