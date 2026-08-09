@@ -30,7 +30,7 @@ function main() {
   assert(route.includes('type: "semantic_vad"') && route.includes('eagerness: "high"'), "Realtime uses fast semantic turn detection");
   assert(route.includes('interrupt_response: true'), "Realtime allows natural user interruption");
   assert(route.includes('noise_reduction: { type: "far_field" }'), "Realtime applies far-field microphone noise reduction");
-  assert(route.includes('tool_choice: "none"'), "Realtime cannot bypass BOS command controls before tool bridge is wired");
+  assert(route.includes('buildUniversalBosToolCatalog()') && route.includes('tool_choice: "auto"'), "Realtime tools come from the controlled canonical BOS catalog");
   assert(client.includes("new RTCPeerConnection()"), "browser client uses WebRTC");
   assert(client.includes("navigator.mediaDevices.getUserMedia"), "browser client captures microphone audio");
   assert(client.includes('createDataChannel("oai-events")'), "browser client exposes Realtime event channel");

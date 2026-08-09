@@ -16,8 +16,19 @@ export type OrionRealtimeServerEvent = {
   [key: string]: unknown;
 };
 
+export type OrionRealtimeToolExecutionResult = {
+  ok: boolean;
+  statusCategory: string;
+  commandId?: string;
+  userMessage: string;
+  href?: string | null;
+  confirmationRequired?: boolean;
+  confirmationToken?: string | null;
+};
+
 export type OrionRealtimeClientCallbacks = {
   onStateChange?: (state: OrionRealtimeConnectionState) => void;
   onEvent?: (event: OrionRealtimeServerEvent) => void;
+  onToolResult?: (result: OrionRealtimeToolExecutionResult) => void;
   onError?: (error: Error) => void;
 };

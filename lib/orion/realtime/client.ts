@@ -1,11 +1,22 @@
 "use client";
 
+import {
+  buildOrionRealtimeContinueResponseEvent,
+  buildOrionRealtimeFunctionOutputEvent,
+  executeOrionRealtimeTool,
+  extractOrionRealtimeFunctionCall,
+  extractOrionRealtimeUserTranscript,
+  ORION_REALTIME_CONFIRM_TOOL,
+} from "./tool-bridge";
 import type {
   OrionRealtimeClientCallbacks,
   OrionRealtimeConnectionState,
   OrionRealtimeServerEvent,
   OrionRealtimeSessionOptions,
 } from "./types";
+
+const CONFIRMATION_TRANSCRIPT_MAX_AGE_MS = 8_000;
+const CONFIRMATION_TRANSCRIPT_WAIT_MS = 2_000;
 
 function setState(callbacks: OrionRealtimeClientCallbacks, state: OrionRealtimeConnectionState) {
   callbacks.onStateChange?.(state);
@@ -21,15 +32,75 @@ function parseServerEvent(raw: string): OrionRealtimeServerEvent | null {
   }
 }
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
 export class OrionRealtimeClient {
   private peerConnection: RTCPeerConnection | null = null;
   private dataChannel: RTCDataChannel | null = null;
   private microphoneStream: MediaStream | null = null;
   private remoteAudio: HTMLAudioElement | null = null;
   private callbacks: OrionRealtimeClientCallbacks;
+  private activeToolCalls = new Set<string>();
+  private lastUserTranscript: { text: string; at: number } | null = null;
 
   constructor(callbacks: OrionRealtimeClientCallbacks = {}) {
     this.callbacks = callbacks;
+  }
+
+  private recentUserTranscript() {
+    if (!this.lastUserTranscript) return null;
+    if (Date.now() - this.lastUserTranscript.at > CONFIRMATION_TRANSCRIPT_MAX_AGE_MS) return null;
+    return this.lastUserTranscript.text;
+  }
+
+  private async waitForRecentUserTranscript() {
+    const existing = this.recentUserTranscript();
+    if (existing) return existing;
+
+    const deadline = Date.now() + CONFIRMATION_TRANSCRIPT_WAIT_MS;
+    while (Date.now() < deadline) {
+      await sleep(100);
+      const transcript = this.recentUserTranscript();
+      if (transcript) return transcript;
+    }
+
+    return null;
+  }
+
+  private async handleServerEvent(event: OrionRealtimeServerEvent) {
+    this.callbacks.onEvent?.(event);
+
+    const userTranscript = extractOrionRealtimeUserTranscript(event);
+    if (userTranscript) {
+      this.lastUserTranscript = { text: userTranscript, at: Date.now() };
+    }
+
+    const call = extractOrionRealtimeFunctionCall(event);
+    if (!call || this.activeToolCalls.has(call.callId)) return;
+
+    this.activeToolCalls.add(call.callId);
+    try {
+      const confirmationTranscript = call.toolName === ORION_REALTIME_CONFIRM_TOOL
+        ? await this.waitForRecentUserTranscript()
+        : null;
+      const result = await executeOrionRealtimeTool(call, { confirmationTranscript });
+      this.callbacks.onToolResult?.(result);
+      this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId, result));
+      this.sendEvent(buildOrionRealtimeContinueResponseEvent());
+    } catch (error) {
+      const resolved = error instanceof Error ? error : new Error("Orion Realtime BOS tool execution failed.");
+      this.callbacks.onError?.(resolved);
+      this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId, {
+        ok: false,
+        statusCategory: "command_execution_failed",
+        userMessage: resolved.message,
+      }));
+      this.sendEvent(buildOrionRealtimeContinueResponseEvent());
+    } finally {
+      this.activeToolCalls.delete(call.callId);
+    }
   }
 
   async connect(options: OrionRealtimeSessionOptions = {}) {
@@ -84,7 +155,7 @@ export class OrionRealtimeClient {
       dataChannel.onmessage = (event) => {
         if (typeof event.data !== "string") return;
         const parsed = parseServerEvent(event.data);
-        if (parsed) this.callbacks.onEvent?.(parsed);
+        if (parsed) void this.handleServerEvent(parsed);
       };
 
       const offer = await peerConnection.createOffer();
@@ -127,6 +198,8 @@ export class OrionRealtimeClient {
       setState(this.callbacks, "closing");
     }
 
+    this.activeToolCalls.clear();
+    this.lastUserTranscript = null;
     this.dataChannel?.close();
     this.dataChannel = null;
 

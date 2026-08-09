@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildOrionSystemPolicy, getOrionModelConfig } from "@/lib/orion/intelligence";
+import { buildOrionSystemPolicy, buildUniversalBosToolCatalog, getOrionModelConfig } from "@/lib/orion/intelligence";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 const OPENAI_REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const DEFAULT_REALTIME_VOICE = "marin";
+const CONFIRM_TOOL_NAME = "bos_confirm_pending_action";
 
 function openAIKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -15,6 +16,42 @@ function realtimeVoice(requested: unknown) {
   if (typeof requested === "string" && requested.trim()) return requested.trim();
   const configured = process.env.ORION_REALTIME_VOICE;
   return typeof configured === "string" && configured.trim() ? configured.trim() : DEFAULT_REALTIME_VOICE;
+}
+
+function realtimeBosTools() {
+  const canonicalTools = buildUniversalBosToolCatalog().map((tool) => ({
+    type: tool.type,
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+  }));
+
+  return [
+    ...canonicalTools,
+    {
+      type: "function" as const,
+      name: CONFIRM_TOOL_NAME,
+      description: "Execute a previously requested BOS action only after the user has explicitly confirmed it in the current conversation. Use the exact confirmationToken returned by the prior function output.",
+      parameters: {
+        type: "object",
+        properties: {
+          params: {
+            type: "object",
+            properties: {
+              confirmationToken: {
+                type: "string",
+                description: "Signed short-lived confirmation token returned by the pending BOS action.",
+              },
+            },
+            required: ["confirmationToken"],
+            additionalProperties: false,
+          },
+        },
+        required: ["params"],
+        additionalProperties: false,
+      },
+    },
+  ];
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -49,6 +86,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const modelConfig = getOrionModelConfig();
     const voice = realtimeVoice(body.voice);
+    const tools = realtimeBosTools();
     const form = new FormData();
     form.set("sdp", new Blob([body.sdp], { type: "application/sdp" }), "offer.sdp");
     form.set("session", new Blob([JSON.stringify({
@@ -60,12 +98,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "You are speaking with the user in realtime voice.",
         "Be concise, warm, natural, and conversational.",
         "Allow natural interruptions and do not force the user to repeat a wake phrase during an active conversation.",
-        "Do not claim that you changed BOS data unless a BOS command tool has actually completed successfully.",
+        "Use BOS function tools for company navigation, reads, and operational actions whenever a canonical tool applies.",
+        "A tool request is not proof that an action succeeded. Wait for the function output before claiming success.",
+        "If a function output says confirmationRequired=true, ask the user for explicit confirmation and remember its confirmationToken. Do not claim the action ran.",
+        `Only after the user clearly confirms that pending action, call ${CONFIRM_TOOL_NAME} with the exact confirmationToken.`,
+        "If the user cancels or changes their mind, do not call the confirmation tool.",
+        "If a function output reports validation failure, ask naturally for the missing information instead of presenting a generic error.",
         `Current BOS company id: ${workspace.context.companyId}.`,
       ].join("\n"),
       audio: {
         input: {
           noise_reduction: { type: "far_field" },
+          transcription: {
+            model: "gpt-4o-mini-transcribe",
+            language: "en",
+            prompt: "Bango Operating System construction terminology, customer names, project names, estimates, invoices, crews, change orders, daily reports, confirm, cancel.",
+          },
           turn_detection: {
             type: "semantic_vad",
             eagerness: "high",
@@ -78,7 +126,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           speed: 1,
         },
       },
-      tool_choice: "none",
+      tools,
+      tool_choice: "auto",
     })], { type: "application/json" }), "session.json");
 
     const openAIResponse = await fetch(OPENAI_REALTIME_CALLS_URL, {
@@ -102,6 +151,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       sdp: answerSdp,
       model: modelConfig.realtimeModel,
       voice,
+      toolCount: tools.length,
     });
   } catch (error) {
     return NextResponse.json({
