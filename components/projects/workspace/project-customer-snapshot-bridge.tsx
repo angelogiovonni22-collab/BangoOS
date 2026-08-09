@@ -14,7 +14,7 @@ type SnapshotState = {
   email: string;
 };
 
-export function ProjectCustomerSnapshotBridge({ projectId, projectName }: { projectId: string; projectName: string }) {
+export function ProjectCustomerSnapshotBridge({ projectId }: { projectId: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [state, setState] = useState<SnapshotState | null>(null);
 
@@ -78,7 +78,7 @@ export function ProjectCustomerSnapshotBridge({ projectId, projectName }: { proj
       if (subscribed) {
         setState({
           loaded: true,
-          jobSiteName: project.name?.trim() || projectName,
+          jobSiteName: project.name?.trim() || "Project",
           address: address || "Not provided",
           contactName,
           phone,
@@ -91,7 +91,7 @@ export function ProjectCustomerSnapshotBridge({ projectId, projectName }: { proj
     return () => {
       subscribed = false;
     };
-  }, [projectId, projectName, supabase]);
+  }, [projectId, supabase]);
 
   if (!state?.loaded) return null;
 
