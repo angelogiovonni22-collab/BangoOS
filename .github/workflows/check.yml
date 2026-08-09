@@ -75,6 +75,9 @@ jobs:
       - name: Run Orion universal BOS control regression
         run: npx -y tsx lib/orion/intelligence/universal-command-catalog.contract.test.ts
 
+      - name: Run Orion OpenAI intelligence regression
+        run: npx -y tsx lib/orion/intelligence/openai-intelligence.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
