@@ -25,13 +25,13 @@ export function getButtonClassName(options: ButtonClassOptions = {}) {
     secondary:
       "border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] hover:border-[var(--bos-border-strong)] hover:bg-[var(--bos-bg-hover)] active:translate-y-px active:bg-[var(--bos-bg-panel)] focus-visible:ring-[var(--focus-ring-neutral)]",
     outline:
-      "border border-[var(--bos-border-default)] bg-transparent text-[var(--bos-text-primary)] shadow-none hover:border-[var(--bos-border-strong)] hover:bg-[var(--bos-bg-hover)] active:translate-y-px active:bg-[var(--bos-bg-control)] focus-visible:ring-[var(--focus-ring-neutral)]",
+      "border border-[var(--color-border-strong)] bg-transparent text-[var(--color-text-primary)] shadow-none hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-subtle)] active:translate-y-px active:bg-[var(--color-surface-muted)] focus-visible:ring-[var(--focus-ring-neutral)]",
     ghost:
-      "border border-transparent bg-transparent text-[var(--bos-text-secondary)] hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)] active:translate-y-px active:bg-[var(--bos-bg-control)] focus-visible:ring-[var(--focus-ring-neutral)]",
+      "border border-transparent bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] active:translate-y-px active:bg-[var(--color-surface-muted)] focus-visible:ring-[var(--focus-ring-neutral)]",
     danger:
       "border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] text-[var(--color-danger-700)] shadow-[var(--shadow-small)] hover:bg-[var(--color-danger-100)] active:translate-y-px active:bg-[var(--color-danger-200)] focus-visible:ring-[var(--focus-ring-danger)]",
     toolbar:
-      "border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)] text-[var(--bos-text-secondary)] shadow-none hover:border-[var(--bos-border-default)] hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)] active:translate-y-px active:bg-[var(--bos-bg-control)] focus-visible:ring-[var(--focus-ring-neutral)]",
+      "border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] text-[var(--color-text-secondary)] shadow-none hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)] active:translate-y-px active:bg-[var(--color-surface-muted)] focus-visible:ring-[var(--focus-ring-neutral)]",
   };
 
   const sizeClass: Record<ButtonSize, string> = {
