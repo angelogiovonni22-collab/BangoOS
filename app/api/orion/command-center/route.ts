@@ -3,6 +3,7 @@ import { createOrionCommandRouter, type OrionCommandPermission } from "@/lib/ori
 import { createOrionCommandRegistry } from "@/lib/orion/commands";
 import { getCustomerRelatedRecords, getOrionCommandCenterCatalog, parseRouteContext } from "@/lib/orion/command-center";
 import { resolveOrionIntent, type OrionIntentInput } from "@/lib/orion/intent-engine";
+import { resolveOperationalVoiceIntent } from "@/lib/orion/voice/operational-voice-intent";
 import { resolveVoiceWorkflowTurn } from "@/lib/orion/workflows/voice-workflow-assistant";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -253,24 +254,46 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       const fallbackRoute = parseRouteContext(new URL(req.url));
       const route = intentPayload.route || fallbackRoute;
+      const normalizedIntentInput: OrionIntentInput = {
+        input: intentPayload.input,
+        route,
+        selectedCandidateId: typeof intentPayload.selectedCandidateId === "string"
+          ? intentPayload.selectedCandidateId
+          : null,
+        pinnedCommandIds: Array.isArray(intentPayload.pinnedCommandIds)
+          ? intentPayload.pinnedCommandIds.filter((entry): entry is string => typeof entry === "string")
+          : [],
+        recentCommandIds: Array.isArray(intentPayload.recentCommandIds)
+          ? intentPayload.recentCommandIds.filter((entry): entry is string => typeof entry === "string")
+          : [],
+      };
 
       if (isVoiceTurn) {
+        const operationalHandled = await resolveOperationalVoiceIntent({
+          supabase: context.supabase,
+          workspace: context.workspace,
+          input: normalizedIntentInput,
+        });
+
+        if (operationalHandled.handled && operationalHandled.intent) {
+          logApiTiming("intent.request.end", intentStartedAt, {
+            hasSuggestion: Boolean(operationalHandled.intent.suggestedCommand),
+            requiresClarification: operationalHandled.intent.requiresClarification,
+            workflowStatus: operationalHandled.statusCategory,
+            operationalVoice: true,
+          });
+
+          return NextResponse.json({
+            ok: true,
+            intent: operationalHandled.intent,
+            statusCategory: operationalHandled.statusCategory,
+          });
+        }
+
         const workflowHandled = await resolveVoiceWorkflowTurn({
           supabase: context.supabase,
           workspace: context.workspace,
-          input: {
-            input: intentPayload.input,
-            route,
-            selectedCandidateId: typeof intentPayload.selectedCandidateId === "string"
-              ? intentPayload.selectedCandidateId
-              : null,
-            pinnedCommandIds: Array.isArray(intentPayload.pinnedCommandIds)
-              ? intentPayload.pinnedCommandIds.filter((entry): entry is string => typeof entry === "string")
-              : [],
-            recentCommandIds: Array.isArray(intentPayload.recentCommandIds)
-              ? intentPayload.recentCommandIds.filter((entry): entry is string => typeof entry === "string")
-              : [],
-          },
+          input: normalizedIntentInput,
         });
 
         if (workflowHandled.handled && workflowHandled.intent) {
@@ -291,19 +314,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const result = await resolveOrionIntent({
         supabase: context.supabase,
         workspace: context.workspace,
-        input: {
-          input: intentPayload.input,
-          route,
-          selectedCandidateId: typeof intentPayload.selectedCandidateId === "string"
-            ? intentPayload.selectedCandidateId
-            : null,
-          pinnedCommandIds: Array.isArray(intentPayload.pinnedCommandIds)
-            ? intentPayload.pinnedCommandIds.filter((entry): entry is string => typeof entry === "string")
-            : [],
-          recentCommandIds: Array.isArray(intentPayload.recentCommandIds)
-            ? intentPayload.recentCommandIds.filter((entry): entry is string => typeof entry === "string")
-            : [],
-        },
+        input: normalizedIntentInput,
       });
 
       logApiTiming("intent.request.end", intentStartedAt, {
@@ -349,7 +360,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const router = createOrionCommandRouter({ supabase: context.supabase });
 
-  const executionStartedAt = nowMs();
+    const executionStartedAt = nowMs();
     if (!IS_PRODUCTION && typeof console !== "undefined") {
       console.info("[orion-timing] command.execute.start", { commandId });
     }
