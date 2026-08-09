@@ -66,6 +66,9 @@ jobs:
       - name: Run Orion project health voice regression
         run: npx -y tsx lib/orion/voice/orion-project-health-read.contract.test.ts
 
+      - name: Run Orion project operations voice regression
+        run: npx -y tsx lib/orion/voice/orion-project-ops-readouts.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
