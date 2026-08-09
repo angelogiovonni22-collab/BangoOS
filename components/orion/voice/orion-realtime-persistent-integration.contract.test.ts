@@ -29,8 +29,14 @@ function main() {
 
   assert(unified.includes("new OrionRealtimeClient"), "persistent voice controller prefers the Realtime client");
   assert(unified.includes("browser.stopAllListening()"), "browser recognition is stopped before Realtime takes microphone ownership");
+  assert(unified.includes("browser.disableGlobalVoice()"), "browser voice is suspended while Realtime owns the microphone");
+  assert(unified.includes("browserWasEnabledRef"), "browser voice preference is remembered for safe restoration after Realtime");
+  assert(unified.includes("browserRef.current.enableGlobalVoice()"), "browser voice can be restored after an intentional Realtime stop");
   assert(unified.includes("fallbackToBrowser"), "Realtime failures automatically enter browser fallback");
   assert(unified.includes("startCurrentBrowserCapture"), "browser fallback automatically resumes voice capture");
+  assert(unified.includes('realtimeState !== "closed"') && unified.includes("clientRef.current") && unified.includes("fallbackToBrowser"), "unexpected Realtime closure falls back instead of leaving Orion silent");
+  assert(unified.includes('window.addEventListener("offline"') && unified.includes('document.addEventListener("visibilitychange"'), "mobile/background network lifecycle is surfaced to Orion Realtime");
+  assert(unified.includes("const effectiveSettings = realtimeActive") && unified.includes("enabled: true"), "persistent Orion remains visually enabled while Realtime owns the microphone");
   assert(unified.includes('result.href.startsWith("/")') && unified.includes("router.push(result.href)"), "successful Realtime BOS navigation stays inside BOS routing");
   assert(unified.includes('response.output_audio.delta') && unified.includes('response.output_audio.done'), "Realtime speaking state is projected into persistent voice state");
   assert(unified.includes('conversation.item.input_audio_transcription.completed'), "Realtime user transcript is projected into the persistent transcript surface");
