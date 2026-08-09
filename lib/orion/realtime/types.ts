@@ -1,5 +1,3 @@
-import type { OrionRealtimeToolExecutionResult } from "./tool-bridge";
-
 export type OrionRealtimeConnectionState =
   | "idle"
   | "requesting_microphone"
@@ -16,6 +14,16 @@ export type OrionRealtimeSessionOptions = {
 export type OrionRealtimeServerEvent = {
   type?: string;
   [key: string]: unknown;
+};
+
+export type OrionRealtimeToolExecutionResult = {
+  ok: boolean;
+  statusCategory: string;
+  commandId?: string;
+  userMessage: string;
+  href?: string | null;
+  confirmationRequired?: boolean;
+  confirmationToken?: string | null;
 };
 
 export type OrionRealtimeClientCallbacks = {
