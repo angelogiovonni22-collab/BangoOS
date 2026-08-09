@@ -23,6 +23,7 @@ import {
   type ProjectWorkspaceTabKey,
   type WorkspaceActivityItem,
 } from "@/components/projects/workspace";
+import { SiteCamWorkspace } from "./components/sitecam-workspace";
 import { WorkspaceLoadingState, WorkspaceShell } from "@/components/workspace";
 import { Button, EmptyState, ErrorState } from "@/components/ui";
 import { buildProjectFinancialReport, type ProjectFinancialReport } from "@/lib/financial-reporting";
@@ -830,6 +831,15 @@ export default function ProjectWorkspacePage() {
                 upcomingMilestonesCount={upcomingMilestonesCount}
                 inspectionPendingCount={inspectionPendingCount}
                 blockedCount={blockedCount}
+              />
+            ) : activeTab === "photos" ? (
+              <SiteCamWorkspace
+                companyId={workspace.workspaceContext.companyId}
+                projectId={project.id}
+                projectName={projectName}
+                userId={workspace.workspaceContext.userId}
+                locale={locale}
+                profilesById={workspace.profilesById}
               />
             ) : activeTab === "inspections" ? (
               <ProjectComplianceWorkflow
