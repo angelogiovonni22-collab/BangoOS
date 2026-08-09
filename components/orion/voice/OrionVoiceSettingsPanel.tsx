@@ -5,8 +5,24 @@ import { useGlobalOrionVoice } from "./GlobalOrionVoiceProvider";
 
 const PREVIEW_PHRASE = "Hello. I'm Orion, your Bango Operating System assistant.";
 
+function formatVoiceLanguage(lang: string) {
+  const normalized = lang.toLowerCase().replace("_", "-");
+
+  if (normalized.startsWith("en-au")) return "Australian English";
+  if (normalized.startsWith("en-gb")) return "British English";
+  if (normalized.startsWith("en-us")) return "American English";
+  if (normalized.startsWith("en-ca")) return "Canadian English";
+  if (normalized.startsWith("en-in")) return "Indian English";
+  if (normalized.startsWith("en-ie")) return "Irish English";
+  if (normalized.startsWith("en-nz")) return "New Zealand English";
+  if (normalized.startsWith("en")) return "English";
+
+  return lang;
+}
+
 export function OrionVoiceSettingsPanel() {
   const voice = useGlobalOrionVoice();
+  const australianVoiceCount = voice.availableVoices.filter((option) => option.australian).length;
 
   const toggleSpoken = () => {
     voice.setSpokenResponsesEnabled(!voice.settings.spokenResponsesEnabled);
@@ -34,13 +50,22 @@ export function OrionVoiceSettingsPanel() {
           onChange={(event) => voice.setVoiceId(event.currentTarget.value || null)}
           aria-label="Orion voice"
         >
-          <option value="">Browser default</option>
+          <option value="">Automatic — best natural English voice</option>
           {voice.availableVoices.map((option) => (
             <option key={option.id} value={option.id}>
-              {option.name} ({option.lang})
+              {option.recommended ? "★ Recommended — " : ""}
+              {option.name} ({formatVoiceLanguage(option.lang)}{option.naturalQuality ? ", natural" : ""})
             </option>
           ))}
         </Select>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-text-muted)]">
+          <span>Natural and premium English voices are prioritized automatically.</span>
+          <span>
+            {australianVoiceCount > 0
+              ? `${australianVoiceCount} Australian English voice${australianVoiceCount === 1 ? "" : "s"} available on this device.`
+              : "No Australian English browser voice is installed on this device yet."}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
