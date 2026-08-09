@@ -11,6 +11,14 @@ type CardDescriptionProps = HTMLAttributes<HTMLParagraphElement>;
 type CardContentProps = HTMLAttributes<HTMLDivElement>;
 type CardFooterProps = HTMLAttributes<HTMLDivElement>;
 
+const darkSurfaceContext = [
+  "[--color-text-primary:var(--bos-text-primary)]",
+  "[--color-text-secondary:var(--bos-text-secondary)]",
+  "[--color-text-muted:var(--bos-text-muted)]",
+  "[--color-border-subtle:var(--bos-border-subtle)]",
+  "[--color-border-strong:var(--bos-border-default)]",
+].join(" ");
+
 export function Card({ as = "article", variant = "default", className, ...props }: CardProps) {
   const Component = as;
 
@@ -25,6 +33,7 @@ export function Card({ as = "article", variant = "default", className, ...props 
 
   const composedClassName = [
     "outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-neutral)]",
+    darkSurfaceContext,
     variantClass[variant],
     className || "",
   ]
