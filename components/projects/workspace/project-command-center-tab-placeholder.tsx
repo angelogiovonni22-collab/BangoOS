@@ -90,7 +90,7 @@ export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandC
   if (projectId && linkedTab) {
     return (
       <div className="space-y-4">
-        <ProjectCustomerSnapshotBridge projectId={projectId} projectName={tabLabel} />
+        <ProjectCustomerSnapshotBridge projectId={projectId} />
         <ProjectLinkedModuleWorkspace
           projectId={projectId}
           tab={linkedTab}
