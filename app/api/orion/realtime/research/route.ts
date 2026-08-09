@@ -67,6 +67,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }, { status: 409 });
     }
 
+    if (result.route.kind === "clarify") {
+      return NextResponse.json({
+        ok: true,
+        statusCategory: "clarification_required",
+        userMessage: result.route.question,
+        responseId: result.responseId,
+        model: result.model,
+      });
+    }
+
+    if (result.route.kind !== "conversation") {
+      return NextResponse.json({
+        ok: false,
+        statusCategory: "intelligence_no_match",
+        userMessage: "I couldn't complete that research request.",
+      }, { status: 422 });
+    }
+
     return NextResponse.json({
       ok: true,
       statusCategory: "completed",
