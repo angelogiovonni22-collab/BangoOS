@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  buildOrionRealtimeContinueResponseEvent,
+  buildOrionRealtimeFunctionOutputEvent,
+  executeOrionRealtimeTool,
+  extractOrionRealtimeFunctionCall,
+} from "./tool-bridge";
 import type {
   OrionRealtimeClientCallbacks,
   OrionRealtimeConnectionState,
@@ -27,9 +33,36 @@ export class OrionRealtimeClient {
   private microphoneStream: MediaStream | null = null;
   private remoteAudio: HTMLAudioElement | null = null;
   private callbacks: OrionRealtimeClientCallbacks;
+  private activeToolCalls = new Set<string>();
 
   constructor(callbacks: OrionRealtimeClientCallbacks = {}) {
     this.callbacks = callbacks;
+  }
+
+  private async handleServerEvent(event: OrionRealtimeServerEvent) {
+    this.callbacks.onEvent?.(event);
+
+    const call = extractOrionRealtimeFunctionCall(event);
+    if (!call || this.activeToolCalls.has(call.callId)) return;
+
+    this.activeToolCalls.add(call.callId);
+    try {
+      const result = await executeOrionRealtimeTool(call);
+      this.callbacks.onToolResult?.(result);
+      this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId, result));
+      this.sendEvent(buildOrionRealtimeContinueResponseEvent());
+    } catch (error) {
+      const resolved = error instanceof Error ? error : new Error("Orion Realtime BOS tool execution failed.");
+      this.callbacks.onError?.(resolved);
+      this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId, {
+        ok: false,
+        statusCategory: "command_execution_failed",
+        userMessage: resolved.message,
+      }));
+      this.sendEvent(buildOrionRealtimeContinueResponseEvent());
+    } finally {
+      this.activeToolCalls.delete(call.callId);
+    }
   }
 
   async connect(options: OrionRealtimeSessionOptions = {}) {
@@ -84,7 +117,7 @@ export class OrionRealtimeClient {
       dataChannel.onmessage = (event) => {
         if (typeof event.data !== "string") return;
         const parsed = parseServerEvent(event.data);
-        if (parsed) this.callbacks.onEvent?.(parsed);
+        if (parsed) void this.handleServerEvent(parsed);
       };
 
       const offer = await peerConnection.createOffer();
@@ -127,6 +160,7 @@ export class OrionRealtimeClient {
       setState(this.callbacks, "closing");
     }
 
+    this.activeToolCalls.clear();
     this.dataChannel?.close();
     this.dataChannel = null;
 
