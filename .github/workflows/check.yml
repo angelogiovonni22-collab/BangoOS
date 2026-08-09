@@ -57,6 +57,9 @@ jobs:
       - name: Run Orion voice selection regression
         run: npx -y tsx lib/orion/voice/phase10a-voice-selection.test.ts
 
+      - name: Run Orion daily report operations regression
+        run: npx -y tsx lib/orion/commands/orion-daily-report-operations.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
