@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import type { KeyboardEvent, PointerEvent, MouseEvent } from "react";
 import type { PersistentOrionFixture, PersistentOrionVisualState } from "./types";
 import { PersistentOrionMiniSphere } from "./PersistentOrionMiniSphere";
+import { useOrionRealtimeRuntime } from "./OrionRealtimeRuntime";
 
 type PersistentOrionButtonProps = {
   open: boolean;
@@ -44,6 +45,10 @@ export function PersistentOrionButton({
   onKeyDown,
   onClick,
 }: PersistentOrionButtonProps) {
+  const realtime = useOrionRealtimeRuntime();
+  const effectiveSphereState = realtime.visualState ?? sphereState;
+  const effectiveMicActive = realtime.active || micActive;
+  const effectiveVoicePhase = realtime.active ? `realtime_${realtime.connectionState}` : voicePhase;
   const stateLabel = fixture.state
     .toLowerCase()
     .replace(/_/g, " ")
@@ -62,7 +67,7 @@ export function PersistentOrionButton({
       aria-expanded={open}
       aria-controls={panelId}
       aria-describedby={instructionsId}
-      aria-label={`Open Orion. Current state: ${stateLabel}. Voice phase: ${voicePhase}. Microphone ${micActive ? "on" : "off"}. Workspace: ${fixture.workspace}.`}
+      aria-label={`Open Orion. Current state: ${stateLabel}. Voice phase: ${effectiveVoicePhase}. Microphone ${effectiveMicActive ? "on" : "off"}. Workspace: ${fixture.workspace}.`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -71,7 +76,7 @@ export function PersistentOrionButton({
       onClick={onClick}
     >
       <span className="persistentOrionVisual" aria-hidden="true">
-        <PersistentOrionMiniSphere state={sphereState} reducedMotion={reducedMotion} minimized={minimized} voiceLevel={voiceLevel} />
+        <PersistentOrionMiniSphere state={effectiveSphereState} reducedMotion={reducedMotion} minimized={minimized} voiceLevel={voiceLevel} />
       </span>
       <span className="persistentOrionSr">
         Open Orion. Current state: {stateLabel}. {minimized ? "Orion is minimized." : "Orion is available."}
