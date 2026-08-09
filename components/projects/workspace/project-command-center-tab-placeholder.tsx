@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { ProjectActivityWorkspace } from "./project-activity-workspace";
+import { ProjectLinkedModuleWorkspace, type ProjectLinkedModuleTab } from "./project-linked-module-workspace";
 
 type ProjectCommandCenterTabPlaceholderProps = {
   tabLabel: string;
@@ -17,6 +18,8 @@ type ActivityIdentity = {
   userName: string;
 };
 
+const LINKED_TABS = new Set<ProjectLinkedModuleTab>(["daily_logs", "documents", "crew", "change_orders", "rfis"]);
+
 export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandCenterTabPlaceholderProps) {
   const { locale } = useI18n();
   const normalizedTab = tabLabel.toLowerCase();
@@ -26,6 +29,7 @@ export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandC
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const tabParam = searchParams.get("tab");
   const isActivityTab = tabParam === "activity" || tabParam === "timeline";
+  const linkedTab = tabParam && LINKED_TABS.has(tabParam as ProjectLinkedModuleTab) ? tabParam as ProjectLinkedModuleTab : null;
   const [activityIdentity, setActivityIdentity] = useState<ActivityIdentity | null>(null);
   const [activityIdentityResolved, setActivityIdentityResolved] = useState(false);
 
@@ -83,6 +87,16 @@ export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandC
       isSubscribed = false;
     };
   }, [isActivityTab, projectId, supabase]);
+
+  if (projectId && linkedTab) {
+    return (
+      <ProjectLinkedModuleWorkspace
+        projectId={projectId}
+        tab={linkedTab}
+        localeTag={locale === "es" ? "es-ES" : "en-US"}
+      />
+    );
+  }
 
   if (isActivityTab && projectId) {
     if (!activityIdentityResolved) {
