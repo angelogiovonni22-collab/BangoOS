@@ -5,6 +5,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 const OPENAI_REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const DEFAULT_REALTIME_VOICE = "marin";
+const CONFIRM_TOOL_NAME = "bos_confirm_pending_action";
 
 function openAIKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -18,12 +19,39 @@ function realtimeVoice(requested: unknown) {
 }
 
 function realtimeBosTools() {
-  return buildUniversalBosToolCatalog().map((tool) => ({
+  const canonicalTools = buildUniversalBosToolCatalog().map((tool) => ({
     type: tool.type,
     name: tool.name,
     description: tool.description,
     parameters: tool.parameters,
   }));
+
+  return [
+    ...canonicalTools,
+    {
+      type: "function" as const,
+      name: CONFIRM_TOOL_NAME,
+      description: "Execute a previously requested BOS action only after the user has explicitly confirmed it in the current conversation. Use the exact confirmationToken returned by the prior function output.",
+      parameters: {
+        type: "object",
+        properties: {
+          params: {
+            type: "object",
+            properties: {
+              confirmationToken: {
+                type: "string",
+                description: "Signed short-lived confirmation token returned by the pending BOS action.",
+              },
+            },
+            required: ["confirmationToken"],
+            additionalProperties: false,
+          },
+        },
+        required: ["params"],
+        additionalProperties: false,
+      },
+    },
+  ];
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -72,7 +100,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "Allow natural interruptions and do not force the user to repeat a wake phrase during an active conversation.",
         "Use BOS function tools for company navigation, reads, and operational actions whenever a canonical tool applies.",
         "A tool request is not proof that an action succeeded. Wait for the function output before claiming success.",
-        "If a function output says confirmationRequired=true, ask the user for explicit confirmation. Do not claim the action ran.",
+        "If a function output says confirmationRequired=true, ask the user for explicit confirmation and remember its confirmationToken. Do not claim the action ran.",
+        `Only after the user clearly confirms that pending action, call ${CONFIRM_TOOL_NAME} with the exact confirmationToken.`,
+        "If the user cancels or changes their mind, do not call the confirmation tool.",
         "If a function output reports validation failure, ask naturally for the missing information instead of presenting a generic error.",
         `Current BOS company id: ${workspace.context.companyId}.`,
       ].join("\n"),
