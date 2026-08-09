@@ -11,29 +11,30 @@ type CardDescriptionProps = HTMLAttributes<HTMLParagraphElement>;
 type CardContentProps = HTMLAttributes<HTMLDivElement>;
 type CardFooterProps = HTMLAttributes<HTMLDivElement>;
 
-const darkSurfaceContext = [
-  "[--color-text-primary:var(--bos-text-primary)]",
-  "[--color-text-secondary:var(--bos-text-secondary)]",
-  "[--color-text-muted:var(--bos-text-muted)]",
-  "[--color-border-subtle:var(--bos-border-subtle)]",
-  "[--color-border-strong:var(--bos-border-default)]",
-].join(" ");
-
 export function Card({ as = "article", variant = "default", className, ...props }: CardProps) {
   const Component = as;
 
+  /*
+   * Cards are context-aware materials. The root application theme is dark,
+   * while authenticated <main> establishes the light workspace semantic
+   * tokens. Using semantic surface tokens here keeps Card background, text,
+   * borders, headers, and nested light materials in the same color context.
+   *
+   * Do not force a dark semantic token reset at the Card boundary: many BOS
+   * workspaces intentionally render Card with a light gradient/background.
+   * That old reset was the source of light text on light Card headers.
+   */
   const variantClass: Record<NonNullable<CardProps["variant"]>, string> = {
     default:
-      "rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--bos-bg-panel)] shadow-[var(--shadow-small)]",
+      "rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] shadow-[var(--shadow-small)]",
     elevated:
-      "rounded-[var(--radius-card)] border border-[var(--color-border-strong)] bg-[var(--bos-bg-panel-elevated)] shadow-[var(--shadow-medium)]",
+      "rounded-[var(--radius-card)] border border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] shadow-[var(--shadow-medium)]",
     kpi:
-      "rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--bos-bg-control)] shadow-[var(--shadow-small)]",
+      "rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] shadow-[var(--shadow-small)]",
   };
 
   const composedClassName = [
     "outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-neutral)]",
-    darkSurfaceContext,
     variantClass[variant],
     className || "",
   ]
