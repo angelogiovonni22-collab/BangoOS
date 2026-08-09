@@ -40,9 +40,11 @@ function main() {
     assert(adapter.includes("listener(voices);"), "updated voices are pushed to subscribers");
   });
 
-  test("3. english-first ranking and premium preference exist", () => {
+  test("3. natural English and Australian voice ranking exists", () => {
     assert(adapter.includes("isEnglishVoice") && adapter.includes("scoreVoice"), "voice ranking helpers exist");
-    assert(adapter.includes("/(neural|natural|premium|enhanced|online)/"), "premium neural quality metadata is considered");
+    assert(adapter.includes("NATURAL_VOICE_PATTERN") && adapter.includes("neural|natural|premium|enhanced|online"), "premium neural quality metadata is considered");
+    assert(adapter.includes("isAustralianVoice") && adapter.includes("en-au"), "Australian English voices are detected explicitly");
+    assert(adapter.includes("FEMININE_VOICE_PATTERN"), "recommended natural female-style browser voices receive preference scoring");
   });
 
   test("4. saved voice resolves by voiceURI with fallback id", () => {
@@ -63,10 +65,12 @@ function main() {
     assert(!previewBlock.includes("mode: \"intent\""), "preview flow does not invoke intent endpoint");
   });
 
-  test("7. settings panel includes controls and preview phrase", () => {
+  test("7. settings panel surfaces recommended and Australian voices clearly", () => {
     assert(settingsPanel.includes("Spoken responses"), "spoken responses setting is rendered");
     assert(settingsPanel.includes("Preview voice"), "preview button is rendered");
     assert(settingsPanel.includes("Hello. I'm Orion, your Bango Operating System assistant."), "preview phrase matches requirement");
+    assert(settingsPanel.includes("Australian English") && settingsPanel.includes("australianVoiceCount"), "Australian browser voices are labeled and counted");
+    assert(settingsPanel.includes("★ Recommended") && settingsPanel.includes("best natural English voice"), "recommended natural automatic selection is visible");
   });
 
   console.log(`\nPhase 10A voice selection results: ${passed} passed, ${failed} failed`);
