@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, type CSSProperties, type RefObject } from "react";
 import { useFocusTrap } from "@/components/motion";
-import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, useOrionUnifiedVoice } from "@/components/orion/voice";
+import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, type OrionUnifiedVoiceController } from "@/components/orion/voice";
 import type { PersistentOrionFixture } from "./types";
 
 type PersistentOrionPanelProps = {
@@ -11,6 +11,7 @@ type PersistentOrionPanelProps = {
   open: boolean;
   fixture: PersistentOrionFixture;
   minimized: boolean;
+  voice: OrionUnifiedVoiceController;
   onClose: () => void;
   onToggleMinimized: () => void;
   panelRef: RefObject<HTMLDivElement | null>;
@@ -22,13 +23,13 @@ export function PersistentOrionPanel({
   open,
   fixture,
   minimized,
+  voice,
   onClose,
   onToggleMinimized,
   panelRef,
   panelStyle,
 }: PersistentOrionPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-  const voice = useOrionUnifiedVoice();
 
   useFocusTrap({
     active: open,
