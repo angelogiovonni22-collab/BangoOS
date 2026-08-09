@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createOrionCommandRouter, type OrionCommandPermission } from "@/lib/orion/commands";
 import { createOrionCommandRegistry } from "@/lib/orion/commands";
 import { getCustomerRelatedRecords, getOrionCommandCenterCatalog, parseRouteContext } from "@/lib/orion/command-center";
+import { resolveOrionIntelligenceIntentFallback } from "@/lib/orion/intelligence";
 import { resolveOrionIntent, type OrionIntentInput } from "@/lib/orion/intent-engine";
 import { resolveOperationalVoiceIntent } from "@/lib/orion/voice/operational-voice-intent";
 import { resolveVoiceWorkflowTurn } from "@/lib/orion/workflows/voice-workflow-assistant";
@@ -316,6 +317,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         workspace: context.workspace,
         input: normalizedIntentInput,
       });
+
+      if (!result.suggestedCommand && !result.requiresClarification) {
+        try {
+          const intelligenceFallback = await resolveOrionIntelligenceIntentFallback({
+            input: normalizedIntentInput,
+            workspace: context.workspace,
+          });
+
+          if (intelligenceFallback) {
+            logApiTiming("intent.request.end", intentStartedAt, {
+              hasSuggestion: Boolean(intelligenceFallback.intent.suggestedCommand),
+              requiresClarification: intelligenceFallback.intent.requiresClarification,
+              workflowStatus: intelligenceFallback.statusCategory,
+              intelligenceFallback: true,
+            });
+
+            return NextResponse.json({
+              ok: true,
+              intent: intelligenceFallback.intent,
+              statusCategory: intelligenceFallback.statusCategory,
+            });
+          }
+        } catch (error) {
+          if (!IS_PRODUCTION && typeof console !== "undefined") {
+            console.warn("[orion-intelligence] fallback failed", error);
+          }
+          // Preserve deterministic Orion behavior if the optional intelligence layer is unavailable.
+        }
+      }
 
       logApiTiming("intent.request.end", intentStartedAt, {
         hasSuggestion: Boolean(result.suggestedCommand),
