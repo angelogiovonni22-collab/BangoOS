@@ -31,6 +31,11 @@ function requestId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function isExplicitConfirmation(input: string) {
+  const normalized = input.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  return /^(confirm|confirmed|yes|yes confirm|yes do it|yes go ahead|go ahead|do it|proceed|approve|that s correct|that is correct|looks good|send it|save it)$/.test(normalized);
+}
+
 function confirmationSecret() {
   return process.env.ORION_CONFIRMATION_SECRET?.trim() || process.env.OPENAI_API_KEY?.trim() || null;
 }
@@ -159,7 +164,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }, { status: workspace.errorCode === "unauthenticated" ? 401 : 403 });
     }
 
-    const body = await req.json() as { toolName?: unknown; params?: unknown };
+    const body = await req.json() as { toolName?: unknown; params?: unknown; confirmationTranscript?: unknown };
     if (typeof body.toolName !== "string" || !body.toolName.trim()) {
       return NextResponse.json({ ok: false, statusCategory: "command_validation_failed", userMessage: "Realtime BOS tool name is required." }, { status: 400 });
     }
@@ -169,6 +174,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       : {};
 
     if (body.toolName.trim() === CONFIRM_TOOL_NAME) {
+      const confirmationTranscript = typeof body.confirmationTranscript === "string" ? body.confirmationTranscript.trim() : "";
+      if (!isExplicitConfirmation(confirmationTranscript)) {
+        return NextResponse.json({
+          ok: false,
+          statusCategory: "confirmation_required",
+          confirmationRequired: true,
+          userMessage: "I still need a clear confirmation before I perform that BOS action.",
+        }, { status: 409 });
+      }
+
       const token = typeof params.confirmationToken === "string" ? params.confirmationToken : "";
       const pending = decodeConfirmationToken(token);
       if (!pending || pending.companyId !== workspace.context.companyId || pending.userId !== workspace.context.userId) {
