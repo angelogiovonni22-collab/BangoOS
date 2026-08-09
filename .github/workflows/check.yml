@@ -78,6 +78,12 @@ jobs:
       - name: Run Orion OpenAI intelligence regression
         run: npx -y tsx lib/orion/intelligence/openai-intelligence.contract.test.ts
 
+      - name: Run Orion live intelligence fallback regression
+        run: npx -y tsx lib/orion/intelligence/live-voice-intelligence-fallback.contract.test.ts
+
+      - name: Run Orion estimate voice workflow regression
+        run: npx -y tsx lib/orion/workflows/orion-estimate-voice-workflow.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
