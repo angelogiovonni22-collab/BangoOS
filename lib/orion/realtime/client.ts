@@ -60,7 +60,7 @@ export class OrionRealtimeClient {
 
       const remoteAudio = document.createElement("audio");
       remoteAudio.autoplay = true;
-      remoteAudio.playsInline = true;
+      remoteAudio.setAttribute("playsinline", "");
       this.remoteAudio = remoteAudio;
 
       peerConnection.ontrack = (event) => {
