@@ -6,6 +6,9 @@ export type OrionSpeechVoiceOption = {
   localService: boolean;
   default: boolean;
   english: boolean;
+  australian: boolean;
+  naturalQuality: boolean;
+  recommended: boolean;
 };
 
 export type OrionSpeechSpeakOptions = {
@@ -28,6 +31,9 @@ export type OrionSpeechAdapter = {
   subscribeToSpeaking: (listener: (speaking: boolean) => void) => () => void;
 };
 
+const NATURAL_VOICE_PATTERN = /(neural|natural|premium|enhanced|online)/i;
+const FEMININE_VOICE_PATTERN = /(samantha|karen|matilda|aria|jenny|sonia|ava|susan|zira|tessa|moira|serena|victoria|fiona|olivia|joanna|emma|amy|nicole|natasha|salli|ivy|kimberly|ruth|maisie|libby|leah)/i;
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -40,16 +46,35 @@ function isEnglishVoice(voice: SpeechSynthesisVoice) {
   return voice.lang.toLowerCase().startsWith("en");
 }
 
+function isAustralianVoice(voice: SpeechSynthesisVoice) {
+  return voice.lang.toLowerCase().replace("_", "-").startsWith("en-au");
+}
+
+function hasNaturalQuality(voice: SpeechSynthesisVoice) {
+  return NATURAL_VOICE_PATTERN.test(`${voice.name} ${voice.voiceURI}`);
+}
+
+function looksLikeFeminineVoice(voice: SpeechSynthesisVoice) {
+  return FEMININE_VOICE_PATTERN.test(`${voice.name} ${voice.voiceURI}`);
+}
+
 function scoreVoice(voice: SpeechSynthesisVoice) {
-  const label = `${voice.name} ${voice.voiceURI}`.toLowerCase();
   let score = 0;
 
   if (isEnglishVoice(voice)) {
     score += 200;
   }
 
-  if (/(neural|natural|premium|enhanced|online)/.test(label)) {
+  if (isAustralianVoice(voice)) {
+    score += 90;
+  }
+
+  if (hasNaturalQuality(voice)) {
     score += 120;
+  }
+
+  if (looksLikeFeminineVoice(voice)) {
+    score += 55;
   }
 
   if (voice.localService) {
@@ -73,6 +98,12 @@ function normalizeVoices(voices: SpeechSynthesisVoice[]) {
     return left.name.localeCompare(right.name);
   });
 
+  const recommendedVoiceId = sorted.find((voice) => isEnglishVoice(voice))
+    ? toVoiceId(sorted.find((voice) => isEnglishVoice(voice)) as SpeechSynthesisVoice)
+    : sorted[0]
+      ? toVoiceId(sorted[0])
+      : null;
+
   return sorted.map((voice) => ({
     id: toVoiceId(voice),
     voiceURI: voice.voiceURI,
@@ -81,6 +112,9 @@ function normalizeVoices(voices: SpeechSynthesisVoice[]) {
     localService: Boolean(voice.localService),
     default: Boolean(voice.default),
     english: isEnglishVoice(voice),
+    australian: isAustralianVoice(voice),
+    naturalQuality: hasNaturalQuality(voice),
+    recommended: recommendedVoiceId === toVoiceId(voice),
   }));
 }
 
@@ -112,22 +146,14 @@ function pickPreferredVoice(savedVoiceId: string | null | undefined, voices: Spe
     return saved;
   }
 
-  const english = voices.filter((voice) => isEnglishVoice(voice));
+  const ranked = [...voices].sort((left, right) => scoreVoice(right) - scoreVoice(left));
+  const english = ranked.filter((voice) => isEnglishVoice(voice));
+
   if (english.length > 0) {
-    const neuralEnglish = english.find((voice) => /(neural|natural|premium|enhanced|online)/i.test(`${voice.name} ${voice.voiceURI}`));
-    if (neuralEnglish) {
-      return neuralEnglish;
-    }
-
-    const localEnglish = english.find((voice) => voice.localService);
-    if (localEnglish) {
-      return localEnglish;
-    }
-
     return english[0] || null;
   }
 
-  return voices[0] || null;
+  return ranked[0] || null;
 }
 
 class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
