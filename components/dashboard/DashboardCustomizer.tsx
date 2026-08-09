@@ -91,11 +91,15 @@ export function DashboardCustomizer({
     updatePosition();
 
     window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
+    // Listen only for viewport/document scrolling. Using capture=true also catches
+    // scroll events from the customizer's own overflow container, which causes
+    // repeated reposition renders while the user scrolls the panel and produces
+    // the visible up/down bounce.
+    window.addEventListener("scroll", updatePosition);
 
     return () => {
       window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("scroll", updatePosition);
     };
   }, [open]);
 
@@ -138,7 +142,7 @@ export function DashboardCustomizer({
                   aria-labelledby={titleId}
                   aria-describedby={descriptionId}
                   tabIndex={-1}
-                  className="pointer-events-auto w-80 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-large)]"
+                  className="pointer-events-auto w-80 overscroll-contain rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-large)]"
                   style={{ maxHeight: `${position.maxHeight}px`, overflowY: "auto" }}
                 >
                   <ModalHeader
