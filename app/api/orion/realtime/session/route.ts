@@ -8,6 +8,8 @@ const OPENAI_REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const DEFAULT_REALTIME_VOICE = "marin";
 const CONFIRM_TOOL_NAME = "bos_confirm_pending_action";
 const RESEARCH_TOOL_NAME = "orion_web_research";
+const CONTEXT_TOOL_NAME = "orion_current_context";
+const RESOLVE_ENTITY_TOOL_NAME = "orion_resolve_entity";
 
 function openAIKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -18,6 +20,22 @@ function realtimeVoice(requested: unknown) {
   if (typeof requested === "string" && requested.trim()) return requested.trim();
   const configured = process.env.ORION_REALTIME_VOICE;
   return typeof configured === "string" && configured.trim() ? configured.trim() : DEFAULT_REALTIME_VOICE;
+}
+
+function wrappedToolParameters(properties: Record<string, unknown>, required: string[] = []) {
+  return {
+    type: "object",
+    properties: {
+      params: {
+        type: "object",
+        properties,
+        required,
+        additionalProperties: false,
+      },
+    },
+    required: ["params"],
+    additionalProperties: false,
+  };
 }
 
 function realtimeBosTools() {
@@ -32,49 +50,47 @@ function realtimeBosTools() {
     ...canonicalTools,
     {
       type: "function" as const,
+      name: CONTEXT_TOOL_NAME,
+      description: "Read the user's current BOS page and active project/customer/estimate/invoice identifiers. Use this before asking the user which record they mean when the current page may already provide that context.",
+      parameters: wrappedToolParameters({}),
+    },
+    {
+      type: "function" as const,
+      name: RESOLVE_ENTITY_TOOL_NAME,
+      description: "Resolve a spoken BOS customer, project, estimate, or invoice name/number to a company-scoped record id. Use this whenever the user gives a human name or number but a BOS action requires an id. If multiple candidates are returned, ask the user to choose rather than guessing.",
+      parameters: wrappedToolParameters({
+        entityType: {
+          type: "string",
+          enum: ["customer", "project", "estimate", "invoice"],
+          description: "The BOS record type to resolve.",
+        },
+        phrase: {
+          type: "string",
+          description: "The customer name, project name, estimate title/number, or invoice title/number the user spoke.",
+        },
+      }, ["entityType", "phrase"]),
+    },
+    {
+      type: "function" as const,
       name: RESEARCH_TOOL_NAME,
       description: "Answer questions that need current external information or web research. Use this for current news, weather-like external facts, regulations, market information, businesses, products, or anything where up-to-date web information is needed. Do not use it for BOS company actions when a canonical BOS tool applies.",
-      parameters: {
-        type: "object",
-        properties: {
-          params: {
-            type: "object",
-            properties: {
-              query: {
-                type: "string",
-                description: "The complete research question to answer using Orion general intelligence and web search.",
-              },
-            },
-            required: ["query"],
-            additionalProperties: false,
-          },
+      parameters: wrappedToolParameters({
+        query: {
+          type: "string",
+          description: "The complete research question to answer using Orion general intelligence and web search.",
         },
-        required: ["params"],
-        additionalProperties: false,
-      },
+      }, ["query"]),
     },
     {
       type: "function" as const,
       name: CONFIRM_TOOL_NAME,
       description: "Execute a previously requested BOS action only after the user has explicitly confirmed it in the current conversation. Use the exact confirmationToken returned by the prior function output.",
-      parameters: {
-        type: "object",
-        properties: {
-          params: {
-            type: "object",
-            properties: {
-              confirmationToken: {
-                type: "string",
-                description: "Signed short-lived confirmation token returned by the pending BOS action.",
-              },
-            },
-            required: ["confirmationToken"],
-            additionalProperties: false,
-          },
+      parameters: wrappedToolParameters({
+        confirmationToken: {
+          type: "string",
+          description: "Signed short-lived confirmation token returned by the pending BOS action.",
         },
-        required: ["params"],
-        additionalProperties: false,
-      },
+      }, ["confirmationToken"]),
     },
   ];
 }
@@ -132,6 +148,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "Be concise, warm, natural, and conversational.",
         "Allow natural interruptions and do not force the user to repeat a wake phrase during an active conversation.",
         "Use BOS function tools for company navigation, reads, and operational actions whenever a canonical tool applies.",
+        `Use ${CONTEXT_TOOL_NAME} whenever current-page context could supply a missing project, customer, estimate, or invoice id.`,
+        `Use ${RESOLVE_ENTITY_TOOL_NAME} to translate spoken customer/project/estimate/invoice names or numbers into canonical BOS ids before calling id-based BOS tools. Never invent an id.`,
+        "When entity resolution returns more than one candidate, ask the user a short natural clarification question and keep listening for the answer.",
         `Use ${RESEARCH_TOOL_NAME} when the user asks for current external information, web research, or facts that should not be guessed from model memory.`,
         "For ordinary timeless questions that you can answer confidently without current information, answer conversationally without calling a tool.",
         "A tool request is not proof that an action succeeded. Wait for the function output before claiming success.",

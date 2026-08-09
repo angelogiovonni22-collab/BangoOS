@@ -24,6 +24,7 @@ export type OrionRealtimeToolExecutionResult = {
   href?: string | null;
   confirmationRequired?: boolean;
   confirmationToken?: string | null;
+  details?: unknown;
 };
 
 export type OrionRealtimeClientCallbacks = {
