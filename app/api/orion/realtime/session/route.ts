@@ -109,6 +109,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       audio: {
         input: {
           noise_reduction: { type: "far_field" },
+          transcription: {
+            model: "gpt-4o-mini-transcribe",
+            language: "en",
+            prompt: "Bango Operating System construction terminology, customer names, project names, estimates, invoices, crews, change orders, daily reports, confirm, cancel.",
+          },
           turn_detection: {
             type: "semantic_vad",
             eagerness: "high",
