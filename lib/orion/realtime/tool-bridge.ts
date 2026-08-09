@@ -1,21 +1,11 @@
 "use client";
 
-import type { OrionRealtimeServerEvent } from "./types";
+import type { OrionRealtimeServerEvent, OrionRealtimeToolExecutionResult } from "./types";
 
 export type OrionRealtimeFunctionCall = {
   callId: string;
   toolName: string;
   params: Record<string, unknown>;
-};
-
-export type OrionRealtimeToolExecutionResult = {
-  ok: boolean;
-  statusCategory: string;
-  commandId?: string;
-  userMessage: string;
-  href?: string | null;
-  confirmationRequired?: boolean;
-  confirmationToken?: string | null;
 };
 
 function parseParams(argumentsJson: string) {
