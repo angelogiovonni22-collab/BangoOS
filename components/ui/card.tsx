@@ -16,11 +16,11 @@ export function Card({ as = "article", variant = "default", className, ...props 
 
   const variantClass: Record<NonNullable<CardProps["variant"]>, string> = {
     default:
-      "rounded-[var(--radius-card)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] shadow-[var(--shadow-small)]",
+      "rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--bos-bg-panel)] shadow-[var(--shadow-small)]",
     elevated:
-      "rounded-[var(--radius-card)] border border-[var(--bos-border-strong)] bg-[var(--bos-bg-panel-elevated)] shadow-[var(--shadow-medium)]",
+      "rounded-[var(--radius-card)] border border-[var(--color-border-strong)] bg-[var(--bos-bg-panel-elevated)] shadow-[var(--shadow-medium)]",
     kpi:
-      "rounded-[var(--radius-xl)] border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-control)] shadow-[var(--shadow-small)]",
+      "rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--bos-bg-control)] shadow-[var(--shadow-small)]",
   };
 
   const composedClassName = [
@@ -36,7 +36,7 @@ export function Card({ as = "article", variant = "default", className, ...props 
 
 export function CardHeader({ className, ...props }: CardHeaderProps) {
   const composedClassName = [
-    "border-b border-[var(--bos-border-subtle)] px-5 py-[1.125rem]",
+    "border-b border-[var(--color-border-subtle)] px-5 py-[1.125rem]",
     className || "",
   ]
     .filter(Boolean)
@@ -47,7 +47,7 @@ export function CardHeader({ className, ...props }: CardHeaderProps) {
 
 export function CardTitle({ className, ...props }: CardTitleProps) {
   const composedClassName = [
-    "text-card-title text-[var(--bos-text-primary)]",
+    "text-card-title text-[var(--color-text-primary)]",
     className || "",
   ]
     .filter(Boolean)
@@ -58,7 +58,7 @@ export function CardTitle({ className, ...props }: CardTitleProps) {
 
 export function CardDescription({ className, ...props }: CardDescriptionProps) {
   const composedClassName = [
-    "mt-1.5 text-body-secondary font-medium text-[var(--bos-text-secondary)]",
+    "mt-1.5 text-body-secondary font-medium text-[var(--color-text-secondary)]",
     className || "",
   ]
     .filter(Boolean)
@@ -75,7 +75,7 @@ export function CardContent({ className, ...props }: CardContentProps) {
 
 export function CardFooter({ className, ...props }: CardFooterProps) {
   const composedClassName = [
-    "border-t border-[var(--bos-border-subtle)] px-5 py-[1.125rem]",
+    "border-t border-[var(--color-border-subtle)] px-5 py-[1.125rem]",
     className || "",
   ]
     .filter(Boolean)
@@ -86,7 +86,7 @@ export function CardFooter({ className, ...props }: CardFooterProps) {
 
 export function CardIcon({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-control)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--orion-cyan)]">
+    <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--bos-bg-control)] text-[var(--orion-cyan)]">
       {children}
     </div>
   );
