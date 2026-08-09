@@ -1,3 +1,5 @@
+import type { OrionRealtimeToolExecutionResult } from "./tool-bridge";
+
 export type OrionRealtimeConnectionState =
   | "idle"
   | "requesting_microphone"
@@ -19,5 +21,6 @@ export type OrionRealtimeServerEvent = {
 export type OrionRealtimeClientCallbacks = {
   onStateChange?: (state: OrionRealtimeConnectionState) => void;
   onEvent?: (event: OrionRealtimeServerEvent) => void;
+  onToolResult?: (result: OrionRealtimeToolExecutionResult) => void;
   onError?: (error: Error) => void;
 };
