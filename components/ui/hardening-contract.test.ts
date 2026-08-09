@@ -50,8 +50,9 @@ function main(): void {
   assert(globals.includes("--color-text-primary: var(--bos-text-strong-on-light);"), "light surface primary text resolves to dark readable text");
   assert(globals.includes("--color-text-secondary: var(--bos-text-medium-on-light);"), "light surface secondary text resolves to readable supporting text");
 
-  assert(pageHeader.includes("var(--color-text-primary)"), "page header title is surface-aware");
-  assert(pageHeader.includes("var(--color-text-secondary)"), "page header supporting copy is surface-aware");
+  assert(pageHeader.includes("var(--bos-text-strong-on-light)"), "page header title uses explicit readable on-light text");
+  assert(pageHeader.includes("var(--bos-text-medium-on-light)"), "page header eyebrow and supporting copy use explicit readable on-light text");
+  assert(pageHeader.includes("border-[var(--bos-border-light)]"), "page header divider uses the light-surface border token");
   assert(pageHeader.includes("min-w-0"), "page header protects narrow layouts from intrinsic overflow");
 
   assert(sectionHeader.includes("var(--color-text-primary)"), "section header title is surface-aware");
