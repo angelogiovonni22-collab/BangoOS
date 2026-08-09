@@ -97,10 +97,12 @@ async function executeCanonicalCommand(args: {
     };
   }
 
+  const normalizedParams: Record<string, unknown> = validation.normalizedParams ?? {};
+
   if (command.confirmationLevel === "REQUIRED" && !args.confirmed) {
     const confirmationToken = encodeConfirmationToken({
       commandId: command.id,
-      params: validation.normalizedParams,
+      params: normalizedParams,
       companyId: args.companyId,
       userId: args.userId,
       expiresAt: Date.now() + CONFIRMATION_TTL_MS,
@@ -120,11 +122,11 @@ async function executeCanonicalCommand(args: {
   }
 
   const correlationId = requestId("orion-realtime");
-  const idempotencyKey = `${command.id}:${JSON.stringify(validation.normalizedParams)}:${correlationId}`;
+  const idempotencyKey = `${command.id}:${JSON.stringify(normalizedParams)}:${correlationId}`;
   const router = createOrionCommandRouter({ supabase: args.supabase });
   const result = await router.executeCommand({
     commandId: command.id,
-    params: validation.normalizedParams,
+    params: normalizedParams,
     confirmation: command.confirmationLevel === "REQUIRED"
       ? { confirmed: true, summary: `Confirmed in Orion Realtime conversation for ${command.id}.` }
       : undefined,
