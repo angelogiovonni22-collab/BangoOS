@@ -15,6 +15,7 @@ export type OrionRealtimeToolExecutionResult = {
   userMessage: string;
   href?: string | null;
   confirmationRequired?: boolean;
+  confirmationToken?: string | null;
 };
 
 function parseParams(argumentsJson: string) {
@@ -30,17 +31,17 @@ function parseParams(argumentsJson: string) {
 }
 
 export function extractOrionRealtimeFunctionCall(event: OrionRealtimeServerEvent): OrionRealtimeFunctionCall | null {
-  const item = event.item;
-  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  if (event.type !== "response.function_call_arguments.done") return null;
 
-  const candidate = item as { type?: unknown; call_id?: unknown; name?: unknown; arguments?: unknown };
-  if (candidate.type !== "function_call") return null;
-  if (typeof candidate.call_id !== "string" || typeof candidate.name !== "string") return null;
+  const callId = typeof event.call_id === "string" ? event.call_id : null;
+  const toolName = typeof event.name === "string" ? event.name : null;
+  const argumentsJson = typeof event.arguments === "string" ? event.arguments : "{}";
+  if (!callId || !toolName) return null;
 
   return {
-    callId: candidate.call_id,
-    toolName: candidate.name,
-    params: parseParams(typeof candidate.arguments === "string" ? candidate.arguments : "{}"),
+    callId,
+    toolName,
+    params: parseParams(argumentsJson),
   };
 }
 
@@ -59,6 +60,7 @@ export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall):
     userMessage: payload.userMessage || payload.error || "The BOS action could not be completed.",
     href: payload.href || null,
     confirmationRequired: Boolean(payload.confirmationRequired),
+    confirmationToken: typeof payload.confirmationToken === "string" ? payload.confirmationToken : null,
   };
 }
 
@@ -75,6 +77,7 @@ export function buildOrionRealtimeFunctionOutputEvent(callId: string, result: Or
         message: result.userMessage,
         href: result.href || null,
         confirmationRequired: Boolean(result.confirmationRequired),
+        confirmationToken: result.confirmationToken || null,
       }),
     },
   };
