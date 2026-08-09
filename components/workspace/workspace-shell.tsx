@@ -4,7 +4,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, SkeletonLo
 export type WorkspaceBadgeTone = "brand" | "success" | "warning" | "danger" | "neutral" | "info" | "analytics";
 
 export function WorkspaceShell({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={["container-page min-w-0 w-full space-y-[var(--space-section)] overflow-x-clip rounded-[20px] bg-[var(--workspace-shell-surface)] p-4 md:p-5 lg:p-6", className].filter(Boolean).join(" ")}>{children}</div>;
+  return <div className={["container-page min-w-0 w-full space-y-[var(--space-section)] overflow-x-clip rounded-[20px] [background:var(--workspace-shell-surface)] p-4 md:p-5 lg:p-6", className].filter(Boolean).join(" ")}>{children}</div>;
 }
 
 export function WorkspaceGrid({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -104,7 +104,7 @@ export function WorkspaceWidget({ label, value, context, icon }: { label: string
 export function WorkspaceLoadingState({ rows = 4 }: { rows?: number }) {
   return (
     <div className="space-y-5">
-      <div className="rounded-[20px] border border-[var(--workspace-shell-border)] bg-[var(--workspace-loading-surface)] p-5 shadow-[var(--shadow-card)]">
+      <div className="rounded-[20px] border border-[var(--workspace-shell-border)] [background:var(--workspace-loading-surface)] p-5 shadow-[var(--shadow-card)]">
         <div className="space-y-2">
           <SkeletonLoader className="h-8 w-72" />
           <SkeletonLoader className="h-5 w-96" />
