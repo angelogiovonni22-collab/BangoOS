@@ -1,11 +1,107 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import { Layers3 } from "lucide-react";
+import { useParams, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { ProjectActivityWorkspace } from "./project-activity-workspace";
 
 type ProjectCommandCenterTabPlaceholderProps = {
   tabLabel: string;
 };
 
+type ActivityIdentity = {
+  userId: string;
+  userName: string;
+};
+
 export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandCenterTabPlaceholderProps) {
   const normalizedTab = tabLabel.toLowerCase();
+  const params = useParams<{ id?: string | string[] }>();
+  const searchParams = useSearchParams();
+  const supabase = useMemo(() => createClient(), []);
+  const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const tabParam = searchParams.get("tab");
+  const isActivityTab = tabParam === "activity" || tabParam === "timeline";
+  const [activityIdentity, setActivityIdentity] = useState<ActivityIdentity | null>(null);
+  const [activityIdentityResolved, setActivityIdentityResolved] = useState(false);
+
+  useEffect(() => {
+    let isSubscribed = true;
+
+    if (!isActivityTab || !projectId) {
+      setActivityIdentity(null);
+      setActivityIdentityResolved(false);
+      return () => {
+        isSubscribed = false;
+      };
+    }
+
+    const loadActivityIdentity = async () => {
+      setActivityIdentityResolved(false);
+
+      const workspaceResult = await resolveWorkspaceContext(supabase);
+
+      if (!workspaceResult.context) {
+        if (isSubscribed) {
+          setActivityIdentity(null);
+          setActivityIdentityResolved(true);
+        }
+        return;
+      }
+
+      const { userId } = workspaceResult.context;
+      let userName = "BangoOS User";
+
+      if (supabase) {
+        const profileResponse = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("id", userId)
+          .maybeSingle<{ first_name: string | null; last_name: string | null }>();
+
+        if (!profileResponse.error && profileResponse.data) {
+          const fullName = `${profileResponse.data.first_name?.trim() || ""} ${profileResponse.data.last_name?.trim() || ""}`.trim();
+          if (fullName) {
+            userName = fullName;
+          }
+        }
+      }
+
+      if (isSubscribed) {
+        setActivityIdentity({ userId, userName });
+        setActivityIdentityResolved(true);
+      }
+    };
+
+    void loadActivityIdentity();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [isActivityTab, projectId, supabase]);
+
+  if (isActivityTab && projectId) {
+    if (!activityIdentityResolved) {
+      return (
+        <section className="min-w-0 rounded-[18px] border border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-card),var(--color-neutral-50))] p-6 shadow-[var(--bos-shadow-workspace-card)]">
+          <div className="h-24 animate-pulse rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)]" />
+        </section>
+      );
+    }
+
+    if (activityIdentity) {
+      return (
+        <ProjectActivityWorkspace
+          projectId={projectId}
+          localeTag={document.documentElement.lang === "es" ? "es-ES" : "en-US"}
+          currentUserId={activityIdentity.userId}
+          currentUserName={activityIdentity.userName}
+        />
+      );
+    }
+  }
 
   return (
     <section className="min-w-0 rounded-[18px] border border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-card),var(--color-neutral-50))] p-6 shadow-[var(--bos-shadow-workspace-card)]">
