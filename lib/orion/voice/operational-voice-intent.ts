@@ -168,7 +168,7 @@ export async function resolveOperationalVoiceIntent(params: {
   const reportDate = resolveReportDate(params.input.input);
   return {
     handled: true,
-    statusCategory: "workflow_awaiting_confirmation",
+    statusCategory: "operational_ready",
     intent: {
       resolvedIntent: "create",
       resolvedEntity: {
@@ -196,7 +196,7 @@ export async function resolveOperationalVoiceIntent(params: {
         eventsThatWillPublish: command.eventContract?.expectedEvents || [],
       },
       requiresClarification: false,
-      message: `Create the ${reportDate} daily report for ${project.name}?`,
+      message: `Creating the ${reportDate} daily report for ${project.name}.`,
     },
   };
 }
