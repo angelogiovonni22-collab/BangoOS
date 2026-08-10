@@ -22,6 +22,7 @@ function main() {
   const adapter = read("lib/orion/intelligence/openai-intelligence.ts");
   const route = read("app/api/orion/intelligence/route.ts");
   const policy = read("lib/orion/intelligence/orion-tool-router.ts");
+  const modelConfig = read("lib/orion/intelligence/model-config.ts");
 
   console.log("\nOrion OpenAI intelligence contract");
 
@@ -32,6 +33,8 @@ function main() {
   assert(route.includes('resolveBosActionFromIntelligenceRoute'), "AI tool selections are resolved back to canonical BOS commands");
   assert(!route.includes('.from("') && !route.includes(".insert(") && !route.includes(".update("), "intelligence route cannot mutate BOS tables directly");
   assert(policy.includes("Never bypass BOS permissions, validation, confirmation levels, or audit logging."), "BOS execution safety remains outside model discretion");
+  assert(modelConfig.includes('const DEFAULT_REALTIME_MODEL = "gpt-realtime-2.1"'), "Orion defaults to the current GPT-Realtime-2.1 voice-agent model");
+  assert(modelConfig.includes('readEnv("ORION_REALTIME_MODEL") || DEFAULT_REALTIME_MODEL'), "Realtime model remains environment-overridable");
 
   console.log(`\nOrion OpenAI intelligence results: ${passed} passed, ${failed} failed`);
   if (failed > 0) {
