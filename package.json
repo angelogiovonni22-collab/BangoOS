@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "npm run lint && npx -y tsx lib/orion/navigation/orion-realtime-deterministic-navigation.test.ts && npm run build"
+    "check": "npm run lint && npx -y tsx lib/orion/navigation/orion-realtime-deterministic-navigation.test.ts && npx -y tsx app/api/orion/realtime/session/orion-realtime-multipart.contract.test.ts && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
