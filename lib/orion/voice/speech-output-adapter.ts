@@ -31,6 +31,8 @@ export type OrionSpeechAdapter = {
   subscribeToSpeaking: (listener: (speaking: boolean) => void) => () => void;
 };
 
+export const ORION_SPEECH_ENDED_EVENT = "orion:speech-ended";
+
 const NATURAL_VOICE_PATTERN = /(neural|natural|premium|enhanced|online)/i;
 const FEMININE_VOICE_PATTERN = /(samantha|karen|matilda|aria|jenny|sonia|ava|susan|zira|tessa|moira|serena|victoria|fiona|olivia|joanna|emma|amy|nicole|natasha|salli|ivy|kimberly|ruth|maisie|libby|leah)/i;
 const DUPLICATE_SPEECH_WINDOW_MS = 2_500;
@@ -308,6 +310,10 @@ class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
     this.cleanupCadenceTimers();
     this.setVoiceLevel(0);
     this.setSpeaking(false);
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(ORION_SPEECH_ENDED_EVENT));
+    }
   }
 
   private cleanupCadenceTimers() {
