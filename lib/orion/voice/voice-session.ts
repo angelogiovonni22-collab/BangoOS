@@ -8,6 +8,7 @@ import { hasOrionConversationContinuation } from "./conversation-continuation";
 import { ORION_SPEECH_ENDED_EVENT } from "./speech-output-adapter";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const FINAL_TRANSCRIPT_SETTLE_MS = 900;
 
 function logVoiceDev(event: string, details?: Record<string, unknown>) {
   if (IS_PRODUCTION || typeof console === "undefined") {
@@ -82,6 +83,8 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
 
   const recognitionRef = useRef<BrowserSpeechRecognitionLike | null>(null);
   const lastDeliveredFinalTranscriptRef = useRef<string | null>(null);
+  const pendingFinalTranscriptRef = useRef("");
+  const finalTranscriptSettleTimerRef = useRef<number | null>(null);
   const pendingCancelRef = useRef(false);
   const onPermissionDeniedRef = useRef(options?.onPermissionDenied);
   const onErrorCategoryRef = useRef(options?.onErrorCategory);
@@ -99,6 +102,14 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
     onErrorCategoryRef.current = options?.onErrorCategory;
     onFinalTranscriptRef.current = options?.onFinalTranscript;
   }, [options?.onErrorCategory, options?.onFinalTranscript, options?.onPermissionDenied]);
+
+  const clearPendingFinalTranscript = useCallback(() => {
+    if (finalTranscriptSettleTimerRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(finalTranscriptSettleTimerRef.current);
+      finalTranscriptSettleTimerRef.current = null;
+    }
+    pendingFinalTranscriptRef.current = "";
+  }, []);
 
   const reportError = useCallback((category: OrionVoiceErrorCategory, message: string) => {
     setErrorCategory(category);
@@ -123,6 +134,8 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
   }, []);
 
   const cancel = useCallback(() => {
+    clearPendingFinalTranscript();
+
     if (stateRef.current === "requesting_permission") {
       pendingCancelRef.current = true;
       logOrionDebugInfo("[orion-debug] recognition cancel deferred", { reason: "waiting_for_onstart" });
@@ -138,7 +151,7 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
 
     setInterimTranscript("");
     setState(support.recognitionSupported ? "idle" : "unsupported");
-  }, [support.recognitionSupported]);
+  }, [clearPendingFinalTranscript, support.recognitionSupported]);
 
   const ensureRecognition = useCallback(() => {
     if (recognitionRef.current) {
@@ -183,6 +196,7 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
     recognition.onstart = () => {
       logOrionDebugInfo("[orion-debug] recognition.onstart", { eventType: "start" });
       logVoiceDev("recognition started");
+      clearPendingFinalTranscript();
       lastDeliveredFinalTranscriptRef.current = null;
       setErrorCategory(null);
       setErrorMessage(null);
@@ -216,7 +230,8 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
         }
       }
 
-      setInterimTranscript(sanitizeTranscript(interim));
+      const sanitizedInterim = sanitizeTranscript(interim);
+      setInterimTranscript(sanitizedInterim);
       logVoiceDev("transcript received", {
         resultIndex: event.resultIndex,
         resultCount: event.results.length,
@@ -226,20 +241,50 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
 
       if (finals.length > 0) {
         const joined = sanitizeTranscript(finals.join(" "));
-        if (joined && lastDeliveredFinalTranscriptRef.current !== joined) {
-          lastDeliveredFinalTranscriptRef.current = joined;
-          logOrionDebugInfo("[orion-timing] speech final result", {
-            transcriptLength: joined.length,
+        if (joined) {
+          const existing = pendingFinalTranscriptRef.current;
+          pendingFinalTranscriptRef.current = sanitizeTranscript(existing ? `${existing} ${joined}` : joined);
+          logOrionDebugInfo("[orion-trace] speech.final_chunk_buffered", {
+            bufferedLength: pendingFinalTranscriptRef.current.length,
+            settleMs: FINAL_TRANSCRIPT_SETTLE_MS,
           });
-          logOrionDebugInfo("[orion-trace] speech.final_result", {
-            transcript: joined,
-            transcriptLength: joined.length,
-          });
-          setFinalTranscript(joined);
-          setState("processing");
-          onFinalTranscriptRef.current?.(joined);
         }
       }
+
+      if (!pendingFinalTranscriptRef.current) {
+        return;
+      }
+
+      if (finalTranscriptSettleTimerRef.current !== null) {
+        window.clearTimeout(finalTranscriptSettleTimerRef.current);
+      }
+
+      // A browser can mark a phrase final while the user is still speaking. Treat
+      // every subsequent result (including interim speech) as proof the turn is
+      // still active, and only dispatch after a short quiet window.
+      finalTranscriptSettleTimerRef.current = window.setTimeout(() => {
+        finalTranscriptSettleTimerRef.current = null;
+        const settled = sanitizeTranscript(pendingFinalTranscriptRef.current);
+        pendingFinalTranscriptRef.current = "";
+
+        if (!settled || lastDeliveredFinalTranscriptRef.current === settled) {
+          return;
+        }
+
+        lastDeliveredFinalTranscriptRef.current = settled;
+        logOrionDebugInfo("[orion-timing] speech final result", {
+          transcriptLength: settled.length,
+          settleMs: FINAL_TRANSCRIPT_SETTLE_MS,
+        });
+        logOrionDebugInfo("[orion-trace] speech.final_result", {
+          transcript: settled,
+          transcriptLength: settled.length,
+        });
+        setInterimTranscript("");
+        setFinalTranscript(settled);
+        setState("processing");
+        onFinalTranscriptRef.current?.(settled);
+      }, FINAL_TRANSCRIPT_SETTLE_MS);
     };
 
     const recognitionWithNoMatch = recognition as BrowserSpeechRecognitionLike & {
@@ -264,11 +309,13 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
 
       if (event.error === "no-speech" || event.error === "aborted") {
         // These are expected lifecycle outcomes during normal stop/restart/wake flows.
+        clearPendingFinalTranscript();
         setInterimTranscript("");
         setState(support.recognitionSupported ? "idle" : "unsupported");
         return;
       }
 
+      clearPendingFinalTranscript();
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         onPermissionDeniedRef.current?.();
         reportError("microphone_permission_denied", "Microphone permission was denied.");
@@ -334,7 +381,7 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
 
     recognitionRef.current = recognition;
     return recognition;
-  }, [lang, reportError]);
+  }, [clearPendingFinalTranscript, lang, reportError, support.recognitionSupported]);
 
   const start = useCallback(() => {
     if (!support.recognitionSupported) {
@@ -350,6 +397,7 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
       return;
     }
 
+    clearPendingFinalTranscript();
     setErrorCategory(null);
     setErrorMessage(null);
     setInterimTranscript("");
@@ -375,7 +423,7 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
       setState("error");
       reportError("microphone_unavailable", "Unable to start microphone capture.");
     }
-  }, [ensureRecognition, reportError, state, support.message, support.recognitionSupported]);
+  }, [clearPendingFinalTranscript, ensureRecognition, reportError, state, support.message, support.recognitionSupported]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -438,6 +486,7 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
 
   useEffect(() => {
     return () => {
+      clearPendingFinalTranscript();
       const recognition = recognitionRef.current;
       if (recognition) {
         logOrionDebugInfo("[orion-debug] recognition abort on unmount");
@@ -445,7 +494,7 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
         recognition.abort();
       }
     };
-  }, []);
+  }, [clearPendingFinalTranscript]);
 
   const snapshot: OrionVoiceSessionSnapshot = {
     state,
