@@ -90,6 +90,9 @@ jobs:
       - name: Run Orion OpenAI intelligence regression
         run: npx -y tsx lib/orion/intelligence/openai-intelligence.contract.test.ts
 
+      - name: Run Orion LLM-first voice routing regression
+        run: npx -y tsx lib/orion/intelligence/orion-llm-first-voice-routing.contract.test.ts
+
       - name: Run Orion live intelligence fallback regression
         run: npx -y tsx lib/orion/intelligence/live-voice-intelligence-fallback.contract.test.ts
 

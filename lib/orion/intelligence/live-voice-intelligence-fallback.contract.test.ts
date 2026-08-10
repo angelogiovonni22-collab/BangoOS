@@ -24,16 +24,17 @@ function main() {
 
   console.log("\nOrion live intelligence fallback contract");
 
-  assert(route.includes("resolveOrionIntelligenceIntentFallback"), "command center imports the intelligence fallback");
-  assert(route.includes("!result.suggestedCommand && !result.requiresClarification"), "deterministic Orion retains first priority");
+  assert(route.includes("resolveOrionIntelligenceIntentFallback"), "command center imports the intelligence router");
+  assert(route.includes("!result.suggestedCommand && !result.requiresClarification"), "non-voice deterministic requests still retain intelligence fallback");
   assert(route.includes("intelligenceFallback: true"), "fallback requests are explicitly traced");
-  assert(route.includes("Preserve deterministic Orion behavior"), "OpenAI failure cannot take down deterministic Orion");
+  assert(route.includes("LLM-first routing failed; using deterministic fallback"), "OpenAI failure cannot take down Orion voice because deterministic routing remains available");
   assert(fallback.includes('statusCategory: "workflow_complete"'), "general answers reuse the existing spoken workflow response path");
   assert(fallback.includes('statusCategory: "workflow_collecting"'), "missing information returns a conversational collection state");
   assert(fallback.includes('command.id === "estimate.create"'), "estimate creation has a friendly guided-start fallback");
   assert(fallback.includes("Okay, starting a new estimate"), "estimate creation no longer falls into a red generic error");
   assert(fallback.includes("command.validate(action.params)"), "AI-selected BOS commands are validated before dispatch");
   assert(fallback.includes("resolveBosActionFromIntelligenceRoute"), "AI tool calls resolve back to the canonical BOS registry");
+  assert(fallback.includes("if (args.conversationOnly)"), "conversation-only LLM turns cannot escape into BOS execution");
 
   console.log(`\nOrion live intelligence fallback results: ${passed} passed, ${failed} failed`);
   if (failed > 0) {
