@@ -20,6 +20,9 @@ function read(relativePath: string) {
 
 function main() {
   const unified = read("components/orion/voice/useOrionUnifiedVoice.ts");
+  const compat = read("components/orion/voice/useGlobalOrionVoiceCompat.ts");
+  const voiceIndex = read("components/orion/voice/index.ts");
+  const commandCenter = read("components/orion/command-center/OrionCommandCenterOverlay.tsx");
   const persistent = read("components/orion/persistent/PersistentOrion.tsx");
   const panel = read("components/orion/persistent/PersistentOrionPanel.tsx");
   const realtimeClient = read("lib/orion/realtime/client.ts");
@@ -55,6 +58,13 @@ function main() {
   assert(modelConfig.includes('DEFAULT_REALTIME_MODEL = "gpt-realtime"'), "Orion v2 defaults to the public OpenAI Realtime model identifier");
   assert(modelConfig.includes('DEFAULT_REASONING_MODEL = "gpt-5.1"'), "non-Realtime Orion reasoning defaults to a public API model identifier");
   assert(modelConfig.includes('DEFAULT_FAST_MODEL = "gpt-5-mini"'), "fast Orion reasoning defaults to a public API model identifier");
+
+  assert(commandCenter.includes('from "@/components/orion/voice"'), "Command Center consumes the public Orion voice facade rather than the provider implementation directly");
+  assert(voiceIndex.includes('useGlobalOrionVoice } from "./useGlobalOrionVoiceCompat"'), "the public legacy-shaped hook is routed through the Realtime compatibility facade");
+  assert(!voiceIndex.includes('GlobalOrionVoiceProvider, useGlobalOrionVoice'), "the barrel no longer exports the legacy provider hook to command surfaces");
+  assert(compat.includes("useOrionUnifiedVoice()"), "the compatibility facade is backed by Orion v2 Realtime");
+  assert(compat.includes('finalTranscript: ""'), "Realtime final transcripts cannot be re-dispatched into the legacy Command Center intent pipeline");
+  assert(compat.includes("requestSpokenResponse: () => undefined"), "browser TTS cannot duplicate Realtime spoken output");
 
   console.log(`\nOrion v2 persistent Realtime integration results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
