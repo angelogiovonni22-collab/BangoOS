@@ -1,8 +1,8 @@
 import { normalizeIntentInput, parseEntityHint, parseScheduleReadPhrase } from "@/lib/orion/intent-engine";
 
 const EXPLICIT_BOS_ACTION = /\b(open|show|go\s+to|take\s+me\s+to|navigate|find|search|lookup|create|new|add|make|duplicate|update|edit|assign|complete|finish|archive|restore|send|record|generate|convert|start|begin|pause|stop|schedule|reschedule|approve|reject|issue|submit)\b/i;
-const BOS_DOMAIN = /\b(customer|client|project|job|estimate|quote|invoice|bill|employee|crew|task|inspection|permit|daily\s+report|change\s+order|schedule|calendar|timeline|dashboard|operations|vendor|material|equipment|payment|deposit)\b/i;
-const BOS_READ_QUESTION = /\b(what|which|who|when|where|how)\b.*\b(customer|client|project|job|estimate|quote|invoice|employee|crew|task|inspection|permit|daily\s+report|change\s+order|schedule|calendar|timeline|dashboard|operations|vendor|material|equipment|payment|deposit)\b/i;
+const BOS_DOMAIN = /\b(customers?|clients?|projects?|jobs?|estimates?|quotes?|invoices?|bills?|employees?|crews?|tasks?|inspections?|permits?|daily\s+reports?|change\s+orders?|schedules?|calendars?|timelines?|dashboards?|operations|vendors?|materials?|equipment|payments?|deposits?)\b/i;
+const BOS_READ_QUESTION = /\b(what|which|who|when|where|how)\b.*\b(customers?|clients?|projects?|jobs?|estimates?|quotes?|invoices?|employees?|crews?|tasks?|inspections?|permits?|daily\s+reports?|change\s+orders?|schedules?|calendars?|timelines?|dashboards?|operations|vendors?|materials?|equipment|payments?|deposits?)\b/i;
 const CONVERSATION_OPENERS = /^(hi|hello|hey|good\s+(morning|afternoon|evening)|thanks|thank\s+you|can\s+you|could\s+you|would\s+you|are\s+you|do\s+you|did\s+you|will\s+you|how\s+are\s+you|who\s+are\s+you|what\s+are\s+you|tell\s+me\s+about\s+yourself)\b/i;
 
 export function hasClearBosVoiceIntent(input: string) {
