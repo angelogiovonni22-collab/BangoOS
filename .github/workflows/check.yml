@@ -117,6 +117,9 @@ jobs:
       - name: Run Orion Realtime context resolution regression
         run: npx -y tsx lib/orion/realtime/orion-realtime-context-resolution.contract.test.ts
 
+      - name: Run Orion advanced task-agent regression
+        run: npx -y tsx lib/orion/task-agent/orion-task-agent.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
