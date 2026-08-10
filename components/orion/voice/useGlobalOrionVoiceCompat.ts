@@ -3,6 +3,8 @@
 import { useCallback, useMemo } from "react";
 import { useOrionUnifiedVoice } from "./useOrionUnifiedVoice";
 
+type LegacyCompatibleCaptureMode = "push_to_talk" | "tap_to_listen" | "hands_free";
+
 /**
  * Compatibility facade for older Orion UI surfaces that still consume the
  * GlobalOrionVoiceProvider-shaped API. The facade deliberately does not expose
@@ -33,14 +35,18 @@ export function useGlobalOrionVoice() {
     void realtime.disableVoice();
   }, [realtime]);
 
-  const noop = useCallback((..._args: unknown[]) => undefined, []);
+  const noop = useCallback((...args: unknown[]) => {
+    void args;
+  }, []);
+
+  const compatibleMode = "hands_free" as LegacyCompatibleCaptureMode;
 
   return useMemo(() => ({
     phase: realtime.phase,
-    mode: "hands_free" as const,
+    mode: compatibleMode,
     settings: {
       ...realtime.settings,
-      mode: "hands_free" as const,
+      mode: compatibleMode,
       spokenResponsesEnabled: realtime.settings.spokenResponsesEnabled,
       returnToWakeAfterCommand: false,
     },
@@ -87,5 +93,5 @@ export function useGlobalOrionVoice() {
     cancelPendingCommand: noop,
     stopAllListening: stop,
     retryFromError: retry,
-  }), [disable, enable, noop, realtime, retry, start, stop]);
+  }), [compatibleMode, disable, enable, noop, realtime, retry, start, stop]);
 }
