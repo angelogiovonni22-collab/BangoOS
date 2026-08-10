@@ -46,13 +46,13 @@ function main() {
   assert(dailyReportCreate?.coverage.status === "implemented", "Daily Report creation is live in the runtime command registry");
   assert(dailyReportUpdate?.coverage.status === "implemented", "Daily Report updates are live in the runtime command registry");
 
-  const exposedToolNames = new Set(buildUniversalBosToolCatalog().map((tool) => tool.commandId));
+  const exposedCommandIds = new Set(buildUniversalBosToolCatalog().map((tool) => tool.metadata.commandId));
   for (const commandId of intentionallyBlocked) {
-    assert(!exposedToolNames.has(commandId), `${commandId} is not exposed to AI/Realtime as an executable tool`);
+    assert(!exposedCommandIds.has(commandId), `${commandId} is not exposed to AI/Realtime as an executable tool`);
   }
 
   const implementedCommands = ORION_INITIAL_COMMANDS.filter((command) => command.coverage.status !== "unsupported");
-  const exposedImplementedCommands = implementedCommands.filter((command) => exposedToolNames.has(command.id));
+  const exposedImplementedCommands = implementedCommands.filter((command) => exposedCommandIds.has(command.id));
   assert(
     exposedImplementedCommands.length === implementedCommands.length,
     `all ${implementedCommands.length} production-capable canonical commands are exposed through Universal BOS Control`,
