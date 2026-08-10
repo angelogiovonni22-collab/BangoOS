@@ -5,7 +5,8 @@ export { OrionHandsFreeToggle } from "./OrionHandsFreeToggle";
 export { OrionWakeStatus } from "./OrionWakeStatus";
 export { OrionMicrophoneIndicator } from "./OrionMicrophoneIndicator";
 export { OrionVoiceSettingsPanel } from "./OrionVoiceSettingsPanel";
-export { GlobalOrionVoiceProvider, useGlobalOrionVoice } from "./GlobalOrionVoiceProvider";
+export { GlobalOrionVoiceProvider } from "./GlobalOrionVoiceProvider";
+export { useGlobalOrionVoice } from "./useGlobalOrionVoiceCompat";
 export {
   ORION_REALTIME_VOICES,
   useOrionUnifiedVoice,
