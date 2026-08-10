@@ -65,6 +65,7 @@ export async function resolveOrionWithOpenAI(args: {
   input: string;
   context: OrionIntelligenceContext;
   tier?: OrionReasoningTier;
+  conversationOnly?: boolean;
 }): Promise<OrionOpenAIResult> {
   const key = openAIKey();
   if (!key || process.env.ORION_OPENAI_ENABLED === "0") {
@@ -82,23 +83,32 @@ export async function resolveOrionWithOpenAI(args: {
     strict: false,
   }));
 
-  const tools: Array<Record<string, unknown>> = [...bosTools];
-  if (config.webSearchEnabled) {
+  const tools: Array<Record<string, unknown>> = args.conversationOnly ? [] : [...bosTools];
+  if (!args.conversationOnly && config.webSearchEnabled) {
     tools.push({ type: "web_search" });
   }
 
-  const response = await client.responses.create({
+  const conversationGuard = args.conversationOnly
+    ? "\nThis turn has already been classified as conversation. Answer the user directly. Do not navigate, execute BOS actions, call BOS tools, infer an operational command, or redirect to an entity."
+    : "";
+
+  const request: Record<string, unknown> = {
     model,
     reasoning: { effort: args.tier === "deep" ? "medium" : "low" },
-    instructions: `${buildOrionSystemPolicy()}\n${contextPrompt(args.context)}`,
+    instructions: `${buildOrionSystemPolicy()}\n${contextPrompt(args.context)}${conversationGuard}`,
     input: args.input,
-    tools: tools as never,
-    tool_choice: "auto",
     store: false,
-  });
+  };
+
+  if (tools.length > 0) {
+    request.tools = tools;
+    request.tool_choice = "auto";
+  }
+
+  const response = await client.responses.create(request as never);
 
   const functionCall = response.output.find((item) => item.type === "function_call");
-  if (functionCall && functionCall.type === "function_call") {
+  if (!args.conversationOnly && functionCall && functionCall.type === "function_call") {
     return {
       handled: true,
       route: {
