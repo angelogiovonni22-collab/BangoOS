@@ -30,6 +30,10 @@ function main() {
   assert(session.includes('RESOLVE_ENTITY_TOOL_NAME = "orion_resolve_entity"'), "Realtime exposes spoken entity resolution");
   assert(session.includes("Never invent an id"), "Realtime is instructed never to fabricate BOS record ids");
   assert(session.includes("more than one candidate") && session.includes("clarification"), "ambiguous entity matches require conversational clarification");
+  assert(session.includes("Conversation-first routing rule"), "Realtime explicitly prioritizes ordinary conversation over BOS tool use");
+  assert(session.includes("can you hear me") && session.includes("MUST NOT call a BOS tool"), "capability checks like can-you-hear-me are protected from accidental BOS actions");
+  assert(session.includes("Navigation tools require explicit navigation intent"), "Realtime navigation requires explicit user navigation language");
+  assert(session.includes("If you are uncertain whether the user wants a BOS action or conversation"), "ambiguous intent clarifies instead of executing a tool");
   assert(bridge.includes("window.location.href"), "current context is resolved from the live browser route without reconnecting Realtime");
   assert(bridge.includes('routeEntityId(pathname, "projects")'), "current project id can be inferred from Project Workspace routes");
   assert(bridge.includes('/api/orion/realtime/resolve-entity'), "spoken entity names are resolved through an authenticated server endpoint");
