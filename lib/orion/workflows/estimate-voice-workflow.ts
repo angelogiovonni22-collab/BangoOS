@@ -26,6 +26,20 @@ function key(workspace: WorkspaceContext) {
   return `${workspace.companyId}:${workspace.userId}`;
 }
 
+export function beginEstimateVoiceWorkflowSession(workspace: WorkspaceContext) {
+  sessions.set(key(workspace), { draft: {}, expiresAtMs: Date.now() + SESSION_TIMEOUT_MS });
+}
+
+export function hasActiveEstimateVoiceWorkflowSession(workspace: WorkspaceContext) {
+  const sessionKey = key(workspace);
+  const existing = sessions.get(sessionKey);
+  if (existing && existing.expiresAtMs <= Date.now()) {
+    sessions.delete(sessionKey);
+    return false;
+  }
+  return Boolean(existing);
+}
+
 function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\s'-]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -191,7 +205,7 @@ export async function resolveEstimateVoiceWorkflowTurn(args: {
   if (existing && existing.expiresAtMs <= Date.now()) sessions.delete(sessionKey);
 
   if (isEstimateStart(args.input.input)) {
-    sessions.set(sessionKey, { draft: {}, expiresAtMs: Date.now() + SESSION_TIMEOUT_MS });
+    beginEstimateVoiceWorkflowSession(args.workspace);
     return {
       handled: true,
       intent: passiveIntent("Okay, starting a new estimate. What information would you like me to add first? You can tell me the customer, project, estimate name, scope of work, or pricing."),
