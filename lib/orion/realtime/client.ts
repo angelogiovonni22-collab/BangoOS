@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveRealtimeNavigationCommand } from "@/lib/orion/navigation/realtime-navigation";
 import {
   buildOrionRealtimeContinueResponseEvent,
   buildOrionRealtimeFunctionOutputEvent,
@@ -17,6 +18,7 @@ import type {
 
 const CONFIRMATION_TRANSCRIPT_MAX_AGE_MS = 8_000;
 const CONFIRMATION_TRANSCRIPT_WAIT_MS = 2_000;
+const DETERMINISTIC_NAVIGATION_DEDUPE_MS = 1_500;
 
 function setState(callbacks: OrionRealtimeClientCallbacks, state: OrionRealtimeConnectionState) {
   callbacks.onStateChange?.(state);
@@ -36,6 +38,17 @@ function sleep(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
+function navigationMessage(href: string) {
+  const pathname = href.split("?")[0] || href;
+  const segment = pathname.split("/").filter(Boolean).at(-1) || "dashboard";
+  const label = segment
+    .split("-")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+  return `Opening ${label}.`;
+}
+
 export class OrionRealtimeClient {
   private peerConnection: RTCPeerConnection | null = null;
   private dataChannel: RTCDataChannel | null = null;
@@ -44,6 +57,7 @@ export class OrionRealtimeClient {
   private callbacks: OrionRealtimeClientCallbacks;
   private activeToolCalls = new Set<string>();
   private lastUserTranscript: { text: string; at: number } | null = null;
+  private lastDeterministicNavigation: { key: string; at: number } | null = null;
 
   constructor(callbacks: OrionRealtimeClientCallbacks = {}) {
     this.callbacks = callbacks;
@@ -69,12 +83,45 @@ export class OrionRealtimeClient {
     return null;
   }
 
+  private handleDeterministicNavigation(transcript: string) {
+    const resolved = resolveRealtimeNavigationCommand(transcript);
+    if (!resolved?.deepLink || resolved.commandId === "navigation.back") return false;
+
+    const key = `${resolved.commandId}:${resolved.deepLink}`;
+    const now = Date.now();
+    if (
+      this.lastDeterministicNavigation?.key === key
+      && now - this.lastDeterministicNavigation.at < DETERMINISTIC_NAVIGATION_DEDUPE_MS
+    ) {
+      return true;
+    }
+
+    this.lastDeterministicNavigation = { key, at: now };
+    this.callbacks.onToolResult?.({
+      ok: true,
+      statusCategory: "deterministic_navigation",
+      commandId: resolved.commandId,
+      userMessage: navigationMessage(resolved.deepLink),
+      href: resolved.deepLink,
+      confirmationRequired: false,
+      details: {
+        source: "realtime_transcript",
+        resolvedIntent: resolved.resolvedIntent,
+        entityType: resolved.entityType,
+        entityId: resolved.entityId,
+        confidence: resolved.confidence,
+      },
+    });
+    return true;
+  }
+
   private async handleServerEvent(event: OrionRealtimeServerEvent) {
     this.callbacks.onEvent?.(event);
 
     const userTranscript = extractOrionRealtimeUserTranscript(event);
     if (userTranscript) {
       this.lastUserTranscript = { text: userTranscript, at: Date.now() };
+      this.handleDeterministicNavigation(userTranscript);
     }
 
     const call = extractOrionRealtimeFunctionCall(event);
@@ -200,6 +247,7 @@ export class OrionRealtimeClient {
 
     this.activeToolCalls.clear();
     this.lastUserTranscript = null;
+    this.lastDeterministicNavigation = null;
     this.dataChannel?.close();
     this.dataChannel = null;
 
