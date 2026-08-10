@@ -33,6 +33,8 @@ export function useGlobalOrionVoice() {
     void realtime.disableVoice();
   }, [realtime]);
 
+  const noop = useCallback((..._args: unknown[]) => undefined, []);
+
   return useMemo(() => ({
     phase: realtime.phase,
     mode: "hands_free" as const,
@@ -64,26 +66,26 @@ export function useGlobalOrionVoice() {
     enableGlobalVoice: enable,
     disableGlobalVoice: disable,
     startPressToTalk: start,
-    stopPressToTalk: () => undefined,
+    stopPressToTalk: noop,
     toggleTapListening: realtime.micActive ? stop : start,
-    setMode: () => undefined,
+    setMode: noop,
     setSpokenResponsesEnabled: realtime.setSpokenResponsesEnabled,
-    setReturnToWakeAfterCommand: () => undefined,
-    setVoiceId: () => undefined,
-    setVoiceRate: () => undefined,
-    setVoicePitch: () => undefined,
-    setVoiceVolume: () => undefined,
+    setReturnToWakeAfterCommand: noop,
+    setVoiceId: noop,
+    setVoiceRate: noop,
+    setVoicePitch: noop,
+    setVoiceVolume: noop,
     // Realtime already owns spoken responses. A second browser TTS request would
     // duplicate audio and add latency.
-    requestSpokenResponse: () => undefined,
-    previewVoice: () => undefined,
-    cancelSpeech: () => undefined,
-    acknowledgeConsent: () => undefined,
+    requestSpokenResponse: noop,
+    previewVoice: noop,
+    cancelSpeech: noop,
+    acknowledgeConsent: noop,
     startVoiceCommandMode: start,
     endVoiceCommandMode: stop,
-    confirmPendingCommand: () => undefined,
-    cancelPendingCommand: () => undefined,
+    confirmPendingCommand: noop,
+    cancelPendingCommand: noop,
     stopAllListening: stop,
     retryFromError: retry,
-  }), [disable, enable, realtime, retry, start, stop]);
+  }), [disable, enable, noop, realtime, retry, start, stop]);
 }
