@@ -81,6 +81,9 @@ jobs:
       - name: Run Orion conversational follow-up regression
         run: npx -y tsx lib/orion/voice/orion-conversation-continuation.contract.test.ts
 
+      - name: Run Orion transient recognition recovery regression
+        run: npx -y tsx lib/orion/voice/orion-transient-recognition-recovery.contract.test.ts
+
       - name: Run Orion conversation routing regression
         run: npx -y tsx lib/orion/voice/orion-conversation-routing-policy.contract.test.ts
 
