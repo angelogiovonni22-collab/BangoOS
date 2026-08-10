@@ -9,6 +9,7 @@ import { ORION_SPEECH_ENDED_EVENT } from "./speech-output-adapter";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const FINAL_TRANSCRIPT_SETTLE_MS = 900;
+const TRANSIENT_RECOGNITION_ERRORS = new Set(["network", "bad-grammar"]);
 
 function logVoiceDev(event: string, details?: Record<string, unknown>) {
   if (IS_PRODUCTION || typeof console === "undefined") {
@@ -312,6 +313,21 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
         clearPendingFinalTranscript();
         setInterimTranscript("");
         setState(support.recognitionSupported ? "idle" : "unsupported");
+        return;
+      }
+
+      if (TRANSIENT_RECOGNITION_ERRORS.has(event.error)) {
+        // Chrome/Edge can emit a short-lived network recognizer failure even after
+        // a valid final transcript has already been delivered. Do not convert that
+        // recoverable transport interruption into Orion's fatal red error state.
+        clearPendingFinalTranscript();
+        setInterimTranscript("");
+        setErrorCategory(null);
+        setErrorMessage(null);
+        setState(support.recognitionSupported ? "idle" : "unsupported");
+        logOrionDebugInfo("[orion-trace] recognition.transient_error_recovered", {
+          error: event.error,
+        });
         return;
       }
 
