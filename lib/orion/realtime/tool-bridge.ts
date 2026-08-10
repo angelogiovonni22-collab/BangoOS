@@ -1,5 +1,6 @@
 "use client";
 
+import { executeOrionTaskAgent, ORION_TASK_AGENT_TOOL } from "@/lib/orion/task-agent/browser";
 import type { OrionRealtimeServerEvent, OrionRealtimeToolExecutionResult } from "./types";
 
 export const ORION_REALTIME_CONFIRM_TOOL = "bos_confirm_pending_action";
@@ -32,11 +33,7 @@ function routeEntityId(pathname: string, entity: string) {
 
 function currentBosContext(): OrionRealtimeToolExecutionResult {
   if (typeof window === "undefined") {
-    return {
-      ok: false,
-      statusCategory: "context_unavailable",
-      userMessage: "Current BOS page context is unavailable.",
-    };
+    return { ok: false, statusCategory: "context_unavailable", userMessage: "Current BOS page context is unavailable." };
   }
 
   const url = new URL(window.location.href);
@@ -51,37 +48,21 @@ function currentBosContext(): OrionRealtimeToolExecutionResult {
     crewId: url.searchParams.get("crewId") || routeEntityId(pathname, "crews"),
   };
 
-  return {
-    ok: true,
-    statusCategory: "context_resolved",
-    userMessage: "Current BOS page context resolved.",
-    details,
-  };
+  return { ok: true, statusCategory: "context_resolved", userMessage: "Current BOS page context resolved.", details };
 }
 
 export function extractOrionRealtimeFunctionCall(event: OrionRealtimeServerEvent): OrionRealtimeFunctionCall | null {
   if (event.type !== "response.function_call_arguments.done") return null;
-
   const callId = typeof event.call_id === "string" ? event.call_id : null;
   const toolName = typeof event.name === "string" ? event.name : null;
   const argumentsJson = typeof event.arguments === "string" ? event.arguments : "{}";
   if (!callId || !toolName) return null;
-
-  return {
-    callId,
-    toolName,
-    params: parseParams(argumentsJson),
-  };
+  return { callId, toolName, params: parseParams(argumentsJson) };
 }
 
 async function executeRealtimeResearch(call: OrionRealtimeFunctionCall): Promise<OrionRealtimeToolExecutionResult> {
   const query = typeof call.params.query === "string" ? call.params.query.trim() : "";
-  const response = await fetch("/api/orion/realtime/research", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
-  });
-
+  const response = await fetch("/api/orion/realtime/research", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }) });
   const payload = await response.json() as Partial<OrionRealtimeToolExecutionResult> & { error?: string };
   return {
     ok: Boolean(response.ok && payload.ok),
@@ -97,12 +78,7 @@ async function executeRealtimeResearch(call: OrionRealtimeFunctionCall): Promise
 async function executeEntityResolution(call: OrionRealtimeFunctionCall): Promise<OrionRealtimeToolExecutionResult> {
   const entityType = typeof call.params.entityType === "string" ? call.params.entityType.trim() : "";
   const phrase = typeof call.params.phrase === "string" ? call.params.phrase.trim() : "";
-  const response = await fetch("/api/orion/realtime/resolve-entity", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ entityType, phrase }),
-  });
-
+  const response = await fetch("/api/orion/realtime/resolve-entity", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entityType, phrase }) });
   const payload = await response.json() as Partial<OrionRealtimeToolExecutionResult> & { error?: string };
   return {
     ok: Boolean(response.ok && payload.ok),
@@ -115,30 +91,16 @@ async function executeEntityResolution(call: OrionRealtimeFunctionCall): Promise
   };
 }
 
-export async function executeOrionRealtimeTool(
-  call: OrionRealtimeFunctionCall,
-  options?: { confirmationTranscript?: string | null },
-): Promise<OrionRealtimeToolExecutionResult> {
-  if (call.toolName === ORION_REALTIME_CONTEXT_TOOL) {
-    return currentBosContext();
-  }
-
-  if (call.toolName === ORION_REALTIME_RESEARCH_TOOL) {
-    return executeRealtimeResearch(call);
-  }
-
-  if (call.toolName === ORION_REALTIME_RESOLVE_ENTITY_TOOL) {
-    return executeEntityResolution(call);
-  }
+export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall, options?: { confirmationTranscript?: string | null }): Promise<OrionRealtimeToolExecutionResult> {
+  if (call.toolName === ORION_REALTIME_CONTEXT_TOOL) return currentBosContext();
+  if (call.toolName === ORION_REALTIME_RESEARCH_TOOL) return executeRealtimeResearch(call);
+  if (call.toolName === ORION_REALTIME_RESOLVE_ENTITY_TOOL) return executeEntityResolution(call);
+  if (call.toolName === ORION_TASK_AGENT_TOOL) return executeOrionTaskAgent(call.params);
 
   const response = await fetch("/api/orion/realtime/tool", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      toolName: call.toolName,
-      params: call.params,
-      confirmationTranscript: options?.confirmationTranscript || undefined,
-    }),
+    body: JSON.stringify({ toolName: call.toolName, params: call.params, confirmationTranscript: options?.confirmationTranscript || undefined }),
   });
 
   const payload = await response.json() as Partial<OrionRealtimeToolExecutionResult> & { error?: string };

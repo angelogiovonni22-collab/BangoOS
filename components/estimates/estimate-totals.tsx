@@ -15,36 +15,28 @@ export function EstimateTotalsSection({
 }) {
   return (
     <Card as="section" variant="elevated">
-      <CardHeader>
-        <CardTitle>Estimate Totals</CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle>Estimate Totals</CardTitle></CardHeader>
       <CardContent className="grid gap-5 lg:grid-cols-[1fr_320px]">
         <div className="grid gap-4 md:grid-cols-3">
           <label className="space-y-2 text-sm">
             <span className="text-xs font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Discount Type</span>
-            <Select value={values.discountType} onChange={(event) => onFieldChange("discountType", event.target.value as EstimateFormValues["discountType"])}>
-              <option value="none">None</option>
-              <option value="percentage">Percentage</option>
-              <option value="fixed">Fixed</option>
+            <Select id="estimate-discount-type" value={values.discountType} onChange={(event) => onFieldChange("discountType", event.target.value as EstimateFormValues["discountType"])}>
+              <option value="none">None</option><option value="percentage">Percentage</option><option value="fixed">Fixed</option>
             </Select>
           </label>
-
           <label className="space-y-2 text-sm">
             <span className="text-xs font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Discount Value</span>
-            <Input type="number" min={0} step="0.01" value={values.discountValue} onChange={(event) => onFieldChange("discountValue", event.target.value)} />
+            <Input id="estimate-discount-value" type="number" min={0} step="0.01" value={values.discountValue} onChange={(event) => onFieldChange("discountValue", event.target.value)} />
           </label>
-
           <label className="space-y-2 text-sm">
             <span className="text-xs font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Tax %</span>
-            <Input type="number" min={0} step="0.01" value={values.taxRatePercent} onChange={(event) => onFieldChange("taxRatePercent", event.target.value)} />
+            <Input id="estimate-tax-rate" type="number" min={0} step="0.01" value={values.taxRatePercent} onChange={(event) => onFieldChange("taxRatePercent", event.target.value)} />
           </label>
-
           <label className="space-y-2 text-sm md:col-span-3">
             <span className="text-xs font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Additional Fee</span>
-            <Input type="number" min={0} step="0.01" value={values.additionalFee} onChange={(event) => onFieldChange("additionalFee", event.target.value)} />
+            <Input id="estimate-additional-fee" type="number" min={0} step="0.01" value={values.additionalFee} onChange={(event) => onFieldChange("additionalFee", event.target.value)} />
           </label>
         </div>
-
         <div className="rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
           <SummaryRow label="Direct Cost Subtotal" value={formatUsd(totals.directCostSubtotal, localeTag)} />
           <SummaryRow label="Line-item Markup" value={formatUsd(totals.markupTotal, localeTag)} />
