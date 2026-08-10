@@ -46,7 +46,7 @@ export function PersistentOrionPanel({
     return null;
   }
 
-  const realtimeSessionActive = voice.engine === "realtime" && voice.realtimeState !== "closed" && voice.realtimeState !== "idle";
+  const realtimeSessionActive = voice.realtimeState !== "closed" && voice.realtimeState !== "idle" && voice.realtimeState !== "error";
 
   return (
     <section
@@ -61,7 +61,7 @@ export function PersistentOrionPanel({
     >
       <header className="persistentOrionPanelHeader">
         <div>
-          <p className="persistentOrionEyebrow">ORION</p>
+          <p className="persistentOrionEyebrow">ORION V2</p>
           <h3>{fixture.workspace}</h3>
           <p className="persistentOrionStateLine">State: {fixture.state.replace(/_/g, " ")}</p>
         </div>
@@ -76,8 +76,8 @@ export function PersistentOrionPanel({
         </button>
       </header>
 
-      <div className="persistentOrionFixtureTags" aria-label="Fixture labels">
-        <span>{voice.engine === "realtime" ? "Realtime Intelligence" : "Browser Voice Fallback"}</span>
+      <div className="persistentOrionFixtureTags" aria-label="Orion architecture">
+        <span>Realtime LLM Intelligence</span>
         <span>Controlled BOS Tools</span>
       </div>
 
@@ -141,7 +141,7 @@ export function PersistentOrionPanel({
         </p>
 
         <div className="mt-2 text-xs font-medium uppercase tracking-wide opacity-70">
-          Engine: {voice.engine === "realtime" ? "Realtime conversation" : "Browser fallback"}
+          Engine: ORION V2 · OPENAI REALTIME
         </div>
         <div className="mt-2">
           <OrionVoiceStatus
