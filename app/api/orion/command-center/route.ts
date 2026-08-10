@@ -6,7 +6,7 @@ import { resolveOrionIntelligenceIntentFallback } from "@/lib/orion/intelligence
 import { resolveOrionIntent, type OrionIntentInput } from "@/lib/orion/intent-engine";
 import { resolveOperationalVoiceIntent } from "@/lib/orion/voice/operational-voice-intent";
 import { shouldPreferOrionConversation } from "@/lib/orion/voice/voice-routing-policy";
-import { resolveEstimateVoiceWorkflowTurn } from "@/lib/orion/workflows/estimate-voice-workflow";
+import { hasActiveEstimateVoiceWorkflowSession, resolveEstimateVoiceWorkflowTurn } from "@/lib/orion/workflows/estimate-voice-workflow";
 import { resolveVoiceWorkflowTurn } from "@/lib/orion/workflows/voice-workflow-assistant";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -226,6 +226,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       };
 
       if (isVoiceTurn) {
+        if (hasActiveEstimateVoiceWorkflowSession(context.workspace)) {
+          const estimateFollowUp = await resolveEstimateVoiceWorkflowTurn({
+            supabase: context.supabase,
+            workspace: context.workspace,
+            input: normalizedIntentInput,
+          });
+          if (estimateFollowUp.handled && estimateFollowUp.intent) {
+            logApiTiming("intent.request.end", intentStartedAt, {
+              hasSuggestion: Boolean(estimateFollowUp.intent.suggestedCommand),
+              requiresClarification: estimateFollowUp.intent.requiresClarification,
+              workflowStatus: estimateFollowUp.statusCategory,
+              estimateVoiceContinuation: true,
+            });
+            return NextResponse.json({ ok: true, intent: estimateFollowUp.intent, statusCategory: estimateFollowUp.statusCategory });
+          }
+        }
+
         try {
           const llmFirst = await resolveOrionIntelligenceIntentFallback({
             input: normalizedIntentInput,
