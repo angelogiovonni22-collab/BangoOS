@@ -33,6 +33,7 @@ export type OrionSpeechAdapter = {
 
 const NATURAL_VOICE_PATTERN = /(neural|natural|premium|enhanced|online)/i;
 const FEMININE_VOICE_PATTERN = /(samantha|karen|matilda|aria|jenny|sonia|ava|susan|zira|tessa|moira|serena|victoria|fiona|olivia|joanna|emma|amy|nicole|natasha|salli|ivy|kimberly|ruth|maisie|libby|leah)/i;
+const DUPLICATE_SPEECH_WINDOW_MS = 2_500;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -61,29 +62,12 @@ function looksLikeFeminineVoice(voice: SpeechSynthesisVoice) {
 function scoreVoice(voice: SpeechSynthesisVoice) {
   let score = 0;
 
-  if (isEnglishVoice(voice)) {
-    score += 200;
-  }
-
-  if (isAustralianVoice(voice)) {
-    score += 90;
-  }
-
-  if (hasNaturalQuality(voice)) {
-    score += 120;
-  }
-
-  if (looksLikeFeminineVoice(voice)) {
-    score += 55;
-  }
-
-  if (voice.localService) {
-    score += 35;
-  }
-
-  if (voice.default) {
-    score += 20;
-  }
+  if (isEnglishVoice(voice)) score += 200;
+  if (isAustralianVoice(voice)) score += 90;
+  if (hasNaturalQuality(voice)) score += 120;
+  if (looksLikeFeminineVoice(voice)) score += 55;
+  if (voice.localService) score += 35;
+  if (voice.default) score += 20;
 
   return score;
 }
@@ -91,15 +75,13 @@ function scoreVoice(voice: SpeechSynthesisVoice) {
 function normalizeVoices(voices: SpeechSynthesisVoice[]) {
   const sorted = [...voices].sort((left, right) => {
     const diff = scoreVoice(right) - scoreVoice(left);
-    if (diff !== 0) {
-      return diff;
-    }
-
+    if (diff !== 0) return diff;
     return left.name.localeCompare(right.name);
   });
 
-  const recommendedVoiceId = sorted.find((voice) => isEnglishVoice(voice))
-    ? toVoiceId(sorted.find((voice) => isEnglishVoice(voice)) as SpeechSynthesisVoice)
+  const firstEnglish = sorted.find((voice) => isEnglishVoice(voice));
+  const recommendedVoiceId = firstEnglish
+    ? toVoiceId(firstEnglish)
     : sorted[0]
       ? toVoiceId(sorted[0])
       : null;
@@ -119,82 +101,56 @@ function normalizeVoices(voices: SpeechSynthesisVoice[]) {
 }
 
 function resolveVoiceById(voiceId: string | null | undefined, voices: SpeechSynthesisVoice[]) {
-  if (!voiceId) {
-    return null;
-  }
+  if (!voiceId) return null;
 
   const byVoiceUri = voices.find((voice) => voice.voiceURI === voiceId);
-  if (byVoiceUri) {
-    return byVoiceUri;
-  }
+  if (byVoiceUri) return byVoiceUri;
 
   const byComposite = voices.find((voice) => `${voice.name}|${voice.lang}` === voiceId);
-  if (byComposite) {
-    return byComposite;
-  }
+  if (byComposite) return byComposite;
 
   return null;
 }
 
 function pickPreferredVoice(savedVoiceId: string | null | undefined, voices: SpeechSynthesisVoice[]) {
-  if (voices.length === 0) {
-    return null;
-  }
+  if (voices.length === 0) return null;
 
   const saved = resolveVoiceById(savedVoiceId, voices);
-  if (saved) {
-    return saved;
-  }
+  if (saved) return saved;
 
   const ranked = [...voices].sort((left, right) => scoreVoice(right) - scoreVoice(left));
   const english = ranked.filter((voice) => isEnglishVoice(voice));
-
-  if (english.length > 0) {
-    return english[0] || null;
-  }
-
-  return ranked[0] || null;
+  return english[0] || ranked[0] || null;
 }
 
 class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
   private voiceLevelListeners = new Set<(level: number) => void>();
-
   private voicesListeners = new Set<(voices: OrionSpeechVoiceOption[]) => void>();
-
   private speakingListeners = new Set<(speaking: boolean) => void>();
-
   private voicesChangedBound = false;
-
   private boundaryPulseTimer: number | null = null;
-
   private cadencePulseTimer: number | null = null;
-
   private speaking = false;
-
   private currentLevel = 0;
-
   private currentBoundaryStep = 0;
-
   private activeUtterance: SpeechSynthesisUtterance | null = null;
+  private activeUtteranceText: string | null = null;
+  private lastAcceptedText: string | null = null;
+  private lastAcceptedAt = 0;
 
   isSpeaking() {
     return this.speaking;
   }
 
   getAvailableVoices() {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      return [];
-    }
-
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return [];
     return normalizeVoices(window.speechSynthesis.getVoices());
   }
 
   subscribeToVoices(listener: (voices: OrionSpeechVoiceOption[]) => void) {
     this.voicesListeners.add(listener);
     this.bindVoicesChanged();
-
     listener(this.getAvailableVoices());
-
     return () => {
       this.voicesListeners.delete(listener);
     };
@@ -203,7 +159,6 @@ class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
   subscribeToVoiceLevel(listener: (level: number) => void) {
     this.voiceLevelListeners.add(listener);
     listener(this.currentLevel);
-
     return () => {
       this.voiceLevelListeners.delete(listener);
     };
@@ -212,69 +167,66 @@ class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
   subscribeToSpeaking(listener: (speaking: boolean) => void) {
     this.speakingListeners.add(listener);
     listener(this.speaking);
-
     return () => {
       this.speakingListeners.delete(listener);
     };
   }
 
   speak(text: string, options?: OrionSpeechSpeakOptions) {
-    return this.startUtterance(text, options);
+    return this.startUtterance(text, options, false);
   }
 
   preview(text: string, options?: OrionSpeechSpeakOptions) {
-    return this.startUtterance(text, options);
+    return this.startUtterance(text, options, true);
   }
 
   cancel() {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      return;
-    }
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
     this.cleanupCadenceTimers();
+    this.activeUtterance = null;
+    this.activeUtteranceText = null;
     this.setVoiceLevel(0);
     this.setSpeaking(false);
     window.speechSynthesis.cancel();
   }
 
   pause() {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      return;
-    }
-
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.pause();
     this.setVoiceLevel(0.08);
   }
 
   resume() {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      return;
-    }
-
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.resume();
   }
 
   private bindVoicesChanged() {
-    if (this.voicesChangedBound || typeof window === "undefined" || !("speechSynthesis" in window)) {
-      return;
-    }
+    if (this.voicesChangedBound || typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
     const handle = () => {
       const voices = this.getAvailableVoices();
-      for (const listener of this.voicesListeners) {
-        listener(voices);
-      }
+      for (const listener of this.voicesListeners) listener(voices);
     };
 
     window.speechSynthesis.addEventListener("voiceschanged", handle);
     this.voicesChangedBound = true;
   }
 
-  private startUtterance(text: string, options?: OrionSpeechSpeakOptions) {
+  private startUtterance(text: string, options?: OrionSpeechSpeakOptions, allowDuplicate = false) {
     const trimmed = text.trim();
-    if (!trimmed || typeof window === "undefined" || !("speechSynthesis" in window)) {
-      return false;
+    if (!trimmed || typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+
+    const now = Date.now();
+    if (!allowDuplicate) {
+      const identicalActiveUtterance = this.activeUtterance !== null && this.activeUtteranceText === trimmed;
+      const identicalRecentUtterance = this.lastAcceptedText === trimmed && now - this.lastAcceptedAt < DUPLICATE_SPEECH_WINDOW_MS;
+      if (identicalActiveUtterance || identicalRecentUtterance) return false;
     }
+
+    this.lastAcceptedText = trimmed;
+    this.lastAcceptedAt = now;
 
     const synth = window.speechSynthesis;
     const availableVoices = synth.getVoices();
@@ -294,6 +246,7 @@ class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
 
     utterance.onstart = () => {
       this.activeUtterance = utterance;
+      this.activeUtteranceText = trimmed;
       this.currentBoundaryStep = 0;
       this.setSpeaking(true);
       this.startCadencePulse(trimmed, utterance.rate);
@@ -308,21 +261,10 @@ class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
       this.scheduleBoundaryLevelDrop();
     };
 
-    utterance.onpause = () => {
-      this.setVoiceLevel(0.08);
-    };
-
-    utterance.onresume = () => {
-      this.setVoiceLevel(0.2);
-    };
-
-    utterance.onend = () => {
-      this.finishUtterance(utterance);
-    };
-
-    utterance.onerror = () => {
-      this.finishUtterance(utterance);
-    };
+    utterance.onpause = () => this.setVoiceLevel(0.08);
+    utterance.onresume = () => this.setVoiceLevel(0.2);
+    utterance.onend = () => this.finishUtterance(utterance);
+    utterance.onerror = () => this.finishUtterance(utterance);
 
     synth.cancel();
     synth.speak(utterance);
@@ -338,9 +280,7 @@ class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
     let step = 0;
 
     this.cadencePulseTimer = window.setInterval(() => {
-      if (!this.speaking) {
-        return;
-      }
+      if (!this.speaking) return;
 
       step += 1;
       const punctuationAccent = step % punctuationCycle === 0 ? 0.18 : 0;
@@ -350,14 +290,10 @@ class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
   }
 
   private scheduleBoundaryLevelDrop() {
-    if (this.boundaryPulseTimer !== null) {
-      window.clearTimeout(this.boundaryPulseTimer);
-    }
+    if (this.boundaryPulseTimer !== null) window.clearTimeout(this.boundaryPulseTimer);
 
     this.boundaryPulseTimer = window.setTimeout(() => {
-      if (!this.speaking) {
-        return;
-      }
+      if (!this.speaking) return;
 
       this.setVoiceLevel(clamp(this.currentLevel * 0.7, 0.12, 0.62));
       this.boundaryPulseTimer = null;
@@ -365,11 +301,10 @@ class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
   }
 
   private finishUtterance(utterance: SpeechSynthesisUtterance) {
-    if (this.activeUtterance !== utterance) {
-      return;
-    }
+    if (this.activeUtterance !== utterance) return;
 
     this.activeUtterance = null;
+    this.activeUtteranceText = null;
     this.cleanupCadenceTimers();
     this.setVoiceLevel(0);
     this.setSpeaking(false);
@@ -389,25 +324,17 @@ class BrowserSpeechOutputAdapter implements OrionSpeechAdapter {
 
   private setVoiceLevel(next: number) {
     const clamped = clamp(next, 0, 1);
-    if (Math.abs(clamped - this.currentLevel) < 0.03) {
-      return;
-    }
+    if (Math.abs(clamped - this.currentLevel) < 0.03) return;
 
     this.currentLevel = clamped;
-    for (const listener of this.voiceLevelListeners) {
-      listener(clamped);
-    }
+    for (const listener of this.voiceLevelListeners) listener(clamped);
   }
 
   private setSpeaking(next: boolean) {
-    if (this.speaking === next) {
-      return;
-    }
+    if (this.speaking === next) return;
 
     this.speaking = next;
-    for (const listener of this.speakingListeners) {
-      listener(next);
-    }
+    for (const listener of this.speakingListeners) listener(next);
   }
 }
 
