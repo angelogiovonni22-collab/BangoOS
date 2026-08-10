@@ -64,7 +64,8 @@ function main() {
   assert(!voiceIndex.includes('GlobalOrionVoiceProvider, useGlobalOrionVoice'), "the barrel no longer exports the legacy provider hook to command surfaces");
   assert(compat.includes("useOrionUnifiedVoice()"), "the compatibility facade is backed by Orion v2 Realtime");
   assert(compat.includes('finalTranscript: ""'), "Realtime final transcripts cannot be re-dispatched into the legacy Command Center intent pipeline");
-  assert(compat.includes("requestSpokenResponse: () => undefined"), "browser TTS cannot duplicate Realtime spoken output");
+  assert(compat.includes("requestSpokenResponse: noop"), "browser TTS cannot duplicate Realtime spoken output while preserving legacy call signatures");
+  assert(compat.includes("(..._args: unknown[])"), "legacy-shaped no-op methods accept their historical arguments without reactivating legacy voice behavior");
 
   console.log(`\nOrion v2 persistent Realtime integration results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
