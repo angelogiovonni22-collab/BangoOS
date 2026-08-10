@@ -24,41 +24,39 @@ function main() {
   const panel = read("components/orion/persistent/PersistentOrionPanel.tsx");
   const realtimeClient = read("lib/orion/realtime/client.ts");
   const realtimeSession = read("app/api/orion/realtime/session/route.ts");
+  const modelConfig = read("lib/orion/intelligence/model-config.ts");
 
-  console.log("\nOrion persistent Realtime integration contract");
+  console.log("\nOrion v2 persistent Realtime integration contract");
 
-  assert(unified.includes("new OrionRealtimeClient"), "persistent voice controller prefers the Realtime client");
-  assert(unified.includes("browser.stopAllListening()"), "browser recognition is stopped before Realtime takes microphone ownership");
-  assert(unified.includes("browser.disableGlobalVoice()"), "browser voice is suspended while Realtime owns the microphone");
-  assert(unified.includes("browserWasEnabledRef"), "browser voice preference is remembered for safe restoration after Realtime");
-  assert(unified.includes("browserRef.current.enableGlobalVoice()"), "browser voice can be restored after an intentional Realtime stop");
-  assert(unified.includes("fallbackToBrowser"), "Realtime failures automatically enter browser fallback");
-  assert(unified.includes("startCurrentBrowserCapture"), "browser fallback automatically resumes voice capture");
-  assert(unified.includes('realtimeState !== "closed"') && unified.includes("clientRef.current") && unified.includes("fallbackToBrowser"), "unexpected Realtime closure falls back instead of leaving Orion silent");
-  assert(unified.includes('window.addEventListener("offline"') && unified.includes('document.addEventListener("visibilitychange"'), "mobile/background network lifecycle is surfaced to Orion Realtime");
-  assert(unified.includes("const effectiveSettings = realtimeActive") && unified.includes("enabled: true"), "persistent Orion remains visually enabled while Realtime owns the microphone");
-  assert(unified.includes('result.href.startsWith("/")') && unified.includes("router.push(result.href)"), "successful Realtime BOS navigation stays inside BOS routing");
-  assert(unified.includes('response.output_audio.delta') && unified.includes('response.output_audio.done'), "Realtime speaking state is projected into persistent voice state");
-  assert(unified.includes('conversation.item.input_audio_transcription.completed'), "Realtime user transcript is projected into the persistent transcript surface");
-  assert(unified.includes("isOrionVoiceAutomationEnabled") && unified.includes("ORION_VOICE_FREEZE_MESSAGE"), "unified Realtime controller preserves the Phase 11D emergency voice gate");
-  assert(unified.includes("if (!voiceAutomationEnabled) {") && unified.includes('setRealtimePhase("disabled")'), "Realtime microphone startup is blocked while the emergency gate is active");
+  assert(unified.includes("new OrionRealtimeClient"), "Orion v2 owns one Realtime client");
+  assert(unified.includes("shutDownLegacyVoice"), "legacy browser voice is explicitly shut down before Realtime owns the microphone");
+  assert(unified.includes("stopAllListening()") && unified.includes("disableGlobalVoice()"), "legacy recognition cannot remain active beside Orion v2");
+  assert(!unified.includes("fallbackToBrowser"), "Realtime failures cannot fall through to the legacy deterministic browser engine");
+  assert(!unified.includes("startCurrentBrowserCapture"), "Orion v2 never resumes legacy browser command capture");
+  assert(unified.includes('engine: "realtime" as const'), "the public unified controller exposes Realtime as the single execution engine");
+  assert(unified.includes("ORION_V2_ENABLED_STORAGE_KEY"), "Orion v2 enablement persists independently of legacy voice settings");
+  assert(unified.includes("autoStartAttemptedRef") && unified.includes("void start()"), "enabled Orion v2 reconnects its persistent conversation on mount");
+  assert(unified.includes('result.href.startsWith("/")') && unified.includes("router.push(result.href)"), "successful Realtime BOS navigation remains inside BOS routing");
+  assert(unified.includes('response.output_audio.delta') && unified.includes('response.output_audio.done'), "Realtime speaking state is projected into the persistent Orion surface");
+  assert(unified.includes('conversation.item.input_audio_transcription.completed'), "Realtime user transcripts are projected into Orion state");
+  assert(unified.includes("isOrionVoiceAutomationEnabled") && unified.includes("ORION_VOICE_FREEZE_MESSAGE"), "Orion v2 preserves the emergency voice gate");
   assert(realtimeSession.includes("isOrionVoiceAutomationEnabled") && realtimeSession.includes('statusCategory: "voice_automation_paused"'), "Realtime session API independently enforces the emergency voice gate");
-  assert(persistent.includes("const voice = useOrionUnifiedVoice()"), "persistent Orion root owns the single unified Realtime controller");
+  assert(persistent.includes("const voice = useOrionUnifiedVoice()"), "persistent Orion root owns the single unified controller");
   assert(persistent.includes("voice={voice}"), "persistent Orion passes the shared controller into its panel");
   assert(panel.includes("voice: OrionUnifiedVoiceController"), "persistent panel receives the shared unified controller by contract");
   assert(!panel.includes("useOrionUnifiedVoice()"), "persistent panel cannot create a second Realtime controller");
-  assert(persistent.includes("micActive={voice.micActive}") && persistent.includes("voicePhase={voice.phase}"), "floating Orion sphere shares the same voice state as the panel");
-  assert(panel.includes('Engine: {voice.engine === "realtime"'), "persistent Orion visibly identifies the active voice engine");
-  assert(panel.includes("void voice.start()") && panel.includes("void voice.stop()"), "persistent voice controls start and stop the unified conversation engine");
+  assert(persistent.includes("micActive={voice.micActive}") && persistent.includes("voicePhase={voice.phase}"), "floating Orion sphere shares the same Realtime state as the panel");
+  assert(panel.includes("Engine: ORION V2 · OPENAI REALTIME"), "persistent Orion visibly identifies the v2 engine");
+  assert(!panel.includes("Browser fallback"), "the persistent UI no longer advertises the retired legacy fallback");
+  assert(panel.includes("void voice.start()") && panel.includes("void voice.stop()"), "persistent voice controls start and stop the Realtime conversation");
   assert(realtimeClient.includes("await this.disconnect()"), "Realtime client remains single-session before acquiring microphone resources");
-  assert(unified.includes('DEFAULT_REALTIME_VOICE: OrionRealtimeVoice = "marin"'), "Realtime defaults to the preferred Orion voice");
-  assert(unified.includes("ORION_REALTIME_VOICES") && unified.includes("cedar") && unified.includes("coral") && unified.includes("shimmer"), "supported Realtime voice choices are available to Orion");
-  assert(unified.includes("REALTIME_VOICE_STORAGE_KEY") && unified.includes("window.localStorage.setItem"), "Realtime voice preference persists on the device");
+  assert(unified.includes('DEFAULT_REALTIME_VOICE: OrionRealtimeVoice = "marin"'), "Realtime defaults to the recommended Orion voice");
   assert(unified.includes("client.connect({ voice: realtimeVoice })"), "selected Realtime voice is used when the session connects");
-  assert(panel.includes('id="orion-realtime-voice-select"') && panel.includes("voice.availableRealtimeVoices.map"), "Persistent Orion exposes Realtime voice selection");
-  assert(panel.includes("End the current Realtime conversation to change voices."), "voice changes are blocked during an active audio session");
+  assert(modelConfig.includes('DEFAULT_REALTIME_MODEL = "gpt-realtime"'), "Orion v2 defaults to the public OpenAI Realtime model identifier");
+  assert(modelConfig.includes('DEFAULT_REASONING_MODEL = "gpt-5.1"'), "non-Realtime Orion reasoning defaults to a public API model identifier");
+  assert(modelConfig.includes('DEFAULT_FAST_MODEL = "gpt-5-mini"'), "fast Orion reasoning defaults to a public API model identifier");
 
-  console.log(`\nOrion persistent Realtime integration results: ${passed} passed, ${failed} failed`);
+  console.log(`\nOrion v2 persistent Realtime integration results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
 }
 
