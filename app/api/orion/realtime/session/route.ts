@@ -10,7 +10,7 @@ const CONFIRM_TOOL_NAME = "bos_confirm_pending_action";
 const RESEARCH_TOOL_NAME = "orion_web_research";
 const CONTEXT_TOOL_NAME = "orion_current_context";
 const RESOLVE_ENTITY_TOOL_NAME = "orion_resolve_entity";
-const TASK_AGENT_TOOL_NAME = "orion_task_agent";
+const UI_OPERATOR_TOOL_NAME = "orion_ui_operator";
 
 function openAIKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -41,31 +41,13 @@ function realtimeBosTools() {
     ...canonicalTools,
     {
       type: "function" as const,
-      name: TASK_AGENT_TOOL_NAME,
-      description: "Run a persistent multi-turn Orion task and control a live BOS form. Use this for workflows that require a real conversation across multiple fields or steps instead of treating each utterance as an isolated command. For estimates, start the task first; Orion will open /estimates/new, then inspect and visually patch the live form as the user provides actual values. Never save a field label such as 'customer name' as the field value; if the user names which field they want to provide, ask for its actual value.",
+      name: UI_OPERATOR_TOOL_NAME,
+      description: "Observe and operate the actual visible BangoOS interface using semantic control references rather than pixel coordinates. Use this as Orion's primary interaction layer for visible workflows such as creating or editing estimates. First observe the screen, then use returned refs to set or click controls. Navigation returns an internal BOS href while preserving Orion's persistent session. Destructive actions are blocked here and must use confirmed canonical BOS tools.",
       parameters: wrappedToolParameters({
-        action: {
-          type: "string",
-          enum: ["start", "get", "update", "inspect_form", "patch_form", "add_line_item", "save_form", "cancel"],
-          description: "Task lifecycle or live-form operation.",
-        },
-        taskType: {
-          type: "string",
-          enum: ["estimate", "customer", "project", "invoice", "schedule", "generic"],
-          description: "The active business task type. Required when starting a task.",
-        },
-        goal: { type: "string", description: "The user's natural-language goal for the task." },
-        fields: {
-          type: "object",
-          description: "Actual semantic field values to remember or visually apply. Estimate fields include title, customer, project, issueDate, expirationDate, preparedBy, status, description, discountType, discountValue, taxRatePercent, additionalFee, internalNotes, customerNotes, scopeInclusions, scopeExclusions, terms, and paymentTerms.",
-          additionalProperties: { type: ["string", "number"] },
-        },
-        lineItem: {
-          type: "object",
-          description: "One estimate line item. Supported keys: itemCode, category, description, quantity, unit, unitCost, markupPercent, notes.",
-          additionalProperties: { type: ["string", "number"] },
-        },
-        saveMode: { type: "string", enum: ["draft", "continue"], description: "How to save the live form after the user approves saving." },
+        action: { type: "string", enum: ["observe", "navigate", "set", "click"], description: "Observe the current screen, navigate to a BOS route, set a visible form control, or click a visible button/link." },
+        href: { type: "string", description: "Internal BOS route such as /estimates/new. Used only with navigate." },
+        ref: { type: "string", description: "Exact semantic control ref returned by observe. Used with set or click." },
+        value: { type: ["string", "number"], description: "Actual value to enter/select. Used only with set." },
       }, ["action"]),
     },
     {
@@ -142,15 +124,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "The wake phrase and request may be in the same utterance. Process both immediately.",
         "After awakened, remain active for the rest of that Realtime conversation. Do not require another wake phrase for follow-ups.",
         "If you ask a question, the next user utterance is normally the answer to that question, even when it is only a name, number, phrase, yes/no answer, or correction.",
-        "Never interpret the name of a field as the value for that field. Example: if you ask what the user wants to start with and they say 'customer name', that means they want to provide the customer field; ask 'What's the customer's name?' Do not save the literal words 'customer name'.",
-        "Maintain task continuity. If the user is creating an estimate, every later answer belongs to that estimate until the task is completed, cancelled, or clearly changed.",
-        `Use ${TASK_AGENT_TOOL_NAME} for multi-step create/edit workflows that should be visible on screen. Start the task once, then inspect/patch the live form as actual information becomes available.`,
-        "For a new estimate: call orion_task_agent with action=start and taskType=estimate. This opens the New Estimate page. Then ask naturally for missing information, usually customer, estimate/project title or scope, line items and pricing, and any dates/terms the user wants. Patch each actual value into the visible form as soon as it is known so the user can watch the form fill in live.",
-        "Do not ask the user to recite every optional estimate field. Ask only what is necessary or useful, infer safe defaults already present on the form, and let the user volunteer several details in one sentence. If they give multiple values at once, apply all of them in one patch.",
-        "When the user gives a customer or project name for the estimate, visually select the matching option. If there is no matching option, tell the user and ask whether they want to create/select another record rather than inventing one.",
-        "For estimate line items, convert natural descriptions into structured line items. Example: '900 square feet of flooring at 7.50 a foot with 20 percent markup' becomes description=Flooring, quantity=900, unit=square_foot, unitCost=7.50, markupPercent=20.",
-        "If the user corrects something, update the task memory and visible form immediately. A later correction overrides the earlier value.",
-        "Before saving a multi-step form, inspect it, summarize any important missing required information, and ask for confirmation if saving would commit or leave the current screen. Do not claim saved until the tool output confirms the save was requested/succeeded.",
+        "Never interpret the name of a field as the value for that field. If the user says 'customer name', that identifies the field they want to discuss; ask for the actual customer's name instead of entering those words.",
+        "Orion Operator architecture: use the visible BOS interface as the source of truth for interactive workflows. Do not invent form schemas from memory when the UI can be observed.",
+        `For visible workflows, use ${UI_OPERATOR_TOOL_NAME} with action=observe before manipulating controls. Use the exact semantic refs returned by observe. Re-observe after navigation, after adding dynamic rows, or whenever a ref is stale.`,
+        "Do not use pixel coordinates, DOM guesses, CSS selectors, or imagined controls. Only act on controls returned by the operator observation.",
+        "For a new estimate: navigate to /estimates/new, observe the visible form, then have a normal conversation while filling the actual controls as information becomes known. The user should be able to watch you fill the estimate in real time.",
+        "When creating an estimate, ask for information naturally rather than reciting a form. Start with the customer and what the work is for, then gather useful scope/line-item/pricing details. Accept several details in one answer and fill all clearly understood values.",
+        "When the user gives a customer or project name, select the matching visible option. If the option is not present, explain that instead of fabricating a match.",
+        "For line items, first observe. If a blank row exists, fill it. Otherwise click the visible Add Line Item control, observe again, and then fill the new row. Translate normal construction language into the visible quantity, unit, unit cost, markup, description, category, and notes controls when those values are actually stated or safely implied.",
+        "Corrections override earlier information. If the user says 'actually make that 950 square feet', locate the relevant visible control and change it immediately.",
+        "Do not save merely because the form looks complete. When the user asks to save, observe the form, mention any important visible validation problem, then click the appropriate visible save control. Never claim success before the UI/tool result confirms the action was activated.",
+        "Use canonical BOS tools instead of direct UI clicks for destructive, irreversible, permission-sensitive, or confirmation-required actions. The UI operator intentionally blocks destructive controls.",
         "Conversation-first routing rule: greetings, capability checks, pleasantries, and questions about Orion itself must be answered directly and MUST NOT call a BOS tool. A capability check such as 'can you hear me?' is conversation, never a navigation or customer action.",
         "Only call a BOS tool when the user clearly asks to read, navigate, create, update, execute, or otherwise operate on BOS data or a BOS screen.",
         "Navigation tools require explicit navigation intent. Never navigate merely because a module name is loosely related to the user's words.",
