@@ -1,6 +1,7 @@
 import { createOrionCommandRegistry } from "@/lib/orion/commands";
 import type { OrionIntentInput, OrionIntentResult } from "@/lib/orion/intent-engine";
 import type { WorkspaceContext } from "@/lib/supabase/workspace";
+import { beginEstimateVoiceWorkflowSession } from "@/lib/orion/workflows/estimate-voice-workflow";
 import { isOrionOpenAIEnabled, resolveOrionWithOpenAI } from "./openai-intelligence";
 import { resolveBosActionFromIntelligenceRoute } from "./orion-tool-router";
 
@@ -131,6 +132,7 @@ export async function resolveOrionIntelligenceIntentFallback(args: {
   const validation = command.validate(action.params);
   if (!validation.ok) {
     if (command.id === "estimate.create") {
+      beginEstimateVoiceWorkflowSession(args.workspace);
       return {
         intent: passiveIntent("Okay, starting a new estimate. What would you like to add first: the customer, project, estimate name, scope of work, or pricing?"),
         statusCategory: "workflow_collecting",
