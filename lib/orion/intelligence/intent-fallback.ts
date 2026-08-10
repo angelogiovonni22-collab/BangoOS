@@ -22,6 +22,13 @@ function passiveIntent(message: string): OrionIntentResult {
   };
 }
 
+function conversationSafetyFallback(): OrionIntelligenceIntentFallback {
+  return {
+    intent: passiveIntent("I heard you. What would you like to know?"),
+    statusCategory: "workflow_complete",
+  };
+}
+
 function commandIntentKind(commandId: string): OrionIntentResult["resolvedIntent"] {
   if (commandId.endsWith(".create")) return "create";
   if (commandId.endsWith(".open")) return "open";
@@ -50,26 +57,34 @@ export async function resolveOrionIntelligenceIntentFallback(args: {
   conversationOnly?: boolean;
 }): Promise<OrionIntelligenceIntentFallback | null> {
   if (!isOrionOpenAIEnabled()) {
-    return null;
+    return args.conversationOnly ? conversationSafetyFallback() : null;
   }
 
-  const result = await resolveOrionWithOpenAI({
-    input: args.input.input,
-    tier: "balanced",
-    conversationOnly: args.conversationOnly,
-    context: {
-      pathname: args.input.route.pathname,
-      companyId: args.workspace.companyId,
-      userId: args.workspace.userId,
-      projectId: args.input.route.projectId,
-      customerId: args.input.route.customerId,
-      estimateId: args.input.route.estimateId,
-      invoiceId: args.input.route.invoiceId,
-    },
-  });
+  let result;
+  try {
+    result = await resolveOrionWithOpenAI({
+      input: args.input.input,
+      tier: "balanced",
+      conversationOnly: args.conversationOnly,
+      context: {
+        pathname: args.input.route.pathname,
+        companyId: args.workspace.companyId,
+        userId: args.workspace.userId,
+        projectId: args.input.route.projectId,
+        customerId: args.input.route.customerId,
+        estimateId: args.input.route.estimateId,
+        invoiceId: args.input.route.invoiceId,
+      },
+    });
+  } catch (error) {
+    if (args.conversationOnly) {
+      return conversationSafetyFallback();
+    }
+    throw error;
+  }
 
   if (!result.handled || !result.route) {
-    return null;
+    return args.conversationOnly ? conversationSafetyFallback() : null;
   }
 
   if (result.route.kind === "conversation") {
@@ -94,10 +109,7 @@ export async function resolveOrionIntelligenceIntentFallback(args: {
   }
 
   if (args.conversationOnly) {
-    return {
-      intent: passiveIntent("I heard you. What would you like to know?"),
-      statusCategory: "workflow_complete",
-    };
+    return conversationSafetyFallback();
   }
 
   const action = resolveBosActionFromIntelligenceRoute(result.route);
