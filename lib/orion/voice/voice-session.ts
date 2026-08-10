@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { detectOrionVoiceSupport, resolveSpeechRecognitionCtor, type BrowserSpeechRecognitionLike, type SpeechRecognitionErrorEvent, type SpeechRecognitionResultEvent } from "./voice-support";
 import type { OrionVoiceErrorCategory, OrionVoiceSessionOptions, OrionVoiceSessionSnapshot, OrionVoiceState } from "./voice-types";
 import { sanitizeTranscript } from "./voice-transcript";
+import { hasOrionConversationContinuation } from "./conversation-continuation";
+import { ORION_SPEECH_ENDED_EVENT } from "./speech-output-adapter";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -374,6 +376,44 @@ export function useOrionVoiceSession(options?: OrionVoiceSessionOptions) {
       reportError("microphone_unavailable", "Unable to start microphone capture.");
     }
   }, [ensureRecognition, reportError, state, support.message, support.recognitionSupported]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    let retryTimer: number | null = null;
+
+    const resumeForFollowUp = (attempt = 0) => {
+      if (!hasOrionConversationContinuation()) {
+        return;
+      }
+
+      if (stateRef.current === "idle") {
+        logOrionDebugInfo("[orion-trace] conversation.follow_up.microphone_resume", { attempt });
+        start();
+        return;
+      }
+
+      if (attempt >= 8 || stateRef.current === "unsupported" || stateRef.current === "error") {
+        return;
+      }
+
+      retryTimer = window.setTimeout(() => resumeForFollowUp(attempt + 1), 75);
+    };
+
+    const onSpeechEnded = () => {
+      resumeForFollowUp();
+    };
+
+    window.addEventListener(ORION_SPEECH_ENDED_EVENT, onSpeechEnded);
+    return () => {
+      window.removeEventListener(ORION_SPEECH_ENDED_EVENT, onSpeechEnded);
+      if (retryTimer !== null) {
+        window.clearTimeout(retryTimer);
+      }
+    };
+  }, [start]);
 
   const restart = useCallback(() => {
     if (stateRef.current === "requesting_permission") {
