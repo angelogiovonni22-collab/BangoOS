@@ -47,6 +47,7 @@ function entityTypeForIntent(entityType: string): OrionIntentResult["suggestedCo
 export async function resolveOrionIntelligenceIntentFallback(args: {
   input: OrionIntentInput;
   workspace: WorkspaceContext;
+  conversationOnly?: boolean;
 }): Promise<OrionIntelligenceIntentFallback | null> {
   if (!isOrionOpenAIEnabled()) {
     return null;
@@ -55,6 +56,7 @@ export async function resolveOrionIntelligenceIntentFallback(args: {
   const result = await resolveOrionWithOpenAI({
     input: args.input.input,
     tier: "balanced",
+    conversationOnly: args.conversationOnly,
     context: {
       pathname: args.input.route.pathname,
       companyId: args.workspace.companyId,
@@ -73,7 +75,6 @@ export async function resolveOrionIntelligenceIntentFallback(args: {
   if (result.route.kind === "conversation") {
     return {
       intent: passiveIntent(result.route.answer),
-      // The existing global voice provider already speaks workflow-complete messages.
       statusCategory: "workflow_complete",
     };
   }
@@ -88,6 +89,13 @@ export async function resolveOrionIntelligenceIntentFallback(args: {
   if (result.route.kind === "web_search") {
     return {
       intent: passiveIntent(`I can search for ${result.route.query}, but I did not receive a completed web answer.`),
+      statusCategory: "workflow_complete",
+    };
+  }
+
+  if (args.conversationOnly) {
+    return {
+      intent: passiveIntent("I heard you. What would you like to know?"),
       statusCategory: "workflow_complete",
     };
   }
