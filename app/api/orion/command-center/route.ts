@@ -5,6 +5,7 @@ import { getCustomerRelatedRecords, getOrionCommandCenterCatalog, parseRouteCont
 import { resolveOrionIntelligenceIntentFallback } from "@/lib/orion/intelligence";
 import { resolveOrionIntent, type OrionIntentInput } from "@/lib/orion/intent-engine";
 import { resolveOperationalVoiceIntent } from "@/lib/orion/voice/operational-voice-intent";
+import { shouldPreferOrionConversation } from "@/lib/orion/voice/voice-routing-policy";
 import { resolveEstimateVoiceWorkflowTurn } from "@/lib/orion/workflows/estimate-voice-workflow";
 import { resolveVoiceWorkflowTurn } from "@/lib/orion/workflows/voice-workflow-assistant";
 import { createClient } from "@/lib/supabase/server";
@@ -223,6 +224,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           ? intentPayload.recentCommandIds.filter((entry): entry is string => typeof entry === "string")
           : [],
       };
+
+      if (isVoiceTurn && shouldPreferOrionConversation(normalizedIntentInput.input)) {
+        try {
+          const conversational = await resolveOrionIntelligenceIntentFallback({
+            input: normalizedIntentInput,
+            workspace: context.workspace,
+          });
+          if (conversational) {
+            logApiTiming("intent.request.end", intentStartedAt, {
+              hasSuggestion: Boolean(conversational.intent.suggestedCommand),
+              requiresClarification: conversational.intent.requiresClarification,
+              workflowStatus: conversational.statusCategory,
+              conversationFirst: true,
+            });
+            return NextResponse.json({ ok: true, intent: conversational.intent, statusCategory: conversational.statusCategory });
+          }
+        } catch (error) {
+          if (!IS_PRODUCTION && typeof console !== "undefined") console.warn("[orion-intelligence] conversation-first routing failed", error);
+        }
+      }
 
       if (isVoiceTurn) {
         const operationalHandled = await resolveOperationalVoiceIntent({
