@@ -225,27 +225,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           : [],
       };
 
-      if (isVoiceTurn && shouldPreferOrionConversation(normalizedIntentInput.input)) {
+      if (isVoiceTurn) {
         try {
-          const conversational = await resolveOrionIntelligenceIntentFallback({
+          const llmFirst = await resolveOrionIntelligenceIntentFallback({
             input: normalizedIntentInput,
             workspace: context.workspace,
+            conversationOnly: shouldPreferOrionConversation(normalizedIntentInput.input),
           });
-          if (conversational) {
+          if (llmFirst) {
             logApiTiming("intent.request.end", intentStartedAt, {
-              hasSuggestion: Boolean(conversational.intent.suggestedCommand),
-              requiresClarification: conversational.intent.requiresClarification,
-              workflowStatus: conversational.statusCategory,
-              conversationFirst: true,
+              hasSuggestion: Boolean(llmFirst.intent.suggestedCommand),
+              requiresClarification: llmFirst.intent.requiresClarification,
+              workflowStatus: llmFirst.statusCategory,
+              llmFirst: true,
             });
-            return NextResponse.json({ ok: true, intent: conversational.intent, statusCategory: conversational.statusCategory });
+            return NextResponse.json({ ok: true, intent: llmFirst.intent, statusCategory: llmFirst.statusCategory });
           }
         } catch (error) {
-          if (!IS_PRODUCTION && typeof console !== "undefined") console.warn("[orion-intelligence] conversation-first routing failed", error);
+          if (!IS_PRODUCTION && typeof console !== "undefined") console.warn("[orion-intelligence] LLM-first routing failed; using deterministic fallback", error);
         }
-      }
 
-      if (isVoiceTurn) {
         const operationalHandled = await resolveOperationalVoiceIntent({
           supabase: context.supabase,
           workspace: context.workspace,
@@ -256,7 +255,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             hasSuggestion: Boolean(operationalHandled.intent.suggestedCommand),
             requiresClarification: operationalHandled.intent.requiresClarification,
             workflowStatus: operationalHandled.statusCategory,
-            operationalVoice: true,
+            operationalVoiceFallback: true,
           });
           return NextResponse.json({ ok: true, intent: operationalHandled.intent, statusCategory: operationalHandled.statusCategory });
         }
@@ -271,7 +270,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             hasSuggestion: Boolean(estimateHandled.intent.suggestedCommand),
             requiresClarification: estimateHandled.intent.requiresClarification,
             workflowStatus: estimateHandled.statusCategory,
-            estimateVoice: true,
+            estimateVoiceFallback: true,
           });
           return NextResponse.json({ ok: true, intent: estimateHandled.intent, statusCategory: estimateHandled.statusCategory });
         }
@@ -286,6 +285,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             hasSuggestion: Boolean(workflowHandled.intent.suggestedCommand),
             requiresClarification: workflowHandled.intent.requiresClarification,
             workflowStatus: workflowHandled.statusCategory,
+            workflowFallback: true,
           });
           return NextResponse.json({ ok: true, intent: workflowHandled.intent, statusCategory: workflowHandled.statusCategory });
         }
@@ -314,7 +314,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           }
         } catch (error) {
           if (!IS_PRODUCTION && typeof console !== "undefined") console.warn("[orion-intelligence] fallback failed", error);
-          // Preserve deterministic Orion behavior if the optional intelligence layer is unavailable.
         }
       }
 
