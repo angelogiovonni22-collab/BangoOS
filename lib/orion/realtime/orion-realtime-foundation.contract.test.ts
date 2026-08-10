@@ -34,7 +34,8 @@ function main() {
   assert(client.includes("new RTCPeerConnection()"), "browser client uses WebRTC");
   assert(client.includes("navigator.mediaDevices.getUserMedia"), "browser client captures microphone audio");
   assert(client.includes('createDataChannel("oai-events")'), "browser client exposes Realtime event channel");
-  assert(config.includes('DEFAULT_REALTIME_MODEL = "gpt-realtime"'), "Orion uses the GA realtime model by default");
+  assert(config.includes('DEFAULT_REALTIME_MODEL = "gpt-realtime-2.1"'), "Orion uses GPT-Realtime-2.1 by default");
+  assert(config.includes('readEnv("ORION_REALTIME_MODEL") || DEFAULT_REALTIME_MODEL'), "Realtime model remains environment-overridable");
 
   console.log(`\nOrion Realtime foundation results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
