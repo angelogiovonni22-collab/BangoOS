@@ -33,8 +33,11 @@ function main() {
   assert(route.includes('resolveBosActionFromIntelligenceRoute'), "AI tool selections are resolved back to canonical BOS commands");
   assert(!route.includes('.from("') && !route.includes(".insert(") && !route.includes(".update("), "intelligence route cannot mutate BOS tables directly");
   assert(policy.includes("Never bypass BOS permissions, validation, confirmation levels, or audit logging."), "BOS execution safety remains outside model discretion");
-  assert(modelConfig.includes('const DEFAULT_REALTIME_MODEL = "gpt-realtime-2.1"'), "Orion defaults to the current GPT-Realtime-2.1 voice-agent model");
-  assert(modelConfig.includes('readEnv("ORION_REALTIME_MODEL") || DEFAULT_REALTIME_MODEL'), "Realtime model remains environment-overridable");
+  assert(modelConfig.includes('DEFAULT_REALTIME_MODEL = "gpt-realtime"'), "Orion v2 defaults to the public GPT Realtime API model");
+  assert(modelConfig.includes('DEFAULT_REASONING_MODEL = "gpt-5.1"'), "Orion reasoning defaults to a public GPT API model");
+  assert(modelConfig.includes('DEFAULT_FAST_MODEL = "gpt-5-mini"'), "Orion fast reasoning defaults to a public low-latency GPT API model");
+  assert(modelConfig.includes('"gpt-realtime-2.1": DEFAULT_REALTIME_MODEL'), "stale Realtime model configuration is normalized safely");
+  assert(modelConfig.includes('normalizeModel(readEnv("ORION_REALTIME_MODEL")'), "Realtime model remains environment-overridable with compatibility normalization");
 
   console.log(`\nOrion OpenAI intelligence results: ${passed} passed, ${failed} failed`);
   if (failed > 0) {
