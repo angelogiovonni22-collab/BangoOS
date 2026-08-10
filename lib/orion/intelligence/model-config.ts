@@ -9,7 +9,7 @@ export type OrionModelConfig = {
 
 const DEFAULT_REASONING_MODEL = "gpt-5.6-sol";
 const DEFAULT_FAST_MODEL = "gpt-5.6-terra";
-const DEFAULT_REALTIME_MODEL = "gpt-realtime";
+const DEFAULT_REALTIME_MODEL = "gpt-realtime-2.1";
 
 function readEnv(name: string) {
   const value = process.env[name];
