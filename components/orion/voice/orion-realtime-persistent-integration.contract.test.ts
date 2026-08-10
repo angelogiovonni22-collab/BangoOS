@@ -65,7 +65,8 @@ function main() {
   assert(compat.includes("useOrionUnifiedVoice()"), "the compatibility facade is backed by Orion v2 Realtime");
   assert(compat.includes('finalTranscript: ""'), "Realtime final transcripts cannot be re-dispatched into the legacy Command Center intent pipeline");
   assert(compat.includes("requestSpokenResponse: noop"), "browser TTS cannot duplicate Realtime spoken output while preserving legacy call signatures");
-  assert(compat.includes("(..._args: unknown[])"), "legacy-shaped no-op methods accept their historical arguments without reactivating legacy voice behavior");
+  assert(compat.includes("(...args: unknown[])"), "legacy-shaped no-op methods accept their historical arguments without reactivating legacy voice behavior");
+  assert(compat.includes('type LegacyCompatibleCaptureMode = "push_to_talk" | "tap_to_listen" | "hands_free"'), "compatibility mode keeps old UI branches type-safe without enabling legacy capture engines");
 
   console.log(`\nOrion v2 persistent Realtime integration results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
