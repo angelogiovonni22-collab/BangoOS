@@ -43,13 +43,18 @@ function main() {
     "what projects are active",
     "what is the health of this project",
   ]) {
-    assert(hasClearBosVoiceIntent(phrase), `explicit BOS request remains deterministic: ${phrase}`);
-    assert(!shouldPreferOrionConversation(phrase), `BOS request is not diverted to general conversation: ${phrase}`);
+    assert(hasClearBosVoiceIntent(phrase), `explicit BOS request remains identifiable as BOS intent: ${phrase}`);
+    assert(!shouldPreferOrionConversation(phrase), `BOS request is not forced into conversation-only mode: ${phrase}`);
   }
 
-  assert(route.includes("shouldPreferOrionConversation(normalizedIntentInput.input)"), "voice API applies conversation-first routing before operational matchers");
-  assert(route.indexOf("shouldPreferOrionConversation(normalizedIntentInput.input)") < route.indexOf("resolveOperationalVoiceIntent({"), "conversation-first routing runs before legacy operational routing");
-  assert(route.includes("resolveOrionIntelligenceIntentFallback") && route.includes("conversationFirst: true"), "conversation-first route uses Orion intelligence and is observable in diagnostics");
+  const llmFirstMarker = "const llmFirst = await resolveOrionIntelligenceIntentFallback";
+  const operationalMarker = "const operationalHandled = await resolveOperationalVoiceIntent";
+  const deterministicMarker = "const result = await resolveOrionIntent";
+
+  assert(route.includes("conversationOnly: shouldPreferOrionConversation(normalizedIntentInput.input)"), "voice API sends conversational turns through the LLM with a non-executable safety mode");
+  assert(route.indexOf(llmFirstMarker) >= 0 && route.indexOf(llmFirstMarker) < route.indexOf(operationalMarker), "LLM-first routing runs before legacy operational routing");
+  assert(route.indexOf(llmFirstMarker) >= 0 && route.indexOf(llmFirstMarker) < route.indexOf(deterministicMarker), "LLM-first routing runs before generic deterministic intent resolution");
+  assert(route.includes("resolveOrionIntelligenceIntentFallback") && route.includes("llmFirst: true"), "LLM-first voice routing is observable in diagnostics");
 
   console.log(`\nOrion conversation routing results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
