@@ -7,9 +7,11 @@ export type OrionModelConfig = {
   webSearchEnabled: boolean;
 };
 
-const DEFAULT_REASONING_MODEL = "gpt-5.6-sol";
-const DEFAULT_FAST_MODEL = "gpt-5.6-terra";
-const DEFAULT_REALTIME_MODEL = "gpt-realtime-2.1";
+// Keep defaults pinned to public OpenAI API model identifiers. Environment
+// variables can still override these values for controlled rollouts.
+const DEFAULT_REASONING_MODEL = "gpt-5.1";
+const DEFAULT_FAST_MODEL = "gpt-5-mini";
+const DEFAULT_REALTIME_MODEL = "gpt-realtime";
 
 function readEnv(name: string) {
   const value = process.env[name];
