@@ -8,10 +8,17 @@ import { isOrionVoiceAutomationEnabled, ORION_VOICE_FREEZE_MESSAGE } from "@/lib
 import { useGlobalOrionVoice } from "./GlobalOrionVoiceProvider";
 
 export type OrionVoiceEngine = "realtime" | "browser";
+export const ORION_REALTIME_VOICES = ["marin", "cedar", "coral", "shimmer", "sage", "alloy", "ash", "ballad", "echo", "verse"] as const;
+export type OrionRealtimeVoice = (typeof ORION_REALTIME_VOICES)[number];
+
+const REALTIME_VOICE_STORAGE_KEY = "bangoos:orion-realtime-voice:v1";
+const DEFAULT_REALTIME_VOICE: OrionRealtimeVoice = "marin";
 
 export type OrionUnifiedVoiceController = {
   engine: OrionVoiceEngine;
   realtimeState: OrionRealtimeConnectionState;
+  realtimeVoice: OrionRealtimeVoice;
+  availableRealtimeVoices: readonly OrionRealtimeVoice[];
   phase: string;
   statusMessage: string;
   supportMessage: string;
@@ -25,10 +32,15 @@ export type OrionUnifiedVoiceController = {
   start: () => Promise<void>;
   stop: () => Promise<void>;
   retry: () => Promise<void>;
+  setRealtimeVoice: (voice: OrionRealtimeVoice) => void;
   setSpokenResponsesEnabled: (enabled: boolean) => void;
   enableVoice: () => void;
   disableVoice: () => Promise<void>;
 };
+
+function isRealtimeVoice(value: unknown): value is OrionRealtimeVoice {
+  return typeof value === "string" && (ORION_REALTIME_VOICES as readonly string[]).includes(value);
+}
 
 function eventTranscript(event: OrionRealtimeServerEvent) {
   if (event.type === "conversation.item.input_audio_transcription.completed") {
@@ -55,6 +67,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
   const voiceAutomationEnabled = isOrionVoiceAutomationEnabled();
   const [engine, setEngine] = useState<OrionVoiceEngine>("browser");
   const [realtimeState, setRealtimeState] = useState<OrionRealtimeConnectionState>("idle");
+  const [realtimeVoice, setRealtimeVoiceState] = useState<OrionRealtimeVoice>(DEFAULT_REALTIME_VOICE);
   const [realtimePhase, setRealtimePhase] = useState("idle");
   const [realtimeStatus, setRealtimeStatus] = useState("Realtime voice is ready.");
   const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
@@ -65,6 +78,22 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
   useEffect(() => {
     browserRef.current = browser;
   }, [browser]);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(REALTIME_VOICE_STORAGE_KEY);
+    if (!isRealtimeVoice(stored) || stored === realtimeVoice) return;
+    queueMicrotask(() => setRealtimeVoiceState(stored));
+  }, [realtimeVoice]);
+
+  const setRealtimeVoice = useCallback((voice: OrionRealtimeVoice) => {
+    if (!isRealtimeVoice(voice)) return;
+    setRealtimeVoiceState(voice);
+    try {
+      window.localStorage.setItem(REALTIME_VOICE_STORAGE_KEY, voice);
+    } catch {
+      // Voice preference persistence is optional.
+    }
+  }, []);
 
   const clearFallbackTimer = useCallback(() => {
     if (fallbackTimerRef.current !== null) {
@@ -218,7 +247,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
 
     clientRef.current = client;
     try {
-      await client.connect();
+      await client.connect({ voice: realtimeVoice });
     } catch (error) {
       if (clientRef.current === client) {
         clientRef.current = null;
@@ -226,7 +255,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
       const message = error instanceof Error ? error.message : "Realtime voice is unavailable.";
       fallbackToBrowser(`${message} Using browser voice fallback.`);
     }
-  }, [browser, clearFallbackTimer, fallbackToBrowser, realtimeState, router, voiceAutomationEnabled]);
+  }, [browser, clearFallbackTimer, fallbackToBrowser, realtimeState, realtimeVoice, router, voiceAutomationEnabled]);
 
   const retry = useCallback(async () => {
     await stop();
@@ -296,6 +325,8 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
     return {
       engine: effectiveEngine,
       realtimeState,
+      realtimeVoice,
+      availableRealtimeVoices: ORION_REALTIME_VOICES,
       phase: voiceAutomationEnabled ? (realtimeActive ? realtimePhase : browser.phase) : "disabled",
       statusMessage: voiceAutomationEnabled
         ? (realtimeActive ? realtimeStatus : fallbackNotice || browser.statusMessage)
@@ -311,6 +342,7 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
       start,
       stop,
       retry,
+      setRealtimeVoice,
       setSpokenResponsesEnabled: browser.setSpokenResponsesEnabled,
       enableVoice: browser.enableGlobalVoice,
       disableVoice,
@@ -326,7 +358,9 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
     realtimeSpeaking,
     realtimeState,
     realtimeStatus,
+    realtimeVoice,
     retry,
+    setRealtimeVoice,
     start,
     stop,
     voiceAutomationEnabled,

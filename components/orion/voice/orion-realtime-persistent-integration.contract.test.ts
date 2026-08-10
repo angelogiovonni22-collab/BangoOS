@@ -51,6 +51,12 @@ function main() {
   assert(panel.includes('Engine: {voice.engine === "realtime"'), "persistent Orion visibly identifies the active voice engine");
   assert(panel.includes("void voice.start()") && panel.includes("void voice.stop()"), "persistent voice controls start and stop the unified conversation engine");
   assert(realtimeClient.includes("await this.disconnect()"), "Realtime client remains single-session before acquiring microphone resources");
+  assert(unified.includes('DEFAULT_REALTIME_VOICE: OrionRealtimeVoice = "marin"'), "Realtime defaults to the preferred Orion voice");
+  assert(unified.includes("ORION_REALTIME_VOICES") && unified.includes("cedar") && unified.includes("coral") && unified.includes("shimmer"), "supported Realtime voice choices are available to Orion");
+  assert(unified.includes("REALTIME_VOICE_STORAGE_KEY") && unified.includes("window.localStorage.setItem"), "Realtime voice preference persists on the device");
+  assert(unified.includes("client.connect({ voice: realtimeVoice })"), "selected Realtime voice is used when the session connects");
+  assert(panel.includes('id="orion-realtime-voice-select"') && panel.includes("voice.availableRealtimeVoices.map"), "Persistent Orion exposes Realtime voice selection");
+  assert(panel.includes("End the current Realtime conversation to change voices."), "voice changes are blocked during an active audio session");
 
   console.log(`\nOrion persistent Realtime integration results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
