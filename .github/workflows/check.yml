@@ -63,6 +63,9 @@ jobs:
       - name: Run Orion daily report operations regression
         run: npx -y tsx lib/orion/commands/orion-daily-report-operations.contract.test.ts
 
+      - name: Run Orion production command coverage regression
+        run: npx -y tsx lib/orion/commands/orion-production-command-coverage.contract.test.ts
+
       - name: Run Orion daily report voice intent regression
         run: npx -y tsx lib/orion/voice/orion-daily-report-voice-intent.contract.test.ts
 
