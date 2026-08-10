@@ -22,6 +22,7 @@ function main() {
   const operator = read("lib/orion/operator/browser.ts");
   const bridge = read("lib/orion/realtime/tool-bridge.ts");
   const session = read("app/api/orion/realtime/session/route.ts");
+  const unified = read("components/orion/voice/useOrionUnifiedVoice.ts");
   const estimateInfo = read("components/estimates/estimate-information-section.tsx");
   const estimateCustomer = read("components/estimates/estimate-customer-project-section.tsx");
   const estimateLines = read("components/estimates/estimate-line-items.tsx");
@@ -37,10 +38,14 @@ function main() {
   assert(operator.includes("DESTRUCTIVE_TEXT") && operator.includes("requiresCanonicalConfirmation"), "direct UI operator blocks destructive actions");
   assert(operator.includes('href.startsWith("/")') && operator.includes('href.startsWith("//")'), "operator navigation is restricted to internal BOS routes");
   assert(bridge.includes("executeOrionUiOperator") && bridge.includes("ORION_UI_OPERATOR_TOOL"), "Realtime tool bridge executes UI operator calls in the browser");
+  assert(unified.includes('result.href.startsWith("/")') && unified.includes("router.push(result.href)"), "successful operator navigation is applied to the live BOS router");
   assert(session.includes('UI_OPERATOR_TOOL_NAME = "orion_ui_operator"'), "Realtime advertises the semantic UI operator");
   assert(!session.includes('name: TASK_AGENT_TOOL_NAME'), "legacy task-agent is no longer advertised as Orion's primary model tool");
   assert(session.includes("Orion Operator architecture"), "Realtime policy explicitly establishes operator-first architecture");
   assert(session.includes("Do not use pixel coordinates") && session.includes("Only act on controls returned by the operator observation"), "operator policy forbids brittle pixel/selector guessing");
+  assert(session.includes("MANDATORY visible-create rule") && session.includes("action=navigate and href=/estimates/new"), "new-estimate intent must navigate before Orion asks follow-up questions");
+  assert(session.includes("Do not call a canonical estimate-create/database mutation tool") && session.includes("visible create/edit request begins in the visible form"), "canonical create tools cannot preempt the visible estimate workflow");
+  assert(session.includes("After navigation to /estimates/new succeeds") && session.includes("action=observe"), "Orion observes the mounted estimate form immediately after navigation");
   assert(session.includes("navigate to /estimates/new") && session.includes("watch you fill the estimate in real time"), "new estimate is the gold-standard visible operator workflow");
   assert(session.includes("Corrections override earlier information"), "normal conversational corrections update the visible task");
   assert(estimateInfo.includes('id="estimate-title"') && estimateInfo.includes('id="estimate-description"'), "estimate information fields expose stable semantic ids");
