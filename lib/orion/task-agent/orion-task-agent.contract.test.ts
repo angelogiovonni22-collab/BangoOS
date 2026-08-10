@@ -20,26 +20,29 @@ function main() {
   const items = read("components/estimates/estimate-line-items.tsx");
   const row = read("components/estimates/estimate-line-item-row.tsx");
 
-  console.log("\nOrion advanced task-agent architecture contract");
-  assert(session.includes('TASK_AGENT_TOOL_NAME = "orion_task_agent"'), "Realtime exposes one persistent task-agent tool");
-  assert(session.includes("Do not force command syntax"), "Realtime policy requires natural-language interaction");
+  console.log("\nOrion legacy task-agent isolation contract");
+  assert(session.includes('UI_OPERATOR_TOOL_NAME = "orion_ui_operator"'), "Realtime exposes the semantic UI operator as the interactive workflow layer");
+  assert(!session.includes('TASK_AGENT_TOOL_NAME = "orion_task_agent"'), "legacy task-agent is no longer advertised to the model");
+  assert(session.includes("Orion Operator architecture"), "Realtime explicitly uses the operator-first architecture");
+  assert(session.includes("Do not force command syntax"), "Realtime policy still requires natural-language interaction");
   assert(session.includes("Never interpret the name of a field as the value for that field"), "field labels cannot be mis-saved as values");
-  assert(session.includes("every later answer belongs to that estimate"), "multi-turn estimate continuity is explicit");
-  assert(session.includes("visually patch the live form"), "Realtime is instructed to fill visible BOS forms");
-  assert(bridge.includes("executeOrionTaskAgent(call.params)"), "Realtime tool bridge executes task-agent operations in the browser");
-  assert(taskAgent.includes("window.sessionStorage"), "active task memory survives page navigation in the browser session");
-  assert(taskAgent.includes('href: "/estimates/new"'), "starting an estimate task opens the visible New Estimate page");
-  assert(taskAgent.includes("field label is not a customer value"), "task runtime independently blocks the reported customer-name failure mode");
-  assert(taskAgent.includes("patchEstimateForm"), "task runtime can visually patch estimate fields");
-  assert(taskAgent.includes("addEstimateLineItem"), "task runtime can build structured estimate line items");
-  assert(taskAgent.includes("saveEstimateForm"), "task runtime can complete the visible estimate workflow");
-  assert(info.includes('id="estimate-title"') && customer.includes('id="estimate-customer"'), "core estimate fields have stable visual-control selectors");
-  assert(totals.includes('id="estimate-tax-rate"') && totals.includes('id="estimate-additional-fee"'), "estimate financial controls are task-agent addressable");
-  assert(notes.includes('id="estimate-payment-terms"') && notes.includes('id="estimate-scope-inclusions"'), "estimate scope and terms are task-agent addressable");
-  assert(items.includes('data-orion-action="add-line-item"'), "line-item builder exposes a stable add action");
-  assert(row.includes('data-orion-line-item-field="description"') && row.includes('data-orion-line-item-field="unitCost"'), "line-item rows expose structured live fields");
+  assert(session.includes("Corrections override earlier information"), "multi-turn corrections remain explicit in the operator policy");
+  assert(session.includes("watch you fill the estimate in real time"), "Realtime is instructed to operate the visible BOS form");
+  assert(bridge.includes("executeOrionTaskAgent(call.params)"), "legacy task-agent remains internally routable for rollback compatibility");
+  assert(bridge.includes("executeOrionUiOperator(call.params)"), "semantic UI operator is routed through the live browser bridge");
+  assert(taskAgent.includes("window.sessionStorage"), "legacy task memory remains intact if rollback is ever required");
+  assert(taskAgent.includes('href: "/estimates/new"'), "legacy estimate workflow remains recoverable without deleting known-good code");
+  assert(taskAgent.includes("field label is not a customer value"), "legacy runtime independently preserves the customer-name safety guard");
+  assert(taskAgent.includes("patchEstimateForm"), "legacy runtime retains visual field patching as rollback capability");
+  assert(taskAgent.includes("addEstimateLineItem"), "legacy runtime retains structured line-item capability");
+  assert(taskAgent.includes("saveEstimateForm"), "legacy runtime retains save capability without being model-advertised");
+  assert(info.includes('id="estimate-title"') && customer.includes('id="estimate-customer"'), "core estimate fields retain stable visual-control selectors");
+  assert(totals.includes('id="estimate-tax-rate"') && totals.includes('id="estimate-additional-fee"'), "estimate financial controls remain operator-addressable");
+  assert(notes.includes('id="estimate-payment-terms"') && notes.includes('id="estimate-scope-inclusions"'), "estimate scope and terms remain operator-addressable");
+  assert(items.includes('data-orion-action="add-line-item"'), "line-item builder retains a stable semantic action");
+  assert(row.includes('data-orion-line-item-field="description"') && row.includes('data-orion-line-item-field="unitCost"'), "line-item rows retain structured semantic field identities");
 
-  console.log(`\nOrion task-agent results: ${passed} passed, ${failed} failed`);
+  console.log(`\nOrion legacy task-agent isolation results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
 }
 

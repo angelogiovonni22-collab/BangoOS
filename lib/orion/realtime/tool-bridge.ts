@@ -1,6 +1,7 @@
 "use client";
 
 import { executeOrionTaskAgent, ORION_TASK_AGENT_TOOL } from "@/lib/orion/task-agent/browser";
+import { executeOrionUiOperator, ORION_UI_OPERATOR_TOOL } from "@/lib/orion/operator/browser";
 import type { OrionRealtimeServerEvent, OrionRealtimeToolExecutionResult } from "./types";
 
 export const ORION_REALTIME_CONFIRM_TOOL = "bos_confirm_pending_action";
@@ -95,6 +96,7 @@ export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall, 
   if (call.toolName === ORION_REALTIME_CONTEXT_TOOL) return currentBosContext();
   if (call.toolName === ORION_REALTIME_RESEARCH_TOOL) return executeRealtimeResearch(call);
   if (call.toolName === ORION_REALTIME_RESOLVE_ENTITY_TOOL) return executeEntityResolution(call);
+  if (call.toolName === ORION_UI_OPERATOR_TOOL) return executeOrionUiOperator(call.params);
   if (call.toolName === ORION_TASK_AGENT_TOOL) return executeOrionTaskAgent(call.params);
 
   const response = await fetch("/api/orion/realtime/tool", {
