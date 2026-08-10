@@ -80,6 +80,29 @@ function realtimeBosTools() {
   ];
 }
 
+function buildRealtimeMultipartBody(sdp: string, session: Record<string, unknown>) {
+  const boundary = `----BangoOSRealtime${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`;
+  const body = [
+    `--${boundary}`,
+    'Content-Disposition: form-data; name="sdp"',
+    "Content-Type: application/sdp",
+    "",
+    sdp,
+    `--${boundary}`,
+    'Content-Disposition: form-data; name="session"',
+    "Content-Type: application/json",
+    "",
+    JSON.stringify(session),
+    `--${boundary}--`,
+    "",
+  ].join("\r\n");
+
+  return {
+    body,
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  };
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     if (!isOrionVoiceAutomationEnabled()) {
@@ -109,9 +132,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const modelConfig = getOrionModelConfig();
     const voice = realtimeVoice(body.voice);
     const tools = realtimeBosTools();
-    const form = new FormData();
-    form.set("sdp", new Blob([body.sdp], { type: "application/sdp" }), "offer.sdp");
-    form.set("session", new Blob([JSON.stringify({
+    const session = {
       type: "realtime",
       model: modelConfig.realtimeModel,
       output_modalities: ["audio"],
@@ -167,9 +188,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
       tools,
       tool_choice: "auto",
-    })], { type: "application/json" }), "session.json");
+    };
+    const multipart = buildRealtimeMultipartBody(body.sdp, session);
 
-    const openAIResponse = await fetch(OPENAI_REALTIME_CALLS_URL, { method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form, cache: "no-store" });
+    const openAIResponse = await fetch(OPENAI_REALTIME_CALLS_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": multipart.contentType,
+      },
+      body: multipart.body,
+      cache: "no-store",
+    });
     const answerSdp = await openAIResponse.text();
     if (!openAIResponse.ok || !answerSdp.trim()) {
       return NextResponse.json({ ok: false, error: answerSdp.trim() || "OpenAI Realtime session creation failed.", statusCategory: "realtime_connection_failed" }, { status: openAIResponse.status || 502 });
