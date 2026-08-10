@@ -280,20 +280,30 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
     }
   }, [enabled, shutDownLegacyVoice]);
 
-  // Persist the Realtime conversation across page navigation. When the user has
-  // previously enabled Orion, reconnect once on mount instead of requiring the
-  // legacy wake/intent engine to start a separate browser session.
+  // Persist the Realtime conversation across page navigation. The lifecycle hook
+  // schedules the user-equivalent start action after commit rather than mutating
+  // React state synchronously inside the effect body.
   useEffect(() => {
     if (!voiceAutomationEnabled || !enabled || manualStopRef.current || autoStartAttemptedRef.current) return;
     if (realtimeState !== "idle" && realtimeState !== "closed") return;
     autoStartAttemptedRef.current = true;
-    void start();
+    queueMicrotask(() => {
+      void start();
+    });
   }, [enabled, realtimeState, start, voiceAutomationEnabled]);
 
+  // The emergency kill switch tears down external microphone/WebRTC resources but
+  // does not erase the user's saved v2 preference. State projection below already
+  // reports Orion as disabled while the gate is off.
   useEffect(() => {
     if (voiceAutomationEnabled) return;
-    void disableVoice();
-  }, [disableVoice, voiceAutomationEnabled]);
+    const client = clientRef.current;
+    clientRef.current = null;
+    if (client) {
+      void client.disconnect();
+    }
+    shutDownLegacyVoice();
+  }, [shutDownLegacyVoice, voiceAutomationEnabled]);
 
   useEffect(() => () => {
     const client = clientRef.current;
