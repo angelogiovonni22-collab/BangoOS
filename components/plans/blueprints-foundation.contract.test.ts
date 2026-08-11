@@ -16,6 +16,7 @@ const revisionPanel = fs.readFileSync(path.join(root, "components/plans/blueprin
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260812090000_blueprints_plan_room_foundation.sql"), "utf8");
 const membershipAlignment = fs.readFileSync(path.join(root, "supabase/migrations/20260812103000_blueprints_membership_rls_alignment.sql"), "utf8");
 const transactionalUploads = fs.readFileSync(path.join(root, "supabase/migrations/20260812113000_blueprints_transactional_upload_rpcs.sql"), "utf8");
+const storageAuthorization = fs.readFileSync(path.join(root, "supabase/migrations/20260812120000_blueprints_storage_path_authorization.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -48,5 +49,9 @@ assert(transactionalUploads.includes("public.is_company_member(project_record.co
 assert(transactionalUploads.includes("split_part(object_path, '/', 3) <> sheet_record.id::text"), "Blueprint version registration must validate the complete storage path");
 assert(planRoom.includes("Could not create Blueprint metadata"), "Upload failures must identify the failing Blueprint stage");
 assert(planRoom.includes("Could not store the Blueprint file"), "Storage RLS failures must be distinguishable from metadata failures");
+assert(storageAuthorization.includes("blueprint_storage_path_authorized"), "Blueprint storage RLS must use a server-verified path predicate");
+assert(storageAuthorization.includes("sheet.id::text = split_part(object_name, '/', 3)"), "Blueprint storage authorization must verify the sheet path segment");
+assert(storageAuthorization.includes("public.is_company_member(sheet.company_id)"), "Blueprint storage authorization must verify active membership");
+assert(storageAuthorization.includes("grant execute on function public.blueprint_storage_path_authorized(text) to authenticated"), "Only authenticated users may execute the Blueprint storage predicate");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
