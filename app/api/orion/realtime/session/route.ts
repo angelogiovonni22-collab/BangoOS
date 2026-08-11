@@ -45,10 +45,11 @@ function realtimeBosTools() {
       name: UI_OPERATOR_TOOL_NAME,
       description: "Observe and operate the actual visible BangoOS interface using semantic control references rather than pixel coordinates. Use this as Orion's primary interaction layer for visible workflows such as creating or editing estimates. First observe the screen, then use returned refs to set or click controls. Navigation returns an internal BOS href while preserving Orion's persistent session. Destructive actions are blocked here and must use confirmed canonical BOS tools.",
       parameters: wrappedToolParameters({
-        action: { type: "string", enum: ["observe", "navigate", "set", "click"], description: "Observe the current screen, navigate to a BOS route, set a visible form control, or click a visible button/link." },
+        action: { type: "string", enum: ["observe", "navigate", "set", "click", "scroll"], description: "Observe, navigate, set, click, or semantically scroll the active BOS content region." },
         href: { type: "string", description: `Verified BOS route. Main routes: ${ORION_OPERATOR_MAIN_ROUTES.join(", ")}. New-estimate route: /estimates/new. Used only with navigate.` },
         ref: { type: "string", description: "Exact semantic control ref returned by observe. Used with set or click." },
         value: { type: ["string", "number"], description: "Actual value to enter/select. Used only with set." },
+        direction: { type: "string", enum: ["up", "down", "top", "bottom", "control"], description: "Scroll one active-content viewport, jump to a boundary, or bring ref into view. Used only with scroll." },
       }, ["action"]),
     },
     {
@@ -151,6 +152,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "Orion Operator architecture: use the visible BOS interface as the source of truth for interactive workflows. Do not invent form schemas from memory when the UI can be observed.",
         `For visible workflows, use ${UI_OPERATOR_TOOL_NAME} with action=observe before manipulating controls. Use the exact semantic refs returned by observe. Re-observe after navigation, after adding dynamic rows, or whenever a ref is stale.`,
         "Do not use pixel coordinates, DOM guesses, CSS selectors, or imagined controls. Only act on controls returned by the operator observation.",
+        "If a needed observed control is outside the viewport, use orion_ui_operator action=scroll with direction=control and its exact ref. For general movement use up, down, top, or bottom. After every scroll, you MUST observe again before setting or clicking because prior screen state is stale.",
+        "For project edits, resolve the current or spoken project, navigate to its verified /projects/{id}/edit route, observe the mounted form, and edit only returned semantic controls. Never invent a project id or field.",
+        "Project status controls are confirmation-sensitive. If the Operator reports requiresCanonicalConfirmation, use the canonical confirmed BOS status tool instead of bypassing the visible guard.",
         `Navigation safety: never invent a path from a spoken tab name. Use the exact verified BOS routes accepted by the Operator. Main routes: ${ORION_OPERATOR_MAIN_ROUTES.join(", ")}. If navigation is rejected, use the validMainRoutes returned by the tool instead of retrying a guessed path.`,
         `MANDATORY visible-create rule: when the user asks to create, start, build, make, or fill a new estimate, your first operational action MUST be ${UI_OPERATOR_TOOL_NAME} with action=navigate and href=/estimates/new. Do this before asking the first estimate follow-up question.`,
         "Do not call a canonical estimate-create/database mutation tool merely because the user says create a new estimate. A visible create/edit request begins in the visible form through Orion Operator; canonical mutation tools are reserved for actions that cannot or should not be completed through the visible workflow.",
