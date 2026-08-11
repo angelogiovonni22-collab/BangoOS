@@ -142,5 +142,4 @@ jobs:
         run: npm run check
 
       - name: Audit production dependencies
-        continue-on-error: true
         run: npm audit --omit=dev --audit-level=high
