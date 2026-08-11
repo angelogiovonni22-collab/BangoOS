@@ -15,7 +15,13 @@ export type OrionRealtimeVoice = (typeof ORION_REALTIME_VOICES)[number];
 
 const REALTIME_VOICE_STORAGE_KEY = "bangoos:orion-realtime-voice:v1";
 const ORION_V2_ENABLED_STORAGE_KEY = "bangoos:orion-v2-enabled:v1";
+const ORION_REALTIME_OWNER_STORAGE_KEY = "bangoos:orion-realtime-owner:v1";
+const ORION_REALTIME_OWNER_CHANNEL = "bangoos:orion-realtime-owner";
 const DEFAULT_REALTIME_VOICE: OrionRealtimeVoice = "marin";
+
+type OrionRealtimeBrowserWindow = Window & {
+  __bangoOrionRealtimeClient?: OrionRealtimeClient;
+};
 
 export type OrionUnifiedVoiceController = {
   engine: OrionVoiceEngine;
@@ -63,6 +69,38 @@ function storeBoolean(key: string, value: boolean) {
   }
 }
 
+function createOwnerId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `orion-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function readRealtimeOwner() {
+  try {
+    return window.localStorage.getItem(ORION_REALTIME_OWNER_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function claimRealtimeOwnership(ownerId: string, channel: BroadcastChannel | null) {
+  try {
+    window.localStorage.setItem(ORION_REALTIME_OWNER_STORAGE_KEY, ownerId);
+  } catch {
+    // BroadcastChannel and the in-tab singleton still provide ownership guards.
+  }
+  channel?.postMessage({ type: "claim", ownerId });
+}
+
+function releaseRealtimeOwnership(ownerId: string) {
+  try {
+    if (window.localStorage.getItem(ORION_REALTIME_OWNER_STORAGE_KEY) === ownerId) {
+      window.localStorage.removeItem(ORION_REALTIME_OWNER_STORAGE_KEY);
+    }
+  } catch {
+    // Ownership cleanup is best effort when storage is unavailable.
+  }
+}
+
 function eventTranscript(event: OrionRealtimeServerEvent) {
   if (event.type === "conversation.item.input_audio_transcription.completed") {
     return typeof event.transcript === "string" ? event.transcript.trim() : "";
@@ -96,6 +134,9 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   const legacyVoiceRef = useRef(legacyVoice);
   const router = useRouter();
   const clientRef = useRef<OrionRealtimeClient | null>(null);
+  const ownerIdRef = useRef(createOwnerId());
+  const ownerChannelRef = useRef<BroadcastChannel | null>(null);
+  const ownershipBlockedRef = useRef(false);
   const connectPromiseRef = useRef<Promise<void> | null>(null);
   const autoStartAttemptedRef = useRef(false);
   const manualStopRef = useRef(false);
@@ -113,6 +154,44 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   useEffect(() => {
     legacyVoiceRef.current = legacyVoice;
   }, [legacyVoice]);
+
+  useEffect(() => {
+    const ownerId = ownerIdRef.current;
+    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(ORION_REALTIME_OWNER_CHANNEL) : null;
+    ownerChannelRef.current = channel;
+
+    const yieldToOwner = (nextOwnerId: string | null) => {
+      if (!nextOwnerId || nextOwnerId === ownerId) return;
+      ownershipBlockedRef.current = true;
+      const client = clientRef.current;
+      clientRef.current = null;
+      const browserWindow = window as OrionRealtimeBrowserWindow;
+      if (browserWindow.__bangoOrionRealtimeClient === client) {
+        delete browserWindow.__bangoOrionRealtimeClient;
+      }
+      if (client) void client.disconnect();
+      setRealtimeSpeaking(false);
+      setRealtimeState("closed");
+      setRealtimePhase("idle");
+      setRealtimeStatus("Orion is active in another BOS tab. Start Orion here to move the conversation to this tab.");
+    };
+
+    channel?.addEventListener("message", (event: MessageEvent<unknown>) => {
+      const data = event.data as { type?: unknown; ownerId?: unknown } | null;
+      if (data?.type === "claim" && typeof data.ownerId === "string") yieldToOwner(data.ownerId);
+    });
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === ORION_REALTIME_OWNER_STORAGE_KEY) yieldToOwner(event.newValue);
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      channel?.close();
+      ownerChannelRef.current = null;
+      releaseRealtimeOwnership(ownerId);
+    };
+  }, []);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(REALTIME_VOICE_STORAGE_KEY);
@@ -145,6 +224,11 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     if (client) {
       await client.disconnect();
     }
+    const browserWindow = window as OrionRealtimeBrowserWindow;
+    if (browserWindow.__bangoOrionRealtimeClient === client) {
+      delete browserWindow.__bangoOrionRealtimeClient;
+    }
+    releaseRealtimeOwnership(ownerIdRef.current);
     setRealtimeSpeaking(false);
     setRealtimeState("closed");
   }, []);
@@ -167,12 +251,30 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     }
 
     manualStopRef.current = false;
+    ownershipBlockedRef.current = false;
+    claimRealtimeOwnership(ownerIdRef.current, ownerChannelRef.current);
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 75));
+    const currentOwner = readRealtimeOwner();
+    if (currentOwner && currentOwner !== ownerIdRef.current) {
+      ownershipBlockedRef.current = true;
+      setRealtimeState("closed");
+      setRealtimePhase("idle");
+      setRealtimeStatus("Orion is active in another BOS tab. Start Orion here to move the conversation to this tab.");
+      return;
+    }
     setEnabled(true);
     storeBoolean(ORION_V2_ENABLED_STORAGE_KEY, true);
     shutDownLegacyVoice();
     setRealtimePhase("starting");
     setRealtimeStatus("Starting Orion v2...");
     setRealtimeFinalTranscript("");
+
+    const browserWindow = window as OrionRealtimeBrowserWindow;
+    const previousClient = browserWindow.__bangoOrionRealtimeClient;
+    if (previousClient) {
+      await previousClient.disconnect();
+      if (clientRef.current === previousClient) clientRef.current = null;
+    }
 
     const client = new OrionRealtimeClient({
       onStateChange: (state) => {
@@ -236,6 +338,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     });
 
     clientRef.current = client;
+    browserWindow.__bangoOrionRealtimeClient = client;
     const connectPromise = (async () => {
       try {
         await client.connect({ voice: realtimeVoice });
@@ -299,7 +402,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   // schedules the user-equivalent start action after commit rather than mutating
   // React state synchronously inside the effect body.
   useEffect(() => {
-    if (!voiceAutomationEnabled || !enabled || manualStopRef.current || autoStartAttemptedRef.current) return;
+    if (!voiceAutomationEnabled || !enabled || manualStopRef.current || ownershipBlockedRef.current || autoStartAttemptedRef.current) return;
     if (realtimeState !== "idle" && realtimeState !== "closed") return;
     autoStartAttemptedRef.current = true;
     queueMicrotask(() => {
@@ -325,6 +428,10 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     clientRef.current = null;
     if (client) {
       void client.disconnect();
+    }
+    const browserWindow = window as OrionRealtimeBrowserWindow;
+    if (browserWindow.__bangoOrionRealtimeClient === client) {
+      delete browserWindow.__bangoOrionRealtimeClient;
     }
   }, []);
 
