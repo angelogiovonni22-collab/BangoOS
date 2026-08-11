@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Activity, ClipboardList, ShieldCheck, Wrench } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
+import { LocationForecastCard } from "@/components/location-intelligence";
 import { WorkspaceActivityFeed, WorkspaceQuickActions, WorkspaceSection, WorkspaceTimeline, WorkspaceWidget } from "@/components/workspace";
 
 type TaskSummary = {
@@ -109,6 +110,8 @@ export function ProjectCommandCenterFoundation({
           <WorkspaceQuickActions actions={quickActions} />
         </WorkspaceSection>
       </div>
+
+      <LocationForecastCard projectId={projectId} title="Jobsite Weather and Directions" showMap />
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <WorkspaceSection title="Task Board" className="rounded-[18px] border border-[var(--bos-border-light)]">
