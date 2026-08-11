@@ -39,7 +39,7 @@ function main() {
   assert(unified.includes("__bangoOrionRealtimeClient") && unified.includes("previousClient.disconnect()"), "browser tab permits only one live Orion Realtime client across remounts");
   assert(unified.includes("ORION_REALTIME_OWNER_CHANNEL") && unified.includes("claimRealtimeOwnership") && unified.includes("yieldToOwner"), "BOS tabs coordinate exclusive Orion microphone and audio ownership");
   assert(unified.includes("ownershipBlockedRef.current") && unified.includes("Orion is active in another BOS tab"), "a displaced tab cannot automatically restart a competing Realtime session");
-  assert(settingsPanel.includes('from "./useGlobalOrionVoiceCompat"') && !settingsPanel.includes('from "./GlobalOrionVoiceProvider"'), "voice settings control the active Realtime facade rather than retired legacy voice");
+  assert(settingsPanel.includes("useOrionUnifiedVoice") && settingsPanel.includes("availableRealtimeVoices") && !settingsPanel.includes("GlobalOrionVoiceProvider"), "voice settings control the active Realtime controller and its real voice catalog");
   assert(unified.includes("const setSpokenResponsesEnabled") && unified.includes("void disableVoice()") && unified.includes("enableVoice()"), "Realtime voice Off disconnects the live session and On explicitly restarts it");
   assert(unified.includes("shutDownLegacyVoice"), "legacy browser voice is explicitly shut down before Realtime owns the microphone");
   assert(unified.includes("stopAllListening()") && unified.includes("disableGlobalVoice()"), "legacy recognition cannot remain active beside Orion v2");
