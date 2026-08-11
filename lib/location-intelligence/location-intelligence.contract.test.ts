@@ -19,11 +19,13 @@ const project = read("components/projects/workspace/project-command-center-found
 assert.ok(route.includes("resolveWorkspaceContext"));
 assert.ok(route.includes('.eq("company_id", workspace.context.companyId)'));
 assert.ok(route.includes("postalOverride"));
+assert.ok(route.includes("getLocationForecast(searches)"));
 assert.ok(route.includes("job_site_latitude: forecast.latitude"));
 assert.ok(route.includes("weather_postal_code_override: override.postalCode"));
 assert.ok(route.includes("missingLocationSchema"));
 assert.ok(read("supabase/migrations/20260811110000_project_location_intelligence.sql").includes("projects_job_site_latitude_check"));
 assert.ok(provider.includes("geocoding-api.open-meteo.com"));
+assert.ok(provider.includes("for (const candidate of candidates)"));
 assert.ok(provider.includes("api.open-meteo.com/v1/forecast"));
 assert.ok(provider.includes("revalidate: 900"));
 assert.ok(provider.includes('forecastUrl.searchParams.set("forecast_days", "7")'));
