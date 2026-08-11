@@ -10,6 +10,19 @@ type GeocodingResult = {
   postcodes?: string[];
 };
 
+type LocationHint = {
+  state?: string | null;
+  postalCode?: string | null;
+};
+
+const US_STATE_NAMES: Record<string, string> = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia",
+  HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland",
+  MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey",
+  NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina",
+  SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", DC: "District of Columbia",
+};
+
 type ForecastResponse = {
   timezone: string;
   current: {
@@ -42,7 +55,7 @@ export function weatherCondition(code: number) {
   return "Mixed conditions";
 }
 
-export async function getLocationForecast(search: string | string[]): Promise<LocationForecast> {
+export async function getLocationForecast(search: string | string[], hint: LocationHint = {}): Promise<LocationForecast> {
   const apiKey = process.env.OPEN_METEO_API_KEY?.trim();
   const candidates = [...new Set((Array.isArray(search) ? search : [search]).map((value) => value.trim()).filter(Boolean))];
   let place: GeocodingResult | undefined;
@@ -52,7 +65,7 @@ export async function getLocationForecast(search: string | string[]): Promise<Lo
       ? "https://customer-geocoding-api.open-meteo.com/v1/search"
       : "https://geocoding-api.open-meteo.com/v1/search");
     geocodeUrl.searchParams.set("name", candidate);
-    geocodeUrl.searchParams.set("count", "1");
+    geocodeUrl.searchParams.set("count", "10");
     geocodeUrl.searchParams.set("language", "en");
     geocodeUrl.searchParams.set("format", "json");
     geocodeUrl.searchParams.set("countryCode", "US");
@@ -61,7 +74,7 @@ export async function getLocationForecast(search: string | string[]): Promise<Lo
     const geocodeResponse = await fetch(geocodeUrl, { next: { revalidate: 86400 } });
     if (!geocodeResponse.ok) continue;
     const geocodePayload = await geocodeResponse.json() as { results?: GeocodingResult[] };
-    place = geocodePayload.results?.[0];
+    place = selectBestPlace(geocodePayload.results || [], hint);
     if (place) break;
   }
   if (!place) throw new Error("No matching location was found. Check the jobsite ZIP code or address.");
@@ -109,4 +122,21 @@ export async function getLocationForecast(search: string | string[]): Promise<Lo
     })),
     attribution: "Weather data by Open-Meteo; location data by GeoNames",
   };
+}
+
+export function selectBestPlace(results: GeocodingResult[], hint: LocationHint) {
+  const postalCode = hint.postalCode?.trim().toLowerCase() || "";
+  const rawState = hint.state?.trim() || "";
+  const stateName = US_STATE_NAMES[rawState.toUpperCase()] || rawState;
+  const normalizedState = stateName.toLowerCase();
+
+  return [...results].sort((left, right) => scorePlace(right) - scorePlace(left))[0];
+
+  function scorePlace(place: GeocodingResult) {
+    let score = 0;
+    if (postalCode && place.postcodes?.some((value) => value.trim().toLowerCase() === postalCode)) score += 100;
+    if (normalizedState && place.admin1?.trim().toLowerCase() === normalizedState) score += 50;
+    if (place.country?.trim().toLowerCase() === "united states") score += 5;
+    return score;
+  }
 }

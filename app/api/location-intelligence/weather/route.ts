@@ -69,7 +69,10 @@ async function handleWeatherRequest(request: NextRequest, override: { projectId:
       return NextResponse.json({ ok: false, error: "This project needs a valid jobsite address or ZIP code." }, { status: 422 });
     }
 
-    const forecast = await getLocationForecast(searches);
+    const forecast = await getLocationForecast(searches, {
+      state: project.state,
+      postalCode: postalOverride || project.postal_code,
+    });
     const geocodedAt = project.job_site_geocoded_at ? new Date(project.job_site_geocoded_at).getTime() : 0;
     const coordinatesAreStale = !geocodedAt || Date.now() - geocodedAt > 24 * 60 * 60 * 1000;
     if (override || project.job_site_latitude === null || project.job_site_longitude === null || coordinatesAreStale) {

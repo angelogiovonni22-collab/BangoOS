@@ -74,8 +74,8 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
   const directionsHref = useMemo(() => directionsAddress
     ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(directionsAddress)}`
     : null, [directionsAddress]);
-  const mapHref = payload ? `https://www.openstreetmap.org/?mlat=${payload.forecast.latitude}&mlon=${payload.forecast.longitude}#map=15/${payload.forecast.latitude}/${payload.forecast.longitude}` : null;
-  const mapEmbed = payload ? openStreetMapEmbed(payload.forecast.latitude, payload.forecast.longitude) : null;
+  const mapHref = directionsAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directionsAddress)}` : null;
+  const mapEmbed = directionsAddress ? `https://www.google.com/maps?q=${encodeURIComponent(directionsAddress)}&output=embed` : null;
 
   return (
     <Card as="section" variant="elevated" className="min-w-0">
@@ -172,10 +172,4 @@ function WeatherGlyph({ code, size, className }: { code: number; size: number; c
   if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return <CloudSnow {...props} className={`${className || ""} text-white`} />;
   if (code >= 95) return <CloudLightning {...props} className={`${className || ""} text-yellow-200`} />;
   return <Cloud {...props} className={`${className || ""} text-slate-100`} />;
-}
-
-function openStreetMapEmbed(latitude: number, longitude: number) {
-  const delta = 0.018;
-  const bbox = [longitude - delta, latitude - delta, longitude + delta, latitude + delta].join("%2C");
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${latitude}%2C${longitude}`;
 }
