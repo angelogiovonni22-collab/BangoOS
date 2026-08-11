@@ -14,6 +14,7 @@ import type {
   OrionRealtimeConnectionState,
   OrionRealtimeServerEvent,
   OrionRealtimeSessionOptions,
+  OrionRealtimeToolExecutionResult,
 } from "./types";
 
 const CONFIRMATION_TRANSCRIPT_MAX_AGE_MS = 8_000;
@@ -135,16 +136,20 @@ export class OrionRealtimeClient {
       const result = await executeOrionRealtimeTool(call, { confirmationTranscript });
       this.callbacks.onToolResult?.(result);
       this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId, result));
-      this.sendEvent(buildOrionRealtimeContinueResponseEvent());
+      this.sendEvent(buildOrionRealtimeContinueResponseEvent(result));
     } catch (error) {
       const resolved = error instanceof Error ? error : new Error("Orion Realtime BOS tool execution failed.");
-      this.callbacks.onError?.(resolved);
-      this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId, {
+      const failure: OrionRealtimeToolExecutionResult = {
         ok: false,
         statusCategory: "command_execution_failed",
         userMessage: resolved.message,
-      }));
-      this.sendEvent(buildOrionRealtimeContinueResponseEvent());
+        href: null,
+        confirmationRequired: false,
+        confirmationToken: null,
+      };
+      this.callbacks.onToolResult?.(failure);
+      this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId, failure));
+      this.sendEvent(buildOrionRealtimeContinueResponseEvent(failure));
     } finally {
       this.activeToolCalls.delete(call.callId);
     }
