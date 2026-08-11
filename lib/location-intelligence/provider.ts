@@ -42,22 +42,28 @@ export function weatherCondition(code: number) {
   return "Mixed conditions";
 }
 
-export async function getLocationForecast(search: string): Promise<LocationForecast> {
+export async function getLocationForecast(search: string | string[]): Promise<LocationForecast> {
   const apiKey = process.env.OPEN_METEO_API_KEY?.trim();
-  const geocodeUrl = new URL(apiKey
-    ? "https://customer-geocoding-api.open-meteo.com/v1/search"
-    : "https://geocoding-api.open-meteo.com/v1/search");
-  geocodeUrl.searchParams.set("name", search);
-  geocodeUrl.searchParams.set("count", "1");
-  geocodeUrl.searchParams.set("language", "en");
-  geocodeUrl.searchParams.set("format", "json");
-  geocodeUrl.searchParams.set("countryCode", "US");
-  if (apiKey) geocodeUrl.searchParams.set("apikey", apiKey);
+  const candidates = [...new Set((Array.isArray(search) ? search : [search]).map((value) => value.trim()).filter(Boolean))];
+  let place: GeocodingResult | undefined;
 
-  const geocodeResponse = await fetch(geocodeUrl, { next: { revalidate: 86400 } });
-  if (!geocodeResponse.ok) throw new Error("The jobsite location could not be resolved.");
-  const geocodePayload = await geocodeResponse.json() as { results?: GeocodingResult[] };
-  const place = geocodePayload.results?.[0];
+  for (const candidate of candidates) {
+    const geocodeUrl = new URL(apiKey
+      ? "https://customer-geocoding-api.open-meteo.com/v1/search"
+      : "https://geocoding-api.open-meteo.com/v1/search");
+    geocodeUrl.searchParams.set("name", candidate);
+    geocodeUrl.searchParams.set("count", "1");
+    geocodeUrl.searchParams.set("language", "en");
+    geocodeUrl.searchParams.set("format", "json");
+    geocodeUrl.searchParams.set("countryCode", "US");
+    if (apiKey) geocodeUrl.searchParams.set("apikey", apiKey);
+
+    const geocodeResponse = await fetch(geocodeUrl, { next: { revalidate: 86400 } });
+    if (!geocodeResponse.ok) continue;
+    const geocodePayload = await geocodeResponse.json() as { results?: GeocodingResult[] };
+    place = geocodePayload.results?.[0];
+    if (place) break;
+  }
   if (!place) throw new Error("No matching location was found. Check the jobsite ZIP code or address.");
 
   const forecastUrl = new URL(apiKey
