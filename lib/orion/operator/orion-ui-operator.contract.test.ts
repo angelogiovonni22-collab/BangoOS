@@ -40,6 +40,7 @@ function main() {
   assert(operator.includes("data-orion-line-item-field"), "operator understands dynamic estimate line-item controls semantically");
   assert(operator.includes("DESTRUCTIVE_TEXT") && operator.includes("requiresCanonicalConfirmation"), "direct UI operator blocks destructive actions");
   assert(routes.includes('href.startsWith("/")') && routes.includes('href.startsWith("//")'), "operator navigation is restricted to internal BOS routes");
+  assert(routes.includes("resolveKnownOrionOperatorHref") && routes.includes("route.toLowerCase() === normalizedPathname.toLowerCase()"), "known menu routes are canonicalized before browser navigation");
   assert(routes.includes("isKnownOrionOperatorHref") && operator.includes("validMainRoutes"), "operator rejects invented internal paths before they can render a 404");
   assert(handlers.includes("resolveCanonicalOrionNavigationHref") && handlers.includes("That BOS workspace route is not available."), "canonical navigation tools cannot bypass the verified route catalog");
   assert(bridge.includes("executeOrionUiOperator") && bridge.includes("ORION_UI_OPERATOR_TOOL"), "Realtime tool bridge executes UI operator calls in the browser");

@@ -1,7 +1,7 @@
 "use client";
 
 import type { OrionRealtimeToolExecutionResult } from "@/lib/orion/realtime/types";
-import { isKnownOrionOperatorHref, ORION_OPERATOR_MAIN_ROUTES } from "./routes";
+import { resolveKnownOrionOperatorHref, ORION_OPERATOR_MAIN_ROUTES } from "./routes";
 
 export const ORION_UI_OPERATOR_TOOL = "orion_ui_operator";
 
@@ -232,7 +232,7 @@ async function clickControl(ref: string) {
 }
 
 function internalHref(value: unknown) {
-  return isKnownOrionOperatorHref(value) ? String(value).trim() : null;
+  return resolveKnownOrionOperatorHref(value);
 }
 
 export async function executeOrionUiOperator(params: OperatorParams): Promise<OrionRealtimeToolExecutionResult> {

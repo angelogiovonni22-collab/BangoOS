@@ -2,6 +2,7 @@
 
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { resolveKnownOrionOperatorHref } from "@/lib/orion/operator/routes";
 import { OrionRealtimeClient } from "@/lib/orion/realtime/client";
 import type { OrionRealtimeConnectionState, OrionRealtimeServerEvent } from "@/lib/orion/realtime/types";
 import { isOrionVoiceAutomationEnabled, ORION_VOICE_FREEZE_MESSAGE } from "@/lib/orion/runtime-config";
@@ -321,9 +322,15 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
       onToolResult: async (result) => {
         setRealtimePhase(result.confirmationRequired ? "confirmation_required" : result.ok ? "success" : "error");
         setRealtimeStatus(result.userMessage);
-        if (result.ok && result.href && result.href.startsWith("/")) {
-          router.push(result.href);
-          await waitForMountedRoute(result.href);
+        const safeHref = result.href ? resolveKnownOrionOperatorHref(result.href) : null;
+        if (result.ok && result.href && !safeHref) {
+          setRealtimePhase("error");
+          setRealtimeStatus("Orion blocked an invalid BOS route before navigation.");
+          return;
+        }
+        if (result.ok && safeHref) {
+          router.push(safeHref);
+          await waitForMountedRoute(safeHref);
         }
       },
       onError: (error) => {
