@@ -32,6 +32,13 @@ type ForecastResponse = {
     weather_code: number;
     wind_speed_10m: number;
   };
+  hourly: {
+    time: string[];
+    temperature_2m: number[];
+    weather_code: number[];
+    precipitation_probability: number[];
+    wind_speed_10m: number[];
+  };
   daily: {
     time: string[];
     weather_code: number[];
@@ -85,6 +92,7 @@ export async function getLocationForecast(search: string | string[], hint: Locat
   forecastUrl.searchParams.set("latitude", String(place.latitude));
   forecastUrl.searchParams.set("longitude", String(place.longitude));
   forecastUrl.searchParams.set("current", "temperature_2m,apparent_temperature,weather_code,wind_speed_10m");
+  forecastUrl.searchParams.set("hourly", "temperature_2m,weather_code,precipitation_probability,wind_speed_10m");
   forecastUrl.searchParams.set("daily", "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max");
   forecastUrl.searchParams.set("temperature_unit", "fahrenheit");
   forecastUrl.searchParams.set("wind_speed_unit", "mph");
@@ -95,6 +103,8 @@ export async function getLocationForecast(search: string | string[], hint: Locat
   const weatherResponse = await fetch(forecastUrl, { next: { revalidate: 900 } });
   if (!weatherResponse.ok) throw new Error("Live weather is temporarily unavailable for this jobsite.");
   const weather = await weatherResponse.json() as ForecastResponse;
+  const currentHour = weather.current.time.slice(0, 13);
+  const hourlyStart = Math.max(0, weather.hourly.time.findIndex((time) => time.startsWith(currentHour)));
 
   return {
     location: [place.name, place.admin1].filter(Boolean).join(", "),
@@ -111,6 +121,18 @@ export async function getLocationForecast(search: string | string[], hint: Locat
       condition: weatherCondition(weather.current.weather_code),
       windMph: Math.round(weather.current.wind_speed_10m),
     },
+    hours: weather.hourly.time.slice(hourlyStart, hourlyStart + 12).map((time, offset) => {
+      const index = hourlyStart + offset;
+      const weatherCode = weather.hourly.weather_code[index] ?? -1;
+      return {
+        time,
+        weatherCode,
+        condition: weatherCondition(weatherCode),
+        temperatureF: Math.round(weather.hourly.temperature_2m[index] ?? 0),
+        precipitationProbability: Math.round(weather.hourly.precipitation_probability[index] ?? 0),
+        windMph: Math.round(weather.hourly.wind_speed_10m[index] ?? 0),
+      };
+    }),
     days: weather.daily.time.slice(0, 7).map((date, index) => ({
       date,
       weatherCode: weather.daily.weather_code[index] ?? -1,

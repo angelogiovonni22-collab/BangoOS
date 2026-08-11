@@ -32,6 +32,7 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
   const [clock, setClock] = useState<Date | null>(null);
   const [pageVisible, setPageVisible] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [forecastMode, setForecastMode] = useState<"hourly" | "daily">("hourly");
 
   useEffect(() => {
     const updateClock = () => setClock(new Date());
@@ -129,10 +130,20 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
                     <div className="max-w-[55%] text-right">
                       <p className="text-[10px] font-semibold text-white/80">{clock ? formatWeatherDate(clock) : formatWeatherDate(new Date(payload.forecast.observedAt))} · {clock ? formatWeatherTime(clock) : formatWeatherTime(new Date(payload.forecast.observedAt))}</p>
                       <p className="mt-1 flex items-center justify-end gap-1 text-[11px] font-semibold"><MapPin size={11} aria-hidden="true" />{payload.forecast.location}</p>
+                      <div className="mt-1.5 inline-flex rounded-full border border-white/20 bg-black/20 p-0.5 backdrop-blur-sm" aria-label="Forecast view">
+                        <button type="button" onClick={() => setForecastMode("hourly")} className={`rounded-full px-2 py-0.5 text-[9px] font-bold transition ${forecastMode === "hourly" ? "bg-white text-slate-900" : "text-white/75 hover:text-white"}`}>Hourly</button>
+                        <button type="button" onClick={() => setForecastMode("daily")} className={`rounded-full px-2 py-0.5 text-[9px] font-bold transition ${forecastMode === "daily" ? "bg-white text-slate-900" : "text-white/75 hover:text-white"}`}>7-Day</button>
+                      </div>
                     </div>
                   </div>
                   <div className={`grid grid-flow-col overflow-x-auto border-t border-white/15 bg-black/20 backdrop-blur-sm ${compact ? "auto-cols-[4.4rem]" : "auto-cols-[4.25rem]"}`}>
-                    {payload.forecast.days.map((day) => (
+                    {forecastMode === "hourly" ? payload.forecast.hours.map((hour, index) => (
+                      <article key={hour.time} className="border-r border-white/10 px-1 py-1.5 text-center last:border-r-0" title={`${hour.condition}; wind ${hour.windMph} mph`}>
+                        <p className="text-[9px] font-bold uppercase tracking-[0.05em] text-white/75">{index === 0 ? "Now" : formatHour(hour.time)}</p>
+                        <WeatherGlyph code={hour.weatherCode} size={15} className="mx-auto my-0.5 drop-shadow-md" />
+                        <p className="text-[10px] font-bold">{hour.temperatureF}° <span className="font-medium text-cyan-100/80">{hour.precipitationProbability}%</span></p>
+                      </article>
+                    )) : payload.forecast.days.map((day) => (
                       <article key={day.date} className="border-r border-white/10 px-1 py-1.5 text-center last:border-r-0">
                         <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-white/75">{formatDay(day.date)}</p>
                         <WeatherGlyph code={day.weatherCode} size={15} className="mx-auto my-0.5 drop-shadow-md" />
@@ -166,6 +177,10 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
 
 function formatDay(date: string) {
   return new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(new Date(`${date}T12:00:00`));
+}
+
+function formatHour(time: string) {
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric" }).format(new Date(time));
 }
 
 function formatObservedAt(value: string) {
