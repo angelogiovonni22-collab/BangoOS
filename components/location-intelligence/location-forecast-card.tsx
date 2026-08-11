@@ -16,12 +16,13 @@ type ForecastPayload = {
 
 type LocationForecastCardProps = {
   projectId?: string;
+  fallbackDirectionsAddress?: string;
   title?: string;
   showMap?: boolean;
   compact?: boolean;
 };
 
-export function LocationForecastCard({ projectId, title = "Jobsite Weather", showMap = false, compact = false }: LocationForecastCardProps) {
+export function LocationForecastCard({ projectId, fallbackDirectionsAddress, title = "Jobsite Weather", showMap = false, compact = false }: LocationForecastCardProps) {
   const [postalCode, setPostalCode] = useState("");
   const [appliedPostalCode, setAppliedPostalCode] = useState("");
   const [payload, setPayload] = useState<ForecastPayload | null>(null);
@@ -61,9 +62,10 @@ export function LocationForecastCard({ projectId, title = "Jobsite Weather", sho
     return () => controller.abort();
   }, [appliedPostalCode, projectId]);
 
-  const directionsHref = useMemo(() => payload
-    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(payload.directionsAddress)}`
-    : null, [payload]);
+  const directionsAddress = payload?.directionsAddress || fallbackDirectionsAddress || null;
+  const directionsHref = useMemo(() => directionsAddress
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(directionsAddress)}`
+    : null, [directionsAddress]);
   const mapHref = payload ? `https://www.openstreetmap.org/?mlat=${payload.forecast.latitude}&mlon=${payload.forecast.longitude}#map=15/${payload.forecast.latitude}/${payload.forecast.longitude}` : null;
   const mapEmbed = payload ? openStreetMapEmbed(payload.forecast.latitude, payload.forecast.longitude) : null;
 
@@ -82,7 +84,7 @@ export function LocationForecastCard({ projectId, title = "Jobsite Weather", sho
         </form>
 
         {loading ? <div className="h-40 animate-pulse rounded-[var(--radius-lg)] bg-[var(--color-surface-subtle)]" /> : null}
-        {!loading && error ? <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">{error}</p> : null}
+        {!loading && error ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4"><p className="text-sm text-[var(--color-text-secondary)]">{error}</p>{directionsHref ? <a href={directionsHref} target="_blank" rel="noreferrer"><Button size="sm"><Navigation size={14} aria-hidden="true" />Directions</Button></a> : null}</div> : null}
 
         {!loading && payload ? (
           <>

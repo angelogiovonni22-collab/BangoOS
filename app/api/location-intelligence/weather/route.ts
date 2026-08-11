@@ -5,6 +5,11 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 const ACTIVE_STATUSES = ["approved", "scheduled", "in_progress"];
 
+type LocationProject = {
+  id: string; name: string; address_line_1: string | null; city: string | null; state: string | null; postal_code: string | null; status: string;
+  weather_postal_code_override: string | null; job_site_latitude: number | null; job_site_longitude: number | null; job_site_geocoded_at: string | null;
+};
+
 export async function GET(request: NextRequest) {
   return handleWeatherRequest(request, null);
 }
@@ -39,8 +44,16 @@ async function handleWeatherRequest(request: NextRequest, override: { projectId:
       : query.in("status", ACTIVE_STATUSES).order("updated_at", { ascending: false }).limit(1);
 
     const projectResponse = await query.maybeSingle();
-    if (projectResponse.error) throw projectResponse.error;
-    const project = projectResponse.data;
+    let project = projectResponse.data as LocationProject | null;
+    if (projectResponse.error) {
+      const missingLocationSchema = projectResponse.error.code === "42703" || projectResponse.error.code === "PGRST204" || /weather_postal_code_override|job_site_latitude|job_site_longitude|job_site_geocoded_at/i.test(projectResponse.error.message);
+      if (!missingLocationSchema) throw projectResponse.error;
+      let fallbackQuery = supabase.from("projects").select("id, name, address_line_1, city, state, postal_code, status").eq("company_id", workspace.context.companyId);
+      fallbackQuery = projectId ? fallbackQuery.eq("id", projectId) : fallbackQuery.in("status", ACTIVE_STATUSES).order("updated_at", { ascending: false }).limit(1);
+      const fallback = await fallbackQuery.maybeSingle();
+      if (fallback.error) throw fallback.error;
+      project = fallback.data ? { ...fallback.data, weather_postal_code_override: null, job_site_latitude: null, job_site_longitude: null, job_site_geocoded_at: null } : null;
+    }
     if (!project) {
       return NextResponse.json({ ok: false, error: "Add a jobsite address or ZIP code to an active project to see live weather." }, { status: 404 });
     }
@@ -66,7 +79,7 @@ async function handleWeatherRequest(request: NextRequest, override: { projectId:
         })
         .eq("company_id", workspace.context.companyId)
         .eq("id", project.id);
-      if (locationUpdate.error) throw locationUpdate.error;
+      if (locationUpdate.error && locationUpdate.error.code !== "42703" && locationUpdate.error.code !== "PGRST204") throw locationUpdate.error;
     }
     const directionsAddress = [project?.address_line_1, project?.city, project?.state, project?.postal_code].filter(Boolean).join(", ");
     return NextResponse.json({

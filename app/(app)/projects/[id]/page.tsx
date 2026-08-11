@@ -795,6 +795,7 @@ export default function ProjectWorkspacePage() {
               <ProjectCommandCenterFoundation
                 projectId={project.id}
                 projectName={projectName}
+                jobsiteAddress={location}
                 tasks={workspace.tasks}
                 budgetLabel={budgetValue}
                 spentLabel={spentValue}

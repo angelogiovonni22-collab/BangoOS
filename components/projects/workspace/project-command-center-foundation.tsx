@@ -22,6 +22,7 @@ export type CommandCenterTimelineEntry = {
 type ProjectCommandCenterFoundationProps = {
   projectId: string;
   projectName: string;
+  jobsiteAddress: string;
   tasks: TaskSummary[];
   budgetLabel: string;
   spentLabel: string;
@@ -45,6 +46,7 @@ type ProjectCommandCenterFoundationProps = {
 export function ProjectCommandCenterFoundation({
   projectId,
   projectName,
+  jobsiteAddress,
   tasks,
   budgetLabel,
   spentLabel,
@@ -111,7 +113,7 @@ export function ProjectCommandCenterFoundation({
         </WorkspaceSection>
       </div>
 
-      <LocationForecastCard projectId={projectId} title="Jobsite Weather and Directions" showMap />
+      <LocationForecastCard projectId={projectId} fallbackDirectionsAddress={jobsiteAddress} title="Jobsite Weather and Directions" showMap />
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <WorkspaceSection title="Task Board" className="rounded-[18px] border border-[var(--bos-border-light)]">
