@@ -23,7 +23,9 @@ const project = read("components/projects/workspace/project-command-center-found
 assert.ok(route.includes("resolveWorkspaceContext"));
 assert.ok(route.includes('.eq("company_id", workspace.context.companyId)'));
 assert.ok(route.includes("postalOverride"));
-assert.ok(route.includes("getLocationForecast(searches)"));
+assert.ok(route.includes("getLocationForecast(searches, {"));
+assert.ok(route.includes("state: project.state"));
+assert.ok(route.includes("postalCode: postalOverride || project.postal_code"));
 assert.ok(route.includes("job_site_latitude: forecast.latitude"));
 assert.ok(route.includes("weather_postal_code_override: override.postalCode"));
 assert.ok(route.includes("missingLocationSchema"));
