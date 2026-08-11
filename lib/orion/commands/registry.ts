@@ -229,6 +229,7 @@ const ORION_COMMAND_DRAFTS: OrionCommandDraft[] = [
     description: "Update project status with deterministic events.",
     requiredPermissions: MANAGEMENT,
     entityType: "project",
+    confirmationLevel: "REQUIRED",
     inputSchema: "{ projectId: string, status: string }",
     undoCapable: true,
     validate: (params) => validateRequiredKeys(params, ["projectId", "status"]),

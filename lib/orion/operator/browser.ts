@@ -5,19 +5,21 @@ import { resolveKnownOrionOperatorHref, ORION_OPERATOR_MAIN_ROUTES } from "./rou
 
 export const ORION_UI_OPERATOR_TOOL = "orion_ui_operator";
 
-export type OrionUiOperatorAction = "observe" | "navigate" | "set" | "click";
+export type OrionUiOperatorAction = "observe" | "navigate" | "set" | "click" | "scroll";
 
 type OperatorParams = {
   action?: unknown;
   href?: unknown;
   ref?: unknown;
   value?: unknown;
+  direction?: unknown;
 };
 
 type InteractiveElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement | HTMLAnchorElement;
 
 const DESTRUCTIVE_TEXT = /\b(delete|remove|refund|void|archive permanently|discard permanently)\b/i;
 const MAX_CONTROLS = 120;
+let observationRequiredAfterScroll = false;
 
 function ok(userMessage: string, details?: unknown, href?: string | null): OrionRealtimeToolExecutionResult {
   return {
@@ -52,6 +54,11 @@ function visible(element: Element) {
   const style = window.getComputedStyle(element);
   const rect = element.getBoundingClientRect();
   return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+}
+
+function inViewport(element: Element) {
+  const rect = element.getBoundingClientRect();
+  return rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth;
 }
 
 function associatedLabel(element: InteractiveElement) {
@@ -112,10 +119,12 @@ function describeElement(element: InteractiveElement, index: number) {
     options,
     required: "required" in element ? Boolean((element as HTMLInputElement).required) : false,
     semanticRole: element.getAttribute("data-orion-role") || null,
+    inViewport: inViewport(element),
   };
 }
 
 function observe() {
+  observationRequiredAfterScroll = false;
   const controls = interactiveElements().map(describeElement);
   const headings = Array.from(document.querySelectorAll("h1,h2,h3"))
     .filter((element) => visible(element))
@@ -177,12 +186,14 @@ function nativeSetValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSe
 }
 
 function setControl(ref: string, value: string) {
+  if (observationRequiredAfterScroll) return fail("The BOS screen changed after scrolling. Observe the visible screen again before editing.", { reobserveRequired: true });
   const element = resolveRef(ref);
   if (!element) return fail("That visible BOS control is no longer available. Observe the screen again before continuing.", { ref });
   if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
     return fail("That control cannot accept a value.", { ref, label: associatedLabel(element) });
   }
-  if (!visible(element) || element.hasAttribute("disabled")) return fail("That control is not currently interactive.", { ref });
+  if (!visible(element) || !inViewport(element) || element.hasAttribute("disabled")) return fail("That control is outside the active viewport. Scroll it into view, then observe again.", { ref, scrollRequired: true });
+  if (element.dataset.orionConfirmation === "required") return fail("That status-sensitive control requires Orion's confirmed canonical BOS action.", { ref, requiresCanonicalConfirmation: true });
   const didSet = nativeSetValue(element, value);
   if (!didSet) return fail("That value does not match an available option. Observe the screen and use one of the visible options.", { ref, value });
   return ok("Visible BOS control updated.", { ref, label: associatedLabel(element), value });
@@ -215,10 +226,11 @@ async function waitForVerifiedUiOutcome(pathname: string, statuses: string[]) {
 }
 
 async function clickControl(ref: string) {
+  if (observationRequiredAfterScroll) return fail("The BOS screen changed after scrolling. Observe the visible screen again before interacting.", { reobserveRequired: true });
   const element = resolveRef(ref);
   if (!element) return fail("That visible BOS control is no longer available. Observe the screen again before continuing.", { ref });
   if (!(element instanceof HTMLButtonElement || element instanceof HTMLAnchorElement)) return fail("That control is not clickable.", { ref });
-  if (!visible(element) || element.hasAttribute("disabled")) return fail("That control is not currently clickable.", { ref });
+  if (!visible(element) || !inViewport(element) || element.hasAttribute("disabled")) return fail("That control is outside the active viewport. Scroll it into view, then observe again.", { ref, scrollRequired: true });
   const label = associatedLabel(element);
   if (DESTRUCTIVE_TEXT.test(label)) {
     return fail("Destructive actions must use Orion's confirmed BOS action tools instead of direct UI control.", { ref, label, requiresCanonicalConfirmation: true });
@@ -229,6 +241,37 @@ async function clickControl(ref: string) {
   element.click();
   if (requiresVerification) return waitForVerifiedUiOutcome(pathname, statuses);
   return ok("Visible BOS control activated.", { ref, label });
+}
+
+function scrollableAncestor(element: HTMLElement | null): HTMLElement | null {
+  let current = element?.parentElement || null;
+  while (current && current !== document.body) {
+    const style = window.getComputedStyle(current);
+    const scrollable = /(auto|scroll)/.test(`${style.overflowY} ${style.overflow}`) && current.scrollHeight > current.clientHeight;
+    if (scrollable) return current;
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function scrollScreen(direction: string, ref: string) {
+  if (direction === "control") {
+    const element = resolveRef(ref);
+    if (!element) return fail("That observed control is no longer available. Observe the screen again.", { ref });
+    element.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+    observationRequiredAfterScroll = true;
+    return ok("The observed BOS control was brought into view. Observe the screen again before interacting.", { ref, reobserveRequired: true });
+  }
+
+  if (!["up", "down", "top", "bottom"].includes(direction)) return fail("Choose scroll direction up, down, top, bottom, or control.");
+  const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const target = scrollableAncestor(focused) || document.scrollingElement;
+  if (!target) return fail("The active BOS content region cannot be scrolled.");
+  if (direction === "top") target.scrollTo({ top: 0, behavior: "auto" });
+  else if (direction === "bottom") target.scrollTo({ top: target.scrollHeight, behavior: "auto" });
+  else target.scrollBy({ top: (direction === "down" ? 1 : -1) * Math.max(1, target.clientHeight) * 0.8, behavior: "auto" });
+  observationRequiredAfterScroll = true;
+  return ok(`The active BOS content region scrolled ${direction}. Observe the screen again before interacting.`, { direction, reobserveRequired: true });
 }
 
 function internalHref(value: unknown) {
@@ -254,6 +297,11 @@ export async function executeOrionUiOperator(params: OperatorParams): Promise<Or
     const ref = typeof params.ref === "string" ? params.ref : "";
     if (!ref) return fail("A visible control reference is required. Observe the screen first.");
     return clickControl(ref);
+  }
+  if (action === "scroll") {
+    const direction = typeof params.direction === "string" ? params.direction.toLowerCase() : "";
+    const ref = typeof params.ref === "string" ? params.ref : "";
+    return scrollScreen(direction, ref);
   }
   return fail("A valid Orion UI Operator action is required.");
 }

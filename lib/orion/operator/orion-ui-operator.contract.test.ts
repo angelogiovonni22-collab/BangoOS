@@ -30,11 +30,13 @@ function main() {
   const routes = read("lib/orion/operator/routes.ts");
   const handlers = read("lib/orion/commands/handlers.ts");
   const estimateRow = read("components/estimates/estimate-line-item-row.tsx");
+  const projectEditor = read("app/(app)/projects/[id]/edit/page.tsx");
+  const commandRegistry = read("lib/orion/commands/registry.ts");
 
   console.log("\nOrion semantic UI operator contract");
 
   assert(operator.includes('ORION_UI_OPERATOR_TOOL = "orion_ui_operator"'), "operator has one canonical Realtime tool name");
-  assert(operator.includes('"observe" | "navigate" | "set" | "click"'), "operator exposes the minimal generic action surface");
+  assert(operator.includes('"observe" | "navigate" | "set" | "click" | "scroll"'), "operator exposes generic semantic operation and scrolling");
   assert(operator.includes("interactiveElements().map(describeElement)"), "operator observes the real visible BOS controls instead of an imagined schema");
   assert(operator.includes("data-orion-control") && operator.includes("data-orion-action"), "operator supports stable semantic control/action identifiers");
   assert(operator.includes("data-orion-line-item-field"), "operator understands dynamic estimate line-item controls semantically");
@@ -60,6 +62,13 @@ function main() {
   assert(estimateForm.includes('data-orion-action="save-estimate-and-continue"') && estimateForm.includes('data-orion-verify="navigation-or-status"'), "estimate submission exposes a stable verified Operator action");
   assert(operator.includes("waitForVerifiedUiOutcome") && operator.includes("BOS did not confirm that action"), "Operator waits for visible save success or failure before claiming completion");
   assert(estimateRow.includes("data-orion-line-item-row") && estimateRow.includes("data-orion-line-item-field"), "estimate dynamic rows expose semantic row and field identities");
+  assert(operator.includes("scrollableAncestor") && operator.includes("scrollIntoView") && operator.includes("document.scrollingElement"), "Operator scrolls semantic controls, nested regions, and the active page without coordinate guessing");
+  assert(operator.includes("observationRequiredAfterScroll") && operator.includes("reobserveRequired: true"), "every scroll invalidates prior screen state until Orion observes again");
+  assert(operator.includes('behavior: "auto"') && !operator.includes('behavior: "smooth"'), "scroll operations are atomic so barge-in can stop the next Operator step");
+  assert(operator.includes("!inViewport(element)") && operator.includes("scrollRequired: true"), "Operator cannot interact with offscreen controls");
+  assert(session.includes("After every scroll, you MUST observe again") && session.includes("/projects/{id}/edit"), "Realtime policy requires re-observation and visible project editing");
+  assert(projectEditor.includes('data-orion-control="project.addressLine1"') && projectEditor.includes('data-orion-action="project.save"'), "project editor exposes visible semantic address and verified save controls");
+  assert(projectEditor.includes('data-orion-confirmation="required"') && commandRegistry.includes('id: "project.update_status"') && commandRegistry.includes('confirmationLevel: "REQUIRED"'), "project status changes remain behind canonical confirmation");
 
   console.log(`\nOrion UI operator results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
