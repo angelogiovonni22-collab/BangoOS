@@ -650,6 +650,35 @@ export function getOrionNavigationRoutesForRole(role: OrionCommandPermission) {
   return ORION_NAVIGATION_ROUTES.filter((route) => !route.requiredRoles || route.requiredRoles.includes(role));
 }
 
+function normalizeStaticPath(value: string) {
+  const pathname = value.trim().split(/[?#]/, 1)[0] || "";
+  if (!pathname.startsWith("/") || pathname.startsWith("//")) return null;
+  return (pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname).toLowerCase();
+}
+
+export function resolveCanonicalOrionNavigationHref(input: { entityId: string; deepLink?: string | null }) {
+  const requestedPath = input.deepLink ? normalizeStaticPath(input.deepLink) : null;
+  const requestedRoute = requestedPath
+    ? ORION_NAVIGATION_ROUTES.find((route) => normalizeStaticPath(route.href) === requestedPath)
+    : null;
+
+  const normalizedEntityId = input.entityId.trim().toLowerCase();
+  const entityRoute = ORION_NAVIGATION_ROUTES.find((route) => (
+    route.id.toLowerCase() === normalizedEntityId
+    || route.id.toLowerCase() === `route-${normalizedEntityId}`
+    || route.navKey.toLowerCase() === normalizedEntityId
+    || normalizeStaticPath(route.href) === `/${normalizedEntityId.replace(/^route-/, "")}`
+  ));
+
+  const route = requestedRoute || entityRoute;
+  if (!route) return null;
+
+  const query = input.deepLink?.includes("?") && requestedRoute
+    ? `?${input.deepLink.split("?", 2)[1].split("#", 1)[0]}`
+    : "";
+  return `${route.href}${query}`;
+}
+
 export function resolveDeterministicNavigationRoute(input: string) {
   const normalizedSubject = normalizeDeterministicSubject(input);
 

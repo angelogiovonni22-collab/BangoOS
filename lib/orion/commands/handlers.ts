@@ -2,6 +2,7 @@ import { saveEstimate } from "@/lib/estimates/service";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { saveInvoice, sendInvoice, markInvoicePaid } from "@/lib/invoices/service";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
+import { resolveCanonicalOrionNavigationHref } from "@/lib/orion/navigation/catalog";
 import { createProjectExecutionService } from "@/lib/projects/execution";
 import { createCustomer, mapOrionCustomerCreateParamsToInput, archiveCustomer, restoreCustomer, updateCustomer, mapOrionCustomerUpdateParamsToInput } from "@/lib/customers";
 import { createWorkforceRepository } from "@/lib/workforce/workforce-repository";
@@ -449,7 +450,14 @@ export async function executeOpenEntityCommand(
   void context;
   const entityType = requireString(params, "entityType");
   const entityId = requireString(params, "entityId");
-  const href = optionalString(params, "deepLink") || `/${entityType}s/${entityId}`;
+  const requestedDeepLink = optionalString(params, "deepLink");
+  const href = entityType === "workflow" || entityType === "schedule"
+    ? resolveCanonicalOrionNavigationHref({ entityId, deepLink: requestedDeepLink })
+    : requestedDeepLink || `/${entityType}s/${entityId}`;
+
+  if (!href) {
+    throw new Error("That BOS workspace route is not available.");
+  }
 
   return {
     publishedEvent: null,
