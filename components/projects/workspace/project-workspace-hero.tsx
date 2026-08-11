@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Building2, Image as ImageIcon, MapPin, UserRound } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
+import { LocationForecastCard } from "@/components/location-intelligence";
 import { WorkspaceHero } from "@/components/workspace";
 
 type ProjectWorkspaceHeroProps = {
+  projectId: string;
   projectName: string;
   customerName: string;
   statusLabel: string;
@@ -15,6 +17,7 @@ type ProjectWorkspaceHeroProps = {
 };
 
 export function ProjectWorkspaceHero({
+  projectId,
   projectName,
   customerName,
   statusLabel,
@@ -33,39 +36,42 @@ export function ProjectWorkspaceHero({
       badgeLabel={statusLabel}
       badgeTone={statusBadge.tone}
       media={
-        <div className="relative overflow-hidden rounded-[18px] border border-[#3a5d90] bg-[#0a1326] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={`${projectName} hero`}
-              className="h-[300px] w-full object-cover transition duration-500 group-hover:scale-[1.015] md:h-[360px]"
-            />
-          ) : (
-            <div className="flex h-[300px] w-full flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_20%_20%,#1d3766_0%,#0f1e3e_45%,#0a1428_100%)] text-[#b7cae8] md:h-[360px]">
-              <ImageIcon size={34} aria-hidden="true" />
-              <p className="text-sm font-semibold">No project photo yet</p>
-              <p className="text-xs font-medium text-[#a3bae0]">Photos will appear here once field uploads begin.</p>
+        <div className="space-y-3">
+          <div className="relative overflow-hidden rounded-[18px] border border-[#3a5d90] bg-[#0a1326] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={`${projectName} hero`}
+                className="h-[300px] w-full object-cover transition duration-500 group-hover:scale-[1.015] md:h-[360px]"
+              />
+            ) : (
+              <div className="flex h-[300px] w-full flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_20%_20%,#1d3766_0%,#0f1e3e_45%,#0a1428_100%)] text-[#b7cae8] md:h-[360px]">
+                <ImageIcon size={34} aria-hidden="true" />
+                <p className="text-sm font-semibold">No project photo yet</p>
+                <p className="text-xs font-medium text-[#a3bae0]">Photos will appear here once field uploads begin.</p>
+              </div>
+            )}
+
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-[linear-gradient(180deg,rgba(7,13,26,0)_0%,rgba(7,13,26,0.86)_65%,rgba(7,13,26,0.94)_100%)]" />
+
+            <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
+              <div className="space-y-2">
+                <Badge tone={statusBadge.tone} className={`border px-3 py-1 text-xs font-bold tracking-[0.05em] ${statusBadge.className}`}>
+                  {statusLabel}
+                </Badge>
+                <h2 className="max-w-[90%] break-words text-[1.68rem] font-extrabold leading-[1.08] tracking-[-0.02em] text-[#f6faff] md:text-[2.06rem]">
+                  {projectName}
+                </h2>
+              </div>
             </div>
-          )}
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-[linear-gradient(180deg,rgba(7,13,26,0)_0%,rgba(7,13,26,0.86)_65%,rgba(7,13,26,0.94)_100%)]" />
-
-          <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
-            <div className="space-y-2">
-              <Badge tone={statusBadge.tone} className={`border px-3 py-1 text-xs font-bold tracking-[0.05em] ${statusBadge.className}`}>
-                {statusLabel}
+            <div className="absolute left-3 top-3">
+              <Badge tone="neutral" className="border border-[#567cad] bg-[#123055]/95 px-2.5 py-1 text-xs font-semibold tracking-[0.02em] text-[#e6f1ff]">
+                {photoCount} photo{photoCount === 1 ? "" : "s"}
               </Badge>
-              <h2 className="max-w-[90%] break-words text-[1.68rem] font-extrabold leading-[1.08] tracking-[-0.02em] text-[#f6faff] md:text-[2.06rem]">
-                {projectName}
-              </h2>
             </div>
           </div>
-
-          <div className="absolute left-3 top-3">
-            <Badge tone="neutral" className="border border-[#567cad] bg-[#123055]/95 px-2.5 py-1 text-xs font-semibold tracking-[0.02em] text-[#e6f1ff]">
-              {photoCount} photo{photoCount === 1 ? "" : "s"}
-            </Badge>
-          </div>
+          <LocationForecastCard projectId={projectId} fallbackDirectionsAddress={address} title="Jobsite Weather and Directions" showMap />
         </div>
       }
       details={

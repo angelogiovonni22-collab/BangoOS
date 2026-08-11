@@ -760,6 +760,7 @@ export default function ProjectWorkspacePage() {
 
         <FadeIn className="min-w-0" delayMs={50} distancePx={6}>
           <ProjectWorkspaceHero
+            projectId={project.id}
             projectName={projectName}
             customerName={customerName}
             statusLabel={statusLabel}
@@ -795,7 +796,6 @@ export default function ProjectWorkspacePage() {
               <ProjectCommandCenterFoundation
                 projectId={project.id}
                 projectName={projectName}
-                jobsiteAddress={location}
                 tasks={workspace.tasks}
                 budgetLabel={budgetValue}
                 spentLabel={spentValue}

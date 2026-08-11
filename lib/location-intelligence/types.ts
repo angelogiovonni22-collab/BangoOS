@@ -8,6 +8,15 @@ export type ForecastDay = {
   windMph: number;
 };
 
+export type ForecastHour = {
+  time: string;
+  weatherCode: number;
+  condition: string;
+  temperatureF: number;
+  precipitationProbability: number;
+  windMph: number;
+};
+
 export type LocationForecast = {
   location: string;
   resolvedAddress: string;
@@ -23,6 +32,7 @@ export type LocationForecast = {
     condition: string;
     windMph: number;
   };
+  hours: ForecastHour[];
   days: ForecastDay[];
   attribution: string;
 };
