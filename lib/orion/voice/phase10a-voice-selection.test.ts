@@ -65,12 +65,12 @@ function main() {
     assert(!previewBlock.includes("mode: \"intent\""), "preview flow does not invoke intent endpoint");
   });
 
-  test("7. settings panel surfaces recommended and Australian voices clearly", () => {
-    assert(settingsPanel.includes("Spoken responses"), "spoken responses setting is rendered");
-    assert(settingsPanel.includes("Preview voice"), "preview button is rendered");
-    assert(settingsPanel.includes("Hello. I'm Orion, your Bango Operating System assistant."), "preview phrase matches requirement");
-    assert(settingsPanel.includes("Australian English") && settingsPanel.includes("australianVoiceCount"), "Australian browser voices are labeled and counted");
-    assert(settingsPanel.includes("★ Recommended") && settingsPanel.includes("best natural English voice"), "recommended natural automatic selection is visible");
+  test("7. settings panel controls the active Realtime voice architecture", () => {
+    assert(settingsPanel.includes("Orion voice") && settingsPanel.includes("Turning voice off disconnects Orion"), "voice Off clearly describes Realtime microphone disconnection");
+    assert(settingsPanel.includes("useOrionUnifiedVoice") && settingsPanel.includes("setSpokenResponsesEnabled"), "settings operate on the shared Realtime controller");
+    assert(settingsPanel.includes("availableRealtimeVoices") && settingsPanel.includes("setRealtimeVoice"), "settings render the canonical Realtime voice catalog");
+    assert(settingsPanel.includes("★ Recommended — Marin") && settingsPanel.includes("Marin is recommended"), "recommended natural Realtime voice is visible");
+    assert(!settingsPanel.includes("speechSynthesis") && !settingsPanel.includes("Preview voice"), "retired browser TTS cannot create a second spoken response");
   });
 
   console.log(`\nPhase 10A voice selection results: ${passed} passed, ${failed} failed`);
