@@ -1,4 +1,6 @@
-import { ORION_NAVIGATION_ROUTES, resolveDeterministicNavigationRoute } from "./catalog";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { ORION_NAVIGATION_ROUTES, ORION_SIDEBAR_NAVIGATION_GROUPS, resolveCanonicalOrionNavigationHref, resolveDeterministicNavigationRoute } from "./catalog";
 
 let passed = 0;
 let failed = 0;
@@ -76,6 +78,41 @@ function main() {
       assert(resolved?.commandId === check.commandId, `${check.phrase} maps to ${check.commandId}`);
       assert(resolved?.deepLink === check.deepLink, `${check.phrase} maps to ${check.deepLink}`);
     }
+  });
+
+  test("3. every Orion and sidebar menu destination has a real Next.js page", () => {
+    const hrefs = new Set([
+      ...ORION_NAVIGATION_ROUTES.map((route) => route.href),
+      ...ORION_SIDEBAR_NAVIGATION_GROUPS.flatMap((group) => group.items.map((item) => item.href)),
+    ]);
+
+    for (const href of hrefs) {
+      const pathname = href.split(/[?#]/, 1)[0];
+      const pagePath = resolve(process.cwd(), "app", "(app)", pathname.replace(/^\//, ""), "page.tsx");
+      assert(existsSync(pagePath), `${href} is backed by ${pagePath}`);
+    }
+  });
+
+  test("4. model-provided menu paths are canonicalized and invented paths are blocked", () => {
+    for (const route of ORION_NAVIGATION_ROUTES) {
+      assert(
+        resolveCanonicalOrionNavigationHref({ entityId: route.id, deepLink: route.href.toUpperCase() }) === route.href,
+        `${route.label} canonicalizes to ${route.href}`,
+      );
+    }
+
+    const checks = [
+      { entityId: "dashboard", deepLink: "/Dashboard", expected: "/dashboard" },
+      { entityId: "route-projects", deepLink: "/PROJECTS/", expected: "/projects" },
+      { entityId: "schedule", deepLink: "/schedule?range=today", expected: "/schedule?range=today" },
+      { entityId: "customers", deepLink: "/customers-page", expected: "/customers" },
+    ];
+
+    for (const check of checks) {
+      assert(resolveCanonicalOrionNavigationHref(check) === check.expected, `${check.entityId} resolves to ${check.expected}`);
+    }
+
+    assert(resolveCanonicalOrionNavigationHref({ entityId: "invented", deepLink: "/invented-tab" }) === null, "invented menu routes are blocked");
   });
 
   console.log(`\nPhase 8A navigation catalog results: ${passed} passed, ${failed} failed`);

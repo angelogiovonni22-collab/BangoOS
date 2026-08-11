@@ -28,6 +28,7 @@ function main() {
   const estimateLines = read("components/estimates/estimate-line-items.tsx");
   const estimateForm = read("components/estimates/estimate-form.tsx");
   const routes = read("lib/orion/operator/routes.ts");
+  const handlers = read("lib/orion/commands/handlers.ts");
   const estimateRow = read("components/estimates/estimate-line-item-row.tsx");
 
   console.log("\nOrion semantic UI operator contract");
@@ -40,6 +41,7 @@ function main() {
   assert(operator.includes("DESTRUCTIVE_TEXT") && operator.includes("requiresCanonicalConfirmation"), "direct UI operator blocks destructive actions");
   assert(routes.includes('href.startsWith("/")') && routes.includes('href.startsWith("//")'), "operator navigation is restricted to internal BOS routes");
   assert(routes.includes("isKnownOrionOperatorHref") && operator.includes("validMainRoutes"), "operator rejects invented internal paths before they can render a 404");
+  assert(handlers.includes("resolveCanonicalOrionNavigationHref") && handlers.includes("That BOS workspace route is not available."), "canonical navigation tools cannot bypass the verified route catalog");
   assert(bridge.includes("executeOrionUiOperator") && bridge.includes("ORION_UI_OPERATOR_TOOL"), "Realtime tool bridge executes UI operator calls in the browser");
   assert(unified.includes('result.href.startsWith("/")') && unified.includes("router.push(result.href)"), "successful operator navigation is applied to the live BOS router");
   assert(session.includes('UI_OPERATOR_TOOL_NAME = "orion_ui_operator"'), "Realtime advertises the semantic UI operator");
