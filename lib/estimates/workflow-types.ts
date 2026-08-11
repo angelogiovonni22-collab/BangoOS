@@ -74,7 +74,7 @@ export type StoreAcceptanceInput = {
   companyId: string;
   estimateId: string;
   actorProfileId: string | null;
-  eventType: "approved" | "declined" | "request_changes" | "sent" | "viewed" | "followup_due" | "converted";
+  eventType: "approved" | "declined" | "request_changes" | "sent" | "viewed" | "followup_due" | "signed" | "verified" | "converted";
   actorType: "customer" | "internal" | "system";
   idempotencyKey?: string;
   signatureId?: string | null;
