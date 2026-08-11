@@ -1,10 +1,11 @@
 import {
   createTradePartnerAssignmentsService,
   TradePartnerAssignmentsError,
-  type TradePartnerAssignment,
 } from "./service";
+import type { Database } from "@/types/database.types";
 import type {
   CreateTradePartnerAssignmentInput,
+  TradePartnerAssignment,
   TradePartnerAssignmentListFilters,
   TradePartnerAssignmentRow,
   TradePartnerAssignmentStatus,
@@ -103,7 +104,7 @@ function createFakeRepository(state: FakeRepoState) {
       return { data, error: null };
     },
 
-    async create(payload) {
+    async create(payload: Database["public"]["Tables"]["trade_partner_assignments"]["Insert"]) {
       const row = {
         id: payload.id ?? `tp-${state.assignments.length + 1}`,
         company_id: payload.company_id,
