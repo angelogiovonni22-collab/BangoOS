@@ -31,6 +31,7 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
   const [loading, setLoading] = useState(true);
   const [clock, setClock] = useState<Date | null>(null);
   const [pageVisible, setPageVisible] = useState(true);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   useEffect(() => {
     const updateClock = () => setClock(new Date());
@@ -40,11 +41,21 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
   }, []);
 
   useEffect(() => {
-    const updateVisibility = () => setPageVisible(document.visibilityState === "visible");
+    const updateVisibility = () => {
+      const visible = document.visibilityState === "visible";
+      setPageVisible(visible);
+      if (visible) setRefreshNonce((value) => value + 1);
+    };
     updateVisibility();
     document.addEventListener("visibilitychange", updateVisibility);
     return () => document.removeEventListener("visibilitychange", updateVisibility);
   }, []);
+
+  useEffect(() => {
+    if (!pageVisible) return;
+    const timer = window.setInterval(() => setRefreshNonce((value) => value + 1), 10 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [pageVisible]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -77,7 +88,7 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
     };
     void load();
     return () => controller.abort();
-  }, [appliedPostalCode, projectId]);
+  }, [appliedPostalCode, projectId, refreshNonce]);
 
   const directionsAddress = payload?.directionsAddress || fallbackDirectionsAddress || null;
   const directionsHref = useMemo(() => directionsAddress
@@ -105,46 +116,46 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
 
         {!loading && payload ? (
           <>
-            <div className="overflow-hidden rounded-[var(--radius-xl)] border border-cyan-200/20 bg-[radial-gradient(circle_at_18%_-20%,rgba(75,220,255,0.7),transparent_38%),linear-gradient(135deg,#087f9f_0%,#07597d_52%,#062f59_100%)] text-white shadow-[0_14px_34px_rgba(3,45,79,0.25),inset_0_1px_0_rgba(255,255,255,0.22)]">
-              <div className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-4 sm:py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <WeatherScene code={payload.forecast.current.weatherCode} paused={!pageVisible} />
-                  <div className="min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-4xl font-light leading-none tracking-[-0.05em]">{payload.forecast.current.temperatureF}°</p>
-                      <p className="truncate text-sm font-semibold">{payload.forecast.current.condition}</p>
+            <div className={`grid gap-3 ${showMap && mapEmbed ? "lg:grid-cols-2" : ""}`}>
+              <section data-live-weather data-kind={weatherSceneKind(payload.forecast.current.weatherCode)} data-paused={!pageVisible} className={weatherSceneStyles.panel}>
+                <WeatherAtmosphere />
+                <div className={weatherSceneStyles.weatherContent}>
+                  <div className="flex items-start justify-between gap-3 p-3 pb-2">
+                    <div>
+                      <p className="text-[2.7rem] font-light leading-none tracking-[-0.06em] drop-shadow-lg">{payload.forecast.current.temperatureF}°</p>
+                      <p className="mt-1 text-sm font-semibold drop-shadow-md">{payload.forecast.current.condition}</p>
+                      <p className="text-[11px] text-white/80">Feels {payload.forecast.current.apparentTemperatureF}° · Wind {payload.forecast.current.windMph} mph</p>
                     </div>
-                    <p className="mt-1 truncate text-xs text-cyan-50/75">Feels {payload.forecast.current.apparentTemperatureF}° · Wind {payload.forecast.current.windMph} mph</p>
+                    <div className="max-w-[55%] text-right">
+                      <p className="text-[10px] font-semibold text-white/80">{clock ? formatWeatherDate(clock) : formatWeatherDate(new Date(payload.forecast.observedAt))} · {clock ? formatWeatherTime(clock) : formatWeatherTime(new Date(payload.forecast.observedAt))}</p>
+                      <p className="mt-1 flex items-center justify-end gap-1 text-[11px] font-semibold"><MapPin size={11} aria-hidden="true" />{payload.forecast.location}</p>
+                    </div>
+                  </div>
+                  <div className={`grid grid-flow-col overflow-x-auto border-t border-white/15 bg-black/20 backdrop-blur-sm ${compact ? "auto-cols-[4.4rem]" : "auto-cols-[4.25rem]"}`}>
+                    {payload.forecast.days.map((day) => (
+                      <article key={day.date} className="border-r border-white/10 px-1 py-1.5 text-center last:border-r-0">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-white/75">{formatDay(day.date)}</p>
+                        <WeatherGlyph code={day.weatherCode} size={15} className="mx-auto my-0.5 drop-shadow-md" />
+                        <p className="text-[10px] font-bold">{day.highF}° <span className="font-medium text-white/65">{day.lowF}°</span></p>
+                      </article>
+                    ))}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 text-left sm:min-w-[19rem] sm:justify-end sm:text-right">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-cyan-50/75">{clock ? formatWeatherDate(clock) : formatWeatherDate(new Date(payload.forecast.observedAt))} · <span className="tabular-nums">{clock ? formatWeatherTime(clock) : formatWeatherTime(new Date(payload.forecast.observedAt))}</span></p>
-                    <p className="mt-1 flex items-center gap-1 text-xs font-semibold sm:justify-end"><MapPin size={12} aria-hidden="true" />{payload.forecast.location}</p>
-                  </div>
-                  <div className="flex gap-1.5">
-                    {directionsHref ? <a href={directionsHref} target="_blank" rel="noreferrer"><Button size="sm" className="h-8 border border-white/20 bg-white/15 px-2.5 text-xs text-white hover:bg-white/25"><Navigation size={13} aria-hidden="true" />Directions</Button></a> : null}
-                    {mapHref ? <a href={mapHref} target="_blank" rel="noreferrer"><Button size="sm" className="h-8 border border-white/20 bg-white/10 px-2.5 text-xs text-white hover:bg-white/20">Map<ExternalLink size={12} aria-hidden="true" /></Button></a> : null}
-                  </div>
-                </div>
-              </div>
-              <div className={`grid border-t border-white/15 bg-[#052f57]/35 ${compact ? "grid-cols-4" : "grid-cols-4 lg:grid-cols-7"}`}>
-              {payload.forecast.days.map((day) => (
-                <article key={day.date} className="min-w-0 border-r border-white/10 px-1.5 py-2 text-center last:border-r-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-cyan-50/75">{formatDay(day.date)}</p>
-                  <WeatherGlyph code={day.weatherCode} size={18} className="mx-auto my-1 drop-shadow-md" />
-                  <p className="text-xs font-bold">{day.highF}° <span className="font-medium text-cyan-50/65">{day.lowF}°</span></p>
-                  <p className="mt-0.5 truncate text-[9px] text-cyan-50/65">{day.precipitationProbability}% rain</p>
-                </article>
-              ))}
-              </div>
-            </div>
+              </section>
 
-            {showMap && mapEmbed ? (
-              <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)]">
-                <iframe title={`Map of ${payload.directionsAddress}`} src={mapEmbed} className="h-40 w-full" loading="lazy" />
+              {showMap && mapEmbed ? (
+                <section className="relative h-44 overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] shadow-[var(--shadow-small)]">
+                  <iframe title={`Map of ${payload.directionsAddress}`} src={mapEmbed} className="absolute inset-0 h-full w-full" loading="lazy" />
+                  <div className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2 rounded-lg border border-white/50 bg-slate-950/75 px-2.5 py-2 text-white shadow-lg backdrop-blur-md">
+                    <p className="min-w-0 truncate text-[10px] font-semibold"><MapPin size={11} className="mr-1 inline" aria-hidden="true" />{directionsAddress}</p>
+                    <div className="flex shrink-0 gap-1">
+                      {directionsHref ? <a href={directionsHref} target="_blank" rel="noreferrer"><Button size="sm" className="h-7 bg-blue-600 px-2 text-[10px] text-white hover:bg-blue-500"><Navigation size={11} aria-hidden="true" />Go</Button></a> : null}
+                      {mapHref ? <a href={mapHref} target="_blank" rel="noreferrer"><Button size="sm" className="h-7 border border-white/20 bg-white/10 px-2 text-[10px] text-white hover:bg-white/20"><ExternalLink size={11} aria-hidden="true" /></Button></a> : null}
+                    </div>
+                  </div>
+                </section>
+              ) : null}
               </div>
-            ) : null}
             <p className="text-[11px] text-[var(--color-text-muted)]">{payload.forecast.attribution}</p>
           </>
         ) : null}
@@ -180,29 +191,17 @@ function WeatherGlyph({ code, size, className }: { code: number; size: number; c
   return <Cloud {...props} className={`${className || ""} text-slate-100`} />;
 }
 
-function WeatherScene({ code, paused }: { code: number; paused: boolean }) {
-  const isClear = code === 0;
-  const kind = weatherSceneKind(code);
+function WeatherAtmosphere() {
   return (
-    <div data-weather-scene data-kind={kind} data-paused={paused} className={weatherSceneStyles.scene} aria-hidden="true">
-      <span className={weatherSceneStyles.shadow} />
-      <span className={weatherSceneStyles.halo} />
-      <span className={`${weatherSceneStyles.rays} ${isClear ? weatherSceneStyles.visible : ""}`} />
-      <div className={`${weatherSceneStyles.orb} ${isClear ? weatherSceneStyles.sunOrb : weatherSceneStyles.skyOrb}`}>
-        <span className={weatherSceneStyles.highlight} />
-        {!isClear ? <span className={weatherSceneStyles.glyph}><WeatherGlyph code={code} size={34} className="text-white" /></span> : null}
-        <span className={weatherSceneStyles.cloudOne} />
-        <span className={weatherSceneStyles.cloudTwo} />
-        <span className={weatherSceneStyles.fogOne} />
-        <span className={weatherSceneStyles.fogTwo} />
-        <span className={weatherSceneStyles.lightning} />
-        <span className={weatherSceneStyles.rain}>
-          <i /><i /><i /><i />
-        </span>
-        <span className={weatherSceneStyles.snow}>
-          <i>•</i><i>•</i><i>•</i><i>•</i><i>•</i>
-        </span>
-      </div>
+    <div className={weatherSceneStyles.atmosphere} aria-hidden="true">
+      <span className={weatherSceneStyles.sun} />
+      <span className={weatherSceneStyles.cloudBack} />
+      <span className={weatherSceneStyles.cloudFront} />
+      <span className={weatherSceneStyles.precipitation} />
+      <span className={weatherSceneStyles.snowfall} />
+      <span className={weatherSceneStyles.fog} />
+      <span className={weatherSceneStyles.flash} />
+      <span className={weatherSceneStyles.vignette} />
     </div>
   );
 }
