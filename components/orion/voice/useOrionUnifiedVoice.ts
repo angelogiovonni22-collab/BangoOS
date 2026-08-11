@@ -390,6 +390,14 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     setRealtimeStatus("Orion voice is disabled.");
   }, [disconnectRealtime, shutDownLegacyVoice]);
 
+  const setSpokenResponsesEnabled = useCallback((spokenEnabled: boolean) => {
+    if (spokenEnabled) {
+      enableVoice();
+      return;
+    }
+    void disableVoice();
+  }, [disableVoice, enableVoice]);
+
   // Legacy global voice may have been enabled by an older saved preference. It is
   // never allowed to own the microphone while Orion v2 is active.
   useEffect(() => {
@@ -439,6 +447,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     const effectiveSettings = {
       ...legacyVoice.settings,
       enabled: voiceAutomationEnabled && enabled,
+      spokenResponsesEnabled: voiceAutomationEnabled && enabled,
     };
 
     return {
@@ -460,7 +469,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
       stop,
       retry,
       setRealtimeVoice,
-      setSpokenResponsesEnabled: legacyVoice.setSpokenResponsesEnabled,
+      setSpokenResponsesEnabled,
       enableVoice,
       disableVoice,
     };
@@ -468,7 +477,6 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     disableVoice,
     enableVoice,
     enabled,
-    legacyVoice.setSpokenResponsesEnabled,
     legacyVoice.settings,
     realtimeFinalTranscript,
     realtimeInterimTranscript,
@@ -479,6 +487,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     realtimeVoice,
     retry,
     setRealtimeVoice,
+    setSpokenResponsesEnabled,
     start,
     stop,
     voiceAutomationEnabled,

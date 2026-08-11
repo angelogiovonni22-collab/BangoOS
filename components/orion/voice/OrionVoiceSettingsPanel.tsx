@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Input, Select } from "@/components/ui";
-import { useGlobalOrionVoice } from "./GlobalOrionVoiceProvider";
+import { useGlobalOrionVoice } from "./useGlobalOrionVoiceCompat";
 
 const PREVIEW_PHRASE = "Hello. I'm Orion, your Bango Operating System assistant.";
 
