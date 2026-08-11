@@ -33,6 +33,8 @@ assert.ok(card.includes("www.google.com/maps/dir/?api=1"));
 assert.ok(card.includes("fallbackDirectionsAddress"));
 assert.ok(card.includes("www.openstreetmap.org/export/embed.html"));
 assert.ok(card.includes("payload.forecast.days.map"));
+assert.ok(card.includes("WeatherGlyph"));
+assert.ok(card.includes("formatWeatherTime"));
 assert.ok(dashboard.includes("<LocationForecastCard"));
 assert.ok(project.includes("<LocationForecastCard projectId={projectId}"));
 
