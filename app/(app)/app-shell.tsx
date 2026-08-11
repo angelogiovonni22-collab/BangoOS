@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { MotionProvider } from "@/components/motion";
 import { OrionCommandCenterOverlay } from "@/components/orion/command-center";
 import { PersistentOrion } from "@/components/orion/persistent";
-import { GlobalOrionVoiceProvider } from "@/components/orion/voice";
+import { GlobalOrionVoiceProvider, OrionUnifiedVoiceProvider } from "@/components/orion/voice";
 import { DepartmentNavigator, LayerManager, NavigationBreadcrumb } from "@/components/bangoflow";
 import { LanguageSelector, ProfileMenu, SearchBar } from "@/components/ui";
 import { useBodyScrollLock } from "@/components/ui/use-body-scroll-lock";
@@ -25,9 +25,11 @@ export function AppShell({ children, userName, userEmail, companyName }: AppShel
   return (
     <MotionProvider>
       <GlobalOrionVoiceProvider>
-        <AppShellFrame userName={userName} userEmail={userEmail} companyName={companyName}>
-          {children}
-        </AppShellFrame>
+        <OrionUnifiedVoiceProvider>
+          <AppShellFrame userName={userName} userEmail={userEmail} companyName={companyName}>
+            {children}
+          </AppShellFrame>
+        </OrionUnifiedVoiceProvider>
       </GlobalOrionVoiceProvider>
     </MotionProvider>
   );

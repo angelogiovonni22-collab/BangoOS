@@ -26,6 +26,8 @@ function main() {
   const estimateInfo = read("components/estimates/estimate-information-section.tsx");
   const estimateCustomer = read("components/estimates/estimate-customer-project-section.tsx");
   const estimateLines = read("components/estimates/estimate-line-items.tsx");
+  const estimateForm = read("components/estimates/estimate-form.tsx");
+  const routes = read("lib/orion/operator/routes.ts");
   const estimateRow = read("components/estimates/estimate-line-item-row.tsx");
 
   console.log("\nOrion semantic UI operator contract");
@@ -36,7 +38,8 @@ function main() {
   assert(operator.includes("data-orion-control") && operator.includes("data-orion-action"), "operator supports stable semantic control/action identifiers");
   assert(operator.includes("data-orion-line-item-field"), "operator understands dynamic estimate line-item controls semantically");
   assert(operator.includes("DESTRUCTIVE_TEXT") && operator.includes("requiresCanonicalConfirmation"), "direct UI operator blocks destructive actions");
-  assert(operator.includes('href.startsWith("/")') && operator.includes('href.startsWith("//")'), "operator navigation is restricted to internal BOS routes");
+  assert(routes.includes('href.startsWith("/")') && routes.includes('href.startsWith("//")'), "operator navigation is restricted to internal BOS routes");
+  assert(routes.includes("isKnownOrionOperatorHref") && operator.includes("validMainRoutes"), "operator rejects invented internal paths before they can render a 404");
   assert(bridge.includes("executeOrionUiOperator") && bridge.includes("ORION_UI_OPERATOR_TOOL"), "Realtime tool bridge executes UI operator calls in the browser");
   assert(unified.includes('result.href.startsWith("/")') && unified.includes("router.push(result.href)"), "successful operator navigation is applied to the live BOS router");
   assert(session.includes('UI_OPERATOR_TOOL_NAME = "orion_ui_operator"'), "Realtime advertises the semantic UI operator");
@@ -51,6 +54,8 @@ function main() {
   assert(estimateInfo.includes('id="estimate-title"') && estimateInfo.includes('id="estimate-description"'), "estimate information fields expose stable semantic ids");
   assert(estimateCustomer.includes('id="estimate-customer"') && estimateCustomer.includes('id="estimate-project"'), "estimate customer/project selectors expose stable ids");
   assert(estimateLines.includes('data-orion-action="add-line-item"'), "estimate line-item builder exposes a semantic add action");
+  assert(estimateForm.includes('data-orion-action="save-estimate-and-continue"') && estimateForm.includes('data-orion-verify="navigation-or-status"'), "estimate submission exposes a stable verified Operator action");
+  assert(operator.includes("waitForVerifiedUiOutcome") && operator.includes("BOS did not confirm that action"), "Operator waits for visible save success or failure before claiming completion");
   assert(estimateRow.includes("data-orion-line-item-row") && estimateRow.includes("data-orion-line-item-field"), "estimate dynamic rows expose semantic row and field identities");
 
   console.log(`\nOrion UI operator results: ${passed} passed, ${failed} failed`);

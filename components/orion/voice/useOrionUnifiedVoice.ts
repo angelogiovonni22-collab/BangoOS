@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { OrionRealtimeClient } from "@/lib/orion/realtime/client";
 import type { OrionRealtimeConnectionState, OrionRealtimeServerEvent } from "@/lib/orion/realtime/types";
@@ -91,7 +91,7 @@ async function waitForMountedRoute(href: string) {
   }
 }
 
-export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
+function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   const legacyVoice = useGlobalOrionVoice();
   const legacyVoiceRef = useRef(legacyVoice);
   const router = useRouter();
@@ -376,4 +376,19 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
     stop,
     voiceAutomationEnabled,
   ]);
+}
+
+const OrionUnifiedVoiceContext = createContext<OrionUnifiedVoiceController | null>(null);
+
+export function OrionUnifiedVoiceProvider({ children }: { children: ReactNode }) {
+  const controller = useOrionUnifiedVoiceController();
+  return createElement(OrionUnifiedVoiceContext.Provider, { value: controller }, children);
+}
+
+export function useOrionUnifiedVoice() {
+  const controller = useContext(OrionUnifiedVoiceContext);
+  if (!controller) {
+    throw new Error("useOrionUnifiedVoice must be used within OrionUnifiedVoiceProvider.");
+  }
+  return controller;
 }
