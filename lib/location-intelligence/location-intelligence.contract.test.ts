@@ -47,7 +47,7 @@ assert.ok(card.includes("data-live-weather"));
 assert.ok(card.includes("document.visibilityState"));
 assert.ok(card.includes("10 * 60 * 1000"));
 assert.ok(card.includes("weatherSceneKind"));
-assert.ok(weatherScene.includes("prefers-reduced-motion: reduce"));
+assert.ok(/prefers-reduced-motion\s*:\s*reduce/.test(weatherScene));
 assert.ok(weatherScene.includes("stormFlash"));
 assert.ok(weatherScene.includes("rainSweep"));
 assert.ok(card.includes("formatWeatherTime"));
