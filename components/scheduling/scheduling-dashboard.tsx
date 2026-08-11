@@ -220,8 +220,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
           t={t}
         />
         <AvailableResourcesPanel
-          items={payload.availability}
-          onQuickAssign={() => setIsCreateOpen(true)}
+          items={payload.contractorVendors ?? []}
           t={t}
         />
       </div>
