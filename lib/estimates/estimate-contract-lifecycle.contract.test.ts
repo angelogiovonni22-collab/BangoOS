@@ -23,7 +23,8 @@ test("contract verification is required before project conversion", () => {
 test("database conversion is company-scoped, locked, idempotent, and service-only", () => {
   const sql = read("supabase/migrations/20260811150000_estimate_contract_verification.sql");
   assert.match(sql, /pg_advisory_xact_lock/);
-  assert.match(sql, /converted_project_id is not null/);
+  assert.match(sql, /select converted_project_id into v_existing/);
+  assert.match(sql, /v_existing is not null/);
   assert.match(sql, /Verified signature required/);
   assert.match(sql, /grant execute .* to service_role/i);
   assert.match(sql, /revoke all .* from public,anon,authenticated/i);
