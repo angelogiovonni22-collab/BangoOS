@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createWorkforceRepository } from "@/lib/workforce/workforce-repository";
+import type { Database } from "@/types/database.types";
 import type {
   WorkforceAssignmentRow,
   WorkforceCrewRow,
@@ -14,6 +15,7 @@ import type {
   WorkforceTaskRow,
 } from "@/lib/workforce/workforce-types";
 import { buildScheduleHealth, detectSchedulingConflicts } from "./conflict-engine";
+import { buildAvailableContractorsOrVendors } from "./contractor-vendor-availability";
 import type { SchedulingService } from "./service";
 import type {
   AssignmentDraft,
@@ -28,6 +30,9 @@ import type {
   SchedulingPayload,
   TimeOffEntry,
 } from "./types";
+
+type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
+type TradePartnerAssignmentRow = Database["public"]["Tables"]["trade_partner_assignments"]["Row"];
 
 type SchedulingEventRow = {
   id: string;
@@ -48,6 +53,8 @@ type LoadedRows = {
   memberships: WorkforceMembershipRow[];
   profiles: WorkforceProfileRow[];
   equipment: WorkforceEquipmentRow[];
+  vendors: VendorRow[];
+  tradePartnerAssignments: TradePartnerAssignmentRow[];
   events: SchedulingEventRow[];
 };
 
@@ -845,6 +852,7 @@ function buildPayloadFromRows(rows: LoadedRows): SchedulingPayload {
   const todayIso = new Date().toISOString().slice(0, 10);
   const timeOff = buildTimeOffFromEmployees(rows.employees, profilesById, todayIso);
   const availability = buildAvailability(assignments, rows.employees, rows.crews, profilesById);
+  const contractorVendors = buildAvailableContractorsOrVendors(rows.vendors, rows.tradePartnerAssignments, todayIso);
   const openShifts = buildOpenShifts(assignments, availability, events);
   const baseConflicts = detectSchedulingConflicts({
     assignments,
@@ -874,6 +882,7 @@ function buildPayloadFromRows(rows: LoadedRows): SchedulingPayload {
     openShifts,
     conflicts,
     availability,
+    contractorVendors,
     insights,
     timeOff,
     health: {
@@ -920,6 +929,8 @@ async function loadLivePayload() {
     employees,
     profiles,
     equipment,
+    vendorsResponse,
+    tradePartnerAssignmentsResponse,
     eventsResponse,
   ] = await Promise.all([
     repository.listWorkforceAssignments(companyId),
@@ -931,6 +942,18 @@ async function loadLivePayload() {
     repository.listEmployees(companyId),
     repository.listProfiles(companyId),
     repository.listEquipment(companyId),
+    supabase
+      .from("vendors")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .limit(200),
+    supabase
+      .from("trade_partner_assignments")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("assignment_status", "active")
+      .limit(500),
     supabase
       .from("workforce_events")
       .select("id, event_type, entity_type, entity_id, payload, occurred_at")
@@ -945,8 +968,9 @@ async function loadLivePayload() {
       .limit(500),
   ]);
 
-  if (eventsResponse.error) {
-    throw eventsResponse.error;
+  const loadError = vendorsResponse.error || tradePartnerAssignmentsResponse.error || eventsResponse.error;
+  if (loadError) {
+    throw loadError;
   }
 
   return {
@@ -960,6 +984,8 @@ async function loadLivePayload() {
       employees,
       profiles,
       equipment,
+      vendors: (vendorsResponse.data ?? []) as VendorRow[],
+      tradePartnerAssignments: (tradePartnerAssignmentsResponse.data ?? []) as TradePartnerAssignmentRow[],
       events: (eventsResponse.data ?? []) as SchedulingEventRow[],
     }),
     companyId,

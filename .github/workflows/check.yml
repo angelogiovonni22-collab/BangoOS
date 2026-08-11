@@ -129,6 +129,9 @@ jobs:
       - name: Run BOS global search regression
         run: npx -y tsx components/search/global-search.contract.test.ts
 
+      - name: Run contractor and vendor availability regression
+        run: npx -y tsx lib/scheduling/contractor-vendor-availability.test.ts
+
       - name: Run repository checks
         run: npm run check
 
