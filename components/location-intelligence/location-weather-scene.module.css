@@ -35,7 +35,7 @@
 [data-kind="snow"] .snow { display: block; }
 [data-kind="fog"] .fogOne, [data-kind="fog"] .fogTwo { display: block; }
 [data-kind="storm"] .lightning { display: block; }
-[data-paused="true"], [data-paused="true"] * { animation-play-state: paused !important; }
+.scene[data-paused="true"], .scene[data-paused="true"] * { animation-play-state: paused !important; }
 
 @keyframes sceneFloat { 0%,100%{transform:translateY(0) rotate(-1deg)} 50%{transform:translateY(-3px) rotate(1deg)} }
 @keyframes haloPulse { 0%,100%{opacity:.55;transform:scale(.94)} 50%{opacity:1;transform:scale(1.08)} }
