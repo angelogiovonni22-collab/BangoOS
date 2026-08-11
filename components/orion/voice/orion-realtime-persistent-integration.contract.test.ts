@@ -42,6 +42,7 @@ function main() {
   assert(unified.includes('result.href.startsWith("/")') && unified.includes("router.push(result.href)"), "successful Realtime BOS navigation remains inside BOS routing");
   assert(unified.includes('response.output_audio.delta') && unified.includes('response.output_audio.done'), "Realtime speaking state is projected into the persistent Orion surface");
   assert(unified.includes('conversation.item.input_audio_transcription.completed'), "Realtime user transcripts are projected into Orion state");
+  assert(unified.includes("waitForMountedRoute") && unified.includes("await waitForMountedRoute(result.href)"), "operator navigation waits for the visible BOS route before returning to Realtime");
   assert(unified.includes("isOrionVoiceAutomationEnabled") && unified.includes("ORION_VOICE_FREEZE_MESSAGE"), "Orion v2 preserves the emergency voice gate");
   assert(realtimeSession.includes("isOrionVoiceAutomationEnabled") && realtimeSession.includes('statusCategory: "voice_automation_paused"'), "Realtime session API independently enforces the emergency voice gate");
   assert(persistent.includes("const voice = useOrionUnifiedVoice()"), "persistent Orion root owns the single unified controller");

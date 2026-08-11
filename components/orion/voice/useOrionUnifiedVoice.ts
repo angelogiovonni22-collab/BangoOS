@@ -77,6 +77,20 @@ function eventAssistantTranscript(event: OrionRealtimeServerEvent) {
   return "";
 }
 
+async function waitForMountedRoute(href: string) {
+  if (typeof window === "undefined") return;
+  const target = new URL(href, window.location.origin);
+  const deadline = performance.now() + 1_500;
+
+  while (performance.now() < deadline) {
+    if (window.location.pathname === target.pathname && window.location.search === target.search) {
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
+      return;
+    }
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+}
+
 export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
   const legacyVoice = useGlobalOrionVoice();
   const legacyVoiceRef = useRef(legacyVoice);
@@ -202,11 +216,12 @@ export function useOrionUnifiedVoice(): OrionUnifiedVoiceController {
           setRealtimeStatus("Orion is listening.");
         }
       },
-      onToolResult: (result) => {
+      onToolResult: async (result) => {
         setRealtimePhase(result.confirmationRequired ? "confirmation_required" : result.ok ? "success" : "error");
         setRealtimeStatus(result.userMessage);
         if (result.ok && result.href && result.href.startsWith("/")) {
           router.push(result.href);
+          await waitForMountedRoute(result.href);
         }
       },
       onError: (error) => {

@@ -2,7 +2,6 @@
 
 import { resolveRealtimeNavigationCommand } from "@/lib/orion/navigation/realtime-navigation";
 import {
-  buildOrionRealtimeContinueResponseEvent,
   buildOrionRealtimeFunctionOutputEvent,
   executeOrionRealtimeTool,
   extractOrionRealtimeFunctionCall,
@@ -15,6 +14,7 @@ import type {
   OrionRealtimeServerEvent,
   OrionRealtimeSessionOptions,
 } from "./types";
+import { OrionRealtimeResponseLifecycle } from "./response-lifecycle";
 
 const CONFIRMATION_TRANSCRIPT_MAX_AGE_MS = 8_000;
 const CONFIRMATION_TRANSCRIPT_WAIT_MS = 2_000;
@@ -58,9 +58,11 @@ export class OrionRealtimeClient {
   private activeToolCalls = new Set<string>();
   private lastUserTranscript: { text: string; at: number } | null = null;
   private lastDeterministicNavigation: { key: string; at: number } | null = null;
+  private readonly responseLifecycle: OrionRealtimeResponseLifecycle;
 
   constructor(callbacks: OrionRealtimeClientCallbacks = {}) {
     this.callbacks = callbacks;
+    this.responseLifecycle = new OrionRealtimeResponseLifecycle((event) => this.sendEvent(event));
   }
 
   private recentUserTranscript() {
@@ -118,6 +120,12 @@ export class OrionRealtimeClient {
   private async handleServerEvent(event: OrionRealtimeServerEvent) {
     this.callbacks.onEvent?.(event);
 
+    if (event.type === "response.created") {
+      this.responseLifecycle.onResponseCreated();
+    } else if (event.type === "response.done") {
+      this.responseLifecycle.onResponseDone();
+    }
+
     const userTranscript = extractOrionRealtimeUserTranscript(event);
     if (userTranscript) {
       this.lastUserTranscript = { text: userTranscript, at: Date.now() };
@@ -133,9 +141,8 @@ export class OrionRealtimeClient {
         ? await this.waitForRecentUserTranscript()
         : null;
       const result = await executeOrionRealtimeTool(call, { confirmationTranscript });
-      this.callbacks.onToolResult?.(result);
+      await this.callbacks.onToolResult?.(result);
       this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId, result));
-      this.sendEvent(buildOrionRealtimeContinueResponseEvent());
     } catch (error) {
       const resolved = error instanceof Error ? error : new Error("Orion Realtime BOS tool execution failed.");
       this.callbacks.onError?.(resolved);
@@ -144,9 +151,11 @@ export class OrionRealtimeClient {
         statusCategory: "command_execution_failed",
         userMessage: resolved.message,
       }));
-      this.sendEvent(buildOrionRealtimeContinueResponseEvent());
     } finally {
       this.activeToolCalls.delete(call.callId);
+      if (this.activeToolCalls.size === 0) {
+        this.responseLifecycle.requestContinuation();
+      }
     }
   }
 
@@ -246,6 +255,7 @@ export class OrionRealtimeClient {
     }
 
     this.activeToolCalls.clear();
+    this.responseLifecycle.reset();
     this.lastUserTranscript = null;
     this.lastDeterministicNavigation = null;
     this.dataChannel?.close();

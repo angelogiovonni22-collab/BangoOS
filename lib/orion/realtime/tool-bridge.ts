@@ -142,7 +142,3 @@ export function buildOrionRealtimeFunctionOutputEvent(callId: string, result: Or
     },
   };
 }
-
-export function buildOrionRealtimeContinueResponseEvent() {
-  return { type: "response.create" };
-}
