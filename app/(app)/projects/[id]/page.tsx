@@ -24,6 +24,7 @@ import {
   type WorkspaceActivityItem,
 } from "@/components/projects/workspace";
 import { SiteCamWorkspace } from "./components/sitecam-workspace";
+import { PlansWorkspace } from "@/components/plans";
 import { WorkspaceLoadingState, WorkspaceShell } from "@/components/workspace";
 import { Button, EmptyState, ErrorState } from "@/components/ui";
 import { buildProjectFinancialReport, type ProjectFinancialReport } from "@/lib/financial-reporting";
@@ -842,6 +843,13 @@ export default function ProjectWorkspacePage() {
                 locale={locale}
                 profilesById={workspace.profilesById}
               />
+            ) : activeTab === "blueprints" ? (
+              <PlansWorkspace
+                projectName={projectName}
+                projectId={project.id}
+                companyId={workspace.workspaceContext.companyId}
+                userId={workspace.workspaceContext.userId}
+              />
             ) : activeTab === "inspections" ? (
               <ProjectComplianceWorkflow
                 projectId={project.id}
@@ -891,6 +899,7 @@ function resolveWorkspaceTab(tabParam: string | null): WorkspaceTab {
     "tasks",
     "daily_logs",
     "photos",
+    "blueprints",
     "documents",
     "subcontractors",
     "crew",
@@ -924,6 +933,7 @@ function getWorkspaceTabLabel(tab: WorkspaceTab, t: (key: string) => string) {
     tasks: "projects.workspaceTabTasks",
     daily_logs: "projects.workspaceTabDailyLogs",
     photos: "projects.workspaceTabPhotos",
+    blueprints: "projects.workspaceTabBlueprints",
     documents: "projects.workspaceTabDocuments",
     subcontractors: "projects.workspaceTabSubcontractors",
     crew: "projects.workspaceTabCrew",

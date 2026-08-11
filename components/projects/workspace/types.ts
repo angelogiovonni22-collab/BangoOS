@@ -5,6 +5,7 @@ export type ProjectWorkspaceTabKey =
   | "tasks"
   | "daily_logs"
   | "photos"
+  | "blueprints"
   | "documents"
   | "subcontractors"
   | "crew"

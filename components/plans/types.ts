@@ -29,6 +29,7 @@ export type RevisionItem = {
 export type PlanDocument = {
   id: string;
   fileName: string;
+  originalFileName?: string;
   discipline: DocumentDiscipline;
   revision: string;
   status: DocumentStatus;
@@ -38,6 +39,8 @@ export type PlanDocument = {
   linkedRfis: number;
   linkedSubmittals: number;
   revisionHistory: RevisionItem[];
+  fileUrl?: string | null;
+  mimeType?: string;
 };
 
 export type PlanFolder = {

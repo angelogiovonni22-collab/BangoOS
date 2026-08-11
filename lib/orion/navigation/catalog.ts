@@ -143,6 +143,18 @@ export const ORION_NAVIGATION_ROUTES: OrionNavigationRoute[] = [
     requiredRoles: TEAM_ROLES,
   },
   {
+    id: "route-blueprints",
+    navKey: "blueprints",
+    label: "Blueprints",
+    subtitle: "Go to the blueprint plan room",
+    href: "/blueprints",
+    commandId: "dashboard.open",
+    group: "projects",
+    keywords: ["blueprints", "plans", "drawings", "plan room", "sheets"],
+    contextTags: ["general", "project"],
+    requiredRoles: TEAM_ROLES,
+  },
+  {
     id: "route-estimates",
     navKey: "estimates",
     label: "Estimates",
@@ -376,6 +388,7 @@ export const ORION_SIDEBAR_NAVIGATION_GROUPS: OrionSidebarNavigationGroup[] = [
       { key: "dailyReports", href: "/daily-reports", icon: "◨" },
       { key: "schedule", href: "/schedule", icon: "◑" },
       { key: "projects", href: "/projects", icon: "◍" },
+      { key: "blueprints", href: "/blueprints", icon: "▧" },
     ],
   },
   {
@@ -450,6 +463,14 @@ const ORION_DETERMINISTIC_NAVIGATION: OrionDeterministicNavigationRoute[] = [
     entityType: "workflow",
     entityId: "projects",
     confidence: 0.96,
+  },
+  {
+    routeId: "route-blueprints",
+    aliases: ["blueprints", "blueprint", "plans", "drawings", "plan room", "construction drawings"],
+    resolvedIntent: "open",
+    entityType: "workflow",
+    entityId: "blueprints",
+    confidence: 0.97,
   },
   {
     routeId: "route-estimates",

@@ -1,14 +1,15 @@
 import { ExternalLink, FileBadge2 } from "lucide-react";
-import { EmptyState } from "@/components/ui";
+import { Button, EmptyState } from "@/components/ui";
 import { RevisionHistory } from "./revision-history";
 import type { PlanDocument } from "./types";
 
 type PlansPreviewProps = {
   selectedDocument: PlanDocument | null;
   projectName: string;
+  onUploadRevision: (document: PlanDocument) => void;
 };
 
-export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProps) {
+export function PlansPreview({ selectedDocument, projectName, onUploadRevision }: PlansPreviewProps) {
   if (!selectedDocument) {
     return (
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-small)]">
@@ -22,7 +23,7 @@ export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProp
     );
   }
 
-  const previewType = resolvePreviewType(selectedDocument.fileName);
+  const previewType = resolvePreviewType(selectedDocument.originalFileName || selectedDocument.fileName, selectedDocument.mimeType);
 
   return (
     <section
@@ -35,7 +36,13 @@ export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProp
       </div>
 
       <div className="space-y-5 p-5">
-        <div className="flex h-56 items-center justify-center rounded-[var(--radius-xl)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)]/75">
+        <div className="flex h-72 items-center justify-center overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)]/75">
+          {selectedDocument.fileUrl && previewType === "pdf" ? (
+            <iframe src={selectedDocument.fileUrl} title={`Preview ${selectedDocument.fileName}`} className="h-full w-full bg-white" />
+          ) : selectedDocument.fileUrl && previewType === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={selectedDocument.fileUrl} alt={selectedDocument.fileName} className="h-full w-full object-contain" />
+          ) : (
           <div className="text-center">
             <FileBadge2 size={28} aria-hidden="true" className="mx-auto text-[var(--color-text-muted)]" />
             {previewType === "pdf" ? (
@@ -59,6 +66,7 @@ export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProp
               </>
             ) : null}
           </div>
+          )}
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
@@ -69,10 +77,15 @@ export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProp
           <MetadataRow label="Linked submittals" value={String(selectedDocument.linkedSubmittals)} />
         </div>
 
-        <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
             Revision history
           </p>
+          <Button type="button" size="sm" variant="outline" onClick={() => onUploadRevision(selectedDocument)}>
+            Upload revision
+          </Button>
+        </div>
+        <div>
           <div className="mt-2">
             <RevisionHistory revisions={selectedDocument.revisionHistory} />
           </div>
@@ -85,13 +98,16 @@ export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProp
           <div className="mt-2 rounded-[var(--radius-lg)] bg-[var(--color-surface-subtle)] px-3 py-3 text-sm text-[var(--color-text-secondary)]">
             {previewType === "unsupported"
               ? "Only image and PDF files are currently supported for preview workflows."
-              : "Plan preview is unavailable because no project plan file is connected."}
+              : selectedDocument.fileUrl
+                ? "Secure preview is active. The signed file link expires automatically."
+                : "Plan preview is unavailable because no project plan file is connected."}
           </div>
 
           <div className="mt-3">
             <button
               type="button"
-              disabled
+              disabled={!selectedDocument.fileUrl}
+              onClick={() => selectedDocument.fileUrl && window.open(selectedDocument.fileUrl, "_blank", "noopener,noreferrer")}
               className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] opacity-70"
             >
               <ExternalLink size={14} aria-hidden="true" />
@@ -104,7 +120,9 @@ export function PlansPreview({ selectedDocument, projectName }: PlansPreviewProp
   );
 }
 
-function resolvePreviewType(fileName: string) {
+function resolvePreviewType(fileName: string, mimeType?: string) {
+  if (mimeType === "application/pdf") return "pdf" as const;
+  if (mimeType?.startsWith("image/")) return "image" as const;
   const extension = fileName.split(".").pop()?.trim().toLowerCase() || "";
 
   if (["png", "jpg", "jpeg", "gif", "webp"].includes(extension)) {
