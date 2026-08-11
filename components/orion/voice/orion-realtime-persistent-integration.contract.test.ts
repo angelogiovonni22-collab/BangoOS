@@ -48,12 +48,13 @@ function main() {
   assert(unified.includes('engine: "realtime" as const'), "the public unified controller exposes Realtime as the single execution engine");
   assert(unified.includes("ORION_V2_ENABLED_STORAGE_KEY"), "Orion v2 enablement persists independently of legacy voice settings");
   assert(unified.includes("autoStartAttemptedRef") && unified.includes("void start()"), "enabled Orion v2 reconnects its persistent conversation on mount");
-  assert(unified.includes('result.href.startsWith("/")') && unified.includes("router.push(result.href)"), "successful Realtime BOS navigation remains inside BOS routing");
+  assert(unified.includes("resolveKnownOrionOperatorHref(result.href)") && unified.includes("router.push(safeHref)"), "every Realtime navigation path is canonicalized at the final browser boundary");
   assert(unified.includes('response.output_audio.delta') && unified.includes('response.output_audio.done'), "Realtime speaking state is projected into the persistent Orion surface");
   assert(unified.includes('conversation.item.input_audio_transcription.completed'), "Realtime user transcripts are projected into Orion state");
-  assert(unified.includes("waitForMountedRoute") && unified.includes("await waitForMountedRoute(result.href)"), "operator navigation waits for the visible BOS route before returning to Realtime");
+  assert(unified.includes("waitForMountedRoute") && unified.includes("await waitForMountedRoute(safeHref)"), "operator navigation waits for the canonical visible BOS route before returning to Realtime");
   assert(unified.includes("isOrionVoiceAutomationEnabled") && unified.includes("ORION_VOICE_FREEZE_MESSAGE"), "Orion v2 preserves the emergency voice gate");
   assert(realtimeSession.includes("isOrionVoiceAutomationEnabled") && realtimeSession.includes('statusCategory: "voice_automation_paused"'), "Realtime session API independently enforces the emergency voice gate");
+  assert(realtimeSession.includes("understand and speak English only") && realtimeSession.includes("Never switch languages"), "Realtime output remains English unless the user explicitly requests another language");
   assert(persistent.includes("const voice = useOrionUnifiedVoice()"), "persistent Orion root owns the single unified controller");
   assert(persistent.includes("voice={voice}"), "persistent Orion passes the shared controller into its panel");
   assert(panel.includes("voice: OrionUnifiedVoiceController"), "persistent panel receives the shared unified controller by contract");

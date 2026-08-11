@@ -40,10 +40,11 @@ function main() {
   assert(operator.includes("data-orion-line-item-field"), "operator understands dynamic estimate line-item controls semantically");
   assert(operator.includes("DESTRUCTIVE_TEXT") && operator.includes("requiresCanonicalConfirmation"), "direct UI operator blocks destructive actions");
   assert(routes.includes('href.startsWith("/")') && routes.includes('href.startsWith("//")'), "operator navigation is restricted to internal BOS routes");
+  assert(routes.includes("resolveKnownOrionOperatorHref") && routes.includes("route.toLowerCase() === normalizedPathname.toLowerCase()"), "known menu routes are canonicalized before browser navigation");
   assert(routes.includes("isKnownOrionOperatorHref") && operator.includes("validMainRoutes"), "operator rejects invented internal paths before they can render a 404");
   assert(handlers.includes("resolveCanonicalOrionNavigationHref") && handlers.includes("That BOS workspace route is not available."), "canonical navigation tools cannot bypass the verified route catalog");
   assert(bridge.includes("executeOrionUiOperator") && bridge.includes("ORION_UI_OPERATOR_TOOL"), "Realtime tool bridge executes UI operator calls in the browser");
-  assert(unified.includes('result.href.startsWith("/")') && unified.includes("router.push(result.href)"), "successful operator navigation is applied to the live BOS router");
+  assert(unified.includes("resolveKnownOrionOperatorHref(result.href)") && unified.includes("router.push(safeHref)"), "successful operator navigation is canonicalized before it reaches the live BOS router");
   assert(session.includes('UI_OPERATOR_TOOL_NAME = "orion_ui_operator"'), "Realtime advertises the semantic UI operator");
   assert(!session.includes('name: TASK_AGENT_TOOL_NAME'), "legacy task-agent is no longer advertised as Orion's primary model tool");
   assert(session.includes("Orion Operator architecture"), "Realtime policy explicitly establishes operator-first architecture");

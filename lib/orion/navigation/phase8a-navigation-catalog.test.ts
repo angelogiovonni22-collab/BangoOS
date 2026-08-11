@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { resolveKnownOrionOperatorHref } from "@/lib/orion/operator/routes";
 import { ORION_NAVIGATION_ROUTES, ORION_SIDEBAR_NAVIGATION_GROUPS, resolveCanonicalOrionNavigationHref, resolveDeterministicNavigationRoute } from "./catalog";
 
 let passed = 0;
@@ -113,6 +114,9 @@ function main() {
     }
 
     assert(resolveCanonicalOrionNavigationHref({ entityId: "invented", deepLink: "/invented-tab" }) === null, "invented menu routes are blocked");
+    assert(resolveKnownOrionOperatorHref("/Dashboard") === "/dashboard", "final runtime guard canonicalizes dashboard casing");
+    assert(resolveKnownOrionOperatorHref("/PROJECTS/?view=active") === "/projects?view=active", "final runtime guard preserves safe menu query parameters");
+    assert(resolveKnownOrionOperatorHref("/invented-tab") === null, "final runtime guard blocks an invented route");
   });
 
   console.log(`\nPhase 8A navigation catalog results: ${passed} passed, ${failed} failed`);
