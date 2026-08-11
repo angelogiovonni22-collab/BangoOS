@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, ExternalLink, MapPin, Navigation, RefreshCw, Sun } from "lucide-react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@/components/ui";
 import type { LocationForecast } from "@/lib/location-intelligence";
+import weatherSceneStyles from "./location-weather-scene.module.css";
 
 type ForecastPayload = {
   ok: boolean;
@@ -29,12 +30,20 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [clock, setClock] = useState<Date | null>(null);
+  const [pageVisible, setPageVisible] = useState(true);
 
   useEffect(() => {
     const updateClock = () => setClock(new Date());
     updateClock();
     const timer = window.setInterval(updateClock, 30_000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const updateVisibility = () => setPageVisible(document.visibilityState === "visible");
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
   }, []);
 
   useEffect(() => {
@@ -99,7 +108,7 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
             <div className="overflow-hidden rounded-[var(--radius-xl)] border border-cyan-200/20 bg-[radial-gradient(circle_at_18%_-20%,rgba(75,220,255,0.7),transparent_38%),linear-gradient(135deg,#087f9f_0%,#07597d_52%,#062f59_100%)] text-white shadow-[0_14px_34px_rgba(3,45,79,0.25),inset_0_1px_0_rgba(255,255,255,0.22)]">
               <div className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-4 sm:py-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <WeatherScene code={payload.forecast.current.weatherCode} />
+                  <WeatherScene code={payload.forecast.current.weatherCode} paused={!pageVisible} />
                   <div className="min-w-0">
                     <div className="flex items-baseline gap-2">
                       <p className="text-4xl font-light leading-none tracking-[-0.05em]">{payload.forecast.current.temperatureF}°</p>
@@ -171,16 +180,39 @@ function WeatherGlyph({ code, size, className }: { code: number; size: number; c
   return <Cloud {...props} className={`${className || ""} text-slate-100`} />;
 }
 
-function WeatherScene({ code }: { code: number }) {
+function WeatherScene({ code, paused }: { code: number; paused: boolean }) {
   const isClear = code === 0;
+  const kind = weatherSceneKind(code);
   return (
-    <div data-weather-scene className="relative size-16 shrink-0 [perspective:180px]" aria-hidden="true">
-      <div className="absolute inset-1 rounded-full bg-black/20 blur-md" />
-      <div className={`absolute inset-0 rounded-full blur-lg ${isClear ? "bg-amber-300/35" : "bg-cyan-200/20"}`} />
-      <div className={`absolute inset-1 z-10 overflow-hidden rounded-full border border-white/35 shadow-[inset_-9px_-10px_15px_rgba(1,30,58,0.35),inset_7px_7px_12px_rgba(255,255,255,0.38),0_8px_15px_rgba(0,19,42,0.35)] [transform:rotateX(8deg)] ${isClear ? "bg-[radial-gradient(circle_at_32%_26%,#fffbd0_0%,#ffe45c_24%,#ffb52e_58%,#f6781d_100%)]" : "bg-[radial-gradient(circle_at_30%_22%,#dffaff_0%,#68c9e7_35%,#197aa9_72%,#0a456f_100%)]"}`}>
-        <span className="absolute left-2 top-1.5 h-4 w-7 rotate-[-24deg] rounded-full bg-white/45 blur-[3px]" />
-        {!isClear ? <span className="absolute inset-0 grid place-items-center bg-[linear-gradient(145deg,transparent_34%,rgba(2,34,65,0.22))]"><WeatherGlyph code={code} size={36} className="text-white drop-shadow-[0_5px_4px_rgba(0,20,45,0.5)]" /></span> : null}
+    <div data-weather-scene data-kind={kind} data-paused={paused} className={weatherSceneStyles.scene} aria-hidden="true">
+      <span className={weatherSceneStyles.shadow} />
+      <span className={weatherSceneStyles.halo} />
+      <span className={`${weatherSceneStyles.rays} ${isClear ? weatherSceneStyles.visible : ""}`} />
+      <div className={`${weatherSceneStyles.orb} ${isClear ? weatherSceneStyles.sunOrb : weatherSceneStyles.skyOrb}`}>
+        <span className={weatherSceneStyles.highlight} />
+        {!isClear ? <span className={weatherSceneStyles.glyph}><WeatherGlyph code={code} size={34} className="text-white" /></span> : null}
+        <span className={weatherSceneStyles.cloudOne} />
+        <span className={weatherSceneStyles.cloudTwo} />
+        <span className={weatherSceneStyles.fogOne} />
+        <span className={weatherSceneStyles.fogTwo} />
+        <span className={weatherSceneStyles.lightning} />
+        <span className={weatherSceneStyles.rain}>
+          <i /><i /><i /><i />
+        </span>
+        <span className={weatherSceneStyles.snow}>
+          <i>•</i><i>•</i><i>•</i><i>•</i><i>•</i>
+        </span>
       </div>
     </div>
   );
+}
+
+function weatherSceneKind(code: number) {
+  if (code === 0) return "clear";
+  if (code <= 3) return "cloud";
+  if (code === 45 || code === 48) return "fog";
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
+  if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return "snow";
+  if (code >= 95) return "storm";
+  return "cloud";
 }

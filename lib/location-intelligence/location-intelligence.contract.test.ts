@@ -17,6 +17,7 @@ assert.equal(selectBestPlace([
 const route = read("app/api/location-intelligence/weather/route.ts");
 const provider = read("lib/location-intelligence/provider.ts");
 const card = read("components/location-intelligence/location-forecast-card.tsx");
+const weatherScene = read("components/location-intelligence/location-weather-scene.module.css");
 const dashboard = read("components/dashboard/WeatherWidget.tsx");
 const project = read("components/projects/workspace/project-command-center-foundation.tsx");
 
@@ -43,6 +44,11 @@ assert.ok(card.includes("payload.forecast.days.map"));
 assert.ok(card.includes("WeatherGlyph"));
 assert.ok(card.includes("WeatherScene"));
 assert.ok(card.includes("data-weather-scene"));
+assert.ok(card.includes("document.visibilityState"));
+assert.ok(card.includes("weatherSceneKind"));
+assert.ok(weatherScene.includes("prefers-reduced-motion: reduce"));
+assert.ok(weatherScene.includes("lightningFlash"));
+assert.ok(weatherScene.includes("rainFall"));
 assert.ok(card.includes("formatWeatherTime"));
 assert.ok(dashboard.includes("<LocationForecastCard"));
 assert.ok(project.includes("<LocationForecastCard projectId={projectId}"));

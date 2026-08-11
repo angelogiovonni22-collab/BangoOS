@@ -1,0 +1,51 @@
+.scene {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  flex: 0 0 auto;
+  perspective: 180px;
+  isolation: isolate;
+  animation: sceneFloat 5s ease-in-out infinite;
+}
+
+.shadow, .halo, .rays, .orb { position: absolute; border-radius: 9999px; }
+.shadow { inset: .55rem .25rem .05rem; background: rgba(0, 16, 38, .42); filter: blur(.45rem); transform: translateY(.45rem); }
+.halo { inset: 0; background: rgba(108, 222, 255, .2); filter: blur(.6rem); animation: haloPulse 3.8s ease-in-out infinite; }
+.rays { inset: -.15rem; display: none; background: repeating-conic-gradient(from 0deg, rgba(255, 223, 104, .58) 0deg 5deg, transparent 6deg 24deg); filter: blur(1px); animation: rayTurn 18s linear infinite; mask-image: radial-gradient(circle, transparent 0 47%, #000 50% 66%, transparent 69%); }
+.visible { display: block; }
+.orb { inset: .28rem; z-index: 2; overflow: hidden; border: 1px solid rgba(255,255,255,.38); transform: rotateX(8deg); box-shadow: inset -.55rem -.6rem .9rem rgba(1,30,58,.35), inset .42rem .42rem .72rem rgba(255,255,255,.4), 0 .5rem .95rem rgba(0,19,42,.4); }
+.sunOrb { background: radial-gradient(circle at 32% 26%, #fffbd0 0%, #ffe45c 24%, #ffb52e 58%, #f6781d 100%); }
+.skyOrb { background: radial-gradient(circle at 30% 22%, #dffaff 0%, #68c9e7 35%, #197aa9 72%, #0a456f 100%); }
+.highlight { position: absolute; left: .55rem; top: .4rem; width: 1.65rem; height: .8rem; border-radius: 999px; background: rgba(255,255,255,.48); filter: blur(3px); transform: rotate(-24deg); }
+.glyph { position: absolute; inset: 0; display: grid; place-items: center; filter: drop-shadow(0 5px 4px rgba(0,20,45,.5)); }
+.cloudOne, .cloudTwo { position: absolute; display: none; height: .58rem; border-radius: 999px; background: linear-gradient(#fff, #cde7ef); box-shadow: -.38rem .08rem 0 -.08rem #e8f7fb, .38rem .06rem 0 -.08rem #bddde8, 0 .22rem .3rem rgba(0,33,60,.25); }
+.cloudOne { width: 1.7rem; left: .65rem; top: 1.65rem; animation: cloudDrift 4.6s ease-in-out infinite; }
+.cloudTwo { width: 1.35rem; left: 2.25rem; top: 2.45rem; opacity: .72; animation: cloudDrift 5.8s ease-in-out infinite reverse; }
+.rain { position: absolute; inset: 2.35rem .75rem .2rem; display: none; justify-content: space-around; transform: skewX(-10deg); }
+.rain i { width: 2px; height: .65rem; border-radius: 99px; background: linear-gradient(transparent, #bdf4ff); animation: rainFall .8s linear infinite; }
+.rain i:nth-child(2) { animation-delay: -.25s; }.rain i:nth-child(3) { animation-delay: -.5s; }.rain i:nth-child(4) { animation-delay: -.7s; }
+.snow { position: absolute; inset: 2.1rem .55rem .1rem; display: none; color: #fff; font-size: .75rem; text-shadow: 0 0 5px #fff; }
+.snow i { position: absolute; font-style: normal; animation: snowFall 2.2s ease-in infinite; }
+.snow i:nth-child(1){left:10%;}.snow i:nth-child(2){left:30%;animation-delay:-.7s}.snow i:nth-child(3){left:50%;animation-delay:-1.4s}.snow i:nth-child(4){left:70%;animation-delay:-.3s}.snow i:nth-child(5){left:88%;animation-delay:-1.1s}
+.fogOne, .fogTwo { position: absolute; left: .4rem; right: .4rem; display: none; height: .22rem; border-radius: 99px; background: rgba(239,251,255,.8); filter: blur(1px); animation: fogDrift 4s ease-in-out infinite; }
+.fogOne { top: 2rem; }.fogTwo { top: 2.55rem; animation-delay: -2s; }
+.lightning { position: absolute; left: 2rem; top: 1.65rem; display: none; width: .65rem; height: 1.55rem; background: #fff2a6; filter: drop-shadow(0 0 7px #fff273); clip-path: polygon(52% 0,100% 0,65% 40%,95% 40%,20% 100%,38% 55%,5% 55%); animation: lightningFlash 4.5s steps(1,end) infinite; }
+[data-kind="cloud"] .cloudOne, [data-kind="cloud"] .cloudTwo, [data-kind="rain"] .cloudOne, [data-kind="storm"] .cloudOne, [data-kind="snow"] .cloudOne { display: block; }
+[data-kind="rain"] .rain, [data-kind="storm"] .rain { display: flex; }
+[data-kind="snow"] .snow { display: block; }
+[data-kind="fog"] .fogOne, [data-kind="fog"] .fogTwo { display: block; }
+[data-kind="storm"] .lightning { display: block; }
+.scene[data-paused="true"], .scene[data-paused="true"] * { animation-play-state: paused !important; }
+
+@keyframes sceneFloat { 0%,100%{transform:translateY(0) rotate(-1deg)} 50%{transform:translateY(-3px) rotate(1deg)} }
+@keyframes haloPulse { 0%,100%{opacity:.55;transform:scale(.94)} 50%{opacity:1;transform:scale(1.08)} }
+@keyframes rayTurn { to{transform:rotate(360deg)} }
+@keyframes cloudDrift { 0%,100%{transform:translateX(-2px)} 50%{transform:translateX(4px)} }
+@keyframes rainFall { from{transform:translateY(-5px);opacity:0} 25%{opacity:1} to{transform:translateY(12px);opacity:0} }
+@keyframes snowFall { 0%{transform:translate(0,-5px);opacity:0} 25%{opacity:1} 100%{transform:translate(5px,15px);opacity:0} }
+@keyframes fogDrift { 0%,100%{transform:translateX(-4px);opacity:.48} 50%{transform:translateX(5px);opacity:.9} }
+@keyframes lightningFlash { 0%,87%,91%,100%{opacity:0} 88%,90%{opacity:1} }
+
+@media (prefers-reduced-motion: reduce) {
+  .scene, .scene * { animation: none !important; }
+}
