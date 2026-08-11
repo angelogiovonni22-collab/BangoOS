@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, ConfirmDialog, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
 import { InvoiceBillingDetailsSection } from "@/components/invoices/invoice-billing-details-section";
@@ -19,6 +19,7 @@ import { validateInvoiceForm } from "@/lib/invoices/validation";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
+import { RecordPhotoUpload, type RecordPhotoUploadHandle } from "@/components/attachments/record-photo-upload";
 
 const DEFAULT_FORM_VALUES: InvoiceFormValues = {
   title: "",
@@ -68,6 +69,7 @@ export function InvoiceForm({
   const localeTag = locale === "es" ? "es-ES" : "en-US";
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const photoUploadRef = useRef<RecordPhotoUploadHandle>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -365,6 +367,8 @@ export function InvoiceForm({
         return;
       }
 
+      await photoUploadRef.current?.upload(result.invoiceId, companyId, userId);
+
       if (action === "send") {
         const sendResult = await sendInvoice({
           supabase,
@@ -483,6 +487,7 @@ export function InvoiceForm({
         />
 
         <InvoiceTotalsSection totals={totals} values={values} localeTag={localeTag} onFieldChange={onFieldChange} />
+        <RecordPhotoUpload ref={photoUploadRef} entityType="invoice" />
 
         <InvoiceNotesTermsSection values={values} onFieldChange={onFieldChange} />
 

@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, FormField, Input, PageHeader, Select, Textarea } from "@/components/ui";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
@@ -11,6 +11,7 @@ import type { Database } from "@/types/database.types";
 import { PROJECT_TYPE_OPTIONS } from "@/lib/projects";
 import { PROJECT_STATUSES } from "@/lib/projects/statuses";
 import { useI18n } from "@/lib/i18n/provider";
+import { RecordPhotoUpload, type RecordPhotoUploadHandle } from "@/components/attachments/record-photo-upload";
 
 type CustomerSummaryRow = Pick<
   Database["public"]["Tables"]["customers"]["Row"],
@@ -118,6 +119,7 @@ export default function NewProjectPage() {
   const { t, locale } = useI18n();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const photoUploadRef = useRef<RecordPhotoUploadHandle>(null);
   const localeTag = locale === "es" ? "es-ES" : "en-US";
   const requestedCustomerId = useMemo(() => {
     if (typeof window === "undefined") {
@@ -359,6 +361,8 @@ export default function NewProjectPage() {
         setErrorMessage(t("projects.errorSaveProject", { message: lastErrorMessage || t("projects.errorUnexpectedSave") }));
         return;
       }
+
+      await photoUploadRef.current?.upload(createdProjectId, workspace.context.companyId, workspace.context.userId);
 
       const orion = createSupabaseOrionEventPublisher(client);
       await orion.publishEvent({
@@ -727,6 +731,7 @@ export default function NewProjectPage() {
             {isSaving ? t("projects.savingProject") : t("projects.createProject")}
           </Button>
         </div>
+        <RecordPhotoUpload ref={photoUploadRef} entityType="project" />
       </form>
     </div>
   );
