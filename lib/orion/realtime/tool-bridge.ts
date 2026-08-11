@@ -102,7 +102,7 @@ export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall, 
   const response = await fetch("/api/orion/realtime/tool", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ toolName: call.toolName, params: call.params, confirmationTranscript: options?.confirmationTranscript || undefined }),
+    body: JSON.stringify({ toolName: call.toolName, params: call.params, executionId: call.callId, confirmationTranscript: options?.confirmationTranscript || undefined }),
   });
 
   const payload = await response.json() as Partial<OrionRealtimeToolExecutionResult> & { error?: string };

@@ -41,10 +41,29 @@ export function createOrionEventPublisher(params: {
         };
       }
 
-      const persisted = await params.store.append({
-        ...input,
-        idempotency_key: idempotencyKey,
-      });
+      let persisted;
+      try {
+        persisted = await params.store.append({
+          ...input,
+          idempotency_key: idempotencyKey,
+        });
+      } catch (error) {
+        // Another request can win the unique-key race after our initial lookup.
+        // Recover the committed event so a safe retry is reported as success.
+        const concurrent = await params.store.findByIdempotency(
+          input.company_id,
+          input.event_type,
+          idempotencyKey,
+        );
+        if (!concurrent) {
+          throw error;
+        }
+
+        return {
+          event: concurrent,
+          idempotent: true,
+        };
+      }
 
       await subscribers.dispatch(persisted);
 
