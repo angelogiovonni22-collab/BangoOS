@@ -4224,6 +4224,9 @@ export type Database = {
           estimated_end_date: string | null
           estimated_start_date: string | null
           id: string
+          job_site_geocoded_at: string | null
+          job_site_latitude: number | null
+          job_site_longitude: number | null
           job_site_name: string | null
           name: string
           postal_code: string | null
@@ -4236,6 +4239,7 @@ export type Database = {
           state: string | null
           status: string
           updated_at: string
+          weather_postal_code_override: string | null
         }
         Insert: {
           actual_end_date?: string | null
@@ -4253,6 +4257,9 @@ export type Database = {
           estimated_end_date?: string | null
           estimated_start_date?: string | null
           id?: string
+          job_site_geocoded_at?: string | null
+          job_site_latitude?: number | null
+          job_site_longitude?: number | null
           job_site_name?: string | null
           name: string
           postal_code?: string | null
@@ -4265,6 +4272,7 @@ export type Database = {
           state?: string | null
           status?: string
           updated_at?: string
+          weather_postal_code_override?: string | null
         }
         Update: {
           actual_end_date?: string | null
@@ -4282,6 +4290,9 @@ export type Database = {
           estimated_end_date?: string | null
           estimated_start_date?: string | null
           id?: string
+          job_site_geocoded_at?: string | null
+          job_site_latitude?: number | null
+          job_site_longitude?: number | null
           job_site_name?: string | null
           name?: string
           postal_code?: string | null
@@ -4294,6 +4305,7 @@ export type Database = {
           state?: string | null
           status?: string
           updated_at?: string
+          weather_postal_code_override?: string | null
         }
         Relationships: [
           {

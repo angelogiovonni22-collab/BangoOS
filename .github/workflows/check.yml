@@ -132,6 +132,9 @@ jobs:
       - name: Run contractor and vendor availability regression
         run: npx -y tsx lib/scheduling/contractor-vendor-availability.test.ts
 
+      - name: Run location intelligence regression
+        run: npx -y tsx lib/location-intelligence/location-intelligence.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
