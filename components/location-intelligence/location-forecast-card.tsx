@@ -85,7 +85,7 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
           {payload ? <span className="text-xs font-semibold text-[var(--color-text-muted)]">Updated {formatObservedAt(payload.forecast.observedAt)}</span> : null}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 p-5">
+      <CardContent className="space-y-3 p-4">
         <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); setAppliedPostalCode(postalCode.trim()); }}>
           <Input value={postalCode} onChange={(event) => setPostalCode(event.currentTarget.value)} placeholder="Jobsite ZIP code" aria-label="Jobsite ZIP code override" className="min-w-[11rem] flex-1" />
           <Button type="submit" variant="outline" disabled={loading}><RefreshCw size={14} aria-hidden="true" />Update</Button>
@@ -96,39 +96,36 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
 
         {!loading && payload ? (
           <>
-            <div className="overflow-hidden rounded-[var(--radius-xl)] border border-cyan-300/20 bg-gradient-to-br from-[#087c9d] via-[#075f83] to-[#07335f] text-white shadow-[0_18px_45px_rgba(3,55,89,0.24)]">
-              <div className="grid gap-5 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:p-6">
-                <div className="flex min-w-0 items-center gap-4 sm:gap-6">
-                  <div className="grid size-24 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_38%_32%,#fff7b2_0%,#ffd34f_34%,#ff9e2c_70%,rgba(255,158,44,0.08)_72%)] shadow-[0_0_36px_rgba(255,205,72,0.55)] sm:size-32">
-                    <WeatherGlyph code={payload.forecast.current.weatherCode} size={62} className="drop-shadow-lg sm:size-[78px]" />
-                  </div>
+            <div className="overflow-hidden rounded-[var(--radius-xl)] border border-cyan-200/20 bg-[radial-gradient(circle_at_18%_-20%,rgba(75,220,255,0.7),transparent_38%),linear-gradient(135deg,#087f9f_0%,#07597d_52%,#062f59_100%)] text-white shadow-[0_14px_34px_rgba(3,45,79,0.25),inset_0_1px_0_rgba(255,255,255,0.22)]">
+              <div className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-4 sm:py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <WeatherScene code={payload.forecast.current.weatherCode} />
                   <div className="min-w-0">
-                    <p className="text-5xl font-light leading-none tracking-[-0.05em] sm:text-6xl">{payload.forecast.current.temperatureF}°</p>
-                    <p className="mt-2 text-lg font-semibold">{payload.forecast.current.condition}</p>
-                    <p className="mt-1 text-sm text-cyan-50/80">Feels like {payload.forecast.current.apparentTemperatureF}° · Wind {payload.forecast.current.windMph} mph</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-4xl font-light leading-none tracking-[-0.05em]">{payload.forecast.current.temperatureF}°</p>
+                      <p className="truncate text-sm font-semibold">{payload.forecast.current.condition}</p>
+                    </div>
+                    <p className="mt-1 truncate text-xs text-cyan-50/75">Feels {payload.forecast.current.apparentTemperatureF}° · Wind {payload.forecast.current.windMph} mph</p>
                   </div>
                 </div>
-                <div className="flex min-w-[12rem] flex-col justify-between gap-4 text-left sm:items-end sm:text-right">
-                  <div>
-                    <p className="text-sm font-semibold text-cyan-50/80">{clock ? formatWeatherDate(clock) : formatWeatherDate(new Date(payload.forecast.observedAt))}</p>
-                    <p className="mt-1 text-4xl font-light tabular-nums">{clock ? formatWeatherTime(clock) : formatWeatherTime(new Date(payload.forecast.observedAt))}</p>
-                    <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold sm:justify-end"><MapPin size={14} aria-hidden="true" />{payload.forecast.location}</p>
-                    {payload.projectName ? <p className="mt-1 text-xs text-cyan-50/70">{payload.projectName}</p> : null}
+                <div className="flex flex-wrap items-center justify-between gap-3 text-left sm:min-w-[19rem] sm:justify-end sm:text-right">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-cyan-50/75">{clock ? formatWeatherDate(clock) : formatWeatherDate(new Date(payload.forecast.observedAt))} · <span className="tabular-nums">{clock ? formatWeatherTime(clock) : formatWeatherTime(new Date(payload.forecast.observedAt))}</span></p>
+                    <p className="mt-1 flex items-center gap-1 text-xs font-semibold sm:justify-end"><MapPin size={12} aria-hidden="true" />{payload.forecast.location}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2 sm:justify-end">
-                    {directionsHref ? <a href={directionsHref} target="_blank" rel="noreferrer"><Button size="sm" className="border border-white/20 bg-white/15 text-white hover:bg-white/25"><Navigation size={14} aria-hidden="true" />Directions</Button></a> : null}
-                    {mapHref ? <a href={mapHref} target="_blank" rel="noreferrer"><Button size="sm" className="border border-white/20 bg-white/10 text-white hover:bg-white/20">Open Map<ExternalLink size={13} aria-hidden="true" /></Button></a> : null}
+                  <div className="flex gap-1.5">
+                    {directionsHref ? <a href={directionsHref} target="_blank" rel="noreferrer"><Button size="sm" className="h-8 border border-white/20 bg-white/15 px-2.5 text-xs text-white hover:bg-white/25"><Navigation size={13} aria-hidden="true" />Directions</Button></a> : null}
+                    {mapHref ? <a href={mapHref} target="_blank" rel="noreferrer"><Button size="sm" className="h-8 border border-white/20 bg-white/10 px-2.5 text-xs text-white hover:bg-white/20">Map<ExternalLink size={12} aria-hidden="true" /></Button></a> : null}
                   </div>
                 </div>
               </div>
               <div className={`grid border-t border-white/15 bg-[#052f57]/35 ${compact ? "grid-cols-4" : "grid-cols-4 lg:grid-cols-7"}`}>
               {payload.forecast.days.map((day) => (
-                <article key={day.date} className="min-w-0 border-r border-white/10 p-3 text-center last:border-r-0 sm:p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-cyan-50/75">{formatDay(day.date)}</p>
-                  <WeatherGlyph code={day.weatherCode} size={28} className="mx-auto my-2" />
-                  <p className="text-sm font-bold">{day.highF}° <span className="font-medium text-cyan-50/65">{day.lowF}°</span></p>
-                  <p className="mt-1 truncate text-[11px] text-cyan-50/75">{day.condition}</p>
-                  <p className="mt-0.5 text-[10px] text-cyan-50/60">Rain {day.precipitationProbability}%</p>
+                <article key={day.date} className="min-w-0 border-r border-white/10 px-1.5 py-2 text-center last:border-r-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-cyan-50/75">{formatDay(day.date)}</p>
+                  <WeatherGlyph code={day.weatherCode} size={18} className="mx-auto my-1 drop-shadow-md" />
+                  <p className="text-xs font-bold">{day.highF}° <span className="font-medium text-cyan-50/65">{day.lowF}°</span></p>
+                  <p className="mt-0.5 truncate text-[9px] text-cyan-50/65">{day.precipitationProbability}% rain</p>
                 </article>
               ))}
               </div>
@@ -136,7 +133,7 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
 
             {showMap && mapEmbed ? (
               <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)]">
-                <iframe title={`Map of ${payload.directionsAddress}`} src={mapEmbed} className="h-72 w-full" loading="lazy" />
+                <iframe title={`Map of ${payload.directionsAddress}`} src={mapEmbed} className="h-40 w-full" loading="lazy" />
               </div>
             ) : null}
             <p className="text-[11px] text-[var(--color-text-muted)]">{payload.forecast.attribution}</p>
@@ -172,4 +169,18 @@ function WeatherGlyph({ code, size, className }: { code: number; size: number; c
   if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return <CloudSnow {...props} className={`${className || ""} text-white`} />;
   if (code >= 95) return <CloudLightning {...props} className={`${className || ""} text-yellow-200`} />;
   return <Cloud {...props} className={`${className || ""} text-slate-100`} />;
+}
+
+function WeatherScene({ code }: { code: number }) {
+  const isClear = code === 0;
+  return (
+    <div data-weather-scene className="relative size-16 shrink-0 [perspective:180px]" aria-hidden="true">
+      <div className="absolute inset-1 rounded-full bg-black/20 blur-md" />
+      <div className={`absolute inset-0 rounded-full blur-lg ${isClear ? "bg-amber-300/35" : "bg-cyan-200/20"}`} />
+      <div className={`absolute inset-1 z-10 overflow-hidden rounded-full border border-white/35 shadow-[inset_-9px_-10px_15px_rgba(1,30,58,0.35),inset_7px_7px_12px_rgba(255,255,255,0.38),0_8px_15px_rgba(0,19,42,0.35)] [transform:rotateX(8deg)] ${isClear ? "bg-[radial-gradient(circle_at_32%_26%,#fffbd0_0%,#ffe45c_24%,#ffb52e_58%,#f6781d_100%)]" : "bg-[radial-gradient(circle_at_30%_22%,#dffaff_0%,#68c9e7_35%,#197aa9_72%,#0a456f_100%)]"}`}>
+        <span className="absolute left-2 top-1.5 h-4 w-7 rotate-[-24deg] rounded-full bg-white/45 blur-[3px]" />
+        {!isClear ? <span className="absolute inset-0 grid place-items-center bg-[linear-gradient(145deg,transparent_34%,rgba(2,34,65,0.22))]"><WeatherGlyph code={code} size={36} className="text-white drop-shadow-[0_5px_4px_rgba(0,20,45,0.5)]" /></span> : null}
+      </div>
+    </div>
+  );
 }

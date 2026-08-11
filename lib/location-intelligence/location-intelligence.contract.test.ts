@@ -41,6 +41,8 @@ assert.ok(card.includes("www.google.com/maps?q="));
 assert.ok(card.includes("www.google.com/maps/search/?api=1"));
 assert.ok(card.includes("payload.forecast.days.map"));
 assert.ok(card.includes("WeatherGlyph"));
+assert.ok(card.includes("WeatherScene"));
+assert.ok(card.includes("data-weather-scene"));
 assert.ok(card.includes("formatWeatherTime"));
 assert.ok(dashboard.includes("<LocationForecastCard"));
 assert.ok(project.includes("<LocationForecastCard projectId={projectId}"));
