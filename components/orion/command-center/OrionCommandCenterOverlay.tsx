@@ -10,6 +10,7 @@ import { Button, Input, OverlayBackdrop, PortalHost, useBodyScrollLock } from "@
 import { useTopmostOverlay } from "@/components/ui/overlay-runtime";
 import { OrionHandsFreeToggle, OrionMicrophoneIndicator, OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, OrionWakeStatus, useGlobalOrionVoice } from "@/components/orion/voice";
 import { rankActionsWithWorkspaceContext } from "@/lib/orion/command-center";
+import { createOrionExecutionEnvelope } from "@/lib/orion/commands/execution-envelope";
 import type { OrionIntentResult } from "@/lib/orion/intent-engine";
 import { applyOrionCommandNavigationResult } from "@/lib/orion/navigation";
 import { buildVoiceConfirmationSummary, detectWakeWord, isCancelPhrase, isWakeWordSupported, parseVoiceConfirmationPhrase, resolveSpokenCandidate } from "@/lib/orion/voice";
@@ -230,15 +231,6 @@ function storeString(key: string, value: string) {
 function buildCurrentUrl(pathname: string, search: string) {
   const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost";
   return `${origin}${pathname}${search ? `?${search}` : ""}`;
-}
-
-function buildExecutionEnvelope(commandId: string, params: Record<string, unknown>) {
-  const correlationId = typeof window !== "undefined" && window.crypto?.randomUUID
-    ? window.crypto.randomUUID()
-    : `orion-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  const idempotencyKey = `${commandId}:${JSON.stringify(params)}`;
-
-  return { correlationId, idempotencyKey };
 }
 
 export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionCommandCenterOverlayProps) {
@@ -1136,7 +1128,7 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
     setResultMessage(null);
 
     try {
-      const executionEnvelope = buildExecutionEnvelope(action.commandId, action.params);
+      const executionEnvelope = createOrionExecutionEnvelope(action.commandId);
       const response = await fetch("/api/orion/command-center", {
         method: "POST",
         headers: {
@@ -1218,7 +1210,7 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
     setResultMessage(null);
 
     try {
-      const executionEnvelope = buildExecutionEnvelope(commandId, params);
+      const executionEnvelope = createOrionExecutionEnvelope(commandId);
       const response = await fetch("/api/orion/command-center", {
         method: "POST",
         headers: {
@@ -1314,7 +1306,7 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
   logVoiceTiming("command.execute.start", { commandId: params.commandId });
 
     try {
-      const executionEnvelope = buildExecutionEnvelope(params.commandId, params.commandParams);
+      const executionEnvelope = createOrionExecutionEnvelope(params.commandId);
       voiceCorrelationRef.current = executionEnvelope.correlationId;
 
       const response = await fetch("/api/orion/command-center", {

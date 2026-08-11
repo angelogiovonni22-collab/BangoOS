@@ -5,6 +5,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCompany } from "@/lib/company";
+import { createOrionExecutionEnvelope } from "@/lib/orion/commands/execution-envelope";
 import type { OrionIntentResult } from "@/lib/orion/intent-engine";
 import { normalizeIntentInput } from "@/lib/orion/intent-engine";
 import { applyOrionCommandNavigationResult } from "@/lib/orion/navigation";
@@ -269,15 +270,6 @@ function buildRouteContext(pathname: string, search: URLSearchParams): RouteCont
     dashboardWidgetId: search.get("widgetId"),
     timelineItemId: search.get("timelineItemId") || search.get("eventId"),
   };
-}
-
-function buildExecutionEnvelope(commandId: string, params: Record<string, unknown>) {
-  const correlationId = typeof window !== "undefined" && window.crypto?.randomUUID
-    ? window.crypto.randomUUID()
-    : `orion-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  const idempotencyKey = `${commandId}:${JSON.stringify(params)}`;
-
-  return { correlationId, idempotencyKey };
 }
 
 function defaultSettings(): GlobalOrionVoiceSettings {
@@ -790,7 +782,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     setPhase("executing");
     setStatusMessage("Executing voice command.");
 
-    const envelope = buildExecutionEnvelope(commandId, params);
+    const envelope = createOrionExecutionEnvelope(commandId);
 
     try {
       logVoiceTrace("command.execute.start", {

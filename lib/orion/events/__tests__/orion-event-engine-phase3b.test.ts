@@ -128,7 +128,27 @@ async function main() {
     check(dispatchCount === 1, "subscriber receives published event");
   });
 
-  await test("4. source integrations call Orion publisher in key mutation paths", () => {
+  await test("4. publisher recovers when a concurrent retry wins the unique-key race", async () => {
+    const store = inMemoryStore();
+    const originalAppend = store.append.bind(store);
+    let raced = false;
+    store.append = async (input) => {
+      if (!raced) {
+        raced = true;
+        await originalAppend(input);
+        throw new Error("duplicate key value violates unique constraint");
+      }
+      return originalAppend(input);
+    };
+    const publisher = createOrionEventPublisher({ store });
+
+    const result = await publisher.publishEvent(baseInput({ idempotency_key: "racing-key" }));
+
+    check(result.idempotent, "concurrent duplicate is returned as an idempotent success");
+    check(store.records.length === 1, "concurrent duplicate does not create another event");
+  });
+
+  await test("5. source integrations call Orion publisher in key mutation paths", () => {
     const files = [
       resolve(process.cwd(), "app", "(app)", "customers", "new", "page.tsx"),
       resolve(process.cwd(), "app", "(app)", "projects", "new", "page.tsx"),
@@ -149,7 +169,7 @@ async function main() {
     check(combined.includes("source_module: \"workflows\""), "workflow bridge enriches workflow event rows");
   });
 
-  await test("5. migration extends existing workflow ledger for Orion metadata", () => {
+  await test("6. migration extends existing workflow ledger for Orion metadata", () => {
     const migrationPath = resolve(process.cwd(), "supabase", "migrations", "20260803150000_orion_event_engine_foundation.sql");
     const migration = readFileSync(migrationPath, "utf8").toLowerCase();
 

@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createOrionCommandRouter, createOrionCommandRegistry, type OrionCommandPermission } from "@/lib/orion/commands";
+import { createOrionExecutionEnvelope } from "@/lib/orion/commands/execution-envelope";
 import { getUniversalBosCommandByToolName } from "@/lib/orion/intelligence";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -25,10 +26,6 @@ function normalizeRole(role: string | null): OrionCommandPermission {
   if (normalized === "project_manager") return "project_manager";
   if (normalized === "superintendent") return "superintendent";
   return "employee";
-}
-
-function requestId(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function isExplicitConfirmation(input: string) {
@@ -78,6 +75,7 @@ async function executeCanonicalCommand(args: {
   companyId: string;
   userId: string;
   role: string | null;
+  executionId?: string;
 }) {
   const command = createOrionCommandRegistry().getById(args.commandId);
   if (!command || command.coverage.status === "unsupported") {
@@ -121,8 +119,7 @@ async function executeCanonicalCommand(args: {
     };
   }
 
-  const correlationId = requestId("orion-realtime");
-  const idempotencyKey = `${command.id}:${JSON.stringify(normalizedParams)}:${correlationId}`;
+  const { correlationId, idempotencyKey } = createOrionExecutionEnvelope(command.id, "orion-realtime", args.executionId);
   const router = createOrionCommandRouter({ supabase: args.supabase });
   const result = await router.executeCommand({
     commandId: command.id,
@@ -166,7 +163,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }, { status: workspace.errorCode === "unauthenticated" ? 401 : 403 });
     }
 
-    const body = await req.json() as { toolName?: unknown; params?: unknown; confirmationTranscript?: unknown };
+    const body = await req.json() as { toolName?: unknown; params?: unknown; confirmationTranscript?: unknown; executionId?: unknown };
     if (typeof body.toolName !== "string" || !body.toolName.trim()) {
       return NextResponse.json({ ok: false, statusCategory: "command_validation_failed", userMessage: "Realtime BOS tool name is required." }, { status: 400 });
     }
@@ -174,6 +171,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const params = body.params && typeof body.params === "object" && !Array.isArray(body.params)
       ? body.params as Record<string, unknown>
       : {};
+    const executionId = typeof body.executionId === "string" ? body.executionId.trim() : undefined;
 
     if (body.toolName.trim() === CONFIRM_TOOL_NAME) {
       const confirmationTranscript = typeof body.confirmationTranscript === "string" ? body.confirmationTranscript.trim() : "";
@@ -204,6 +202,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         companyId: workspace.context.companyId,
         userId: workspace.context.userId,
         role: workspace.context.role,
+        executionId,
       });
       return NextResponse.json(executed.body, { status: executed.status });
     }
@@ -221,6 +220,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       companyId: workspace.context.companyId,
       userId: workspace.context.userId,
       role: workspace.context.role,
+      executionId,
     });
     return NextResponse.json(executed.body, { status: executed.status });
   } catch (error) {
