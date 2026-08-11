@@ -143,6 +143,18 @@ export function buildOrionRealtimeFunctionOutputEvent(callId: string, result: Or
   };
 }
 
-export function buildOrionRealtimeContinueResponseEvent() {
-  return { type: "response.create" };
+export function buildOrionRealtimeContinueResponseEvent(result?: OrionRealtimeToolExecutionResult) {
+  const instruction = result?.confirmationRequired
+    ? "Continue in spoken audio. Ask the user for the required confirmation naturally and briefly."
+    : result?.ok
+      ? "Continue the active task in spoken audio. If another tool call is immediately required, make it without narrating intermediate mechanics. Otherwise briefly acknowledge the completed visible BOS action and ask the next necessary question if the task is still incomplete. Never end the turn silently after changing the visible BOS interface."
+      : "Continue in spoken audio. Briefly explain what prevented the action and ask for the smallest clarification needed to continue.";
+
+  return {
+    type: "response.create",
+    response: {
+      output_modalities: ["audio"],
+      instructions: instruction,
+    },
+  };
 }
