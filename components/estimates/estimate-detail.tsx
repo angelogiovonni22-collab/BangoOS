@@ -13,6 +13,7 @@ import type { EstimateLineItemRow, EstimateRow } from "@/lib/estimates/types";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
+import { SendContractButton } from "@/components/estimates/send-contract-button";
 
 export function EstimateDetail({ estimateId }: { estimateId: string }) {
   const { locale } = useI18n();
@@ -149,6 +150,7 @@ export function EstimateDetail({ estimateId }: { estimateId: string }) {
         description="Review estimate scope, pricing, and terms in a read-only summary."
         secondaryActions={(
           <>
+            {estimate.status !== "approved" && estimate.status !== "archived" ? <SendContractButton estimateId={estimate.id} /> : null}
             {estimate.status === "approved" ? (
               <>
                 <Link href={`/change-orders/new?estimateId=${estimate.id}${estimate.customer_id ? `&customerId=${estimate.customer_id}` : ""}${estimate.project_id ? `&projectId=${estimate.project_id}` : ""}`}>
@@ -256,6 +258,17 @@ export function EstimateDetail({ estimateId }: { estimateId: string }) {
           <NoteBlock title="Scope Exclusions" content={estimate.scope_exclusions} />
           <NoteBlock title="Terms and Conditions" content={estimate.terms} className="md:col-span-2" />
           <NoteBlock title="Payment Terms" content={estimate.payment_terms} className="md:col-span-2" />
+        </CardContent>
+      </Card>
+
+      <Card as="section" variant="elevated">
+        <CardHeader>
+          <CardTitle>Contract and Signature</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <DetailRow label="Contract status" value={estimate.conversion_state === "converted" ? "Verified · Project created" : estimate.approval_signature_id && estimate.status === "approved" ? "Verified" : estimate.approval_signature_id ? "Signed · Awaiting email verification" : estimate.public_token_last_issued_at ? "Sent · Awaiting signature" : "Not sent"} />
+          <DetailRow label="Signed artifact" value={estimate.agreement_hash ? `Recorded · ${estimate.agreement_hash.slice(0, 12)}…` : "Not available"} />
+          <DetailRow label="Project conversion" value={estimate.converted_project_id ? <Link className="font-semibold text-blue-700 underline" href={`/projects/${estimate.converted_project_id}`}>Open created project</Link> : "Waiting for verified contract"} />
         </CardContent>
       </Card>
 
