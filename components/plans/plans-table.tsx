@@ -113,7 +113,7 @@ export function PlansTable({
                   <EnterpriseTableCell className="px-4 py-4 align-middle text-[var(--color-text-secondary)]">{formatFileSize(document.sizeInBytes)}</EnterpriseTableCell>
                   <EnterpriseTableCell className="px-4 py-4 align-middle text-[var(--color-text-secondary)]">{document.linkedRfis}</EnterpriseTableCell>
                   <EnterpriseTableCell align="right" className="px-3 py-3 align-middle">
-                    <DocumentActions fileName={document.fileName} onPreview={() => onSelectDocument(document.id)} />
+                    <DocumentActions fileName={document.fileName} fileUrl={document.fileUrl} onPreview={() => onSelectDocument(document.id)} />
                   </EnterpriseTableCell>
                 </EnterpriseTableRow>
               );

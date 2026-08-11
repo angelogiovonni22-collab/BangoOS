@@ -1,33 +1,38 @@
-import { FolderPlus, Import, Upload } from "lucide-react";
+import { Box, Layers3, ScanLine, Upload } from "lucide-react";
 import { Button, PageHeader } from "@/components/ui";
 
 type PlansHeaderProps = {
   projectName: string;
   documentCount: number;
   lastRevisionDate: string;
+  onUpload: () => void;
 };
 
-export function PlansHeader({ projectName, documentCount, lastRevisionDate }: PlansHeaderProps) {
+export function PlansHeader({ projectName, documentCount, lastRevisionDate, onUpload }: PlansHeaderProps) {
   return (
     <section className="space-y-6 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-6 shadow-[var(--shadow-small)] sm:space-y-7 sm:p-7">
       <PageHeader
         eyebrow="Project Workspace"
-        title="Plans & Drawings"
-        description="Document intelligence center for drawing packages, RFIs, submittals, and revision control."
+        title="Blueprint Plan Room"
+        description="The project workspace for sheets, revisions, calibrated markups, field coordination, and Orion plan intelligence."
         secondaryActions={(
           <>
-            <Button variant="toolbar">
-              <FolderPlus size={16} aria-hidden="true" />
-              Create Folder
+            <Button variant="toolbar" disabled title="2D and 3D model views are coming in a later Blueprints phase.">
+              <Box size={16} aria-hidden="true" />
+              2D / 3D
             </Button>
-            <Button variant="toolbar">
-              <Import size={16} aria-hidden="true" />
-              Import
+            <Button variant="toolbar" disabled title="Calibrated markup tools are coming in the next Blueprints phase.">
+              <ScanLine size={16} aria-hidden="true" />
+              Markup
+            </Button>
+            <Button variant="toolbar" disabled title="Drawing layer controls are coming in a later Blueprints phase.">
+              <Layers3 size={16} aria-hidden="true" />
+              Layers
             </Button>
           </>
         )}
         primaryAction={(
-          <Button>
+          <Button onClick={onUpload} data-orion-action="blueprints.upload">
             <Upload size={16} aria-hidden="true" />
             Upload Plans
           </Button>
@@ -36,7 +41,7 @@ export function PlansHeader({ projectName, documentCount, lastRevisionDate }: Pl
 
       <div className="grid gap-3 sm:grid-cols-3">
         <HeaderStat label="Current Project" value={projectName} />
-        <HeaderStat label="Document Count" value={String(documentCount)} />
+        <HeaderStat label="Blueprint Sheets" value={String(documentCount)} />
         <HeaderStat label="Last Revision Date" value={lastRevisionDate} />
       </div>
     </section>

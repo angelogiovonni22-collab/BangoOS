@@ -1,4 +1,4 @@
-import { Activity, Briefcase, Camera, CircleDollarSign, ClipboardList, Files, FileText, LayoutGrid, ShieldCheck, Truck, Users, Wrench } from "lucide-react";
+import { Activity, Briefcase, Camera, CircleDollarSign, ClipboardList, Files, FileText, LayoutGrid, Ruler, ShieldCheck, Truck, Users, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 import { PROJECT_WORKSPACE_TABS } from "./project-workspace-tabs";
 import type { ProjectWorkspaceTabKey } from "./types";
@@ -16,6 +16,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
     tasks: <ClipboardList size={16} aria-hidden="true" />,
     daily_logs: <Briefcase size={16} aria-hidden="true" />,
     photos: <Camera size={16} aria-hidden="true" />,
+    blueprints: <Ruler size={16} aria-hidden="true" />,
     documents: <Files size={16} aria-hidden="true" />,
     subcontractors: <Truck size={16} aria-hidden="true" />,
     crew: <Users size={16} aria-hidden="true" />,
