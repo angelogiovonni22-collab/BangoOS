@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, FormField, Input, PageHeader, Select, Textarea } from "@/components/ui";
 import { createCustomer, CustomerCreateError } from "@/lib/customers";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
+import { RecordPhotoUpload, type RecordPhotoUploadHandle } from "@/components/attachments/record-photo-upload";
 
 type CustomerType = "residential" | "commercial";
 
@@ -42,6 +43,7 @@ export default function NewCustomerPage() {
   const { t } = useI18n();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const photoUploadRef = useRef<RecordPhotoUploadHandle>(null);
 
   const [formData, setFormData] = useState<CustomerFormData>(initialFormData);
   const [isSaving, setIsSaving] = useState(false);
@@ -163,6 +165,8 @@ export default function NewCustomerPage() {
         },
         duplicateMode: "allow",
       });
+
+      await photoUploadRef.current?.upload(created.customerId, workspace.context.companyId, workspace.context.userId);
 
       router.push(created.deepLink);
       router.refresh();
@@ -380,8 +384,8 @@ export default function NewCustomerPage() {
             {isSaving ? t("customers.saving") : t("customers.saveCustomer")}
           </Button>
         </div>
+        <RecordPhotoUpload ref={photoUploadRef} entityType="customer" />
       </form>
     </div>
   );
 }
-

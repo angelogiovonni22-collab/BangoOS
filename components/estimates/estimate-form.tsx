@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, ConfirmDialog, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
 import { EstimateCustomerProjectSection } from "@/components/estimates/estimate-customer-project-section";
@@ -17,6 +17,7 @@ import { validateEstimateForm } from "@/lib/estimates/validation";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
+import { RecordPhotoUpload, type RecordPhotoUploadHandle } from "@/components/attachments/record-photo-upload";
 
 const DEFAULT_FORM_VALUES: EstimateFormValues = {
   title: "",
@@ -60,6 +61,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
   const localeTag = locale === "es" ? "es-ES" : "en-US";
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const photoUploadRef = useRef<RecordPhotoUploadHandle>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -316,6 +318,8 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         return;
       }
 
+      await photoUploadRef.current?.upload(result.estimateId, companyId, userId);
+
       setIsDirty(false);
       setSuccessMessage("Estimate saved successfully.");
 
@@ -417,6 +421,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         />
 
         <EstimateTotalsSection totals={totals} values={values} localeTag={localeTag} onFieldChange={onFieldChange} />
+        <RecordPhotoUpload ref={photoUploadRef} entityType="estimate" />
 
         <EstimateNotesTermsSection values={values} onFieldChange={onFieldChange} />
 
