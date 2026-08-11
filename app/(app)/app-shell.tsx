@@ -8,7 +8,8 @@ import { OrionCommandCenterOverlay } from "@/components/orion/command-center";
 import { PersistentOrion } from "@/components/orion/persistent";
 import { GlobalOrionVoiceProvider, OrionUnifiedVoiceProvider } from "@/components/orion/voice";
 import { DepartmentNavigator, LayerManager, NavigationBreadcrumb } from "@/components/bangoflow";
-import { LanguageSelector, ProfileMenu, SearchBar } from "@/components/ui";
+import { LanguageSelector, ProfileMenu } from "@/components/ui";
+import { GlobalSearch } from "@/components/search/global-search";
 import { useBodyScrollLock } from "@/components/ui/use-body-scroll-lock";
 import { useI18n } from "@/lib/i18n/provider";
 import { ORION_SIDEBAR_NAVIGATION_GROUPS } from "@/lib/orion/navigation";
@@ -204,7 +205,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
 
                 <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
                   <div className="hidden min-w-[220px] md:block">
-                    <SearchBar placeholder={t("common.search")} />
+                    <GlobalSearch placeholder={t("common.search")} />
                   </div>
                   <button
                     type="button"
