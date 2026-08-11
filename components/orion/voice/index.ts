@@ -9,6 +9,7 @@ export { GlobalOrionVoiceProvider } from "./GlobalOrionVoiceProvider";
 export { useGlobalOrionVoice } from "./useGlobalOrionVoiceCompat";
 export {
   ORION_REALTIME_VOICES,
+  OrionUnifiedVoiceProvider,
   useOrionUnifiedVoice,
   type OrionRealtimeVoice,
   type OrionUnifiedVoiceController,

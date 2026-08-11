@@ -1,6 +1,7 @@
 "use client";
 
 import type { OrionRealtimeToolExecutionResult } from "@/lib/orion/realtime/types";
+import { isKnownOrionOperatorHref, ORION_OPERATOR_MAIN_ROUTES } from "./routes";
 
 export const ORION_UI_OPERATOR_TOOL = "orion_ui_operator";
 
@@ -187,7 +188,33 @@ function setControl(ref: string, value: string) {
   return ok("Visible BOS control updated.", { ref, label: associatedLabel(element), value });
 }
 
-function clickControl(ref: string) {
+function operatorStatuses() {
+  return Array.from(document.querySelectorAll('[role="alert"], [role="status"], [data-orion-status]'))
+    .filter((element) => visible(element))
+    .map((element) => normalizeText(element.textContent || ""))
+    .filter(Boolean);
+}
+
+async function waitForVerifiedUiOutcome(pathname: string, statuses: string[]) {
+  const deadline = performance.now() + 6_000;
+  while (performance.now() < deadline) {
+    if (window.location.pathname !== pathname) {
+      return ok("Visible BOS action completed and navigation was verified.", { pathname: window.location.pathname, verified: true });
+    }
+    const nextStatuses = operatorStatuses();
+    const changedStatus = nextStatuses.find((status) => !statuses.includes(status));
+    if (changedStatus) {
+      const failed = /error|unable|failed|required|missing|invalid|try again/i.test(changedStatus);
+      return failed
+        ? fail(`BOS reported: ${changedStatus}`, { pathname, status: changedStatus, verified: true })
+        : ok(`BOS confirmed: ${changedStatus}`, { pathname, status: changedStatus, verified: true });
+    }
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+  return fail("BOS did not confirm that action. Observe the visible screen before claiming it completed.", { pathname, verified: false });
+}
+
+async function clickControl(ref: string) {
   const element = resolveRef(ref);
   if (!element) return fail("That visible BOS control is no longer available. Observe the screen again before continuing.", { ref });
   if (!(element instanceof HTMLButtonElement || element instanceof HTMLAnchorElement)) return fail("That control is not clickable.", { ref });
@@ -196,15 +223,16 @@ function clickControl(ref: string) {
   if (DESTRUCTIVE_TEXT.test(label)) {
     return fail("Destructive actions must use Orion's confirmed BOS action tools instead of direct UI control.", { ref, label, requiresCanonicalConfirmation: true });
   }
+  const pathname = window.location.pathname;
+  const statuses = operatorStatuses();
+  const requiresVerification = element.dataset.orionVerify === "navigation-or-status";
   element.click();
+  if (requiresVerification) return waitForVerifiedUiOutcome(pathname, statuses);
   return ok("Visible BOS control activated.", { ref, label });
 }
 
 function internalHref(value: unknown) {
-  if (typeof value !== "string") return null;
-  const href = value.trim();
-  if (!href.startsWith("/") || href.startsWith("//")) return null;
-  return href;
+  return isKnownOrionOperatorHref(value) ? String(value).trim() : null;
 }
 
 export async function executeOrionUiOperator(params: OperatorParams): Promise<OrionRealtimeToolExecutionResult> {
@@ -213,7 +241,7 @@ export async function executeOrionUiOperator(params: OperatorParams): Promise<Or
   if (action === "observe") return observe();
   if (action === "navigate") {
     const href = internalHref(params.href);
-    if (!href) return fail("Orion can only navigate to an internal BOS route.");
+    if (!href) return fail("That BOS route does not exist. Use a verified BOS route instead.", { validMainRoutes: ORION_OPERATOR_MAIN_ROUTES });
     return ok("BOS navigation requested.", { href }, href);
   }
   if (action === "set") {

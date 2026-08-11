@@ -22,6 +22,7 @@ function main() {
   const unified = read("components/orion/voice/useOrionUnifiedVoice.ts");
   const compat = read("components/orion/voice/useGlobalOrionVoiceCompat.ts");
   const voiceIndex = read("components/orion/voice/index.ts");
+  const shell = read("app/(app)/app-shell.tsx");
   const commandCenter = read("components/orion/command-center/OrionCommandCenterOverlay.tsx");
   const persistent = read("components/orion/persistent/PersistentOrion.tsx");
   const panel = read("components/orion/persistent/PersistentOrionPanel.tsx");
@@ -32,6 +33,8 @@ function main() {
   console.log("\nOrion v2 persistent Realtime integration contract");
 
   assert(unified.includes("new OrionRealtimeClient"), "Orion v2 owns one Realtime client");
+  assert(unified.includes("OrionUnifiedVoiceContext") && unified.includes("useOrionUnifiedVoiceController()"), "all Orion surfaces consume one shared Realtime controller");
+  assert(shell.includes("<OrionUnifiedVoiceProvider>") && voiceIndex.includes("OrionUnifiedVoiceProvider"), "app shell mounts exactly one shared Realtime controller provider");
   assert(unified.includes("shutDownLegacyVoice"), "legacy browser voice is explicitly shut down before Realtime owns the microphone");
   assert(unified.includes("stopAllListening()") && unified.includes("disableGlobalVoice()"), "legacy recognition cannot remain active beside Orion v2");
   assert(!unified.includes("fallbackToBrowser"), "Realtime failures cannot fall through to the legacy deterministic browser engine");

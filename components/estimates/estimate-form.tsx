@@ -420,14 +420,20 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
 
         <EstimateNotesTermsSection values={values} onFieldChange={onFieldChange} />
 
+        {Object.keys(errors).length > 0 ? (
+          <div role="alert" data-orion-status="estimate-validation-error" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">
+            Please complete the highlighted required estimate information before saving.
+          </div>
+        ) : null}
+
         {errorMessage ? (
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">
+          <div role="alert" data-orion-status="estimate-save-error" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">
             {errorMessage}
           </div>
         ) : null}
 
         {successMessage ? (
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-4 py-3 text-sm text-[var(--color-success-700)]">
+          <div role="status" data-orion-status="estimate-save-success" className="rounded-[var(--radius-md)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-4 py-3 text-sm text-[var(--color-success-700)]">
             {successMessage}
           </div>
         ) : null}
@@ -436,12 +442,12 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
           <Button type="button" variant="outline" size="lg" onClick={handleCancel}>Cancel</Button>
 
           {mode === "create" ? (
-            <Button type="button" variant="secondary" size="lg" isLoading={isSaving && saveMode === "draft"} onClick={() => void submit("draft")}>
+            <Button data-orion-action="save-estimate-draft" data-orion-verify="navigation-or-status" type="button" variant="secondary" size="lg" isLoading={isSaving && saveMode === "draft"} onClick={() => void submit("draft")}>
               Save Draft
             </Button>
           ) : null}
 
-          <Button type="submit" size="lg" isLoading={isSaving && (saveMode === "continue" || saveMode === "changes")}>
+          <Button data-orion-action="save-estimate-and-continue" data-orion-verify="navigation-or-status" type="submit" size="lg" isLoading={isSaving && (saveMode === "continue" || saveMode === "changes")}>
             {mode === "create" ? "Save and Continue Editing" : "Save Changes"}
           </Button>
         </div>
