@@ -14,6 +14,7 @@ const planRoom = fs.readFileSync(path.join(root, "lib/blueprints/plan-room.ts"),
 const uploadPanel = fs.readFileSync(path.join(root, "components/plans/blueprint-upload-panel.tsx"), "utf8");
 const revisionPanel = fs.readFileSync(path.join(root, "components/plans/blueprint-revision-panel.tsx"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260812090000_blueprints_plan_room_foundation.sql"), "utf8");
+const membershipAlignment = fs.readFileSync(path.join(root, "supabase/migrations/20260812103000_blueprints_membership_rls_alignment.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -37,5 +38,8 @@ assert(migration.includes("public.blueprint_member_of_company"), "Blueprint RLS 
 assert(migration.includes("register_blueprint_revision"), "Revision registration must be transactional");
 assert(migration.includes("set status = 'superseded'"), "A new revision must supersede the previous working version");
 assert(migration.includes("public = excluded.public") && migration.includes("false, 104857600"), "The Blueprint bucket must remain private and size-limited");
+assert(membershipAlignment.includes("public.is_company_member(tenant_id)"), "Blueprint RLS must use active multi-company membership");
+assert(membershipAlignment.includes("drop policy if exists blueprints_storage_insert"), "The legacy storage insert policy must be replaced");
+assert(membershipAlignment.includes("project.id::text = (storage.foldername(name))[2]"), "Storage writes must remain project-scoped");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
