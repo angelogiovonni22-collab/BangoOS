@@ -43,54 +43,42 @@ export async function uploadBlueprint(params: { supabase: SupabaseClient; input:
   if (!sheetNumber || !title) throw new Error("Sheet number and title are required.");
 
   const db = supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> };
+  const client = supabase as unknown as {
+    rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  };
   let setId: string | null = null;
   let sheetId: string | null = null;
   let storagePath: string | null = null;
 
   try {
-    const setResponse = await db.from("blueprint_sets").insert({
-      company_id: input.companyId,
-      project_id: input.projectId,
-      name: `${input.discipline} Plan Set`,
-      discipline: input.discipline,
-      created_by: input.userId,
-    }).select("id").single();
-    if (setResponse.error) throw setResponse.error;
-    setId = String(setResponse.data.id);
-
-    const sheetResponse = await db.from("blueprint_sheets").insert({
-      company_id: input.companyId,
-      project_id: input.projectId,
-      blueprint_set_id: setId,
-      sheet_number: sheetNumber,
-      title,
-      discipline: input.discipline,
-      created_by: input.userId,
-    }).select("id").single();
-    if (sheetResponse.error) throw sheetResponse.error;
-    sheetId = String(sheetResponse.data.id);
+    const sheetResponse = await client.rpc("create_blueprint_sheet_upload", {
+      project_record_id: input.projectId,
+      plan_discipline: input.discipline,
+      plan_sheet_number: sheetNumber,
+      plan_title: title,
+    });
+    if (sheetResponse.error) throw new Error(`Could not create Blueprint metadata: ${sheetResponse.error.message}`);
+    const created = Array.isArray(sheetResponse.data) ? sheetResponse.data[0] as Record<string, unknown> | undefined : sheetResponse.data as Record<string, unknown> | null;
+    if (!created?.blueprint_set_id || !created.blueprint_sheet_id || created.company_id !== input.companyId) throw new Error("BOS could not verify the Blueprint workspace identity.");
+    setId = String(created.blueprint_set_id);
+    sheetId = String(created.blueprint_sheet_id);
 
     storagePath = `${input.companyId}/${input.projectId}/${sheetId}/${crypto.randomUUID()}-${safeFilename(input.file.name)}`;
     const uploadResponse = await supabase.storage.from(BLUEPRINTS_BUCKET).upload(storagePath, input.file, {
       contentType: input.file.type,
       upsert: false,
     });
-    if (uploadResponse.error) throw uploadResponse.error;
+    if (uploadResponse.error) throw new Error(`Could not store the Blueprint file: ${uploadResponse.error.message}`);
 
-    const versionResponse = await db.from("blueprint_versions").insert({
-      company_id: input.companyId,
-      project_id: input.projectId,
-      blueprint_sheet_id: sheetId,
-      version_number: 1,
-      revision_label: revisionLabel,
-      status: "draft",
-      storage_path: storagePath,
-      original_filename: input.file.name,
-      mime_type: input.file.type,
-      file_size_bytes: input.file.size,
-      uploaded_by: input.userId,
+    const versionResponse = await client.rpc("register_initial_blueprint_version", {
+      sheet_record_id: sheetId,
+      revision_name: revisionLabel,
+      object_path: storagePath,
+      source_filename: input.file.name,
+      source_mime_type: input.file.type,
+      source_file_size: input.file.size,
     });
-    if (versionResponse.error) throw versionResponse.error;
+    if (versionResponse.error) throw new Error(`Could not register the Blueprint revision: ${versionResponse.error.message}`);
   } catch (error) {
     if (storagePath) await supabase.storage.from(BLUEPRINTS_BUCKET).remove([storagePath]);
     if (sheetId) await db.from("blueprint_sheets").delete().eq("id", sheetId).eq("company_id", input.companyId);
