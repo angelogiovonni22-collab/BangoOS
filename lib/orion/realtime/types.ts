@@ -30,6 +30,6 @@ export type OrionRealtimeToolExecutionResult = {
 export type OrionRealtimeClientCallbacks = {
   onStateChange?: (state: OrionRealtimeConnectionState) => void;
   onEvent?: (event: OrionRealtimeServerEvent) => void;
-  onToolResult?: (result: OrionRealtimeToolExecutionResult) => void;
+  onToolResult?: (result: OrionRealtimeToolExecutionResult) => void | Promise<void>;
   onError?: (error: Error) => void;
 };

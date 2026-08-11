@@ -23,6 +23,7 @@ function main() {
   const toolRoute = read("app/api/orion/realtime/tool/route.ts");
   const bridge = read("lib/orion/realtime/tool-bridge.ts");
   const client = read("lib/orion/realtime/client.ts");
+  const lifecycle = read("lib/orion/realtime/response-lifecycle.ts");
   const catalog = read("lib/orion/intelligence/universal-command-catalog.ts");
 
   console.log("\nOrion Realtime BOS tool bridge contract");
@@ -32,7 +33,10 @@ function main() {
   assert(session.includes('name: CONFIRM_TOOL_NAME') && session.includes('tool_choice: "auto"'), "Realtime includes the controlled confirmation tool and automatic tool selection");
   assert(session.includes('transcription: {') && session.includes('model: "gpt-4o-mini-transcribe"'), "Realtime captures a user transcript for confirmation evidence");
   assert(bridge.includes('event.type !== "response.function_call_arguments.done"'), "tool execution waits for finalized Realtime function-call arguments");
-  assert(bridge.includes('type: "function_call_output"') && bridge.includes('type: "response.create"'), "tool results are returned to Realtime and conversation resumes");
+  assert(bridge.includes('type: "function_call_output"') && lifecycle.includes('type: "response.create"'), "tool results are returned to Realtime and conversation resumes");
+  assert(client.includes('event.type === "response.created"') && client.includes('event.type === "response.done"'), "client tracks the complete Realtime response lifecycle");
+  assert(lifecycle.includes("continuationPending") && lifecycle.includes("responseActive"), "tool continuation waits until the default conversation response is available");
+  assert(client.includes("this.activeToolCalls.size === 0"), "parallel tool outputs trigger one shared spoken continuation");
   assert(client.includes("executeOrionRealtimeTool(call") && client.includes("activeToolCalls"), "browser bridge executes each finalized tool call once through the BOS endpoint");
   assert(toolRoute.includes("getUniversalBosCommandByToolName"), "Realtime tool names resolve back to canonical BOS commands");
   assert(toolRoute.includes("command.validate(args.params)"), "Realtime BOS calls use canonical validation");
