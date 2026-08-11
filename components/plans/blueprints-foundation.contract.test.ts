@@ -15,6 +15,7 @@ const uploadPanel = fs.readFileSync(path.join(root, "components/plans/blueprint-
 const revisionPanel = fs.readFileSync(path.join(root, "components/plans/blueprint-revision-panel.tsx"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260812090000_blueprints_plan_room_foundation.sql"), "utf8");
 const membershipAlignment = fs.readFileSync(path.join(root, "supabase/migrations/20260812103000_blueprints_membership_rls_alignment.sql"), "utf8");
+const transactionalUploads = fs.readFileSync(path.join(root, "supabase/migrations/20260812113000_blueprints_transactional_upload_rpcs.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -41,5 +42,11 @@ assert(migration.includes("public = excluded.public") && migration.includes("fal
 assert(membershipAlignment.includes("public.is_company_member(tenant_id)"), "Blueprint RLS must use active multi-company membership");
 assert(membershipAlignment.includes("drop policy if exists blueprints_storage_insert"), "The legacy storage insert policy must be replaced");
 assert(membershipAlignment.includes("project.id::text = (storage.foldername(name))[2]"), "Storage writes must remain project-scoped");
+assert(transactionalUploads.includes("create_blueprint_sheet_upload"), "Blueprint metadata creation must use a verified database transaction");
+assert(transactionalUploads.includes("register_initial_blueprint_version"), "Initial Blueprint versions must use a verified database function");
+assert(transactionalUploads.includes("public.is_company_member(project_record.company_id)"), "Blueprint transactions must verify active company membership server-side");
+assert(transactionalUploads.includes("split_part(object_path, '/', 3) <> sheet_record.id::text"), "Blueprint version registration must validate the complete storage path");
+assert(planRoom.includes("Could not create Blueprint metadata"), "Upload failures must identify the failing Blueprint stage");
+assert(planRoom.includes("Could not store the Blueprint file"), "Storage RLS failures must be distinguishable from metadata failures");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
