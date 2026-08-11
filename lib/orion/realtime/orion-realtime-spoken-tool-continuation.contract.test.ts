@@ -31,7 +31,7 @@ function main() {
   assert(client.includes("buildOrionRealtimeContinueResponseEvent(failure)"), "recoverable tool failures stay conversational instead of killing the Realtime session");
   assert(!client.includes("this.callbacks.onError?.(resolved);\n      this.sendEvent(buildOrionRealtimeFunctionOutputEvent(call.callId"), "tool execution failure does not escalate into a fatal Realtime connection error");
   assert(session.includes("Do NOT re-observe before every simple set action"), "operator avoids redundant observation round trips on stable forms");
-  assert(session.includes("reuse the exact semantic refs") && session.includes("until the form structure changes"), "operator reuses stable screen refs to reduce latency");
+  assert(session.includes("Reuse the exact semantic refs") && session.includes("until the form structure changes"), "operator reuses stable screen refs to reduce latency");
   assert(session.includes("Do not silently update BOS and wait for the user to notice"), "session policy requires spoken acknowledgement after visible actions");
 
   console.log(`\nOrion spoken continuation results: ${passed} passed, ${failed} failed`);
