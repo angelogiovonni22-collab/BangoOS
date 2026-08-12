@@ -2,23 +2,29 @@
 
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent } from "react";
 import { Expand, Hand, Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
+import { BlueprintMarkupSurface } from "./blueprint-markup-surface";
 
 type Blueprint2dViewerProps = {
   fileUrl: string;
   fileName: string;
   previewType: "image" | "pdf";
+  companyId: string;
+  projectId: string;
+  versionId: string;
+  userId: string;
 };
 
 const MIN_ZOOM = 50;
 const MAX_ZOOM = 300;
 const ZOOM_STEP = 25;
 
-export function Blueprint2dViewer({ fileUrl, fileName, previewType }: Blueprint2dViewerProps) {
+export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, projectId, versionId, userId }: Blueprint2dViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | null>(null);
   const [zoom, setZoom] = useState(100);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
+  const [markingUp, setMarkingUp] = useState(false);
 
   const updateZoom = (nextZoom: number) => {
     const boundedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom));
@@ -32,7 +38,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType }: Blueprint2
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (previewType !== "image" || zoom <= 100 || event.button !== 0) return;
+    if (previewType !== "image" || markingUp || zoom <= 100 || event.button !== 0) return;
     dragRef.current = {
       pointerId: event.pointerId,
       x: event.clientX,
@@ -142,17 +148,18 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType }: Blueprint2
             className="h-full w-full bg-white"
           />
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={fileUrl}
-            alt={fileName}
-            draggable={false}
-            className="max-h-full max-w-full select-none object-contain will-change-transform"
-            style={{
-              transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${zoom / 100})`,
-              transition: dragging ? "none" : "transform 140ms ease-out",
-            }}
-          />
+          <BlueprintMarkupSurface
+            companyId={companyId}
+            projectId={projectId}
+            versionId={versionId}
+            userId={userId}
+            transform={`translate3d(${position.x}px, ${position.y}px, 0) scale(${zoom / 100})`}
+            transition={dragging ? "none" : "transform 140ms ease-out"}
+            onToolChange={setMarkingUp}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={fileUrl} alt={fileName} draggable={false} className="block max-h-full max-w-full select-none object-contain" />
+          </BlueprintMarkupSurface>
         )}
       </div>
 
