@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent } from "react";
 import { Expand, Hand, Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
 import { BlueprintMarkupSurface } from "./blueprint-markup-surface";
 
@@ -26,6 +26,17 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [markingUp, setMarkingUp] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fillsAvailableHeight = expanded || isFullscreen;
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === viewerRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
   const updateZoom = (nextZoom: number) => {
     const boundedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom));
@@ -89,7 +100,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   return (
     <div
       ref={viewerRef}
-      className={`overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-950 shadow-inner ${expanded ? "flex h-full min-h-0 flex-col" : ""}`}
+      className={`overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-950 shadow-inner ${fillsAvailableHeight ? "flex h-full min-h-0 flex-col" : ""} ${isFullscreen ? "rounded-none border-0" : ""}`}
       data-orion-region="blueprint-2d-viewer"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-slate-900 px-2.5 py-2 text-white">
@@ -132,7 +143,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
       </div>
 
       <div
-        className={`relative flex items-center justify-center overflow-hidden bg-slate-800 ${expanded ? "min-h-0 flex-1" : "h-80 sm:h-96"} ${
+        className={`relative flex items-center justify-center overflow-hidden bg-slate-800 ${fillsAvailableHeight ? "min-h-0 flex-1" : "h-80 sm:h-96"} ${
           previewType === "image" && zoom > 100 ? (dragging ? "cursor-grabbing touch-none" : "cursor-grab touch-none") : ""
         }`}
         onPointerDown={handlePointerDown}
