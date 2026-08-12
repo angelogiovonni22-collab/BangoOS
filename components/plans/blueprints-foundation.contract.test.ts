@@ -69,6 +69,8 @@ assert(blueprintViewer.includes('data-orion-region="blueprint-2d-viewer"'), "The
 assert(blueprintViewer.includes("requestFullscreen"), "The 2D viewer must support fullscreen inspection");
 assert(blueprintViewer.includes("setPointerCapture"), "The 2D image viewer must support pointer-based panning");
 assert(blueprintViewer.includes("MIN_ZOOM") && blueprintViewer.includes("MAX_ZOOM"), "The 2D viewer must constrain zoom safely");
+assert(blueprintViewer.includes('document.addEventListener("fullscreenchange"'), "The 2D viewer must react to browser fullscreen layout changes");
+assert(blueprintViewer.includes("fillsAvailableHeight"), "Fullscreen and expanded viewers must fill the available canvas height");
 assert(annotationsMigration.includes("create table public.blueprint_annotations"), "Blueprint markups must be persisted");
 assert(annotationsMigration.includes("blueprint_version_id"), "Blueprint markups must be revision-scoped");
 assert(annotationsMigration.includes("public.is_company_member(company_id)"), "Blueprint markup RLS must enforce active company membership");
