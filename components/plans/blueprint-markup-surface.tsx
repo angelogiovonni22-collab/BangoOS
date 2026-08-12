@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowUpRight, Hand, MapPin, Pencil, Ruler, ScanLine, SquareDashed, Trash2, Type } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Eye, EyeOff, Hand, Layers3, ListFilter, MapPin, Pencil, Ruler, ScanLine, SquareDashed, Trash2, Type, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   createBlueprintMarkup,
   deleteBlueprintMarkup,
   loadBlueprintMarkups,
+  updateBlueprintMarkupStatus,
   type BlueprintMarkup,
   type BlueprintMarkupType,
 } from "@/lib/blueprints/markups";
@@ -55,6 +56,9 @@ export function BlueprintMarkupSurface({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BlueprintMarkup | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const [visibleLayers, setVisibleLayers] = useState<Set<"redlines" | "issues" | "measurements">>(new Set(["redlines", "issues", "measurements"]));
+  const [registerFilter, setRegisterFilter] = useState<"all" | "mine" | "open">("all");
 
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
 
@@ -202,7 +206,22 @@ export function BlueprintMarkupSurface({
     }
   };
 
+  const updateStatus = async (markup: BlueprintMarkup, status: "open" | "resolved") => {
+    if (!supabase) return;
+    setSaving(true);
+    try {
+      await updateBlueprintMarkupStatus(supabase, { ...identity, markupId: markup.id, status });
+      await reload();
+    } catch (statusError) {
+      setError(statusError instanceof Error ? statusError.message : "Could not update this issue.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const visibleMarkups = markups.filter((markup) => Number(markup.geometry.page ?? 1) === pageNumber);
+  const layeredMarkups = visibleMarkups.filter((markup) => visibleLayers.has(layerForMarkup(markup.type)));
+  const registerMarkups = visibleMarkups.filter((markup) => registerFilter === "all" || (registerFilter === "mine" ? markup.createdBy === userId : markup.status === "open"));
   const calibration = currentCalibration(markups, pageNumber);
   const lastOwnedMarkup = [...visibleMarkups].reverse().find((markup) => markup.createdBy === userId);
 
@@ -222,6 +241,7 @@ export function BlueprintMarkupSurface({
         <MarkupButton label="Calibrate" active={tool === "calibration"} onClick={() => chooseTool("calibration")}><ScanLine size={14} /></MarkupButton>
         <MarkupButton label="Distance" active={tool === "distance"} onClick={() => chooseTool("distance")}><Ruler size={14} /></MarkupButton>
         <MarkupButton label="Area" active={tool === "area"} onClick={() => chooseTool("area")}><SquareDashed size={14} /></MarkupButton>
+        <button type="button" aria-expanded={registerOpen} onClick={() => setRegisterOpen((value) => !value)} className="inline-flex h-7 items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-slate-200 hover:bg-white/20"><ListFilter size={14} /><span className="hidden sm:inline">Register</span></button>
         <div className="mx-1 h-5 w-px bg-white/15" />
         {colors.map((option) => (
           <button key={option} type="button" aria-label={`Use ${option} markup color`} onClick={() => setColor(option)} className={`h-5 w-5 rounded-full border-2 ${color === option ? "border-white" : "border-transparent"}`} style={{ backgroundColor: option }} />
@@ -258,6 +278,11 @@ export function BlueprintMarkupSurface({
 
       {error ? <div className="border-b border-red-400/30 bg-red-950 px-3 py-2 text-xs text-red-100" role="alert">{error}</div> : null}
 
+      <div className="flex items-center gap-2 border-b border-white/10 bg-slate-900 px-3 py-1.5 text-[10px] text-slate-300" data-orion-region="blueprint-layer-controls">
+        <Layers3 size={13} aria-hidden="true" /><span className="font-semibold">Layers</span>
+        {(["redlines", "issues", "measurements"] as const).map((layer) => <LayerToggle key={layer} layer={layer} visible={visibleLayers.has(layer)} onToggle={() => setVisibleLayers((current) => { const next = new Set(current); if (next.has(layer)) next.delete(layer); else next.add(layer); return next; })} />)}
+      </div>
+
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
         <div className="relative inline-flex max-h-full max-w-full" style={{ transform, transition }}>
           {children}
@@ -277,14 +302,25 @@ export function BlueprintMarkupSurface({
               <path d="M0,0 L8,4 L0,8 Z" fill="context-stroke" />
             </marker>
           </defs>
-          {visibleMarkups.map((markup) => <MarkupShape key={markup.id} markup={markup} />)}
+          {layeredMarkups.map((markup) => <MarkupShape key={markup.id} markup={markup} />)}
           {draft.length > 1 ? <DraftShape tool={tool} points={draft} color={color} /> : null}
           </svg>
         </div>
+        {registerOpen ? (
+          <aside className="absolute inset-y-0 right-0 z-20 flex w-[min(22rem,90%)] flex-col border-l border-slate-700 bg-slate-950/95 text-white shadow-2xl" data-orion-region="blueprint-annotation-register">
+            <div className="flex items-center justify-between border-b border-white/10 px-3 py-2"><div><p className="text-sm font-bold">Annotation register</p><p className="text-[10px] text-slate-400">Page {pageNumber} · {visibleMarkups.length} items</p></div><button type="button" aria-label="Close annotation register" onClick={() => setRegisterOpen(false)} className="rounded p-1 hover:bg-white/10"><X size={16} /></button></div>
+            <div className="flex gap-1 border-b border-white/10 p-2">{(["all", "mine", "open"] as const).map((filter) => <button key={filter} type="button" aria-pressed={registerFilter === filter} onClick={() => setRegisterFilter(filter)} className={`rounded-md px-2 py-1 text-[11px] font-semibold capitalize ${registerFilter === filter ? "bg-blue-600" : "bg-white/10 hover:bg-white/15"}`}>{filter}</button>)}</div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} mine={markup.createdBy === userId} saving={saving} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
+          </aside>
+        ) : null}
       </div>
     </div>
   );
 }
+
+function layerForMarkup(type: BlueprintMarkupType): "redlines" | "issues" | "measurements" { return type === "pin" ? "issues" : ["calibration", "distance", "area"].includes(type) ? "measurements" : "redlines"; }
+function LayerToggle({ layer, visible, onToggle }: { layer: string; visible: boolean; onToggle: () => void }) { return <button type="button" aria-pressed={visible} onClick={onToggle} className={`inline-flex items-center gap-1 rounded px-2 py-1 capitalize ${visible ? "bg-white/15 text-white" : "bg-transparent text-slate-500"}`}>{visible ? <Eye size={11} /> : <EyeOff size={11} />}{layer}</button>; }
+function RegisterItem({ markup, mine, saving, onStatus }: { markup: BlueprintMarkup; mine: boolean; saving: boolean; onStatus: (status: "open" | "resolved") => void }) { const label = markup.content || markup.type; return <article className="rounded-lg border border-white/10 bg-white/5 p-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-semibold capitalize">{label}</p><p className="mt-1 text-[10px] text-slate-400">{markup.type} · {mine ? "You" : "Team"}</p></div><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${markup.status === "resolved" ? "bg-green-500/20 text-green-300" : "bg-amber-500/20 text-amber-300"}`}>{markup.status}</span></div>{markup.type === "pin" ? <button type="button" disabled={saving} onClick={() => onStatus(markup.status === "open" ? "resolved" : "open")} className="mt-2 inline-flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-[10px] font-semibold hover:bg-white/10 disabled:opacity-50"><CheckCircle2 size={11} />{markup.status === "open" ? "Resolve issue" : "Reopen issue"}</button> : null}</article>; }
 
 function MarkupShape({ markup }: { markup: BlueprintMarkup }) {
   const geometry = markup.geometry as Record<string, unknown>;
