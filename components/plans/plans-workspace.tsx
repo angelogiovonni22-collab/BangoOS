@@ -216,6 +216,14 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId }: Pl
     const latest = [...documents].sort((left, right) => right.uploadedAt.localeCompare(left.uploadedAt))[0];
     return latest ? latest.uploadedAt : "N/A";
   }, [documents]);
+  const latestRevisionLabel = useMemo(() => {
+    const latest = [...documents].sort((left, right) => right.uploadedAt.localeCompare(left.uploadedAt))[0];
+    return latest ? latest.revision : "N/A";
+  }, [documents]);
+  const duplicateSheetCount = useMemo(() => {
+    const identities = documents.map((document) => `${document.discipline}:${document.fileName.toLowerCase()}`);
+    return identities.length - new Set(identities).size;
+  }, [documents]);
 
   const pendingReviews = documents.filter((document) => document.status === "In Review").length;
   const openRfis = documents.reduce((sum, document) => sum + document.linkedRfis, 0);
@@ -282,11 +290,17 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId }: Pl
         <div className="rounded-[var(--radius-xl)] border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800" role="alert">{loadError}</div>
       ) : null}
 
+      {duplicateSheetCount > 0 ? (
+        <div className="rounded-[var(--radius-xl)] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900" role="status">
+          {duplicateSheetCount} duplicate sheet record{duplicateSheetCount === 1 ? " was" : "s were"} detected from earlier upload attempts. BOS will preserve both until one is reviewed; new duplicate uploads are now blocked.
+        </div>
+      ) : null}
+
       {loading ? <p className="text-sm text-[var(--color-text-secondary)]" role="status">Loading blueprint plan room…</p> : null}
 
       <PlansStats
         totalDocuments={documents.length}
-        latestRevision={latestRevisionDate}
+        latestRevision={latestRevisionLabel}
         pendingReviews={pendingReviews}
         openRfis={openRfis}
         openSubmittals={openSubmittals}

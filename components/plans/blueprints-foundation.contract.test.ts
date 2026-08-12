@@ -13,10 +13,13 @@ const blueprintsPage = fs.readFileSync(path.join(root, "app/(app)/blueprints/pag
 const planRoom = fs.readFileSync(path.join(root, "lib/blueprints/plan-room.ts"), "utf8");
 const uploadPanel = fs.readFileSync(path.join(root, "components/plans/blueprint-upload-panel.tsx"), "utf8");
 const revisionPanel = fs.readFileSync(path.join(root, "components/plans/blueprint-revision-panel.tsx"), "utf8");
+const plansWorkspace = fs.readFileSync(path.join(root, "components/plans/plans-workspace.tsx"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260812090000_blueprints_plan_room_foundation.sql"), "utf8");
 const membershipAlignment = fs.readFileSync(path.join(root, "supabase/migrations/20260812103000_blueprints_membership_rls_alignment.sql"), "utf8");
 const transactionalUploads = fs.readFileSync(path.join(root, "supabase/migrations/20260812113000_blueprints_transactional_upload_rpcs.sql"), "utf8");
 const storageAuthorization = fs.readFileSync(path.join(root, "supabase/migrations/20260812120000_blueprints_storage_path_authorization.sql"), "utf8");
+const duplicateGuard = fs.readFileSync(path.join(root, "supabase/migrations/20260812130000_blueprints_duplicate_sheet_guard.sql"), "utf8");
+const blueprintFormat = fs.readFileSync(path.join(root, "lib/blueprints/format.ts"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -53,5 +56,9 @@ assert(storageAuthorization.includes("blueprint_storage_path_authorized"), "Blue
 assert(storageAuthorization.includes("sheet.id::text = split_part(object_name, '/', 3)"), "Blueprint storage authorization must verify the sheet path segment");
 assert(storageAuthorization.includes("public.is_company_member(sheet.company_id)"), "Blueprint storage authorization must verify active membership");
 assert(storageAuthorization.includes("grant execute on function public.blueprint_storage_path_authorized(text) to authenticated"), "Only authenticated users may execute the Blueprint storage predicate");
+assert(duplicateGuard.includes("pg_advisory_xact_lock"), "Concurrent Blueprint sheet creation must be serialized");
+assert(duplicateGuard.includes("use Upload revision instead"), "Duplicate sheets must direct users into revision control");
+assert(blueprintFormat.includes('Intl.DateTimeFormat("en-US"'), "Blueprint timestamps must be formatted for people");
+assert(plansWorkspace.includes("duplicate sheet record"), "Existing duplicate Blueprint sheets must be disclosed without automatic deletion");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");

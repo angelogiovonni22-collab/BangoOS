@@ -1,5 +1,6 @@
 import { Box, Layers3, ScanLine, Upload } from "lucide-react";
 import { Button, PageHeader } from "@/components/ui";
+import { formatBlueprintDate } from "@/lib/blueprints/format";
 
 type PlansHeaderProps = {
   projectName: string;
@@ -42,7 +43,7 @@ export function PlansHeader({ projectName, documentCount, lastRevisionDate, onUp
       <div className="grid gap-3 sm:grid-cols-3">
         <HeaderStat label="Current Project" value={projectName} />
         <HeaderStat label="Blueprint Sheets" value={String(documentCount)} />
-        <HeaderStat label="Last Revision Date" value={lastRevisionDate} />
+        <HeaderStat label="Last Revision Date" value={formatBlueprintDate(lastRevisionDate)} />
       </div>
     </section>
   );

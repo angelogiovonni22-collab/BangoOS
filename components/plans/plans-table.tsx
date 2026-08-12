@@ -11,6 +11,7 @@ import {
 import { DocumentActions } from "./document-actions";
 import { DocumentStatusBadge } from "./document-status";
 import type { PlanDocument, PlansSortDirection, PlansSortKey } from "./types";
+import { formatBlueprintDate } from "@/lib/blueprints/format";
 
 type PlansTableProps = {
   documents: PlanDocument[];
@@ -109,7 +110,7 @@ export function PlansTable({
                   <EnterpriseTableCell className="px-4 py-4 align-middle text-[var(--color-text-secondary)]">{document.revision}</EnterpriseTableCell>
                   <EnterpriseTableCell className="px-4 py-4 align-middle"><DocumentStatusBadge status={document.status} className="px-2.5 py-0.5 text-[10px]" /></EnterpriseTableCell>
                   <EnterpriseTableCell className="px-4 py-4 align-middle text-[var(--color-text-secondary)]">{document.uploadedBy}</EnterpriseTableCell>
-                  <EnterpriseTableCell className="px-4 py-4 align-middle text-[var(--color-text-secondary)]">{document.uploadedAt}</EnterpriseTableCell>
+                  <EnterpriseTableCell className="px-4 py-4 align-middle text-[var(--color-text-secondary)]">{formatBlueprintDate(document.uploadedAt)}</EnterpriseTableCell>
                   <EnterpriseTableCell className="px-4 py-4 align-middle text-[var(--color-text-secondary)]">{formatFileSize(document.sizeInBytes)}</EnterpriseTableCell>
                   <EnterpriseTableCell className="px-4 py-4 align-middle text-[var(--color-text-secondary)]">{document.linkedRfis}</EnterpriseTableCell>
                   <EnterpriseTableCell align="right" className="px-3 py-3 align-middle">
