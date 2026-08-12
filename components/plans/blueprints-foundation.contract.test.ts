@@ -91,5 +91,7 @@ assert(markupSurface.includes("geometry: { ...geometry, page: pageNumber }"), "P
 assert(measurementsMigration.includes("'calibration','distance','area'"), "Blueprint annotations must support calibrated measurements");
 assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('label="Distance"') && markupSurface.includes('label="Area"'), "The markup toolbar must expose measurement tools");
 assert(markupSurface.includes("unitsPerDrawingUnit"), "Measurements must use a persisted drawing calibration");
+assert(blueprintViewer.includes('closest("[data-blueprint-controls]")'), "Viewer panning must ignore nested Blueprint controls");
+assert(markupSurface.includes("data-blueprint-controls") && markupSurface.includes("event.stopPropagation()"), "Markup controls must isolate pointer events from canvas panning");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");

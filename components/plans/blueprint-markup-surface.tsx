@@ -206,7 +206,12 @@ export function BlueprintMarkupSurface({
 
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-white/10 bg-slate-950 px-2.5 py-2 text-white" data-orion-region="blueprint-markup-toolbar">
+      <div
+        className="flex flex-wrap items-center gap-1.5 border-b border-white/10 bg-slate-950 px-2.5 py-2 text-white"
+        data-orion-region="blueprint-markup-toolbar"
+        data-blueprint-controls
+        onPointerDown={(event) => event.stopPropagation()}
+      >
         <MarkupButton label="Pan" active={tool === "pan"} onClick={() => chooseTool("pan")}><Hand size={14} /></MarkupButton>
         <MarkupButton label="Draw" active={tool === "freehand"} onClick={() => chooseTool("freehand")}><Pencil size={14} /></MarkupButton>
         <MarkupButton label="Arrow" active={tool === "arrow"} onClick={() => chooseTool("arrow")}><ArrowUpRight size={14} /></MarkupButton>
