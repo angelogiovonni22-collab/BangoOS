@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent } from "react";
 import { Expand, Hand, Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
 import { BlueprintMarkupSurface } from "./blueprint-markup-surface";
+import { BlueprintPdfViewer } from "./blueprint-pdf-viewer";
 
 type Blueprint2dViewerProps = {
   fileUrl: string;
@@ -50,7 +51,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (previewType !== "image" || markingUp || zoom <= 100 || event.button !== 0) return;
+    if (markingUp || zoom <= 100 || event.button !== 0) return;
     dragRef.current = {
       pointerId: event.pointerId,
       x: event.clientX,
@@ -81,7 +82,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   };
 
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
-    if (previewType !== "image" || !event.ctrlKey) return;
+    if (!event.ctrlKey) return;
     event.preventDefault();
     updateZoom(zoom + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
   };
@@ -94,8 +95,6 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
       // The browser may deny fullscreen when the document is embedded or permission is unavailable.
     }
   };
-
-  const pdfUrl = `${fileUrl}#zoom=${zoom}`;
 
   return (
     <div
@@ -153,11 +152,17 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
         onWheel={handleWheel}
       >
         {previewType === "pdf" ? (
-          <iframe
-            key={pdfUrl}
-            src={pdfUrl}
-            title={`Interactive preview ${fileName}`}
-            className="h-full w-full bg-white"
+          <BlueprintPdfViewer
+            fileUrl={fileUrl}
+            fileName={fileName}
+            companyId={companyId}
+            projectId={projectId}
+            versionId={versionId}
+            userId={userId}
+            zoom={zoom}
+            position={position}
+            dragging={dragging}
+            onToolChange={setMarkingUp}
           />
         ) : (
           <BlueprintMarkupSurface

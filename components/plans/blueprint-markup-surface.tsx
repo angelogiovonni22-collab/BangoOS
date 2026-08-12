@@ -23,6 +23,8 @@ type BlueprintMarkupSurfaceProps = {
   transform: string;
   transition: string;
   onToolChange: (isMarkingUp: boolean) => void;
+  pageNumber?: number;
+  toolbarExtra?: ReactNode;
 };
 
 const colors = ["#ef4444", "#f59e0b", "#2563eb", "#16a34a"];
@@ -36,6 +38,8 @@ export function BlueprintMarkupSurface({
   transform,
   transition,
   onToolChange,
+  pageNumber = 1,
+  toolbarExtra,
 }: BlueprintMarkupSurfaceProps) {
   const supabase = useMemo(() => createClient(), []);
   const surfaceRef = useRef<SVGSVGElement>(null);
@@ -94,7 +98,7 @@ export function BlueprintMarkupSurface({
     setSaving(true);
     setError(null);
     try {
-      await createBlueprintMarkup(supabase, { ...identity, userId, type, color, geometry, content });
+      await createBlueprintMarkup(supabase, { ...identity, userId, type, color, geometry: { ...geometry, page: pageNumber }, content });
       await reload();
       if (type === "pin" || type === "text") setNote("");
     } catch (saveError) {
@@ -161,7 +165,8 @@ export function BlueprintMarkupSurface({
     }
   };
 
-  const lastOwnedMarkup = [...markups].reverse().find((markup) => markup.createdBy === userId);
+  const visibleMarkups = markups.filter((markup) => Number(markup.geometry.page ?? 1) === pageNumber);
+  const lastOwnedMarkup = [...visibleMarkups].reverse().find((markup) => markup.createdBy === userId);
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -188,7 +193,8 @@ export function BlueprintMarkupSurface({
           <Trash2 size={13} aria-hidden="true" />
           <span className="hidden sm:inline">Undo last</span>
         </button>
-        <span className="ml-auto text-[10px] text-slate-400">{saving ? "Saving…" : loading ? "Loading…" : `${markups.length} markup${markups.length === 1 ? "" : "s"}`}</span>
+        <span className="ml-auto text-[10px] text-slate-400">{saving ? "Saving…" : loading ? "Loading…" : `${visibleMarkups.length} markup${visibleMarkups.length === 1 ? "" : "s"}`}</span>
+        {toolbarExtra}
       </div>
 
       {error ? <div className="border-b border-red-400/30 bg-red-950 px-3 py-2 text-xs text-red-100" role="alert">{error}</div> : null}
@@ -212,7 +218,7 @@ export function BlueprintMarkupSurface({
               <path d="M0,0 L8,4 L0,8 Z" fill="context-stroke" />
             </marker>
           </defs>
-          {markups.map((markup) => <MarkupShape key={markup.id} markup={markup} />)}
+          {visibleMarkups.map((markup) => <MarkupShape key={markup.id} markup={markup} />)}
           {draft.length > 1 ? <DraftShape tool={tool} points={draft} color={color} /> : null}
           </svg>
         </div>
