@@ -343,7 +343,7 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId }: Pl
         />
 
         <div className="lg:col-span-2 xl:col-span-1 xl:min-w-0">
-          <PlansPreview selectedDocument={selectedDocument} projectName={projectName} onUploadRevision={setRevisionDocument} />
+          <PlansPreview selectedDocument={selectedDocument} projectName={projectName} onUploadRevision={setRevisionDocument} companyId={companyId} projectId={projectId} userId={userId} />
         </div>
       </div>
     </div>

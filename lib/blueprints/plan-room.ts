@@ -171,6 +171,7 @@ export async function loadProjectBlueprints(params: {
 
     return [{
       id: String(sheet.id),
+      versionId: String(current.id),
       fileName: `${String(sheet.sheet_number)} · ${String(sheet.title)}`,
       originalFileName: String(current.original_filename),
       discipline: mapDiscipline(String(sheet.discipline)),

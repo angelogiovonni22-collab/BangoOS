@@ -1,0 +1,250 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { ArrowUpRight, Hand, MapPin, Pencil, Trash2, Type } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import {
+  createBlueprintMarkup,
+  deleteBlueprintMarkup,
+  loadBlueprintMarkups,
+  type BlueprintMarkup,
+  type BlueprintMarkupType,
+} from "@/lib/blueprints/markups";
+
+type MarkupTool = "pan" | BlueprintMarkupType;
+type Point = { x: number; y: number };
+
+type BlueprintMarkupSurfaceProps = {
+  companyId: string;
+  projectId: string;
+  versionId: string;
+  userId: string;
+  children: ReactNode;
+  transform: string;
+  transition: string;
+  onToolChange: (isMarkingUp: boolean) => void;
+};
+
+const colors = ["#ef4444", "#f59e0b", "#2563eb", "#16a34a"];
+
+export function BlueprintMarkupSurface({
+  companyId,
+  projectId,
+  versionId,
+  userId,
+  children,
+  transform,
+  transition,
+  onToolChange,
+}: BlueprintMarkupSurfaceProps) {
+  const supabase = useMemo(() => createClient(), []);
+  const surfaceRef = useRef<SVGSVGElement>(null);
+  const draftRef = useRef<{ pointerId: number; start: Point; points: Point[] } | null>(null);
+  const [tool, setTool] = useState<MarkupTool>("pan");
+  const [color, setColor] = useState(colors[0]);
+  const [note, setNote] = useState("");
+  const [markups, setMarkups] = useState<BlueprintMarkup[]>([]);
+  const [draft, setDraft] = useState<Point[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
+
+  const requestMarkups = useCallback(async () => {
+    if (!supabase) throw new Error("Blueprint markup storage is unavailable.");
+    return loadBlueprintMarkups(supabase, identity);
+  }, [identity, supabase]);
+
+  const reload = useCallback(async () => {
+    setMarkups(await requestMarkups());
+  }, [requestMarkups]);
+
+  useEffect(() => {
+    let active = true;
+    void requestMarkups()
+      .then((next) => {
+        if (!active) return;
+        setMarkups(next);
+        setError(null);
+      })
+      .catch((loadError: unknown) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : "Could not load plan markups.");
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [requestMarkups]);
+
+  const chooseTool = (nextTool: MarkupTool) => {
+    setTool(nextTool);
+    onToolChange(nextTool !== "pan");
+    setError(null);
+  };
+
+  const pointFromEvent = (event: ReactPointerEvent<SVGSVGElement>): Point => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width)),
+      y: Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height)),
+    };
+  };
+
+  const persist = async (type: BlueprintMarkupType, geometry: Record<string, unknown>, content?: string) => {
+    if (!supabase || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await createBlueprintMarkup(supabase, { ...identity, userId, type, color, geometry, content });
+      await reload();
+      if (type === "pin" || type === "text") setNote("");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Could not save this markup.");
+    } finally {
+      setSaving(false);
+      setDraft([]);
+      draftRef.current = null;
+    }
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (tool === "pan" || saving || event.button !== 0) return;
+    const point = pointFromEvent(event);
+
+    if (tool === "pin" || tool === "text") {
+      if (!note.trim()) {
+        setError(`Enter ${tool === "pin" ? "an issue note" : "text"} before placing it.`);
+        return;
+      }
+      void persist(tool, point, note);
+      return;
+    }
+
+    draftRef.current = { pointerId: event.pointerId, start: point, points: [point] };
+    setDraft([point]);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const activeDraft = draftRef.current;
+    if (!activeDraft || activeDraft.pointerId !== event.pointerId) return;
+    const point = pointFromEvent(event);
+    const points = tool === "arrow" ? [activeDraft.start, point] : [...activeDraft.points, point];
+    activeDraft.points = points;
+    setDraft(points);
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const activeDraft = draftRef.current;
+    if (!activeDraft || activeDraft.pointerId !== event.pointerId || (tool !== "freehand" && tool !== "arrow")) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    const points = activeDraft.points;
+    if (points.length > 1) {
+      void persist(tool, tool === "arrow"
+        ? { x1: points[0].x, y1: points[0].y, x2: points.at(-1)!.x, y2: points.at(-1)!.y }
+        : { points: points.map((point) => [point.x, point.y]) });
+    } else {
+      setDraft([]);
+      draftRef.current = null;
+    }
+  };
+
+  const removeMarkup = async (markup: BlueprintMarkup) => {
+    if (!supabase || markup.createdBy !== userId || !window.confirm("Delete this markup from the plan revision?")) return;
+    setSaving(true);
+    try {
+      await deleteBlueprintMarkup(supabase, { ...identity, markupId: markup.id });
+      await reload();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Could not delete this markup.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const lastOwnedMarkup = [...markups].reverse().find((markup) => markup.createdBy === userId);
+
+  return (
+    <div className="flex h-full w-full flex-col">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-white/10 bg-slate-950 px-2.5 py-2 text-white" data-orion-region="blueprint-markup-toolbar">
+        <MarkupButton label="Pan" active={tool === "pan"} onClick={() => chooseTool("pan")}><Hand size={14} /></MarkupButton>
+        <MarkupButton label="Draw" active={tool === "freehand"} onClick={() => chooseTool("freehand")}><Pencil size={14} /></MarkupButton>
+        <MarkupButton label="Arrow" active={tool === "arrow"} onClick={() => chooseTool("arrow")}><ArrowUpRight size={14} /></MarkupButton>
+        <MarkupButton label="Text" active={tool === "text"} onClick={() => chooseTool("text")}><Type size={14} /></MarkupButton>
+        <MarkupButton label="Issue pin" active={tool === "pin"} onClick={() => chooseTool("pin")}><MapPin size={14} /></MarkupButton>
+        <div className="mx-1 h-5 w-px bg-white/15" />
+        {colors.map((option) => (
+          <button key={option} type="button" aria-label={`Use ${option} markup color`} onClick={() => setColor(option)} className={`h-5 w-5 rounded-full border-2 ${color === option ? "border-white" : "border-transparent"}`} style={{ backgroundColor: option }} />
+        ))}
+        {tool === "pin" || tool === "text" ? (
+          <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={1000} placeholder={tool === "pin" ? "Issue note…" : "Plan note…"} className="ml-1 min-w-36 flex-1 rounded-md border border-white/15 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-400 focus:border-blue-400 focus:outline-none" />
+        ) : null}
+        <button
+          type="button"
+          disabled={!lastOwnedMarkup || saving}
+          onClick={() => lastOwnedMarkup && void removeMarkup(lastOwnedMarkup)}
+          className="inline-flex h-7 items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-slate-200 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-35"
+          title="Delete your most recent markup"
+        >
+          <Trash2 size={13} aria-hidden="true" />
+          <span className="hidden sm:inline">Undo last</span>
+        </button>
+        <span className="ml-auto text-[10px] text-slate-400">{saving ? "Saving…" : loading ? "Loading…" : `${markups.length} markup${markups.length === 1 ? "" : "s"}`}</span>
+      </div>
+
+      {error ? <div className="border-b border-red-400/30 bg-red-950 px-3 py-2 text-xs text-red-100" role="alert">{error}</div> : null}
+
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+        <div className="relative inline-flex max-h-full max-w-full" style={{ transform, transition }}>
+          {children}
+          <svg
+          ref={surfaceRef}
+          viewBox="0 0 1000 1000"
+          preserveAspectRatio="none"
+          aria-label="Blueprint markup layer"
+          className={`absolute inset-0 h-full w-full ${tool === "pan" ? "pointer-events-none" : "cursor-crosshair touch-none"}`}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        >
+          <defs>
+            <marker id="blueprint-arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L8,4 L0,8 Z" fill="context-stroke" />
+            </marker>
+          </defs>
+          {markups.map((markup) => <MarkupShape key={markup.id} markup={markup} />)}
+          {draft.length > 1 ? <DraftShape tool={tool} points={draft} color={color} /> : null}
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MarkupShape({ markup }: { markup: BlueprintMarkup }) {
+  const geometry = markup.geometry as Record<string, unknown>;
+  if (markup.type === "freehand") {
+    const points = (geometry.points as number[][] | undefined) ?? [];
+    return <polyline points={points.map(([x, y]) => `${x * 1000},${y * 1000}`).join(" ")} fill="none" stroke={markup.color} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />;
+  }
+  if (markup.type === "arrow") {
+    return <line x1={Number(geometry.x1) * 1000} y1={Number(geometry.y1) * 1000} x2={Number(geometry.x2) * 1000} y2={Number(geometry.y2) * 1000} stroke={markup.color} strokeWidth="7" markerEnd="url(#blueprint-arrowhead)" vectorEffect="non-scaling-stroke" />;
+  }
+  const x = Number(geometry.x) * 1000;
+  const y = Number(geometry.y) * 1000;
+  return (
+    <g role="img" aria-label={markup.content || markup.type}>
+      {markup.type === "pin" ? <><circle cx={x} cy={y} r="24" fill={markup.color} /><text x={x} y={y + 8} textAnchor="middle" fontSize="24" fontWeight="700" fill="white">!</text></> : <text x={x} y={y} fontSize="34" fontWeight="700" fill={markup.color} stroke="white" strokeWidth="4" paintOrder="stroke">{markup.content}</text>}
+      {markup.type === "pin" && markup.content ? <text x={x + 34} y={y + 9} fontSize="28" fontWeight="700" fill={markup.color} stroke="white" strokeWidth="4" paintOrder="stroke">{markup.content}</text> : null}
+    </g>
+  );
+}
+
+function DraftShape({ tool, points, color }: { tool: MarkupTool; points: Point[]; color: string }) {
+  if (tool === "arrow") return <line x1={points[0].x * 1000} y1={points[0].y * 1000} x2={points.at(-1)!.x * 1000} y2={points.at(-1)!.y * 1000} stroke={color} strokeWidth="7" markerEnd="url(#blueprint-arrowhead)" vectorEffect="non-scaling-stroke" />;
+  return <polyline points={points.map((point) => `${point.x * 1000},${point.y * 1000}`).join(" ")} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />;
+}
+
+function MarkupButton({ label, active, onClick, children }: { label: string; active: boolean; onClick: () => void; children: ReactNode }) {
+  return <button type="button" aria-label={label} title={label} aria-pressed={active} onClick={onClick} className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold ${active ? "border-blue-300 bg-blue-600 text-white" : "border-white/15 bg-white/10 text-slate-200 hover:bg-white/20"}`}>{children}<span className="hidden sm:inline">{label}</span></button>;
+}

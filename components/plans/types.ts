@@ -28,6 +28,7 @@ export type RevisionItem = {
 
 export type PlanDocument = {
   id: string;
+  versionId: string;
   fileName: string;
   originalFileName?: string;
   discipline: DocumentDiscipline;

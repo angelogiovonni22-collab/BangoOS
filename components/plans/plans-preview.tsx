@@ -9,9 +9,12 @@ type PlansPreviewProps = {
   selectedDocument: PlanDocument | null;
   projectName: string;
   onUploadRevision: (document: PlanDocument) => void;
+  companyId: string;
+  projectId: string;
+  userId: string;
 };
 
-export function PlansPreview({ selectedDocument, projectName, onUploadRevision }: PlansPreviewProps) {
+export function PlansPreview({ selectedDocument, projectName, onUploadRevision, companyId, projectId, userId }: PlansPreviewProps) {
   if (!selectedDocument) {
     return (
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-small)]">
@@ -44,6 +47,10 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision }
             fileUrl={selectedDocument.fileUrl}
             fileName={selectedDocument.fileName}
             previewType={previewType}
+            companyId={companyId}
+            projectId={projectId}
+            versionId={selectedDocument.versionId}
+            userId={userId}
           />
         ) : (
         <div className="flex h-72 items-center justify-center overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)]/75">

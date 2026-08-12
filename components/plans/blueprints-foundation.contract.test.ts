@@ -21,6 +21,9 @@ const transactionalUploads = fs.readFileSync(path.join(root, "supabase/migration
 const storageAuthorization = fs.readFileSync(path.join(root, "supabase/migrations/20260812120000_blueprints_storage_path_authorization.sql"), "utf8");
 const duplicateGuard = fs.readFileSync(path.join(root, "supabase/migrations/20260812130000_blueprints_duplicate_sheet_guard.sql"), "utf8");
 const blueprintFormat = fs.readFileSync(path.join(root, "lib/blueprints/format.ts"), "utf8");
+const markupService = fs.readFileSync(path.join(root, "lib/blueprints/markups.ts"), "utf8");
+const markupSurface = fs.readFileSync(path.join(root, "components/plans/blueprint-markup-surface.tsx"), "utf8");
+const annotationsMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812143000_blueprint_revision_annotations.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -65,5 +68,12 @@ assert(blueprintViewer.includes('data-orion-region="blueprint-2d-viewer"'), "The
 assert(blueprintViewer.includes("requestFullscreen"), "The 2D viewer must support fullscreen inspection");
 assert(blueprintViewer.includes("setPointerCapture"), "The 2D image viewer must support pointer-based panning");
 assert(blueprintViewer.includes("MIN_ZOOM") && blueprintViewer.includes("MAX_ZOOM"), "The 2D viewer must constrain zoom safely");
+assert(annotationsMigration.includes("create table public.blueprint_annotations"), "Blueprint markups must be persisted");
+assert(annotationsMigration.includes("blueprint_version_id"), "Blueprint markups must be revision-scoped");
+assert(annotationsMigration.includes("public.is_company_member(company_id)"), "Blueprint markup RLS must enforce active company membership");
+assert(annotationsMigration.includes("created_by = auth.uid()"), "Blueprint markup deletion must be creator-scoped");
+assert(markupService.includes('from("blueprint_annotations")'), "Blueprint markup access must use the annotation store");
+assert(markupSurface.includes('data-orion-region="blueprint-markup-toolbar"'), "Markup tools must expose semantic Orion context");
+assert(markupSurface.includes('"freehand"') && markupSurface.includes('"arrow"') && markupSurface.includes('"text"') && markupSurface.includes('"pin"'), "Markup must support redlines, arrows, text, and issue pins");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
