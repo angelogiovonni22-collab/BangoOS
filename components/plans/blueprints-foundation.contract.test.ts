@@ -26,6 +26,7 @@ const markupSurface = fs.readFileSync(path.join(root, "components/plans/blueprin
 const planWorkspace = fs.readFileSync(path.join(root, "components/plans/blueprint-plan-workspace.tsx"), "utf8");
 const pdfViewer = fs.readFileSync(path.join(root, "components/plans/blueprint-pdf-viewer.tsx"), "utf8");
 const annotationsMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812143000_blueprint_revision_annotations.sql"), "utf8");
+const measurementsMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812170000_blueprint_measurement_annotations.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -87,5 +88,8 @@ assert(pdfViewer.includes('import("pdfjs-dist")'), "PDF.js must be lazy-loaded o
 assert(pdfViewer.includes("pageNumber={pageNumber}"), "PDF markups must be scoped to the visible page");
 assert(pdfViewer.includes("Page {pageNumber}/"), "PDF plans must provide page navigation context");
 assert(markupSurface.includes("geometry: { ...geometry, page: pageNumber }"), "Persistent markup geometry must record its PDF page");
+assert(measurementsMigration.includes("'calibration','distance','area'"), "Blueprint annotations must support calibrated measurements");
+assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('label="Distance"') && markupSurface.includes('label="Area"'), "The markup toolbar must expose measurement tools");
+assert(markupSurface.includes("unitsPerDrawingUnit"), "Measurements must use a persisted drawing calibration");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");

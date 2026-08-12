@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type BlueprintMarkupType = "freehand" | "arrow" | "text" | "pin";
+export type BlueprintMarkupType = "freehand" | "arrow" | "text" | "pin" | "calibration" | "distance" | "area";
 
 export type BlueprintMarkup = {
   id: string;
