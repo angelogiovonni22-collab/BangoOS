@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui";
 import type { RevisionItem, RevisionStatus } from "./types";
+import { formatBlueprintDate } from "@/lib/blueprints/format";
 
 type RevisionHistoryProps = {
   revisions: RevisionItem[];
@@ -26,7 +27,7 @@ export function RevisionHistory({ revisions }: RevisionHistoryProps) {
             </p>
             <Badge tone={toneByStatus[revision.approvalStatus]}>{revision.approvalStatus}</Badge>
           </div>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{revision.issuedAt}</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{formatBlueprintDate(revision.issuedAt)}</p>
           <p className="mt-2 text-xs text-[var(--color-text-secondary)]">{revision.notes}</p>
           <p className="mt-2 text-xs text-[var(--color-text-muted)]">Approved by {revision.approvedBy}</p>
         </article>

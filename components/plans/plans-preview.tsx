@@ -2,6 +2,7 @@ import { ExternalLink, FileBadge2 } from "lucide-react";
 import { Button, EmptyState } from "@/components/ui";
 import { RevisionHistory } from "./revision-history";
 import type { PlanDocument } from "./types";
+import { formatBlueprintDate } from "@/lib/blueprints/format";
 
 type PlansPreviewProps = {
   selectedDocument: PlanDocument | null;
@@ -70,7 +71,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision }
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <MetadataRow label="Upload date" value={selectedDocument.uploadedAt} />
+          <MetadataRow label="Upload date" value={formatBlueprintDate(selectedDocument.uploadedAt)} />
           <MetadataRow label="Uploaded by" value={selectedDocument.uploadedBy} />
           <MetadataRow label="Linked project" value={projectName} />
           <MetadataRow label="Linked RFIs" value={String(selectedDocument.linkedRfis)} />
