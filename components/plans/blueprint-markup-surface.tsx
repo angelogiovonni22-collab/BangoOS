@@ -54,6 +54,7 @@ export function BlueprintMarkupSurface({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<BlueprintMarkup | null>(null);
 
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
 
@@ -188,11 +189,12 @@ export function BlueprintMarkupSurface({
   };
 
   const removeMarkup = async (markup: BlueprintMarkup) => {
-    if (!supabase || markup.createdBy !== userId || !window.confirm("Delete this markup from the plan revision?")) return;
+    if (!supabase || markup.createdBy !== userId) return;
     setSaving(true);
     try {
       await deleteBlueprintMarkup(supabase, { ...identity, markupId: markup.id });
       await reload();
+      setPendingDelete(null);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "Could not delete this markup.");
     } finally {
@@ -236,13 +238,20 @@ export function BlueprintMarkupSurface({
         <button
           type="button"
           disabled={!lastOwnedMarkup || saving}
-          onClick={() => lastOwnedMarkup && void removeMarkup(lastOwnedMarkup)}
+          onClick={() => setPendingDelete(lastOwnedMarkup ?? null)}
           className="inline-flex h-7 items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-slate-200 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-35"
           title="Delete your most recent markup"
         >
           <Trash2 size={13} aria-hidden="true" />
           <span className="hidden sm:inline">Undo last</span>
         </button>
+        {pendingDelete ? (
+          <div className="flex items-center gap-1 rounded-md border border-amber-300/50 bg-amber-950/80 px-2 py-1 text-[11px] text-amber-50" role="alertdialog" aria-label="Confirm undo last markup">
+            <span className="hidden sm:inline">Delete last markup?</span>
+            <button type="button" disabled={saving} onClick={() => void removeMarkup(pendingDelete)} className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-500 disabled:opacity-50">Delete</button>
+            <button type="button" disabled={saving} onClick={() => setPendingDelete(null)} className="rounded border border-white/20 px-2 py-1 font-semibold hover:bg-white/10 disabled:opacity-50">Cancel</button>
+          </div>
+        ) : null}
         <span className="ml-auto text-[10px] text-slate-400">{saving ? "Saving…" : loading ? "Loading…" : calibration ? `Calibrated · ${visibleMarkups.length} items` : `${visibleMarkups.length} markup${visibleMarkups.length === 1 ? "" : "s"}`}</span>
         {toolbarExtra}
       </div>

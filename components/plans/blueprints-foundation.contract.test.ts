@@ -93,5 +93,7 @@ assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('la
 assert(markupSurface.includes("unitsPerDrawingUnit"), "Measurements must use a persisted drawing calibration");
 assert(blueprintViewer.includes('closest("[data-blueprint-controls]")'), "Viewer panning must ignore nested Blueprint controls");
 assert(markupSurface.includes("data-blueprint-controls") && markupSurface.includes("event.stopPropagation()"), "Markup controls must isolate pointer events from canvas panning");
+assert(!markupSurface.includes("window.confirm"), "Fullscreen Blueprint actions must not use native confirmation dialogs");
+assert(markupSurface.includes('role="alertdialog"') && markupSurface.includes("pendingDelete"), "Undo must confirm inside the fullscreen Blueprint toolbar");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
