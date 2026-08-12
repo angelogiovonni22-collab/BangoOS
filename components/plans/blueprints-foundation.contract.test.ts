@@ -14,6 +14,7 @@ const planRoom = fs.readFileSync(path.join(root, "lib/blueprints/plan-room.ts"),
 const uploadPanel = fs.readFileSync(path.join(root, "components/plans/blueprint-upload-panel.tsx"), "utf8");
 const revisionPanel = fs.readFileSync(path.join(root, "components/plans/blueprint-revision-panel.tsx"), "utf8");
 const plansWorkspace = fs.readFileSync(path.join(root, "components/plans/plans-workspace.tsx"), "utf8");
+const blueprintViewer = fs.readFileSync(path.join(root, "components/plans/blueprint-2d-viewer.tsx"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260812090000_blueprints_plan_room_foundation.sql"), "utf8");
 const membershipAlignment = fs.readFileSync(path.join(root, "supabase/migrations/20260812103000_blueprints_membership_rls_alignment.sql"), "utf8");
 const transactionalUploads = fs.readFileSync(path.join(root, "supabase/migrations/20260812113000_blueprints_transactional_upload_rpcs.sql"), "utf8");
@@ -60,5 +61,9 @@ assert(duplicateGuard.includes("pg_advisory_xact_lock"), "Concurrent Blueprint s
 assert(duplicateGuard.includes("use Upload revision instead"), "Duplicate sheets must direct users into revision control");
 assert(blueprintFormat.includes('Intl.DateTimeFormat("en-US"'), "Blueprint timestamps must be formatted for people");
 assert(plansWorkspace.includes("duplicate sheet record"), "Existing duplicate Blueprint sheets must be disclosed without automatic deletion");
+assert(blueprintViewer.includes('data-orion-region="blueprint-2d-viewer"'), "The 2D viewer must expose semantic Orion context");
+assert(blueprintViewer.includes("requestFullscreen"), "The 2D viewer must support fullscreen inspection");
+assert(blueprintViewer.includes("setPointerCapture"), "The 2D image viewer must support pointer-based panning");
+assert(blueprintViewer.includes("MIN_ZOOM") && blueprintViewer.includes("MAX_ZOOM"), "The 2D viewer must constrain zoom safely");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
