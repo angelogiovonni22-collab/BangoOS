@@ -10,6 +10,7 @@ export type BlueprintMarkup = {
   content: string;
   createdBy: string;
   createdAt: string;
+  status: "open" | "resolved";
 };
 
 type MarkupIdentity = {
@@ -24,7 +25,7 @@ function blueprintAnnotations(supabase: SupabaseClient) {
 
 export async function loadBlueprintMarkups(supabase: SupabaseClient, identity: MarkupIdentity) {
   const response = await blueprintAnnotations(supabase)
-    .select("id, annotation_type, color, geometry, content, created_by, created_at")
+    .select("id, annotation_type, color, geometry, content, status, created_by, created_at")
     .eq("company_id", identity.companyId)
     .eq("project_id", identity.projectId)
     .eq("blueprint_version_id", identity.versionId)
@@ -39,7 +40,21 @@ export async function loadBlueprintMarkups(supabase: SupabaseClient, identity: M
     content: typeof row.content === "string" ? row.content : "",
     createdBy: String(row.created_by),
     createdAt: String(row.created_at),
+    status: row.status === "resolved" ? "resolved" : "open",
   } satisfies BlueprintMarkup));
+}
+
+export async function updateBlueprintMarkupStatus(
+  supabase: SupabaseClient,
+  identity: MarkupIdentity & { markupId: string; status: "open" | "resolved" },
+) {
+  const response = await blueprintAnnotations(supabase)
+    .update({ status: identity.status, updated_at: new Date().toISOString() })
+    .eq("id", identity.markupId)
+    .eq("company_id", identity.companyId)
+    .eq("project_id", identity.projectId)
+    .eq("blueprint_version_id", identity.versionId);
+  if (response.error) throw response.error;
 }
 
 export async function createBlueprintMarkup(
