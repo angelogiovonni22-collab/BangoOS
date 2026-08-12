@@ -51,6 +51,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("[data-blueprint-controls]")) return;
     if (markingUp || zoom <= 100 || event.button !== 0) return;
     dragRef.current = {
       pointerId: event.pointerId,
