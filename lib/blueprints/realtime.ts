@@ -63,7 +63,8 @@ function activePresenceUserIds(channel: RealtimeChannel) {
   const userIds = new Set<string>();
   for (const presences of Object.values(channel.presenceState())) {
     for (const presence of presences) {
-      const userId = typeof presence.user_id === "string" ? presence.user_id : null;
+      const payload = presence as unknown as Record<string, unknown>;
+      const userId = typeof payload.user_id === "string" ? payload.user_id : null;
       if (userId) userIds.add(userId);
     }
   }
