@@ -24,6 +24,7 @@ const blueprintFormat = fs.readFileSync(path.join(root, "lib/blueprints/format.t
 const markupService = fs.readFileSync(path.join(root, "lib/blueprints/markups.ts"), "utf8");
 const markupSurface = fs.readFileSync(path.join(root, "components/plans/blueprint-markup-surface.tsx"), "utf8");
 const planWorkspace = fs.readFileSync(path.join(root, "components/plans/blueprint-plan-workspace.tsx"), "utf8");
+const pdfViewer = fs.readFileSync(path.join(root, "components/plans/blueprint-pdf-viewer.tsx"), "utf8");
 const annotationsMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812143000_blueprint_revision_annotations.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
@@ -82,5 +83,9 @@ assert(planWorkspace.includes('data-orion-region="blueprint-plan-workspace"'), "
 assert(planWorkspace.includes("closeOnBackdrop={false}"), "The Plan Workspace must protect unsaved drawing interactions from backdrop dismissal");
 assert(planWorkspace.includes("expanded"), "The Plan Workspace must use the expanded drawing canvas");
 assert(plansWorkspace.includes("<PlansPreview"), "The Plan Workspace must remain connected to the project Plan Room");
+assert(pdfViewer.includes('import("pdfjs-dist")'), "PDF.js must be lazy-loaded only for PDF plans");
+assert(pdfViewer.includes("pageNumber={pageNumber}"), "PDF markups must be scoped to the visible page");
+assert(pdfViewer.includes("Page {pageNumber}/"), "PDF plans must provide page navigation context");
+assert(markupSurface.includes("geometry: { ...geometry, page: pageNumber }"), "Persistent markup geometry must record its PDF page");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
