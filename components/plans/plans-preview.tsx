@@ -1,7 +1,11 @@
-import { ExternalLink, FileBadge2 } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { ExternalLink, FileBadge2, Maximize2 } from "lucide-react";
 import { Button, EmptyState } from "@/components/ui";
 import { RevisionHistory } from "./revision-history";
 import { Blueprint2dViewer } from "./blueprint-2d-viewer";
+import { BlueprintPlanWorkspace } from "./blueprint-plan-workspace";
 import type { PlanDocument } from "./types";
 import { formatBlueprintDate } from "@/lib/blueprints/format";
 
@@ -15,6 +19,8 @@ type PlansPreviewProps = {
 };
 
 export function PlansPreview({ selectedDocument, projectName, onUploadRevision, companyId, projectId, userId }: PlansPreviewProps) {
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+
   if (!selectedDocument) {
     return (
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-small)]">
@@ -36,8 +42,22 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
       aria-label="Drawing preview and metadata"
     >
       <div className="bg-[var(--color-surface-subtle)]/65 px-5 py-4">
-        <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{selectedDocument.fileName}</h3>
-        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Revision {selectedDocument.revision}</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{selectedDocument.fileName}</h3>
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Revision {selectedDocument.revision}</p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!selectedDocument.fileUrl || previewType === "unsupported"}
+            onClick={() => setWorkspaceOpen(true)}
+            data-orion-action="blueprints.open-workspace"
+          >
+            <Maximize2 size={15} aria-hidden="true" />
+            Open workspace
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-5 p-5">
@@ -127,6 +147,19 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
           </div>
         </div>
       </div>
+
+      {selectedDocument.fileUrl && previewType !== "unsupported" ? (
+        <BlueprintPlanWorkspace
+          open={workspaceOpen}
+          onClose={() => setWorkspaceOpen(false)}
+          document={selectedDocument}
+          projectName={projectName}
+          companyId={companyId}
+          projectId={projectId}
+          userId={userId}
+          previewType={previewType}
+        />
+      ) : null}
     </section>
   );
 }

@@ -12,13 +12,14 @@ type Blueprint2dViewerProps = {
   projectId: string;
   versionId: string;
   userId: string;
+  expanded?: boolean;
 };
 
 const MIN_ZOOM = 50;
 const MAX_ZOOM = 300;
 const ZOOM_STEP = 25;
 
-export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, projectId, versionId, userId }: Blueprint2dViewerProps) {
+export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, projectId, versionId, userId, expanded = false }: Blueprint2dViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | null>(null);
   const [zoom, setZoom] = useState(100);
@@ -88,7 +89,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   return (
     <div
       ref={viewerRef}
-      className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-950 shadow-inner"
+      className={`overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-950 shadow-inner ${expanded ? "flex h-full min-h-0 flex-col" : ""}`}
       data-orion-region="blueprint-2d-viewer"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-slate-900 px-2.5 py-2 text-white">
@@ -131,7 +132,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
       </div>
 
       <div
-        className={`relative flex h-80 items-center justify-center overflow-hidden bg-slate-800 sm:h-96 ${
+        className={`relative flex items-center justify-center overflow-hidden bg-slate-800 ${expanded ? "min-h-0 flex-1" : "h-80 sm:h-96"} ${
           previewType === "image" && zoom > 100 ? (dragging ? "cursor-grabbing touch-none" : "cursor-grab touch-none") : ""
         }`}
         onPointerDown={handlePointerDown}

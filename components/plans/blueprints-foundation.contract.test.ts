@@ -23,6 +23,7 @@ const duplicateGuard = fs.readFileSync(path.join(root, "supabase/migrations/2026
 const blueprintFormat = fs.readFileSync(path.join(root, "lib/blueprints/format.ts"), "utf8");
 const markupService = fs.readFileSync(path.join(root, "lib/blueprints/markups.ts"), "utf8");
 const markupSurface = fs.readFileSync(path.join(root, "components/plans/blueprint-markup-surface.tsx"), "utf8");
+const planWorkspace = fs.readFileSync(path.join(root, "components/plans/blueprint-plan-workspace.tsx"), "utf8");
 const annotationsMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812143000_blueprint_revision_annotations.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
@@ -75,5 +76,9 @@ assert(annotationsMigration.includes("created_by = auth.uid()"), "Blueprint mark
 assert(markupService.includes('from("blueprint_annotations")'), "Blueprint markup access must use the annotation store");
 assert(markupSurface.includes('data-orion-region="blueprint-markup-toolbar"'), "Markup tools must expose semantic Orion context");
 assert(markupSurface.includes('"freehand"') && markupSurface.includes('"arrow"') && markupSurface.includes('"text"') && markupSurface.includes('"pin"'), "Markup must support redlines, arrows, text, and issue pins");
+assert(planWorkspace.includes('data-orion-region="blueprint-plan-workspace"'), "The large Plan Workspace must expose semantic Orion context");
+assert(planWorkspace.includes("closeOnBackdrop={false}"), "The Plan Workspace must protect unsaved drawing interactions from backdrop dismissal");
+assert(planWorkspace.includes("expanded"), "The Plan Workspace must use the expanded drawing canvas");
+assert(plansWorkspace.includes("<PlansPreview"), "The Plan Workspace must remain connected to the project Plan Room");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
