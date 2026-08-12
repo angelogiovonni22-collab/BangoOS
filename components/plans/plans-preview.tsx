@@ -1,6 +1,7 @@
 import { ExternalLink, FileBadge2 } from "lucide-react";
 import { Button, EmptyState } from "@/components/ui";
 import { RevisionHistory } from "./revision-history";
+import { Blueprint2dViewer } from "./blueprint-2d-viewer";
 import type { PlanDocument } from "./types";
 import { formatBlueprintDate } from "@/lib/blueprints/format";
 
@@ -37,13 +38,15 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision }
       </div>
 
       <div className="space-y-5 p-5">
+        {selectedDocument.fileUrl && previewType !== "unsupported" ? (
+          <Blueprint2dViewer
+            key={`${selectedDocument.id}:${selectedDocument.revision}`}
+            fileUrl={selectedDocument.fileUrl}
+            fileName={selectedDocument.fileName}
+            previewType={previewType}
+          />
+        ) : (
         <div className="flex h-72 items-center justify-center overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)]/75">
-          {selectedDocument.fileUrl && previewType === "pdf" ? (
-            <iframe src={selectedDocument.fileUrl} title={`Preview ${selectedDocument.fileName}`} className="h-full w-full bg-white" />
-          ) : selectedDocument.fileUrl && previewType === "image" ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={selectedDocument.fileUrl} alt={selectedDocument.fileName} className="h-full w-full object-contain" />
-          ) : (
           <div className="text-center">
             <FileBadge2 size={28} aria-hidden="true" className="mx-auto text-[var(--color-text-muted)]" />
             {previewType === "pdf" ? (
@@ -67,8 +70,8 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision }
               </>
             ) : null}
           </div>
-          )}
         </div>
+        )}
 
         <div className="grid gap-2 sm:grid-cols-2">
           <MetadataRow label="Upload date" value={formatBlueprintDate(selectedDocument.uploadedAt)} />
