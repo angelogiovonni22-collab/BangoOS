@@ -27,6 +27,8 @@ const planWorkspace = fs.readFileSync(path.join(root, "components/plans/blueprin
 const pdfViewer = fs.readFileSync(path.join(root, "components/plans/blueprint-pdf-viewer.tsx"), "utf8");
 const annotationsMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812143000_blueprint_revision_annotations.sql"), "utf8");
 const measurementsMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812170000_blueprint_measurement_annotations.sql"), "utf8");
+const realtimeService = fs.readFileSync(path.join(root, "lib/blueprints/realtime.ts"), "utf8");
+const realtimeMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812220000_blueprint_realtime_collaboration.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -99,5 +101,12 @@ assert(markupService.includes("updateBlueprintMarkupStatus"), "Issue status chan
 assert(markupSurface.includes('data-orion-region="blueprint-layer-controls"'), "Blueprint layer controls must expose semantic Orion context");
 assert(markupSurface.includes('data-orion-region="blueprint-annotation-register"'), "The annotation register must expose semantic Orion context");
 assert(markupSurface.includes("Resolve issue") && markupSurface.includes("Reopen issue"), "Issue pins must support resolution workflows");
+assert(realtimeMigration.includes("alter table public.blueprint_annotations replica identity full"), "Realtime deletes must carry sufficient annotation identity");
+assert(realtimeMigration.includes("alter publication supabase_realtime add table public.blueprint_annotations"), "Blueprint annotations must be published to Supabase Realtime");
+assert(realtimeService.includes("blueprint:${identity.companyId}:${identity.projectId}:${identity.versionId}"), "Collaboration presence channels must be tenant, project, and revision scoped");
+assert(realtimeService.includes("filter: `blueprint_version_id=eq.${identity.versionId}`"), "Annotation change subscriptions must be revision scoped");
+assert(realtimeService.includes("user_id: identity.userId") && realtimeService.includes("company_id: identity.companyId"), "Blueprint presence must retain authenticated tenant identity");
+assert(markupSurface.includes('data-orion-region="blueprint-collaboration-status"'), "Live Blueprint collaboration must expose semantic Orion context");
+assert(markupSurface.includes("subscribeToBlueprintCollaboration"), "The markup surface must subscribe through the shared collaboration service");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");

@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowUpRight, CheckCircle2, Eye, EyeOff, Hand, Layers3, ListFilter, MapPin, Pencil, Ruler, ScanLine, SquareDashed, Trash2, Type, X } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Eye, EyeOff, Hand, Layers3, ListFilter, MapPin, Pencil, Radio, Ruler, ScanLine, SquareDashed, Trash2, Type, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { subscribeToBlueprintCollaboration } from "@/lib/blueprints/realtime";
 import {
   createBlueprintMarkup,
   deleteBlueprintMarkup,
@@ -59,6 +60,8 @@ export function BlueprintMarkupSurface({
   const [registerOpen, setRegisterOpen] = useState(false);
   const [visibleLayers, setVisibleLayers] = useState<Set<"redlines" | "issues" | "measurements">>(new Set(["redlines", "issues", "measurements"]));
   const [registerFilter, setRegisterFilter] = useState<"all" | "mine" | "open">("all");
+  const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
 
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
 
@@ -85,6 +88,36 @@ export function BlueprintMarkupSurface({
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [requestMarkups]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribe = subscribeToBlueprintCollaboration(
+      supabase,
+      { ...identity, userId },
+      {
+        onAnnotationChange: () => {
+          if (refreshTimer) clearTimeout(refreshTimer);
+          refreshTimer = setTimeout(() => {
+            void requestMarkups()
+              .then((next) => {
+                setMarkups(next);
+                setError(null);
+              })
+              .catch((syncError: unknown) => {
+                setError(syncError instanceof Error ? syncError.message : "Could not synchronize plan markups.");
+              });
+          }, 75);
+        },
+        onPresenceChange: setActiveUserIds,
+        onStatusChange: (status) => setRealtimeConnected(status === "SUBSCRIBED"),
+      },
+    );
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      unsubscribe();
+    };
+  }, [identity, requestMarkups, supabase, userId]);
 
   const chooseTool = (nextTool: MarkupTool) => {
     setTool(nextTool);
@@ -281,6 +314,13 @@ export function BlueprintMarkupSurface({
       <div className="flex items-center gap-2 border-b border-white/10 bg-slate-900 px-3 py-1.5 text-[10px] text-slate-300" data-orion-region="blueprint-layer-controls">
         <Layers3 size={13} aria-hidden="true" /><span className="font-semibold">Layers</span>
         {(["redlines", "issues", "measurements"] as const).map((layer) => <LayerToggle key={layer} layer={layer} visible={visibleLayers.has(layer)} onToggle={() => setVisibleLayers((current) => { const next = new Set(current); if (next.has(layer)) next.delete(layer); else next.add(layer); return next; })} />)}
+        <span className="ml-auto inline-flex items-center gap-1.5" data-orion-region="blueprint-collaboration-status" role="status">
+          {realtimeConnected ? <Radio size={11} className="text-green-400" aria-hidden="true" /> : <Radio size={11} className="text-amber-400" aria-hidden="true" />}
+          <span>{realtimeConnected ? "Live" : "Connecting"}</span>
+          <span className="inline-flex items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 text-slate-200" title="People viewing this revision">
+            <Users size={11} aria-hidden="true" />{Math.max(1, activeUserIds.length)}
+          </span>
+        </span>
       </div>
 
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
