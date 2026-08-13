@@ -152,6 +152,10 @@ export async function loadProjectBlueprints(params: {
   if (versionsResponse.error) throw versionsResponse.error;
 
   const versionRows = (versionsResponse.data ?? []) as Array<Record<string, unknown>>;
+  const versionIds = versionRows.map((row) => String(row.id));
+  const linksResponse = versionIds.length ? await db.from("blueprint_operational_links").select("blueprint_version_id, target_type").eq("company_id", params.companyId).eq("project_id", params.projectId).in("blueprint_version_id", versionIds).in("target_type", ["rfi", "submittal"]) : { data: [], error: null };
+  if (linksResponse.error) throw linksResponse.error;
+  const linkRows = (linksResponse.data ?? []) as Array<Record<string, unknown>>;
   const signedPaths = versionRows.map((row) => String(row.storage_path));
   const signedResponse = signedPaths.length
     ? await params.supabase.storage.from(BLUEPRINTS_BUCKET).createSignedUrls(signedPaths, 60 * 60)
@@ -182,8 +186,8 @@ export async function loadProjectBlueprints(params: {
       uploadedBy: "BOS workspace",
       uploadedAt: String(current.created_at),
       sizeInBytes: Number(current.file_size_bytes),
-      linkedRfis: 0,
-      linkedSubmittals: 0,
+      linkedRfis: linkRows.filter((link) => String(link.blueprint_version_id) === String(current.id) && link.target_type === "rfi").length,
+      linkedSubmittals: linkRows.filter((link) => String(link.blueprint_version_id) === String(current.id) && link.target_type === "submittal").length,
       fileUrl: signedUrlByPath.get(String(current.storage_path)) || null,
       mimeType: String(current.mime_type),
       revisionHistory,

@@ -19,7 +19,7 @@ type ActivityIdentity = {
   userName: string;
 };
 
-const LINKED_TABS = new Set<ProjectLinkedModuleTab>(["daily_logs", "documents", "crew", "change_orders", "rfis"]);
+const LINKED_TABS = new Set<ProjectLinkedModuleTab>(["daily_logs", "documents", "crew", "change_orders", "rfis", "submittals"]);
 
 export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandCenterTabPlaceholderProps) {
   const { locale } = useI18n();

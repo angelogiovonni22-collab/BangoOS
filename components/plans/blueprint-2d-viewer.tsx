@@ -15,13 +15,15 @@ type Blueprint2dViewerProps = {
   userId: string;
   discipline: string;
   expanded?: boolean;
+  initialPage?: number;
+  initialAnnotationId?: string | null;
 };
 
 const MIN_ZOOM = 50;
 const MAX_ZOOM = 300;
 const ZOOM_STEP = 25;
 
-export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, projectId, versionId, userId, discipline, expanded = false }: Blueprint2dViewerProps) {
+export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, projectId, versionId, userId, discipline, expanded = false, initialPage = 1, initialAnnotationId }: Blueprint2dViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | null>(null);
   const [zoom, setZoom] = useState(100);
@@ -166,6 +168,8 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
             position={position}
             dragging={dragging}
             onToolChange={setMarkingUp}
+            initialPage={initialPage}
+            initialAnnotationId={initialAnnotationId}
           />
         ) : (
           <BlueprintMarkupSurface
@@ -174,6 +178,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
             versionId={versionId}
             userId={userId}
             discipline={discipline}
+            focusAnnotationId={initialAnnotationId}
             transform={`translate3d(${position.x}px, ${position.y}px, 0) scale(${zoom / 100})`}
             transition={dragging ? "none" : "transform 140ms ease-out"}
             onToolChange={setMarkingUp}

@@ -849,6 +849,9 @@ export default function ProjectWorkspacePage() {
                 projectId={project.id}
                 companyId={workspace.workspaceContext.companyId}
                 userId={workspace.workspaceContext.userId}
+                initialVersionId={searchParams.get("blueprintVersion")}
+                initialPage={Math.max(1, Number(searchParams.get("blueprintPage") || 1))}
+                initialAnnotationId={searchParams.get("blueprintAnnotation")}
               />
             ) : activeTab === "inspections" ? (
               <ProjectComplianceWorkflow
@@ -940,6 +943,7 @@ function getWorkspaceTabLabel(tab: WorkspaceTab, t: (key: string) => string) {
     financials: "projects.workspaceTabFinancials",
     change_orders: "projects.workspaceTabChangeOrders",
     rfis: "projects.workspaceTabRfis",
+    submittals: "projects.workspaceTabSubmittals",
     inspections: "projects.workspaceTabInspections",
     activity: "projects.workspaceTabActivity",
   };

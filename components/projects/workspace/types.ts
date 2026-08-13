@@ -12,6 +12,7 @@ export type ProjectWorkspaceTabKey =
   | "financials"
   | "change_orders"
   | "rfis"
+  | "submittals"
   | "inspections"
   | "activity";
 

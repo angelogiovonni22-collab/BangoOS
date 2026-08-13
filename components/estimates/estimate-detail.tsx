@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
 import { SendContractButton } from "@/components/estimates/send-contract-button";
+import { BlueprintSourceLink } from "@/components/plans/blueprint-source-link";
 
 export function EstimateDetail({ estimateId }: { estimateId: string }) {
   const { locale } = useI18n();
@@ -171,6 +172,8 @@ export function EstimateDetail({ estimateId }: { estimateId: string }) {
           </Link>
         )}
       />
+
+      <BlueprintSourceLink targetType="estimate_line_item" targetIds={lineItems.map((item) => item.id)} />
 
       <Card as="section" variant="elevated">
         <CardHeader>

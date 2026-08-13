@@ -18,6 +18,8 @@ type BlueprintPlanWorkspaceProps = {
   projectId: string;
   userId: string;
   previewType: "image" | "pdf" | "ifc" | "gltf";
+  initialPage?: number;
+  initialAnnotationId?: string | null;
 };
 
 export function BlueprintPlanWorkspace({
@@ -29,6 +31,8 @@ export function BlueprintPlanWorkspace({
   projectId,
   userId,
   previewType,
+  initialPage = 1,
+  initialAnnotationId,
 }: BlueprintPlanWorkspaceProps) {
   if (!document.fileUrl) return null;
 
@@ -82,6 +86,8 @@ export function BlueprintPlanWorkspace({
           userId={userId}
           discipline={document.discipline}
           expanded
+          initialPage={initialPage}
+          initialAnnotationId={initialAnnotationId}
         />}
       </div>
 

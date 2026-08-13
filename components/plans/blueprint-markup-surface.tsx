@@ -9,7 +9,8 @@ import { loadBlueprintSymbols, type BlueprintSymbol } from "@/lib/blueprints/sym
 import { BLUEPRINT_SYMBOL_MIME, BlueprintSymbolLibrary } from "./blueprint-symbol-library";
 import { blueprintWallEndpoints, snapBlueprintPoint } from "@/lib/blueprints/snapping";
 import { createBlueprintLayer, loadBlueprintLayers, type BlueprintLayer } from "@/lib/blueprints/layers";
-import { assignBlueprintIssueToWorkforce, createChangeOrderFromBlueprintIssue, createEstimateLineItemFromBlueprintTakeoff, createTaskFromBlueprintIssue, loadBlueprintOperationalLinks, loadBlueprintProjectEstimates, loadBlueprintWorkforceOptions, type BlueprintOperationalLink, type BlueprintProjectEstimate, type BlueprintWorkforceOption } from "@/lib/blueprints/operations";
+import { BlueprintIssueSlaControls } from "./blueprint-issue-sla-controls";
+import { assignBlueprintIssueToWorkforce, createChangeOrderFromBlueprintIssue, createEstimateLineItemFromBlueprintTakeoff, createPunchItemFromBlueprintIssue, createRfiFromBlueprintIssue, createSubmittalFromBlueprintIssue, createTaskFromBlueprintIssue, loadBlueprintOperationalLinks, loadBlueprintProjectEstimates, loadBlueprintWorkforceOptions, scheduleBlueprintIssueTask, type BlueprintOperationalLink, type BlueprintProjectEstimate, type BlueprintWorkforceOption } from "@/lib/blueprints/operations";
 import {
   createBlueprintMarkup,
   deleteBlueprintMarkup,
@@ -34,6 +35,7 @@ type BlueprintMarkupSurfaceProps = {
   onToolChange: (isMarkingUp: boolean) => void;
   pageNumber?: number;
   toolbarExtra?: ReactNode;
+  focusAnnotationId?: string | null;
 };
 
 const colors = ["#ef4444", "#f59e0b", "#2563eb", "#16a34a"];
@@ -50,6 +52,7 @@ export function BlueprintMarkupSurface({
   onToolChange,
   pageNumber = 1,
   toolbarExtra,
+  focusAnnotationId,
 }: BlueprintMarkupSurfaceProps) {
   const supabase = useMemo(() => createClient(), []);
   const surfaceRef = useRef<SVGSVGElement>(null);
@@ -66,7 +69,7 @@ export function BlueprintMarkupSurface({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BlueprintMarkup | null>(null);
-  const [registerOpen, setRegisterOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(Boolean(focusAnnotationId));
   const [visibleLayers, setVisibleLayers] = useState<Set<"redlines" | "issues" | "measurements">>(new Set(["redlines", "issues", "measurements"]));
   const [registerFilter, setRegisterFilter] = useState<"all" | "mine" | "open">("all");
   const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
@@ -93,6 +96,12 @@ export function BlueprintMarkupSurface({
   const [workforceOptions, setWorkforceOptions] = useState<BlueprintWorkforceOption[]>([]);
   const [selectedWorkforceKey, setSelectedWorkforceKey] = useState("");
   const [assigningWorkforceFor, setAssigningWorkforceFor] = useState<string | null>(null);
+  const [creatingPunchItemFor, setCreatingPunchItemFor] = useState<string | null>(null);
+  const [creatingRfiFor, setCreatingRfiFor] = useState<string | null>(null);
+  const [creatingSubmittalFor, setCreatingSubmittalFor] = useState<string | null>(null);
+  const [scheduleStart, setScheduleStart] = useState("");
+  const [scheduleFinish, setScheduleFinish] = useState("");
+  const [schedulingTaskFor, setSchedulingTaskFor] = useState<string | null>(null);
 
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
 
@@ -265,6 +274,55 @@ export function BlueprintMarkupSurface({
       setError(workforceError instanceof Error ? workforceError.message : "Could not assign this Blueprint issue.");
     } finally {
       setAssigningWorkforceFor(null);
+    }
+  };
+
+  const createPunchItem = async (markup: BlueprintMarkup) => {
+    if (!supabase || creatingPunchItemFor) return;
+    setCreatingPunchItemFor(markup.id);
+    setError(null);
+    try {
+      await createPunchItemFromBlueprintIssue(supabase, { ...identity, annotationId: markup.id });
+      await reloadOperationalLinks();
+    } catch (punchError) {
+      setError(punchError instanceof Error ? punchError.message : "Could not create a punch item from this issue.");
+    } finally {
+      setCreatingPunchItemFor(null);
+    }
+  };
+
+  const createRfi = async (markup: BlueprintMarkup) => {
+    if (!supabase || creatingRfiFor) return;
+    setCreatingRfiFor(markup.id);
+    setError(null);
+    try {
+      await createRfiFromBlueprintIssue(supabase, { ...identity, annotationId: markup.id });
+      await reloadOperationalLinks();
+    } catch (rfiError) {
+      setError(rfiError instanceof Error ? rfiError.message : "Could not create an RFI from this issue.");
+    } finally {
+      setCreatingRfiFor(null);
+    }
+  };
+
+  const createSubmittal = async (markup: BlueprintMarkup) => {
+    if (!supabase || creatingSubmittalFor) return;
+    setCreatingSubmittalFor(markup.id); setError(null);
+    try { await createSubmittalFromBlueprintIssue(supabase, { ...identity, annotationId: markup.id }); await reloadOperationalLinks(); }
+    catch (submittalError) { setError(submittalError instanceof Error ? submittalError.message : "Could not create a submittal from this issue."); }
+    finally { setCreatingSubmittalFor(null); }
+  };
+
+  const scheduleTask = async (markup: BlueprintMarkup) => {
+    if (!supabase || schedulingTaskFor || !scheduleStart || !scheduleFinish) return;
+    setSchedulingTaskFor(markup.id);
+    setError(null);
+    try {
+      await scheduleBlueprintIssueTask(supabase, { ...identity, annotationId: markup.id, plannedStart: scheduleStart, plannedFinish: scheduleFinish });
+    } catch (scheduleError) {
+      setError(scheduleError instanceof Error ? scheduleError.message : "Could not schedule the linked task.");
+    } finally {
+      setSchedulingTaskFor(null);
     }
   };
 
@@ -528,7 +586,8 @@ export function BlueprintMarkupSurface({
             <div className="flex gap-1 border-b border-white/10 p-2">{(["all", "mine", "open"] as const).map((filter) => <button key={filter} type="button" aria-pressed={registerFilter === filter} onClick={() => setRegisterFilter(filter)} className={`rounded-md px-2 py-1 text-[11px] font-semibold capitalize ${registerFilter === filter ? "bg-blue-600" : "bg-white/10 hover:bg-white/15"}`}>{filter}</button>)}</div>
             {projectEstimates.length ? <div className="border-b border-white/10 p-2"><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400" htmlFor="blueprint-estimate-target">Takeoff estimate</label><select id="blueprint-estimate-target" value={selectedEstimateId} onChange={(event) => setSelectedEstimateId(event.target.value)} className="w-full rounded-md border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white">{projectEstimates.map((estimate) => <option key={estimate.id} value={estimate.id}>{estimate.label} · {estimate.status}</option>)}</select></div> : null}
             {workforceOptions.length ? <div className="border-b border-white/10 p-2"><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400" htmlFor="blueprint-workforce-target">Issue responsibility</label><select id="blueprint-workforce-target" value={selectedWorkforceKey} onChange={(event) => setSelectedWorkforceKey(event.target.value)} className="w-full rounded-md border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white">{workforceOptions.map((option) => <option key={`${option.type}:${option.id}`} value={`${option.type}:${option.id}`}>{option.type === "crew" ? "Crew" : "Employee"} · {option.label}</option>)}</select></div> : null}
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} mine={markup.createdBy === userId} saving={saving || creatingTaskFor === markup.id || creatingEstimateItemFor === markup.id || creatingChangeOrderFor === markup.id || assigningWorkforceFor === markup.id} taskLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "task")} changeOrderLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "change_order")} workforceLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "workforce_assignment")} estimateItemLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "estimate_line_item")} canAddToEstimate={Boolean(selectedEstimateId)} canAssignWorkforce={Boolean(selectedWorkforceKey)} onAddToEstimate={() => void addTakeoffToEstimate(markup)} onAssignWorkforce={() => void assignWorkforce(markup)} onCreateTask={() => void createTask(markup)} onStartChangeOrder={() => void startChangeOrder(markup)} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
+            <div className="grid grid-cols-2 gap-2 border-b border-white/10 p-2"><label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Task start<input type="date" value={scheduleStart} onChange={(event) => setScheduleStart(event.target.value)} className="mt-1 w-full rounded-md border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white" /></label><label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Task finish<input type="date" min={scheduleStart || undefined} value={scheduleFinish} onChange={(event) => setScheduleFinish(event.target.value)} className="mt-1 w-full rounded-md border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white" /></label></div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} companyId={companyId} projectId={projectId} versionId={versionId} onReload={reload} mine={markup.createdBy === userId} saving={saving || creatingTaskFor === markup.id || creatingEstimateItemFor === markup.id || creatingChangeOrderFor === markup.id || assigningWorkforceFor === markup.id || creatingPunchItemFor === markup.id || creatingRfiFor === markup.id || creatingSubmittalFor === markup.id || schedulingTaskFor === markup.id} taskLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "task")} changeOrderLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "change_order")} punchItemLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "punch_item")} rfiLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "rfi")} submittalLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "submittal")} workforceLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "workforce_assignment")} estimateItemLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "estimate_line_item")} canAddToEstimate={Boolean(selectedEstimateId)} canAssignWorkforce={Boolean(selectedWorkforceKey)} canSchedule={Boolean(scheduleStart && scheduleFinish)} onAddToEstimate={() => void addTakeoffToEstimate(markup)} onAssignWorkforce={() => void assignWorkforce(markup)} onCreatePunchItem={() => void createPunchItem(markup)} onCreateRfi={() => void createRfi(markup)} onCreateSubmittal={() => void createSubmittal(markup)} onCreateTask={() => void createTask(markup)} onScheduleTask={() => void scheduleTask(markup)} onStartChangeOrder={() => void startChangeOrder(markup)} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
           </aside>
         ) : null}
         {symbolLibraryOpen ? <BlueprintSymbolLibrary symbols={symbols} selected={selectedSymbol} onSelect={(symbol) => { setSelectedSymbol(symbol); chooseTool("symbol"); }} onClose={() => setSymbolLibraryOpen(false)} /> : null}
@@ -540,7 +599,7 @@ export function BlueprintMarkupSurface({
 
 function layerForMarkup(type: BlueprintMarkupType): "redlines" | "issues" | "measurements" { return type === "pin" ? "issues" : ["calibration", "distance", "area", "locked_dimension"].includes(type) ? "measurements" : "redlines"; }
 function LayerToggle({ layer, visible, onToggle }: { layer: string; visible: boolean; onToggle: () => void }) { return <button type="button" aria-pressed={visible} onClick={onToggle} className={`inline-flex items-center gap-1 rounded px-2 py-1 capitalize ${visible ? "bg-white/15 text-white" : "bg-transparent text-slate-500"}`}>{visible ? <Eye size={11} /> : <EyeOff size={11} />}{layer}</button>; }
-function RegisterItem({ markup, mine, saving, taskLinked, changeOrderLinked, workforceLinked, estimateItemLinked, canAddToEstimate, canAssignWorkforce, onAddToEstimate, onAssignWorkforce, onCreateTask, onStartChangeOrder, onStatus }: { markup: BlueprintMarkup; mine: boolean; saving: boolean; taskLinked: boolean; changeOrderLinked: boolean; workforceLinked: boolean; estimateItemLinked: boolean; canAddToEstimate: boolean; canAssignWorkforce: boolean; onAddToEstimate: () => void; onAssignWorkforce: () => void; onCreateTask: () => void; onStartChangeOrder: () => void; onStatus: (status: "open" | "resolved") => void }) { const label = markup.content || markup.type; const isTakeoff = markup.type === "distance" || markup.type === "area"; return <article className="rounded-lg border border-white/10 bg-white/5 p-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-semibold capitalize">{label}</p><p className="mt-1 text-[10px] text-slate-400">{markup.type} · {mine ? "You" : "Team"}</p></div><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${markup.status === "resolved" ? "bg-green-500/20 text-green-300" : "bg-amber-500/20 text-amber-300"}`}>{markup.status}</span></div>{markup.type === "pin" ? <div className="mt-2 flex flex-wrap gap-1"><button type="button" disabled={saving} onClick={() => onStatus(markup.status === "open" ? "resolved" : "open")} className="inline-flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-[10px] font-semibold hover:bg-white/10 disabled:opacity-50"><CheckCircle2 size={11} />{markup.status === "open" ? "Resolve issue" : "Reopen issue"}</button><button type="button" disabled={saving || taskLinked} onClick={onCreateTask} className="inline-flex items-center gap-1 rounded border border-blue-400/40 bg-blue-500/10 px-2 py-1 text-[10px] font-semibold text-blue-200 hover:bg-blue-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{taskLinked ? "Task linked" : "Create task"}</button><button type="button" disabled={saving || workforceLinked || !canAssignWorkforce} onClick={onAssignWorkforce} className="inline-flex items-center gap-1 rounded border border-purple-400/40 bg-purple-500/10 px-2 py-1 text-[10px] font-semibold text-purple-200 hover:bg-purple-500/20 disabled:opacity-60"><Users size={11} />{workforceLinked ? "Workforce assigned" : "Assign workforce"}</button><button type="button" disabled={saving || changeOrderLinked} onClick={onStartChangeOrder} className="inline-flex items-center gap-1 rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-200 hover:bg-amber-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{changeOrderLinked ? "Change order linked" : "Start change order"}</button></div> : null}{isTakeoff ? <button type="button" disabled={saving || estimateItemLinked || !canAddToEstimate} onClick={onAddToEstimate} className="mt-2 inline-flex items-center gap-1 rounded border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{estimateItemLinked ? "Estimate item linked" : "Add to estimate"}</button> : null}</article>; }
+function RegisterItem({ markup, companyId, projectId, versionId, onReload, mine, saving, taskLinked, changeOrderLinked, punchItemLinked, rfiLinked, submittalLinked, workforceLinked, estimateItemLinked, canAddToEstimate, canAssignWorkforce, canSchedule, onAddToEstimate, onAssignWorkforce, onCreatePunchItem, onCreateRfi, onCreateSubmittal, onCreateTask, onScheduleTask, onStartChangeOrder, onStatus }: { markup: BlueprintMarkup; companyId: string; projectId: string; versionId: string; onReload: () => Promise<void>; mine: boolean; saving: boolean; taskLinked: boolean; changeOrderLinked: boolean; punchItemLinked: boolean; rfiLinked: boolean; submittalLinked: boolean; workforceLinked: boolean; estimateItemLinked: boolean; canAddToEstimate: boolean; canAssignWorkforce: boolean; canSchedule: boolean; onAddToEstimate: () => void; onAssignWorkforce: () => void; onCreatePunchItem: () => void; onCreateRfi: () => void; onCreateSubmittal: () => void; onCreateTask: () => void; onScheduleTask: () => void; onStartChangeOrder: () => void; onStatus: (status: "open" | "resolved") => void }) { const label = markup.content || markup.type; const isTakeoff = markup.type === "distance" || markup.type === "area"; return <article className="rounded-lg border border-white/10 bg-white/5 p-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-semibold capitalize">{label}</p><p className="mt-1 text-[10px] text-slate-400">{markup.type} · {mine ? "You" : "Team"}</p></div><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${markup.status === "resolved" ? "bg-green-500/20 text-green-300" : "bg-amber-500/20 text-amber-300"}`}>{markup.status}</span></div>{markup.type === "pin" ? <><BlueprintIssueSlaControls markup={markup} companyId={companyId} projectId={projectId} versionId={versionId} onSaved={onReload} /><div className="mt-2 flex flex-wrap gap-1"><button type="button" disabled={saving} onClick={() => onStatus(markup.status === "open" ? "resolved" : "open")} className="inline-flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-[10px] font-semibold hover:bg-white/10 disabled:opacity-50"><CheckCircle2 size={11} />{markup.status === "open" ? "Resolve issue" : "Reopen issue"}</button><button type="button" disabled={saving || taskLinked} onClick={onCreateTask} className="inline-flex items-center gap-1 rounded border border-blue-400/40 bg-blue-500/10 px-2 py-1 text-[10px] font-semibold text-blue-200 hover:bg-blue-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{taskLinked ? "Task linked" : "Create task"}</button>{taskLinked ? <button type="button" disabled={saving || !canSchedule} onClick={onScheduleTask} className="inline-flex items-center gap-1 rounded border border-cyan-400/40 bg-cyan-500/10 px-2 py-1 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-60"><ClipboardPlus size={11} />Schedule task</button> : null}<button type="button" disabled={saving || punchItemLinked} onClick={onCreatePunchItem} className="inline-flex items-center gap-1 rounded border border-red-400/40 bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-200 hover:bg-red-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{punchItemLinked ? "Punch item linked" : "Create punch item"}</button><button type="button" disabled={saving || rfiLinked} onClick={onCreateRfi} className="inline-flex items-center gap-1 rounded border border-sky-400/40 bg-sky-500/10 px-2 py-1 text-[10px] font-semibold text-sky-200 hover:bg-sky-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{rfiLinked ? "RFI linked" : "Create RFI"}</button><button type="button" disabled={saving || submittalLinked} onClick={onCreateSubmittal} className="inline-flex items-center gap-1 rounded border border-teal-400/40 bg-teal-500/10 px-2 py-1 text-[10px] font-semibold text-teal-200 hover:bg-teal-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{submittalLinked ? "Submittal linked" : "Create submittal"}</button><button type="button" disabled={saving || workforceLinked || !canAssignWorkforce} onClick={onAssignWorkforce} className="inline-flex items-center gap-1 rounded border border-purple-400/40 bg-purple-500/10 px-2 py-1 text-[10px] font-semibold text-purple-200 hover:bg-purple-500/20 disabled:opacity-60"><Users size={11} />{workforceLinked ? "Workforce assigned" : "Assign workforce"}</button><button type="button" disabled={saving || changeOrderLinked} onClick={onStartChangeOrder} className="inline-flex items-center gap-1 rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-200 hover:bg-amber-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{changeOrderLinked ? "Change order linked" : "Start change order"}</button></div></> : null}{isTakeoff ? <button type="button" disabled={saving || estimateItemLinked || !canAddToEstimate} onClick={onAddToEstimate} className="mt-2 inline-flex items-center gap-1 rounded border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{estimateItemLinked ? "Estimate item linked" : "Add to estimate"}</button> : null}</article>; }
 
 function MarkupShape({ markup }: { markup: BlueprintMarkup }) {
   const geometry = markup.geometry as Record<string, unknown>;

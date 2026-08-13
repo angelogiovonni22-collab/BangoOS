@@ -2,15 +2,48 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type BlueprintOperationalLink = {
   annotationId: string;
-  targetType: "task" | "estimate_line_item" | "change_order" | "rfi" | "punch_item" | "workforce_assignment";
+  targetType: "task" | "estimate_line_item" | "change_order" | "rfi" | "punch_item" | "workforce_assignment" | "submittal";
   targetId: string;
 };
 
 export type BlueprintProjectEstimate = { id: string; label: string; status: string };
 export type BlueprintWorkforceOption = { id: string; type: "employee" | "crew"; label: string };
+export type BlueprintProjectImpactSummary = { openIssues: number; unlinkedIssues: number; tasks: number; punchItems: number; changeOrders: number; workforceAssignments: number; estimateItems: number };
+export type BlueprintOperationalSource = { projectId: string; versionId: string; annotationId: string; pageNumber: number };
 
 function operationalLinks(supabase: SupabaseClient) {
   return (supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> }).from("blueprint_operational_links");
+}
+
+export async function loadBlueprintSourcesForOperationalRecords(supabase: SupabaseClient, input: { targetType: BlueprintOperationalLink["targetType"]; targetIds: string[] }): Promise<BlueprintOperationalSource[]> {
+  if (!input.targetIds.length) return [];
+  const links = await operationalLinks(supabase).select("project_id, blueprint_version_id, annotation_id, target_id, created_at").eq("target_type", input.targetType).in("target_id", input.targetIds).order("created_at", { ascending: false });
+  if (links.error) throw links.error;
+  const rows = (links.data ?? []) as Array<Record<string, unknown>>;
+  const annotationIds = [...new Set(rows.map((row) => String(row.annotation_id)))];
+  if (!annotationIds.length) return [];
+  const annotations = await (supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> }).from("blueprint_annotations").select("id, geometry").in("id", annotationIds);
+  if (annotations.error) throw annotations.error;
+  const geometryById = new Map(((annotations.data ?? []) as Array<Record<string, unknown>>).map((row) => [String(row.id), row.geometry as Record<string, unknown>]));
+  return rows.map((row) => {
+    const geometry = geometryById.get(String(row.annotation_id));
+    return { projectId: String(row.project_id), versionId: String(row.blueprint_version_id), annotationId: String(row.annotation_id), pageNumber: Math.max(1, Number(geometry?.page ?? 1)) };
+  });
+}
+
+export async function loadBlueprintProjectImpactSummary(supabase: SupabaseClient, input: { companyId: string; projectId: string }): Promise<BlueprintProjectImpactSummary> {
+  const annotations = (supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> }).from("blueprint_annotations");
+  const [issuesResponse, linksResponse] = await Promise.all([
+    annotations.select("id").eq("company_id", input.companyId).eq("project_id", input.projectId).eq("annotation_type", "pin").eq("status", "open"),
+    operationalLinks(supabase).select("annotation_id, target_type").eq("company_id", input.companyId).eq("project_id", input.projectId),
+  ]);
+  if (issuesResponse.error) throw issuesResponse.error;
+  if (linksResponse.error) throw linksResponse.error;
+  const openIssueIds = new Set(((issuesResponse.data ?? []) as Array<{ id: string }>).map((row) => row.id));
+  const links = (linksResponse.data ?? []) as Array<{ annotation_id: string; target_type: BlueprintOperationalLink["targetType"] }>;
+  const linkedOpenIssueIds = new Set(links.filter((link) => openIssueIds.has(link.annotation_id)).map((link) => link.annotation_id));
+  const count = (type: BlueprintOperationalLink["targetType"]) => links.filter((link) => link.target_type === type).length;
+  return { openIssues: openIssueIds.size, unlinkedIssues: openIssueIds.size - linkedOpenIssueIds.size, tasks: count("task"), punchItems: count("punch_item"), changeOrders: count("change_order"), workforceAssignments: count("workforce_assignment"), estimateItems: count("estimate_line_item") };
 }
 
 export async function loadBlueprintOperationalLinks(supabase: SupabaseClient, identity: { companyId: string; projectId: string; versionId: string }) {
@@ -102,6 +135,44 @@ export async function assignBlueprintIssueToWorkforce(supabase: SupabaseClient, 
     p_blueprint_version_id: input.versionId, p_annotation_id: input.annotationId,
     p_assignment_type: input.assignmentType, p_assignee_id: input.assigneeId,
   });
+  if (response.error) throw new Error(response.error.message);
+  return String(response.data);
+}
+
+export async function createPunchItemFromBlueprintIssue(supabase: SupabaseClient, input: { companyId: string; projectId: string; versionId: string; annotationId: string }) {
+  const response = await (supabase as unknown as { rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("create_punch_item_from_blueprint_issue", {
+    p_company_id: input.companyId,
+    p_project_id: input.projectId,
+    p_blueprint_version_id: input.versionId,
+    p_annotation_id: input.annotationId,
+  });
+  if (response.error) throw new Error(response.error.message);
+  return String(response.data);
+}
+
+export async function createRfiFromBlueprintIssue(supabase: SupabaseClient, input: { companyId: string; projectId: string; versionId: string; annotationId: string }) {
+  const response = await (supabase as unknown as { rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("create_rfi_from_blueprint_issue", {
+    p_company_id: input.companyId,
+    p_project_id: input.projectId,
+    p_blueprint_version_id: input.versionId,
+    p_annotation_id: input.annotationId,
+  });
+  if (response.error) throw new Error(response.error.message);
+  return String(response.data);
+}
+
+export async function scheduleBlueprintIssueTask(supabase: SupabaseClient, input: { companyId: string; projectId: string; versionId: string; annotationId: string; plannedStart: string; plannedFinish: string }) {
+  const response = await (supabase as unknown as { rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("schedule_blueprint_issue_task", {
+    p_company_id: input.companyId, p_project_id: input.projectId,
+    p_blueprint_version_id: input.versionId, p_annotation_id: input.annotationId,
+    p_planned_start: input.plannedStart, p_planned_finish: input.plannedFinish,
+  });
+  if (response.error) throw new Error(response.error.message);
+  return String(response.data);
+}
+
+export async function createSubmittalFromBlueprintIssue(supabase: SupabaseClient, input: { companyId: string; projectId: string; versionId: string; annotationId: string }) {
+  const response = await (supabase as unknown as { rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("create_submittal_from_blueprint_issue", { p_company_id: input.companyId, p_project_id: input.projectId, p_blueprint_version_id: input.versionId, p_annotation_id: input.annotationId });
   if (response.error) throw new Error(response.error.message);
   return String(response.data);
 }
