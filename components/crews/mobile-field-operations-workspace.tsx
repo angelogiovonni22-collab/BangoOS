@@ -15,6 +15,7 @@ import type { CrewCheckInAction, DailyChecklist, MobileDailyReportDraft } from "
 import { isFieldProductionValid } from "@/lib/crews/field-production";
 import { FieldPhotoCapture } from "./field-photo-capture";
 import { MobileFieldInspections } from "./mobile-field-inspections";
+import { MobileWorkforceTimeClock } from "./mobile-workforce-time-clock";
 
 const CHECK_IN_ACTIONS: Array<{ action: CrewCheckInAction; label: string }> = [
   { action: "start_shift", label: "Start Shift" },
@@ -190,6 +191,7 @@ export function MobileFieldOperationsWorkspace() {
       </Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="check-in">
+        <MobileWorkforceTimeClock employees={selectedCrewAssignments[0]?.assignedEmployeeIds.map((id,index)=>({id,name:selectedCrewAssignments[0]?.assignedEmployeeNames[index]||"Employee"}))||[]} projectId={selectedCrewAssignments[0]?.projectId||""} assignmentId={selectedCrewAssignments[0]?.assignmentId||""}/>
         <div className="mb-3 flex items-center gap-2">
           <Users className="h-4 w-4 text-[var(--text-secondary)]" />
           <h2 className="text-base font-semibold text-[var(--text-primary)]">Crew Check-In</h2>
