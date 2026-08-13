@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useMobileFieldOperations } from "@/lib/crews/use-mobile-field-operations";
 import type { CrewCheckInAction, DailyChecklist, MobileDailyReportDraft } from "@/lib/crews/mobile-field-operations-types";
+import { FieldPhotoCapture } from "./field-photo-capture";
 
 const CHECK_IN_ACTIONS: Array<{ action: CrewCheckInAction; label: string }> = [
   { action: "start_shift", label: "Start Shift" },
@@ -199,6 +200,8 @@ export function MobileFieldOperationsWorkspace() {
           ))}
         </div>
       </Card>
+
+      <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-photos"><FieldPhotoCapture projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""} onUploaded={refresh}/></Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="checklist">
         <div className="mb-3 flex items-center gap-2">
