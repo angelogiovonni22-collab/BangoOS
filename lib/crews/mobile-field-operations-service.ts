@@ -292,7 +292,7 @@ function createMobileReportInput(params: {
       ? [{
           id: `safe-${Date.now()}`,
           type: source.draft.safetyEventType,
-          attendees: 0,
+          attendees: Math.max(0, Math.floor(Number(source.draft.safetyAttendees) || 0)),
           severity: source.draft.safetySeverity,
           status: "open",
           notes: [source.draft.safetyObservations.trim(), source.draft.safetyImmediateAction.trim() ? `Immediate action: ${source.draft.safetyImmediateAction.trim()}` : ""].filter(Boolean).join("\n"),

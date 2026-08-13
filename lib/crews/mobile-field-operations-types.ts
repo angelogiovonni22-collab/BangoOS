@@ -33,6 +33,7 @@ export type MobileDailyReportDraft = {
   safetyEventType: "inspection" | "toolbox_talk" | "near_miss" | "incident";
   safetySeverity: "low" | "medium" | "high" | "critical";
   safetyImmediateAction: string;
+  safetyAttendees: string;
 };
 
 export type CrewDirectoryEntry = {
@@ -160,5 +161,6 @@ export function createEmptyMobileDailyReportDraft(): MobileDailyReportDraft {
     safetyEventType: "inspection",
     safetySeverity: "low",
     safetyImmediateAction: "",
+    safetyAttendees: "",
   };
 }
