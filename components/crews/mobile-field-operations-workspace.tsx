@@ -35,6 +35,7 @@ export function MobileFieldOperationsWorkspace() {
     data,
     isLoading,
     isMutating,
+    isOnline,
     errorMessage,
     actionMessage,
     refresh,
@@ -211,7 +212,7 @@ export function MobileFieldOperationsWorkspace() {
       </Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="check-in">
-        <MobileWorkforceTimeClock employees={selectedCrewAssignments[0]?.assignedEmployeeIds.map((id,index)=>({id,name:selectedCrewAssignments[0]?.assignedEmployeeNames[index]||"Employee"}))||[]} projectId={selectedCrewAssignments[0]?.projectId||""} assignmentId={selectedCrewAssignments[0]?.assignmentId||""}/>
+        <MobileWorkforceTimeClock key={selectedCrewAssignments[0]?.assignmentId||effectiveCrewId||"unassigned"} employees={selectedCrewAssignments[0]?.assignedEmployeeIds.map((id,index)=>({id,name:selectedCrewAssignments[0]?.assignedEmployeeNames[index]||"Employee"}))||[]} projectId={selectedCrewAssignments[0]?.projectId||""} assignmentId={selectedCrewAssignments[0]?.assignmentId||""}/>
         <div className="mb-3 flex items-center gap-2">
           <Users className="h-4 w-4 text-[var(--text-secondary)]" />
           <h2 className="text-base font-semibold text-[var(--text-primary)]">Crew Check-In</h2>
@@ -438,7 +439,7 @@ export function MobileFieldOperationsWorkspace() {
           <AlertTriangle className="h-4 w-4 text-[var(--text-secondary)]" />
           <h2 className="text-base font-semibold text-[var(--text-primary)]">Offline Architecture</h2>
         </div>
-        <p className="text-sm text-[var(--text-secondary)]">Queued items are pending save. Saved items are already persisted and shown for field audit history.</p>
+        <p role="status" className="text-sm text-[var(--text-secondary)]">{isOnline?"Online · queued field actions synchronize automatically.":"Offline · field actions remain safely queued on this device."}</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Queue (Pending Save)</p>

@@ -11,7 +11,7 @@ assert.match(service, /mobile-field:\$\{item\.id\}/, "replayed workflow events m
 assert.match(service, /sort\(\(left, right\) => left\.createdAt\.localeCompare\(right\.createdAt\)\)/, "offline actions must replay in creation order");
 assert.match(service, /setStatus\?\.\(item\.id, "failed"\)/, "unreplayable actions must be retained for conflict review");
 assert.match(service, /markQueueStatus\(offlineQueue, queued, "synced"\)/, "transactionally-created daily reports must not remain falsely queued");
-assert.match(hook, /addEventListener\("online", synchronize\)/, "reconnection must trigger automatic synchronization");
-assert.match(hook, /removeEventListener\("online", synchronize\)/, "reconnection listeners must be cleaned up");
+assert.match(hook, /addEventListener\("online", markOnline\)/, "reconnection must trigger automatic synchronization");
+assert.match(hook, /removeEventListener\("online", markOnline\)/, "reconnection listeners must be cleaned up");
 
 console.log("Field reconnection synchronization contract checks passed.");
