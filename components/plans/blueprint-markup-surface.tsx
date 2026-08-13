@@ -9,7 +9,7 @@ import { loadBlueprintSymbols, type BlueprintSymbol } from "@/lib/blueprints/sym
 import { BLUEPRINT_SYMBOL_MIME, BlueprintSymbolLibrary } from "./blueprint-symbol-library";
 import { blueprintWallEndpoints, snapBlueprintPoint } from "@/lib/blueprints/snapping";
 import { createBlueprintLayer, loadBlueprintLayers, type BlueprintLayer } from "@/lib/blueprints/layers";
-import { createTaskFromBlueprintIssue, loadBlueprintOperationalLinks, type BlueprintOperationalLink } from "@/lib/blueprints/operations";
+import { createEstimateLineItemFromBlueprintTakeoff, createTaskFromBlueprintIssue, loadBlueprintOperationalLinks, loadBlueprintProjectEstimates, type BlueprintOperationalLink, type BlueprintProjectEstimate } from "@/lib/blueprints/operations";
 import {
   createBlueprintMarkup,
   deleteBlueprintMarkup,
@@ -86,6 +86,9 @@ export function BlueprintMarkupSurface({
   const [newLayerName, setNewLayerName] = useState("");
   const [operationalLinks, setOperationalLinks] = useState<BlueprintOperationalLink[]>([]);
   const [creatingTaskFor, setCreatingTaskFor] = useState<string | null>(null);
+  const [projectEstimates, setProjectEstimates] = useState<BlueprintProjectEstimate[]>([]);
+  const [selectedEstimateId, setSelectedEstimateId] = useState("");
+  const [creatingEstimateItemFor, setCreatingEstimateItemFor] = useState<string | null>(null);
 
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
 
@@ -124,6 +127,18 @@ export function BlueprintMarkupSurface({
       .catch((linkError: unknown) => { if (active) setError(linkError instanceof Error ? linkError.message : "Could not load linked project records."); });
     return () => { active = false; };
   }, [identity, supabase]);
+  useEffect(() => {
+    let active = true;
+    if (!supabase) return;
+    void loadBlueprintProjectEstimates(supabase, { companyId, projectId })
+      .then((next) => {
+        if (!active) return;
+        setProjectEstimates(next);
+        setSelectedEstimateId((current) => current || next[0]?.id || "");
+      })
+      .catch((estimateError: unknown) => { if (active) setError(estimateError instanceof Error ? estimateError.message : "Could not load project estimates."); });
+    return () => { active = false; };
+  }, [companyId, projectId, supabase]);
   const reloadLayers = useCallback(async () => { if (supabase) setLayers(await loadBlueprintLayers(supabase, companyId, projectId)); }, [companyId, projectId, supabase]);
   useEffect(() => {
     if (!supabase) return;
@@ -192,6 +207,20 @@ export function BlueprintMarkupSurface({
       setError(taskError instanceof Error ? taskError.message : "Could not create a project task from this issue.");
     } finally {
       setCreatingTaskFor(null);
+    }
+  };
+
+  const addTakeoffToEstimate = async (markup: BlueprintMarkup) => {
+    if (!supabase || creatingEstimateItemFor || !selectedEstimateId) return;
+    setCreatingEstimateItemFor(markup.id);
+    setError(null);
+    try {
+      await createEstimateLineItemFromBlueprintTakeoff(supabase, { ...identity, annotationId: markup.id, estimateId: selectedEstimateId });
+      await reloadOperationalLinks();
+    } catch (takeoffError) {
+      setError(takeoffError instanceof Error ? takeoffError.message : "Could not add this takeoff to the estimate.");
+    } finally {
+      setCreatingEstimateItemFor(null);
     }
   };
 
@@ -453,7 +482,8 @@ export function BlueprintMarkupSurface({
           <aside className="absolute inset-y-0 right-0 z-20 flex w-[min(22rem,90%)] flex-col border-l border-slate-700 bg-slate-950/95 text-white shadow-2xl" data-orion-region="blueprint-annotation-register">
             <div className="flex items-center justify-between border-b border-white/10 px-3 py-2"><div><p className="text-sm font-bold">Annotation register</p><p className="text-[10px] text-slate-400">Page {pageNumber} · {visibleMarkups.length} items</p></div><button type="button" aria-label="Close annotation register" onClick={() => setRegisterOpen(false)} className="rounded p-1 hover:bg-white/10"><X size={16} /></button></div>
             <div className="flex gap-1 border-b border-white/10 p-2">{(["all", "mine", "open"] as const).map((filter) => <button key={filter} type="button" aria-pressed={registerFilter === filter} onClick={() => setRegisterFilter(filter)} className={`rounded-md px-2 py-1 text-[11px] font-semibold capitalize ${registerFilter === filter ? "bg-blue-600" : "bg-white/10 hover:bg-white/15"}`}>{filter}</button>)}</div>
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} mine={markup.createdBy === userId} saving={saving || creatingTaskFor === markup.id} taskLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "task")} onCreateTask={() => void createTask(markup)} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
+            {projectEstimates.length ? <div className="border-b border-white/10 p-2"><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400" htmlFor="blueprint-estimate-target">Takeoff estimate</label><select id="blueprint-estimate-target" value={selectedEstimateId} onChange={(event) => setSelectedEstimateId(event.target.value)} className="w-full rounded-md border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white">{projectEstimates.map((estimate) => <option key={estimate.id} value={estimate.id}>{estimate.label} · {estimate.status}</option>)}</select></div> : null}
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} mine={markup.createdBy === userId} saving={saving || creatingTaskFor === markup.id || creatingEstimateItemFor === markup.id} taskLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "task")} estimateItemLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "estimate_line_item")} canAddToEstimate={Boolean(selectedEstimateId)} onAddToEstimate={() => void addTakeoffToEstimate(markup)} onCreateTask={() => void createTask(markup)} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
           </aside>
         ) : null}
         {symbolLibraryOpen ? <BlueprintSymbolLibrary symbols={symbols} selected={selectedSymbol} onSelect={(symbol) => { setSelectedSymbol(symbol); chooseTool("symbol"); }} onClose={() => setSymbolLibraryOpen(false)} /> : null}
@@ -465,7 +495,7 @@ export function BlueprintMarkupSurface({
 
 function layerForMarkup(type: BlueprintMarkupType): "redlines" | "issues" | "measurements" { return type === "pin" ? "issues" : ["calibration", "distance", "area", "locked_dimension"].includes(type) ? "measurements" : "redlines"; }
 function LayerToggle({ layer, visible, onToggle }: { layer: string; visible: boolean; onToggle: () => void }) { return <button type="button" aria-pressed={visible} onClick={onToggle} className={`inline-flex items-center gap-1 rounded px-2 py-1 capitalize ${visible ? "bg-white/15 text-white" : "bg-transparent text-slate-500"}`}>{visible ? <Eye size={11} /> : <EyeOff size={11} />}{layer}</button>; }
-function RegisterItem({ markup, mine, saving, taskLinked, onCreateTask, onStatus }: { markup: BlueprintMarkup; mine: boolean; saving: boolean; taskLinked: boolean; onCreateTask: () => void; onStatus: (status: "open" | "resolved") => void }) { const label = markup.content || markup.type; return <article className="rounded-lg border border-white/10 bg-white/5 p-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-semibold capitalize">{label}</p><p className="mt-1 text-[10px] text-slate-400">{markup.type} · {mine ? "You" : "Team"}</p></div><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${markup.status === "resolved" ? "bg-green-500/20 text-green-300" : "bg-amber-500/20 text-amber-300"}`}>{markup.status}</span></div>{markup.type === "pin" ? <div className="mt-2 flex flex-wrap gap-1"><button type="button" disabled={saving} onClick={() => onStatus(markup.status === "open" ? "resolved" : "open")} className="inline-flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-[10px] font-semibold hover:bg-white/10 disabled:opacity-50"><CheckCircle2 size={11} />{markup.status === "open" ? "Resolve issue" : "Reopen issue"}</button><button type="button" disabled={saving || taskLinked} onClick={onCreateTask} className="inline-flex items-center gap-1 rounded border border-blue-400/40 bg-blue-500/10 px-2 py-1 text-[10px] font-semibold text-blue-200 hover:bg-blue-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{taskLinked ? "Task linked" : "Create task"}</button></div> : null}</article>; }
+function RegisterItem({ markup, mine, saving, taskLinked, estimateItemLinked, canAddToEstimate, onAddToEstimate, onCreateTask, onStatus }: { markup: BlueprintMarkup; mine: boolean; saving: boolean; taskLinked: boolean; estimateItemLinked: boolean; canAddToEstimate: boolean; onAddToEstimate: () => void; onCreateTask: () => void; onStatus: (status: "open" | "resolved") => void }) { const label = markup.content || markup.type; const isTakeoff = markup.type === "distance" || markup.type === "area"; return <article className="rounded-lg border border-white/10 bg-white/5 p-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-semibold capitalize">{label}</p><p className="mt-1 text-[10px] text-slate-400">{markup.type} · {mine ? "You" : "Team"}</p></div><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${markup.status === "resolved" ? "bg-green-500/20 text-green-300" : "bg-amber-500/20 text-amber-300"}`}>{markup.status}</span></div>{markup.type === "pin" ? <div className="mt-2 flex flex-wrap gap-1"><button type="button" disabled={saving} onClick={() => onStatus(markup.status === "open" ? "resolved" : "open")} className="inline-flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-[10px] font-semibold hover:bg-white/10 disabled:opacity-50"><CheckCircle2 size={11} />{markup.status === "open" ? "Resolve issue" : "Reopen issue"}</button><button type="button" disabled={saving || taskLinked} onClick={onCreateTask} className="inline-flex items-center gap-1 rounded border border-blue-400/40 bg-blue-500/10 px-2 py-1 text-[10px] font-semibold text-blue-200 hover:bg-blue-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{taskLinked ? "Task linked" : "Create task"}</button></div> : null}{isTakeoff ? <button type="button" disabled={saving || estimateItemLinked || !canAddToEstimate} onClick={onAddToEstimate} className="mt-2 inline-flex items-center gap-1 rounded border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-60"><ClipboardPlus size={11} />{estimateItemLinked ? "Estimate item linked" : "Add to estimate"}</button> : null}</article>; }
 
 function MarkupShape({ markup }: { markup: BlueprintMarkup }) {
   const geometry = markup.geometry as Record<string, unknown>;
