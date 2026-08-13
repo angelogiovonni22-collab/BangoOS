@@ -101,7 +101,7 @@ assert(pdfViewer.includes("Page {pageNumber}/"), "PDF plans must provide page na
 assert(markupSurface.includes("geometry: { ...geometry, page: pageNumber }"), "Persistent markup geometry must record its PDF page");
 assert(measurementsMigration.includes("'calibration','distance','area'"), "Blueprint annotations must support calibrated measurements");
 assert(wallDimensionMigration.includes("'wall','locked_dimension'"), "Blueprint annotations must support walls and locked dimensions");
-assert(snapping.includes('reason: "endpoint"') && snapping.includes('reason: "axis"') && snapping.includes('reason: "grid"'), "Blueprint snapping must prioritize wall endpoints, axes, and grid points");
+assert(snapping.includes('reason:"endpoint"') && snapping.includes('reason:"axis"') && snapping.includes('reason:"grid"'), "Blueprint snapping must prioritize wall endpoints, axes, and grid points");
 assert(markupSurface.includes('label="Wall"') && markupSurface.includes('label="Lock dimension"'), "The markup toolbar must expose wall and locked-dimension tools");
 assert(markupSurface.includes("lockedValue") && markupSurface.includes("snapEnabled"), "Locked dimensions must preserve their value and allow snapping to be toggled");
 assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('label="Distance"') && markupSurface.includes('label="Area"'), "The markup toolbar must expose measurement tools");
