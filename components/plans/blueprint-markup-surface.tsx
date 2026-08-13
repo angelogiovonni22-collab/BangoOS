@@ -8,6 +8,7 @@ import { loadBlueprintMedia, uploadBlueprintMedia, type BlueprintMediaAttachment
 import { loadBlueprintSymbols, type BlueprintSymbol } from "@/lib/blueprints/symbols";
 import { BLUEPRINT_SYMBOL_MIME, BlueprintSymbolLibrary } from "./blueprint-symbol-library";
 import { blueprintWallEndpoints, snapBlueprintPoint } from "@/lib/blueprints/snapping";
+import { createBlueprintLayer, loadBlueprintLayers, type BlueprintLayer } from "@/lib/blueprints/layers";
 import {
   createBlueprintMarkup,
   deleteBlueprintMarkup,
@@ -25,6 +26,7 @@ type BlueprintMarkupSurfaceProps = {
   projectId: string;
   versionId: string;
   userId: string;
+  discipline: string;
   children: ReactNode;
   transform: string;
   transition: string;
@@ -40,6 +42,7 @@ export function BlueprintMarkupSurface({
   projectId,
   versionId,
   userId,
+  discipline,
   children,
   transform,
   transition,
@@ -76,6 +79,10 @@ export function BlueprintMarkupSurface({
   const [selectedSymbol, setSelectedSymbol] = useState<BlueprintSymbol | null>(null);
   const [dimensionLockValue, setDimensionLockValue] = useState("10");
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [layers, setLayers] = useState<BlueprintLayer[]>([]);
+  const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
+  const [hiddenLayerIds, setHiddenLayerIds] = useState<Set<string>>(new Set());
+  const [newLayerName, setNewLayerName] = useState("");
 
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
 
@@ -102,6 +109,8 @@ export function BlueprintMarkupSurface({
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [requestMarkups]);
+  const reloadLayers = useCallback(async () => { if (supabase) setLayers(await loadBlueprintLayers(supabase, companyId, projectId)); }, [companyId, projectId, supabase]);
+  useEffect(() => { void reloadLayers().catch((layerError:unknown)=>setError(layerError instanceof Error ? layerError.message : "Could not load plan layers.")); }, [reloadLayers]);
 
   const requestMedia = useCallback(async () => supabase ? loadBlueprintMedia(supabase, identity) : [], [identity, supabase]);
   const reloadMedia = useCallback(async () => { setMedia(await requestMedia()); }, [requestMedia]);
@@ -163,7 +172,7 @@ export function BlueprintMarkupSurface({
     setSaving(true);
     setError(null);
     try {
-      await createBlueprintMarkup(supabase, { ...identity, userId, type, color, geometry: { ...geometry, page: pageNumber }, content });
+      await createBlueprintMarkup(supabase, { ...identity, userId, type, color, discipline, layerId: activeLayerId, geometry: { ...geometry, page: pageNumber }, content });
       await reload();
       if (type === "pin" || type === "text") setNote("");
     } catch (saveError) {
@@ -297,7 +306,7 @@ export function BlueprintMarkupSurface({
   };
 
   const visibleMarkups = markups.filter((markup) => Number(markup.geometry.page ?? 1) === pageNumber);
-  const layeredMarkups = visibleMarkups.filter((markup) => visibleLayers.has(layerForMarkup(markup.type)));
+  const layeredMarkups = visibleMarkups.filter((markup) => markup.discipline === discipline && visibleLayers.has(layerForMarkup(markup.type)) && (!markup.layerId || !hiddenLayerIds.has(markup.layerId)));
   const registerMarkups = visibleMarkups.filter((markup) => registerFilter === "all" || (registerFilter === "mine" ? markup.createdBy === userId : markup.status === "open"));
   const calibration = currentCalibration(markups, pageNumber);
   const lastOwnedMarkup = [...visibleMarkups].reverse().find((markup) => markup.createdBy === userId);
@@ -366,6 +375,11 @@ export function BlueprintMarkupSurface({
       <div className="flex items-center gap-2 border-b border-white/10 bg-slate-900 px-3 py-1.5 text-[10px] text-slate-300" data-orion-region="blueprint-layer-controls">
         <Layers3 size={13} aria-hidden="true" /><span className="font-semibold">Layers</span>
         {(["redlines", "issues", "measurements"] as const).map((layer) => <LayerToggle key={layer} layer={layer} visible={visibleLayers.has(layer)} onToggle={() => setVisibleLayers((current) => { const next = new Set(current); if (next.has(layer)) next.delete(layer); else next.add(layer); return next; })} />)}
+        <span className="rounded bg-cyan-950 px-2 py-1 font-semibold text-cyan-200">{discipline}</span>
+        <select aria-label="Active drawing layer" value={activeLayerId??""} onChange={(event)=>setActiveLayerId(event.target.value||null)} className="rounded border border-white/15 bg-slate-950 px-2 py-1 text-[10px] text-white"><option value="">Default layer</option>{layers.filter((layer)=>layer.discipline===discipline).map((layer)=><option key={layer.id} value={layer.id}>{layer.name}</option>)}</select>
+        <input aria-label="New layer name" value={newLayerName} onChange={(event)=>setNewLayerName(event.target.value)} maxLength={80} placeholder="New layer" className="w-24 rounded border border-white/15 bg-white/10 px-2 py-1 text-[10px] text-white"/>
+        <button type="button" disabled={!newLayerName.trim()||saving} onClick={()=>{if(!supabase)return;setSaving(true);void createBlueprintLayer(supabase,{companyId,projectId,userId,name:newLayerName,discipline,color}).then(()=>{setNewLayerName("");return reloadLayers();}).catch((layerError:unknown)=>setError(layerError instanceof Error?layerError.message:"Could not create layer.")).finally(()=>setSaving(false));}} className="rounded border border-white/15 px-2 py-1 font-semibold disabled:opacity-35">Add layer</button>
+        {layers.filter((layer)=>layer.discipline===discipline).map((layer)=><button key={layer.id} type="button" aria-pressed={!hiddenLayerIds.has(layer.id)} onClick={()=>setHiddenLayerIds((current)=>{const next=new Set(current);if(next.has(layer.id))next.delete(layer.id);else next.add(layer.id);return next;})} className={`rounded px-2 py-1 ${hiddenLayerIds.has(layer.id)?"text-slate-500":"bg-white/10 text-white"}`}>{layer.name}</button>)}
         <span className="ml-auto inline-flex items-center gap-1.5" data-orion-region="blueprint-collaboration-status" role="status">
           {realtimeConnected ? <Radio size={11} className="text-green-400" aria-hidden="true" /> : <Radio size={11} className="text-amber-400" aria-hidden="true" />}
           <span>{realtimeConnected ? "Live" : "Connecting"}</span>
