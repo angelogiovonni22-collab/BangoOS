@@ -678,7 +678,7 @@ export function createWorkforceOperationsService(deps: WorkforceOperationsDeps =
           assignedCrewId: employee.primaryCrewId,
           assignedCrewName: employee.primaryCrewName,
           assignedProjectId: employee.currentProjectId || assignment?.scope.projectId || null,
-          assignedJobName: employee.currentAssignmentTitle || assignment?.title || null,
+          assignedJobName: employee.currentProjectName || assignment?.scope.projectName || null,
           timeTodayHours: Number(hoursToday.toFixed(2)),
           overtime: hoursToday > 8,
           lastCheckIn: clock?.lastCheckIn || assignment?.plannedStart || null,
