@@ -71,6 +71,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
             projectId={projectId}
             versionId={selectedDocument.versionId}
             userId={userId}
+            discipline={selectedDocument.discipline}
           />
         ) : (
         <div className="flex h-72 items-center justify-center overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)]/75">

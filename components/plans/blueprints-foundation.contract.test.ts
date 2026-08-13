@@ -38,6 +38,8 @@ const symbolLibrary = fs.readFileSync(path.join(root, "components/plans/blueprin
 const symbolMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813023000_blueprint_symbol_libraries.sql"), "utf8");
 const wallDimensionMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813040000_blueprint_wall_dimension_annotations.sql"), "utf8");
 const snapping = fs.readFileSync(path.join(root, "lib/blueprints/snapping.ts"), "utf8");
+const disciplineLayersMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813053000_blueprint_discipline_layers.sql"), "utf8");
+const layerService = fs.readFileSync(path.join(root, "lib/blueprints/layers.ts"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -104,6 +106,11 @@ assert(wallDimensionMigration.includes("'wall','locked_dimension'"), "Blueprint 
 assert(snapping.includes('reason:"endpoint"') && snapping.includes('reason:"axis"') && snapping.includes('reason:"grid"'), "Blueprint snapping must prioritize wall endpoints, axes, and grid points");
 assert(markupSurface.includes('label="Wall"') && markupSurface.includes('label="Lock dimension"'), "The markup toolbar must expose wall and locked-dimension tools");
 assert(markupSurface.includes("lockedValue") && markupSurface.includes("snapEnabled"), "Locked dimensions must preserve their value and allow snapping to be toggled");
+assert(disciplineLayersMigration.includes("create table public.blueprint_layers") && disciplineLayersMigration.includes("enable row level security"), "Company-scoped drawing layers must be persisted behind RLS");
+assert(disciplineLayersMigration.includes("foreign key (layer_id, company_id, project_id)"), "Annotation layers must preserve tenant and project integrity");
+assert(disciplineLayersMigration.includes("set discipline = sheet.discipline"), "Existing annotations must inherit their source sheet discipline");
+assert(layerService.includes('from("blueprint_layers")') && markupSurface.includes('aria-label="Active drawing layer"'), "Plan workspaces must load and select persisted drawing layers");
+assert(markupSurface.includes("hiddenLayerIds") && markupSurface.includes("markup.discipline === discipline"), "Discipline and custom layer visibility must filter rendered annotations");
 assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('label="Distance"') && markupSurface.includes('label="Area"'), "The markup toolbar must expose measurement tools");
 assert(markupSurface.includes("unitsPerDrawingUnit"), "Measurements must use a persisted drawing calibration");
 assert(blueprintViewer.includes('closest("[data-blueprint-controls]")'), "Viewer panning must ignore nested Blueprint controls");
