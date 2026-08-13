@@ -279,11 +279,11 @@ function createMobileReportInput(params: {
       ? [{
           id: `mat-${Date.now()}`,
           delivery: source.draft.materialsUsed,
-          supplier: "",
-          quantity: 1,
-          unit: "item",
+          supplier: source.draft.materialSupplier.trim(),
+          quantity: Math.max(0, Number(source.draft.materialQuantity) || 0),
+          unit: source.draft.materialUnit.trim() || "item",
           receivedTime: now,
-          shortages: false,
+          shortages: source.draft.materialShortage,
           rejected: false,
           notes: "",
         }]
