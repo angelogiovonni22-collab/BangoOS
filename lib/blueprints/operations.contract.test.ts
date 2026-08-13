@@ -19,6 +19,7 @@ const governanceService = readFileSync(resolve(root, "lib/blueprints/revision-go
 const governancePanel = readFileSync(resolve(root, "components/plans/blueprint-revision-governance.tsx"), "utf8");
 const revisionEventsMigration = readFileSync(resolve(root, "supabase/migrations/20260813214500_blueprint_revision_events.sql"), "utf8");
 const eventTypes = readFileSync(resolve(root, "lib/orion/events/event-types.ts"), "utf8");
+const scheduleMigration = readFileSync(resolve(root, "supabase/migrations/20260813230000_blueprint_schedule_impacts.sql"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -86,5 +87,11 @@ assert.match(revisionEventsMigration, /reference_entity, reference_id, source_mo
 assert.match(eventTypes, /blueprint\.revision_submitted/);
 assert.match(eventTypes, /blueprint\.revision_approved/);
 assert.match(eventTypes, /blueprint\.revision_acknowledged/);
+assert.match(scheduleMigration, /schedule_blueprint_issue_task/);
+assert.match(scheduleMigration, /planned_finish < p_planned_start/);
+assert.match(scheduleMigration, /target_type = 'task'/);
+assert.match(scheduleMigration, /'schedule.updated'/);
+assert.match(service, /scheduleBlueprintIssueTask/);
+assert.match(surface, /Schedule task/);
 
 console.log("Blueprint operational integration contract checks passed.");
