@@ -139,6 +139,9 @@ export function PersistentOrionPanel({
         <p className="mt-1 text-xs opacity-70">
           {realtimeSessionActive ? "End the current Realtime conversation to change voices." : "Your Realtime voice choice is saved on this device."}
         </p>
+        <p className="mt-2 text-xs opacity-70" role="status">
+          Focused voice isolation is active: background audio is suppressed and unrelated room speech is ignored. This improves isolation but is not biometric speaker verification.
+        </p>
 
         <div className="mt-2 text-xs font-medium uppercase tracking-wide opacity-70">
           Engine: ORION V2 · OPENAI REALTIME
