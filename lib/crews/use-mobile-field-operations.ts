@@ -119,5 +119,9 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
       runAction(() => service.checkoutEquipment(input).then(() => undefined), "Equipment checked out."),
     returnEquipment: async (input: { checkoutId: string; conditionNotes: string }) =>
       runAction(() => service.returnEquipment(input).then(() => undefined), "Equipment returned."),
+    retryOfflineAction: async (id: string) =>
+      runAction(() => service.retryOfflineAction(id).then(() => undefined), "Offline action retried."),
+    discardOfflineAction: async (id: string) =>
+      runAction(() => service.discardOfflineAction(id), "Offline action discarded."),
   };
 }
