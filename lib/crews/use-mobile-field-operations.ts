@@ -11,13 +11,25 @@ import {
   type MobileFieldOperationsService,
 } from "./mobile-field-operations-types";
 import { createMobileFieldOperationsService } from "./mobile-field-operations-service";
+import { createBrowserFieldOfflineProviders } from "./field-offline-queue";
+import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 type UseMobileFieldOperationsParams = {
   service?: MobileFieldOperationsService;
 };
 
 export function useMobileFieldOperations(params: UseMobileFieldOperationsParams = {}) {
-  const service = useMemo(() => params.service || createMobileFieldOperationsService(), [params.service]);
+  const service = useMemo(() => {
+    if (params.service) return params.service;
+    const client = createClient();
+    const offline = createBrowserFieldOfflineProviders(async () => {
+      const result = await resolveWorkspaceContext(client);
+      if (!result.context) throw new Error(result.errorMessage);
+      return { companyId: result.context.companyId, userId: result.context.userId };
+    });
+    return createMobileFieldOperationsService({ offlineQueue: offline.queue, offlineSync: offline.sync });
+  }, [params.service]);
 
   const [data, setData] = useState<ForemanDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
