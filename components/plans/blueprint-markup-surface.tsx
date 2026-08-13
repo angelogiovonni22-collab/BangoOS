@@ -34,6 +34,7 @@ type BlueprintMarkupSurfaceProps = {
   onToolChange: (isMarkingUp: boolean) => void;
   pageNumber?: number;
   toolbarExtra?: ReactNode;
+  focusAnnotationId?: string | null;
 };
 
 const colors = ["#ef4444", "#f59e0b", "#2563eb", "#16a34a"];
@@ -50,6 +51,7 @@ export function BlueprintMarkupSurface({
   onToolChange,
   pageNumber = 1,
   toolbarExtra,
+  focusAnnotationId,
 }: BlueprintMarkupSurfaceProps) {
   const supabase = useMemo(() => createClient(), []);
   const surfaceRef = useRef<SVGSVGElement>(null);
@@ -66,7 +68,7 @@ export function BlueprintMarkupSurface({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BlueprintMarkup | null>(null);
-  const [registerOpen, setRegisterOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(Boolean(focusAnnotationId));
   const [visibleLayers, setVisibleLayers] = useState<Set<"redlines" | "issues" | "measurements">>(new Set(["redlines", "issues", "measurements"]));
   const [registerFilter, setRegisterFilter] = useState<"all" | "mine" | "open">("all");
   const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
