@@ -36,6 +36,8 @@ const exportActions = fs.readFileSync(path.join(root, "components/plans/blueprin
 const packageMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813010000_blueprint_plan_packages.sql"), "utf8");
 const symbolLibrary = fs.readFileSync(path.join(root, "components/plans/blueprint-symbol-library.tsx"), "utf8");
 const symbolMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813023000_blueprint_symbol_libraries.sql"), "utf8");
+const wallDimensionMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813040000_blueprint_wall_dimension_annotations.sql"), "utf8");
+const snapping = fs.readFileSync(path.join(root, "lib/blueprints/snapping.ts"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -98,6 +100,10 @@ assert(pdfViewer.includes("pageNumber={pageNumber}"), "PDF markups must be scope
 assert(pdfViewer.includes("Page {pageNumber}/"), "PDF plans must provide page navigation context");
 assert(markupSurface.includes("geometry: { ...geometry, page: pageNumber }"), "Persistent markup geometry must record its PDF page");
 assert(measurementsMigration.includes("'calibration','distance','area'"), "Blueprint annotations must support calibrated measurements");
+assert(wallDimensionMigration.includes("'wall','locked_dimension'"), "Blueprint annotations must support walls and locked dimensions");
+assert(snapping.includes('reason: "endpoint"') && snapping.includes('reason: "axis"') && snapping.includes('reason: "grid"'), "Blueprint snapping must prioritize wall endpoints, axes, and grid points");
+assert(markupSurface.includes('label="Wall"') && markupSurface.includes('label="Lock dimension"'), "The markup toolbar must expose wall and locked-dimension tools");
+assert(markupSurface.includes("lockedValue") && markupSurface.includes("snapEnabled"), "Locked dimensions must preserve their value and allow snapping to be toggled");
 assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('label="Distance"') && markupSurface.includes('label="Area"'), "The markup toolbar must expose measurement tools");
 assert(markupSurface.includes("unitsPerDrawingUnit"), "Measurements must use a persisted drawing calibration");
 assert(blueprintViewer.includes('closest("[data-blueprint-controls]")'), "Viewer panning must ignore nested Blueprint controls");
