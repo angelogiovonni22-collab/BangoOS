@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { detectRealtimeVoiceControl } from "./realtime-voice-controls.ts";
+import { detectRealtimeVoiceControl } from "./realtime-voice-controls";
 
 assert.equal(detectRealtimeVoiceControl("Orion, disable voice"), "mute_output");
 assert.equal(detectRealtimeVoiceControl("Hey Orion, turn your voice off."), "mute_output");
