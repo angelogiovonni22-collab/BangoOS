@@ -14,6 +14,7 @@ import { useMobileFieldOperations } from "@/lib/crews/use-mobile-field-operation
 import type { CrewCheckInAction, DailyChecklist, MobileDailyReportDraft } from "@/lib/crews/mobile-field-operations-types";
 import { isFieldProductionValid } from "@/lib/crews/field-production";
 import { createMobileReportDraftStore } from "@/lib/crews/mobile-report-drafts";
+import { createMobileChecklistDraftStore } from "@/lib/crews/mobile-checklist-drafts";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { FieldPhotoCapture, type FieldPhotoUpload } from "./field-photo-capture";
@@ -63,7 +64,13 @@ export function MobileFieldOperationsWorkspace() {
   const [returnNotes, setReturnNotes] = useState("");
   const reportSubmissionRef = useRef(false);
   const reportDraftHydrationRef = useRef("");
+  const checklistDraftHydrationRef = useRef("");
   const reportDraftStore = useMemo(() => createMobileReportDraftStore(async () => {
+    const workspace=await resolveWorkspaceContext(createClient());
+    if(!workspace.context)throw new Error(workspace.errorMessage);
+    return {companyId:workspace.context.companyId,userId:workspace.context.userId};
+  }), []);
+  const checklistDraftStore = useMemo(() => createMobileChecklistDraftStore(async () => {
     const workspace=await resolveWorkspaceContext(createClient());
     if(!workspace.context)throw new Error(workspace.errorMessage);
     return {companyId:workspace.context.companyId,userId:workspace.context.userId};
@@ -75,6 +82,18 @@ export function MobileFieldOperationsWorkspace() {
 
   const effectiveCrewId = selectedCrewId || data?.workforce.crewStatus[0]?.crewId || "";
   const reportDraftKey = `${effectiveCrewId}:${reportDate}`;
+
+  useEffect(() => {
+    if(!effectiveCrewId)return;
+    let active=true;
+    checklistDraftHydrationRef.current="";
+    void checklistDraftStore.load(effectiveCrewId).then(saved=>{
+      if(!active)return;
+      if(saved)setChecklistDraftByCrewId(current=>({...current,[effectiveCrewId]:saved}));
+      checklistDraftHydrationRef.current=effectiveCrewId;
+    }).catch(()=>{if(active)checklistDraftHydrationRef.current=effectiveCrewId;});
+    return()=>{active=false;};
+  },[checklistDraftStore,effectiveCrewId]);
 
   useEffect(() => {
     if(!effectiveCrewId)return;
@@ -98,6 +117,12 @@ export function MobileFieldOperationsWorkspace() {
     () => checklistDraftByCrewId[effectiveCrewId] || data?.checklistByCrew[effectiveCrewId] || createEmptyChecklist(),
     [checklistDraftByCrewId, data, effectiveCrewId, createEmptyChecklist],
   );
+
+  useEffect(() => {
+    if(!effectiveCrewId||checklistDraftHydrationRef.current!==effectiveCrewId||!checklistDraftByCrewId[effectiveCrewId])return;
+    const timer=window.setTimeout(()=>void checklistDraftStore.save(effectiveCrewId,checklistDraftByCrewId[effectiveCrewId]),300);
+    return()=>window.clearTimeout(timer);
+  },[checklistDraftByCrewId,checklistDraftStore,effectiveCrewId]);
 
   const selectedCrew = useMemo(
     () => data?.workforce.crewStatus.find((crew) => crew.crewId === effectiveCrewId) || null,
@@ -155,6 +180,11 @@ export function MobileFieldOperationsWorkspace() {
   const completeEquipmentReturn = async () => {
     const saved = await returnEquipment({ checkoutId: returnCheckoutId, conditionNotes: returnNotes });
     if (saved) { setReturnCheckoutId(""); setReturnNotes(""); }
+  };
+
+  const persistChecklist = async () => {
+    const saved=await saveChecklist({crewId:effectiveCrewId,checklist});
+    if(saved){await checklistDraftStore.remove(effectiveCrewId);setChecklistDraftByCrewId(current=>{const next={...current};delete next[effectiveCrewId];return next;});}
   };
 
   if (isLoading) {
@@ -337,7 +367,7 @@ export function MobileFieldOperationsWorkspace() {
             rows={3}
           />
 
-          <Button fullWidth size="lg" disabled={isMutating || !effectiveCrewId} onClick={() => void saveChecklist({ crewId: effectiveCrewId, checklist })}>Save Checklist</Button>
+          <Button fullWidth size="lg" disabled={isMutating || !effectiveCrewId} onClick={() => void persistChecklist()}>Save Checklist</Button>
         </div>
       </Card>
 
