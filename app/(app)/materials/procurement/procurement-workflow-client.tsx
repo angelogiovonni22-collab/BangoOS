@@ -31,6 +31,7 @@ import type {
   PurchaseOrderStatus,
 } from "@/lib/materials/procurement-types";
 import { useCompany } from "@/lib/company";
+import { BlueprintSourceLink } from "@/components/plans/blueprint-source-link";
 
 const STATUS_BADGE_TONE: Record<PurchaseOrderStatus, "neutral" | "warning" | "info" | "brand" | "success" | "danger"> = {
   draft: "neutral",
@@ -795,6 +796,7 @@ function RequestRow({
           <Button size="sm" variant="outline" onClick={onReject} disabled={isSaving}>Reject</Button>
         </div>
       ) : null}
+      <div className="mt-3"><BlueprintSourceLink targetType="material_request" targetIds={[request.id]} /></div>
     </div>
   );
 }
