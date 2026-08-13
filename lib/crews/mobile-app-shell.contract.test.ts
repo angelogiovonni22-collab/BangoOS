@@ -8,7 +8,8 @@ assert.match(layout,/appleWebApp: \{ capable: true/);
 assert.match(layout,/viewportFit: "cover"/);
 assert.match(manifest,/start_url: "\/crews\/field"/);
 assert.match(manifest,/display: "standalone"/);
-assert.match(manifest,/purpose: "any maskable"/);
+assert.match(manifest,/purpose: "any"/);
+assert.match(manifest,/purpose: "maskable"/);
 assert.match(icon,/<svg/);
 
 console.log("Mobile app shell contract checks passed.");
