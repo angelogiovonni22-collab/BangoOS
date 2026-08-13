@@ -36,6 +36,7 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
   const [isMutating, setIsMutating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [isOnline,setIsOnline]=useState(()=>typeof navigator==="undefined"||navigator.onLine);
   const mutationRef = useRef(false);
   const refreshRequestRef = useRef(0);
 
@@ -62,9 +63,12 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
         if (result.synced > 0 || result.failed > 0) void refresh();
       });
     };
-    window.addEventListener("online", synchronize);
+    const markOnline=()=>{setIsOnline(true);synchronize();};
+    const markOffline=()=>setIsOnline(false);
+    window.addEventListener("online", markOnline);
+    window.addEventListener("offline", markOffline);
     if (navigator.onLine) synchronize();
-    return () => window.removeEventListener("online", synchronize);
+    return () => {window.removeEventListener("online", markOnline);window.removeEventListener("offline", markOffline);};
   }, [refresh, service]);
 
   const runAction = useCallback(async (action: () => Promise<void>, successMessage: string) => {
@@ -92,6 +96,7 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
     data,
     isLoading,
     isMutating,
+    isOnline,
     errorMessage,
     actionMessage,
     refresh,
