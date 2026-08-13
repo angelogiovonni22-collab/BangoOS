@@ -42,6 +42,8 @@ const disciplineLayersMigration = fs.readFileSync(path.join(root, "supabase/migr
 const layerService = fs.readFileSync(path.join(root, "lib/blueprints/layers.ts"), "utf8");
 const modelViewer = fs.readFileSync(path.join(root, "components/plans/blueprint-3d-viewer.tsx"), "utf8");
 const bimMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813070000_blueprint_bim_models.sql"), "utf8");
+const fourDMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813083000_blueprint_4d_schedule_links.sql"), "utf8");
+const fourDService = fs.readFileSync(path.join(root, "lib/blueprints/four-d.ts"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -119,6 +121,10 @@ assert(modelViewer.includes('import("web-ifc")') && modelViewer.includes("Stream
 assert(modelViewer.includes('GLTFLoader') && modelViewer.includes("OrbitControls"), "The model viewer must support GLB/GLTF and orbit, pan, and zoom controls");
 assert(modelViewer.includes("raycaster.intersectObjects") && modelViewer.includes("GetLine"), "BIM elements must be selectable with model properties");
 assert(modelViewer.includes("Discipline visibility") && modelViewer.includes("disciplineForIfc"), "BIM discipline visibility must be independently controllable");
+assert(fourDMigration.includes("create table public.blueprint_model_schedule_links") && fourDMigration.includes("enable row level security"), "4D element/task links must be tenant-scoped behind RLS");
+assert(fourDMigration.includes("exists(select 1 from public.tasks") && fourDMigration.includes("blueprint_version_id,company_id,project_id"), "4D links must verify task and model tenant integrity");
+assert(fourDService.includes('from(n)') && fourDService.includes('"tasks"'), "4D playback must join model links to the shared project schedule");
+assert(modelViewer.includes('data-orion-region="blueprint-4d-playback"') && modelViewer.includes("playbackDate"), "The BIM viewer must expose schedule-linked construction playback");
 assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('label="Distance"') && markupSurface.includes('label="Area"'), "The markup toolbar must expose measurement tools");
 assert(markupSurface.includes("unitsPerDrawingUnit"), "Measurements must use a persisted drawing calibration");
 assert(blueprintViewer.includes('closest("[data-blueprint-controls]")'), "Viewer panning must ignore nested Blueprint controls");
