@@ -11,6 +11,8 @@ export type BlueprintMarkup = {
   createdBy: string;
   createdAt: string;
   status: "open" | "resolved";
+  discipline: string;
+  layerId: string | null;
 };
 
 type MarkupIdentity = {
@@ -25,7 +27,7 @@ function blueprintAnnotations(supabase: SupabaseClient) {
 
 export async function loadBlueprintMarkups(supabase: SupabaseClient, identity: MarkupIdentity) {
   const response = await blueprintAnnotations(supabase)
-    .select("id, annotation_type, color, geometry, content, status, created_by, created_at")
+    .select("id, annotation_type, color, geometry, content, status, discipline, layer_id, created_by, created_at")
     .eq("company_id", identity.companyId)
     .eq("project_id", identity.projectId)
     .eq("blueprint_version_id", identity.versionId)
@@ -41,6 +43,8 @@ export async function loadBlueprintMarkups(supabase: SupabaseClient, identity: M
     createdBy: String(row.created_by),
     createdAt: String(row.created_at),
     status: row.status === "resolved" ? "resolved" : "open",
+    discipline: String(row.discipline || "Architectural"),
+    layerId: typeof row.layer_id === "string" ? row.layer_id : null,
   } satisfies BlueprintMarkup));
 }
 
@@ -65,6 +69,8 @@ export async function createBlueprintMarkup(
     color: string;
     geometry: Record<string, unknown>;
     content?: string;
+    discipline?: string;
+    layerId?: string | null;
   },
 ) {
   const response = await blueprintAnnotations(supabase).insert({
@@ -75,6 +81,8 @@ export async function createBlueprintMarkup(
     color: input.color,
     geometry: input.geometry,
     content: input.content?.trim() || null,
+    discipline: input.discipline || "Architectural",
+    layer_id: input.layerId || null,
     created_by: input.userId,
   });
   if (response.error) throw response.error;
