@@ -305,6 +305,12 @@ export function MobileFieldOperationsWorkspace() {
             <Textarea rows={2} aria-label="Delay corrective action" placeholder="Corrective action" value={mobileReport.delayCorrectiveAction} onChange={(event) => setMobileReport((current) => ({ ...current, delayCorrectiveAction: event.target.value }))} />
           </div> : null}
           <Textarea rows={2} placeholder="Materials used" value={mobileReport.materialsUsed} onChange={(event) => setMobileReport((current) => ({ ...current, materialsUsed: event.target.value }))} />
+          {mobileReport.materialsUsed.trim() ? <div className="grid gap-2 sm:grid-cols-3">
+            <Input aria-label="Material quantity" inputMode="decimal" placeholder="Quantity" value={mobileReport.materialQuantity} onChange={(event) => setMobileReport((current) => ({ ...current, materialQuantity: event.target.value }))} />
+            <Input aria-label="Material unit" placeholder="Unit" value={mobileReport.materialUnit} onChange={(event) => setMobileReport((current) => ({ ...current, materialUnit: event.target.value }))} />
+            <Input aria-label="Material supplier" placeholder="Supplier" value={mobileReport.materialSupplier} onChange={(event) => setMobileReport((current) => ({ ...current, materialSupplier: event.target.value }))} />
+            <label className="flex items-center gap-2 text-sm text-[var(--text-primary)] sm:col-span-3"><input type="checkbox" checked={mobileReport.materialShortage} onChange={(event) => setMobileReport((current) => ({ ...current, materialShortage: event.target.checked }))} />Shortage or backorder affected today&apos;s work</label>
+          </div> : null}
           <Textarea rows={2} placeholder="Safety observations" value={mobileReport.safetyObservations} onChange={(event) => setMobileReport((current) => ({ ...current, safetyObservations: event.target.value }))} />
           {mobileReport.safetyObservations.trim() ? <div className="grid gap-2 sm:grid-cols-2">
             <Select aria-label="Safety event type" value={mobileReport.safetyEventType} onChange={(event) => setMobileReport((current) => ({ ...current, safetyEventType: event.target.value as MobileDailyReportDraft["safetyEventType"] }))}><option value="inspection">Inspection</option><option value="toolbox_talk">Toolbox talk</option><option value="near_miss">Near miss</option><option value="incident">Incident</option></Select>
