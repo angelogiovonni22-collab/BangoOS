@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ClipboardCheck, HardHat, Mail, Phone, Truck, Users } from "./crew-icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -57,6 +57,7 @@ export function MobileFieldOperationsWorkspace() {
   const [checkoutNotes, setCheckoutNotes] = useState("");
   const [returnCheckoutId, setReturnCheckoutId] = useState("");
   const [returnNotes, setReturnNotes] = useState("");
+  const reportSubmissionRef = useRef(false);
 
   useEffect(() => {
     void refresh();
@@ -96,6 +97,17 @@ export function MobileFieldOperationsWorkspace() {
     unit: mobileReport.productionUnit,
     percentComplete: mobileReport.productionPercentComplete,
   });
+
+  const submitReport = async (status: "draft" | "submitted") => {
+    if (reportSubmissionRef.current) return;
+    reportSubmissionRef.current = true;
+    try {
+      const result = await submitMobileDailyReport({ crewId: effectiveCrewId, reportDate, status, draft: mobileReport });
+      if (result && status === "submitted") setMobileReport(createEmptyMobileDailyReportDraft());
+    } finally {
+      reportSubmissionRef.current = false;
+    }
+  };
 
   if (isLoading) {
     return (
@@ -329,24 +341,14 @@ export function MobileFieldOperationsWorkspace() {
               size="lg"
               variant="outline"
               disabled={isMutating || !effectiveCrewId || !reportDate || !productionValid}
-              onClick={() => void submitMobileDailyReport({
-                crewId: effectiveCrewId,
-                reportDate,
-                status: "draft",
-                draft: mobileReport,
-              })}
+              onClick={() => void submitReport("draft")}
             >
               Save Draft
             </Button>
             <Button
               size="lg"
               disabled={isMutating || !effectiveCrewId || !reportDate || !productionValid}
-              onClick={() => void submitMobileDailyReport({
-                crewId: effectiveCrewId,
-                reportDate,
-                status: "submitted",
-                draft: mobileReport,
-              })}
+              onClick={() => void submitReport("submitted")}
             >
               Submit Report
             </Button>
