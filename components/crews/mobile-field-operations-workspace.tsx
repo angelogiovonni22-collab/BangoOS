@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMobileFieldOperations } from "@/lib/crews/use-mobile-field-operations";
 import type { CrewCheckInAction, DailyChecklist, MobileDailyReportDraft } from "@/lib/crews/mobile-field-operations-types";
 import { isFieldProductionValid } from "@/lib/crews/field-production";
-import { FieldPhotoCapture } from "./field-photo-capture";
+import { FieldPhotoCapture, type FieldPhotoUpload } from "./field-photo-capture";
 import { MobileFieldInspections } from "./mobile-field-inspections";
 import { MobileWorkforceTimeClock } from "./mobile-workforce-time-clock";
 import { MobileTimeApprovals } from "./mobile-time-approvals";
@@ -107,6 +107,13 @@ export function MobileFieldOperationsWorkspace() {
     } finally {
       reportSubmissionRef.current = false;
     }
+  };
+
+  const attachFieldPhoto = async (photo: FieldPhotoUpload) => {
+    setMobileReport((current) => current.photos.includes(photo.fileName)
+      ? current
+      : { ...current, photos: [...current.photos, photo.fileName] });
+    await refresh();
   };
 
   if (isLoading) {
@@ -226,7 +233,7 @@ export function MobileFieldOperationsWorkspace() {
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="time-approvals"><MobileTimeApprovals/></Card>
 
-      <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-photos"><FieldPhotoCapture projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""} onUploaded={refresh}/></Card>
+      <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-photos"><FieldPhotoCapture projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""} onUploaded={attachFieldPhoto}/></Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-inspections"><MobileFieldInspections projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""}/></Card>
 
@@ -298,14 +305,10 @@ export function MobileFieldOperationsWorkspace() {
 
         <div className="space-y-3">
           <Input type="date" value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
-          <Input
-            placeholder="Photos (comma separated filenames)"
-            value={mobileReport.photos.join(", ")}
-            onChange={(event) => setMobileReport((current) => ({
-              ...current,
-              photos: event.target.value.split(",").map((entry) => entry.trim()).filter(Boolean),
-            }))}
-          />
+          <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Attached field photos</p>
+            {mobileReport.photos.length ? <ul className="mt-2 space-y-1">{mobileReport.photos.map((photo) => <li key={photo} className="flex items-center justify-between gap-2 text-sm text-[var(--text-primary)]"><span className="truncate">{photo}</span><Button type="button" size="sm" variant="ghost" onClick={() => setMobileReport((current) => ({ ...current, photos: current.photos.filter((item) => item !== photo) }))}>Remove</Button></li>)}</ul> : <p className="mt-1 text-xs text-[var(--text-secondary)]">Use Jobsite Photo above to capture evidence directly into this report.</p>}
+          </div>
           <Textarea rows={3} placeholder="Notes" value={mobileReport.notes} onChange={(event) => setMobileReport((current) => ({ ...current, notes: event.target.value }))} />
           <Textarea rows={2} placeholder="Completed work" value={mobileReport.completedWork} onChange={(event) => setMobileReport((current) => ({ ...current, completedWork: event.target.value }))} />
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
