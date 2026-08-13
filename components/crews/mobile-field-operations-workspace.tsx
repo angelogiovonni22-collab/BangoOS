@@ -13,6 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMobileFieldOperations } from "@/lib/crews/use-mobile-field-operations";
 import type { CrewCheckInAction, DailyChecklist, MobileDailyReportDraft } from "@/lib/crews/mobile-field-operations-types";
 import { isFieldProductionValid } from "@/lib/crews/field-production";
+import { createMobileReportDraftStore } from "@/lib/crews/mobile-report-drafts";
+import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { FieldPhotoCapture, type FieldPhotoUpload } from "./field-photo-capture";
 import { MobileFieldInspections } from "./mobile-field-inspections";
 import { MobileWorkforceTimeClock } from "./mobile-workforce-time-clock";
@@ -59,12 +62,37 @@ export function MobileFieldOperationsWorkspace() {
   const [returnCheckoutId, setReturnCheckoutId] = useState("");
   const [returnNotes, setReturnNotes] = useState("");
   const reportSubmissionRef = useRef(false);
+  const reportDraftHydrationRef = useRef("");
+  const reportDraftStore = useMemo(() => createMobileReportDraftStore(async () => {
+    const workspace=await resolveWorkspaceContext(createClient());
+    if(!workspace.context)throw new Error(workspace.errorMessage);
+    return {companyId:workspace.context.companyId,userId:workspace.context.userId};
+  }), []);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   const effectiveCrewId = selectedCrewId || data?.workforce.crewStatus[0]?.crewId || "";
+  const reportDraftKey = `${effectiveCrewId}:${reportDate}`;
+
+  useEffect(() => {
+    if(!effectiveCrewId)return;
+    let active=true;
+    reportDraftHydrationRef.current="";
+    void reportDraftStore.load(effectiveCrewId,reportDate).then(saved=>{
+      if(!active)return;
+      setMobileReport(saved??createEmptyMobileDailyReportDraft());
+      reportDraftHydrationRef.current=reportDraftKey;
+    }).catch(()=>{if(active)reportDraftHydrationRef.current=reportDraftKey;});
+    return()=>{active=false;};
+  },[createEmptyMobileDailyReportDraft,effectiveCrewId,reportDate,reportDraftKey,reportDraftStore]);
+
+  useEffect(() => {
+    if(!effectiveCrewId||reportDraftHydrationRef.current!==reportDraftKey)return;
+    const timer=window.setTimeout(()=>void reportDraftStore.save(effectiveCrewId,reportDate,mobileReport),400);
+    return()=>window.clearTimeout(timer);
+  },[effectiveCrewId,mobileReport,reportDate,reportDraftKey,reportDraftStore]);
 
   const checklist = useMemo(
     () => checklistDraftByCrewId[effectiveCrewId] || data?.checklistByCrew[effectiveCrewId] || createEmptyChecklist(),
@@ -105,7 +133,10 @@ export function MobileFieldOperationsWorkspace() {
     reportSubmissionRef.current = true;
     try {
       const result = await submitMobileDailyReport({ crewId: effectiveCrewId, reportDate, status, draft: mobileReport });
-      if (result && status === "submitted") setMobileReport(createEmptyMobileDailyReportDraft());
+      if (result && status === "submitted") {
+        await reportDraftStore.remove(effectiveCrewId,reportDate);
+        setMobileReport(createEmptyMobileDailyReportDraft());
+      }
     } finally {
       reportSubmissionRef.current = false;
     }
