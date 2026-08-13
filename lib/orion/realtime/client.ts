@@ -15,6 +15,7 @@ import type {
   OrionRealtimeSessionOptions,
 } from "./types";
 import { OrionRealtimeResponseLifecycle } from "./response-lifecycle";
+import { DEFAULT_ORION_VOICE_ISOLATION_MODE, microphoneConstraints } from "@/lib/orion/voice/voice-isolation";
 
 const CONFIRMATION_TRANSCRIPT_MAX_AGE_MS = 8_000;
 const CONFIRMATION_TRANSCRIPT_WAIT_MS = 2_000;
@@ -174,11 +175,7 @@ export class OrionRealtimeClient {
     try {
       setState(this.callbacks, "requesting_microphone");
       const microphoneStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
+        audio: microphoneConstraints(options.isolationMode || DEFAULT_ORION_VOICE_ISOLATION_MODE),
       });
       this.microphoneStream = microphoneStream;
 
@@ -223,7 +220,7 @@ export class OrionRealtimeClient {
       const response = await fetch("/api/orion/realtime/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sdp: offer.sdp, voice: options.voice || null, voiceStyle: options.voiceStyle || null }),
+        body: JSON.stringify({ sdp: offer.sdp, voice: options.voice || null, voiceStyle: options.voiceStyle || null, isolationMode: options.isolationMode || DEFAULT_ORION_VOICE_ISOLATION_MODE }),
       });
 
       const payload = await response.json() as { ok?: boolean; sdp?: string; error?: string };
