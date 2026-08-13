@@ -229,9 +229,10 @@ function extractEquipmentCheckouts(events: WorkflowMobileEventRow[]) {
   return Array.from(records.values()).sort((a, b) => b.checkedOutAt.localeCompare(a.checkedOutAt));
 }
 
-function markQueueStatus(item: OfflineQueueItem | null, status: OfflineQueueItem["status"]) {
+async function markQueueStatus(provider: OfflineQueueProvider, item: OfflineQueueItem | null, status: OfflineQueueItem["status"]) {
   if (item) {
     item.status = status;
+    await provider.setStatus?.(item.id, status);
   }
 }
 
@@ -513,7 +514,7 @@ export function createMobileFieldOperationsService(
           persistenceState: saved ? "saved" : "queued",
         },
       });
-      markQueueStatus(queued, saved ? "synced" : "queued");
+      await markQueueStatus(offlineQueue, queued, saved ? "synced" : "queued");
     },
 
     async saveDailyChecklist(input) {
@@ -552,7 +553,7 @@ export function createMobileFieldOperationsService(
           persistenceState: saved ? "saved" : "queued",
         },
       });
-      markQueueStatus(queued, saved ? "synced" : "queued");
+      await markQueueStatus(offlineQueue, queued, saved ? "synced" : "queued");
 
       if (!saved) {
         checklistStore.set(input.crewId, nextChecklist);
@@ -642,7 +643,7 @@ export function createMobileFieldOperationsService(
           persistenceState: saved ? "saved" : "queued",
         },
       });
-      markQueueStatus(queued, saved ? "synced" : "queued");
+      await markQueueStatus(offlineQueue, queued, saved ? "synced" : "queued");
 
       return checkout;
     },
@@ -700,7 +701,7 @@ export function createMobileFieldOperationsService(
             persistenceState: saved ? "saved" : "queued",
           },
         });
-        markQueueStatus(queued, saved ? "synced" : "queued");
+        await markQueueStatus(offlineQueue, queued, saved ? "synced" : "queued");
       }
 
       return returned;
