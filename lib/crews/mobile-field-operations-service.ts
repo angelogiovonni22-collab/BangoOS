@@ -25,6 +25,7 @@ import {
   toShiftStatus,
 } from "./mobile-field-operations-types";
 import { normalizeFieldProduction } from "./field-production";
+import { validateMobileDailyReport } from "./mobile-report-validation";
 
 const checklistStore = new Map<string, DailyChecklist>();
 const checkoutStore = new Map<string, { id: string; crewId: string; equipmentIds: string[]; conditionNotes: string; checkedOutAt: string; returnedAt: string | null }>();
@@ -628,6 +629,7 @@ export function createMobileFieldOperationsService(
     },
 
     async submitMobileDailyReport(input) {
+      if(input.status!=="draft"){const errors=validateMobileDailyReport(input.draft);if(errors.length)throw new Error(errors[0]);}
       const [workforceData, baseDraft] = await Promise.all([
         workforce.getDashboard(),
         dailyReports.createDraftFromSchedule(input.reportDate),
