@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, Focus, RotateCcw } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { loadModelSchedule, type ModelScheduleLink } from "@/lib/blueprints/four-d";
 
-type Props = { fileUrl: string; fileName: string; format: "ifc" | "gltf" };
+type Props = { fileUrl: string; fileName: string; format: "ifc" | "gltf"; companyId:string;projectId:string;versionId:string;userId:string };
 type Selected = {
   name: string;
   expressId?: number;
@@ -17,7 +19,7 @@ const DISCIPLINES = [
   "Plumbing",
 ];
 
-export function Blueprint3dViewer({ fileUrl, fileName, format }: Props) {
+export function Blueprint3dViewer({ fileUrl, fileName, format,companyId,projectId,versionId }: Props) {
   const host = useRef<HTMLDivElement>(null),
     resetRef = useRef<() => void>(() => {});
   const pickablesRef = useRef<
@@ -27,6 +29,9 @@ export function Blueprint3dViewer({ fileUrl, fileName, format }: Props) {
     [hidden, setHidden] = useState<Set<string>>(new Set()),
     [error, setError] = useState<string | null>(null),
     [loading, setLoading] = useState(true);
+  const [schedule,setSchedule]=useState<ModelScheduleLink[]>([]),[playbackDate,setPlaybackDate]=useState("");
+  useEffect(()=>{const supabase=createClient();if(!supabase)return;let active=true;void loadModelSchedule(supabase,{companyId,projectId,versionId}).then((next)=>{if(active){setSchedule(next);const dates=next.flatMap(item=>[item.plannedStart,item.plannedFinish]).filter(Boolean) as string[];if(dates.length)setPlaybackDate(dates.sort()[0]);}}).catch((reason:unknown)=>{if(active)setError(reason instanceof Error?reason.message:"Could not load 4D schedule.");});return()=>{active=false;};},[companyId,projectId,versionId]);
+  useEffect(()=>{if(!playbackDate)return;for(const object of pickablesRef.current){const key=String(object.userData.expressId??object.userData.elementKey??"");const link=schedule.find(item=>item.elementKey===key);object.visible=!hidden.has(String(object.userData.discipline))&&(!link||!link.plannedStart||link.plannedStart<=playbackDate);}},[hidden,playbackDate,schedule]);
   useEffect(() => {
     if (!host.current) return;
     let disposed = false;
@@ -305,6 +310,7 @@ export function Blueprint3dViewer({ fileUrl, fileName, format }: Props) {
             {discipline}
           </button>
         ))}
+        <div className="mt-5 border-t border-white/10 pt-4" data-orion-region="blueprint-4d-playback"><h3 className="text-xs font-bold">4D construction playback</h3><input aria-label="4D playback date" type="date" value={playbackDate} onChange={(event)=>setPlaybackDate(event.target.value)} className="mt-2 w-full rounded border border-white/15 bg-slate-950 px-2 py-1 text-xs"/><p className="mt-2 text-[10px] text-slate-400">{schedule.length} scheduled model element{schedule.length===1?"":"s"}</p>{schedule.filter(item=>!item.plannedStart||item.plannedStart<=playbackDate).slice(0,8).map(item=><div key={item.id} className="mt-2 rounded bg-white/5 p-2 text-[10px]"><strong>{item.title}</strong><p className="text-slate-400">{item.plannedStart||"Unscheduled"} – {item.plannedFinish||"Open"} · {item.completion}%</p></div>)}</div>
       </aside>
     </div>
   );
