@@ -39,7 +39,9 @@ export type MobileDailyReportDraft = {
 export type CrewDirectoryEntry = {
   employeeId: string;
   employeeName: string;
+  crewId: string | null;
   crewName: string | null;
+  projectId: string | null;
   projectName: string | null;
   phone: string | null;
 };

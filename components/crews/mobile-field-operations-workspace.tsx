@@ -468,8 +468,8 @@ export function MobileFieldOperationsWorkspace() {
                       <Mail className="h-4 w-4" aria-hidden="true" />
                     </span>
                   )}
-                  <Link href={`/crews/${effectiveCrewId}`} className="inline-flex h-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-semibold">Crew</Link>
-                  <Link href="/projects" className="inline-flex h-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-semibold">Project</Link>
+                  {employee.crewId ? <Link href={`/crews/${employee.crewId}`} className="inline-flex h-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-semibold" aria-label={`Open ${employee.employeeName}'s crew`}>Crew</Link> : <span className={`${disabledContactActionClass} text-xs font-semibold`} aria-label={`${employee.employeeName} has no assigned crew`}>Crew</span>}
+                  {employee.projectId ? <Link href={`/projects/${employee.projectId}`} className="inline-flex h-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-semibold" aria-label={`Open ${employee.employeeName}'s project`}>Project</Link> : <span className={`${disabledContactActionClass} text-xs font-semibold`} aria-label={`${employee.employeeName} has no assigned project`}>Project</span>}
                 </div>
               </article>
             );

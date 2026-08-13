@@ -42,7 +42,9 @@ export type EmployeeStatusRow = {
   employeeId: string;
   employeeName: string;
   currentStatus: "working" | "late" | "absent" | "available" | "off";
+  assignedCrewId: string | null;
   assignedCrewName: string | null;
+  assignedProjectId: string | null;
   assignedJobName: string | null;
   timeTodayHours: number;
   overtime: boolean;

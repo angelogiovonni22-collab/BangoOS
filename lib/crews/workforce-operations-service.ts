@@ -675,7 +675,9 @@ export function createWorkforceOperationsService(deps: WorkforceOperationsDeps =
           employeeId: employee.id,
           employeeName: employee.fullName,
           currentStatus,
+          assignedCrewId: employee.primaryCrewId,
           assignedCrewName: employee.primaryCrewName,
+          assignedProjectId: employee.currentProjectId || assignment?.scope.projectId || null,
           assignedJobName: employee.currentAssignmentTitle || assignment?.title || null,
           timeTodayHours: Number(hoursToday.toFixed(2)),
           overtime: hoursToday > 8,
@@ -1044,4 +1046,3 @@ export function createWorkforceOperationsService(deps: WorkforceOperationsDeps =
     },
   };
 }
-
