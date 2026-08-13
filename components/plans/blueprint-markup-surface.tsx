@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowUpRight, CheckCircle2, Eye, EyeOff, Hand, Layers3, ListFilter, MapPin, Pencil, Radio, Ruler, ScanLine, SquareDashed, Trash2, Type, Users, X } from "lucide-react";
+import { ArrowUpRight, Camera, CheckCircle2, Eye, EyeOff, Hand, ImageIcon, Layers3, ListFilter, MapPin, Pencil, Radio, Ruler, ScanLine, SquareDashed, Trash2, Type, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { subscribeToBlueprintCollaboration } from "@/lib/blueprints/realtime";
+import { loadBlueprintMedia, uploadBlueprintMedia, type BlueprintMediaAttachment } from "@/lib/blueprints/media-attachments";
 import {
   createBlueprintMarkup,
   deleteBlueprintMarkup,
@@ -45,6 +46,7 @@ export function BlueprintMarkupSurface({
 }: BlueprintMarkupSurfaceProps) {
   const supabase = useMemo(() => createClient(), []);
   const surfaceRef = useRef<SVGSVGElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef<{ pointerId: number; start: Point; points: Point[] } | null>(null);
   const [tool, setTool] = useState<MarkupTool>("pan");
   const [color, setColor] = useState(colors[0]);
@@ -62,6 +64,10 @@ export function BlueprintMarkupSurface({
   const [registerFilter, setRegisterFilter] = useState<"all" | "mine" | "open">("all");
   const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
   const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const [media, setMedia] = useState<BlueprintMediaAttachment[]>([]);
+  const [queuedMedia, setQueuedMedia] = useState<File | null>(null);
+  const [mediaCaption, setMediaCaption] = useState("");
+  const [activeMedia, setActiveMedia] = useState<BlueprintMediaAttachment | null>(null);
 
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
 
@@ -88,6 +94,16 @@ export function BlueprintMarkupSurface({
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [requestMarkups]);
+
+  const requestMedia = useCallback(async () => supabase ? loadBlueprintMedia(supabase, identity) : [], [identity, supabase]);
+  const reloadMedia = useCallback(async () => { setMedia(await requestMedia()); }, [requestMedia]);
+  useEffect(() => {
+    let active = true;
+    void requestMedia()
+      .then((next) => { if (active) setMedia(next); })
+      .catch((mediaError: unknown) => { if (active) setError(mediaError instanceof Error ? mediaError.message : "Could not load plan media."); });
+    return () => { active = false; };
+  }, [requestMedia]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -153,6 +169,16 @@ export function BlueprintMarkupSurface({
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (tool === "pan" || saving || event.button !== 0) return;
     const point = pointFromEvent(event);
+
+    if (queuedMedia) {
+      const file = queuedMedia;
+      setSaving(true);
+      void uploadBlueprintMedia(supabase!, { ...identity, userId, pageNumber, ...point, caption: mediaCaption, file })
+        .then(reloadMedia).then(() => { setQueuedMedia(null); setMediaCaption(""); chooseTool("pan"); })
+        .catch((mediaError: unknown) => setError(mediaError instanceof Error ? mediaError.message : "Could not pin this media."))
+        .finally(() => setSaving(false));
+      return;
+    }
 
     if (tool === "pin" || tool === "text") {
       if (!note.trim()) {
@@ -271,6 +297,8 @@ export function BlueprintMarkupSurface({
         <MarkupButton label="Arrow" active={tool === "arrow"} onClick={() => chooseTool("arrow")}><ArrowUpRight size={14} /></MarkupButton>
         <MarkupButton label="Text" active={tool === "text"} onClick={() => chooseTool("text")}><Type size={14} /></MarkupButton>
         <MarkupButton label="Issue pin" active={tool === "pin"} onClick={() => chooseTool("pin")}><MapPin size={14} /></MarkupButton>
+        <input ref={mediaInputRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={(event) => { const file = event.target.files?.[0] ?? null; setQueuedMedia(file); if (file) chooseTool("pin"); event.currentTarget.value = ""; }} />
+        <button type="button" onClick={() => mediaInputRef.current?.click()} className="inline-flex h-7 items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-slate-200 hover:bg-white/20"><Camera size={14} /><span className="hidden sm:inline">Media pin</span></button>
         <MarkupButton label="Calibrate" active={tool === "calibration"} onClick={() => chooseTool("calibration")}><ScanLine size={14} /></MarkupButton>
         <MarkupButton label="Distance" active={tool === "distance"} onClick={() => chooseTool("distance")}><Ruler size={14} /></MarkupButton>
         <MarkupButton label="Area" active={tool === "area"} onClick={() => chooseTool("area")}><SquareDashed size={14} /></MarkupButton>
@@ -282,6 +310,7 @@ export function BlueprintMarkupSurface({
         {tool === "pin" || tool === "text" ? (
           <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={1000} placeholder={tool === "pin" ? "Issue note…" : "Plan note…"} className="ml-1 min-w-36 flex-1 rounded-md border border-white/15 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-400 focus:border-blue-400 focus:outline-none" />
         ) : null}
+        {queuedMedia ? <input value={mediaCaption} onChange={(event) => setMediaCaption(event.target.value)} maxLength={1000} placeholder="Caption, then tap drawing…" className="min-w-44 flex-1 rounded-md border border-cyan-300/40 bg-white/10 px-2 py-1 text-xs text-white placeholder:text-slate-400" /> : null}
         {tool === "calibration" ? (
           <div className="flex items-center gap-1">
             <input aria-label="Known calibration length" type="number" min="0.01" step="0.01" value={knownLength} onChange={(event) => setKnownLength(event.target.value)} className="w-20 rounded-md border border-white/15 bg-white/10 px-2 py-1 text-xs text-white focus:border-blue-400 focus:outline-none" />
@@ -343,6 +372,7 @@ export function BlueprintMarkupSurface({
             </marker>
           </defs>
           {layeredMarkups.map((markup) => <MarkupShape key={markup.id} markup={markup} />)}
+          {media.filter((item) => item.pageNumber === pageNumber).map((item) => <g key={item.id} role="button" tabIndex={0} aria-label={`Open media attachment ${item.caption || item.fileName}`} onClick={() => setActiveMedia(item)} className="cursor-pointer"><circle cx={item.x * 1000} cy={item.y * 1000} r="27" fill="#0891b2" stroke="white" strokeWidth="5" vectorEffect="non-scaling-stroke" /><image href={item.signedUrl} x={item.x * 1000 - 15} y={item.y * 1000 - 15} width="30" height="30" preserveAspectRatio="xMidYMid slice" /></g>)}
           {draft.length > 1 ? <DraftShape tool={tool} points={draft} color={color} /> : null}
           </svg>
         </div>
@@ -353,6 +383,7 @@ export function BlueprintMarkupSurface({
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} mine={markup.createdBy === userId} saving={saving} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
           </aside>
         ) : null}
+        {activeMedia ? <aside className="absolute bottom-3 right-3 z-30 w-[min(22rem,calc(100%-1.5rem))] overflow-hidden rounded-xl border border-slate-700 bg-slate-950 text-white shadow-2xl" data-orion-region="blueprint-media-preview"><div className="flex items-center justify-between px-3 py-2"><span className="inline-flex items-center gap-2 text-xs font-bold"><ImageIcon size={14} />Pinned media</span><button type="button" aria-label="Close media preview" onClick={() => setActiveMedia(null)}><X size={16} /></button></div><div className="h-72 w-full bg-black bg-contain bg-center bg-no-repeat" role="img" aria-label={activeMedia.caption || activeMedia.fileName} style={{ backgroundImage: `url(${activeMedia.signedUrl})` }} /><div className="p-3"><p className="text-xs font-semibold">{activeMedia.caption || activeMedia.fileName}</p><p className="mt-1 text-[10px] text-slate-400">Page {activeMedia.pageNumber}</p></div></aside> : null}
       </div>
     </div>
   );
