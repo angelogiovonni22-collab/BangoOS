@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
@@ -15,6 +15,17 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "B.O.S.",
   description: "Bango Operating System construction management workspace",
+  applicationName: "B.O.S.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "B.O.S." },
+  icons: { icon: "/bos-app-icon.svg" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0a1222",
 };
 
 const LOCALE_COOKIE_KEY = "bangoos_i18n_locale";
