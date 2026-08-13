@@ -10,6 +10,8 @@ const workforceMigration = readFileSync(resolve(root, "supabase/migrations/20260
 const punchMigration = readFileSync(resolve(root, "supabase/migrations/20260813190000_blueprint_punch_items.sql"), "utf8");
 const service = readFileSync(resolve(root, "lib/blueprints/operations.ts"), "utf8");
 const surface = readFileSync(resolve(root, "components/plans/blueprint-markup-surface.tsx"), "utf8");
+const intelligence = readFileSync(resolve(root, "lib/blueprints/intelligence.ts"), "utf8");
+const intelligencePanel = readFileSync(resolve(root, "components/plans/blueprint-orion-intelligence.tsx"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -54,5 +56,9 @@ assert.match(punchMigration, /Blueprint page/);
 assert.match(service, /createPunchItemFromBlueprintIssue/);
 assert.match(surface, /Create punch item/);
 assert.match(surface, /Punch item linked/);
+assert.match(intelligence, /unowned-issues/);
+assert.match(intelligence, /operational-response/);
+assert.match(intelligencePanel, /loadBlueprintOperationalLinks/);
+assert.match(intelligencePanel, /analyzeBlueprint\(items,links\)/);
 
 console.log("Blueprint operational integration contract checks passed.");
