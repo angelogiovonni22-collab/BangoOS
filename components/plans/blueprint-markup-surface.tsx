@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowUpRight, Camera, CheckCircle2, Eye, EyeOff, Hand, ImageIcon, Layers3, ListFilter, MapPin, Pencil, Radio, Ruler, ScanLine, Shapes, SquareDashed, Trash2, Type, Users, X } from "lucide-react";
+import { ArrowUpRight, BrickWall, Camera, CheckCircle2, Eye, EyeOff, Hand, ImageIcon, Layers3, ListFilter, LockKeyhole, MapPin, Pencil, Radio, Ruler, ScanLine, Shapes, SquareDashed, Trash2, Type, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { subscribeToBlueprintCollaboration } from "@/lib/blueprints/realtime";
 import { loadBlueprintMedia, uploadBlueprintMedia, type BlueprintMediaAttachment } from "@/lib/blueprints/media-attachments";
 import { loadBlueprintSymbols, type BlueprintSymbol } from "@/lib/blueprints/symbols";
 import { BLUEPRINT_SYMBOL_MIME, BlueprintSymbolLibrary } from "./blueprint-symbol-library";
+import { blueprintWallEndpoints, snapBlueprintPoint } from "@/lib/blueprints/snapping";
 import {
   createBlueprintMarkup,
   deleteBlueprintMarkup,
@@ -73,6 +74,8 @@ export function BlueprintMarkupSurface({
   const [symbols, setSymbols] = useState<BlueprintSymbol[]>([]);
   const [symbolLibraryOpen, setSymbolLibraryOpen] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState<BlueprintSymbol | null>(null);
+  const [dimensionLockValue, setDimensionLockValue] = useState("10");
+  const [snapEnabled, setSnapEnabled] = useState(true);
 
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
 
@@ -205,8 +208,9 @@ export function BlueprintMarkupSurface({
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     const activeDraft = draftRef.current;
     if (!activeDraft || activeDraft.pointerId !== event.pointerId) return;
-    const point = pointFromEvent(event);
-    const points = tool === "arrow" || tool === "calibration" || tool === "distance" || tool === "area"
+    const rawPoint = pointFromEvent(event);
+    const point = snapEnabled && ["wall", "locked_dimension"].includes(tool) ? snapBlueprintPoint(rawPoint, activeDraft.start, blueprintWallEndpoints(markups, pageNumber)) : rawPoint;
+    const points = tool === "arrow" || tool === "calibration" || tool === "distance" || tool === "area" || tool === "wall" || tool === "locked_dimension"
       ? [activeDraft.start, point]
       : [...activeDraft.points, point];
     activeDraft.points = points;
@@ -215,12 +219,18 @@ export function BlueprintMarkupSurface({
 
   const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     const activeDraft = draftRef.current;
-    if (!activeDraft || activeDraft.pointerId !== event.pointerId || !["freehand", "arrow", "calibration", "distance", "area"].includes(tool)) return;
+    if (!activeDraft || activeDraft.pointerId !== event.pointerId || !["freehand", "arrow", "calibration", "distance", "area", "wall", "locked_dimension"].includes(tool)) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     const points = activeDraft.points;
     if (points.length > 1) {
       const line = { x1: points[0].x, y1: points[0].y, x2: points.at(-1)!.x, y2: points.at(-1)!.y };
-      if (tool === "calibration") {
+      if (tool === "wall") {
+        void persist(tool, { ...line, snapped: snapEnabled });
+      } else if (tool === "locked_dimension") {
+        const lockedValue = Number(dimensionLockValue);
+        if (!Number.isFinite(lockedValue) || lockedValue <= 0) { setError("Enter a valid locked dimension."); setDraft([]); draftRef.current = null; return; }
+        void persist(tool, { ...line, lockedValue, unit: measurementUnit, snapped: snapEnabled });
+      } else if (tool === "calibration") {
         const realLength = Number(knownLength);
         const drawingLength = normalizedDistance(line);
         if (!Number.isFinite(realLength) || realLength <= 0 || drawingLength <= 0) {
@@ -311,6 +321,9 @@ export function BlueprintMarkupSurface({
         <MarkupButton label="Calibrate" active={tool === "calibration"} onClick={() => chooseTool("calibration")}><ScanLine size={14} /></MarkupButton>
         <MarkupButton label="Distance" active={tool === "distance"} onClick={() => chooseTool("distance")}><Ruler size={14} /></MarkupButton>
         <MarkupButton label="Area" active={tool === "area"} onClick={() => chooseTool("area")}><SquareDashed size={14} /></MarkupButton>
+        <MarkupButton label="Wall" active={tool === "wall"} onClick={() => chooseTool("wall")}><BrickWall size={14}/></MarkupButton>
+        <MarkupButton label="Lock dimension" active={tool === "locked_dimension"} onClick={() => chooseTool("locked_dimension")}><LockKeyhole size={14}/></MarkupButton>
+        <button type="button" aria-pressed={snapEnabled} onClick={() => setSnapEnabled((value) => !value)} className={`h-7 rounded-md border px-2 text-[11px] font-semibold ${snapEnabled ? "border-cyan-300 bg-cyan-700 text-white" : "border-white/15 bg-white/10 text-slate-300"}`}>Snap {snapEnabled ? "on" : "off"}</button>
         <button type="button" aria-expanded={registerOpen} onClick={() => setRegisterOpen((value) => !value)} className="inline-flex h-7 items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-slate-200 hover:bg-white/20"><ListFilter size={14} /><span className="hidden sm:inline">Register</span></button>
         <div className="mx-1 h-5 w-px bg-white/15" />
         {colors.map((option) => (
@@ -326,6 +339,7 @@ export function BlueprintMarkupSurface({
             <select aria-label="Measurement unit" value={measurementUnit} onChange={(event) => setMeasurementUnit(event.target.value as "ft" | "m")} className="rounded-md border border-white/15 bg-slate-900 px-1 py-1 text-xs text-white"><option value="ft">ft</option><option value="m">m</option></select>
           </div>
         ) : null}
+        {tool === "locked_dimension" ? <div className="flex items-center gap-1"><input aria-label="Locked dimension value" type="number" min="0.01" step="0.01" value={dimensionLockValue} onChange={(event) => setDimensionLockValue(event.target.value)} className="w-20 rounded-md border border-white/15 bg-white/10 px-2 py-1 text-xs text-white"/><select aria-label="Locked dimension unit" value={measurementUnit} onChange={(event) => setMeasurementUnit(event.target.value as "ft" | "m")} className="rounded-md border border-white/15 bg-slate-900 px-1 py-1 text-xs text-white"><option value="ft">ft</option><option value="m">m</option></select></div> : null}
         <button
           type="button"
           disabled={!lastOwnedMarkup || saving}
@@ -399,7 +413,7 @@ export function BlueprintMarkupSurface({
   );
 }
 
-function layerForMarkup(type: BlueprintMarkupType): "redlines" | "issues" | "measurements" { return type === "pin" ? "issues" : ["calibration", "distance", "area"].includes(type) ? "measurements" : "redlines"; }
+function layerForMarkup(type: BlueprintMarkupType): "redlines" | "issues" | "measurements" { return type === "pin" ? "issues" : ["calibration", "distance", "area", "locked_dimension"].includes(type) ? "measurements" : "redlines"; }
 function LayerToggle({ layer, visible, onToggle }: { layer: string; visible: boolean; onToggle: () => void }) { return <button type="button" aria-pressed={visible} onClick={onToggle} className={`inline-flex items-center gap-1 rounded px-2 py-1 capitalize ${visible ? "bg-white/15 text-white" : "bg-transparent text-slate-500"}`}>{visible ? <Eye size={11} /> : <EyeOff size={11} />}{layer}</button>; }
 function RegisterItem({ markup, mine, saving, onStatus }: { markup: BlueprintMarkup; mine: boolean; saving: boolean; onStatus: (status: "open" | "resolved") => void }) { const label = markup.content || markup.type; return <article className="rounded-lg border border-white/10 bg-white/5 p-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-semibold capitalize">{label}</p><p className="mt-1 text-[10px] text-slate-400">{markup.type} · {mine ? "You" : "Team"}</p></div><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${markup.status === "resolved" ? "bg-green-500/20 text-green-300" : "bg-amber-500/20 text-amber-300"}`}>{markup.status}</span></div>{markup.type === "pin" ? <button type="button" disabled={saving} onClick={() => onStatus(markup.status === "open" ? "resolved" : "open")} className="mt-2 inline-flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-[10px] font-semibold hover:bg-white/10 disabled:opacity-50"><CheckCircle2 size={11} />{markup.status === "open" ? "Resolve issue" : "Reopen issue"}</button> : null}</article>; }
 
@@ -424,6 +438,7 @@ function MarkupShape({ markup }: { markup: BlueprintMarkup }) {
     return <g><rect x={x} y={y} width={width} height={height} fill={`${markup.color}25`} stroke={markup.color} strokeWidth="6" strokeDasharray="12 8" vectorEffect="non-scaling-stroke" /><text x={x + width / 2} y={y + height / 2} textAnchor="middle" fontSize="30" fontWeight="700" fill={markup.color} stroke="white" strokeWidth="5" paintOrder="stroke">{formatMeasurement(Number(geometry.value))} {String(geometry.unit)}</text></g>;
   }
   if (markup.type === "symbol") { const x = Number(geometry.x) * 1000; const y = Number(geometry.y) * 1000; return <g role="img" aria-label={String(geometry.label || "Plan symbol")}><circle cx={x} cy={y} r="27" fill="white" stroke={markup.color} strokeWidth="5" vectorEffect="non-scaling-stroke"/><text x={x} y={y + 8} textAnchor="middle" fontSize="22" fontWeight="800" fill={markup.color}>{String(geometry.glyph || "?")}</text></g>; }
+  if (markup.type === "wall" || markup.type === "locked_dimension") { const x1=Number(geometry.x1)*1000,y1=Number(geometry.y1)*1000,x2=Number(geometry.x2)*1000,y2=Number(geometry.y2)*1000; return <g><line x1={x1} y1={y1} x2={x2} y2={y2} stroke={markup.type === "wall" ? "#334155" : markup.color} strokeWidth={markup.type === "wall" ? "12" : "5"} strokeDasharray={markup.type === "locked_dimension" ? "10 6" : undefined} vectorEffect="non-scaling-stroke"/>{markup.type === "locked_dimension" ? <text x={(x1+x2)/2} y={(y1+y2)/2-12} textAnchor="middle" fontSize="28" fontWeight="800" fill={markup.color} stroke="white" strokeWidth="5" paintOrder="stroke">{formatMeasurement(Number(geometry.lockedValue))} {String(geometry.unit)} 🔒</text> : null}</g>; }
   const x = Number(geometry.x) * 1000;
   const y = Number(geometry.y) * 1000;
   return (
@@ -436,7 +451,7 @@ function MarkupShape({ markup }: { markup: BlueprintMarkup }) {
 
 function DraftShape({ tool, points, color }: { tool: MarkupTool; points: Point[]; color: string }) {
   if (tool === "area") { const end = points.at(-1)!; return <rect x={Math.min(points[0].x, end.x) * 1000} y={Math.min(points[0].y, end.y) * 1000} width={Math.abs(end.x - points[0].x) * 1000} height={Math.abs(end.y - points[0].y) * 1000} fill={`${color}25`} stroke={color} strokeWidth="6" strokeDasharray="12 8" vectorEffect="non-scaling-stroke" />; }
-  if (["arrow", "calibration", "distance"].includes(tool)) return <line x1={points[0].x * 1000} y1={points[0].y * 1000} x2={points.at(-1)!.x * 1000} y2={points.at(-1)!.y * 1000} stroke={tool === "calibration" ? "#22d3ee" : color} strokeWidth="7" markerEnd={tool === "arrow" ? "url(#blueprint-arrowhead)" : undefined} strokeDasharray={tool === "calibration" ? "14 10" : undefined} vectorEffect="non-scaling-stroke" />;
+  if (["arrow", "calibration", "distance", "wall", "locked_dimension"].includes(tool)) return <line x1={points[0].x * 1000} y1={points[0].y * 1000} x2={points.at(-1)!.x * 1000} y2={points.at(-1)!.y * 1000} stroke={tool === "calibration" ? "#22d3ee" : tool === "wall" ? "#334155" : color} strokeWidth={tool === "wall" ? "12" : "7"} markerEnd={tool === "arrow" ? "url(#blueprint-arrowhead)" : undefined} strokeDasharray={tool === "calibration" ? "14 10" : tool === "locked_dimension" ? "10 6" : undefined} vectorEffect="non-scaling-stroke" />;
   return <polyline points={points.map((point) => `${point.x * 1000},${point.y * 1000}`).join(" ")} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />;
 }
 
