@@ -133,6 +133,17 @@ export async function createPunchItemFromBlueprintIssue(supabase: SupabaseClient
   return String(response.data);
 }
 
+export async function createRfiFromBlueprintIssue(supabase: SupabaseClient, input: { companyId: string; projectId: string; versionId: string; annotationId: string }) {
+  const response = await (supabase as unknown as { rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("create_rfi_from_blueprint_issue", {
+    p_company_id: input.companyId,
+    p_project_id: input.projectId,
+    p_blueprint_version_id: input.versionId,
+    p_annotation_id: input.annotationId,
+  });
+  if (response.error) throw new Error(response.error.message);
+  return String(response.data);
+}
+
 export async function scheduleBlueprintIssueTask(supabase: SupabaseClient, input: { companyId: string; projectId: string; versionId: string; annotationId: string; plannedStart: string; plannedFinish: string }) {
   const response = await (supabase as unknown as { rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("schedule_blueprint_issue_task", {
     p_company_id: input.companyId, p_project_id: input.projectId,
