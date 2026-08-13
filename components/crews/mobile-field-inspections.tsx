@@ -40,7 +40,10 @@ export function MobileFieldInspections({ projectId, projectName }: { projectId: 
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to load field inspections."); }
   }, [projectId, withActor]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   const createInspection = async () => {
     if (!projectId || !inspectionType.trim() || busy) return;
