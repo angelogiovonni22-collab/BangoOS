@@ -97,6 +97,8 @@ export const ORION_EVENT_TYPES = [
   "blueprint.revision_approved",
   "blueprint.revision_superseded",
   "blueprint.revision_acknowledged",
+  "blueprint.issue_overdue",
+  "blueprint.issue_status_changed",
   "notification.sent",
   "workflow.executed",
   "automation.rule.started",
