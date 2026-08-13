@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createEmptyChecklist,
   createEmptyMobileDailyReportDraft,
@@ -50,6 +50,19 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
       setIsLoading(false);
     }
   }, [service]);
+
+  useEffect(() => {
+    const synchronize = () => {
+      void service.syncOfflineActions().then((result) => {
+        if (result.synced > 0) setActionMessage(`${result.synced} offline field action${result.synced === 1 ? "" : "s"} synchronized.`);
+        if (result.failed > 0) setErrorMessage(`${result.failed} offline field action${result.failed === 1 ? "" : "s"} need review.`);
+        if (result.synced > 0 || result.failed > 0) void refresh();
+      });
+    };
+    window.addEventListener("online", synchronize);
+    if (navigator.onLine) synchronize();
+    return () => window.removeEventListener("online", synchronize);
+  }, [refresh, service]);
 
   const runAction = useCallback(async (action: () => Promise<void>, successMessage: string) => {
     setIsMutating(true);
