@@ -18,10 +18,15 @@ type PlansPreviewProps = {
   companyId: string;
   projectId: string;
   userId: string;
+  initialWorkspaceOpen?: boolean;
+  initialPage?: number;
+  initialAnnotationId?: string | null;
 };
 
-export function PlansPreview({ selectedDocument, projectName, onUploadRevision, companyId, projectId, userId }: PlansPreviewProps) {
+export function PlansPreview({ selectedDocument, projectName, onUploadRevision, companyId, projectId, userId, initialWorkspaceOpen = false, initialPage = 1, initialAnnotationId }: PlansPreviewProps) {
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [deepLinkDismissed, setDeepLinkDismissed] = useState(false);
+  const effectiveWorkspaceOpen = workspaceOpen || (initialWorkspaceOpen && !deepLinkDismissed);
 
   if (!selectedDocument) {
     return (
@@ -155,14 +160,16 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
 
       {selectedDocument.fileUrl && previewType !== "unsupported" ? (
         <BlueprintPlanWorkspace
-          open={workspaceOpen}
-          onClose={() => setWorkspaceOpen(false)}
+          open={effectiveWorkspaceOpen}
+          onClose={() => { setWorkspaceOpen(false); setDeepLinkDismissed(true); }}
           document={selectedDocument}
           projectName={projectName}
           companyId={companyId}
           projectId={projectId}
           userId={userId}
           previewType={previewType}
+          initialPage={initialPage}
+          initialAnnotationId={initialAnnotationId}
         />
       ) : null}
     </section>
