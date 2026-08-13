@@ -24,6 +24,7 @@ import {
   type SubmitMobileDailyReportInput,
   toShiftStatus,
 } from "./mobile-field-operations-types";
+import { normalizeFieldProduction } from "./field-production";
 
 const checklistStore = new Map<string, DailyChecklist>();
 const checkoutStore = new Map<string, { id: string; crewId: string; equipmentIds: string[]; conditionNotes: string; checkedOutAt: string; returnedAt: string | null }>();
@@ -246,6 +247,12 @@ function createMobileReportInput(params: {
 }): DailyReportUpsertInput {
   const now = new Date().toISOString();
   const { source } = params;
+  const production = normalizeFieldProduction({
+    activity: source.draft.completedWork,
+    quantity: source.draft.productionQuantity,
+    unit: source.draft.productionUnit,
+    percentComplete: source.draft.productionPercentComplete,
+  });
 
   return {
     ...params.baseDraft,
@@ -257,15 +264,15 @@ function createMobileReportInput(params: {
       superintendentName: params.superintendentName,
       overallStatus: source.status,
     },
-    workCompleted: source.draft.completedWork.trim()
+    workCompleted: production
       ? [{
           id: `work-${Date.now()}`,
-          activity: source.draft.completedWork,
-          quantity: 1,
-          unit: "item",
-          percentComplete: 100,
+          activity: production.activity,
+          quantity: production.quantity,
+          unit: production.unit,
+          percentComplete: production.percentComplete,
           productionNotes: source.draft.notes,
-          milestoneCompleted: true,
+          milestoneCompleted: production.percentComplete === 100,
         }]
       : [],
     materials: source.draft.materialsUsed.trim()

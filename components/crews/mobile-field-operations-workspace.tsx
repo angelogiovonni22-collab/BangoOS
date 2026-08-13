@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useMobileFieldOperations } from "@/lib/crews/use-mobile-field-operations";
 import type { CrewCheckInAction, DailyChecklist, MobileDailyReportDraft } from "@/lib/crews/mobile-field-operations-types";
+import { isFieldProductionValid } from "@/lib/crews/field-production";
 import { FieldPhotoCapture } from "./field-photo-capture";
 import { MobileFieldInspections } from "./mobile-field-inspections";
 
@@ -87,6 +88,12 @@ export function MobileFieldOperationsWorkspace() {
 
   const queuedCount = useMemo(() => data?.offline.queue.filter((item) => item.status === "queued").length || 0, [data]);
   const savedCount = useMemo(() => data?.offline.queue.filter((item) => item.status === "synced").length || 0, [data]);
+  const productionValid = !mobileReport.completedWork.trim() || isFieldProductionValid({
+    activity: mobileReport.completedWork,
+    quantity: mobileReport.productionQuantity,
+    unit: mobileReport.productionUnit,
+    percentComplete: mobileReport.productionPercentComplete,
+  });
 
   if (isLoading) {
     return (
@@ -284,6 +291,12 @@ export function MobileFieldOperationsWorkspace() {
           />
           <Textarea rows={3} placeholder="Notes" value={mobileReport.notes} onChange={(event) => setMobileReport((current) => ({ ...current, notes: event.target.value }))} />
           <Textarea rows={2} placeholder="Completed work" value={mobileReport.completedWork} onChange={(event) => setMobileReport((current) => ({ ...current, completedWork: event.target.value }))} />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Input aria-label="Production quantity" inputMode="decimal" placeholder="Quantity" value={mobileReport.productionQuantity} onChange={(event) => setMobileReport((current) => ({ ...current, productionQuantity: event.target.value }))} />
+            <Input aria-label="Production unit" placeholder="Unit (SF, LF, EA)" value={mobileReport.productionUnit} onChange={(event) => setMobileReport((current) => ({ ...current, productionUnit: event.target.value }))} />
+            <Input aria-label="Production percent complete" inputMode="decimal" placeholder="% complete" value={mobileReport.productionPercentComplete} onChange={(event) => setMobileReport((current) => ({ ...current, productionPercentComplete: event.target.value }))} />
+          </div>
+          {!productionValid ? <p role="alert" className="text-xs text-[var(--color-danger-700)]">Completed work requires a quantity above zero, a unit, and percent complete from 0 to 100.</p> : null}
           <Textarea rows={2} placeholder="Delays" value={mobileReport.delays} onChange={(event) => setMobileReport((current) => ({ ...current, delays: event.target.value }))} />
           <Textarea rows={2} placeholder="Materials used" value={mobileReport.materialsUsed} onChange={(event) => setMobileReport((current) => ({ ...current, materialsUsed: event.target.value }))} />
           <Textarea rows={2} placeholder="Safety observations" value={mobileReport.safetyObservations} onChange={(event) => setMobileReport((current) => ({ ...current, safetyObservations: event.target.value }))} />
@@ -292,7 +305,7 @@ export function MobileFieldOperationsWorkspace() {
             <Button
               size="lg"
               variant="outline"
-              disabled={isMutating || !effectiveCrewId || !reportDate}
+              disabled={isMutating || !effectiveCrewId || !reportDate || !productionValid}
               onClick={() => void submitMobileDailyReport({
                 crewId: effectiveCrewId,
                 reportDate,
@@ -304,7 +317,7 @@ export function MobileFieldOperationsWorkspace() {
             </Button>
             <Button
               size="lg"
-              disabled={isMutating || !effectiveCrewId || !reportDate}
+              disabled={isMutating || !effectiveCrewId || !reportDate || !productionValid}
               onClick={() => void submitMobileDailyReport({
                 crewId: effectiveCrewId,
                 reportDate,
