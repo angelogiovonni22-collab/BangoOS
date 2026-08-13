@@ -29,6 +29,7 @@ const slaMigration = readFileSync(resolve(root, "supabase/migrations/20260814033
 const slaService = readFileSync(resolve(root, "lib/blueprints/issue-sla.ts"), "utf8");
 const slaControls = readFileSync(resolve(root, "components/plans/blueprint-issue-sla-controls.tsx"), "utf8");
 const submittalMigration = readFileSync(resolve(root, "supabase/migrations/20260814050000_blueprint_submittal_workflow.sql"), "utf8");
+const submittalSyncMigration = readFileSync(resolve(root, "supabase/migrations/20260814063000_blueprint_submittal_status_sync.sql"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -151,5 +152,8 @@ assert.match(submittalMigration, /'submittal.created'/);
 assert.match(service, /createSubmittalFromBlueprintIssue/);
 assert.match(surface, /Create submittal/);
 assert.match(surface, /Submittal linked/);
+assert.match(submittalSyncMigration, /project_submittals/);
+assert.match(submittalSyncMigration, /approved_as_noted/);
+assert.match(submittalSyncMigration, /trg_submittal_to_blueprint_issue/);
 
 console.log("Blueprint operational integration contract checks passed.");
