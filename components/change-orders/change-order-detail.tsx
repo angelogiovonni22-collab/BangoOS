@@ -27,6 +27,7 @@ import type { ChangeOrderLineItemRow, ChangeOrderRow } from "@/lib/change-orders
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
+import { BlueprintSourceLink } from "@/components/plans/blueprint-source-link";
 
 export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) {
   const { locale } = useI18n();
@@ -336,6 +337,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
           </Link>
         )}
       />
+
+      <BlueprintSourceLink targetType="change_order" targetIds={[changeOrder.id]} />
 
       {actionMessage ? <ErrorState title="Action result" description={actionMessage} compact /> : null}
 
