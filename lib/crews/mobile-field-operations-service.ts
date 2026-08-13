@@ -301,11 +301,11 @@ function createMobileReportInput(params: {
     delays: source.draft.delays.trim()
       ? [{
           id: `delay-${Date.now()}`,
-          category: "other",
-          durationHours: 0,
+          category: source.draft.delayCategory,
+          durationHours: Math.max(0, Number(source.draft.delayDurationHours) || 0),
           description: source.draft.delays,
-          impact: "",
-          correctiveAction: "",
+          impact: source.draft.delayImpact.trim(),
+          correctiveAction: source.draft.delayCorrectiveAction.trim(),
         }]
       : [],
     attachments: source.draft.photos.map((photo, index) => ({
