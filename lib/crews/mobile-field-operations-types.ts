@@ -99,6 +99,7 @@ export type MobileFieldOperationsService = {
   submitMobileDailyReport: (input: SubmitMobileDailyReportInput) => Promise<{ reportId: string }>;
   checkoutEquipment: (input: { crewId: string; equipmentIds: string[]; conditionNotes: string }) => Promise<EquipmentCheckoutRecord>;
   returnEquipment: (input: { checkoutId: string; conditionNotes: string }) => Promise<EquipmentCheckoutRecord | null>;
+  syncOfflineActions: () => Promise<{ synced: number; failed: number }>;
 };
 
 export function toShiftStatus(action: CrewCheckInAction): WorkforceShiftStatus {
