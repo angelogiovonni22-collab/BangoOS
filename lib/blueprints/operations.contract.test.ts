@@ -24,6 +24,7 @@ const rfiMigration = readFileSync(resolve(root, "supabase/migrations/20260814003
 const sourceLink = readFileSync(resolve(root, "components/plans/blueprint-source-link.tsx"), "utf8");
 const projectWorkspace = readFileSync(resolve(root, "app/(app)/projects/[id]/page.tsx"), "utf8");
 const plansPreview = readFileSync(resolve(root, "components/plans/plans-preview.tsx"), "utf8");
+const statusSyncMigration = readFileSync(resolve(root, "supabase/migrations/20260814020000_blueprint_operational_status_sync.sql"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -115,5 +116,16 @@ assert.match(sourceLink, /blueprintAnnotation=/);
 assert.match(projectWorkspace, /initialVersionId=\{searchParams\.get\("blueprintVersion"\)\}/);
 assert.match(plansPreview, /initialWorkspaceOpen/);
 assert.match(surface, /focusAnnotationId/);
+assert.match(statusSyncMigration, /recompute_blueprint_issue_status/);
+assert.match(statusSyncMigration, /bool_and\(terminal\)/);
+assert.match(statusSyncMigration, /sync_blueprint_issue_from_operational_record/);
+assert.match(statusSyncMigration, /pg_trigger_depth\(\) > 1/);
+assert.match(statusSyncMigration, /sync_operational_records_from_blueprint_issue/);
+assert.match(statusSyncMigration, /status in \('approved', 'rejected', 'invoiced', 'void'\)/);
+assert.match(statusSyncMigration, /status in \('delivered', 'cancelled', 'logged_only'\)/);
+assert.match(statusSyncMigration, /status = 'reopened'/);
+assert.match(statusSyncMigration, /'blueprint.issue_status_changed'/);
+assert.doesNotMatch(statusSyncMigration, /update public\.change_orders set status/);
+assert.doesNotMatch(statusSyncMigration, /update public\.project_communications set status/);
 
 console.log("Blueprint operational integration contract checks passed.");
