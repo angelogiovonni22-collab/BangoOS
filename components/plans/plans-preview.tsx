@@ -9,6 +9,7 @@ import { BlueprintPlanWorkspace } from "./blueprint-plan-workspace";
 import { Blueprint3dViewer } from "./blueprint-3d-viewer";
 import type { PlanDocument } from "./types";
 import { formatBlueprintDate } from "@/lib/blueprints/format";
+import { BlueprintRevisionGovernance } from "./blueprint-revision-governance";
 
 type PlansPreviewProps = {
   selectedDocument: PlanDocument | null;
@@ -109,6 +110,8 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
           <MetadataRow label="Linked RFIs" value={String(selectedDocument.linkedRfis)} />
           <MetadataRow label="Linked submittals" value={String(selectedDocument.linkedSubmittals)} />
         </div>
+
+        <BlueprintRevisionGovernance companyId={companyId} projectId={projectId} versionId={selectedDocument.versionId} userId={userId} />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
