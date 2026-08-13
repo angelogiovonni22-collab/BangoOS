@@ -32,6 +32,8 @@ const submittalMigration = readFileSync(resolve(root, "supabase/migrations/20260
 const submittalSyncMigration = readFileSync(resolve(root, "supabase/migrations/20260814063000_blueprint_submittal_status_sync.sql"), "utf8");
 const takeoffRegister = readFileSync(resolve(root, "lib/blueprints/takeoff-register.ts"), "utf8");
 const takeoffPanel = readFileSync(resolve(root, "components/plans/blueprint-takeoff-register.tsx"), "utf8");
+const takeoffClassificationMigration = readFileSync(resolve(root, "supabase/migrations/20260814080000_blueprint_takeoff_classification.sql"), "utf8");
+const takeoffClassification = readFileSync(resolve(root, "components/plans/blueprint-takeoff-classification.tsx"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -163,5 +165,15 @@ assert.match(takeoffRegister, /3\.280839895/);
 assert.match(takeoffRegister, /10\.763910417/);
 assert.match(takeoffPanel, /awaiting estimate linkage/);
 assert.match(plansWorkspace, /BlueprintTakeoffRegister/);
+assert.match(takeoffClassificationMigration, /classify_blueprint_takeoff/);
+assert.match(takeoffClassificationMigration, /blueprint_annotations_cost_code_company_fkey/);
+assert.match(takeoffClassificationMigration, /apply_blueprint_takeoff_classification_on_link/);
+assert.match(takeoffClassificationMigration, /update public\.estimate_line_items/);
+assert.match(takeoffClassification, /Takeoff classification/);
+assert.match(surface, /BlueprintTakeoffClassification/);
+assert.match(service, /changeOrderValue/);
+assert.match(service, /estimateValue/);
+assert.match(service, /\.eq\("company_id", input\.companyId\)\.in\("id", changeOrderIds\)/);
+assert.match(projectImpact, /Financial exposure/);
 
 console.log("Blueprint operational integration contract checks passed.");

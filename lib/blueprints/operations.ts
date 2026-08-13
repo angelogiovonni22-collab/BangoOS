@@ -8,7 +8,7 @@ export type BlueprintOperationalLink = {
 
 export type BlueprintProjectEstimate = { id: string; label: string; status: string };
 export type BlueprintWorkforceOption = { id: string; type: "employee" | "crew"; label: string };
-export type BlueprintProjectImpactSummary = { openIssues: number; unlinkedIssues: number; tasks: number; punchItems: number; changeOrders: number; workforceAssignments: number; estimateItems: number };
+export type BlueprintProjectImpactSummary = { openIssues: number; unlinkedIssues: number; tasks: number; punchItems: number; changeOrders: number; workforceAssignments: number; estimateItems: number; changeOrderValue: number; estimateValue: number };
 export type BlueprintOperationalSource = { projectId: string; versionId: string; annotationId: string; pageNumber: number };
 
 function operationalLinks(supabase: SupabaseClient) {
@@ -35,15 +35,25 @@ export async function loadBlueprintProjectImpactSummary(supabase: SupabaseClient
   const annotations = (supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> }).from("blueprint_annotations");
   const [issuesResponse, linksResponse] = await Promise.all([
     annotations.select("id").eq("company_id", input.companyId).eq("project_id", input.projectId).eq("annotation_type", "pin").eq("status", "open"),
-    operationalLinks(supabase).select("annotation_id, target_type").eq("company_id", input.companyId).eq("project_id", input.projectId),
+    operationalLinks(supabase).select("annotation_id, target_type, target_id").eq("company_id", input.companyId).eq("project_id", input.projectId),
   ]);
   if (issuesResponse.error) throw issuesResponse.error;
   if (linksResponse.error) throw linksResponse.error;
   const openIssueIds = new Set(((issuesResponse.data ?? []) as Array<{ id: string }>).map((row) => row.id));
-  const links = (linksResponse.data ?? []) as Array<{ annotation_id: string; target_type: BlueprintOperationalLink["targetType"] }>;
+  const links = (linksResponse.data ?? []) as Array<{ annotation_id: string; target_type: BlueprintOperationalLink["targetType"]; target_id: string }>;
   const linkedOpenIssueIds = new Set(links.filter((link) => openIssueIds.has(link.annotation_id)).map((link) => link.annotation_id));
   const count = (type: BlueprintOperationalLink["targetType"]) => links.filter((link) => link.target_type === type).length;
-  return { openIssues: openIssueIds.size, unlinkedIssues: openIssueIds.size - linkedOpenIssueIds.size, tasks: count("task"), punchItems: count("punch_item"), changeOrders: count("change_order"), workforceAssignments: count("workforce_assignment"), estimateItems: count("estimate_line_item") };
+  const changeOrderIds = links.filter((link) => link.target_type === "change_order").map((link) => link.target_id);
+  const estimateItemIds = links.filter((link) => link.target_type === "estimate_line_item").map((link) => link.target_id);
+  const from = (table: string) => (supabase as unknown as { from: (name: string) => ReturnType<SupabaseClient["from"]> }).from(table);
+  const [changeOrders, estimateItems] = await Promise.all([
+    changeOrderIds.length ? from("change_orders").select("total_amount").eq("company_id", input.companyId).in("id", changeOrderIds) : Promise.resolve({ data: [], error: null }),
+    estimateItemIds.length ? from("estimate_line_items").select("line_total").eq("company_id", input.companyId).in("id", estimateItemIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (changeOrders.error) throw changeOrders.error;
+  if (estimateItems.error) throw estimateItems.error;
+  const sum = (rows: Array<Record<string, unknown>>, key: string) => rows.reduce((total, row) => total + Number(row[key] ?? 0), 0);
+  return { openIssues: openIssueIds.size, unlinkedIssues: openIssueIds.size - linkedOpenIssueIds.size, tasks: count("task"), punchItems: count("punch_item"), changeOrders: count("change_order"), workforceAssignments: count("workforce_assignment"), estimateItems: count("estimate_line_item"), changeOrderValue: sum((changeOrders.data ?? []) as Array<Record<string, unknown>>, "total_amount"), estimateValue: sum((estimateItems.data ?? []) as Array<Record<string, unknown>>, "line_total") };
 }
 
 export async function loadBlueprintOperationalLinks(supabase: SupabaseClient, identity: { companyId: string; projectId: string; versionId: string }) {
