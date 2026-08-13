@@ -25,6 +25,10 @@ export type MobileDailyReportDraft = {
   delayImpact: string;
   delayCorrectiveAction: string;
   materialsUsed: string;
+  materialQuantity: string;
+  materialUnit: string;
+  materialSupplier: string;
+  materialShortage: boolean;
   safetyObservations: string;
   safetyEventType: "inspection" | "toolbox_talk" | "near_miss" | "incident";
   safetySeverity: "low" | "medium" | "high" | "critical";
@@ -148,6 +152,10 @@ export function createEmptyMobileDailyReportDraft(): MobileDailyReportDraft {
     delayImpact: "",
     delayCorrectiveAction: "",
     materialsUsed: "",
+    materialQuantity: "",
+    materialUnit: "item",
+    materialSupplier: "",
+    materialShortage: false,
     safetyObservations: "",
     safetyEventType: "inspection",
     safetySeverity: "low",
