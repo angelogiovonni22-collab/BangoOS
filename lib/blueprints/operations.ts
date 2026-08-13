@@ -2,11 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type BlueprintOperationalLink = {
   annotationId: string;
-  targetType: "task" | "estimate_line_item" | "change_order" | "rfi" | "punch_item";
+  targetType: "task" | "estimate_line_item" | "change_order" | "rfi" | "punch_item" | "workforce_assignment";
   targetId: string;
 };
 
 export type BlueprintProjectEstimate = { id: string; label: string; status: string };
+export type BlueprintWorkforceOption = { id: string; type: "employee" | "crew"; label: string };
 
 function operationalLinks(supabase: SupabaseClient) {
   return (supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> }).from("blueprint_operational_links");
@@ -76,6 +77,30 @@ export async function createChangeOrderFromBlueprintIssue(supabase: SupabaseClie
     p_project_id: input.projectId,
     p_blueprint_version_id: input.versionId,
     p_annotation_id: input.annotationId,
+  });
+  if (response.error) throw new Error(response.error.message);
+  return String(response.data);
+}
+
+export async function loadBlueprintWorkforceOptions(supabase: SupabaseClient, companyId: string) {
+  const from = (table: string) => (supabase as unknown as { from: (name: string) => ReturnType<SupabaseClient["from"]> }).from(table);
+  const [employees, crews] = await Promise.all([
+    from("employees").select("id, employee_number, position_title").eq("company_id", companyId).eq("employment_status", "active").order("employee_number"),
+    from("crews").select("id, crew_code, name").eq("company_id", companyId).eq("status", "active").order("name"),
+  ]);
+  if (employees.error) throw employees.error;
+  if (crews.error) throw crews.error;
+  return [
+    ...((employees.data ?? []) as Array<Record<string, unknown>>).map((row) => ({ id: String(row.id), type: "employee" as const, label: `${String(row.employee_number)} · ${String(row.position_title)}` })),
+    ...((crews.data ?? []) as Array<Record<string, unknown>>).map((row) => ({ id: String(row.id), type: "crew" as const, label: `${String(row.crew_code)} · ${String(row.name)}` })),
+  ] satisfies BlueprintWorkforceOption[];
+}
+
+export async function assignBlueprintIssueToWorkforce(supabase: SupabaseClient, input: { companyId: string; projectId: string; versionId: string; annotationId: string; assignmentType: "employee" | "crew"; assigneeId: string }) {
+  const response = await (supabase as unknown as { rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("assign_blueprint_issue_to_workforce", {
+    p_company_id: input.companyId, p_project_id: input.projectId,
+    p_blueprint_version_id: input.versionId, p_annotation_id: input.annotationId,
+    p_assignment_type: input.assignmentType, p_assignee_id: input.assigneeId,
   });
   if (response.error) throw new Error(response.error.message);
   return String(response.data);
