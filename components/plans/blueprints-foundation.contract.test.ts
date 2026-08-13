@@ -31,6 +31,9 @@ const realtimeService = fs.readFileSync(path.join(root, "lib/blueprints/realtime
 const realtimeMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812220000_blueprint_realtime_collaboration.sql"), "utf8");
 const mediaService = fs.readFileSync(path.join(root, "lib/blueprints/media-attachments.ts"), "utf8");
 const mediaMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812233000_blueprint_media_attachments.sql"), "utf8");
+const exportService = fs.readFileSync(path.join(root, "lib/blueprints/exports.ts"), "utf8");
+const exportActions = fs.readFileSync(path.join(root, "components/plans/blueprint-export-actions.tsx"), "utf8");
+const packageMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813010000_blueprint_plan_packages.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -117,5 +120,12 @@ assert(mediaMigration.includes("'blueprint-media', 'blueprint-media', false"), "
 assert(mediaService.includes("createSignedUrls") && mediaService.includes("60 * 30"), "Pinned media previews must use expiring signed URLs");
 assert(mediaService.includes("remove([storagePath])"), "Failed media metadata writes must clean up private storage");
 assert(markupSurface.includes("Media pin") && markupSurface.includes('data-orion-region="blueprint-media-preview"'), "The Plan Workspace must expose semantic coordinate-pinned media workflows");
+assert(packageMigration.includes("create table public.blueprint_plan_packages"), "Shareable plan packages must be persisted");
+assert(packageMigration.includes("digest(package_token, 'sha256')"), "Plan package tokens must be stored and validated as hashes");
+assert(packageMigration.includes("revoked_at") && packageMigration.includes("expires_at <= now()"), "Plan package links must be revocable and expiring");
+assert(exportService.includes('schema: "bango.blueprint-package.v1"'), "Structured exports must have a versioned schema");
+assert(exportService.includes("signedUrl: _signedUrl"), "Shared snapshots must exclude private signed media URLs");
+assert(exportActions.includes('run("json")') && exportActions.includes('run("csv")') && exportActions.includes('run("share")'), "Plan Workspace must expose JSON, CSV, and share-package actions");
+assert(planWorkspace.includes("<BlueprintExportActions"), "Structured exports must be available in the large Plan Workspace");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
