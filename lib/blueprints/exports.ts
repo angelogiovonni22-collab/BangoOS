@@ -13,7 +13,7 @@ export async function buildBlueprintPackage(supabase: SupabaseClient, identity: 
     project: { id: identity.projectId, name: projectName },
     blueprint: { versionId: identity.versionId, ...document },
     annotations,
-    media: media.map(({ signedUrl: _signedUrl, ...item }) => item),
+    media: media.map((item) => ({ id: item.id, x: item.x, y: item.y, pageNumber: item.pageNumber, caption: item.caption, fileName: item.fileName, createdBy: item.createdBy })),
     summary: { annotations: annotations.length, openIssues: annotations.filter((item) => item.type === "pin" && item.status === "open").length, measurements: annotations.filter((item) => ["calibration", "distance", "area"].includes(item.type)).length, media: media.length },
   };
 }
