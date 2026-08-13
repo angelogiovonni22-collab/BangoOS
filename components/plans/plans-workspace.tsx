@@ -22,6 +22,7 @@ import { PlansTable } from "./plans-table";
 import { PlansToolbar } from "./plans-toolbar";
 import { BlueprintUploadPanel } from "./blueprint-upload-panel";
 import { BlueprintRevisionPanel } from "./blueprint-revision-panel";
+import { BlueprintProjectImpact } from "./blueprint-project-impact";
 import { createClient } from "@/lib/supabase/client";
 import { loadProjectBlueprints } from "@/lib/blueprints/plan-room";
 import type {
@@ -305,6 +306,8 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId }: Pl
         openRfis={openRfis}
         openSubmittals={openSubmittals}
       />
+
+      <BlueprintProjectImpact companyId={companyId} projectId={projectId} />
 
       <PlansToolbar
         searchTerm={searchTerm}
