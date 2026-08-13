@@ -77,6 +77,7 @@ export function BlueprintPlanWorkspace({
           projectId={projectId}
           versionId={document.versionId}
           userId={userId}
+          discipline={document.discipline}
           expanded
         />
       </div>
