@@ -1,0 +1,12 @@
+"use client";
+import { useEffect, useState, use } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+export default function SharedBlueprintPackagePage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = use(params); const [result, setResult] = useState<Record<string, unknown> | null>(null); const [error, setError] = useState<string | null>(null);
+  useEffect(() => { const supabase = createClient(); if (!supabase) return; let active = true; void (supabase as unknown as { rpc: (name: string, args: object) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("validate_blueprint_plan_package", { package_token: token }).then(({ data, error: rpcError }) => { if (!active) return; const row = Array.isArray(data) ? data[0] as Record<string, unknown> | undefined : null; if (rpcError || !row?.is_valid) setError(rpcError?.message || "This package link is invalid, expired, or revoked."); else setResult(row); }); return () => { active = false; }; }, [token]);
+  if (error) return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-bold text-slate-950">Plan package unavailable</h1><p className="mt-3 text-slate-600">{error}</p></main>;
+  if (!result) return <main className="p-8 text-sm text-slate-600">Loading secure plan package…</main>;
+  const snapshot = result.snapshot as Record<string, unknown>; const summary = snapshot.summary as Record<string, unknown>;
+  return <main className="min-h-screen bg-slate-50 p-5 sm:p-10" data-orion-region="shared-blueprint-package"><div className="mx-auto max-w-5xl"><p className="text-xs font-bold uppercase tracking-wider text-blue-700">BangoOS secure plan package</p><h1 className="mt-2 text-3xl font-bold text-slate-950">{String(result.package_name)}</h1><p className="mt-2 text-sm text-slate-600">Available until {new Date(String(result.expires_at)).toLocaleString()}</p><div className="mt-6 grid gap-3 sm:grid-cols-4">{Object.entries(summary).map(([key,value]) => <section key={key} className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold capitalize text-slate-500">{key.replaceAll(/([A-Z])/g, " $1")}</p><p className="mt-1 text-2xl font-bold text-slate-950">{String(value)}</p></section>)}</div><pre className="mt-6 max-h-[60vh] overflow-auto rounded-xl bg-slate-950 p-5 text-xs text-slate-100">{JSON.stringify(snapshot, null, 2)}</pre></div></main>;
+}
