@@ -20,6 +20,10 @@ export type MobileDailyReportDraft = {
   productionUnit: string;
   productionPercentComplete: string;
   delays: string;
+  delayCategory: "weather" | "labor" | "material" | "equipment" | "inspection" | "other";
+  delayDurationHours: string;
+  delayImpact: string;
+  delayCorrectiveAction: string;
   materialsUsed: string;
   safetyObservations: string;
   safetyEventType: "inspection" | "toolbox_talk" | "near_miss" | "incident";
@@ -139,6 +143,10 @@ export function createEmptyMobileDailyReportDraft(): MobileDailyReportDraft {
     productionUnit: "item",
     productionPercentComplete: "100",
     delays: "",
+    delayCategory: "other",
+    delayDurationHours: "",
+    delayImpact: "",
+    delayCorrectiveAction: "",
     materialsUsed: "",
     safetyObservations: "",
     safetyEventType: "inspection",
