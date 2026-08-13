@@ -4,6 +4,7 @@ import { ExternalLink, FileText, X } from "lucide-react";
 import { Button, Dialog } from "@/components/ui";
 import { Blueprint2dViewer } from "./blueprint-2d-viewer";
 import { BlueprintExportActions } from "./blueprint-export-actions";
+import { Blueprint3dViewer } from "./blueprint-3d-viewer";
 import type { PlanDocument } from "./types";
 
 type BlueprintPlanWorkspaceProps = {
@@ -14,7 +15,7 @@ type BlueprintPlanWorkspaceProps = {
   companyId: string;
   projectId: string;
   userId: string;
-  previewType: "image" | "pdf";
+  previewType: "image" | "pdf" | "ifc" | "gltf";
 };
 
 export function BlueprintPlanWorkspace({
@@ -68,7 +69,7 @@ export function BlueprintPlanWorkspace({
       </div>
 
       <div className="min-h-0 flex-1 bg-slate-900 p-2 sm:p-3" data-orion-region="blueprint-plan-workspace">
-        <Blueprint2dViewer
+        {previewType === "ifc" || previewType === "gltf" ? <Blueprint3dViewer fileUrl={document.fileUrl} fileName={document.fileName} format={previewType} /> : <Blueprint2dViewer
           key={`workspace:${document.versionId}`}
           fileUrl={document.fileUrl}
           fileName={document.fileName}
@@ -79,7 +80,7 @@ export function BlueprintPlanWorkspace({
           userId={userId}
           discipline={document.discipline}
           expanded
-        />
+        />}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] bg-white px-4 py-2 text-[11px] text-[var(--color-text-secondary)]">

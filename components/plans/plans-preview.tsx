@@ -6,6 +6,7 @@ import { Button, EmptyState } from "@/components/ui";
 import { RevisionHistory } from "./revision-history";
 import { Blueprint2dViewer } from "./blueprint-2d-viewer";
 import { BlueprintPlanWorkspace } from "./blueprint-plan-workspace";
+import { Blueprint3dViewer } from "./blueprint-3d-viewer";
 import type { PlanDocument } from "./types";
 import { formatBlueprintDate } from "@/lib/blueprints/format";
 
@@ -61,7 +62,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
       </div>
 
       <div className="space-y-5 p-5">
-        {selectedDocument.fileUrl && previewType !== "unsupported" ? (
+        {selectedDocument.fileUrl && (previewType === "ifc" || previewType === "gltf") ? <div className="h-[38rem]"><Blueprint3dViewer fileUrl={selectedDocument.fileUrl} fileName={selectedDocument.fileName} format={previewType}/></div> : selectedDocument.fileUrl && (previewType === "image" || previewType === "pdf") ? (
           <Blueprint2dViewer
             key={`${selectedDocument.id}:${selectedDocument.revision}`}
             fileUrl={selectedDocument.fileUrl}
@@ -169,6 +170,8 @@ function resolvePreviewType(fileName: string, mimeType?: string) {
   if (mimeType === "application/pdf") return "pdf" as const;
   if (mimeType?.startsWith("image/")) return "image" as const;
   const extension = fileName.split(".").pop()?.trim().toLowerCase() || "";
+  if (extension === "ifc") return "ifc" as const;
+  if (["glb","gltf"].includes(extension) || mimeType === "model/gltf-binary" || mimeType === "model/gltf+json") return "gltf" as const;
 
   if (["png", "jpg", "jpeg", "gif", "webp"].includes(extension)) {
     return "image" as const;

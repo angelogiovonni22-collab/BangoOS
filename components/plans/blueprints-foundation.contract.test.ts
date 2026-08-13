@@ -40,6 +40,8 @@ const wallDimensionMigration = fs.readFileSync(path.join(root, "supabase/migrati
 const snapping = fs.readFileSync(path.join(root, "lib/blueprints/snapping.ts"), "utf8");
 const disciplineLayersMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813053000_blueprint_discipline_layers.sql"), "utf8");
 const layerService = fs.readFileSync(path.join(root, "lib/blueprints/layers.ts"), "utf8");
+const modelViewer = fs.readFileSync(path.join(root, "components/plans/blueprint-3d-viewer.tsx"), "utf8");
+const bimMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813070000_blueprint_bim_models.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -111,6 +113,12 @@ assert(disciplineLayersMigration.includes("foreign key (layer_id, company_id, pr
 assert(disciplineLayersMigration.includes("set discipline = sheet.discipline"), "Existing annotations must inherit their source sheet discipline");
 assert(layerService.includes('from("blueprint_layers")') && markupSurface.includes('aria-label="Active drawing layer"'), "Plan workspaces must load and select persisted drawing layers");
 assert(markupSurface.includes("hiddenLayerIds") && markupSurface.includes("markup.discipline === discipline"), "Discipline and custom layer visibility must filter rendered annotations");
+assert(planRoom.includes('"ifc","glb","gltf"') && planRoom.includes("500 * 1024 * 1024"), "Private Blueprint uploads must accept validated BIM formats and bounded model sizes");
+assert(bimMigration.includes("file_size_limit=524288000") && bimMigration.includes("model/gltf-binary"), "Private Blueprint storage must authorize BIM model MIME types");
+assert(modelViewer.includes('import("web-ifc")') && modelViewer.includes("StreamAllMeshes"), "The model viewer must parse IFC geometry client-side");
+assert(modelViewer.includes('GLTFLoader') && modelViewer.includes("OrbitControls"), "The model viewer must support GLB/GLTF and orbit, pan, and zoom controls");
+assert(modelViewer.includes("raycaster.intersectObjects") && modelViewer.includes("GetLine"), "BIM elements must be selectable with model properties");
+assert(modelViewer.includes("Discipline visibility") && modelViewer.includes("disciplineForIfc"), "BIM discipline visibility must be independently controllable");
 assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('label="Distance"') && markupSurface.includes('label="Area"'), "The markup toolbar must expose measurement tools");
 assert(markupSurface.includes("unitsPerDrawingUnit"), "Measurements must use a persisted drawing calibration");
 assert(blueprintViewer.includes('closest("[data-blueprint-controls]")'), "Viewer panning must ignore nested Blueprint controls");
