@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+const root=process.cwd();
+const types=readFileSync(resolve(root,"lib/crews/mobile-field-operations-types.ts"),"utf8");
+const service=readFileSync(resolve(root,"lib/crews/mobile-field-operations-service.ts"),"utf8");
+const workspace=readFileSync(resolve(root,"components/crews/mobile-field-operations-workspace.tsx"),"utf8");
+assert.match(types,/"inspection" \| "toolbox_talk" \| "near_miss" \| "incident"/);
+assert.match(types,/"low" \| "medium" \| "high" \| "critical"/);
+assert.match(service,/type: source\.draft\.safetyEventType/);
+assert.match(service,/severity: source\.draft\.safetySeverity/);
+assert.match(service,/Immediate action:/);
+assert.match(workspace,/Safety event type/);
+assert.match(workspace,/Immediate safety action/);
+console.log("Structured field safety reporting contract checks passed.");

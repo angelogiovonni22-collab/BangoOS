@@ -22,6 +22,9 @@ export type MobileDailyReportDraft = {
   delays: string;
   materialsUsed: string;
   safetyObservations: string;
+  safetyEventType: "inspection" | "toolbox_talk" | "near_miss" | "incident";
+  safetySeverity: "low" | "medium" | "high" | "critical";
+  safetyImmediateAction: string;
 };
 
 export type CrewDirectoryEntry = {
@@ -138,5 +141,8 @@ export function createEmptyMobileDailyReportDraft(): MobileDailyReportDraft {
     delays: "",
     materialsUsed: "",
     safetyObservations: "",
+    safetyEventType: "inspection",
+    safetySeverity: "low",
+    safetyImmediateAction: "",
   };
 }
