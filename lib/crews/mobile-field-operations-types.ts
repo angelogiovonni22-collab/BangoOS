@@ -50,6 +50,7 @@ export type OfflineQueueProvider = {
   enqueue: (item: Omit<OfflineQueueItem, "id" | "createdAt" | "status">) => Promise<OfflineQueueItem>;
   list: () => Promise<OfflineQueueItem[]>;
   setStatus?: (id: string, status: OfflineQueueItem["status"]) => Promise<void>;
+  remove?: (id: string) => Promise<void>;
 };
 
 export type OfflineSyncProvider = {
@@ -100,6 +101,8 @@ export type MobileFieldOperationsService = {
   checkoutEquipment: (input: { crewId: string; equipmentIds: string[]; conditionNotes: string }) => Promise<EquipmentCheckoutRecord>;
   returnEquipment: (input: { checkoutId: string; conditionNotes: string }) => Promise<EquipmentCheckoutRecord | null>;
   syncOfflineActions: () => Promise<{ synced: number; failed: number }>;
+  retryOfflineAction: (id: string) => Promise<{ synced: number; failed: number }>;
+  discardOfflineAction: (id: string) => Promise<void>;
 };
 
 export function toShiftStatus(action: CrewCheckInAction): WorkforceShiftStatus {

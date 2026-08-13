@@ -458,6 +458,16 @@ export function createMobileFieldOperationsService(
       }
       return { synced, failed };
     },
+    async retryOfflineAction(id) {
+      const item = (await offlineQueue.list()).find((entry) => entry.id === id && entry.status === "failed");
+      if (!item) return { synced: 0, failed: 0 };
+      await offlineQueue.setStatus?.(id, "queued");
+      return this.syncOfflineActions();
+    },
+    async discardOfflineAction(id) {
+      const item = (await offlineQueue.list()).find((entry) => entry.id === id && entry.status === "failed");
+      if (item) await offlineQueue.remove?.(id);
+    },
     async getForemanDashboard(): Promise<ForemanDashboardData> {
       const [workforceData, dailyReportsDashboard, queue, sync, conflicts, context] = await Promise.all([
         workforce.getDashboard(),
@@ -509,7 +519,10 @@ export function createMobileFieldOperationsService(
         offline: {
           queue,
           sync,
-          conflicts,
+          conflicts: [
+            ...conflicts,
+            ...queue.filter((item) => item.status === "failed").map((item) => ({ id: item.id, entityType: item.type, message: "This offline action could not be synchronized. Retry it or discard the local copy.", createdAt: item.createdAt })),
+          ],
         },
       };
     },

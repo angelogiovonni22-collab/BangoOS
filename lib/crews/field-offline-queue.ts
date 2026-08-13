@@ -67,6 +67,11 @@ export function createBrowserFieldOfflineProviders(resolveScope: () => Promise<{
       const existing = await runTransaction("readonly", (store) => store.get(id)) as StoredOfflineQueueItem | undefined;
       if (existing?.scopeKey === scopeKey) await runTransaction("readwrite", (store) => store.put({ ...existing, status }));
     },
+    async remove(id) {
+      const scopeKey = await getScopeKey();
+      const existing = await runTransaction("readonly", (store) => store.get(id)) as StoredOfflineQueueItem | undefined;
+      if (existing?.scopeKey === scopeKey) await runTransaction("readwrite", (store) => store.delete(id));
+    },
   };
 
   return {
