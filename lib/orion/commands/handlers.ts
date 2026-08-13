@@ -1,5 +1,6 @@
 import { saveEstimate } from "@/lib/estimates/service";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
+import { escapeContractEmailText, estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
 import { saveInvoice, sendInvoice, markInvoicePaid } from "@/lib/invoices/service";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { resolveCanonicalOrionNavigationHref } from "@/lib/orion/navigation/catalog";
@@ -727,7 +728,7 @@ export async function executeSendEstimateCommand(
 
   const { data: estimate, error: readError } = await deps.supabase
     .from("estimates")
-    .select("id, status, customer_id")
+    .select("id, title, estimate_number, status, customer_id, customers(email, first_name)")
     .eq("company_id", context.companyId)
     .eq("id", estimateId)
     .maybeSingle();
@@ -736,8 +737,11 @@ export async function executeSendEstimateCommand(
     throw new Error(readError?.message || "Estimate not found.");
   }
 
+  const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
+  if (!customer?.email?.trim()) throw new Error("The linked customer needs an email address before Orion can send this estimate.");
+
   const workflow = createEstimateWorkflowService(deps.supabase);
-  await workflow.generatePublicToken({
+  const publicToken = await workflow.generatePublicToken({
     companyId: context.companyId,
     estimateId,
     actorProfileId: context.actorProfileId,
@@ -745,7 +749,20 @@ export async function executeSendEstimateCommand(
       command_id: context.commandId,
     },
   });
+  const contractUrl = estimateContractPublicUrl(publicToken.token);
+  const delivery = await sendContractEmail({
+    to: customer.email.trim(),
+    subject: `Review and sign ${estimate.estimate_number || "your estimate"}`,
+    html: `<p>Hello ${escapeContractEmailText(customer.first_name || "there")},</p><p>Your contract for <strong>${escapeContractEmailText(estimate.title)}</strong> is ready to review and sign.</p><p><a href="${contractUrl}">Open and sign contract</a></p><p>This secure link expires ${new Date(publicToken.expiresAt).toLocaleString()}.</p>`,
+    idempotencyKey: `orion-estimate-send/${context.idempotencyKey}`,
+  });
+  if (!delivery.delivered) {
+    throw new Error(delivery.reason === "email_not_configured"
+      ? "Estimate email delivery is not configured. Add the Resend API key and verified sender before trying again."
+      : `Estimate email provider rejected the message: ${delivery.reason || "unknown delivery error"}`);
+  }
 
+  const warnings: string[] = [];
   const { error: updateError } = await deps.supabase
     .from("estimates")
     .update({
@@ -757,11 +774,13 @@ export async function executeSendEstimateCommand(
     .eq("id", estimateId);
 
   if (updateError) {
-    throw new Error(updateError.message || "Unable to mark estimate as sent.");
+    warnings.push("Email was accepted, but BOS could not update the estimate status. Do not resend; review the provider message ID.");
   }
 
   const orion = createSupabaseOrionEventPublisher(deps.supabase);
-  await orion.publishEvent({
+  let eventRecorded = true;
+  try {
+    await orion.publishEvent({
     company_id: context.companyId,
     actor_profile_id: context.actorProfileId,
     event_type: "estimate.sent",
@@ -774,19 +793,32 @@ export async function executeSendEstimateCommand(
       estimate_id: estimateId,
       customer_id: estimate.customer_id,
       deep_link: `/estimates/${estimateId}`,
+      recipient_email: customer.email.trim(),
+      provider_message_id: delivery.providerId,
+      delivery_status: "accepted",
     },
     metadata: {
       event_category: "estimates",
       event_severity: "info",
       deep_link: `/estimates/${estimateId}`,
     },
-  });
+    });
+  } catch {
+    eventRecorded = false;
+    warnings.push("Email was accepted, but BOS could not record the delivery event. Do not resend; review the provider message ID.");
+  }
 
   return {
-    entityUpdated: { type: "estimate", id: estimateId },
-    publishedEvent: "estimate.sent",
+    entityUpdated: updateError ? undefined : { type: "estimate", id: estimateId },
+    publishedEvent: eventRecorded ? "estimate.sent" : undefined,
     deepLink: `/estimates/${estimateId}`,
-    userMessage: "Estimate sent and customer link is available.",
+    userMessage: `Estimate email was accepted for delivery to ${customer.email.trim()}.`,
+    details: {
+      recipientEmail: customer.email.trim(),
+      providerMessageId: delivery.providerId,
+      deliveryStatus: "accepted",
+    },
+    warnings,
   };
 }
 
