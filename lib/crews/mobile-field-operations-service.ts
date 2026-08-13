@@ -10,6 +10,7 @@ import type { Database } from "@/types/database.types";
 import { createWorkforceOperationsService, type WorkforceOperationsService } from "./workforce-operations-service";
 import {
   createEmptyChecklist,
+  type CrewCheckInAction,
   type CrewCheckInProvider,
   type DailyChecklist,
   type EquipmentCheckoutRecord,
@@ -388,6 +389,7 @@ export function createMobileFieldOperationsService(
     referenceEntity: string;
     referenceId: string | null;
     payload: Record<string, unknown>;
+    idempotencyKey?: string;
   }): Promise<void> => {
     const { error } = await context.supabase
       .from("workflow_events")
@@ -406,6 +408,7 @@ export function createMobileFieldOperationsService(
         metadata: {
           source: "mobile_field",
         } as Database["public"]["Tables"]["workflow_events"]["Insert"]["metadata"],
+        idempotency_key: input.idempotencyKey ?? null,
       });
 
     if (error) {
@@ -414,6 +417,47 @@ export function createMobileFieldOperationsService(
   };
 
   return {
+    async syncOfflineActions() {
+      const context = await resolveContext();
+      if (!context) return { synced: 0, failed: 0 };
+      const pending = (await offlineQueue.list())
+        .filter((item) => item.status === "queued")
+        .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+      let synced = 0;
+      let failed = 0;
+
+      for (const item of pending) {
+        try {
+          const payload = item.payload;
+          const crewId = typeof payload.crewId === "string" ? payload.crewId : null;
+          const idempotencyKey = `mobile-field:${item.id}`;
+          if (item.type === "check_in" && crewId && typeof payload.action === "string") {
+            const action = payload.action as CrewCheckInAction;
+            await workforce.setCrewShiftStatus({ crewId, status: toShiftStatus(action) });
+            await recordMobileEvent(context, { eventType: MOBILE_CHECK_IN_EVENT, nextState: toShiftStatus(action), referenceEntity: "crew", referenceId: crewId, payload, idempotencyKey });
+          } else if (item.type === "checklist" && crewId && isRecord(payload.checklist)) {
+            await recordMobileEvent(context, { eventType: MOBILE_CHECKLIST_EVENT, referenceEntity: "crew", referenceId: crewId, payload, idempotencyKey });
+          } else if (item.type === "equipment_checkout" && crewId && Array.isArray(payload.equipmentIds)) {
+            const checkoutId = typeof payload.checkoutId === "string" ? payload.checkoutId : item.id;
+            const record = { id: checkoutId, crewId, equipmentIds: asStringArray(payload.equipmentIds), conditionNotes: typeof payload.conditionNotes === "string" ? payload.conditionNotes : "", checkedOutAt: item.createdAt, returnedAt: null };
+            await workforce.assignEquipmentToCrew({ crewId, equipmentIds: record.equipmentIds });
+            await recordMobileEvent(context, { eventType: MOBILE_EQUIPMENT_CHECKOUT_EVENT, currentState: "available", nextState: "checked_out", referenceEntity: "equipment_checkout", referenceId: checkoutId, payload: { record }, idempotencyKey });
+          } else if (item.type === "equipment_return" && typeof payload.checkoutId === "string") {
+            await recordMobileEvent(context, { eventType: MOBILE_EQUIPMENT_RETURN_EVENT, currentState: "checked_out", nextState: "returned", referenceEntity: "equipment_checkout", referenceId: payload.checkoutId, payload: { ...payload, returnedAt: typeof payload.at === "string" ? payload.at : item.createdAt }, idempotencyKey });
+          } else if (item.type === "mobile_report" && typeof payload.reportId === "string") {
+            // The report is created transactionally before its local audit entry is queued.
+          } else {
+            throw new Error("Unsupported or incomplete queued field action.");
+          }
+          await offlineQueue.setStatus?.(item.id, "synced");
+          synced += 1;
+        } catch {
+          await offlineQueue.setStatus?.(item.id, "failed");
+          failed += 1;
+        }
+      }
+      return { synced, failed };
+    },
     async getForemanDashboard(): Promise<ForemanDashboardData> {
       const [workforceData, dailyReportsDashboard, queue, sync, conflicts, context] = await Promise.all([
         workforce.getDashboard(),
@@ -579,10 +623,11 @@ export function createMobileFieldOperationsService(
 
       const created = await dailyReports.createReport(reportInput, input.status as DailyReportStatus);
 
-      await offlineQueue.enqueue({
+      const queued = await offlineQueue.enqueue({
         type: "mobile_report",
         payload: { crewId: input.crewId, reportId: created.id, status: input.status },
       });
+      await markQueueStatus(offlineQueue, queued, "synced");
 
       return {
         reportId: created.id,
