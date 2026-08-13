@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type BlueprintOperationalLink = {
   annotationId: string;
-  targetType: "task" | "estimate_line_item" | "change_order" | "rfi" | "punch_item" | "workforce_assignment";
+  targetType: "task" | "estimate_line_item" | "change_order" | "rfi" | "punch_item" | "workforce_assignment" | "submittal";
   targetId: string;
 };
 
@@ -167,6 +167,12 @@ export async function scheduleBlueprintIssueTask(supabase: SupabaseClient, input
     p_blueprint_version_id: input.versionId, p_annotation_id: input.annotationId,
     p_planned_start: input.plannedStart, p_planned_finish: input.plannedFinish,
   });
+  if (response.error) throw new Error(response.error.message);
+  return String(response.data);
+}
+
+export async function createSubmittalFromBlueprintIssue(supabase: SupabaseClient, input: { companyId: string; projectId: string; versionId: string; annotationId: string }) {
+  const response = await (supabase as unknown as { rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc("create_submittal_from_blueprint_issue", { p_company_id: input.companyId, p_project_id: input.projectId, p_blueprint_version_id: input.versionId, p_annotation_id: input.annotationId });
   if (response.error) throw new Error(response.error.message);
   return String(response.data);
 }
