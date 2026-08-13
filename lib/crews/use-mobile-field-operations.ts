@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createEmptyChecklist,
   createEmptyMobileDailyReportDraft,
@@ -36,18 +36,21 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
   const [isMutating, setIsMutating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const mutationRef = useRef(false);
+  const refreshRequestRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const requestId = ++refreshRequestRef.current;
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
       const payload = await service.getForemanDashboard();
-      setData(payload);
-    } catch {
-      setErrorMessage("Unable to load mobile field operations workspace.");
+      if(requestId===refreshRequestRef.current)setData(payload);
+    } catch (error) {
+      if(requestId===refreshRequestRef.current)setErrorMessage(error instanceof Error?error.message:"Unable to load mobile field operations workspace.");
     } finally {
-      setIsLoading(false);
+      if(requestId===refreshRequestRef.current)setIsLoading(false);
     }
   }, [service]);
 
@@ -65,6 +68,8 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
   }, [refresh, service]);
 
   const runAction = useCallback(async (action: () => Promise<void>, successMessage: string) => {
+    if(mutationRef.current)return false;
+    mutationRef.current=true;
     setIsMutating(true);
     setActionMessage(null);
     setErrorMessage(null);
@@ -73,9 +78,12 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
       await action();
       setActionMessage(successMessage);
       await refresh();
-    } catch {
-      setErrorMessage("Unable to complete mobile field operation.");
+      return true;
+    } catch (error) {
+      setErrorMessage(error instanceof Error?error.message:"Unable to complete mobile field operation.");
+      return false;
     } finally {
+      mutationRef.current=false;
       setIsMutating(false);
     }
   }, [refresh]);
@@ -99,6 +107,8 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
       status: "draft" | "submitted" | "reviewed" | "approved";
       draft: MobileDailyReportDraft;
     }) => {
+      if(mutationRef.current)return null;
+      mutationRef.current=true;
       setIsMutating(true);
       setActionMessage(null);
       setErrorMessage(null);
@@ -108,10 +118,11 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
         setActionMessage("Mobile daily report submitted.");
         await refresh();
         return result;
-      } catch {
-        setErrorMessage("Unable to submit mobile daily report.");
+      } catch (error) {
+        setErrorMessage(error instanceof Error?error.message:"Unable to submit mobile daily report.");
         return null;
       } finally {
+        mutationRef.current=false;
         setIsMutating(false);
       }
     },
