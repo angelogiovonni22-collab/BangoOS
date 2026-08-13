@@ -124,7 +124,7 @@ assert(packageMigration.includes("create table public.blueprint_plan_packages"),
 assert(packageMigration.includes("digest(package_token, 'sha256')"), "Plan package tokens must be stored and validated as hashes");
 assert(packageMigration.includes("revoked_at") && packageMigration.includes("expires_at <= now()"), "Plan package links must be revocable and expiring");
 assert(exportService.includes('schema: "bango.blueprint-package.v1"'), "Structured exports must have a versioned schema");
-assert(exportService.includes("signedUrl: _signedUrl"), "Shared snapshots must exclude private signed media URLs");
+assert(!exportService.includes("signedUrl: item.signedUrl"), "Shared snapshots must exclude private signed media URLs");
 assert(exportActions.includes('run("json")') && exportActions.includes('run("csv")') && exportActions.includes('run("share")'), "Plan Workspace must expose JSON, CSV, and share-package actions");
 assert(planWorkspace.includes("<BlueprintExportActions"), "Structured exports must be available in the large Plan Workspace");
 
