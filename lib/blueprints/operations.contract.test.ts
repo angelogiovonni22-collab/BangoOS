@@ -21,6 +21,9 @@ const revisionEventsMigration = readFileSync(resolve(root, "supabase/migrations/
 const eventTypes = readFileSync(resolve(root, "lib/orion/events/event-types.ts"), "utf8");
 const scheduleMigration = readFileSync(resolve(root, "supabase/migrations/20260813230000_blueprint_schedule_impacts.sql"), "utf8");
 const rfiMigration = readFileSync(resolve(root, "supabase/migrations/20260814003000_blueprint_rfi_workflow.sql"), "utf8");
+const sourceLink = readFileSync(resolve(root, "components/plans/blueprint-source-link.tsx"), "utf8");
+const projectWorkspace = readFileSync(resolve(root, "app/(app)/projects/[id]/page.tsx"), "utf8");
+const plansPreview = readFileSync(resolve(root, "components/plans/plans-preview.tsx"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -104,5 +107,13 @@ assert.match(rfiMigration, /'rfi.created'/);
 assert.match(service, /createRfiFromBlueprintIssue/);
 assert.match(surface, /Create RFI/);
 assert.match(surface, /RFI linked/);
+assert.match(service, /loadBlueprintSourcesForOperationalRecords/);
+assert.match(service, /\.eq\("target_type", input\.targetType\)/);
+assert.match(sourceLink, /blueprintVersion=/);
+assert.match(sourceLink, /blueprintPage=/);
+assert.match(sourceLink, /blueprintAnnotation=/);
+assert.match(projectWorkspace, /initialVersionId=\{searchParams\.get\("blueprintVersion"\)\}/);
+assert.match(plansPreview, /initialWorkspaceOpen/);
+assert.match(surface, /focusAnnotationId/);
 
 console.log("Blueprint operational integration contract checks passed.");
