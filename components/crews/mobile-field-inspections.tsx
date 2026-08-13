@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardCheck, ShieldCheck } from "lucide-react";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 import { createProjectExecutionService } from "@/lib/projects/execution/service";
@@ -22,6 +22,7 @@ export function MobileFieldInspections({ projectId, projectName }: { projectId: 
   const [checklist, setChecklist] = useState<Record<ChecklistKey, boolean>>({ workArea: false, ppe: false, access: false, housekeeping: false });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const mutationRef = useRef(false);
 
   const withActor = useCallback(async () => {
     if (!supabase || !service) throw new Error("Field inspections are unavailable.");
@@ -46,7 +47,8 @@ export function MobileFieldInspections({ projectId, projectName }: { projectId: 
   }, [load]);
 
   const createInspection = async () => {
-    if (!projectId || !inspectionType.trim() || busy) return;
+    if (!projectId || !inspectionType.trim() || mutationRef.current) return;
+    mutationRef.current = true;
     setBusy(true); setMessage(null);
     try {
       const actor = await withActor();
@@ -54,11 +56,12 @@ export function MobileFieldInspections({ projectId, projectName }: { projectId: 
       await actor.service.startInspection({ ...actor, inspectionId: String(created.id), idempotencyKey: `field-inspection:${created.id}:started` });
       setSelectedId(String(created.id)); setNotes(""); setMessage("Field inspection started."); await load();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to start the field inspection."); }
-    finally { setBusy(false); }
+    finally { mutationRef.current = false; setBusy(false); }
   };
 
   const approve = async (result: "passed" | "failed") => {
-    if (!selectedId || busy) return;
+    if (!selectedId || mutationRef.current) return;
+    mutationRef.current = true;
     setBusy(true); setMessage(null);
     try {
       const actor = await withActor();
@@ -66,7 +69,7 @@ export function MobileFieldInspections({ projectId, projectName }: { projectId: 
       else await actor.service.failInspection({ ...actor, inspectionId: selectedId, correctionNotes: notes.trim() || "Field corrections required before approval.", reinspectionRequired: true, reinspectionDate: new Date(Date.now() + 86400000).toISOString(), idempotencyKey: `field-inspection:${selectedId}:failed` });
       setMessage(result === "passed" ? "Inspection approved and passed." : "Inspection failed and reinspection requested."); await load();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to record the inspection decision."); }
-    finally { setBusy(false); }
+    finally { mutationRef.current = false; setBusy(false); }
   };
 
   const complete = Object.values(checklist).every(Boolean);
