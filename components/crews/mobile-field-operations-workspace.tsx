@@ -198,7 +198,7 @@ export function MobileFieldOperationsWorkspace() {
     );
   }
 
-  if (errorMessage) {
+  if (errorMessage && !data) {
     return <ErrorState title="Unable to load mobile field operations" description={errorMessage} />;
   }
 
@@ -217,6 +217,7 @@ export function MobileFieldOperationsWorkspace() {
           <Button variant="secondary" size="sm" disabled={isMutating} onClick={() => void refresh()}>Refresh</Button>
         </div>
         {actionMessage ? <p className="mt-2 text-sm font-medium text-[var(--color-success-700)]">{actionMessage}</p> : null}
+        {errorMessage ? <div role="alert" className="mt-2 flex items-start justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--color-danger-300)] bg-[var(--color-danger-50)] p-3"><p className="text-sm text-[var(--color-danger-700)]">{errorMessage}</p><Button size="sm" variant="outline" disabled={isLoading||isMutating} onClick={()=>void refresh()}>Retry</Button></div> : null}
       </Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="foreman-dashboard">
