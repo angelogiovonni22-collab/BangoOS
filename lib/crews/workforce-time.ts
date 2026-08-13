@@ -10,11 +10,11 @@ type QueryResult={data:Array<Record<string,unknown>>|null;error:{message?:string
 type QueryBuilder=PromiseLike<QueryResult>&{select:(columns:string)=>QueryBuilder;update:(values:Record<string,unknown>)=>QueryBuilder;eq:(column:string,value:unknown)=>QueryBuilder;in:(column:string,values:string[])=>QueryBuilder;order:(column:string,options:{ascending:boolean})=>QueryBuilder;limit:(count:number)=>QueryBuilder;maybeSingle:()=>Promise<{data:unknown;error:{message?:string}|null}>};
 type LooseDb={from:(table:string)=>QueryBuilder};
 
-export async function recordWorkforceTimeEvent(input:{employeeId:string;action:"clock_in"|"clock_out";projectId?:string|null;assignmentId?:string|null;notes?:string;location?:{latitude:number;longitude:number;accuracy:number}|null}) {
+export async function recordWorkforceTimeEvent(input:{employeeId:string;action:"clock_in"|"clock_out";projectId?:string|null;assignmentId?:string|null;notes?:string;location?:{latitude:number;longitude:number;accuracy:number}|null;breakMinutes?:number}) {
   const supabase=createClient();
   const workspace=await resolveWorkspaceContext(supabase);
   if(!supabase||!workspace.context) throw new Error(workspace.errorMessage||"Time tracking is unavailable.");
-  const {data,error}=await (supabase as unknown as RpcClient).rpc("record_workforce_time_event",{p_company_id:workspace.context.companyId,p_employee_id:input.employeeId,p_action:input.action,p_project_id:input.projectId||null,p_assignment_id:input.assignmentId||null,p_notes:input.notes||null,p_location:input.location||null});
+  const {data,error}=await (supabase as unknown as RpcClient).rpc("record_workforce_time_event",{p_company_id:workspace.context.companyId,p_employee_id:input.employeeId,p_action:input.action,p_project_id:input.projectId||null,p_assignment_id:input.assignmentId||null,p_notes:input.notes||null,p_location:input.location||null,p_break_minutes:Math.max(0,Math.floor(input.breakMinutes||0))});
   if(error) throw new Error(error.message||"Unable to record time.");
   return data;
 }
