@@ -39,6 +39,9 @@ type PlansWorkspaceProps = {
   projectId: string;
   companyId: string;
   userId: string;
+  initialVersionId?: string | null;
+  initialPage?: number;
+  initialAnnotationId?: string | null;
 };
 
 type FolderDefinition = {
@@ -88,7 +91,7 @@ const folderDisciplineMap: Record<string, DocumentDiscipline | "all"> = {
   archived: "Archived",
 };
 
-export function PlansWorkspace({ projectName, projectId, companyId, userId }: PlansWorkspaceProps) {
+export function PlansWorkspace({ projectName, projectId, companyId, userId, initialVersionId, initialPage = 1, initialAnnotationId }: PlansWorkspaceProps) {
   const supabase = useMemo(() => createClient(), []);
   const [documents, setDocuments] = useState<PlanDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +123,7 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId }: Pl
         if (!subscribed) return;
         setLoadError(null);
         setDocuments(nextDocuments);
-        setFocusedDocumentId((current) => current && nextDocuments.some((item) => item.id === current) ? current : nextDocuments[0]?.id || null);
+        setFocusedDocumentId((current) => current && nextDocuments.some((item) => item.id === current) ? current : nextDocuments.find((item) => item.versionId === initialVersionId)?.id || nextDocuments[0]?.id || null);
       })
       .catch((error: unknown) => {
         if (!subscribed) return;
@@ -131,7 +134,7 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId }: Pl
         if (subscribed) setLoading(false);
       });
     return () => { subscribed = false; };
-  }, [reloadToken, requestDocuments]);
+  }, [initialVersionId, reloadToken, requestDocuments]);
 
   const folders = useMemo(() => {
     const countByDiscipline = documents.reduce<Record<string, number>>((accumulator, document) => {
@@ -346,7 +349,7 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId }: Pl
         />
 
         <div className="lg:col-span-2 xl:col-span-1 xl:min-w-0">
-          <PlansPreview selectedDocument={selectedDocument} projectName={projectName} onUploadRevision={setRevisionDocument} companyId={companyId} projectId={projectId} userId={userId} />
+          <PlansPreview selectedDocument={selectedDocument} projectName={projectName} onUploadRevision={setRevisionDocument} companyId={companyId} projectId={projectId} userId={userId} initialWorkspaceOpen={Boolean(initialVersionId && selectedDocument?.versionId === initialVersionId)} initialPage={initialPage} initialAnnotationId={initialAnnotationId} />
         </div>
       </div>
     </div>
