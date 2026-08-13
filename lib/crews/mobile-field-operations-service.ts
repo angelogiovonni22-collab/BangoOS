@@ -510,6 +510,9 @@ export function createMobileFieldOperationsService(
         weather: dailyReportsDashboard.weatherSnapshotText,
         quickActions: [
           { id: "check-in", label: "Crew Check-In" },
+          { id: "field-photos", label: "Jobsite Photo" },
+          { id: "field-inspections", label: "Field Inspection" },
+          { id: "time-approvals", label: "Time Approvals" },
           { id: "checklist", label: "Daily Checklist" },
           { id: "mobile-report", label: "Mobile Report" },
           { id: "equipment", label: "Equipment Checkout" },
