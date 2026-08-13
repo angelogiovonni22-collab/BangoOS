@@ -1,0 +1,8 @@
+begin;
+create table public.blueprint_spatial_scans(id uuid primary key default gen_random_uuid(),company_id uuid not null references public.companies(id) on delete cascade,project_id uuid not null references public.projects(id) on delete cascade,blueprint_version_id uuid not null,scan_type text not null check(scan_type in('webxr','lidar','photogrammetry','manual')),status text not null default 'captured' check(status in('captured','processing','ready','failed')),device_metadata jsonb not null default '{}'::jsonb,anchors jsonb not null default '[]'::jsonb check(jsonb_typeof(anchors)='array'),bounds jsonb not null default '{}'::jsonb,created_by uuid not null references public.profiles(id),created_at timestamptz not null default now(),foreign key(blueprint_version_id,company_id,project_id) references public.blueprint_versions(id,company_id,project_id) on delete cascade);
+alter table public.blueprint_spatial_scans enable row level security;
+create policy blueprint_scans_select on public.blueprint_spatial_scans for select to authenticated using(public.is_company_member(company_id));
+create policy blueprint_scans_insert on public.blueprint_spatial_scans for insert to authenticated with check(public.is_company_member(company_id) and public.blueprint_project_belongs_to_company(project_id,company_id) and created_by=auth.uid());
+create policy blueprint_scans_update on public.blueprint_spatial_scans for update to authenticated using(public.is_company_member(company_id)) with check(public.is_company_member(company_id));
+create policy blueprint_scans_delete on public.blueprint_spatial_scans for delete to authenticated using(public.is_company_member(company_id) and created_by=auth.uid());
+commit;
