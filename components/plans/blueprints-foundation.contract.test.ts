@@ -34,6 +34,8 @@ const mediaMigration = fs.readFileSync(path.join(root, "supabase/migrations/2026
 const exportService = fs.readFileSync(path.join(root, "lib/blueprints/exports.ts"), "utf8");
 const exportActions = fs.readFileSync(path.join(root, "components/plans/blueprint-export-actions.tsx"), "utf8");
 const packageMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813010000_blueprint_plan_packages.sql"), "utf8");
+const symbolLibrary = fs.readFileSync(path.join(root, "components/plans/blueprint-symbol-library.tsx"), "utf8");
+const symbolMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813023000_blueprint_symbol_libraries.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -127,5 +129,11 @@ assert(exportService.includes('schema: "bango.blueprint-package.v1"'), "Structur
 assert(!exportService.includes("signedUrl: item.signedUrl"), "Shared snapshots must exclude private signed media URLs");
 assert(exportActions.includes('run("json")') && exportActions.includes('run("csv")') && exportActions.includes('run("share")'), "Plan Workspace must expose JSON, CSV, and share-package actions");
 assert(planWorkspace.includes("<BlueprintExportActions"), "Structured exports must be available in the large Plan Workspace");
+assert(symbolMigration.includes("create table public.blueprint_symbol_definitions"), "Blueprint symbol definitions must support system and tenant libraries");
+assert(symbolMigration.includes("public.is_company_member(company_id)"), "Custom symbol libraries must enforce company membership");
+assert(symbolMigration.includes("'symbol'"), "Placed symbols must use the revision-scoped annotation store");
+assert(symbolLibrary.includes("draggable") && symbolLibrary.includes("BLUEPRINT_SYMBOL_MIME"), "Symbol library items must support typed drag and drop");
+assert(symbolLibrary.includes("select then tap a location"), "Symbol placement must provide a touch and keyboard alternative");
+assert(markupSurface.includes('data-orion-region="blueprint-symbol-library"') || symbolLibrary.includes('data-orion-region="blueprint-symbol-library"'), "Symbol libraries must expose semantic Orion context");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");

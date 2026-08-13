@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowUpRight, Camera, CheckCircle2, Eye, EyeOff, Hand, ImageIcon, Layers3, ListFilter, MapPin, Pencil, Radio, Ruler, ScanLine, SquareDashed, Trash2, Type, Users, X } from "lucide-react";
+import { ArrowUpRight, Camera, CheckCircle2, Eye, EyeOff, Hand, ImageIcon, Layers3, ListFilter, MapPin, Pencil, Radio, Ruler, ScanLine, Shapes, SquareDashed, Trash2, Type, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { subscribeToBlueprintCollaboration } from "@/lib/blueprints/realtime";
 import { loadBlueprintMedia, uploadBlueprintMedia, type BlueprintMediaAttachment } from "@/lib/blueprints/media-attachments";
+import { loadBlueprintSymbols, type BlueprintSymbol } from "@/lib/blueprints/symbols";
+import { BLUEPRINT_SYMBOL_MIME, BlueprintSymbolLibrary } from "./blueprint-symbol-library";
 import {
   createBlueprintMarkup,
   deleteBlueprintMarkup,
@@ -68,6 +70,9 @@ export function BlueprintMarkupSurface({
   const [queuedMedia, setQueuedMedia] = useState<File | null>(null);
   const [mediaCaption, setMediaCaption] = useState("");
   const [activeMedia, setActiveMedia] = useState<BlueprintMediaAttachment | null>(null);
+  const [symbols, setSymbols] = useState<BlueprintSymbol[]>([]);
+  const [symbolLibraryOpen, setSymbolLibraryOpen] = useState(false);
+  const [selectedSymbol, setSelectedSymbol] = useState<BlueprintSymbol | null>(null);
 
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
 
@@ -104,6 +109,7 @@ export function BlueprintMarkupSurface({
       .catch((mediaError: unknown) => { if (active) setError(mediaError instanceof Error ? mediaError.message : "Could not load plan media."); });
     return () => { active = false; };
   }, [requestMedia]);
+  useEffect(() => { if (!supabase) return; let active = true; void loadBlueprintSymbols(supabase, companyId).then((next) => { if (active) setSymbols(next); }).catch((symbolError: unknown) => { if (active) setError(symbolError instanceof Error ? symbolError.message : "Could not load symbols."); }); return () => { active = false; }; }, [companyId, supabase]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -169,6 +175,8 @@ export function BlueprintMarkupSurface({
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (tool === "pan" || saving || event.button !== 0) return;
     const point = pointFromEvent(event);
+
+    if (selectedSymbol) { void persist("symbol", { ...point, symbolKey: selectedSymbol.key, glyph: selectedSymbol.glyph, label: selectedSymbol.label }); setSelectedSymbol(null); chooseTool("pan"); return; }
 
     if (queuedMedia) {
       const file = queuedMedia;
@@ -299,6 +307,7 @@ export function BlueprintMarkupSurface({
         <MarkupButton label="Issue pin" active={tool === "pin"} onClick={() => chooseTool("pin")}><MapPin size={14} /></MarkupButton>
         <input ref={mediaInputRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={(event) => { const file = event.target.files?.[0] ?? null; setQueuedMedia(file); if (file) chooseTool("pin"); event.currentTarget.value = ""; }} />
         <button type="button" onClick={() => mediaInputRef.current?.click()} className="inline-flex h-7 items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-slate-200 hover:bg-white/20"><Camera size={14} /><span className="hidden sm:inline">Media pin</span></button>
+        <button type="button" aria-expanded={symbolLibraryOpen} onClick={() => setSymbolLibraryOpen((value) => !value)} className="inline-flex h-7 items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2 text-[11px] font-semibold text-slate-200 hover:bg-white/20"><Shapes size={14}/><span className="hidden sm:inline">Symbols</span></button>
         <MarkupButton label="Calibrate" active={tool === "calibration"} onClick={() => chooseTool("calibration")}><ScanLine size={14} /></MarkupButton>
         <MarkupButton label="Distance" active={tool === "distance"} onClick={() => chooseTool("distance")}><Ruler size={14} /></MarkupButton>
         <MarkupButton label="Area" active={tool === "area"} onClick={() => chooseTool("area")}><SquareDashed size={14} /></MarkupButton>
@@ -352,7 +361,7 @@ export function BlueprintMarkupSurface({
         </span>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden" onDragOver={(event) => { if (event.dataTransfer.types.includes(BLUEPRINT_SYMBOL_MIME)) event.preventDefault(); }} onDrop={(event) => { const raw = event.dataTransfer.getData(BLUEPRINT_SYMBOL_MIME); if (!raw || !surfaceRef.current) return; event.preventDefault(); const symbol = JSON.parse(raw) as BlueprintSymbol; const bounds = surfaceRef.current.getBoundingClientRect(); void persist("symbol", { x: Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width)), y: Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height)), symbolKey: symbol.key, glyph: symbol.glyph, label: symbol.label }); }}>
         <div className="relative inline-flex max-h-full max-w-full" style={{ transform, transition }}>
           {children}
           <svg
@@ -383,6 +392,7 @@ export function BlueprintMarkupSurface({
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} mine={markup.createdBy === userId} saving={saving} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
           </aside>
         ) : null}
+        {symbolLibraryOpen ? <BlueprintSymbolLibrary symbols={symbols} selected={selectedSymbol} onSelect={(symbol) => { setSelectedSymbol(symbol); chooseTool("symbol"); }} onClose={() => setSymbolLibraryOpen(false)} /> : null}
         {activeMedia ? <aside className="absolute bottom-3 right-3 z-30 w-[min(22rem,calc(100%-1.5rem))] overflow-hidden rounded-xl border border-slate-700 bg-slate-950 text-white shadow-2xl" data-orion-region="blueprint-media-preview"><div className="flex items-center justify-between px-3 py-2"><span className="inline-flex items-center gap-2 text-xs font-bold"><ImageIcon size={14} />Pinned media</span><button type="button" aria-label="Close media preview" onClick={() => setActiveMedia(null)}><X size={16} /></button></div><div className="h-72 w-full bg-black bg-contain bg-center bg-no-repeat" role="img" aria-label={activeMedia.caption || activeMedia.fileName} style={{ backgroundImage: `url(${activeMedia.signedUrl})` }} /><div className="p-3"><p className="text-xs font-semibold">{activeMedia.caption || activeMedia.fileName}</p><p className="mt-1 text-[10px] text-slate-400">Page {activeMedia.pageNumber}</p></div></aside> : null}
       </div>
     </div>
@@ -413,6 +423,7 @@ function MarkupShape({ markup }: { markup: BlueprintMarkup }) {
     const width = Math.abs(Number(geometry.x2) - Number(geometry.x1)) * 1000; const height = Math.abs(Number(geometry.y2) - Number(geometry.y1)) * 1000;
     return <g><rect x={x} y={y} width={width} height={height} fill={`${markup.color}25`} stroke={markup.color} strokeWidth="6" strokeDasharray="12 8" vectorEffect="non-scaling-stroke" /><text x={x + width / 2} y={y + height / 2} textAnchor="middle" fontSize="30" fontWeight="700" fill={markup.color} stroke="white" strokeWidth="5" paintOrder="stroke">{formatMeasurement(Number(geometry.value))} {String(geometry.unit)}</text></g>;
   }
+  if (markup.type === "symbol") { const x = Number(geometry.x) * 1000; const y = Number(geometry.y) * 1000; return <g role="img" aria-label={String(geometry.label || "Plan symbol")}><circle cx={x} cy={y} r="27" fill="white" stroke={markup.color} strokeWidth="5" vectorEffect="non-scaling-stroke"/><text x={x} y={y + 8} textAnchor="middle" fontSize="22" fontWeight="800" fill={markup.color}>{String(geometry.glyph || "?")}</text></g>; }
   const x = Number(geometry.x) * 1000;
   const y = Number(geometry.y) * 1000;
   return (
