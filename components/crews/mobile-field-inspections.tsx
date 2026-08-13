@@ -35,8 +35,8 @@ export function MobileFieldInspections({ projectId, projectName }: { projectId: 
     if (!projectId) { setInspections([]); return; }
     try {
       const actor = await withActor();
-      const rows = await actor.service.listInspections({ ...actor, projectId });
-      setInspections(rows as Inspection[]);
+      const rows = await actor.service.listInspections({ ...actor, projectId }) as Inspection[];
+      setInspections(rows);
       setSelectedId((current) => rows.some((row) => String(row.id) === current) ? current : String(rows[0]?.id ?? ""));
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to load field inspections."); }
   }, [projectId, withActor]);
