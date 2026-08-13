@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { loadBlueprintSourcesForOperationalRecords, type BlueprintOperationalSource } from "@/lib/blueprints/operations";
 
-export function BlueprintSourceLink({ targetType, targetIds }: { targetType: "change_order" | "estimate_line_item" | "task" | "rfi" | "punch_item" | "workforce_assignment"; targetIds: string[] }) {
+export function BlueprintSourceLink({ targetType, targetIds }: { targetType: "change_order" | "estimate_line_item" | "task" | "rfi" | "punch_item" | "workforce_assignment" | "submittal" | "material_request"; targetIds: string[] }) {
   const supabase = useMemo(() => createClient(), []);
   const [source, setSource] = useState<BlueprintOperationalSource | null>(null);
   const identity = targetIds.join(",");
