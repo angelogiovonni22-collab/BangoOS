@@ -849,6 +849,9 @@ export default function ProjectWorkspacePage() {
                 projectId={project.id}
                 companyId={workspace.workspaceContext.companyId}
                 userId={workspace.workspaceContext.userId}
+                initialVersionId={searchParams.get("blueprintVersion")}
+                initialPage={Math.max(1, Number(searchParams.get("blueprintPage") || 1))}
+                initialAnnotationId={searchParams.get("blueprintAnnotation")}
               />
             ) : activeTab === "inspections" ? (
               <ProjectComplianceWorkflow
