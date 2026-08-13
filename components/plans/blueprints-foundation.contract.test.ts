@@ -44,6 +44,9 @@ const modelViewer = fs.readFileSync(path.join(root, "components/plans/blueprint-
 const bimMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813070000_blueprint_bim_models.sql"), "utf8");
 const fourDMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813083000_blueprint_4d_schedule_links.sql"), "utf8");
 const fourDService = fs.readFileSync(path.join(root, "lib/blueprints/four-d.ts"), "utf8");
+const fieldOffline = fs.readFileSync(path.join(root, "lib/blueprints/field-offline.ts"), "utf8");
+const fieldTools = fs.readFileSync(path.join(root, "components/plans/blueprint-field-tools.tsx"), "utf8");
+const scanMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813100000_blueprint_spatial_scans.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -125,6 +128,11 @@ assert(fourDMigration.includes("create table public.blueprint_model_schedule_lin
 assert(fourDMigration.includes("exists(select 1 from public.tasks") && fourDMigration.includes("blueprint_version_id,company_id,project_id"), "4D links must verify task and model tenant integrity");
 assert(fourDService.includes('from(n)') && fourDService.includes('"tasks"'), "4D playback must join model links to the shared project schedule");
 assert(modelViewer.includes('data-orion-region="blueprint-4d-playback"') && modelViewer.includes("playbackDate"), "The BIM viewer must expose schedule-linked construction playback");
+assert(fieldOffline.includes('indexedDB.open') && fieldOffline.includes("companyId") && fieldOffline.includes("versionId"), "Mobile field drafts must use tenant and revision-scoped offline storage");
+assert(fieldTools.includes('capture="environment"') && fieldTools.includes("navigator.onLine"), "Field workflows must support direct camera capture and offline state");
+assert(fieldTools.includes('isSessionSupported("immersive-ar")') && fieldTools.includes('mode:supported?"webxr":"photogrammetry"'), "Room scanning must feature-detect AR and retain a field fallback");
+assert(scanMigration.includes("create table public.blueprint_spatial_scans") && scanMigration.includes("enable row level security"), "Spatial scan sessions must persist behind tenant RLS");
+assert(planWorkspace.includes("<BlueprintFieldTools"), "Mobile field tools must be available in the full Plan Workspace");
 assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('label="Distance"') && markupSurface.includes('label="Area"'), "The markup toolbar must expose measurement tools");
 assert(markupSurface.includes("unitsPerDrawingUnit"), "Measurements must use a persisted drawing calibration");
 assert(blueprintViewer.includes('closest("[data-blueprint-controls]")'), "Viewer panning must ignore nested Blueprint controls");
