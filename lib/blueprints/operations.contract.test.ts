@@ -20,6 +20,7 @@ const governancePanel = readFileSync(resolve(root, "components/plans/blueprint-r
 const revisionEventsMigration = readFileSync(resolve(root, "supabase/migrations/20260813214500_blueprint_revision_events.sql"), "utf8");
 const eventTypes = readFileSync(resolve(root, "lib/orion/events/event-types.ts"), "utf8");
 const scheduleMigration = readFileSync(resolve(root, "supabase/migrations/20260813230000_blueprint_schedule_impacts.sql"), "utf8");
+const rfiMigration = readFileSync(resolve(root, "supabase/migrations/20260814003000_blueprint_rfi_workflow.sql"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -93,5 +94,15 @@ assert.match(scheduleMigration, /target_type = 'task'/);
 assert.match(scheduleMigration, /'schedule.updated'/);
 assert.match(service, /scheduleBlueprintIssueTask/);
 assert.match(surface, /Schedule task/);
+assert.match(rfiMigration, /create_rfi_from_blueprint_issue/);
+assert.match(rfiMigration, /channel = 'rfi'/);
+assert.match(rfiMigration, /pg_advisory_xact_lock/);
+assert.match(rfiMigration, /'annotation_id', p_annotation_id/);
+assert.match(rfiMigration, /'blueprint_version_id', p_blueprint_version_id/);
+assert.match(rfiMigration, /'page_number', v_page/);
+assert.match(rfiMigration, /'rfi.created'/);
+assert.match(service, /createRfiFromBlueprintIssue/);
+assert.match(surface, /Create RFI/);
+assert.match(surface, /RFI linked/);
 
 console.log("Blueprint operational integration contract checks passed.");
