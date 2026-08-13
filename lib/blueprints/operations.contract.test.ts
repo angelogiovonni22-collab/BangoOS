@@ -12,6 +12,8 @@ const service = readFileSync(resolve(root, "lib/blueprints/operations.ts"), "utf
 const surface = readFileSync(resolve(root, "components/plans/blueprint-markup-surface.tsx"), "utf8");
 const intelligence = readFileSync(resolve(root, "lib/blueprints/intelligence.ts"), "utf8");
 const intelligencePanel = readFileSync(resolve(root, "components/plans/blueprint-orion-intelligence.tsx"), "utf8");
+const projectImpact = readFileSync(resolve(root, "components/plans/blueprint-project-impact.tsx"), "utf8");
+const plansWorkspace = readFileSync(resolve(root, "components/plans/plans-workspace.tsx"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -60,5 +62,10 @@ assert.match(intelligence, /unowned-issues/);
 assert.match(intelligence, /operational-response/);
 assert.match(intelligencePanel, /loadBlueprintOperationalLinks/);
 assert.match(intelligencePanel, /analyzeBlueprint\(items,links\)/);
+assert.match(service, /loadBlueprintProjectImpactSummary/);
+assert.match(service, /unlinkedIssues/);
+assert.match(projectImpact, /blueprint-project-impact/);
+assert.match(projectImpact, /without response/);
+assert.match(plansWorkspace, /BlueprintProjectImpact/);
 
 console.log("Blueprint operational integration contract checks passed.");
