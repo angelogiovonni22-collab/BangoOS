@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { normalizeFieldProduction } from "./field-production.ts";
+import { normalizeFieldProduction } from "./field-production";
 
 const valid = normalizeFieldProduction({ activity: "Installed corridor framing", quantity: "184.5", unit: "LF", percentComplete: "75" });
 assert.deepEqual(valid, { activity: "Installed corridor framing", quantity: 184.5, unit: "LF", percentComplete: 75 });
