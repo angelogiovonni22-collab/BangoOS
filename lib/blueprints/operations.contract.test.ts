@@ -17,6 +17,8 @@ const plansWorkspace = readFileSync(resolve(root, "components/plans/plans-worksp
 const governanceMigration = readFileSync(resolve(root, "supabase/migrations/20260813203000_blueprint_revision_governance.sql"), "utf8");
 const governanceService = readFileSync(resolve(root, "lib/blueprints/revision-governance.ts"), "utf8");
 const governancePanel = readFileSync(resolve(root, "components/plans/blueprint-revision-governance.tsx"), "utf8");
+const revisionEventsMigration = readFileSync(resolve(root, "supabase/migrations/20260813214500_blueprint_revision_events.sql"), "utf8");
+const eventTypes = readFileSync(resolve(root, "lib/orion/events/event-types.ts"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -77,5 +79,12 @@ assert.match(governanceService, /acknowledgeBlueprintRevision/);
 assert.match(governanceService, /setBlueprintRevisionReviewStatus/);
 assert.match(governancePanel, /Acknowledge/);
 assert.match(governancePanel, /Approve revision/);
+assert.match(revisionEventsMigration, /trg_blueprint_revision_status_event/);
+assert.match(revisionEventsMigration, /trg_blueprint_revision_ack_event/);
+assert.match(revisionEventsMigration, /on conflict \(company_id, event_type, idempotency_key\)/);
+assert.match(revisionEventsMigration, /reference_entity, reference_id, source_module/);
+assert.match(eventTypes, /blueprint\.revision_submitted/);
+assert.match(eventTypes, /blueprint\.revision_approved/);
+assert.match(eventTypes, /blueprint\.revision_acknowledged/);
 
 console.log("Blueprint operational integration contract checks passed.");
