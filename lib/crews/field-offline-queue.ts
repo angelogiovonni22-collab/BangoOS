@@ -13,8 +13,9 @@ function openDatabase(): Promise<IDBDatabase> {
         database.createObjectStore(STORE_NAME, { keyPath: "id" });
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); resolve(request.result); };
     request.onerror = () => reject(request.error ?? new Error("Unable to open the field operations queue."));
+    request.onblocked = () => reject(new Error("Field operations storage is blocked by another open session."));
   });
 }
 
@@ -22,10 +23,12 @@ function runTransaction<T>(mode: IDBTransactionMode, operation: (store: IDBObjec
   return openDatabase().then((database) => new Promise<T>((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, mode);
     const request = operation(transaction.objectStore(STORE_NAME));
-    request.onsuccess = () => resolve(request.result);
+    let result!:T;
+    request.onsuccess = () => { result=request.result; };
     request.onerror = () => reject(request.error ?? new Error("Unable to access the field operations queue."));
-    transaction.oncomplete = () => database.close();
-    transaction.onerror = () => database.close();
+    transaction.oncomplete = () => { database.close(); resolve(result); };
+    transaction.onerror = () => { database.close(); reject(transaction.error ?? new Error("Unable to commit the field operations queue transaction.")); };
+    transaction.onabort = () => { database.close(); reject(transaction.error ?? new Error("Field operations queue transaction was cancelled.")); };
   }));
 }
 
