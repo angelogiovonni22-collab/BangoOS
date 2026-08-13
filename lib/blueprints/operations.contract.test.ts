@@ -25,6 +25,9 @@ const sourceLink = readFileSync(resolve(root, "components/plans/blueprint-source
 const projectWorkspace = readFileSync(resolve(root, "app/(app)/projects/[id]/page.tsx"), "utf8");
 const plansPreview = readFileSync(resolve(root, "components/plans/plans-preview.tsx"), "utf8");
 const statusSyncMigration = readFileSync(resolve(root, "supabase/migrations/20260814020000_blueprint_operational_status_sync.sql"), "utf8");
+const slaMigration = readFileSync(resolve(root, "supabase/migrations/20260814033000_blueprint_issue_sla.sql"), "utf8");
+const slaService = readFileSync(resolve(root, "lib/blueprints/issue-sla.ts"), "utf8");
+const slaControls = readFileSync(resolve(root, "components/plans/blueprint-issue-sla-controls.tsx"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -127,5 +130,17 @@ assert.match(statusSyncMigration, /status = 'reopened'/);
 assert.match(statusSyncMigration, /'blueprint.issue_status_changed'/);
 assert.doesNotMatch(statusSyncMigration, /update public\.change_orders set status/);
 assert.doesNotMatch(statusSyncMigration, /update public\.project_communications set status/);
+assert.match(slaMigration, /blueprint_annotations_open_due_idx/);
+assert.match(slaMigration, /set_blueprint_issue_sla/);
+assert.match(slaMigration, /evaluate_blueprint_issue_slas/);
+assert.match(slaMigration, /for update skip locked/);
+assert.match(slaMigration, /'blueprint.issue_overdue'/);
+assert.match(slaMigration, /on conflict \(company_id, event_type, idempotency_key\)/);
+assert.match(slaService, /setBlueprintIssueSla/);
+assert.match(slaService, /evaluateBlueprintIssueSlas/);
+assert.match(slaControls, /SLA overdue/);
+assert.match(surface, /BlueprintIssueSlaControls/);
+assert.match(intelligence, /overdue-issues/);
+assert.match(eventTypes, /blueprint\.issue_overdue/);
 
 console.log("Blueprint operational integration contract checks passed.");
