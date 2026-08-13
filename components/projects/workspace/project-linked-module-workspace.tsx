@@ -7,7 +7,7 @@ import { Button } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
-export type ProjectLinkedModuleTab = "daily_logs" | "documents" | "crew" | "change_orders" | "rfis";
+export type ProjectLinkedModuleTab = "daily_logs" | "documents" | "crew" | "change_orders" | "rfis" | "submittals";
 
 type ProjectLinkedModuleWorkspaceProps = {
   projectId: string;
@@ -59,6 +59,7 @@ const moduleMeta: Record<ProjectLinkedModuleTab, { title: string; description: s
     description: "Project requests for information captured through the project communications record.",
     empty: "No RFIs have been recorded for this project yet.",
   },
+  submittals: { title: "Submittals", description: "Project submittal register with review status and due dates.", empty: "No submittals have been recorded for this project yet." },
 };
 
 export function ProjectLinkedModuleWorkspace({ projectId, tab, localeTag }: ProjectLinkedModuleWorkspaceProps) {
@@ -182,6 +183,11 @@ export function ProjectLinkedModuleWorkspace({ projectId, tab, localeTag }: Proj
               href: `/change-orders/${id}`,
             } satisfies ModuleRecord;
           });
+          nextState = { loading: false, error: null, records };
+        } else if (tab === "submittals") {
+          const response = await db.from("project_submittals").select("id, submittal_number, title, discipline, status, due_date, created_at").eq("company_id", companyId).eq("project_id", projectId).order("submittal_number", { ascending: false }).limit(100);
+          if (response.error) throw response.error;
+          const records = (response.data ?? []).map((row: Record<string, unknown>) => ({ id: stringValue(row.id), title: `SUB-${String(row.submittal_number).padStart(4, "0")} · ${stringValue(row.title) || "Submittal"}`, detail: [stringValue(row.discipline), row.due_date ? `Due ${formatDate(stringValue(row.due_date), localeTag)}` : ""].filter(Boolean).join(" · "), status: stringValue(row.status) || "draft", timestamp: stringValue(row.created_at), href: null } satisfies ModuleRecord));
           nextState = { loading: false, error: null, records };
         } else if (tab === "rfis") {
           const response = await db
