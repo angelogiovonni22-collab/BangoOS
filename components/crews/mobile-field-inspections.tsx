@@ -37,7 +37,7 @@ export function MobileFieldInspections({ projectId, projectName }: { projectId: 
       const actor = await withActor();
       const rows = await actor.service.listInspections({ ...actor, projectId });
       setInspections(rows as Inspection[]);
-      setSelectedId((current) => current || String(rows[0]?.id ?? ""));
+      setSelectedId((current) => rows.some((row) => String(row.id) === current) ? current : String(rows[0]?.id ?? ""));
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to load field inspections."); }
   }, [projectId, withActor]);
 
@@ -54,7 +54,7 @@ export function MobileFieldInspections({ projectId, projectName }: { projectId: 
       const actor = await withActor();
       const created = await actor.service.createInspection({ ...actor, projectId, inspectionType: inspectionType.trim(), notes: notes.trim() || null, scheduledAt: new Date().toISOString(), attachments: [{ type: "safety_checklist", checklist }], idempotencyKey: `field-inspection:${projectId}:${crypto.randomUUID()}` });
       await actor.service.startInspection({ ...actor, inspectionId: String(created.id), idempotencyKey: `field-inspection:${created.id}:started` });
-      setSelectedId(String(created.id)); setNotes(""); setMessage("Field inspection started."); await load();
+      setSelectedId(String(created.id)); setNotes(""); setChecklist({ workArea: false, ppe: false, access: false, housekeeping: false }); setMessage("Field inspection started."); await load();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to start the field inspection."); }
     finally { mutationRef.current = false; setBusy(false); }
   };
