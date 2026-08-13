@@ -521,7 +521,9 @@ export function createMobileFieldOperationsService(
         crewDirectory: workforceData.employeeStatus.map((employee) => ({
           employeeId: employee.employeeId,
           employeeName: employee.employeeName,
+          crewId: employee.assignedCrewId,
           crewName: employee.assignedCrewName,
+          projectId: employee.assignedProjectId,
           projectName: employee.assignedJobName,
           phone: employee.contactPhone,
         })),
