@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const migration = readFileSync(resolve(root, "supabase/migrations/20260813130000_blueprint_operational_links.sql"), "utf8");
 const takeoffMigration = readFileSync(resolve(root, "supabase/migrations/20260813143000_blueprint_estimate_takeoffs.sql"), "utf8");
+const changeOrderMigration = readFileSync(resolve(root, "supabase/migrations/20260813160000_blueprint_change_order_initiation.sql"), "utf8");
 const service = readFileSync(resolve(root, "lib/blueprints/operations.ts"), "utf8");
 const surface = readFileSync(resolve(root, "components/plans/blueprint-markup-surface.tsx"), "utf8");
 
@@ -29,5 +30,12 @@ assert.match(service, /loadBlueprintProjectEstimates/);
 assert.match(service, /createEstimateLineItemFromBlueprintTakeoff/);
 assert.match(surface, /Add to estimate/);
 assert.match(surface, /Estimate item linked/);
+assert.match(changeOrderMigration, /create_change_order_from_blueprint_issue/);
+assert.match(changeOrderMigration, /allocate_change_order_number/);
+assert.match(changeOrderMigration, /annotation_type = 'pin'/);
+assert.match(changeOrderMigration, /status,\s*customer_id/);
+assert.match(service, /createChangeOrderFromBlueprintIssue/);
+assert.match(surface, /Start change order/);
+assert.match(surface, /Change order linked/);
 
 console.log("Blueprint operational integration contract checks passed.");

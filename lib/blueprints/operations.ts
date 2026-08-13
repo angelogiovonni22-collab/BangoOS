@@ -67,3 +67,16 @@ export async function createEstimateLineItemFromBlueprintTakeoff(supabase: Supab
   if (response.error) throw new Error(response.error.message);
   return String(response.data);
 }
+
+export async function createChangeOrderFromBlueprintIssue(supabase: SupabaseClient, input: { companyId: string; projectId: string; versionId: string; annotationId: string }) {
+  const response = await (supabase as unknown as {
+    rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  }).rpc("create_change_order_from_blueprint_issue", {
+    p_company_id: input.companyId,
+    p_project_id: input.projectId,
+    p_blueprint_version_id: input.versionId,
+    p_annotation_id: input.annotationId,
+  });
+  if (response.error) throw new Error(response.error.message);
+  return String(response.data);
+}
