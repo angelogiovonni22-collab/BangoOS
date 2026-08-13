@@ -9,12 +9,13 @@ type Props = {
   fileUrl: string; fileName: string; companyId: string; projectId: string;
   versionId: string; userId: string; discipline: string; zoom: number; position: { x: number; y: number };
   dragging: boolean; onToolChange: (isMarkingUp: boolean) => void;
+  initialPage?: number; initialAnnotationId?: string | null;
 };
 
 export function BlueprintPdfViewer(props: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
-  const [pageNumber, setPageNumber] = useState(1);
+  const [pageNumber, setPageNumber] = useState(Math.max(1, props.initialPage ?? 1));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export function BlueprintPdfViewer(props: Props) {
       companyId={props.companyId} projectId={props.projectId} versionId={props.versionId} userId={props.userId}
       discipline={props.discipline}
       pageNumber={pageNumber}
+      focusAnnotationId={props.initialAnnotationId}
       toolbarExtra={
         <div className="flex items-center gap-1 rounded-md border border-white/15 bg-white/10 px-1 py-0.5">
           <button type="button" aria-label="Previous PDF page" disabled={pageNumber <= 1} onClick={() => setPageNumber((value) => Math.max(1, value - 1))} className="rounded p-0.5 hover:bg-white/15 disabled:opacity-35"><ChevronLeft size={14} /></button>
