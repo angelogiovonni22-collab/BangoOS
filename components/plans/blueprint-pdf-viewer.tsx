@@ -7,7 +7,7 @@ import { BlueprintMarkupSurface } from "./blueprint-markup-surface";
 
 type Props = {
   fileUrl: string; fileName: string; companyId: string; projectId: string;
-  versionId: string; userId: string; zoom: number; position: { x: number; y: number };
+  versionId: string; userId: string; discipline: string; zoom: number; position: { x: number; y: number };
   dragging: boolean; onToolChange: (isMarkingUp: boolean) => void;
 };
 
@@ -54,6 +54,7 @@ export function BlueprintPdfViewer(props: Props) {
   return (
     <BlueprintMarkupSurface
       companyId={props.companyId} projectId={props.projectId} versionId={props.versionId} userId={props.userId}
+      discipline={props.discipline}
       pageNumber={pageNumber}
       toolbarExtra={
         <div className="flex items-center gap-1 rounded-md border border-white/15 bg-white/10 px-1 py-0.5">
