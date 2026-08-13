@@ -8,6 +8,7 @@ import type { OrionRealtimeConnectionState, OrionRealtimeServerEvent } from "@/l
 import { isOrionVoiceAutomationEnabled, ORION_VOICE_FREEZE_MESSAGE } from "@/lib/orion/runtime-config";
 import { detectRealtimeVoiceControl } from "@/lib/orion/voice/realtime-voice-controls";
 import { DEFAULT_ORION_VOICE_STYLE, detectRealtimeVoiceProfileCommand, isOrionVoiceStyleProfile, type OrionVoiceStyleProfile } from "@/lib/orion/voice/realtime-voice-profile";
+import { DEFAULT_ORION_VOICE_ISOLATION_MODE } from "@/lib/orion/voice/voice-isolation";
 import { useGlobalOrionVoice } from "./GlobalOrionVoiceProvider";
 
 // `browser` remains in the public union temporarily for source compatibility with
@@ -416,7 +417,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     browserWindow.__bangoOrionRealtimeClient = client;
     const connectPromise = (async () => {
       try {
-        await client.connect({ voice: realtimeVoice, voiceStyle });
+        await client.connect({ voice: realtimeVoice, voiceStyle, isolationMode: DEFAULT_ORION_VOICE_ISOLATION_MODE });
       } catch (error) {
         if (clientRef.current === client) {
           clientRef.current = null;
