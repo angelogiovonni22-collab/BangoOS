@@ -23,6 +23,7 @@ import { PlansToolbar } from "./plans-toolbar";
 import { BlueprintUploadPanel } from "./blueprint-upload-panel";
 import { BlueprintRevisionPanel } from "./blueprint-revision-panel";
 import { BlueprintProjectImpact } from "./blueprint-project-impact";
+import { BlueprintTakeoffRegister } from "./blueprint-takeoff-register";
 import { createClient } from "@/lib/supabase/client";
 import { loadProjectBlueprints } from "@/lib/blueprints/plan-room";
 import type {
@@ -311,6 +312,7 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId, init
       />
 
       <BlueprintProjectImpact companyId={companyId} projectId={projectId} />
+      <BlueprintTakeoffRegister companyId={companyId} projectId={projectId} />
 
       <PlansToolbar
         searchTerm={searchTerm}
