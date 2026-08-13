@@ -29,6 +29,8 @@ const annotationsMigration = fs.readFileSync(path.join(root, "supabase/migration
 const measurementsMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812170000_blueprint_measurement_annotations.sql"), "utf8");
 const realtimeService = fs.readFileSync(path.join(root, "lib/blueprints/realtime.ts"), "utf8");
 const realtimeMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812220000_blueprint_realtime_collaboration.sql"), "utf8");
+const mediaService = fs.readFileSync(path.join(root, "lib/blueprints/media-attachments.ts"), "utf8");
+const mediaMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260812233000_blueprint_media_attachments.sql"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -108,5 +110,12 @@ assert(realtimeService.includes("filter: `blueprint_version_id=eq.${identity.ver
 assert(realtimeService.includes("user_id: identity.userId") && realtimeService.includes("company_id: identity.companyId"), "Blueprint presence must retain authenticated tenant identity");
 assert(markupSurface.includes('data-orion-region="blueprint-collaboration-status"'), "Live Blueprint collaboration must expose semantic Orion context");
 assert(markupSurface.includes("subscribeToBlueprintCollaboration"), "The markup surface must subscribe through the shared collaboration service");
+assert(mediaMigration.includes("create table public.blueprint_media_attachments"), "Pinned Blueprint media must have a dedicated metadata store");
+assert(mediaMigration.includes("foreign key (blueprint_version_id, company_id, project_id)"), "Pinned media must preserve exact tenant, project, and revision integrity");
+assert(mediaMigration.includes("public.is_company_member(company_id)"), "Pinned media metadata must enforce active company membership");
+assert(mediaMigration.includes("'blueprint-media', 'blueprint-media', false"), "Pinned media must use private storage");
+assert(mediaService.includes("createSignedUrls") && mediaService.includes("60 * 30"), "Pinned media previews must use expiring signed URLs");
+assert(mediaService.includes("remove([storagePath])"), "Failed media metadata writes must clean up private storage");
+assert(markupSurface.includes("Media pin") && markupSurface.includes('data-orion-region="blueprint-media-preview"'), "The Plan Workspace must expose semantic coordinate-pinned media workflows");
 
 console.log("BOS Blueprints Phase 1 navigation foundation contract passed");
