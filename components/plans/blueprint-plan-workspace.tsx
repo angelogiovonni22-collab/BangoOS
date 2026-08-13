@@ -5,6 +5,7 @@ import { Button, Dialog } from "@/components/ui";
 import { Blueprint2dViewer } from "./blueprint-2d-viewer";
 import { BlueprintExportActions } from "./blueprint-export-actions";
 import { Blueprint3dViewer } from "./blueprint-3d-viewer";
+import { BlueprintFieldTools } from "./blueprint-field-tools";
 import type { PlanDocument } from "./types";
 
 type BlueprintPlanWorkspaceProps = {
@@ -87,6 +88,7 @@ export function BlueprintPlanWorkspace({
         <span>Large Plan Workspace · Markups save to Revision {document.revision}</span>
         <BlueprintExportActions companyId={companyId} projectId={projectId} versionId={document.versionId} userId={userId} projectName={projectName} document={{ fileName: document.fileName, revision: document.revision, discipline: document.discipline, originalFileName: document.originalFileName || document.fileName, revisionHistory: document.revisionHistory }} />
       </div>
+      <BlueprintFieldTools companyId={companyId} projectId={projectId} versionId={document.versionId}/>
       </div>
     </Dialog>
   );
