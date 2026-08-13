@@ -1,0 +1,4 @@
+import assert from "node:assert/strict";import{readFileSync}from"node:fs";import{resolve}from"node:path";
+const root=process.cwd(),surface=readFileSync(resolve(root,"components/crews/mobile-field-inspections.tsx"),"utf8"),workspace=readFileSync(resolve(root,"components/crews/mobile-field-operations-workspace.tsx"),"utf8");
+assert.match(surface,/createProjectExecutionService/);assert.match(surface,/resolveWorkspaceContext/);assert.match(surface,/projectId/);assert.match(surface,/safety_checklist/);assert.match(surface,/startInspection/);assert.match(surface,/passInspection/);assert.match(surface,/failInspection/);assert.match(surface,/reinspectionRequired: true/);assert.match(surface,/idempotencyKey/);assert.match(workspace,/MobileFieldInspections/);
+console.log("Mobile field inspections contract checks passed.");
