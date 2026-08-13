@@ -10,3 +10,4 @@ export * from "./workforce-intelligence-persistence";
 export * from "./mobile-field-operations-types";
 export * from "./mobile-field-operations-service";
 export * from "./use-mobile-field-operations";
+export * from "./field-offline-queue";
