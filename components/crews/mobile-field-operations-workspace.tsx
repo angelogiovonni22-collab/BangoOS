@@ -320,6 +320,7 @@ export function MobileFieldOperationsWorkspace() {
           {mobileReport.safetyObservations.trim() ? <div className="grid gap-2 sm:grid-cols-2">
             <Select aria-label="Safety event type" value={mobileReport.safetyEventType} onChange={(event) => setMobileReport((current) => ({ ...current, safetyEventType: event.target.value as MobileDailyReportDraft["safetyEventType"] }))}><option value="inspection">Inspection</option><option value="toolbox_talk">Toolbox talk</option><option value="near_miss">Near miss</option><option value="incident">Incident</option></Select>
             <Select aria-label="Safety severity" value={mobileReport.safetySeverity} onChange={(event) => setMobileReport((current) => ({ ...current, safetySeverity: event.target.value as MobileDailyReportDraft["safetySeverity"] }))}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></Select>
+            <Input aria-label="Safety attendees" inputMode="numeric" placeholder="Attendee count" value={mobileReport.safetyAttendees} onChange={(event) => setMobileReport((current) => ({ ...current, safetyAttendees: event.target.value }))} />
             <Textarea className="sm:col-span-2" rows={2} aria-label="Immediate safety action" placeholder="Immediate action taken" value={mobileReport.safetyImmediateAction} onChange={(event) => setMobileReport((current) => ({ ...current, safetyImmediateAction: event.target.value }))} />
           </div> : null}
 
