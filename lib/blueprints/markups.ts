@@ -13,6 +13,9 @@ export type BlueprintMarkup = {
   status: "open" | "resolved";
   discipline: string;
   layerId: string | null;
+  priority: "low" | "medium" | "high" | "critical";
+  dueAt: string | null;
+  escalatedAt: string | null;
 };
 
 type MarkupIdentity = {
@@ -27,7 +30,7 @@ function blueprintAnnotations(supabase: SupabaseClient) {
 
 export async function loadBlueprintMarkups(supabase: SupabaseClient, identity: MarkupIdentity) {
   const response = await blueprintAnnotations(supabase)
-    .select("id, annotation_type, color, geometry, content, status, discipline, layer_id, created_by, created_at")
+    .select("id, annotation_type, color, geometry, content, status, discipline, layer_id, priority, due_at, escalated_at, created_by, created_at")
     .eq("company_id", identity.companyId)
     .eq("project_id", identity.projectId)
     .eq("blueprint_version_id", identity.versionId)
@@ -45,6 +48,9 @@ export async function loadBlueprintMarkups(supabase: SupabaseClient, identity: M
     status: row.status === "resolved" ? "resolved" : "open",
     discipline: String(row.discipline || "Architectural"),
     layerId: typeof row.layer_id === "string" ? row.layer_id : null,
+    priority: (["low", "medium", "high", "critical"].includes(String(row.priority)) ? String(row.priority) : "medium") as BlueprintMarkup["priority"],
+    dueAt: typeof row.due_at === "string" ? row.due_at : null,
+    escalatedAt: typeof row.escalated_at === "string" ? row.escalated_at : null,
   } satisfies BlueprintMarkup));
 }
 
