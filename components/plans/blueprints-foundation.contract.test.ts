@@ -47,6 +47,8 @@ const fourDService = fs.readFileSync(path.join(root, "lib/blueprints/four-d.ts")
 const fieldOffline = fs.readFileSync(path.join(root, "lib/blueprints/field-offline.ts"), "utf8");
 const fieldTools = fs.readFileSync(path.join(root, "components/plans/blueprint-field-tools.tsx"), "utf8");
 const scanMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260813100000_blueprint_spatial_scans.sql"), "utf8");
+const planIntelligence = fs.readFileSync(path.join(root, "lib/blueprints/intelligence.ts"), "utf8");
+const intelligencePanel = fs.readFileSync(path.join(root, "components/plans/blueprint-orion-intelligence.tsx"), "utf8");
 
 assert(tabs.includes('key: "blueprints"'), "Project workspace must expose a Blueprints tab");
 assert(projectPage.includes('activeTab === "blueprints"'), "Project workspace must render the Blueprint Plan Room");
@@ -133,6 +135,9 @@ assert(fieldTools.includes('capture="environment"') && fieldTools.includes("navi
 assert(fieldTools.includes('isSessionSupported("immersive-ar")') && fieldTools.includes('mode:supported?"webxr":"photogrammetry"'), "Room scanning must feature-detect AR and retain a field fallback");
 assert(scanMigration.includes("create table public.blueprint_spatial_scans") && scanMigration.includes("enable row level security"), "Spatial scan sessions must persist behind tenant RLS");
 assert(planWorkspace.includes("<BlueprintFieldTools"), "Mobile field tools must be available in the full Plan Workspace");
+assert(planIntelligence.includes("unresolved plan issue") && planIntelligence.includes("measurement verification") && planIntelligence.includes("Potential cross-discipline clash"), "Orion plan intelligence must detect issue, measurement, and coordination risks deterministically");
+assert(intelligencePanel.includes('fetch("/api/orion/intelligence"') && intelligencePanel.includes('tier:"deep"'), "Blueprint deep reviews must reuse authenticated Orion intelligence");
+assert(intelligencePanel.includes('data-orion-region="blueprint-plan-intelligence"') && planWorkspace.includes("<BlueprintOrionIntelligence"), "Orion plan intelligence must be semantic and mounted in the full workspace");
 assert(markupSurface.includes('label="Calibrate"') && markupSurface.includes('label="Distance"') && markupSurface.includes('label="Area"'), "The markup toolbar must expose measurement tools");
 assert(markupSurface.includes("unitsPerDrawingUnit"), "Measurements must use a persisted drawing calibration");
 assert(blueprintViewer.includes('closest("[data-blueprint-controls]")'), "Viewer panning must ignore nested Blueprint controls");
