@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { ORION_OPERATOR_MAIN_ROUTES } from "@/lib/orion/operator/routes";
 import { DEFAULT_ORION_VOICE_STYLE, isOrionVoiceStyleProfile, voiceStyleInstruction } from "@/lib/orion/voice/realtime-voice-profile";
+import { DEFAULT_ORION_VOICE_ISOLATION_MODE, isOrionVoiceIsolationMode, voiceIsolationInstruction } from "@/lib/orion/voice/voice-isolation";
 
 const OPENAI_REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const DEFAULT_REALTIME_VOICE = "marin";
@@ -129,12 +130,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }, { status: workspace.errorCode === "unauthenticated" ? 401 : 403 });
     }
 
-    const body = await req.json() as { sdp?: unknown; voice?: unknown; voiceStyle?: unknown };
+    const body = await req.json() as { sdp?: unknown; voice?: unknown; voiceStyle?: unknown; isolationMode?: unknown };
     if (typeof body.sdp !== "string" || !body.sdp.trim()) return NextResponse.json({ ok: false, error: "sdp is required." }, { status: 400 });
 
     const modelConfig = getOrionModelConfig();
     const voice = realtimeVoice(body.voice);
     const voiceStyle = isOrionVoiceStyleProfile(body.voiceStyle) ? body.voiceStyle : DEFAULT_ORION_VOICE_STYLE;
+    const isolationMode = isOrionVoiceIsolationMode(body.isolationMode) ? body.isolationMode : DEFAULT_ORION_VOICE_ISOLATION_MODE;
     const tools = realtimeBosTools();
     const session = {
       type: "realtime",
@@ -146,6 +148,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         "Language policy: understand and speak English only. Always answer in natural American English unless the user explicitly asks you, in the current conversation, to translate or speak another language. Never switch languages because of noise, an accent, a customer or project name, or an uncertain transcript.",
         "Speak naturally, briefly, confidently, and conversationally. The user should be able to talk to you the way they talk to a capable human assistant.",
         voiceStyleInstruction(voiceStyle),
+        voiceIsolationInstruction(isolationMode),
         "Do not force command syntax. Interpret ordinary language, corrections, pronouns, short answers, interruptions, and follow-up statements in the context of the active conversation and task.",
         "Wake behavior: at the beginning of a new Realtime conversation, remain dormant until the user directly wakes or addresses you with Hey Orion, Okay Orion, Orion, or a clearly equivalent direct address.",
         "The wake phrase and request may be in the same utterance. Process both immediately.",
@@ -186,7 +189,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ].join("\n"),
       audio: {
         input: {
-          noise_reduction: { type: "far_field" },
+          noise_reduction: { type: isolationMode === "focused" ? "near_field" : "far_field" },
           transcription: {
             model: "gpt-4o-mini-transcribe",
             language: "en",
