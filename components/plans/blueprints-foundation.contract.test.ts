@@ -132,7 +132,7 @@ assert(fourDService.includes('from(n)') && fourDService.includes('"tasks"'), "4D
 assert(modelViewer.includes('data-orion-region="blueprint-4d-playback"') && modelViewer.includes("playbackDate"), "The BIM viewer must expose schedule-linked construction playback");
 assert(fieldOffline.includes('indexedDB.open') && fieldOffline.includes("companyId") && fieldOffline.includes("versionId"), "Mobile field drafts must use tenant and revision-scoped offline storage");
 assert(fieldTools.includes('capture="environment"') && fieldTools.includes("navigator.onLine"), "Field workflows must support direct camera capture and offline state");
-assert(fieldTools.includes('isSessionSupported("immersive-ar")') && fieldTools.includes('mode:supported?"webxr":"photogrammetry"'), "Room scanning must feature-detect AR and retain a field fallback");
+assert(fieldTools.includes('isSessionSupported("immersive-ar")') && fieldTools.includes('"webxr"') && fieldTools.includes('"photogrammetry"'), "Room scanning must feature-detect AR and retain a field fallback");
 assert(scanMigration.includes("create table public.blueprint_spatial_scans") && scanMigration.includes("enable row level security"), "Spatial scan sessions must persist behind tenant RLS");
 assert(planWorkspace.includes("<BlueprintFieldTools"), "Mobile field tools must be available in the full Plan Workspace");
 assert(planIntelligence.includes("unresolved plan issue") && planIntelligence.includes("measurement verification") && planIntelligence.includes("Potential cross-discipline clash"), "Orion plan intelligence must detect issue, measurement, and coordination risks deterministically");

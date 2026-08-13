@@ -18,18 +18,18 @@ export function PlansHeader({ projectName, documentCount, lastRevisionDate, onUp
         description="The project workspace for sheets, revisions, calibrated markups, field coordination, and Orion plan intelligence."
         secondaryActions={(
           <>
-            <Button variant="toolbar" disabled title="2D and 3D model views are coming in a later Blueprints phase.">
+            <span className="inline-flex items-center gap-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)]" title="Interactive 2D sheets and IFC/GLB/GLTF model views are available in the plan preview.">
               <Box size={16} aria-hidden="true" />
               2D / 3D
-            </Button>
-            <Button variant="toolbar" disabled title="Calibrated markup tools are coming in the next Blueprints phase.">
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)]" title="Open a plan workspace to use calibrated markups and takeoffs.">
               <ScanLine size={16} aria-hidden="true" />
               Markup
-            </Button>
-            <Button variant="toolbar" disabled title="Drawing layer controls are coming in a later Blueprints phase.">
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)]" title="Open a plan workspace to manage discipline and custom layers.">
               <Layers3 size={16} aria-hidden="true" />
               Layers
-            </Button>
+            </span>
           </>
         )}
         primaryAction={(
