@@ -5,7 +5,8 @@ type RpcResult = { data: unknown; error: { message?: string } | null };
 type RpcClient = { rpc: (name: string, args: Record<string, unknown>) => Promise<RpcResult> };
 export type WorkforceTimeReview={id:string;employeeId:string;employeeName:string;projectId:string|null;startedAt:string;endedAt:string;breakMinutes:number;hours:number;notes:string|null};
 type QueryResult={data:Array<Record<string,unknown>>|null;error:{message?:string}|null};
-type LooseDb={from:(table:string)=>any};
+type QueryBuilder=PromiseLike<QueryResult>&{select:(columns:string)=>QueryBuilder;update:(values:Record<string,unknown>)=>QueryBuilder;eq:(column:string,value:unknown)=>QueryBuilder;in:(column:string,values:string[])=>QueryBuilder;order:(column:string,options:{ascending:boolean})=>QueryBuilder;limit:(count:number)=>QueryBuilder;maybeSingle:()=>Promise<{data:unknown;error:{message?:string}|null}>};
+type LooseDb={from:(table:string)=>QueryBuilder};
 
 export async function recordWorkforceTimeEvent(input:{employeeId:string;action:"clock_in"|"clock_out";projectId?:string|null;assignmentId?:string|null;notes?:string}) {
   const supabase=createClient();
