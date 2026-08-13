@@ -8,9 +8,25 @@ export type BlueprintOperationalLink = {
 
 export type BlueprintProjectEstimate = { id: string; label: string; status: string };
 export type BlueprintWorkforceOption = { id: string; type: "employee" | "crew"; label: string };
+export type BlueprintProjectImpactSummary = { openIssues: number; unlinkedIssues: number; tasks: number; punchItems: number; changeOrders: number; workforceAssignments: number; estimateItems: number };
 
 function operationalLinks(supabase: SupabaseClient) {
   return (supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> }).from("blueprint_operational_links");
+}
+
+export async function loadBlueprintProjectImpactSummary(supabase: SupabaseClient, input: { companyId: string; projectId: string }): Promise<BlueprintProjectImpactSummary> {
+  const annotations = (supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> }).from("blueprint_annotations");
+  const [issuesResponse, linksResponse] = await Promise.all([
+    annotations.select("id").eq("company_id", input.companyId).eq("project_id", input.projectId).eq("annotation_type", "pin").eq("status", "open"),
+    operationalLinks(supabase).select("annotation_id, target_type").eq("company_id", input.companyId).eq("project_id", input.projectId),
+  ]);
+  if (issuesResponse.error) throw issuesResponse.error;
+  if (linksResponse.error) throw linksResponse.error;
+  const openIssueIds = new Set(((issuesResponse.data ?? []) as Array<{ id: string }>).map((row) => row.id));
+  const links = (linksResponse.data ?? []) as Array<{ annotation_id: string; target_type: BlueprintOperationalLink["targetType"] }>;
+  const linkedOpenIssueIds = new Set(links.filter((link) => openIssueIds.has(link.annotation_id)).map((link) => link.annotation_id));
+  const count = (type: BlueprintOperationalLink["targetType"]) => links.filter((link) => link.target_type === type).length;
+  return { openIssues: openIssueIds.size, unlinkedIssues: openIssueIds.size - linkedOpenIssueIds.size, tasks: count("task"), punchItems: count("punch_item"), changeOrders: count("change_order"), workforceAssignments: count("workforce_assignment"), estimateItems: count("estimate_line_item") };
 }
 
 export async function loadBlueprintOperationalLinks(supabase: SupabaseClient, identity: { companyId: string; projectId: string; versionId: string }) {
