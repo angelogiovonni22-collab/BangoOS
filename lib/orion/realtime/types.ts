@@ -9,6 +9,7 @@ export type OrionRealtimeConnectionState =
 
 export type OrionRealtimeSessionOptions = {
   voice?: string | null;
+  voiceStyle?: { accent: string; tone: string } | null;
 };
 
 export type OrionRealtimeServerEvent = {
