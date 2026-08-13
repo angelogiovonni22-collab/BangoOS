@@ -9,9 +9,26 @@ export type BlueprintOperationalLink = {
 export type BlueprintProjectEstimate = { id: string; label: string; status: string };
 export type BlueprintWorkforceOption = { id: string; type: "employee" | "crew"; label: string };
 export type BlueprintProjectImpactSummary = { openIssues: number; unlinkedIssues: number; tasks: number; punchItems: number; changeOrders: number; workforceAssignments: number; estimateItems: number };
+export type BlueprintOperationalSource = { projectId: string; versionId: string; annotationId: string; pageNumber: number };
 
 function operationalLinks(supabase: SupabaseClient) {
   return (supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> }).from("blueprint_operational_links");
+}
+
+export async function loadBlueprintSourcesForOperationalRecords(supabase: SupabaseClient, input: { targetType: BlueprintOperationalLink["targetType"]; targetIds: string[] }): Promise<BlueprintOperationalSource[]> {
+  if (!input.targetIds.length) return [];
+  const links = await operationalLinks(supabase).select("project_id, blueprint_version_id, annotation_id, target_id, created_at").eq("target_type", input.targetType).in("target_id", input.targetIds).order("created_at", { ascending: false });
+  if (links.error) throw links.error;
+  const rows = (links.data ?? []) as Array<Record<string, unknown>>;
+  const annotationIds = [...new Set(rows.map((row) => String(row.annotation_id)))];
+  if (!annotationIds.length) return [];
+  const annotations = await (supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> }).from("blueprint_annotations").select("id, geometry").in("id", annotationIds);
+  if (annotations.error) throw annotations.error;
+  const geometryById = new Map(((annotations.data ?? []) as Array<Record<string, unknown>>).map((row) => [String(row.id), row.geometry as Record<string, unknown>]));
+  return rows.map((row) => {
+    const geometry = geometryById.get(String(row.annotation_id));
+    return { projectId: String(row.project_id), versionId: String(row.blueprint_version_id), annotationId: String(row.annotation_id), pageNumber: Math.max(1, Number(geometry?.page ?? 1)) };
+  });
 }
 
 export async function loadBlueprintProjectImpactSummary(supabase: SupabaseClient, input: { companyId: string; projectId: string }): Promise<BlueprintProjectImpactSummary> {
