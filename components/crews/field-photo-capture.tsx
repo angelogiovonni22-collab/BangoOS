@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button, Input, Select } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -21,11 +21,6 @@ export function FieldPhotoCapture({ projectId, projectName, onUploaded }: { proj
   const [category, setCategory] = useState<(typeof categories)[number]>("progress");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  useEffect(() => {
-    setFile(null);
-    setMessage(null);
-    if (inputRef.current) inputRef.current.value = "";
-  }, [projectId]);
   const upload = async () => {
     const supabase = createClient();
     if (!supabase || !file || !projectId || uploadInFlightRef.current) return;
