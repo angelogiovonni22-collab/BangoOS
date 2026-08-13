@@ -69,7 +69,7 @@ export function BlueprintPlanWorkspace({
       </div>
 
       <div className="min-h-0 flex-1 bg-slate-900 p-2 sm:p-3" data-orion-region="blueprint-plan-workspace">
-        {previewType === "ifc" || previewType === "gltf" ? <Blueprint3dViewer fileUrl={document.fileUrl} fileName={document.fileName} format={previewType} /> : <Blueprint2dViewer
+        {previewType === "ifc" || previewType === "gltf" ? <Blueprint3dViewer fileUrl={document.fileUrl} fileName={document.fileName} format={previewType} companyId={companyId} projectId={projectId} versionId={document.versionId} userId={userId} /> : <Blueprint2dViewer
           key={`workspace:${document.versionId}`}
           fileUrl={document.fileUrl}
           fileName={document.fileName}
