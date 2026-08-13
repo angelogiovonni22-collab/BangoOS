@@ -95,8 +95,15 @@ export function BlueprintMarkupSurface({
     return () => { active = false; };
   }, [requestMarkups]);
 
-  const reloadMedia = useCallback(async () => { if (supabase) setMedia(await loadBlueprintMedia(supabase, identity)); }, [identity, supabase]);
-  useEffect(() => { void reloadMedia().catch((mediaError: unknown) => setError(mediaError instanceof Error ? mediaError.message : "Could not load plan media.")); }, [reloadMedia]);
+  const requestMedia = useCallback(async () => supabase ? loadBlueprintMedia(supabase, identity) : [], [identity, supabase]);
+  const reloadMedia = useCallback(async () => { setMedia(await requestMedia()); }, [requestMedia]);
+  useEffect(() => {
+    let active = true;
+    void requestMedia()
+      .then((next) => { if (active) setMedia(next); })
+      .catch((mediaError: unknown) => { if (active) setError(mediaError instanceof Error ? mediaError.message : "Could not load plan media."); });
+    return () => { active = false; };
+  }, [requestMedia]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -376,7 +383,7 @@ export function BlueprintMarkupSurface({
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} mine={markup.createdBy === userId} saving={saving} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
           </aside>
         ) : null}
-        {activeMedia ? <aside className="absolute bottom-3 right-3 z-30 w-[min(22rem,calc(100%-1.5rem))] overflow-hidden rounded-xl border border-slate-700 bg-slate-950 text-white shadow-2xl" data-orion-region="blueprint-media-preview"><div className="flex items-center justify-between px-3 py-2"><span className="inline-flex items-center gap-2 text-xs font-bold"><ImageIcon size={14} />Pinned media</span><button type="button" aria-label="Close media preview" onClick={() => setActiveMedia(null)}><X size={16} /></button></div>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={activeMedia.signedUrl} alt={activeMedia.caption || activeMedia.fileName} className="max-h-72 w-full bg-black object-contain" /><div className="p-3"><p className="text-xs font-semibold">{activeMedia.caption || activeMedia.fileName}</p><p className="mt-1 text-[10px] text-slate-400">Page {activeMedia.pageNumber}</p></div></aside> : null}
+        {activeMedia ? <aside className="absolute bottom-3 right-3 z-30 w-[min(22rem,calc(100%-1.5rem))] overflow-hidden rounded-xl border border-slate-700 bg-slate-950 text-white shadow-2xl" data-orion-region="blueprint-media-preview"><div className="flex items-center justify-between px-3 py-2"><span className="inline-flex items-center gap-2 text-xs font-bold"><ImageIcon size={14} />Pinned media</span><button type="button" aria-label="Close media preview" onClick={() => setActiveMedia(null)}><X size={16} /></button></div><div className="h-72 w-full bg-black bg-contain bg-center bg-no-repeat" role="img" aria-label={activeMedia.caption || activeMedia.fileName} style={{ backgroundImage: `url(${activeMedia.signedUrl})` }} /><div className="p-3"><p className="text-xs font-semibold">{activeMedia.caption || activeMedia.fileName}</p><p className="mt-1 text-[10px] text-slate-400">Page {activeMedia.pageNumber}</p></div></aside> : null}
       </div>
     </div>
   );
