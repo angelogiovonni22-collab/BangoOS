@@ -943,6 +943,7 @@ function getWorkspaceTabLabel(tab: WorkspaceTab, t: (key: string) => string) {
     financials: "projects.workspaceTabFinancials",
     change_orders: "projects.workspaceTabChangeOrders",
     rfis: "projects.workspaceTabRfis",
+    submittals: "projects.workspaceTabSubmittals",
     inspections: "projects.workspaceTabInspections",
     activity: "projects.workspaceTabActivity",
   };
