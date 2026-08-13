@@ -23,6 +23,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
     financials: <CircleDollarSign size={16} aria-hidden="true" />,
     change_orders: <Wrench size={16} aria-hidden="true" />,
     rfis: <FileText size={16} aria-hidden="true" />,
+    submittals: <ClipboardList size={16} aria-hidden="true" />,
     inspections: <ShieldCheck size={16} aria-hidden="true" />,
     activity: <Activity size={16} aria-hidden="true" />,
   };
