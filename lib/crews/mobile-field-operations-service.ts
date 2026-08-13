@@ -658,17 +658,19 @@ export function createMobileFieldOperationsService(
     },
 
     async checkoutEquipment(input) {
+      const equipmentIds = [...new Set(input.equipmentIds.map((id) => id.trim()).filter(Boolean))];
+      if (!input.crewId || equipmentIds.length === 0) throw new Error("Choose a crew and at least one equipment ID.");
       const now = new Date().toISOString();
       const context = await resolveContext();
       await workforce.assignEquipmentToCrew({
         crewId: input.crewId,
-        equipmentIds: input.equipmentIds,
+        equipmentIds,
       });
 
       let checkout: EquipmentCheckoutRecord = {
         id: createRuntimeId("checkout"),
         crewId: input.crewId,
-        equipmentIds: input.equipmentIds,
+        equipmentIds,
         conditionNotes: input.conditionNotes,
         checkedOutAt: now,
         returnedAt: null,
@@ -696,7 +698,7 @@ export function createMobileFieldOperationsService(
       if (!saved) {
         checkout = await equipmentCheckoutProvider.createCheckout({
           crewId: input.crewId,
-          equipmentIds: input.equipmentIds,
+          equipmentIds,
           conditionNotes: input.conditionNotes,
           at: now,
         });
@@ -707,7 +709,7 @@ export function createMobileFieldOperationsService(
         payload: {
           checkoutId: checkout.id,
           crewId: input.crewId,
-          equipmentIds: input.equipmentIds,
+          equipmentIds,
           persistenceState: saved ? "saved" : "queued",
         },
       });
@@ -717,6 +719,7 @@ export function createMobileFieldOperationsService(
     },
 
     async returnEquipment(input) {
+      if (!input.checkoutId) throw new Error("Choose an active equipment checkout.");
       const now = new Date().toISOString();
       const context = await resolveContext();
       let returned = await equipmentCheckoutProvider.returnEquipment({
@@ -772,6 +775,7 @@ export function createMobileFieldOperationsService(
         await markQueueStatus(offlineQueue, queued, saved ? "synced" : "queued");
       }
 
+      if (!returned) throw new Error("This equipment checkout is no longer active. Refreshing custody records.");
       return returned;
     },
   };
