@@ -6,6 +6,7 @@ const root = process.cwd();
 const migration = readFileSync(resolve(root, "supabase/migrations/20260813130000_blueprint_operational_links.sql"), "utf8");
 const takeoffMigration = readFileSync(resolve(root, "supabase/migrations/20260813143000_blueprint_estimate_takeoffs.sql"), "utf8");
 const changeOrderMigration = readFileSync(resolve(root, "supabase/migrations/20260813160000_blueprint_change_order_initiation.sql"), "utf8");
+const workforceMigration = readFileSync(resolve(root, "supabase/migrations/20260813173000_blueprint_workforce_assignments.sql"), "utf8");
 const service = readFileSync(resolve(root, "lib/blueprints/operations.ts"), "utf8");
 const surface = readFileSync(resolve(root, "components/plans/blueprint-markup-surface.tsx"), "utf8");
 
@@ -37,5 +38,13 @@ assert.match(changeOrderMigration, /status,\s*customer_id/);
 assert.match(service, /createChangeOrderFromBlueprintIssue/);
 assert.match(surface, /Start change order/);
 assert.match(surface, /Change order linked/);
+assert.match(workforceMigration, /assign_blueprint_issue_to_workforce/);
+assert.match(workforceMigration, /employment_status = 'active'/);
+assert.match(workforceMigration, /status = 'active'/);
+assert.match(workforceMigration, /'workforce_assignment'/);
+assert.match(service, /loadBlueprintWorkforceOptions/);
+assert.match(service, /assignBlueprintIssueToWorkforce/);
+assert.match(surface, /Assign workforce/);
+assert.match(surface, /Workforce assigned/);
 
 console.log("Blueprint operational integration contract checks passed.");
