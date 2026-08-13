@@ -40,6 +40,8 @@ export function MobileFieldOperationsWorkspace() {
     submitMobileDailyReport,
     checkoutEquipment,
     returnEquipment,
+    retryOfflineAction,
+    discardOfflineAction,
   } = useMobileFieldOperations();
 
   const [selectedCrewId, setSelectedCrewId] = useState("");
@@ -175,6 +177,7 @@ export function MobileFieldOperationsWorkspace() {
             </div>
           </div>
         </div>
+        {data.offline.conflicts.length ? <div className="mt-3 space-y-2">{data.offline.conflicts.map((conflict) => <div key={conflict.id} className="rounded-[var(--radius-card)] border border-[var(--color-warning-300)] bg-[var(--color-warning-50)] p-3"><p className="text-sm font-semibold text-[var(--text-primary)]">{conflict.entityType.replaceAll("_", " ")}</p><p className="mt-1 text-xs text-[var(--text-secondary)]">{conflict.message}</p><div className="mt-2 flex gap-2"><Button size="sm" disabled={isMutating} onClick={() => void retryOfflineAction(conflict.id)}>Retry</Button><Button size="sm" variant="outline" disabled={isMutating} onClick={() => void discardOfflineAction(conflict.id)}>Discard</Button></div></div>)}</div> : null}
       </Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="check-in">
