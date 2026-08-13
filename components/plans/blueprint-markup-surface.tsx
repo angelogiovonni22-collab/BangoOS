@@ -110,7 +110,14 @@ export function BlueprintMarkupSurface({
     return () => { active = false; };
   }, [requestMarkups]);
   const reloadLayers = useCallback(async () => { if (supabase) setLayers(await loadBlueprintLayers(supabase, companyId, projectId)); }, [companyId, projectId, supabase]);
-  useEffect(() => { void reloadLayers().catch((layerError:unknown)=>setError(layerError instanceof Error ? layerError.message : "Could not load plan layers.")); }, [reloadLayers]);
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    void loadBlueprintLayers(supabase, companyId, projectId)
+      .then((next) => { if (active) setLayers(next); })
+      .catch((layerError:unknown) => { if (active) setError(layerError instanceof Error ? layerError.message : "Could not load plan layers."); });
+    return () => { active = false; };
+  }, [companyId, projectId, supabase]);
 
   const requestMedia = useCallback(async () => supabase ? loadBlueprintMedia(supabase, identity) : [], [identity, supabase]);
   const reloadMedia = useCallback(async () => { setMedia(await requestMedia()); }, [requestMedia]);
