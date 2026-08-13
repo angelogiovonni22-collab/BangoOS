@@ -28,6 +28,7 @@ const statusSyncMigration = readFileSync(resolve(root, "supabase/migrations/2026
 const slaMigration = readFileSync(resolve(root, "supabase/migrations/20260814033000_blueprint_issue_sla.sql"), "utf8");
 const slaService = readFileSync(resolve(root, "lib/blueprints/issue-sla.ts"), "utf8");
 const slaControls = readFileSync(resolve(root, "components/plans/blueprint-issue-sla-controls.tsx"), "utf8");
+const submittalMigration = readFileSync(resolve(root, "supabase/migrations/20260814050000_blueprint_submittal_workflow.sql"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -142,5 +143,13 @@ assert.match(slaControls, /SLA overdue/);
 assert.match(surface, /BlueprintIssueSlaControls/);
 assert.match(intelligence, /overdue-issues/);
 assert.match(eventTypes, /blueprint\.issue_overdue/);
+assert.match(submittalMigration, /create table public\.project_submittals/);
+assert.match(submittalMigration, /enable row level security/);
+assert.match(submittalMigration, /create_submittal_from_blueprint_issue/);
+assert.match(submittalMigration, /pg_advisory_xact_lock/);
+assert.match(submittalMigration, /'submittal.created'/);
+assert.match(service, /createSubmittalFromBlueprintIssue/);
+assert.match(surface, /Create submittal/);
+assert.match(surface, /Submittal linked/);
 
 console.log("Blueprint operational integration contract checks passed.");
