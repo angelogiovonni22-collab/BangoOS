@@ -153,12 +153,11 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   const connectPromiseRef = useRef<Promise<void> | null>(null);
   const autoStartAttemptedRef = useRef(false);
   const manualStopRef = useRef(false);
-  const spokenResponsesEnabledRef = useRef(true);
   const voiceAutomationEnabled = isOrionVoiceAutomationEnabled();
 
   const [enabled, setEnabled] = useState(() => readStoredBoolean(ORION_V2_ENABLED_STORAGE_KEY));
   const [spokenResponsesEnabled, setSpokenResponsesEnabledState] = useState(() => readStoredBooleanWithDefault(ORION_REALTIME_SPOKEN_RESPONSES_STORAGE_KEY, true));
-  spokenResponsesEnabledRef.current = spokenResponsesEnabled;
+  const spokenResponsesEnabledRef = useRef(spokenResponsesEnabled);
   const [realtimeState, setRealtimeState] = useState<OrionRealtimeConnectionState>("idle");
   const [realtimeVoice, setRealtimeVoiceState] = useState<OrionRealtimeVoice>(DEFAULT_REALTIME_VOICE);
   const [realtimePhase, setRealtimePhase] = useState("idle");
