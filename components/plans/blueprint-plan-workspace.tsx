@@ -83,7 +83,7 @@ export function BlueprintPlanWorkspace({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] bg-white px-4 py-2 text-[11px] text-[var(--color-text-secondary)]">
         <span>Large Plan Workspace · Markups save to Revision {document.revision}</span>
-        <BlueprintExportActions companyId={companyId} projectId={projectId} versionId={document.versionId} userId={userId} projectName={projectName} document={{ fileName: document.fileName, revision: document.revision, discipline: document.discipline, originalFileName: document.originalFileName, revisionHistory: document.revisionHistory }} />
+        <BlueprintExportActions companyId={companyId} projectId={projectId} versionId={document.versionId} userId={userId} projectName={projectName} document={{ fileName: document.fileName, revision: document.revision, discipline: document.discipline, originalFileName: document.originalFileName || document.fileName, revisionHistory: document.revisionHistory }} />
       </div>
       </div>
     </Dialog>
