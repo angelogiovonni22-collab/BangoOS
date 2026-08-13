@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+const root=process.cwd();
+const service=readFileSync(resolve(root,"lib/crews/mobile-field-operations-service.ts"),"utf8");
+const queue=readFileSync(resolve(root,"lib/crews/field-offline-queue.ts"),"utf8");
+const surface=readFileSync(resolve(root,"components/crews/mobile-field-operations-workspace.tsx"),"utf8");
+assert.match(service,/retryOfflineAction/);assert.match(service,/discardOfflineAction/);assert.match(service,/item\.status === "failed"/);
+assert.match(queue,/store\.delete\(id\)/);assert.match(queue,/existing\?\.scopeKey === scopeKey/);
+assert.match(surface,/>Retry</);assert.match(surface,/>Discard</);assert.match(surface,/data\.offline\.conflicts\.map/);
+console.log("Field conflict resolution contract checks passed.");
