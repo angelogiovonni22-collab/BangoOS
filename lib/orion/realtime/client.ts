@@ -223,7 +223,7 @@ export class OrionRealtimeClient {
       const response = await fetch("/api/orion/realtime/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sdp: offer.sdp, voice: options.voice || null }),
+        body: JSON.stringify({ sdp: offer.sdp, voice: options.voice || null, voiceStyle: options.voiceStyle || null }),
       });
 
       const payload = await response.json() as { ok?: boolean; sdp?: string; error?: string };

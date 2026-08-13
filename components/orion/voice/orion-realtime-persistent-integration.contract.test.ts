@@ -66,7 +66,7 @@ function main() {
   assert(panel.includes("void voice.start()") && panel.includes("void voice.stop()"), "persistent voice controls start and stop the Realtime conversation");
   assert(realtimeClient.includes("await this.disconnect()"), "Realtime client remains single-session before acquiring microphone resources");
   assert(unified.includes('DEFAULT_REALTIME_VOICE: OrionRealtimeVoice = "marin"'), "Realtime defaults to the recommended Orion voice");
-  assert(unified.includes("client.connect({ voice: realtimeVoice })"), "selected Realtime voice is used when the session connects");
+  assert(unified.includes("client.connect({ voice: realtimeVoice, voiceStyle })"), "selected Realtime voice and approved style are used when the session connects");
   assert(modelConfig.includes('DEFAULT_REALTIME_MODEL = "gpt-realtime"'), "Orion v2 defaults to the public OpenAI Realtime model identifier");
   assert(modelConfig.includes('DEFAULT_REASONING_MODEL = "gpt-5.1"'), "non-Realtime Orion reasoning defaults to a public API model identifier");
   assert(modelConfig.includes('DEFAULT_FAST_MODEL = "gpt-5-mini"'), "fast Orion reasoning defaults to a public API model identifier");

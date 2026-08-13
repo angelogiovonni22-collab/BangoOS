@@ -7,6 +7,7 @@ import { OrionRealtimeClient } from "@/lib/orion/realtime/client";
 import type { OrionRealtimeConnectionState, OrionRealtimeServerEvent } from "@/lib/orion/realtime/types";
 import { isOrionVoiceAutomationEnabled, ORION_VOICE_FREEZE_MESSAGE } from "@/lib/orion/runtime-config";
 import { detectRealtimeVoiceControl } from "@/lib/orion/voice/realtime-voice-controls";
+import { DEFAULT_ORION_VOICE_STYLE, detectRealtimeVoiceProfileCommand, isOrionVoiceStyleProfile, type OrionVoiceStyleProfile } from "@/lib/orion/voice/realtime-voice-profile";
 import { useGlobalOrionVoice } from "./GlobalOrionVoiceProvider";
 
 // `browser` remains in the public union temporarily for source compatibility with
@@ -18,6 +19,7 @@ export type OrionRealtimeVoice = (typeof ORION_REALTIME_VOICES)[number];
 const REALTIME_VOICE_STORAGE_KEY = "bangoos:orion-realtime-voice:v1";
 const ORION_V2_ENABLED_STORAGE_KEY = "bangoos:orion-v2-enabled:v1";
 const ORION_REALTIME_SPOKEN_RESPONSES_STORAGE_KEY = "bangoos:orion-realtime-spoken-responses:v1";
+const ORION_REALTIME_VOICE_STYLE_STORAGE_KEY = "bangoos:orion-realtime-voice-style:v1";
 const ORION_REALTIME_OWNER_STORAGE_KEY = "bangoos:orion-realtime-owner:v1";
 const ORION_REALTIME_OWNER_CHANNEL = "bangoos:orion-realtime-owner";
 const DEFAULT_REALTIME_VOICE: OrionRealtimeVoice = "marin";
@@ -80,6 +82,18 @@ function storeBoolean(key: string, value: boolean) {
   } catch {
     // Local persistence is optional.
   }
+}
+
+function readVoiceStyle() {
+  if (typeof window === "undefined") return DEFAULT_ORION_VOICE_STYLE;
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(ORION_REALTIME_VOICE_STYLE_STORAGE_KEY) || "null") as unknown;
+    return isOrionVoiceStyleProfile(stored) ? stored : DEFAULT_ORION_VOICE_STYLE;
+  } catch { return DEFAULT_ORION_VOICE_STYLE; }
+}
+
+function storeVoiceStyle(profile: OrionVoiceStyleProfile) {
+  try { window.localStorage.setItem(ORION_REALTIME_VOICE_STYLE_STORAGE_KEY, JSON.stringify(profile)); } catch { /* optional */ }
 }
 
 function createOwnerId() {
@@ -158,6 +172,9 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   const [enabled, setEnabled] = useState(() => readStoredBoolean(ORION_V2_ENABLED_STORAGE_KEY));
   const [spokenResponsesEnabled, setSpokenResponsesEnabledState] = useState(() => readStoredBooleanWithDefault(ORION_REALTIME_SPOKEN_RESPONSES_STORAGE_KEY, true));
   const spokenResponsesEnabledRef = useRef(spokenResponsesEnabled);
+  const [voiceStyle, setVoiceStyle] = useState<OrionVoiceStyleProfile>(readVoiceStyle);
+  const voiceStyleRef = useRef(voiceStyle);
+  const pendingVoiceStyleRef = useRef<OrionVoiceStyleProfile | null>(null);
   const [realtimeState, setRealtimeState] = useState<OrionRealtimeConnectionState>("idle");
   const [realtimeVoice, setRealtimeVoiceState] = useState<OrionRealtimeVoice>(DEFAULT_REALTIME_VOICE);
   const [realtimePhase, setRealtimePhase] = useState("idle");
@@ -312,6 +329,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         if (userTranscript) {
           setRealtimeFinalTranscript(userTranscript);
           const voiceControl = detectRealtimeVoiceControl(userTranscript);
+          const profileCommand = detectRealtimeVoiceProfileCommand(userTranscript);
           if (voiceControl === "mute_output") {
             client.setOutputMuted(true);
             spokenResponsesEnabledRef.current = false;
@@ -327,8 +345,26 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
             setRealtimePhase("listening");
             setRealtimeStatus("Orion voice output is enabled.");
           } else {
-            setRealtimePhase("understanding");
-            setRealtimeStatus("Understanding...");
+            if (profileCommand?.type === "preview") {
+              pendingVoiceStyleRef.current = { ...voiceStyleRef.current, ...profileCommand.profile };
+              setRealtimeStatus("Previewing the requested voice style. Say “Orion, save this voice” if you like it.");
+            } else if (profileCommand?.type === "save" && pendingVoiceStyleRef.current) {
+              const saved = pendingVoiceStyleRef.current;
+              voiceStyleRef.current = saved;
+              setVoiceStyle(saved);
+              storeVoiceStyle(saved);
+              pendingVoiceStyleRef.current = null;
+              setRealtimeStatus("Voice accent and tone saved for future Orion conversations.");
+            } else if (profileCommand?.type === "reset") {
+              voiceStyleRef.current = DEFAULT_ORION_VOICE_STYLE;
+              setVoiceStyle(DEFAULT_ORION_VOICE_STYLE);
+              storeVoiceStyle(DEFAULT_ORION_VOICE_STYLE);
+              pendingVoiceStyleRef.current = null;
+              setRealtimeStatus("Orion voice style reset to the default.");
+            } else {
+              setRealtimePhase("understanding");
+              setRealtimeStatus("Understanding...");
+            }
           }
         }
 
@@ -380,7 +416,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     browserWindow.__bangoOrionRealtimeClient = client;
     const connectPromise = (async () => {
       try {
-        await client.connect({ voice: realtimeVoice });
+        await client.connect({ voice: realtimeVoice, voiceStyle });
       } catch (error) {
         if (clientRef.current === client) {
           clientRef.current = null;
@@ -396,7 +432,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
 
     connectPromiseRef.current = connectPromise;
     return connectPromise;
-  }, [realtimeState, realtimeVoice, router, shutDownLegacyVoice, spokenResponsesEnabled, voiceAutomationEnabled]);
+  }, [realtimeState, realtimeVoice, router, shutDownLegacyVoice, spokenResponsesEnabled, voiceAutomationEnabled, voiceStyle]);
 
   const stop = useCallback(async () => {
     manualStopRef.current = true;
