@@ -171,5 +171,9 @@ assert.match(takeoffClassificationMigration, /apply_blueprint_takeoff_classifica
 assert.match(takeoffClassificationMigration, /update public\.estimate_line_items/);
 assert.match(takeoffClassification, /Takeoff classification/);
 assert.match(surface, /BlueprintTakeoffClassification/);
+assert.match(service, /changeOrderValue/);
+assert.match(service, /estimateValue/);
+assert.match(service, /\.eq\("company_id", input\.companyId\)\.in\("id", changeOrderIds\)/);
+assert.match(projectImpact, /Financial exposure/);
 
 console.log("Blueprint operational integration contract checks passed.");
