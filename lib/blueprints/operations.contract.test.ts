@@ -14,6 +14,9 @@ const intelligence = readFileSync(resolve(root, "lib/blueprints/intelligence.ts"
 const intelligencePanel = readFileSync(resolve(root, "components/plans/blueprint-orion-intelligence.tsx"), "utf8");
 const projectImpact = readFileSync(resolve(root, "components/plans/blueprint-project-impact.tsx"), "utf8");
 const plansWorkspace = readFileSync(resolve(root, "components/plans/plans-workspace.tsx"), "utf8");
+const governanceMigration = readFileSync(resolve(root, "supabase/migrations/20260813203000_blueprint_revision_governance.sql"), "utf8");
+const governanceService = readFileSync(resolve(root, "lib/blueprints/revision-governance.ts"), "utf8");
+const governancePanel = readFileSync(resolve(root, "components/plans/blueprint-revision-governance.tsx"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -67,5 +70,12 @@ assert.match(service, /unlinkedIssues/);
 assert.match(projectImpact, /blueprint-project-impact/);
 assert.match(projectImpact, /without response/);
 assert.match(plansWorkspace, /BlueprintProjectImpact/);
+assert.match(governanceMigration, /blueprint_revision_acknowledgments/);
+assert.match(governanceMigration, /has_company_role/);
+assert.match(governanceMigration, /set_blueprint_revision_review_status/);
+assert.match(governanceService, /acknowledgeBlueprintRevision/);
+assert.match(governanceService, /setBlueprintRevisionReviewStatus/);
+assert.match(governancePanel, /Acknowledge/);
+assert.match(governancePanel, /Approve revision/);
 
 console.log("Blueprint operational integration contract checks passed.");
