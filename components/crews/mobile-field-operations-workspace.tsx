@@ -92,6 +92,7 @@ export function MobileFieldOperationsWorkspace() {
 
   const queuedCount = useMemo(() => data?.offline.queue.filter((item) => item.status === "queued").length || 0, [data]);
   const savedCount = useMemo(() => data?.offline.queue.filter((item) => item.status === "synced").length || 0, [data]);
+  const equipmentIds = useMemo(() => [...new Set(equipmentIdsInput.split(",").map((id) => id.trim()).filter(Boolean))], [equipmentIdsInput]);
   const productionValid = !mobileReport.completedWork.trim() || isFieldProductionValid({
     activity: mobileReport.completedWork,
     quantity: mobileReport.productionQuantity,
@@ -115,6 +116,16 @@ export function MobileFieldOperationsWorkspace() {
     await refresh();
   };
 
+  const assignEquipment = async () => {
+    const saved = await checkoutEquipment({ crewId: effectiveCrewId, equipmentIds, conditionNotes: checkoutNotes });
+    if (saved) { setEquipmentIdsInput(""); setCheckoutNotes(""); }
+  };
+
+  const completeEquipmentReturn = async () => {
+    const saved = await returnEquipment({ checkoutId: returnCheckoutId, conditionNotes: returnNotes });
+    if (saved) { setReturnCheckoutId(""); setReturnNotes(""); }
+  };
+
   if (isLoading) {
     return (
       <Card className="mx-auto w-full max-w-3xl border-[var(--border-default)] bg-[var(--surface-raised)] p-5">
@@ -132,7 +143,7 @@ export function MobileFieldOperationsWorkspace() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4 pb-28">
+    <div className="mx-auto w-full max-w-3xl space-y-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-28">
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -394,24 +405,20 @@ export function MobileFieldOperationsWorkspace() {
         </div>
 
         <div className="space-y-3">
-          <Input placeholder="Equipment IDs (comma separated)" value={equipmentIdsInput} onChange={(event) => setEquipmentIdsInput(event.target.value)} />
+          <Input aria-label="Equipment IDs" placeholder="Equipment IDs (comma separated)" value={equipmentIdsInput} onChange={(event) => setEquipmentIdsInput(event.target.value)} />
           <Textarea rows={2} placeholder="Condition notes" value={checkoutNotes} onChange={(event) => setCheckoutNotes(event.target.value)} />
           <Button
             fullWidth
             size="lg"
-            disabled={isMutating || !effectiveCrewId || !equipmentIdsInput.trim()}
-            onClick={() => void checkoutEquipment({
-              crewId: effectiveCrewId,
-              equipmentIds: equipmentIdsInput.split(",").map((id) => id.trim()).filter(Boolean),
-              conditionNotes: checkoutNotes,
-            })}
+            disabled={isMutating || !effectiveCrewId || equipmentIds.length === 0}
+            onClick={() => void assignEquipment()}
           >
             Assign Equipment
           </Button>
 
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
             <p className="mb-2 text-sm font-semibold text-[var(--text-primary)]">Return Equipment</p>
-            <Select value={returnCheckoutId} onChange={(event) => setReturnCheckoutId(event.target.value)}>
+            <Select aria-label="Equipment checkout to return" value={returnCheckoutId} onChange={(event) => setReturnCheckoutId(event.target.value)}>
               <option value="">Select checkout record</option>
               {data.equipmentCheckouts.filter((record) => !record.returnedAt).map((record) => (
                 <option key={record.id} value={record.id}>{record.crewId} · {record.equipmentIds.join(", ")}</option>
@@ -424,7 +431,7 @@ export function MobileFieldOperationsWorkspace() {
               size="lg"
               variant="secondary"
               disabled={isMutating || !returnCheckoutId}
-              onClick={() => void returnEquipment({ checkoutId: returnCheckoutId, conditionNotes: returnNotes })}
+              onClick={() => void completeEquipmentReturn()}
             >
               Return Equipment
             </Button>
@@ -454,12 +461,12 @@ export function MobileFieldOperationsWorkspace() {
         </div>
       </Card>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 md:hidden">
+      <nav aria-label="Field quick actions" className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
         <div className="grid grid-cols-2 gap-2">
           <Button size="lg" onClick={() => void runCheckInAction({ crewId: effectiveCrewId, action: "start_shift" })} disabled={isMutating || !effectiveCrewId}>Start Shift</Button>
           <Button size="lg" variant="secondary" onClick={() => void runCheckInAction({ crewId: effectiveCrewId, action: "return_to_work" })} disabled={isMutating || !effectiveCrewId}>Return</Button>
         </div>
-      </div>
+      </nav>
 
       <div className="hidden rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3 text-xs text-[var(--text-secondary)] md:block">
         Mobile quick actions are pinned on phone view for minimal taps and one-handed operation.
