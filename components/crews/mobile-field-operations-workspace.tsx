@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMobileFieldOperations } from "@/lib/crews/use-mobile-field-operations";
 import type { CrewCheckInAction, DailyChecklist, MobileDailyReportDraft } from "@/lib/crews/mobile-field-operations-types";
 import { isFieldProductionValid } from "@/lib/crews/field-production";
+import { validateMobileDailyReport } from "@/lib/crews/mobile-report-validation";
 import { createMobileReportDraftStore } from "@/lib/crews/mobile-report-drafts";
 import { createMobileChecklistDraftStore } from "@/lib/crews/mobile-checklist-drafts";
 import { createClient } from "@/lib/supabase/client";
@@ -152,6 +153,8 @@ export function MobileFieldOperationsWorkspace() {
     unit: mobileReport.productionUnit,
     percentComplete: mobileReport.productionPercentComplete,
   });
+  const reportErrors = useMemo(()=>validateMobileDailyReport(mobileReport),[mobileReport]);
+  const reportReady = reportErrors.length===0;
 
   const submitReport = async (status: "draft" | "submitted") => {
     if (reportSubmissionRef.current) return;
@@ -410,18 +413,20 @@ export function MobileFieldOperationsWorkspace() {
             <Textarea className="sm:col-span-2" rows={2} aria-label="Immediate safety action" placeholder="Immediate action taken" value={mobileReport.safetyImmediateAction} onChange={(event) => setMobileReport((current) => ({ ...current, safetyImmediateAction: event.target.value }))} />
           </div> : null}
 
+          {reportErrors.length?<div role="alert" className="rounded-[var(--radius-card)] border border-[var(--color-warning-300)] bg-[var(--color-warning-50)] p-3"><p className="text-xs font-semibold text-[var(--color-warning-700)]">Complete before final submission:</p><ul className="mt-1 list-disc pl-4 text-xs text-[var(--color-warning-700)]">{reportErrors.map(error=><li key={error}>{error}</li>)}</ul></div>:null}
+
           <div className="grid grid-cols-2 gap-2">
             <Button
               size="lg"
               variant="outline"
-              disabled={isMutating || !effectiveCrewId || !reportDate || !productionValid}
+              disabled={isMutating || !effectiveCrewId || !reportDate}
               onClick={() => void submitReport("draft")}
             >
               Save Draft
             </Button>
             <Button
               size="lg"
-              disabled={isMutating || !effectiveCrewId || !reportDate || !productionValid}
+              disabled={isMutating || !effectiveCrewId || !reportDate || !reportReady}
               onClick={() => void submitReport("submitted")}
             >
               Submit Report
