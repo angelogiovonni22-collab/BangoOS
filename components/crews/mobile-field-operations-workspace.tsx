@@ -298,6 +298,12 @@ export function MobileFieldOperationsWorkspace() {
           </div>
           {!productionValid ? <p role="alert" className="text-xs text-[var(--color-danger-700)]">Completed work requires a quantity above zero, a unit, and percent complete from 0 to 100.</p> : null}
           <Textarea rows={2} placeholder="Delays" value={mobileReport.delays} onChange={(event) => setMobileReport((current) => ({ ...current, delays: event.target.value }))} />
+          {mobileReport.delays.trim() ? <div className="grid gap-2 sm:grid-cols-2">
+            <Select aria-label="Delay category" value={mobileReport.delayCategory} onChange={(event) => setMobileReport((current) => ({ ...current, delayCategory: event.target.value as MobileDailyReportDraft["delayCategory"] }))}><option value="weather">Weather</option><option value="labor">Labor</option><option value="material">Material</option><option value="equipment">Equipment</option><option value="inspection">Inspection</option><option value="other">Other</option></Select>
+            <Input aria-label="Delay duration hours" inputMode="decimal" placeholder="Duration hours" value={mobileReport.delayDurationHours} onChange={(event) => setMobileReport((current) => ({ ...current, delayDurationHours: event.target.value }))} />
+            <Textarea rows={2} aria-label="Delay impact" placeholder="Schedule or cost impact" value={mobileReport.delayImpact} onChange={(event) => setMobileReport((current) => ({ ...current, delayImpact: event.target.value }))} />
+            <Textarea rows={2} aria-label="Delay corrective action" placeholder="Corrective action" value={mobileReport.delayCorrectiveAction} onChange={(event) => setMobileReport((current) => ({ ...current, delayCorrectiveAction: event.target.value }))} />
+          </div> : null}
           <Textarea rows={2} placeholder="Materials used" value={mobileReport.materialsUsed} onChange={(event) => setMobileReport((current) => ({ ...current, materialsUsed: event.target.value }))} />
           <Textarea rows={2} placeholder="Safety observations" value={mobileReport.safetyObservations} onChange={(event) => setMobileReport((current) => ({ ...current, safetyObservations: event.target.value }))} />
           {mobileReport.safetyObservations.trim() ? <div className="grid gap-2 sm:grid-cols-2">
