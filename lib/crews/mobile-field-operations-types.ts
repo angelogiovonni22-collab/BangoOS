@@ -16,6 +16,9 @@ export type MobileDailyReportDraft = {
   photos: string[];
   notes: string;
   completedWork: string;
+  productionQuantity: string;
+  productionUnit: string;
+  productionPercentComplete: string;
   delays: string;
   materialsUsed: string;
   safetyObservations: string;
@@ -129,6 +132,9 @@ export function createEmptyMobileDailyReportDraft(): MobileDailyReportDraft {
     photos: [],
     notes: "",
     completedWork: "",
+    productionQuantity: "",
+    productionUnit: "item",
+    productionPercentComplete: "100",
     delays: "",
     materialsUsed: "",
     safetyObservations: "",
