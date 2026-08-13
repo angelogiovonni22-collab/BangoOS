@@ -440,9 +440,9 @@ export function MobileFieldOperationsWorkspace() {
         <h2 className="mb-3 text-base font-semibold text-[var(--text-primary)]">Crew Directory</h2>
         <div className="space-y-2">
           {data.crewDirectory.slice(0, 30).map((employee) => {
-            const canCall = Boolean(employee.phone);
-            const callHref = employee.phone ? `tel:${employee.phone}` : "#";
-            const textHref = employee.phone ? `sms:${employee.phone}` : "#";
+            const phoneNumber = employee.phone?.trim() || null;
+            const contactActionClass = "inline-flex h-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)]";
+            const disabledContactActionClass = `${contactActionClass} cursor-not-allowed opacity-50`;
 
             return (
               <article key={employee.employeeId} className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
@@ -450,12 +450,24 @@ export function MobileFieldOperationsWorkspace() {
                 <p className="text-xs text-[var(--text-secondary)]">Crew: {employee.crewName || "Unassigned"}</p>
                 <p className="text-xs text-[var(--text-secondary)]">Project: {employee.projectName || "Unassigned"}</p>
                 <div className="mt-2 grid grid-cols-4 gap-2">
-                  <a href={callHref} className="inline-flex h-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)]" aria-disabled={!canCall}>
-                    <Phone className="h-4 w-4" />
-                  </a>
-                  <a href={textHref} className="inline-flex h-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)]" aria-disabled={!canCall}>
-                    <Mail className="h-4 w-4" />
-                  </a>
+                  {phoneNumber ? (
+                    <a href={`tel:${phoneNumber}`} className={contactActionClass} aria-label={`Call ${employee.employeeName}`}>
+                      <Phone className="h-4 w-4" aria-hidden="true" />
+                    </a>
+                  ) : (
+                    <span className={disabledContactActionClass} aria-label={`No phone number for ${employee.employeeName}`} role="img">
+                      <Phone className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                  )}
+                  {phoneNumber ? (
+                    <a href={`sms:${phoneNumber}`} className={contactActionClass} aria-label={`Text ${employee.employeeName}`}>
+                      <Mail className="h-4 w-4" aria-hidden="true" />
+                    </a>
+                  ) : (
+                    <span className={disabledContactActionClass} aria-label={`No mobile number for ${employee.employeeName}`} role="img">
+                      <Mail className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                  )}
                   <Link href={`/crews/${effectiveCrewId}`} className="inline-flex h-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-semibold">Crew</Link>
                   <Link href="/projects" className="inline-flex h-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-semibold">Project</Link>
                 </div>
