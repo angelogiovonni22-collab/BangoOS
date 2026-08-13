@@ -2,8 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DocumentDiscipline, DocumentStatus, PlanDocument, RevisionItem } from "@/components/plans/types";
 
 export const BLUEPRINTS_BUCKET = "blueprints";
-export const MAX_BLUEPRINT_BYTES = 100 * 1024 * 1024;
-export const BLUEPRINT_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"] as const;
+export const MAX_BLUEPRINT_BYTES = 500 * 1024 * 1024;
+export const BLUEPRINT_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "model/gltf-binary", "model/gltf+json", "application/octet-stream", "application/x-step"] as const;
 
 export type BlueprintDiscipline = Exclude<DocumentDiscipline, "Photos" | "Archived"> | "Other";
 
@@ -23,11 +23,13 @@ function safeFilename(name: string) {
 }
 
 export function validateBlueprintFile(file: File): string | null {
-  if (!BLUEPRINT_MIME_TYPES.includes(file.type as (typeof BLUEPRINT_MIME_TYPES)[number])) {
-    return "Use a PDF, JPEG, PNG, or WebP blueprint file.";
+  const extension=file.name.split(".").pop()?.toLowerCase();
+  const modelExtension=["ifc","glb","gltf"].includes(extension||"");
+  if (!modelExtension && !BLUEPRINT_MIME_TYPES.includes(file.type as (typeof BLUEPRINT_MIME_TYPES)[number])) {
+    return "Use a PDF, image, IFC, GLB, or GLTF plan/model file.";
   }
   if (file.size < 1 || file.size > MAX_BLUEPRINT_BYTES) {
-    return "Blueprint files must be 100 MB or smaller.";
+    return "Blueprint files must be 500 MB or smaller.";
   }
   return null;
 }
