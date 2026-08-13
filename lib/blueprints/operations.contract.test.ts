@@ -35,6 +35,7 @@ const takeoffPanel = readFileSync(resolve(root, "components/plans/blueprint-take
 const takeoffClassificationMigration = readFileSync(resolve(root, "supabase/migrations/20260814080000_blueprint_takeoff_classification.sql"), "utf8");
 const takeoffClassification = readFileSync(resolve(root, "components/plans/blueprint-takeoff-classification.tsx"), "utf8");
 const materialRequestMigration = readFileSync(resolve(root, "supabase/migrations/20260814100000_blueprint_material_requests.sql"), "utf8");
+const procurementWorkspace = readFileSync(resolve(root, "app/(app)/materials/procurement/procurement-workflow-client.tsx"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -62,6 +63,7 @@ assert.match(materialRequestMigration, /takeoff_category='materials'/);
 assert.match(materialRequestMigration, /public\.is_company_member\(p_company_id\)/);
 assert.match(materialRequestMigration, /target_type='material_request'/);
 assert.match(service, /createMaterialRequestFromBlueprintTakeoff/);
+assert.match(procurementWorkspace, /targetType="material_request"/);
 assert.match(changeOrderMigration, /create_change_order_from_blueprint_issue/);
 assert.match(changeOrderMigration, /allocate_change_order_number/);
 assert.match(changeOrderMigration, /annotation_type = 'pin'/);
