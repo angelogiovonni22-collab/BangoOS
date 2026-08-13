@@ -20,7 +20,7 @@ export type MobileDailyReportDraft = {
   productionUnit: string;
   productionPercentComplete: string;
   delays: string;
-  delayCategory: "weather" | "labor" | "material" | "equipment" | "inspection" | "other";
+  delayCategory: "weather" | "material" | "equipment" | "inspection" | "safety" | "client" | "utility" | "other";
   delayDurationHours: string;
   delayImpact: string;
   delayCorrectiveAction: string;
