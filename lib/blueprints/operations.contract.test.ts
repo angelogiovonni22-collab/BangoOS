@@ -7,6 +7,7 @@ const migration = readFileSync(resolve(root, "supabase/migrations/20260813130000
 const takeoffMigration = readFileSync(resolve(root, "supabase/migrations/20260813143000_blueprint_estimate_takeoffs.sql"), "utf8");
 const changeOrderMigration = readFileSync(resolve(root, "supabase/migrations/20260813160000_blueprint_change_order_initiation.sql"), "utf8");
 const workforceMigration = readFileSync(resolve(root, "supabase/migrations/20260813173000_blueprint_workforce_assignments.sql"), "utf8");
+const punchMigration = readFileSync(resolve(root, "supabase/migrations/20260813190000_blueprint_punch_items.sql"), "utf8");
 const service = readFileSync(resolve(root, "lib/blueprints/operations.ts"), "utf8");
 const surface = readFileSync(resolve(root, "components/plans/blueprint-markup-surface.tsx"), "utf8");
 
@@ -46,5 +47,12 @@ assert.match(service, /loadBlueprintWorkforceOptions/);
 assert.match(service, /assignBlueprintIssueToWorkforce/);
 assert.match(surface, /Assign workforce/);
 assert.match(surface, /Workforce assigned/);
+assert.match(punchMigration, /create_punch_item_from_blueprint_issue/);
+assert.match(punchMigration, /project_punch_items/);
+assert.match(punchMigration, /'blueprint:' \|\| p_annotation_id::text/);
+assert.match(punchMigration, /Blueprint page/);
+assert.match(service, /createPunchItemFromBlueprintIssue/);
+assert.match(surface, /Create punch item/);
+assert.match(surface, /Punch item linked/);
 
 console.log("Blueprint operational integration contract checks passed.");
