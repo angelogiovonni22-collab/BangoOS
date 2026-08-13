@@ -233,7 +233,7 @@ export function MobileFieldOperationsWorkspace() {
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="time-approvals"><MobileTimeApprovals/></Card>
 
-      <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-photos"><FieldPhotoCapture projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""} onUploaded={attachFieldPhoto}/></Card>
+      <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-photos"><FieldPhotoCapture key={selectedCrewAssignments[0]?.projectId || "unassigned"} projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""} onUploaded={attachFieldPhoto}/></Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-inspections"><MobileFieldInspections projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""}/></Card>
 
