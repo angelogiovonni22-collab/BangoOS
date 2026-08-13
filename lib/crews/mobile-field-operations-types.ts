@@ -49,6 +49,7 @@ export type OfflineQueueItem = {
 export type OfflineQueueProvider = {
   enqueue: (item: Omit<OfflineQueueItem, "id" | "createdAt" | "status">) => Promise<OfflineQueueItem>;
   list: () => Promise<OfflineQueueItem[]>;
+  setStatus?: (id: string, status: OfflineQueueItem["status"]) => Promise<void>;
 };
 
 export type OfflineSyncProvider = {
