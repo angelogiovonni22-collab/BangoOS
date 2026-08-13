@@ -62,7 +62,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
       </div>
 
       <div className="space-y-5 p-5">
-        {selectedDocument.fileUrl && (previewType === "ifc" || previewType === "gltf") ? <div className="h-[38rem]"><Blueprint3dViewer fileUrl={selectedDocument.fileUrl} fileName={selectedDocument.fileName} format={previewType}/></div> : selectedDocument.fileUrl && (previewType === "image" || previewType === "pdf") ? (
+        {selectedDocument.fileUrl && (previewType === "ifc" || previewType === "gltf") ? <div className="h-[38rem]"><Blueprint3dViewer fileUrl={selectedDocument.fileUrl} fileName={selectedDocument.fileName} format={previewType} companyId={companyId} projectId={projectId} versionId={selectedDocument.versionId} userId={userId}/></div> : selectedDocument.fileUrl && (previewType === "image" || previewType === "pdf") ? (
           <Blueprint2dViewer
             key={`${selectedDocument.id}:${selectedDocument.revision}`}
             fileUrl={selectedDocument.fileUrl}
