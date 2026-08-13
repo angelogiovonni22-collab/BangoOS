@@ -54,6 +54,7 @@ export class OrionRealtimeClient {
   private dataChannel: RTCDataChannel | null = null;
   private microphoneStream: MediaStream | null = null;
   private remoteAudio: HTMLAudioElement | null = null;
+  private outputMuted = false;
   private callbacks: OrionRealtimeClientCallbacks;
   private activeToolCalls = new Set<string>();
   private lastUserTranscript: { text: string; at: number } | null = null;
@@ -187,6 +188,7 @@ export class OrionRealtimeClient {
 
       const remoteAudio = document.createElement("audio");
       remoteAudio.autoplay = true;
+      remoteAudio.muted = this.outputMuted;
       remoteAudio.setAttribute("playsinline", "");
       this.remoteAudio = remoteAudio;
 
@@ -247,6 +249,11 @@ export class OrionRealtimeClient {
 
     this.dataChannel.send(JSON.stringify(event));
     return true;
+  }
+
+  setOutputMuted(muted: boolean) {
+    this.outputMuted = muted;
+    if (this.remoteAudio) this.remoteAudio.muted = muted;
   }
 
   async disconnect() {

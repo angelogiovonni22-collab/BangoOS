@@ -6,6 +6,7 @@ import { resolveKnownOrionOperatorHref } from "@/lib/orion/operator/routes";
 import { OrionRealtimeClient } from "@/lib/orion/realtime/client";
 import type { OrionRealtimeConnectionState, OrionRealtimeServerEvent } from "@/lib/orion/realtime/types";
 import { isOrionVoiceAutomationEnabled, ORION_VOICE_FREEZE_MESSAGE } from "@/lib/orion/runtime-config";
+import { detectRealtimeVoiceControl } from "@/lib/orion/voice/realtime-voice-controls";
 import { useGlobalOrionVoice } from "./GlobalOrionVoiceProvider";
 
 // `browser` remains in the public union temporarily for source compatibility with
@@ -16,6 +17,7 @@ export type OrionRealtimeVoice = (typeof ORION_REALTIME_VOICES)[number];
 
 const REALTIME_VOICE_STORAGE_KEY = "bangoos:orion-realtime-voice:v1";
 const ORION_V2_ENABLED_STORAGE_KEY = "bangoos:orion-v2-enabled:v1";
+const ORION_REALTIME_SPOKEN_RESPONSES_STORAGE_KEY = "bangoos:orion-realtime-spoken-responses:v1";
 const ORION_REALTIME_OWNER_STORAGE_KEY = "bangoos:orion-realtime-owner:v1";
 const ORION_REALTIME_OWNER_CHANNEL = "bangoos:orion-realtime-owner";
 const DEFAULT_REALTIME_VOICE: OrionRealtimeVoice = "marin";
@@ -58,6 +60,16 @@ function readStoredBoolean(key: string) {
     return window.localStorage.getItem(key) === "1";
   } catch {
     return false;
+  }
+}
+
+function readStoredBooleanWithDefault(key: string, fallback: boolean) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const stored = window.localStorage.getItem(key);
+    return stored === null ? fallback : stored === "1";
+  } catch {
+    return fallback;
   }
 }
 
@@ -144,6 +156,8 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   const voiceAutomationEnabled = isOrionVoiceAutomationEnabled();
 
   const [enabled, setEnabled] = useState(() => readStoredBoolean(ORION_V2_ENABLED_STORAGE_KEY));
+  const [spokenResponsesEnabled, setSpokenResponsesEnabledState] = useState(() => readStoredBooleanWithDefault(ORION_REALTIME_SPOKEN_RESPONSES_STORAGE_KEY, true));
+  const spokenResponsesEnabledRef = useRef(spokenResponsesEnabled);
   const [realtimeState, setRealtimeState] = useState<OrionRealtimeConnectionState>("idle");
   const [realtimeVoice, setRealtimeVoiceState] = useState<OrionRealtimeVoice>(DEFAULT_REALTIME_VOICE);
   const [realtimePhase, setRealtimePhase] = useState("idle");
@@ -297,8 +311,25 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         const userTranscript = eventTranscript(event);
         if (userTranscript) {
           setRealtimeFinalTranscript(userTranscript);
-          setRealtimePhase("understanding");
-          setRealtimeStatus("Understanding...");
+          const voiceControl = detectRealtimeVoiceControl(userTranscript);
+          if (voiceControl === "mute_output") {
+            client.setOutputMuted(true);
+            spokenResponsesEnabledRef.current = false;
+            setSpokenResponsesEnabledState(false);
+            storeBoolean(ORION_REALTIME_SPOKEN_RESPONSES_STORAGE_KEY, false);
+            setRealtimePhase("listening");
+            setRealtimeStatus("Orion voice output is disabled. Say “Orion, enable voice” to turn it back on.");
+          } else if (voiceControl === "unmute_output") {
+            client.setOutputMuted(false);
+            spokenResponsesEnabledRef.current = true;
+            setSpokenResponsesEnabledState(true);
+            storeBoolean(ORION_REALTIME_SPOKEN_RESPONSES_STORAGE_KEY, true);
+            setRealtimePhase("listening");
+            setRealtimeStatus("Orion voice output is enabled.");
+          } else {
+            setRealtimePhase("understanding");
+            setRealtimeStatus("Understanding...");
+          }
         }
 
         const assistantTranscript = eventAssistantTranscript(event);
@@ -309,7 +340,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         if (event.type === "response.created") {
           setRealtimePhase("understanding");
           setRealtimeStatus("Orion is thinking...");
-        } else if (event.type === "response.output_audio.delta" || event.type === "output_audio_buffer.started") {
+        } else if ((event.type === "response.output_audio.delta" || event.type === "output_audio_buffer.started") && spokenResponsesEnabledRef.current) {
           setRealtimeSpeaking(true);
           setRealtimePhase("speaking");
           setRealtimeStatus("Orion is speaking.");
@@ -345,6 +376,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     });
 
     clientRef.current = client;
+    client.setOutputMuted(!spokenResponsesEnabled);
     browserWindow.__bangoOrionRealtimeClient = client;
     const connectPromise = (async () => {
       try {
@@ -364,7 +396,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
 
     connectPromiseRef.current = connectPromise;
     return connectPromise;
-  }, [realtimeState, realtimeVoice, router, shutDownLegacyVoice, voiceAutomationEnabled]);
+  }, [realtimeState, realtimeVoice, router, shutDownLegacyVoice, spokenResponsesEnabled, voiceAutomationEnabled]);
 
   const stop = useCallback(async () => {
     manualStopRef.current = true;
@@ -398,12 +430,14 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   }, [disconnectRealtime, shutDownLegacyVoice]);
 
   const setSpokenResponsesEnabled = useCallback((spokenEnabled: boolean) => {
-    if (spokenEnabled) {
-      enableVoice();
-      return;
-    }
-    void disableVoice();
-  }, [disableVoice, enableVoice]);
+    spokenResponsesEnabledRef.current = spokenEnabled;
+    setSpokenResponsesEnabledState(spokenEnabled);
+    storeBoolean(ORION_REALTIME_SPOKEN_RESPONSES_STORAGE_KEY, spokenEnabled);
+    clientRef.current?.setOutputMuted(!spokenEnabled);
+    setRealtimeStatus(spokenEnabled
+      ? "Orion voice output is enabled."
+      : "Orion voice output is disabled. Say “Orion, enable voice” to turn it back on.");
+  }, []);
 
   // Legacy global voice may have been enabled by an older saved preference. It is
   // never allowed to own the microphone while Orion v2 is active.
@@ -454,7 +488,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     const effectiveSettings = {
       ...legacyVoice.settings,
       enabled: voiceAutomationEnabled && enabled,
-      spokenResponsesEnabled: voiceAutomationEnabled && enabled,
+      spokenResponsesEnabled: voiceAutomationEnabled && enabled && spokenResponsesEnabled,
     };
 
     return {
@@ -495,6 +529,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     retry,
     setRealtimeVoice,
     setSpokenResponsesEnabled,
+    spokenResponsesEnabled,
     start,
     stop,
     voiceAutomationEnabled,
