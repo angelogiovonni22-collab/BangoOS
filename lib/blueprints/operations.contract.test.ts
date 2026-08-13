@@ -30,6 +30,8 @@ const slaService = readFileSync(resolve(root, "lib/blueprints/issue-sla.ts"), "u
 const slaControls = readFileSync(resolve(root, "components/plans/blueprint-issue-sla-controls.tsx"), "utf8");
 const submittalMigration = readFileSync(resolve(root, "supabase/migrations/20260814050000_blueprint_submittal_workflow.sql"), "utf8");
 const submittalSyncMigration = readFileSync(resolve(root, "supabase/migrations/20260814063000_blueprint_submittal_status_sync.sql"), "utf8");
+const takeoffRegister = readFileSync(resolve(root, "lib/blueprints/takeoff-register.ts"), "utf8");
+const takeoffPanel = readFileSync(resolve(root, "components/plans/blueprint-takeoff-register.tsx"), "utf8");
 
 assert.match(migration, /enable row level security/i);
 assert.match(migration, /is_company_member\(company_id\)/);
@@ -155,5 +157,11 @@ assert.match(surface, /Submittal linked/);
 assert.match(submittalSyncMigration, /project_submittals/);
 assert.match(submittalSyncMigration, /approved_as_noted/);
 assert.match(submittalSyncMigration, /trg_submittal_to_blueprint_issue/);
+assert.match(takeoffRegister, /\.eq\("company_id", input\.companyId\)/);
+assert.match(takeoffRegister, /\.eq\("project_id", input\.projectId\)/);
+assert.match(takeoffRegister, /3\.280839895/);
+assert.match(takeoffRegister, /10\.763910417/);
+assert.match(takeoffPanel, /awaiting estimate linkage/);
+assert.match(plansWorkspace, /BlueprintTakeoffRegister/);
 
 console.log("Blueprint operational integration contract checks passed.");
