@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import { loadHomeSolicitationCompliance, saveHomeSolicitationCompliance, type HomeSolicitationProfile } from "@/lib/compliance/home-solicitation-service";
+import { loadHomeSolicitationCompliance, recordHomeSolicitationSellerSignature, saveHomeSolicitationCompliance, type HomeSolicitationProfile } from "@/lib/compliance/home-solicitation-service";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
@@ -35,5 +35,30 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json(await saveHomeSolicitationCompliance(supabase, workspace.context.companyId, estimateId, workspace.context.userId, profile));
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to save home-solicitation compliance." }, { status: 400 });
+  }
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: estimateId } = await params;
+  const supabase = await createClient();
+  if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
+  const workspace = await resolveWorkspaceContext(supabase);
+  if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+
+  let signerName = "";
+  try {
+    const body = await request.json() as { action?: string; signerName?: string; consentAccepted?: boolean };
+    if (body.action !== "seller_signature" || body.consentAccepted !== true) {
+      return NextResponse.json({ error: "Explicit seller-signature consent is required." }, { status: 400 });
+    }
+    signerName = body.signerName?.trim() || "";
+  } catch {
+    return NextResponse.json({ error: "Invalid seller-signature payload." }, { status: 400 });
+  }
+
+  try {
+    return NextResponse.json(await recordHomeSolicitationSellerSignature(supabase, workspace.context.companyId, estimateId, workspace.context.userId, signerName));
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to record seller signature." }, { status: 400 });
   }
 }
