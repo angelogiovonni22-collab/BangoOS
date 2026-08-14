@@ -37,7 +37,6 @@ export function renderBrandedEstimateEmail(input: BrandedEstimateEmailInput) {
     new Date(input.expiresAt).toLocaleString("en-US", {
       dateStyle: "long",
       timeStyle: "short",
-      timeZoneName: "short",
     }),
   );
 
