@@ -10,12 +10,12 @@ const estimateWorkflow = readFileSync(new URL("../estimates/workflow-service.ts"
 
 test("workflow deposit invoices are explicitly classified", () => {
   assert.match(estimateWorkflow, /kind:\s*"deposit"/);
-  assert.match(enforcementSql, /metadata->>'kind'.*'deposit'/s);
+  assert.match(enforcementSql, /metadata->>'kind'[\s\S]*'deposit'/);
 });
 
 test("payment history is guarded before its existing invoice balance sync", () => {
   assert.match(enforcementSql, /before insert or update of amount, status on public\.invoice_payment_history/i);
-  assert.match(invoiceService, /\.from\("invoice_payment_history"\)\s*\.insert/s);
+  assert.match(invoiceService, /\.from\("invoice_payment_history"\)[\s\S]*\.insert/);
   assert.match(enforcementSql, /v_prospective > v_maximum/);
 });
 
@@ -42,8 +42,8 @@ test("deposit creation uses a compliant capped calculation", () => {
 });
 
 test("cost-plus and construction-loan treatment cannot be confused with ordinary deposit collection", () => {
-  assert.match(calculationSql, /v_pricing_type.*cost_plus/s);
-  assert.match(enforcementSql, /payment_source'.*construction_loan/s);
+  assert.match(calculationSql, /v_pricing_type[\s\S]*cost_plus/);
+  assert.match(enforcementSql, /payment_source'[\s\S]*construction_loan/);
 });
 
 test("payment compliance evidence is append-only", () => {
