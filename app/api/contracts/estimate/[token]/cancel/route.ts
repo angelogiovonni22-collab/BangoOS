@@ -1,8 +1,14 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { loadHomeSolicitationCompliance } from "@/lib/compliance/home-solicitation-service";
 import { recordHomeSolicitationEvent } from "@/lib/compliance/home-solicitation-events-service";
+
+// These Phase 2 tables are created by migrations in this branch and will be folded into the generated
+// Database types after schema type regeneration. Keep the compatibility escape hatch local to them.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MigrationTableClient = SupabaseClient<any>;
 
 function ohioDateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
@@ -14,6 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   try {
     const token = decodeURIComponent((await params).token);
     const admin = createAdminClient();
+    const migrationTables = admin as unknown as MigrationTableClient;
     const workflow = createEstimateWorkflowService(admin);
     const validated = await workflow.validatePublicToken({ token, ipAddress: request.headers.get("x-forwarded-for"), userAgent: request.headers.get("user-agent") });
     if (!validated.isValid || !validated.companyId || !validated.estimateId) throw new Error(validated.failureReason || "invalid_contract_link");
@@ -35,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const timely = effectiveDate <= deadlineDate;
     const noticeText = body.notice?.trim() || "I hereby cancel this transaction.";
 
-    const { error: eventError } = await admin.from("estimate_home_solicitation_cancellations").insert({
+    const { error: eventError } = await migrationTables.from("estimate_home_solicitation_cancellations").insert({
       company_id: validated.companyId,
       estimate_id: validated.estimateId,
       public_token_id: validated.tokenId || null,
@@ -62,7 +69,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       return NextResponse.json({ cancelled: false, timely: false, reviewRequired: true, receivedAt, deadlineDate, message: "Your cancellation request has been recorded for review." });
     }
 
-    const { error: profileError } = await admin.from("estimate_home_solicitation_profiles").update({
+    const { error: profileError } = await migrationTables.from("estimate_home_solicitation_profiles").update({
       cancelled_at: receivedAt,
       updated_at: receivedAt,
     }).eq("company_id", validated.companyId).eq("estimate_id", validated.estimateId);
