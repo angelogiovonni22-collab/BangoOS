@@ -1,0 +1,126 @@
+/* Final theme-gallery integration layer. Loaded after theme-gallery.css. */
+
+[data-theme="executive"] {
+  --bos-bg-workspace-surface: #f4f1ea;
+  --bos-bg-workspace-surface-soft: #f8f5ef;
+  --bos-bg-workspace-card: #fffdf9;
+  --bos-border-light: #ddd4c3;
+  --bos-border-light-strong: #c9bda8;
+}
+
+[data-theme="blueprint"] {
+  --bos-bg-workspace-surface: #edf5fb;
+  --bos-bg-workspace-surface-soft: #f5faff;
+  --bos-bg-workspace-card: #fbfdff;
+  --bos-border-light: #c8ddea;
+  --bos-border-light-strong: #abc9dc;
+}
+
+[data-theme="emerald"] {
+  --bos-bg-workspace-surface: #edf6f2;
+  --bos-bg-workspace-surface-soft: #f6fbf8;
+  --bos-bg-workspace-card: #ffffff;
+  --bos-border-light: #c9ded5;
+  --bos-border-light-strong: #aacbbc;
+}
+
+[data-theme="graphite"] {
+  --bos-bg-workspace-surface: #edf0f3;
+  --bos-bg-workspace-surface-soft: #f5f6f7;
+  --bos-bg-workspace-card: #fafbfc;
+  --bos-border-light: #cfd6dc;
+  --bos-border-light-strong: #b7c1ca;
+}
+
+[data-theme="high-contrast"] {
+  --bos-bg-workspace-surface: #ffffff;
+  --bos-bg-workspace-surface-soft: #f7f9fb;
+  --bos-bg-workspace-card: #ffffff;
+  --bos-border-light: #9aa8b8;
+  --bos-border-light-strong: #66788c;
+}
+
+[data-theme="digital-command"] {
+  --bos-bg-workspace-surface: #030b16;
+  --bos-bg-workspace-surface-soft: #061526;
+  --bos-bg-workspace-card: #071426;
+  --bos-border-light: rgb(64 142 230 / 0.25);
+  --bos-border-light-strong: rgb(83 162 247 / 0.4);
+}
+
+/* The sidebar remains a dark navigation rail in every appearance pack. */
+#bangoos-sidebar {
+  --bos-text-primary: #eff6ff;
+  --bos-text-secondary: #c2d2ea;
+  --bos-text-muted: #8ba1bf;
+  --bos-bg-hover: rgb(82 130 210 / 0.16);
+  color: var(--bos-text-primary);
+}
+
+/* Keep the shell structure regression-stable while allowing the active pack to own its material. */
+[data-bos-topbar="true"] {
+  background: color-mix(in srgb, var(--bos-bg-panel) 92%, transparent) !important;
+  color: var(--bos-text-primary);
+}
+
+.enterprise-shell main {
+  background-color: var(--color-background-workspace) !important;
+  background-image:
+    radial-gradient(circle at 12% 8%, var(--bos-ambient-blue), transparent 28rem),
+    radial-gradient(circle at 88% 18%, var(--bos-ambient-cyan), transparent 24rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-background-workspace) 96%, white 4%), var(--color-background-workspace)) !important;
+}
+
+/* Legacy modules still using bg-white inherit the selected appearance pack instead of B.O.S. Light. */
+:is(
+  [data-theme="executive"],
+  [data-theme="blueprint"],
+  [data-theme="emerald"],
+  [data-theme="graphite"],
+  [data-theme="high-contrast"],
+  [data-theme="digital-command"]
+) .enterprise-shell main .bg-white {
+  background-color: var(--bos-bg-panel) !important;
+  color: var(--bos-text-primary);
+  --color-text-primary: var(--bos-text-primary);
+  --color-text-secondary: var(--bos-text-secondary);
+  --color-text-muted: var(--bos-text-muted);
+  --color-surface-card: var(--bos-bg-panel);
+  --color-surface-subtle: var(--bos-bg-control);
+  --color-surface-muted: var(--bos-bg-hover);
+  --color-surface-elevated: var(--bos-bg-panel-elevated);
+  --color-border-subtle: var(--bos-border-subtle);
+  --color-border-strong: var(--bos-border-default);
+}
+
+/* Light-specific utility text used inside older modules should follow current semantic tokens. */
+:is(
+  [data-theme="executive"],
+  [data-theme="blueprint"],
+  [data-theme="emerald"],
+  [data-theme="graphite"],
+  [data-theme="high-contrast"]
+) .enterprise-shell main {
+  --bos-text-strong-on-light: var(--bos-text-primary);
+  --bos-text-medium-on-light: var(--bos-text-secondary);
+}
+
+/* Dark command mode needs the same workspace-level semantic cascade as B.O.S. Dark. */
+[data-theme="digital-command"] .enterprise-shell main {
+  --color-text-primary: #f1f8ff;
+  --color-text-secondary: #b7d4ef;
+  --color-text-muted: #7ea3c6;
+  --color-border-subtle: rgb(64 142 230 / 0.25);
+  --color-border-strong: rgb(83 162 247 / 0.4);
+  --color-surface-card: #071426;
+  --color-surface-subtle: #0c2340;
+  --color-surface-muted: #113153;
+  --color-surface-elevated: #0b1d35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-gallery-card {
+    transition: none !important;
+    transform: none !important;
+  }
+}
