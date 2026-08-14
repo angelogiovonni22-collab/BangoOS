@@ -22,6 +22,8 @@ create table if not exists public.estimate_home_solicitation_profiles (
   seller_signed_by uuid references auth.users(id) on delete set null,
   assisted_live_signing boolean not null default false,
   oral_disclosure_workflow_confirmed boolean not null default false,
+  oral_disclosure_confirmed_at timestamptz,
+  oral_disclosure_confirmed_by uuid references auth.users(id) on delete set null,
   work_start_hold_configured boolean not null default false,
   transaction_signed_at timestamptz,
   cancellation_deadline_date date,
