@@ -19,6 +19,7 @@ export { SearchInput } from "./search-input";
 export { SearchBar } from "./search-bar";
 export { LanguageSelector } from "./language-selector";
 export { ProfileMenu } from "./profile-menu";
+export { ThemeToggle } from "./theme-toggle";
 export { TableContainer } from "./table-container";
 export {
   EnterpriseTable,
