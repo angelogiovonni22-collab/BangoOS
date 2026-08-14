@@ -32,8 +32,10 @@ test("theme gallery exposes persistent B.O.S. themes and experiences", () => {
     assert.match(themeOptions, new RegExp(`"${themeId}"`));
   }
   assert.match(themeOptions, /experience\?: "classic" \| "future"/);
+  assert.match(themeOptions, /Neon Grid Command/);
   assert.match(gallery, /role="radiogroup"/);
   assert.match(gallery, /experience/);
+  assert.match(gallery, /perspective\(90px\) rotateX\(48deg\)/);
   assert.match(gallery, /localStorage\.setItem/);
   assert.match(gallery, /document\.documentElement\.dataset\.theme/);
   assert.match(settings, /ThemeGallery/);
@@ -63,14 +65,16 @@ test("extended themes provide semantic token packs and theme-aware accent langua
   assert.match(shell, /data-bos-topbar="true"/);
 });
 
-test("Future 2030 is a layout-changing command experience", () => {
+test("Neon Grid Command is a layout-changing command experience", () => {
   assert.match(futureCss, /\[data-theme="future-2030"\]/);
+  assert.match(futureCss, /--grid-cyan: #00f6ff/);
   assert.match(futureCss, /#bangoos-sidebar/);
   assert.match(futureCss, /\[data-bos-topbar="true"\]/);
-  assert.match(futureCss, /border-radius: 22px/);
-  assert.match(futureCss, /backdrop-filter: blur/);
-  assert.match(futureCss, /background-size: 34px 34px/);
+  assert.match(futureCss, /perspective\(430px\) rotateX\(61deg\)/);
+  assert.match(futureCss, /clip-path: polygon/);
+  assert.match(futureCss, /background-size: 52px 34px/);
   assert.match(futureCss, /data-bos-card-variant="kpi"/);
+  assert.match(futureCss, /\.persistentOrionPanel/);
   assert.match(futureCss, /prefers-reduced-motion/);
 });
 

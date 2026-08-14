@@ -57,26 +57,32 @@ export function ThemeGallery() {
             }`}
           >
             <div className="relative h-28 overflow-hidden" style={{ background: theme.preview.background }}>
-              <div
-                className={`absolute inset-y-0 left-0 ${isExperience ? "m-2 w-10 rounded-xl border border-white/10" : "w-12"}`}
-                style={{ background: theme.preview.sidebar }}
-              />
-              <div
-                className={`absolute border border-black/5 shadow-sm ${isExperience ? "left-16 right-3 top-2 h-7 rounded-xl border-white/10" : "left-16 right-4 top-4 h-8 rounded-lg"}`}
-                style={{ background: theme.preview.panel }}
-              />
-              <div
-                className={`absolute border border-black/5 shadow-sm ${isExperience ? "left-16 right-14 top-12 h-12 rounded-2xl border-white/10" : "left-16 right-20 top-16 h-8 rounded-lg"}`}
-                style={{ background: theme.preview.panel }}
-              />
-              <div
-                className={`absolute shadow-sm ${isExperience ? "right-3 top-12 h-12 w-8 rounded-xl" : "right-4 top-16 h-8 w-12 rounded-lg"}`}
-                style={{ background: theme.preview.accent }}
-              />
-              <div className="absolute bottom-0 left-12 h-1.5 w-1/2" style={{ background: `linear-gradient(90deg, ${theme.preview.accent}, ${theme.preview.secondary})` }} />
               {isExperience ? (
-                <div className="absolute bottom-3 left-[4.25rem] right-3 h-px opacity-70" style={{ background: `linear-gradient(90deg, ${theme.preview.accent}, transparent, ${theme.preview.secondary})` }} />
-              ) : null}
+                <>
+                  <div
+                    className="absolute inset-x-0 bottom-0 h-[58%] opacity-70"
+                    style={{
+                      backgroundImage: `linear-gradient(${theme.preview.accent}22 1px, transparent 1px), linear-gradient(90deg, ${theme.preview.accent}22 1px, transparent 1px)`,
+                      backgroundSize: "16px 12px",
+                      transform: "perspective(90px) rotateX(48deg) scale(1.35)",
+                      transformOrigin: "center bottom",
+                    }}
+                  />
+                  <div className="absolute inset-y-2 left-2 w-10 border" style={{ background: theme.preview.sidebar, borderColor: `${theme.preview.accent}66`, boxShadow: `0 0 12px ${theme.preview.accent}22` }} />
+                  <div className="absolute left-16 right-3 top-2 h-6 border" style={{ background: theme.preview.panel, borderColor: `${theme.preview.accent}55`, boxShadow: `0 0 10px ${theme.preview.accent}18` }} />
+                  <div className="absolute left-16 right-[4.1rem] top-12 h-12 border" style={{ background: theme.preview.panel, borderColor: `${theme.preview.accent}44` }} />
+                  <div className="absolute right-3 top-12 h-12 w-12 border" style={{ background: theme.preview.panel, borderColor: `${theme.preview.accent}66`, boxShadow: `inset 2px 0 ${theme.preview.accent}` }} />
+                  <div className="absolute left-16 right-3 top-[2.35rem] h-px" style={{ background: `linear-gradient(90deg, ${theme.preview.accent}, transparent 55%)`, boxShadow: `0 0 6px ${theme.preview.accent}` }} />
+                </>
+              ) : (
+                <>
+                  <div className="absolute inset-y-0 left-0 w-12" style={{ background: theme.preview.sidebar }} />
+                  <div className="absolute left-16 right-4 top-4 h-8 rounded-lg border border-black/5 shadow-sm" style={{ background: theme.preview.panel }} />
+                  <div className="absolute left-16 right-20 top-16 h-8 rounded-lg border border-black/5 shadow-sm" style={{ background: theme.preview.panel }} />
+                  <div className="absolute right-4 top-16 h-8 w-12 rounded-lg shadow-sm" style={{ background: theme.preview.accent }} />
+                  <div className="absolute bottom-0 left-12 h-1.5 w-1/2" style={{ background: `linear-gradient(90deg, ${theme.preview.accent}, ${theme.preview.secondary})` }} />
+                </>
+              )}
               {selected ? (
                 <span className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900 shadow-md" aria-hidden="true">
                   ✓

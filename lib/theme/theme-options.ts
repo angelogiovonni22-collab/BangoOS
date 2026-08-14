@@ -88,11 +88,11 @@ export const BANGO_THEME_OPTIONS: readonly BangoThemeOption[] = [
   },
   {
     id: "future-2030",
-    name: "Future 2030",
-    description: "A true layout-changing command experience with floating navigation, glass intelligence surfaces, HUD accents, and deeper spatial hierarchy.",
+    name: "Neon Grid Command",
+    description: "A true layout experience with a black glass command deck, electric cyan circuitry, luminous perspective grid, HUD framing, and sharp neon interaction states.",
     mode: "dark",
     experience: "future",
-    preview: { background: "#01040a", panel: "#071526", sidebar: "#04101d", accent: "#42e8ff", secondary: "#7c5cff" },
+    preview: { background: "#010306", panel: "#041018", sidebar: "#02080d", accent: "#00f6ff", secondary: "#2d7dff" },
   },
 ] as const;
 
