@@ -11,13 +11,17 @@ test("customer contract portal requires explicit signature consent", () => {
   assert.match(page, /disabled=\{submitting \|\| !typedName\.trim\(\) \|\| !consent\}/);
 });
 
-test("contract verification is required before project conversion", () => {
+test("secure estimate signing finalizes without a second email verification", () => {
   const submit = read("app/api/contracts/estimate/[token]/route.ts");
-  const verify = read("app/api/contracts/verify/route.ts");
-  assert.match(submit, /verificationResult: "unverified"/);
-  assert.match(submit, /estimate_contract_verifications/);
-  assert.match(verify, /verification_result: "verified"/);
-  assert.match(verify, /convert_verified_estimate_contract/);
+  const page = read("app/contracts/estimate/[token]/page.tsx");
+  assert.doesNotMatch(submit, /estimate_contract_verifications/);
+  assert.doesNotMatch(submit, /verificationToken/);
+  assert.match(submit, /verification_method: "secure_email_link"/);
+  assert.match(submit, /verification_result: "verified"/);
+  assert.match(submit, /convert_verified_estimate_contract/);
+  assert.match(submit, /finalized: true/);
+  assert.match(page, /Estimate signed/);
+  assert.doesNotMatch(page, /select the verification link/);
 });
 
 test("database conversion is company-scoped, locked, idempotent, and service-only", () => {
