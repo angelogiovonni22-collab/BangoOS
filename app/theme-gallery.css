@@ -1,0 +1,304 @@
+/* Extended BangoOS appearance packs. Loaded after visual-theme.css. */
+:root,
+[data-theme="light"] {
+  --bos-theme-accent: #2f7cf6;
+  --bos-theme-accent-secondary: #22c4d6;
+  --bos-theme-accent-tertiary: #47d39b;
+}
+
+[data-theme="dark"] {
+  --bos-theme-accent: #4f8cff;
+  --bos-theme-accent-secondary: #2bcee0;
+  --bos-theme-accent-tertiary: #47d39b;
+}
+
+[data-theme="executive"] {
+  color-scheme: light;
+  --bos-bg-root: #f4f1ea;
+  --bos-bg-shell: #f8f5ef;
+  --bos-bg-sidebar: #191b20;
+  --bos-bg-panel: #fffdf9;
+  --bos-bg-panel-elevated: #ffffff;
+  --bos-bg-control: #f4efe5;
+  --bos-bg-hover: #eae2d2;
+  --bos-border-subtle: #ddd4c3;
+  --bos-border-default: #c9bda8;
+  --bos-border-strong: #ad9d82;
+  --bos-text-primary: #23252a;
+  --bos-text-secondary: #58554f;
+  --bos-text-muted: #7d776c;
+  --bos-text-inverse: #fffaf1;
+  --bos-text-strong-on-light: #23252a;
+  --bos-text-medium-on-light: #58554f;
+  --color-background-app: #f4f1ea;
+  --color-background-root: #f4f1ea;
+  --color-background-workspace: #f4f1ea;
+  --color-surface-card: #fffdf9;
+  --color-surface-subtle: #f4efe5;
+  --color-surface-muted: #eae2d2;
+  --color-surface-elevated: #ffffff;
+  --color-text-primary: #23252a;
+  --color-text-secondary: #58554f;
+  --color-text-muted: #7d776c;
+  --color-border-subtle: #ddd4c3;
+  --color-border-strong: #c9bda8;
+  --color-action-primary: #9a6b1f;
+  --color-action-primary-hover: #7f5719;
+  --background: #f4f1ea;
+  --foreground: #23252a;
+  --bos-ambient-blue: rgb(169 120 38 / 0.11);
+  --bos-ambient-cyan: rgb(215 181 109 / 0.09);
+  --bos-card-highlight: rgb(255 255 255 / 0.88);
+  --bos-card-shadow: 0 18px 44px -30px rgb(70 55 30 / 0.32), 0 3px 12px rgb(70 55 30 / 0.05);
+  --bos-theme-accent: #a97826;
+  --bos-theme-accent-secondary: #d7b56d;
+  --bos-theme-accent-tertiary: #3b6f68;
+}
+
+[data-theme="blueprint"] {
+  color-scheme: light;
+  --bos-bg-root: #edf5fb;
+  --bos-bg-shell: #f5faff;
+  --bos-bg-sidebar: #0b2740;
+  --bos-bg-panel: #fbfdff;
+  --bos-bg-panel-elevated: #ffffff;
+  --bos-bg-control: #eaf4fb;
+  --bos-bg-hover: #dcecf7;
+  --bos-border-subtle: #c8ddea;
+  --bos-border-default: #abc9dc;
+  --bos-border-strong: #83abc5;
+  --bos-text-primary: #102f46;
+  --bos-text-secondary: #345a71;
+  --bos-text-muted: #648298;
+  --bos-text-inverse: #f7fcff;
+  --bos-text-strong-on-light: #102f46;
+  --bos-text-medium-on-light: #345a71;
+  --color-background-app: #edf5fb;
+  --color-background-root: #edf5fb;
+  --color-background-workspace: #edf5fb;
+  --color-surface-card: #fbfdff;
+  --color-surface-subtle: #eaf4fb;
+  --color-surface-muted: #dcecf7;
+  --color-surface-elevated: #ffffff;
+  --color-text-primary: #102f46;
+  --color-text-secondary: #345a71;
+  --color-text-muted: #648298;
+  --color-border-subtle: #c8ddea;
+  --color-border-strong: #abc9dc;
+  --color-action-primary: #1677c8;
+  --color-action-primary-hover: #0f609f;
+  --background: #edf5fb;
+  --foreground: #102f46;
+  --bos-ambient-blue: rgb(22 119 200 / 0.13);
+  --bos-ambient-cyan: rgb(19 167 199 / 0.11);
+  --bos-card-highlight: rgb(255 255 255 / 0.88);
+  --bos-card-shadow: 0 18px 44px -30px rgb(18 80 120 / 0.34), 0 3px 12px rgb(18 80 120 / 0.05);
+  --bos-theme-accent: #1677c8;
+  --bos-theme-accent-secondary: #13a7c7;
+  --bos-theme-accent-tertiary: #4ab0a3;
+}
+
+[data-theme="emerald"] {
+  color-scheme: light;
+  --bos-bg-root: #edf6f2;
+  --bos-bg-shell: #f6fbf8;
+  --bos-bg-sidebar: #092820;
+  --bos-bg-panel: #ffffff;
+  --bos-bg-panel-elevated: #ffffff;
+  --bos-bg-control: #eaf5f0;
+  --bos-bg-hover: #dceee6;
+  --bos-border-subtle: #c9ded5;
+  --bos-border-default: #aacbbc;
+  --bos-border-strong: #82ae9b;
+  --bos-text-primary: #15372c;
+  --bos-text-secondary: #3e6256;
+  --bos-text-muted: #6a877c;
+  --bos-text-inverse: #f8fffb;
+  --bos-text-strong-on-light: #15372c;
+  --bos-text-medium-on-light: #3e6256;
+  --color-background-app: #edf6f2;
+  --color-background-root: #edf6f2;
+  --color-background-workspace: #edf6f2;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #eaf5f0;
+  --color-surface-muted: #dceee6;
+  --color-surface-elevated: #ffffff;
+  --color-text-primary: #15372c;
+  --color-text-secondary: #3e6256;
+  --color-text-muted: #6a877c;
+  --color-border-subtle: #c9ded5;
+  --color-border-strong: #aacbbc;
+  --color-action-primary: #13845b;
+  --color-action-primary-hover: #0d6b49;
+  --background: #edf6f2;
+  --foreground: #15372c;
+  --bos-ambient-blue: rgb(19 132 91 / 0.12);
+  --bos-ambient-cyan: rgb(54 185 129 / 0.1);
+  --bos-card-highlight: rgb(255 255 255 / 0.88);
+  --bos-card-shadow: 0 18px 44px -30px rgb(22 91 66 / 0.32), 0 3px 12px rgb(22 91 66 / 0.05);
+  --bos-theme-accent: #13845b;
+  --bos-theme-accent-secondary: #36b981;
+  --bos-theme-accent-tertiary: #1f7f8e;
+}
+
+[data-theme="graphite"] {
+  color-scheme: light;
+  --bos-bg-root: #edf0f3;
+  --bos-bg-shell: #f5f6f7;
+  --bos-bg-sidebar: #20252b;
+  --bos-bg-panel: #fafbfc;
+  --bos-bg-panel-elevated: #ffffff;
+  --bos-bg-control: #eceff2;
+  --bos-bg-hover: #dfe4e8;
+  --bos-border-subtle: #cfd6dc;
+  --bos-border-default: #b7c1ca;
+  --bos-border-strong: #929fa9;
+  --bos-text-primary: #222a31;
+  --bos-text-secondary: #4d5a65;
+  --bos-text-muted: #74818b;
+  --bos-text-inverse: #f8fafb;
+  --bos-text-strong-on-light: #222a31;
+  --bos-text-medium-on-light: #4d5a65;
+  --color-background-app: #edf0f3;
+  --color-background-root: #edf0f3;
+  --color-background-workspace: #edf0f3;
+  --color-surface-card: #fafbfc;
+  --color-surface-subtle: #eceff2;
+  --color-surface-muted: #dfe4e8;
+  --color-surface-elevated: #ffffff;
+  --color-text-primary: #222a31;
+  --color-text-secondary: #4d5a65;
+  --color-text-muted: #74818b;
+  --color-border-subtle: #cfd6dc;
+  --color-border-strong: #b7c1ca;
+  --color-action-primary: #506d8a;
+  --color-action-primary-hover: #3d566e;
+  --background: #edf0f3;
+  --foreground: #222a31;
+  --bos-ambient-blue: rgb(80 109 138 / 0.1);
+  --bos-ambient-cyan: rgb(128 152 173 / 0.08);
+  --bos-card-highlight: rgb(255 255 255 / 0.86);
+  --bos-card-shadow: 0 18px 44px -30px rgb(35 47 58 / 0.28), 0 3px 12px rgb(35 47 58 / 0.05);
+  --bos-theme-accent: #506d8a;
+  --bos-theme-accent-secondary: #8098ad;
+  --bos-theme-accent-tertiary: #627c70;
+}
+
+[data-theme="high-contrast"] {
+  color-scheme: light;
+  --bos-bg-root: #ffffff;
+  --bos-bg-shell: #ffffff;
+  --bos-bg-sidebar: #07101d;
+  --bos-bg-panel: #ffffff;
+  --bos-bg-panel-elevated: #ffffff;
+  --bos-bg-control: #f2f5f8;
+  --bos-bg-hover: #e2e8ef;
+  --bos-border-subtle: #9aa8b8;
+  --bos-border-default: #66788c;
+  --bos-border-strong: #32475d;
+  --bos-text-primary: #07111e;
+  --bos-text-secondary: #25394e;
+  --bos-text-muted: #4e6072;
+  --bos-text-inverse: #ffffff;
+  --bos-text-strong-on-light: #07111e;
+  --bos-text-medium-on-light: #25394e;
+  --color-background-app: #ffffff;
+  --color-background-root: #ffffff;
+  --color-background-workspace: #ffffff;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f2f5f8;
+  --color-surface-muted: #e2e8ef;
+  --color-surface-elevated: #ffffff;
+  --color-text-primary: #07111e;
+  --color-text-secondary: #25394e;
+  --color-text-muted: #4e6072;
+  --color-border-subtle: #9aa8b8;
+  --color-border-strong: #66788c;
+  --color-action-primary: #005bd7;
+  --color-action-primary-hover: #0046a6;
+  --background: #ffffff;
+  --foreground: #07111e;
+  --bos-ambient-blue: rgb(0 91 215 / 0.09);
+  --bos-ambient-cyan: rgb(0 135 90 / 0.07);
+  --bos-card-highlight: #ffffff;
+  --bos-card-shadow: 0 8px 24px -18px rgb(7 17 30 / 0.32);
+  --bos-theme-accent: #005bd7;
+  --bos-theme-accent-secondary: #00875a;
+  --bos-theme-accent-tertiary: #8b4d00;
+}
+
+[data-theme="digital-command"] {
+  color-scheme: dark;
+  --bos-bg-root: #020711;
+  --bos-bg-shell: #04101f;
+  --bos-bg-sidebar: #030a16;
+  --bos-bg-panel: #071426;
+  --bos-bg-panel-elevated: #0b1d35;
+  --bos-bg-control: #0c2340;
+  --bos-bg-hover: #113153;
+  --bos-border-subtle: rgb(64 142 230 / 0.25);
+  --bos-border-default: rgb(83 162 247 / 0.38);
+  --bos-border-strong: rgb(0 212 255 / 0.58);
+  --bos-text-primary: #f1f8ff;
+  --bos-text-secondary: #b7d4ef;
+  --bos-text-muted: #7ea3c6;
+  --bos-text-inverse: #020711;
+  --bos-text-strong-on-light: #f1f8ff;
+  --bos-text-medium-on-light: #b7d4ef;
+  --color-background-app: #020711;
+  --color-background-root: #020711;
+  --color-background-workspace: #030b16;
+  --color-surface-card: #071426;
+  --color-surface-subtle: #0c2340;
+  --color-surface-muted: #113153;
+  --color-surface-elevated: #0b1d35;
+  --color-text-primary: #f1f8ff;
+  --color-text-secondary: #b7d4ef;
+  --color-text-muted: #7ea3c6;
+  --color-border-subtle: rgb(64 142 230 / 0.25);
+  --color-border-strong: rgb(83 162 247 / 0.4);
+  --color-action-primary: #3a86ff;
+  --color-action-primary-hover: #1769e8;
+  --background: #020711;
+  --foreground: #f1f8ff;
+  --bos-ambient-blue: rgb(58 134 255 / 0.2);
+  --bos-ambient-cyan: rgb(0 212 255 / 0.14);
+  --bos-card-highlight: rgb(255 255 255 / 0.05);
+  --bos-card-shadow: 0 24px 58px -32px rgb(0 0 0 / 0.86), 0 4px 20px rgb(0 40 90 / 0.3);
+  --bos-theme-accent: #3a86ff;
+  --bos-theme-accent-secondary: #00d4ff;
+  --bos-theme-accent-tertiary: #42f5b3;
+}
+
+/* Theme-aware accent language. */
+[data-bos-page-header="true"]::before {
+  background: linear-gradient(180deg, var(--bos-theme-accent), var(--bos-theme-accent-secondary) 58%, var(--bos-theme-accent-tertiary));
+  box-shadow: 0 0 28px color-mix(in srgb, var(--bos-theme-accent) 45%, transparent);
+}
+
+.enterprise-shell main table tbody tr:hover {
+  box-shadow: inset 3px 0 0 var(--bos-theme-accent);
+}
+
+#bangoos-sidebar nav a:hover > span:first-child {
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--bos-theme-accent) 38%, transparent));
+}
+
+[data-theme="digital-command"] .enterprise-shell main .bg-white {
+  background-color: var(--color-surface-card) !important;
+  color: var(--color-text-primary);
+  --color-text-primary: #f1f8ff;
+  --color-text-secondary: #b7d4ef;
+  --color-text-muted: #7ea3c6;
+  --color-surface-card: #071426;
+  --color-surface-subtle: #0c2340;
+  --color-surface-muted: #113153;
+  --color-surface-elevated: #0b1d35;
+  --color-border-subtle: rgb(64 142 230 / 0.25);
+  --color-border-strong: rgb(83 162 247 / 0.4);
+}
+
+[data-theme="digital-command"] .enterprise-shell main [data-bos-card-variant="kpi"]:hover,
+[data-theme="digital-command"] .enterprise-shell main [data-bos-card-variant="elevated"]:hover {
+  box-shadow: 0 30px 68px -36px rgb(0 0 0 / 0.92), 0 8px 28px rgb(0 98 190 / 0.24);
+}

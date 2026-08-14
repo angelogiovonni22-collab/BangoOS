@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { OrionVoiceSettingsPanel } from "@/components/orion/voice";
-import { Card, CardContent, CardHeader, CardTitle, PageHeader, ThemeToggle } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, PageHeader, ThemeGallery } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 
 export default function SettingsPage() {
@@ -14,11 +14,14 @@ export default function SettingsPage() {
       <Card as="section" variant="elevated">
         <CardHeader className="bg-[var(--color-surface-subtle)]">
           <CardTitle>Appearance</CardTitle>
-          <p className="text-sm text-[var(--color-text-secondary)]">Switch the B.O.S. workspace between the premium light and dark themes. Your choice is saved on this device.</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">Choose the B.O.S. visual environment that fits how you work. Every theme uses the same protected readability and interaction system, and your selection is saved on this device.</p>
         </CardHeader>
-        <CardContent className="flex items-center justify-between gap-4 p-5">
-          <div><p className="font-semibold text-[var(--color-text-primary)]">Workspace theme</p><p className="mt-1 text-sm text-[var(--color-text-secondary)]">Light and dark modes use the same semantic contrast system.</p></div>
-          <ThemeToggle />
+        <CardContent className="space-y-5 p-5">
+          <div>
+            <p className="font-semibold text-[var(--color-text-primary)]">Workspace theme</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Select a preview to apply it instantly across B.O.S. You can change themes at any time.</p>
+          </div>
+          <ThemeGallery />
         </CardContent>
       </Card>
 

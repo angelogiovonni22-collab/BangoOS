@@ -181,7 +181,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
 
         <div className="flex min-h-screen min-h-0 min-w-0 flex-1 flex-col">
           <LayerManager layer="header">
-            <header className="sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[color:rgb(10_18_34/0.92)] px-4 py-3.5 backdrop-blur-sm sm:px-6 lg:px-8">
+            <header data-bos-topbar="true" className="sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)]/92 px-4 py-3.5 text-[var(--bos-text-primary)] backdrop-blur-sm sm:px-6 lg:px-8">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center">
                   <button
