@@ -36,6 +36,12 @@ export function getJurisdictionPackByRuleset(rulesetId: string, rulesetVersion?:
   ) ?? null;
 }
 
+function isPackEffectiveOn(pack: JurisdictionPack, isoDate: string) {
+  const effectiveTo: string | null = pack.effectiveTo;
+  return pack.effectiveFrom <= isoDate
+    && (effectiveTo === null || effectiveTo >= isoDate);
+}
+
 export function getActiveJurisdictionPack(jurisdiction: string, onDate = new Date()) {
   const isoDate = onDate.toISOString().slice(0, 10);
   const normalized = jurisdiction.trim().toUpperCase();
@@ -43,7 +49,6 @@ export function getActiveJurisdictionPack(jurisdiction: string, onDate = new Dat
   return JURISDICTION_PACKS.find((pack) =>
     pack.jurisdiction === normalized
     && pack.status === "active"
-    && pack.effectiveFrom <= isoDate
-    && (!pack.effectiveTo || pack.effectiveTo >= isoDate),
+    && isPackEffectiveOn(pack, isoDate),
   ) ?? null;
 }
