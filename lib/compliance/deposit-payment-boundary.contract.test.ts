@@ -19,6 +19,21 @@ test("payment history is guarded before its existing invoice balance sync", () =
   assert.match(enforcementSql, /v_prospective > v_maximum/);
 });
 
+test("payment edits exclude the old row from cumulative amount", () => {
+  assert.match(enforcementSql, /tg_op <> 'UPDATE' or ph\.id <> old\.id/i);
+});
+
+test("Ohio rules are scoped away from non-Ohio and sub-threshold deposits", () => {
+  assert.match(enforcementSql, /v_property_state not in \('OH', 'OHIO'\)/);
+  assert.match(enforcementSql, /v_contract_amount, 0\) < 25000/);
+  assert.match(calculationSql, /v_property_state not in \('OH', 'OHIO'\) or v_contract_amount < 25000/);
+});
+
+test("stale compliance evaluations cannot authorize a payment", () => {
+  assert.match(enforcementSql, /v_eval_created_at < v_profile_updated_at/);
+  assert.match(calculationSql, /v_eval_created_at < v_profile_updated_at/);
+});
+
 test("deposit creation uses a compliant capped calculation", () => {
   assert.match(calculationSql, /create or replace function public\.calculate_estimate_deposit/);
   assert.match(calculationSql, /v_ordinary_limit := round\(v_contract_amount \* 0\.10, 2\)/);
