@@ -1,0 +1,3 @@
+# Phase 2 Summary
+
+Ohio home-solicitation compliance is implemented as a separate, conservative workflow layered after general Ohio home-construction contract readiness. The system captures classification facts, calculates cancellation deadlines, supports required notice/signing workflow data, accepts cancellation through the secure customer contract link, preserves cancellation evidence, holds field work during an active cancellation period, blocks cancelled projects, and provides controlled release after the deadline. Ambiguous applicability and human-only statutory acts remain review-required rather than being inferred.
