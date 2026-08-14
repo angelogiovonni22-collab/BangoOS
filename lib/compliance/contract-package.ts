@@ -147,3 +147,39 @@ export async function buildContractCompliancePackage(
     packageHash: sha256(JSON.stringify(payload)),
   };
 }
+
+export async function finalizeAgreementContractPackage(
+  db: AnySupabase,
+  input: {
+    companyId: string;
+    estimateId: string;
+    agreementVersionId: string;
+    baseSnapshot: Record<string, unknown>;
+    baseAgreementHash: string;
+    signingAt: string;
+  },
+) {
+  const compliancePackage = await buildContractCompliancePackage(db, input.companyId, input.estimateId, {
+    signingAt: input.signingAt,
+  });
+  const snapshot = {
+    ...input.baseSnapshot,
+    compliancePackage,
+  };
+  const agreementHash = sha256(JSON.stringify(snapshot));
+
+  const { data, error } = await db
+    .from("estimate_agreement_versions")
+    .update({ agreement_snapshot: snapshot, agreement_hash: agreementHash })
+    .eq("company_id", input.companyId)
+    .eq("estimate_id", input.estimateId)
+    .eq("id", input.agreementVersionId)
+    .eq("agreement_hash", input.baseAgreementHash)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message || "Unable to finalize the immutable contract package.");
+  if (!data?.id) throw new Error("Agreement package changed before finalization. Regenerate the agreement before signing.");
+
+  return { snapshot, agreementHash, compliancePackage };
+}
