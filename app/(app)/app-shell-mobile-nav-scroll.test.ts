@@ -25,7 +25,8 @@ async function main() {
 
     assert(source.includes("<div className=\"mt-7 flex min-h-0 flex-1 flex-col overflow-hidden\">"), "sidebar content column creates bounded flex chain for scrolling");
     assert(source.includes("<nav className=\"h-full min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden\">"), "nav is the dedicated touch-safe overflow container with hidden scrollbar and iOS momentum scrolling");
-    assert(source.includes("<div className=\"mt-auto shrink-0 rounded-[var(--radius-xl)] border border-[var(--bos-border-subtle)] bg-[linear-gradient(180deg,rgba(17,31,55,0.86),rgba(11,22,39,0.86))] p-4 backdrop-blur\">"), "footer/account card remains outside nav scroll area");
+    assert(!source.includes("common.projectPulse"), "removed Project Health card does not return to the sidebar");
+    assert(!source.includes("common.projectPulseDescription"), "removed Project Health description does not return to the sidebar");
     assert(!source.includes("<nav className=\"mt-7 space-y-3\">"), "legacy non-scroll nav container is removed");
     assert(source.includes("lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh]"), "desktop sidebar keeps a constrained full-height sticky scroll container");
     assert(!source.includes("lg:h-auto"), "desktop sidebar no longer switches to unconstrained auto height");
