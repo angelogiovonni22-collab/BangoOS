@@ -59,15 +59,16 @@ export async function loadEstimateCompliance(db: AnySupabase, companyId: string,
     .maybeSingle();
   if (profileError) throw new Error(profileError.message || "Unable to load contract compliance details.");
 
+  const totalAmount = Number(estimate.total_amount || 0);
   const profile = profileFromRow((row as Record<string, unknown> | null) || null);
   const evaluation = evaluateOhioResidentialContract({
     ...profile,
-    totalAmount: Number(estimate.total_amount || 0),
+    totalAmount,
     scopeDescription: estimate.description,
     totalEstimatedCostPresent: estimate.total_amount != null,
   });
 
-  return { profile, evaluation };
+  return { profile, evaluation, totalAmount };
 }
 
 export async function saveEstimateCompliance(
