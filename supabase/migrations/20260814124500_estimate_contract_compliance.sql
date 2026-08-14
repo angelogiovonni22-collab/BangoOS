@@ -65,11 +65,13 @@ using (exists (
   select 1 from public.company_memberships cm
   where cm.company_id = estimate_contract_compliance_profiles.company_id
     and cm.user_id = auth.uid()
+    and cm.status = 'active'
 ))
 with check (exists (
   select 1 from public.company_memberships cm
   where cm.company_id = estimate_contract_compliance_profiles.company_id
     and cm.user_id = auth.uid()
+    and cm.status = 'active'
 ));
 
 create policy "estimate_contract_compliance_evaluations_company_members_read"
@@ -80,6 +82,7 @@ using (exists (
   select 1 from public.company_memberships cm
   where cm.company_id = estimate_contract_compliance_evaluations.company_id
     and cm.user_id = auth.uid()
+    and cm.status = 'active'
 ));
 
 create policy "estimate_contract_compliance_evaluations_company_members_insert"
@@ -90,4 +93,5 @@ with check (exists (
   select 1 from public.company_memberships cm
   where cm.company_id = estimate_contract_compliance_evaluations.company_id
     and cm.user_id = auth.uid()
+    and cm.status = 'active'
 ));
