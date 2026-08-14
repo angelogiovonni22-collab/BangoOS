@@ -2,8 +2,8 @@ begin;
 
 -- Refine the Phase 5 gate so the firm-price/no-excess rule applies only after
 -- a change is classified as a reasonably unforeseen but necessary excess cost.
--- Ordinary owner-requested scope amendments are not reclassified merely because
--- the underlying contract selected the firm-price/no-excess option.
+-- The special $5,000 estimate notice depends on that classification, while
+-- owner approval remains independently required before a covered excess charge.
 create or replace function public.get_change_order_excess_cost_gate(p_change_order_id uuid)
 returns jsonb
 language plpgsql
@@ -87,15 +87,29 @@ begin
   if v_latest.qualifies_as_unforeseen_necessary is null then
     return jsonb_build_object(
       'status','REVIEW_REQUIRED','applicable',true,'workMayStart',false,'chargeMayProceed',false,
+      'ownerApprovalRequiredBeforeCharge',coalesce(v_co.total_amount,0) > 0,
       'reason','Classify whether the change is reasonably unforeseen but necessary.'
     );
   end if;
 
+  v_owner_approval_required := coalesce(v_co.total_amount,0) > 0;
+  v_owner_approval_satisfied := not v_owner_approval_required or (
+    v_latest.owner_approved is true
+    and v_latest.owner_approved_at is not null
+  );
+
   if v_latest.qualifies_as_unforeseen_necessary is false then
     return jsonb_build_object(
-      'status','COMPLIANT','applicable',true,'qualifiesAsUnforeseenNecessary',false,
-      'workMayStart',true,'chargeMayProceed',true,
-      'reason','This change is classified outside the statutory unforeseen-and-necessary excess-cost rule.'
+      'status',case when v_owner_approval_satisfied then 'COMPLIANT' else 'ACTION_REQUIRED' end,
+      'applicable',true,
+      'qualifiesAsUnforeseenNecessary',false,
+      'estimateNoticeRequired',false,
+      'ownerApprovalRequiredBeforeCharge',v_owner_approval_required,
+      'workMayStart',true,
+      'chargeMayProceed',v_owner_approval_satisfied,
+      'reason',case when v_owner_approval_satisfied
+        then 'No special excess-cost estimate notice is required for this classification, and owner approval for the charge is documented.'
+        else 'No special excess-cost estimate notice is required for this classification, but owner approval is required before charging the excess cost.' end
     );
   end if;
 
@@ -131,15 +145,10 @@ begin
     and latest_ev.qualifies_as_unforeseen_necessary is true;
 
   v_estimate_required := v_cumulative > 5000;
-  v_owner_approval_required := coalesce(v_co.total_amount,0) > 0;
   v_estimate_satisfied := not v_estimate_required or (
     v_profile.excess_cost_method in ('written','oral')
     and v_latest.estimate_method = v_profile.excess_cost_method
     and v_latest.estimate_provided_at is not null
-  );
-  v_owner_approval_satisfied := not v_owner_approval_required or (
-    v_latest.owner_approved is true
-    and v_latest.owner_approved_at is not null
   );
 
   return jsonb_build_object(
