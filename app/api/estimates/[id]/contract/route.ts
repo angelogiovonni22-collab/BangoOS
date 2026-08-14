@@ -4,6 +4,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
 import { renderBrandedEstimateEmail } from "@/lib/estimates/branded-estimate-email";
+import { authorizeContractSend, ContractComplianceGateError } from "@/lib/compliance/contract-send-gate";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
@@ -14,11 +15,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: estimate, error } = await supabase
     .from("estimates")
-    .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name)")
+    .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name, state)")
     .eq("company_id", workspace.context.companyId).eq("id", estimateId).maybeSingle();
   if (error || !estimate) return NextResponse.json({ error: "Estimate not found." }, { status: 404 });
   const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
   if (!customer?.email) return NextResponse.json({ error: "The linked customer needs an email address before sending a contract." }, { status: 400 });
+
+  // Server-side compliance authorization happens before a public token is minted or an email is sent.
+  // Phase 1 gates contracts at/above the Ohio threshold conservatively until explicit property/pricing
+  // classification fields are captured by the compliance details workflow.
+  if (Number(estimate.total_amount || 0) >= 25_000) {
+    try {
+      authorizeContractSend({
+        totalAmount: Number(estimate.total_amount || 0),
+        customerState: customer.state,
+      });
+    } catch (gateError) {
+      if (gateError instanceof ContractComplianceGateError) {
+        return NextResponse.json({
+          error: "Contract compliance requires attention before this agreement can be sent.",
+          code: gateError.code,
+          compliance: gateError.evaluation,
+        }, { status: 409 });
+      }
+      throw gateError;
+    }
+  }
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
