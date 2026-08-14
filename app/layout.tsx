@@ -8,6 +8,7 @@ import "./visual-theme.css";
 import "./theme-gallery.css";
 import "./theme-gallery-hardening.css";
 import "./future-2030.css";
+import "./top-command-layout.css";
 import { I18nProvider } from "@/lib/i18n/provider";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
@@ -42,6 +43,9 @@ const themeBootstrapScript = `(() => {
     const dark = theme === "dark" || theme === "digital-command" || theme === "future-2030";
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
+
+    const storedLayout = localStorage.getItem("bangoos-layout");
+    document.documentElement.dataset.layout = storedLayout === "top-command" ? "top-command" : "classic-sidebar";
   } catch {}
 })();`;
 
