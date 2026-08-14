@@ -9,6 +9,7 @@ export const BANGO_THEME_IDS = [
   "graphite",
   "high-contrast",
   "digital-command",
+  "future-2030",
 ] as const;
 
 export type BangoThemeId = (typeof BANGO_THEME_IDS)[number];
@@ -18,6 +19,7 @@ export type BangoThemeOption = {
   name: string;
   description: string;
   mode: "light" | "dark";
+  experience?: "classic" | "future";
   preview: {
     background: string;
     panel: string;
@@ -83,6 +85,14 @@ export const BANGO_THEME_OPTIONS: readonly BangoThemeOption[] = [
     description: "Futuristic dark command center with electric blue and cyan energy.",
     mode: "dark",
     preview: { background: "#020711", panel: "#071426", sidebar: "#030a16", accent: "#3a86ff", secondary: "#00d4ff" },
+  },
+  {
+    id: "future-2030",
+    name: "Future 2030",
+    description: "A true layout-changing command experience with floating navigation, glass intelligence surfaces, HUD accents, and deeper spatial hierarchy.",
+    mode: "dark",
+    experience: "future",
+    preview: { background: "#01040a", panel: "#071526", sidebar: "#04101d", accent: "#42e8ff", secondary: "#7c5cff" },
   },
 ] as const;
 
