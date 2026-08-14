@@ -108,25 +108,6 @@ export function evaluateOhioExcessCostCompliance(
     };
   }
 
-  if (input.contractEstimateMethod === "firm_price_no_excess") {
-    return {
-      rulesetId: OHIO_EXCESS_COST_RULESET_ID,
-      rulesetVersion: OHIO_EXCESS_COST_RULESET_VERSION,
-      jurisdiction: "OH",
-      status: current > 0 ? "ACTION_REQUIRED" : "COMPLIANT",
-      applicable: true,
-      exemptReason: "firm_price_no_excess",
-      cumulativeQualifyingExcessCostCents: cumulative,
-      estimateNoticeRequired: false,
-      ownerApprovalRequiredBeforeCharge: false,
-      workMayStart: current === 0,
-      chargeMayProceed: current === 0,
-      reasons: current > 0
-        ? ["The contract is configured as firm-price with no excess-cost charge; an excess charge cannot proceed under that configuration."]
-        : ["No excess charge is being requested under the firm-price/no-excess configuration."],
-    };
-  }
-
   if (input.qualifiesAsReasonablyUnforeseenNecessary === null) {
     return {
       rulesetId: OHIO_EXCESS_COST_RULESET_ID,
@@ -158,6 +139,25 @@ export function evaluateOhioExcessCostCompliance(
       workMayStart: true,
       chargeMayProceed: true,
       reasons: ["This change is classified outside the reasonably-unforeseen-and-necessary excess-cost rule."],
+    };
+  }
+
+  if (input.contractEstimateMethod === "firm_price_no_excess") {
+    return {
+      rulesetId: OHIO_EXCESS_COST_RULESET_ID,
+      rulesetVersion: OHIO_EXCESS_COST_RULESET_VERSION,
+      jurisdiction: "OH",
+      status: current > 0 ? "ACTION_REQUIRED" : "COMPLIANT",
+      applicable: true,
+      exemptReason: "firm_price_no_excess",
+      cumulativeQualifyingExcessCostCents: cumulative,
+      estimateNoticeRequired: false,
+      ownerApprovalRequiredBeforeCharge: false,
+      workMayStart: current === 0,
+      chargeMayProceed: current === 0,
+      reasons: current > 0
+        ? ["The contract is configured as firm-price with no excess-cost charge; a qualifying excess charge cannot proceed under that configuration."]
+        : ["No qualifying excess charge is being requested under the firm-price/no-excess configuration."],
     };
   }
 
