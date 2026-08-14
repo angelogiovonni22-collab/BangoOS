@@ -235,7 +235,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
             </header>
           </LayerManager>
 
-          <main className="min-h-0 min-w-0 flex-1 p-4 sm:p-6 lg:p-7">{children}</main>
+          <main className="min-h-0 min-w-0 flex-1 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,0.08),transparent_26%)] p-4 sm:p-6 lg:p-7">{children}</main>
         </div>
       </div>
 
