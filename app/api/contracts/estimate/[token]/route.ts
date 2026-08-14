@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { calculateOhioHomeSolicitationDeadline } from "@/lib/compliance/ohio-home-solicitation";
 import { loadHomeSolicitationCompliance, recordHomeSolicitationEvaluation, recordHomeSolicitationSignature } from "@/lib/compliance/home-solicitation-service";
+import { finalizeAgreementContractPackage } from "@/lib/compliance/contract-package";
 
 async function context(token: string, request: Request) {
   const admin = createAdminClient();
@@ -82,16 +83,50 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
     const signedAt = new Date().toISOString();
     const agreement = await workflow.generateAgreementSnapshot({ companyId: validated.companyId!, estimateId: validated.estimateId!, actorProfileId: null, includeSourceFields: true });
-    const idempotencyKey = `contract-signature:${validated.tokenId}:${agreement.agreementHash}:${body.typedName.trim().toLowerCase()}`;
-    const signature = await workflow.storeSignature({ companyId: validated.companyId!, estimateId: validated.estimateId!, agreementVersionId: agreement.agreementVersionId, estimateVersionNumber: estimate.version_number, typedName: body.typedName, consentAccepted: true, verificationResult: "unverified", idempotencyKey, publicTokenId: validated.tokenId, ipAddress: request.headers.get("x-forwarded-for"), userAgent: request.headers.get("user-agent"), metadata: homeSolicitationResult?.evaluation.applicable === true ? { home_solicitation_ruleset_version: homeSolicitationResult.evaluation.rulesetVersion, home_solicitation_applicable: true, seller_signer_name: homeSolicitationResult.profile.sellerSignerName, seller_signed_at: homeSolicitationResult.profile.sellerSignedAt } : undefined });
-    await workflow.storeAcceptance({ companyId: validated.companyId, estimateId: validated.estimateId, actorProfileId: null, eventType: "signed", actorType: "customer", signatureId: signature.signatureId, idempotencyKey: `${idempotencyKey}:signed` });
+    const finalizedAgreement = await finalizeAgreementContractPackage(admin, {
+      companyId: validated.companyId,
+      estimateId: validated.estimateId,
+      agreementVersionId: agreement.agreementVersionId,
+      baseSnapshot: agreement.snapshot,
+      baseAgreementHash: agreement.agreementHash,
+      signingAt: signedAt,
+    });
+    const contractPackageMetadata = {
+      contract_package_version: finalizedAgreement.compliancePackage.packageVersion,
+      contract_package_hash: finalizedAgreement.compliancePackage.packageHash,
+      agreement_hash: finalizedAgreement.agreementHash,
+    };
+    const idempotencyKey = `contract-signature:${validated.tokenId}:${finalizedAgreement.agreementHash}:${body.typedName.trim().toLowerCase()}`;
+    const signature = await workflow.storeSignature({
+      companyId: validated.companyId!,
+      estimateId: validated.estimateId!,
+      agreementVersionId: agreement.agreementVersionId,
+      estimateVersionNumber: estimate.version_number,
+      typedName: body.typedName,
+      consentAccepted: true,
+      verificationResult: "unverified",
+      idempotencyKey,
+      publicTokenId: validated.tokenId,
+      ipAddress: request.headers.get("x-forwarded-for"),
+      userAgent: request.headers.get("user-agent"),
+      metadata: {
+        ...contractPackageMetadata,
+        ...(homeSolicitationResult?.evaluation.applicable === true ? {
+          home_solicitation_ruleset_version: homeSolicitationResult.evaluation.rulesetVersion,
+          home_solicitation_applicable: true,
+          seller_signer_name: homeSolicitationResult.profile.sellerSignerName,
+          seller_signed_at: homeSolicitationResult.profile.sellerSignedAt,
+        } : {}),
+      },
+    });
+    await workflow.storeAcceptance({ companyId: validated.companyId, estimateId: validated.estimateId, actorProfileId: null, eventType: "signed", actorType: "customer", signatureId: signature.signatureId, idempotencyKey: `${idempotencyKey}:signed`, metadata: contractPackageMetadata });
     const { data: actor, error: actorError } = await admin.from("profiles").select("id").eq("company_id", validated.companyId).order("created_at").limit(1).maybeSingle();
     if (actorError || !actor?.id) throw new Error(actorError?.message || "A company owner is required to finalize this estimate.");
 
-    const { error: signatureError } = await admin.from("estimate_signatures").update({ verification_result: "verified", metadata: { verification_method: "secure_email_link", public_token_id: validated.tokenId, finalized_at: signedAt, ...(homeSolicitationResult?.evaluation.applicable === true ? { home_solicitation_ruleset_version: homeSolicitationResult.evaluation.rulesetVersion, home_solicitation_applicable: true, seller_signer_name: homeSolicitationResult.profile.sellerSignerName, seller_signed_at: homeSolicitationResult.profile.sellerSignedAt } : {}) } }).eq("id", signature.signatureId).eq("company_id", validated.companyId);
+    const { error: signatureError } = await admin.from("estimate_signatures").update({ verification_result: "verified", metadata: { verification_method: "secure_email_link", public_token_id: validated.tokenId, finalized_at: signedAt, ...contractPackageMetadata, ...(homeSolicitationResult?.evaluation.applicable === true ? { home_solicitation_ruleset_version: homeSolicitationResult.evaluation.rulesetVersion, home_solicitation_applicable: true, seller_signer_name: homeSolicitationResult.profile.sellerSignerName, seller_signed_at: homeSolicitationResult.profile.sellerSignedAt } : {}) } }).eq("id", signature.signatureId).eq("company_id", validated.companyId);
     if (signatureError) throw new Error(signatureError.message || "Unable to finalize the signature.");
 
-    const { error: estimateError } = await admin.from("estimates").update({ agreement_version_id: agreement.agreementVersionId, agreement_snapshot: agreement.snapshot, agreement_hash: agreement.agreementHash, approval_signature_id: signature.signatureId, status: "approved", approved_at: signedAt } as never).eq("id", validated.estimateId).eq("company_id", validated.companyId);
+    const { error: estimateError } = await admin.from("estimates").update({ agreement_version_id: agreement.agreementVersionId, agreement_snapshot: finalizedAgreement.snapshot, agreement_hash: finalizedAgreement.agreementHash, approval_signature_id: signature.signatureId, status: "approved", approved_at: signedAt } as never).eq("id", validated.estimateId).eq("company_id", validated.companyId);
     if (estimateError) throw new Error(estimateError.message || "Unable to approve the estimate.");
 
     let cancellationDeadlineDate: string | null = null;
@@ -109,7 +144,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       if (holdError) throw new Error(holdError.message || "Unable to apply the project compliance hold.");
     }
 
-    return NextResponse.json({ signed: true, finalized: true, projectId, cancellationDeadlineDate, workStartHoldActive: Boolean(cancellationDeadlineDate) });
+    return NextResponse.json({
+      signed: true,
+      finalized: true,
+      projectId,
+      cancellationDeadlineDate,
+      workStartHoldActive: Boolean(cancellationDeadlineDate),
+      contractPackageVersion: finalizedAgreement.compliancePackage.packageVersion,
+      contractPackageHash: finalizedAgreement.compliancePackage.packageHash,
+      agreementHash: finalizedAgreement.agreementHash,
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to sign contract." }, { status: 400 });
   }
