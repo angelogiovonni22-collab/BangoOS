@@ -247,7 +247,17 @@ export default function DashboardPage() {
             }
 
             return (
-              <FadeIn key={widgetId} delayMs={delayMs} distancePx={5} className={widgetClassById[widgetId]}>
+              <FadeIn key={widgetId} delayMs={delayMs} distancePx={5} className={`${widgetClassById[widgetId]} relative`}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="absolute right-4 top-4 z-10"
+                  aria-label={`${t("dashboard.collapse")} ${widgetTitleById.get(widgetId) || t("dashboard.widget")}`}
+                  onClick={() => toggleWidgetCollapsed(widgetId)}
+                >
+                  {t("dashboard.collapse")}
+                </Button>
                 {widgetContentById[widgetId]}
               </FadeIn>
             );
