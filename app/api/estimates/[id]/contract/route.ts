@@ -4,7 +4,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
 import { renderBrandedEstimateEmail } from "@/lib/estimates/branded-estimate-email";
-import { loadEstimateCompliance } from "@/lib/compliance/estimate-contract-compliance-service";
+import { loadEstimateCompliance, recordEstimateComplianceEvaluation } from "@/lib/compliance/estimate-contract-compliance-service";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
@@ -26,6 +26,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (Number(estimate.total_amount || 0) >= 25_000) {
     try {
       const compliance = await loadEstimateCompliance(supabase, workspace.context.companyId, estimateId);
+      await recordEstimateComplianceEvaluation(
+        supabase,
+        workspace.context.companyId,
+        estimateId,
+        workspace.context.userId,
+        compliance.evaluation,
+        compliance.profile.id || null,
+        { source: "send_gate" },
+      );
       if (compliance.evaluation.status !== "COMPLIANT") {
         return NextResponse.json({
           error: "Contract compliance requires attention before this agreement can be sent.",
