@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { EstimateDetail } from "@/components/estimates";
+import { EstimateComplianceSection } from "@/components/estimates/estimate-compliance-section";
 
 export default function EstimateDetailsPage() {
   const params = useParams<{ id?: string | string[] }>();
@@ -11,5 +12,10 @@ export default function EstimateDetailsPage() {
     return null;
   }
 
-  return <EstimateDetail estimateId={estimateId} />;
+  return (
+    <div className="space-y-6">
+      <EstimateDetail estimateId={estimateId} />
+      <EstimateComplianceSection estimateId={estimateId} />
+    </div>
+  );
 }
