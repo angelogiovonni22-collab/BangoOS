@@ -2,24 +2,38 @@
 
 import Link from "next/link";
 import { OrionVoiceSettingsPanel } from "@/components/orion/voice";
-import { Card, CardContent, CardHeader, CardTitle, PageHeader, ThemeGallery } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, LayoutGallery, PageHeader, ThemeGallery } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 
 export default function SettingsPage() {
   const { t } = useI18n();
   return (
     <div className="container-narrow space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow="Workspace" title={t("navigation.settings")} description="Manage appearance, memory review, and Orion voice preferences for this company workspace." />
+      <PageHeader compact eyebrow="Workspace" title={t("navigation.settings")} description="Manage layout, appearance, memory review, and Orion voice preferences for this company workspace." />
 
       <Card as="section" variant="elevated">
         <CardHeader className="bg-[var(--color-surface-subtle)]">
-          <CardTitle>Appearance</CardTitle>
-          <p className="text-sm text-[var(--color-text-secondary)]">Choose a B.O.S. theme or full interface experience. Themes change the visual language; Experiences can also reshape navigation, spacing, surfaces, depth, and interaction while keeping the same protected B.O.S. data and workflows.</p>
+          <CardTitle>Layout</CardTitle>
+          <p className="text-sm text-[var(--color-text-secondary)]">Choose how B.O.S. is physically arranged. Layout is independent from theme, so either layout can be combined with any B.O.S. color experience.</p>
+        </CardHeader>
+        <CardContent className="space-y-5 p-5">
+          <div>
+            <p className="font-semibold text-[var(--color-text-primary)]">Workspace Layout</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Switch instantly between the original sidebar workspace and the new full-width Top Command workspace. Your choice is saved on this device.</p>
+          </div>
+          <LayoutGallery />
+        </CardContent>
+      </Card>
+
+      <Card as="section" variant="elevated">
+        <CardHeader className="bg-[var(--color-surface-subtle)]">
+          <CardTitle>Theme</CardTitle>
+          <p className="text-sm text-[var(--color-text-secondary)]">Choose the visual language independently from your layout. Themes control color, surfaces, borders, glow, depth, and atmosphere without changing your B.O.S. data.</p>
         </CardHeader>
         <CardContent className="space-y-5 p-5">
           <div>
             <p className="font-semibold text-[var(--color-text-primary)]">Themes & Experiences</p>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Select a preview to apply it instantly across B.O.S. Future 2030 is the first layout-changing experience. Your choice is saved on this device and can be changed at any time.</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Select a preview to apply it instantly across B.O.S. Your theme and layout selections can be mixed and changed at any time.</p>
           </div>
           <ThemeGallery />
         </CardContent>
