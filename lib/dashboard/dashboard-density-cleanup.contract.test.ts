@@ -15,6 +15,6 @@ assert.match(page, /dashboard\.collapse/, "the direct collapse control must be a
 assert.match(activity, /useState\(5\)/, "recent activity must start with five items");
 assert.doesNotMatch(activity, /IntersectionObserver/, "scrolling must not silently expand the activity feed");
 assert.match(decisions, /props\.items\.slice\(0, 4\)/, "decision lists must be progressively disclosed");
-assert.match(decisions, /View all/, "limited decision lists must retain access to all records");
+assert.match(decisions, /dashboard\.viewAll/, "limited decision lists must retain translated access to all records");
 
 console.log("Dashboard density cleanup contract passed");
