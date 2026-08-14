@@ -10,6 +10,9 @@ const shell = readFileSync(new URL("../../app/(app)/app-shell.tsx", import.meta.
 const pageHeader = readFileSync(new URL("./page-header.tsx", import.meta.url), "utf8");
 const card = readFileSync(new URL("./card.tsx", import.meta.url), "utf8");
 const statusBadge = readFileSync(new URL("./status-badge.tsx", import.meta.url), "utf8");
+const sectionHeader = readFileSync(new URL("./section-header.tsx", import.meta.url), "utf8");
+const emptyState = readFileSync(new URL("./empty-state.tsx", import.meta.url), "utf8");
+const errorState = readFileSync(new URL("./error-state.tsx", import.meta.url), "utf8");
 
 test("visual system defines explicit light and dark semantic contracts", () => {
   assert.match(themeCss, /:root,\s*\[data-theme="light"\]/);
@@ -44,6 +47,15 @@ test("primary-page uplift adds restrained navigation and status feedback", () =>
   assert.match(themeCss, /translateX\(2px\)/);
   assert.match(statusBadge, /rounded-full bg-current opacity-70/);
   assert.match(statusBadge, /gap-1\.5/);
+});
+
+test("page states retain readable surfaces while gaining BOS visual hierarchy", () => {
+  assert.match(sectionHeader, /data-bos-section-header/);
+  assert.match(sectionHeader, /bg-gradient-to-b/);
+  assert.match(emptyState, /data-bos-empty-state/);
+  assert.match(emptyState, /bg-\[var\(--bos-bg-panel\)\]/);
+  assert.match(errorState, /data-bos-error-state/);
+  assert.match(errorState, /color-danger-500/);
 });
 
 test("visual uplift preserves Orion provider architecture", () => {
