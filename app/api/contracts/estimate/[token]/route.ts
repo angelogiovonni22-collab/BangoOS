@@ -1,10 +1,7 @@
-import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { sendContractEmail } from "@/lib/estimates/contract-email";
-
-const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
 async function context(token: string, request: Request) {
   const admin = createAdminClient();
@@ -41,14 +38,59 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const idempotencyKey = `contract-signature:${validated.tokenId}:${agreement.agreementHash}:${body.typedName.trim().toLowerCase()}`;
     const signature = await workflow.storeSignature({ companyId: validated.companyId!, estimateId: validated.estimateId!, agreementVersionId: agreement.agreementVersionId, estimateVersionNumber: estimate.version_number, typedName: body.typedName, consentAccepted: true, verificationResult: "unverified", idempotencyKey, publicTokenId: validated.tokenId, ipAddress: request.headers.get("x-forwarded-for"), userAgent: request.headers.get("user-agent") });
     await workflow.storeAcceptance({ companyId: validated.companyId, estimateId: validated.estimateId, actorProfileId: null, eventType: "signed", actorType: "customer", signatureId: signature.signatureId, idempotencyKey: `${idempotencyKey}:signed` });
-    const verificationToken = randomBytes(32).toString("base64url");
-    await admin.from("estimate_contract_verifications" as never).upsert({ company_id: validated.companyId, estimate_id: validated.estimateId, signature_id: signature.signatureId, token_hash: hash(verificationToken), email: (Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers)?.email, expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), status: "pending" } as never, { onConflict: "signature_id" });
-    await admin.from("estimates").update({ agreement_version_id: agreement.agreementVersionId, agreement_snapshot: agreement.snapshot, agreement_hash: agreement.agreementHash, approval_signature_id: signature.signatureId } as never).eq("id", validated.estimateId).eq("company_id", validated.companyId);
-    const verifyUrl = new URL(`/api/contracts/verify?token=${encodeURIComponent(verificationToken)}`, request.url).toString();
-    const email = (Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers)?.email;
-    const delivery = email ? await sendContractEmail({ to: email, subject: "Verify your signed contract", html: `<p>Thank you for signing.</p><p><a href="${verifyUrl}">Verify your email and finalize the contract</a></p><p>This link expires in 24 hours.</p>` }) : { delivered: false, providerId: null, reason: "customer_email_missing" };
-    await admin.from("estimate_contract_verifications" as never).update({ delivery_status: delivery.delivered ? "delivered" : "failed", provider_message_id: delivery.providerId, delivery_error: delivery.reason } as never).eq("signature_id", signature.signatureId);
-    return NextResponse.json({ signed: true, verificationEmailSent: delivery.delivered, ...(process.env.NODE_ENV !== "production" ? { verifyUrl } : {}) });
+    const { data: actor, error: actorError } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("company_id", validated.companyId)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    if (actorError || !actor?.id) throw new Error(actorError?.message || "A company owner is required to finalize this estimate.");
+
+    const { error: signatureError } = await admin
+      .from("estimate_signatures")
+      .update({
+        verification_result: "verified",
+        metadata: {
+          verification_method: "secure_email_link",
+          public_token_id: validated.tokenId,
+          finalized_at: new Date().toISOString(),
+        },
+      })
+      .eq("id", signature.signatureId)
+      .eq("company_id", validated.companyId);
+    if (signatureError) throw new Error(signatureError.message || "Unable to finalize the signature.");
+
+    const { error: estimateError } = await admin
+      .from("estimates")
+      .update({
+        agreement_version_id: agreement.agreementVersionId,
+        agreement_snapshot: agreement.snapshot,
+        agreement_hash: agreement.agreementHash,
+        approval_signature_id: signature.signatureId,
+        status: "approved",
+        approved_at: new Date().toISOString(),
+      } as never)
+      .eq("id", validated.estimateId)
+      .eq("company_id", validated.companyId);
+    if (estimateError) throw new Error(estimateError.message || "Unable to approve the estimate.");
+
+    const { data: conversion, error: conversionError } = await admin.rpc(
+      "convert_verified_estimate_contract" as never,
+      {
+        p_company_id: validated.companyId,
+        p_estimate_id: validated.estimateId,
+        p_signature_id: signature.signatureId,
+        p_actor_profile_id: actor.id,
+      } as never,
+    ) as { data: Array<{ project_id: string }> | null; error: { message: string } | null };
+    if (conversionError) throw new Error(conversionError.message || "Unable to create the project.");
+
+    return NextResponse.json({
+      signed: true,
+      finalized: true,
+      projectId: conversion?.[0]?.project_id || null,
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to sign contract." }, { status: 400 });
   }
