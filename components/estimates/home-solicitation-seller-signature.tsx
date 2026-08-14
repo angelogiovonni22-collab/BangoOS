@@ -14,16 +14,28 @@ export function HomeSolicitationSellerSignature({ estimateId }: { estimateId: st
   const [oralBusy, setOralBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  async function refresh() {
-    const response = await fetch(`/api/estimates/${estimateId}/home-solicitation`, { cache: "no-store" });
-    if (!response.ok) return;
-    const body = await response.json();
-    setSignedAt(body.profile?.sellerSignedAt || null);
-    setSignedName(body.profile?.sellerSignerName || null);
-    setOralAt(body.profile?.oralDisclosureConfirmedAt || null);
-  }
+  useEffect(() => {
+    let active = true;
 
-  useEffect(() => { void refresh(); }, [estimateId]);
+    fetch(`/api/estimates/${estimateId}/home-solicitation`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then((body) => {
+        if (!active || !body) return;
+        setSignedAt(body.profile?.sellerSignedAt || null);
+        setSignedName(body.profile?.sellerSignerName || null);
+        setOralAt(body.profile?.oralDisclosureConfirmedAt || null);
+      })
+      .catch(() => {
+        // Keep the signing controls usable if the initial status read is temporarily unavailable.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [estimateId]);
 
   async function signAsSeller() {
     setBusy(true); setMessage(null);
