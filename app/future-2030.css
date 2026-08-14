@@ -1,183 +1,257 @@
-/* Future 2030 is a layout-changing B.O.S. experience, not only a palette swap. */
+/* Neon Grid Command is an original B.O.S. layout experience built around luminous circuitry and a deep command deck. */
 [data-theme="future-2030"] {
   color-scheme: dark;
-  --bos-bg-root: #01040a;
-  --bos-bg-shell: #020711;
-  --bos-bg-sidebar: rgb(4 16 29 / 0.9);
-  --bos-bg-panel: rgb(7 21 38 / 0.78);
-  --bos-bg-panel-elevated: rgb(9 28 49 / 0.88);
-  --bos-bg-control: rgb(12 34 57 / 0.88);
-  --bos-bg-hover: rgb(19 48 77 / 0.92);
-  --bos-border-subtle: rgb(90 215 255 / 0.14);
-  --bos-border-default: rgb(88 224 255 / 0.26);
-  --bos-border-strong: rgb(106 232 255 / 0.44);
-  --bos-text-primary: #effcff;
-  --bos-text-secondary: #b8d8e5;
-  --bos-text-muted: #789baa;
-  --bos-text-inverse: #021017;
-  --bos-text-strong-on-light: #effcff;
-  --bos-text-medium-on-light: #b8d8e5;
-  --bos-bg-workspace-surface: #020710;
-  --bos-bg-workspace-surface-soft: #06101c;
-  --bos-bg-workspace-card: rgb(7 21 38 / 0.8);
-  --bos-border-light: rgb(90 215 255 / 0.18);
-  --bos-border-light-strong: rgb(90 215 255 / 0.32);
-  --color-background-app: #01040a;
-  --color-background-root: #01040a;
-  --color-background-workspace: #020710;
-  --color-surface-card: rgb(7 21 38 / 0.84);
-  --color-surface-subtle: rgb(11 31 52 / 0.86);
-  --color-surface-muted: rgb(18 45 72 / 0.9);
-  --color-surface-elevated: rgb(8 24 42 / 0.92);
-  --color-text-primary: #effcff;
-  --color-text-secondary: #b8d8e5;
-  --color-text-muted: #789baa;
-  --color-text-inverse: #021017;
-  --color-border-subtle: rgb(90 215 255 / 0.16);
-  --color-border-strong: rgb(90 215 255 / 0.32);
-  --background: #01040a;
-  --foreground: #effcff;
-  --bos-ambient-blue: rgb(80 98 255 / 0.18);
-  --bos-ambient-cyan: rgb(66 232 255 / 0.15);
-  --bos-card-highlight: rgb(255 255 255 / 0.07);
-  --bos-card-shadow: 0 24px 70px -34px rgb(0 0 0 / 0.92), 0 0 0 1px rgb(90 215 255 / 0.04), 0 0 42px -28px rgb(66 232 255 / 0.52);
-  --future-cyan: #42e8ff;
-  --future-violet: #7c5cff;
-  --future-emerald: #45f0b3;
-  --future-grid: rgb(89 214 255 / 0.055);
+  --bos-bg-root: #010306;
+  --bos-bg-shell: #020509;
+  --bos-bg-sidebar: rgb(2 8 13 / 0.96);
+  --bos-bg-panel: rgb(4 16 24 / 0.9);
+  --bos-bg-panel-elevated: rgb(5 22 32 / 0.94);
+  --bos-bg-control: rgb(4 20 29 / 0.96);
+  --bos-bg-hover: rgb(4 32 43 / 0.98);
+  --bos-border-subtle: rgb(0 246 255 / 0.16);
+  --bos-border-default: rgb(0 246 255 / 0.3);
+  --bos-border-strong: rgb(0 246 255 / 0.58);
+  --bos-text-primary: #efffff;
+  --bos-text-secondary: #b7e7ea;
+  --bos-text-muted: #6f9fa4;
+  --bos-text-inverse: #001014;
+  --bos-text-strong-on-light: #efffff;
+  --bos-text-medium-on-light: #b7e7ea;
+  --bos-bg-workspace-surface: #010509;
+  --bos-bg-workspace-surface-soft: #020b11;
+  --bos-bg-workspace-card: rgb(4 16 24 / 0.92);
+  --bos-border-light: rgb(0 246 255 / 0.18);
+  --bos-border-light-strong: rgb(0 246 255 / 0.38);
+  --color-background-app: #010306;
+  --color-background-root: #010306;
+  --color-background-workspace: #010509;
+  --color-surface-card: rgb(4 16 24 / 0.94);
+  --color-surface-subtle: rgb(4 22 31 / 0.96);
+  --color-surface-muted: rgb(4 34 45 / 0.98);
+  --color-surface-elevated: rgb(5 21 31 / 0.96);
+  --color-text-primary: #efffff;
+  --color-text-secondary: #b7e7ea;
+  --color-text-muted: #6f9fa4;
+  --color-text-inverse: #001014;
+  --color-border-subtle: rgb(0 246 255 / 0.16);
+  --color-border-strong: rgb(0 246 255 / 0.38);
+  --background: #010306;
+  --foreground: #efffff;
+  --bos-ambient-blue: rgb(45 125 255 / 0.12);
+  --bos-ambient-cyan: rgb(0 246 255 / 0.12);
+  --bos-card-highlight: rgb(180 255 255 / 0.07);
+  --bos-card-shadow: 0 24px 70px -38px rgb(0 0 0 / 0.96), 0 0 0 1px rgb(0 246 255 / 0.05), 0 0 34px -24px rgb(0 246 255 / 0.44);
+  --grid-cyan: #00f6ff;
+  --grid-blue: #2d7dff;
+  --grid-white: #dfffff;
+  --grid-dim: rgb(0 246 255 / 0.08);
+  --grid-line: rgb(0 246 255 / 0.12);
+  --grid-alert: #ff8d35;
 }
 
 [data-theme="future-2030"] body {
-  background:
-    radial-gradient(circle at 17% -8%, rgb(58 98 255 / 0.22), transparent 34rem),
-    radial-gradient(circle at 88% 8%, rgb(49 229 255 / 0.13), transparent 30rem),
-    #01040a;
+  background: #010306;
 }
 
 [data-theme="future-2030"] .enterprise-shell {
   position: relative;
   overflow-x: clip;
   background:
-    linear-gradient(var(--future-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--future-grid) 1px, transparent 1px),
-    radial-gradient(circle at 72% 14%, rgb(124 92 255 / 0.13), transparent 30rem),
-    radial-gradient(circle at 28% 74%, rgb(66 232 255 / 0.08), transparent 34rem),
-    #01040a !important;
-  background-size: 34px 34px, 34px 34px, auto, auto, auto;
+    radial-gradient(circle at 68% -8%, rgb(0 246 255 / 0.12), transparent 32rem),
+    radial-gradient(circle at 86% 42%, rgb(45 125 255 / 0.08), transparent 30rem),
+    linear-gradient(180deg, #010306, #01070b 62%, #010306) !important;
 }
 
-[data-theme="future-2030"] .enterprise-shell::before,
+/* A subtle technical ceiling grid keeps the UI dimensional without reducing readability. */
+[data-theme="future-2030"] .enterprise-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.3;
+  background-image:
+    linear-gradient(var(--grid-dim) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-dim) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black 0, black 48%, transparent 88%);
+}
+
+/* Perspective floor: strongest at the bottom of the viewport, like a digital command deck. */
 [data-theme="future-2030"] .enterprise-shell::after {
   content: "";
   position: fixed;
+  left: -15vw;
+  right: -15vw;
+  bottom: -13vh;
+  height: 48vh;
   z-index: 0;
   pointer-events: none;
-  border-radius: 999px;
-  filter: blur(12px);
-}
-
-[data-theme="future-2030"] .enterprise-shell::before {
-  width: 22rem;
-  height: 22rem;
-  right: -8rem;
-  top: 18vh;
-  border: 1px solid rgb(66 232 255 / 0.14);
-  box-shadow: inset 0 0 90px rgb(66 232 255 / 0.04), 0 0 90px rgb(66 232 255 / 0.04);
-}
-
-[data-theme="future-2030"] .enterprise-shell::after {
-  width: 15rem;
-  height: 15rem;
-  left: 19rem;
-  bottom: -5rem;
-  border: 1px solid rgb(124 92 255 / 0.15);
-  box-shadow: inset 0 0 80px rgb(124 92 255 / 0.05), 0 0 80px rgb(124 92 255 / 0.05);
+  transform: perspective(430px) rotateX(61deg);
+  transform-origin: center bottom;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 52px 34px;
+  box-shadow: inset 0 30px 80px rgb(0 246 255 / 0.035);
+  mask-image: linear-gradient(to bottom, transparent, black 34%, black 100%);
 }
 
 [data-theme="future-2030"] #bangoos-sidebar {
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent 24%),
-    radial-gradient(circle at 20% 6%, rgb(66 232 255 / 0.15), transparent 15rem),
-    radial-gradient(circle at 80% 88%, rgb(124 92 255 / 0.11), transparent 16rem),
-    rgb(4 16 29 / 0.89);
-  border-color: rgb(66 232 255 / 0.18);
-  box-shadow: 0 24px 90px -38px rgb(0 0 0 / 0.96), inset -1px 0 rgb(255 255 255 / 0.025);
-  backdrop-filter: blur(24px) saturate(140%);
+    linear-gradient(180deg, rgb(0 246 255 / 0.055), transparent 16%),
+    linear-gradient(180deg, rgb(3 14 21 / 0.98), rgb(1 7 11 / 0.98));
+  border-color: rgb(0 246 255 / 0.28) !important;
+  box-shadow: inset -1px 0 rgb(0 246 255 / 0.16), 0 0 36px rgb(0 246 255 / 0.07), 18px 0 80px -48px #000;
+  backdrop-filter: blur(18px) saturate(125%);
+}
+
+[data-theme="future-2030"] #bangoos-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 10px 8px auto 8px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--grid-cyan), transparent);
+  box-shadow: 0 0 12px var(--grid-cyan);
+  opacity: 0.72;
+}
+
+[data-theme="future-2030"] #bangoos-sidebar > div:first-child > div > div:first-child {
+  border: 1px solid rgb(0 246 255 / 0.46);
+  background: #021019 !important;
+  color: var(--grid-white) !important;
+  box-shadow: inset 0 0 18px rgb(0 246 255 / 0.1), 0 0 16px rgb(0 246 255 / 0.18) !important;
+  border-radius: 6px !important;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
 }
 
 [data-theme="future-2030"] #bangoos-sidebar nav section > button {
-  color: #75a8ba;
+  color: #6daeb3;
+  border-radius: 4px;
 }
 
 [data-theme="future-2030"] #bangoos-sidebar nav a {
+  position: relative;
   border: 1px solid transparent;
-  border-radius: 13px;
+  border-radius: 4px;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+[data-theme="future-2030"] #bangoos-sidebar nav a::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 2px;
+  background: var(--grid-cyan);
+  box-shadow: 0 0 10px var(--grid-cyan);
+  opacity: 0;
+  transition: opacity 150ms ease;
 }
 
 [data-theme="future-2030"] #bangoos-sidebar nav a:hover {
-  transform: translateX(4px);
-  border-color: rgb(66 232 255 / 0.16);
-  background: linear-gradient(90deg, rgb(66 232 255 / 0.08), rgb(124 92 255 / 0.045));
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.035), 0 12px 30px -22px rgb(66 232 255 / 0.65);
+  transform: translateX(3px);
+  border-color: rgb(0 246 255 / 0.26);
+  background: linear-gradient(90deg, rgb(0 246 255 / 0.11), rgb(0 246 255 / 0.025));
+  color: #f3ffff;
+  box-shadow: inset 0 0 20px rgb(0 246 255 / 0.035), 0 0 22px -14px rgb(0 246 255 / 0.8);
+}
+
+[data-theme="future-2030"] #bangoos-sidebar nav a:hover::before,
+[data-theme="future-2030"] #bangoos-sidebar nav a[aria-current="page"]::before {
+  opacity: 1;
 }
 
 [data-theme="future-2030"] #bangoos-sidebar nav a[aria-current="page"] {
-  border-color: rgb(66 232 255 / 0.26);
+  border-color: rgb(0 246 255 / 0.52);
+  background: linear-gradient(90deg, rgb(0 246 255 / 0.16), rgb(45 125 255 / 0.055));
+  color: #f3ffff;
+  text-shadow: 0 0 12px rgb(0 246 255 / 0.26);
+  box-shadow: inset 0 0 26px rgb(0 246 255 / 0.06), 0 0 18px -10px rgb(0 246 255 / 0.9);
 }
 
 [data-theme="future-2030"] [data-bos-topbar="true"] {
+  position: sticky;
   background:
-    linear-gradient(100deg, rgb(66 232 255 / 0.04), transparent 34%, rgb(124 92 255 / 0.05)),
-    rgb(4 15 27 / 0.78) !important;
-  border-color: rgb(66 232 255 / 0.16);
-  box-shadow: 0 18px 55px -38px rgb(0 0 0 / 0.9), inset 0 -1px rgb(66 232 255 / 0.035);
-  backdrop-filter: blur(22px) saturate(145%);
+    linear-gradient(90deg, rgb(0 246 255 / 0.055), transparent 26%, transparent 74%, rgb(45 125 255 / 0.04)),
+    rgb(2 10 15 / 0.91) !important;
+  border-color: rgb(0 246 255 / 0.3) !important;
+  box-shadow: inset 0 -1px rgb(0 246 255 / 0.12), 0 0 28px rgb(0 246 255 / 0.055);
+  backdrop-filter: blur(20px) saturate(120%);
+}
+
+[data-theme="future-2030"] [data-bos-topbar="true"]::after {
+  content: "";
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--grid-cyan), transparent);
+  box-shadow: 0 0 12px rgb(0 246 255 / 0.72);
+  opacity: 0.55;
 }
 
 [data-theme="future-2030"] .enterprise-shell main {
+  position: relative;
   z-index: 1;
   background:
-    linear-gradient(var(--future-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--future-grid) 1px, transparent 1px),
-    radial-gradient(circle at 22% 2%, rgb(66 232 255 / 0.08), transparent 26rem),
-    radial-gradient(circle at 82% 18%, rgb(124 92 255 / 0.08), transparent 28rem),
-    transparent;
-  background-size: 34px 34px, 34px 34px, auto, auto, auto;
+    radial-gradient(circle at 82% 8%, rgb(0 246 255 / 0.055), transparent 24rem),
+    linear-gradient(180deg, rgb(1 7 11 / 0.74), rgb(1 5 9 / 0.76));
+  border-color: rgb(0 246 255 / 0.13) !important;
 }
 
+/* Page headers become sharp HUD plates with illuminated corners. */
 [data-theme="future-2030"] [data-bos-page-header="true"] {
-  border: 1px solid rgb(66 232 255 / 0.2);
+  border: 1px solid rgb(0 246 255 / 0.35);
+  border-radius: 6px;
   background:
-    linear-gradient(118deg, rgb(255 255 255 / 0.07), transparent 38%),
-    radial-gradient(circle at 88% 20%, rgb(124 92 255 / 0.12), transparent 15rem),
-    linear-gradient(135deg, rgb(7 24 42 / 0.94), rgb(5 16 29 / 0.86));
-  box-shadow: 0 28px 70px -42px rgb(0 0 0 / 0.94), inset 0 1px rgb(255 255 255 / 0.055), 0 0 50px -38px rgb(66 232 255 / 0.66);
-  backdrop-filter: blur(20px) saturate(145%);
+    linear-gradient(115deg, rgb(0 246 255 / 0.07), transparent 32%),
+    linear-gradient(180deg, rgb(4 21 30 / 0.97), rgb(2 12 18 / 0.95));
+  box-shadow: inset 0 0 30px rgb(0 246 255 / 0.025), 0 0 30px -20px rgb(0 246 255 / 0.8), 0 20px 60px -36px #000;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
 }
 
 [data-theme="future-2030"] [data-bos-page-header="true"]::before {
-  width: 2px;
-  background: linear-gradient(180deg, transparent, var(--future-cyan) 22%, var(--future-violet) 72%, transparent);
-  box-shadow: 0 0 24px rgb(66 232 255 / 0.88);
+  width: 3px;
+  background: var(--grid-cyan);
+  box-shadow: 0 0 18px var(--grid-cyan), 0 0 36px rgb(0 246 255 / 0.58);
 }
 
 [data-theme="future-2030"] [data-bos-page-header="true"]::after {
-  width: 18rem;
-  height: 18rem;
-  right: -5rem;
-  top: -9rem;
-  border: 1px solid rgb(66 232 255 / 0.13);
-  background: radial-gradient(circle, rgb(66 232 255 / 0.08), transparent 65%);
-  box-shadow: 0 0 60px rgb(66 232 255 / 0.045);
+  width: 38%;
+  height: 1px;
+  right: 22px;
+  top: 12px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(90deg, transparent, var(--grid-cyan));
+  box-shadow: 0 0 10px rgb(0 246 255 / 0.7);
 }
 
+/* Cards read as dark circuit modules instead of generic glass rectangles. */
 [data-theme="future-2030"] .enterprise-shell main [data-bos-card="true"] {
-  border-color: rgb(66 232 255 / 0.14);
+  border-color: rgb(0 246 255 / 0.22);
+  border-radius: 5px;
   background:
-    linear-gradient(145deg, rgb(255 255 255 / 0.035), transparent 40%),
-    linear-gradient(180deg, rgb(8 27 47 / 0.9), rgb(5 18 33 / 0.82));
-  box-shadow: 0 22px 64px -42px rgb(0 0 0 / 0.98), inset 0 1px rgb(255 255 255 / 0.05);
-  backdrop-filter: blur(16px) saturate(135%);
+    linear-gradient(135deg, rgb(0 246 255 / 0.035), transparent 30%),
+    linear-gradient(180deg, rgb(4 18 27 / 0.96), rgb(2 11 17 / 0.96));
+  box-shadow: inset 0 1px rgb(180 255 255 / 0.05), inset 0 0 24px rgb(0 246 255 / 0.018), 0 18px 52px -34px #000;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+[data-theme="future-2030"] .enterprise-shell main [data-bos-card="true"]::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--grid-cyan), transparent 46%);
+  opacity: 0.58;
+  box-shadow: 0 0 8px rgb(0 246 255 / 0.7);
+  pointer-events: none;
 }
 
 [data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="kpi"] {
@@ -185,22 +259,22 @@
 }
 
 [data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="kpi"]::after {
-  content: "";
-  position: absolute;
-  left: 1rem;
-  right: 1rem;
+  left: 0;
+  right: auto;
+  top: 0;
   bottom: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--future-cyan), var(--future-violet), transparent);
-  opacity: 0.5;
-  box-shadow: 0 0 14px rgb(66 232 255 / 0.3);
+  width: 2px;
+  height: auto;
+  background: var(--grid-cyan);
+  opacity: 0.82;
+  box-shadow: 0 0 14px var(--grid-cyan);
 }
 
 [data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="kpi"]:hover,
 [data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="elevated"]:hover {
-  transform: translateY(-3px) scale(1.004);
-  border-color: rgb(66 232 255 / 0.28);
-  box-shadow: 0 30px 74px -42px rgb(0 0 0 / 0.96), 0 0 45px -34px rgb(66 232 255 / 0.66), inset 0 1px rgb(255 255 255 / 0.07);
+  transform: translateY(-2px);
+  border-color: rgb(0 246 255 / 0.5);
+  box-shadow: inset 0 0 28px rgb(0 246 255 / 0.035), 0 0 24px -12px rgb(0 246 255 / 0.44), 0 24px 64px -40px #000;
 }
 
 [data-theme="future-2030"] .enterprise-shell main table {
@@ -209,88 +283,127 @@
 }
 
 [data-theme="future-2030"] .enterprise-shell main thead {
-  background: rgb(8 27 46 / 0.8);
+  background: rgb(2 18 25 / 0.98);
+  color: #cfffff;
+  box-shadow: inset 0 -1px rgb(0 246 255 / 0.18);
 }
 
 [data-theme="future-2030"] .enterprise-shell main tbody tr {
-  transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 
 [data-theme="future-2030"] .enterprise-shell main tbody tr:hover {
-  background: linear-gradient(90deg, rgb(66 232 255 / 0.055), rgb(124 92 255 / 0.035));
-  box-shadow: inset 2px 0 var(--future-cyan);
+  background: linear-gradient(90deg, rgb(0 246 255 / 0.095), rgb(0 246 255 / 0.018));
+  box-shadow: inset 2px 0 var(--grid-cyan), inset 0 1px rgb(0 246 255 / 0.08), inset 0 -1px rgb(0 246 255 / 0.08);
 }
 
 [data-theme="future-2030"] input,
 [data-theme="future-2030"] select,
 [data-theme="future-2030"] textarea,
 [data-theme="future-2030"] button {
-  accent-color: var(--future-cyan);
+  accent-color: var(--grid-cyan);
+}
+
+[data-theme="future-2030"] input,
+[data-theme="future-2030"] select,
+[data-theme="future-2030"] textarea {
+  border-radius: 3px !important;
 }
 
 [data-theme="future-2030"] input:focus,
 [data-theme="future-2030"] select:focus,
 [data-theme="future-2030"] textarea:focus {
-  border-color: rgb(66 232 255 / 0.48) !important;
-  box-shadow: 0 0 0 3px rgb(66 232 255 / 0.1), 0 0 28px -18px rgb(66 232 255 / 0.8);
+  border-color: rgb(0 246 255 / 0.7) !important;
+  box-shadow: 0 0 0 1px rgb(0 246 255 / 0.32), 0 0 18px rgb(0 246 255 / 0.11) !important;
 }
 
-/* Desktop layout transformation: floating navigation capsule + detached command bar. */
+/* Primary actions gain a hard electric edge while destructive/warning colors remain semantic. */
+[data-theme="future-2030"] .enterprise-shell main button:not([class*="danger"]):not([class*="red"]):hover {
+  text-shadow: 0 0 9px rgb(0 246 255 / 0.34);
+}
+
+/* Orion remains the same provider/runtime but visually belongs to the command deck. */
+[data-theme="future-2030"] .persistentOrionPanel {
+  border-color: rgb(0 246 255 / 0.42) !important;
+  background: rgb(2 11 17 / 0.97) !important;
+  box-shadow: inset 0 0 32px rgb(0 246 255 / 0.025), 0 0 32px rgb(0 246 255 / 0.1), 0 30px 80px -38px #000 !important;
+}
+
+[data-theme="future-2030"] .persistentOrionEyebrow {
+  color: var(--grid-cyan) !important;
+  text-shadow: 0 0 9px rgb(0 246 255 / 0.45);
+}
+
 @media (min-width: 1024px) {
   [data-theme="future-2030"] #bangoos-sidebar {
-    top: 14px !important;
-    height: calc(100dvh - 28px) !important;
+    top: 10px !important;
+    height: calc(100dvh - 20px) !important;
     min-height: 0 !important;
-    margin-left: 14px;
-    width: 248px !important;
-    border: 1px solid rgb(66 232 255 / 0.17) !important;
-    border-radius: 22px;
+    margin-left: 10px;
+    width: 246px !important;
+    border: 1px solid rgb(0 246 255 / 0.32) !important;
+    border-radius: 5px;
+    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   }
 
   [data-theme="future-2030"] [data-bos-topbar="true"] {
-    top: 14px;
-    margin: 14px 18px 0 20px;
-    border: 1px solid rgb(66 232 255 / 0.16);
-    border-radius: 18px;
+    top: 10px;
+    margin: 10px 14px 0 16px;
+    border: 1px solid rgb(0 246 255 / 0.28);
+    border-radius: 4px;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   }
 
   [data-theme="future-2030"] .enterprise-shell main {
-    margin: 14px 18px 18px 20px;
-    border: 1px solid rgb(66 232 255 / 0.08);
-    border-radius: 22px;
-    min-height: calc(100vh - 110px);
-    box-shadow: inset 0 1px rgb(255 255 255 / 0.02);
+    margin: 10px 14px 14px 16px;
+    min-height: calc(100vh - 102px);
+    border: 1px solid rgb(0 246 255 / 0.12);
+    border-radius: 4px;
+    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
   }
 }
 
 @media (max-width: 1023px) {
   [data-theme="future-2030"] #bangoos-sidebar {
-    border-right: 1px solid rgb(66 232 255 / 0.18);
+    border-right: 1px solid rgb(0 246 255 / 0.3);
   }
 
   [data-theme="future-2030"] [data-bos-topbar="true"] {
-    box-shadow: 0 14px 42px -32px rgb(0 0 0 / 0.95);
+    box-shadow: inset 0 -1px rgb(0 246 255 / 0.12), 0 10px 28px -20px #000;
+  }
+
+  [data-theme="future-2030"] .enterprise-shell::after {
+    opacity: 0.45;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  [data-theme="future-2030"] [data-bos-topbar="true"]::after {
+    animation: bos-neon-scan 5.5s ease-in-out infinite;
+  }
+
   [data-theme="future-2030"] [data-bos-page-header="true"]::after {
-    animation: bos-future-orbit 12s ease-in-out infinite alternate;
+    animation: bos-neon-pulse 3.8s ease-in-out infinite alternate;
   }
 
-  [data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="kpi"]::after {
-    animation: bos-future-scanline 5.6s ease-in-out infinite;
+  [data-theme="future-2030"] .enterprise-shell::after {
+    animation: bos-grid-drift 12s linear infinite;
   }
 }
 
-@keyframes bos-future-orbit {
-  from { transform: translate3d(-5px, -4px, 0) scale(0.98); opacity: 0.62; }
-  to { transform: translate3d(8px, 7px, 0) scale(1.04); opacity: 0.92; }
+@keyframes bos-neon-scan {
+  0%, 100% { opacity: 0.28; transform: scaleX(0.76); }
+  50% { opacity: 0.82; transform: scaleX(1); }
 }
 
-@keyframes bos-future-scanline {
-  0%, 100% { opacity: 0.28; transform: scaleX(0.74); }
-  50% { opacity: 0.72; transform: scaleX(1); }
+@keyframes bos-neon-pulse {
+  from { opacity: 0.32; filter: brightness(0.8); }
+  to { opacity: 0.86; filter: brightness(1.25); }
+}
+
+@keyframes bos-grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 34px, 52px 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -299,6 +412,7 @@
   [data-theme="future-2030"] *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
 }
