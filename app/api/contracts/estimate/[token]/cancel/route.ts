@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { loadHomeSolicitationCompliance } from "@/lib/compliance/home-solicitation-service";
+import { recordHomeSolicitationEvent } from "@/lib/compliance/home-solicitation-events-service";
 
 function ohioDateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
@@ -48,6 +49,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       metadata: { channel: "bos_secure_contract_link" },
     });
     if (eventError) throw new Error(eventError.message || "Unable to preserve the cancellation notice.");
+
+    await recordHomeSolicitationEvent(admin, {
+      companyId: validated.companyId,
+      estimateId: validated.estimateId,
+      eventType: "cancellation_received",
+      actorType: "customer",
+      metadata: { receivedAt, effectiveDate, deadlineDate, timely, publicTokenId: validated.tokenId || null },
+    });
 
     if (!timely) {
       return NextResponse.json({ cancelled: false, timely: false, reviewRequired: true, receivedAt, deadlineDate, message: "Your cancellation request has been recorded for review." });
