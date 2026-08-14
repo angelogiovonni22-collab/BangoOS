@@ -53,3 +53,11 @@ with check (exists (
     and cm.user_id = auth.uid()
     and cm.status = 'active'
 ));
+
+alter table public.projects
+  add column if not exists contract_compliance_hold_active boolean not null default false,
+  add column if not exists contract_compliance_hold_until timestamptz,
+  add column if not exists contract_compliance_hold_reason text;
+
+create index if not exists projects_contract_compliance_hold_idx
+  on public.projects(company_id, contract_compliance_hold_active, contract_compliance_hold_until);
