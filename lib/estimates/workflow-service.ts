@@ -14,6 +14,7 @@ import type {
   StoreSignatureInput,
   ValidatePublicTokenInput,
 } from "./workflow-types";
+import { BOS_ELECTRONIC_TERMS_VERSION, CONSTRUCTION_AGREEMENT_VERSION, constructionAgreementSections } from "./construction-agreement";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = SupabaseClient<any>;
@@ -136,6 +137,11 @@ export function createEstimateWorkflowService(supabase: SupabaseClient<Database>
       title: estimate.title,
       terms: estimate.terms,
       paymentTerms: estimate.payment_terms,
+      constructionAgreement: {
+        version: CONSTRUCTION_AGREEMENT_VERSION,
+        sections: constructionAgreementSections,
+      },
+      electronicSignaturePlatformTermsVersion: BOS_ELECTRONIC_TERMS_VERSION,
       generatedAt: new Date().toISOString(),
       includeSourceFields: Boolean(input.includeSourceFields),
     };

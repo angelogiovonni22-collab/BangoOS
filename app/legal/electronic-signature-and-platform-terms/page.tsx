@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "Electronic Signature & BOS Platform Terms",
-  description: "Electronic records, signature, and BOS platform terms for estimate review and acceptance.",
+  title: "B.O.S. Electronic Signature & Platform Terms",
+  description: "Electronic records, signature, and B.O.S. platform terms for estimate review and acceptance.",
 };
 
 const sectionClass = "space-y-3";
@@ -12,7 +12,7 @@ export default function ElectronicSignaturePlatformTermsPage() {
       <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-950/10">
         <header className="bg-slate-950 px-6 py-8 text-white sm:px-10">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">B.O.S. legal</p>
-          <h1 className="mt-3 text-3xl font-bold sm:text-4xl">Electronic Signature &amp; BOS Platform Terms</h1>
+          <h1 className="mt-3 text-3xl font-bold sm:text-4xl">B.O.S. Electronic Signature &amp; Platform Terms</h1>
           <p className="mt-3 text-sm text-slate-300">Version 1.0 · Effective August 14, 2026</p>
         </header>
 
@@ -20,9 +20,9 @@ export default function ElectronicSignaturePlatformTermsPage() {
           <section className={sectionClass}>
             <h2 className={headingClass}>1. Purpose and contracting parties</h2>
             <p>
-              These terms govern the use of the Bango Operating System (“BOS”) to receive, review, retain,
+              These terms govern the use of B.O.S. (Bango Operating System) to receive, review, retain,
               and electronically sign an estimate or agreement. The construction agreement is between the
-              customer identified in the estimate and the contractor identified in that estimate. BOS
+              customer identified in the estimate and the contractor identified in that estimate. B.O.S.
               provides the technology used to deliver and record the transaction and is not an additional
               contractor, guarantor, architect, engineer, insurer, or payment obligor.
             </p>
@@ -67,13 +67,13 @@ export default function ElectronicSignaturePlatformTermsPage() {
           </section>
 
           <section className={sectionClass}>
-            <h2 className={headingClass}>5. BOS platform role</h2>
+            <h2 className={headingClass}>5. B.O.S. platform role</h2>
             <p>
               The contractor remains responsible for its estimates, construction obligations, licensing,
               permits, safety, workmanship, schedules, payments, warranties, and compliance with applicable
-              law. BOS does not independently verify project information or provide legal, accounting,
+              law. B.O.S. does not independently verify project information or provide legal, accounting,
               engineering, architectural, or insurance advice. Except for obligations that cannot lawfully
-              be limited, the BOS platform provider is not liable for construction performance, contractor
+              be limited, the B.O.S. platform provider is not liable for construction performance, contractor
               or customer conduct, third-party services, or indirect, incidental, special, consequential,
               or punitive damages arising from a construction agreement.
             </p>
@@ -83,9 +83,9 @@ export default function ElectronicSignaturePlatformTermsPage() {
             <h2 className={headingClass}>6. Security and availability</h2>
             <p>
               Keep the secure link confidential and notify the contractor if you believe it was accessed
-              without permission. BOS may use reasonable security controls, audit logs, expiration periods,
+              without permission. B.O.S. may use reasonable security controls, audit logs, expiration periods,
               and idempotency protections. No online service can guarantee uninterrupted or error-free
-              availability, and BOS may delay completion when a transaction requires fraud, integrity, or
+              availability, and B.O.S. may delay completion when a transaction requires fraud, integrity, or
               manual review.
             </p>
           </section>

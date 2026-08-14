@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
-import { sendContractEmail } from "@/lib/estimates/contract-email";
 
 async function context(token: string, request: Request) {
   const admin = createAdminClient();
