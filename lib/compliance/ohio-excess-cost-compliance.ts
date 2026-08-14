@@ -49,6 +49,10 @@ function nonnegativeCents(value: number) {
   return Math.max(0, Math.round(value));
 }
 
+function hasOwnerApproval(evidence?: OhioOwnerApprovalEvidence | null) {
+  return evidence?.approved === true && Boolean(evidence.approvedAt);
+}
+
 export function evaluateOhioExcessCostCompliance(
   input: OhioExcessCostComplianceInput,
 ): OhioExcessCostComplianceResult {
@@ -118,27 +122,32 @@ export function evaluateOhioExcessCostCompliance(
       exemptReason: null,
       cumulativeQualifyingExcessCostCents: cumulative,
       estimateNoticeRequired: false,
-      ownerApprovalRequiredBeforeCharge: false,
+      ownerApprovalRequiredBeforeCharge: current > 0,
       workMayStart: false,
       chargeMayProceed: false,
       reasons: ["Classify whether this change is a reasonably unforeseen but necessary excess cost before work or charging proceeds."],
     };
   }
 
+  const ownerApprovalRequiredBeforeCharge = current > 0;
+  const approvalSatisfied = !ownerApprovalRequiredBeforeCharge || hasOwnerApproval(input.ownerApprovalEvidence);
+
   if (!input.qualifiesAsReasonablyUnforeseenNecessary) {
     return {
       rulesetId: OHIO_EXCESS_COST_RULESET_ID,
       rulesetVersion: OHIO_EXCESS_COST_RULESET_VERSION,
       jurisdiction: "OH",
-      status: "COMPLIANT",
+      status: approvalSatisfied ? "COMPLIANT" : "ACTION_REQUIRED",
       applicable: true,
       exemptReason: null,
       cumulativeQualifyingExcessCostCents: prior,
       estimateNoticeRequired: false,
-      ownerApprovalRequiredBeforeCharge: false,
+      ownerApprovalRequiredBeforeCharge,
       workMayStart: true,
-      chargeMayProceed: true,
-      reasons: ["This change is classified outside the reasonably-unforeseen-and-necessary excess-cost rule."],
+      chargeMayProceed: approvalSatisfied,
+      reasons: approvalSatisfied
+        ? ["No statutory excess-cost estimate notice is required for this classification, and owner approval for the charge is documented."]
+        : ["This change does not trigger the special excess-cost estimate notice, but owner approval is still required before charging the excess cost."],
     };
   }
 
@@ -162,7 +171,6 @@ export function evaluateOhioExcessCostCompliance(
   }
 
   const estimateNoticeRequired = cumulative > OHIO_EXCESS_COST_NOTICE_THRESHOLD_CENTS;
-  const ownerApprovalRequiredBeforeCharge = current > 0;
   const expectedMethod = input.contractEstimateMethod === "written" || input.contractEstimateMethod === "oral"
     ? input.contractEstimateMethod
     : null;
@@ -170,10 +178,6 @@ export function evaluateOhioExcessCostCompliance(
     expectedMethod !== null
     && input.estimateEvidence?.method === expectedMethod
     && Boolean(input.estimateEvidence.providedAt)
-  );
-  const approvalSatisfied = !ownerApprovalRequiredBeforeCharge || (
-    input.ownerApprovalEvidence?.approved === true
-    && Boolean(input.ownerApprovalEvidence.approvedAt)
   );
 
   if (estimateNoticeRequired && !expectedMethod) {
