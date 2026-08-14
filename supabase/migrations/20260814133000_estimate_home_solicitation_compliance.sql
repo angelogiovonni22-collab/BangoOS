@@ -57,6 +57,38 @@ with check (exists (
     and cm.status = 'active'
 ));
 
+create table if not exists public.estimate_home_solicitation_cancellations (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references public.companies(id) on delete cascade,
+  estimate_id uuid not null references public.estimates(id) on delete cascade,
+  public_token_id uuid,
+  received_at timestamptz not null default now(),
+  effective_date date,
+  deadline_date date,
+  timely boolean,
+  notice_text text not null,
+  ip_address text,
+  user_agent text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists estimate_home_solicitation_cancellations_lookup_idx
+  on public.estimate_home_solicitation_cancellations(company_id, estimate_id, received_at desc);
+
+alter table public.estimate_home_solicitation_cancellations enable row level security;
+
+create policy "estimate_home_solicitation_cancellations_active_company_members_read"
+on public.estimate_home_solicitation_cancellations
+for select
+to authenticated
+using (exists (
+  select 1 from public.company_memberships cm
+  where cm.company_id = estimate_home_solicitation_cancellations.company_id
+    and cm.user_id = auth.uid()
+    and cm.status = 'active'
+));
+
 alter table public.projects
   add column if not exists contract_compliance_hold_active boolean not null default false,
   add column if not exists contract_compliance_hold_until timestamptz,
