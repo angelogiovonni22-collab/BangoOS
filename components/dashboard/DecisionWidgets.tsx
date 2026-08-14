@@ -1,4 +1,7 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
+"use client";
+
+import { useState } from "react";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import type {
   DashboardDecisionHealthItem,
   DashboardDecisionItem,
@@ -17,6 +20,9 @@ type DecisionListWidgetProps = {
 };
 
 function DecisionListWidget(props: DecisionListWidgetProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const visibleItems = isExpanded ? props.items : props.items.slice(0, 4);
+
   return (
     <Card as="section" variant="elevated">
       <CardHeader className="bg-[var(--color-surface-subtle)]/40">
@@ -28,7 +34,7 @@ function DecisionListWidget(props: DecisionListWidgetProps) {
           <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
             {props.t(props.emptyKey)}
           </p>
-        ) : props.items.map((item) => (
+        ) : visibleItems.map((item) => (
           <article key={item.id} className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-white p-3">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.title}</p>
@@ -42,6 +48,11 @@ function DecisionListWidget(props: DecisionListWidgetProps) {
             </a>
           </article>
         ))}
+        {props.items.length > 4 ? (
+          <Button type="button" variant="secondary" fullWidth onClick={() => setIsExpanded((current) => !current)}>
+            {isExpanded ? props.t("dashboard.collapse") : `${props.t("dashboard.viewAll")} (${props.items.length})`}
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   );

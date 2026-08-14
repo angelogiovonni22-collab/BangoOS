@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardLayoutState, WidgetId } from "./types";
 
-const STORAGE_KEY = "bangoos.dashboard.layout.v1";
+const STORAGE_KEY = "bangoos.dashboard.layout.v2";
 
 const defaultLayout: DashboardLayoutState = {
   order: [
@@ -26,7 +26,19 @@ const defaultLayout: DashboardLayoutState = {
     "command-center",
   ],
   hidden: [],
-  collapsed: [],
+  collapsed: [
+    "schedule",
+    "project-health",
+    "weather",
+    "pending-followups",
+    "automation-queue",
+    "recent-automations",
+    "risk-summary",
+    "decision-recommendations",
+    "todays-decisions",
+    "critical-alerts",
+    "command-center",
+  ],
 };
 
 function sanitizeLayout(input: Partial<DashboardLayoutState> | null | undefined): DashboardLayoutState {
