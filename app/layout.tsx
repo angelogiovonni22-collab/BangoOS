@@ -4,13 +4,10 @@ import { cookies } from "next/headers";
 import "./globals.css";
 import "./legacy-token-aliases.css";
 import "./app-content-surface.css";
+import "./visual-theme.css";
 import { I18nProvider } from "@/lib/i18n/provider";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "B.O.S.",
@@ -25,26 +22,22 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0a1222",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#eef4fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#050b16" },
+  ],
 };
 
 const LOCALE_COOKIE_KEY = "bangoos_i18n_locale";
+function isAppLocale(value: string | undefined): value is "en" | "es" { return value === "en" || value === "es"; }
 
-function isAppLocale(value: string | undefined): value is "en" | "es" {
-  return value === "en" || value === "es";
-}
-
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE_KEY)?.value;
   const initialLocale = isAppLocale(cookieLocale) ? cookieLocale : "en";
 
   return (
-    <html lang={initialLocale} className={`${inter.variable} h-full antialiased`}>
+    <html lang={initialLocale} className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         <I18nProvider initialLocale={initialLocale}>{children}</I18nProvider>
       </body>
