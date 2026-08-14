@@ -21,6 +21,7 @@ export { LanguageSelector } from "./language-selector";
 export { ProfileMenu } from "./profile-menu";
 export { ThemeToggle } from "./theme-toggle";
 export { ThemeGallery } from "./theme-gallery";
+export { LayoutGallery } from "./layout-gallery";
 export { TableContainer } from "./table-container";
 export {
   EnterpriseTable,
