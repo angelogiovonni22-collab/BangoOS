@@ -1,0 +1,150 @@
+/* BangoOS visual uplift: semantic theme overrides loaded after the legacy token layers. */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bos-bg-root: #eef4fb;
+  --bos-bg-shell: #f7faff;
+  --bos-bg-sidebar: #0a1730;
+  --bos-bg-panel: #ffffff;
+  --bos-bg-panel-elevated: #ffffff;
+  --bos-bg-control: #f1f6fc;
+  --bos-bg-hover: #e5eef9;
+  --bos-border-subtle: #d5e1ef;
+  --bos-border-default: #bfd0e4;
+  --bos-border-strong: #9fb7d2;
+  --bos-text-primary: #10243f;
+  --bos-text-secondary: #385574;
+  --bos-text-muted: #617b98;
+  --bos-text-inverse: #f8fbff;
+  --bos-text-strong-on-light: #10243f;
+  --bos-text-medium-on-light: #385574;
+  --bos-bg-workspace-surface: #eef4fb;
+  --bos-bg-workspace-surface-soft: #f6f9fd;
+  --bos-bg-workspace-card: #ffffff;
+  --bos-border-light: #d5e1ef;
+  --bos-border-light-strong: #bfd0e4;
+  --color-background-app: #eef4fb;
+  --color-background-root: #eef4fb;
+  --color-background-workspace: #eef4fb;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f1f6fc;
+  --color-surface-muted: #e5eef9;
+  --color-surface-elevated: #ffffff;
+  --color-text-primary: #10243f;
+  --color-text-secondary: #385574;
+  --color-text-muted: #617b98;
+  --color-text-inverse: #f8fbff;
+  --color-border-subtle: #d5e1ef;
+  --color-border-strong: #bfd0e4;
+  --color-disabled-bg: #edf2f7;
+  --color-disabled-text: #6b7f95;
+  --color-disabled-border: #d5e1ef;
+  --background: #eef4fb;
+  --foreground: #10243f;
+  --shadow-small: 0 1px 2px rgb(15 35 65 / 0.08);
+  --shadow-medium: 0 16px 36px -24px rgb(15 35 65 / 0.35);
+  --shadow-large: 0 28px 60px -34px rgb(15 35 65 / 0.42);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bos-bg-root: #050b16;
+  --bos-bg-shell: #091427;
+  --bos-bg-sidebar: #070f1f;
+  --bos-bg-panel: #0d182b;
+  --bos-bg-panel-elevated: #12203a;
+  --bos-bg-control: #14243f;
+  --bos-bg-hover: #1a2c4a;
+  --bos-border-subtle: rgb(99 130 174 / 0.22);
+  --bos-border-default: rgb(121 156 206 / 0.32);
+  --bos-border-strong: rgb(144 180 230 / 0.48);
+  --bos-text-primary: #eff6ff;
+  --bos-text-secondary: #c2d2ea;
+  --bos-text-muted: #8ba1bf;
+  --bos-text-inverse: #031122;
+  --bos-text-strong-on-light: #eff6ff;
+  --bos-text-medium-on-light: #c2d2ea;
+  --bos-bg-workspace-surface: #07111f;
+  --bos-bg-workspace-surface-soft: #0b1728;
+  --bos-bg-workspace-card: #0d182b;
+  --bos-border-light: rgb(99 130 174 / 0.28);
+  --bos-border-light-strong: rgb(121 156 206 / 0.4);
+  --color-background-app: #050b16;
+  --color-background-root: #050b16;
+  --color-background-workspace: #07111f;
+  --color-surface-card: #0d182b;
+  --color-surface-subtle: #14243f;
+  --color-surface-muted: #1a2c4a;
+  --color-surface-elevated: #12203a;
+  --color-text-primary: #eff6ff;
+  --color-text-secondary: #c2d2ea;
+  --color-text-muted: #8ba1bf;
+  --color-text-inverse: #031122;
+  --color-border-subtle: rgb(99 130 174 / 0.22);
+  --color-border-strong: rgb(121 156 206 / 0.38);
+  --color-disabled-bg: #0d182b;
+  --color-disabled-text: #8ba1bf;
+  --color-disabled-border: rgb(99 130 174 / 0.22);
+  --background: #050b16;
+  --foreground: #eff6ff;
+}
+
+html { background: var(--bos-bg-root); }
+body { background: var(--bos-bg-root); color: var(--color-text-primary); transition: background-color 180ms ease, color 180ms ease; }
+
+.enterprise-shell { background: var(--bos-bg-root) !important; color: var(--color-text-primary); }
+.enterprise-shell main {
+  background-color: var(--color-background-workspace);
+  color: var(--color-text-primary);
+  --color-text-primary: var(--bos-text-primary);
+  --color-text-secondary: var(--bos-text-secondary);
+  --color-text-muted: var(--bos-text-muted);
+  --color-border-subtle: var(--bos-border-subtle);
+  --color-border-strong: var(--bos-border-default);
+  --color-surface-card: var(--bos-bg-panel);
+  --color-surface-subtle: var(--bos-bg-control);
+  --color-surface-muted: var(--bos-bg-hover);
+  --color-surface-elevated: var(--bos-bg-panel-elevated);
+}
+
+[data-theme="light"] .enterprise-shell main {
+  --color-text-primary: #10243f;
+  --color-text-secondary: #385574;
+  --color-text-muted: #617b98;
+  --color-border-subtle: #d5e1ef;
+  --color-border-strong: #bfd0e4;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f1f6fc;
+  --color-surface-muted: #e5eef9;
+  --color-surface-elevated: #ffffff;
+}
+
+/* Keep explicit light surfaces readable even when legacy modules nest them. */
+.enterprise-shell main .bg-white {
+  color: #10243f;
+  --color-text-primary: #10243f;
+  --color-text-secondary: #385574;
+  --color-text-muted: #617b98;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f1f6fc;
+  --color-surface-muted: #e5eef9;
+  --color-surface-elevated: #ffffff;
+  --color-border-subtle: #d5e1ef;
+  --color-border-strong: #bfd0e4;
+}
+
+[data-theme="dark"] .enterprise-shell main .bg-white {
+  background-color: var(--color-surface-card) !important;
+  color: var(--color-text-primary);
+  --color-text-primary: #eff6ff;
+  --color-text-secondary: #c2d2ea;
+  --color-text-muted: #8ba1bf;
+  --color-surface-card: #0d182b;
+  --color-surface-subtle: #14243f;
+  --color-surface-muted: #1a2c4a;
+  --color-surface-elevated: #12203a;
+  --color-border-subtle: rgb(99 130 174 / 0.22);
+  --color-border-strong: rgb(121 156 206 / 0.38);
+}
+
+::selection { background: rgb(59 130 246 / 0.28); }
