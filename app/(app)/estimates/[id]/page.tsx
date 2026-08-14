@@ -3,6 +3,8 @@
 import { useParams } from "next/navigation";
 import { EstimateDetail } from "@/components/estimates";
 import { EstimateComplianceSection } from "@/components/estimates/estimate-compliance-section";
+import { HomeSolicitationCompliancePanel } from "@/components/estimates/home-solicitation-compliance-panel";
+import { HomeSolicitationSellerSignature } from "@/components/estimates/home-solicitation-seller-signature";
 
 export default function EstimateDetailsPage() {
   const params = useParams<{ id?: string | string[] }>();
@@ -16,6 +18,8 @@ export default function EstimateDetailsPage() {
     <div className="space-y-6">
       <EstimateDetail estimateId={estimateId} />
       <EstimateComplianceSection estimateId={estimateId} />
+      <HomeSolicitationCompliancePanel estimateId={estimateId} />
+      <HomeSolicitationSellerSignature estimateId={estimateId} />
     </div>
   );
 }
