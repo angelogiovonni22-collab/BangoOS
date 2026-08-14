@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Phase 7 RPC/view types are migration-backed until the next generated-type refresh.
+// Compliance evidence RPC/view types are migration-backed until the next generated-type refresh.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = SupabaseClient<any>;
 
-export type ComplianceEvidenceDomain = "home_solicitation" | "operational_work_start";
+export type ComplianceEvidenceDomain = "home_solicitation" | "operational_work_start" | "counsel_review";
 
 export type ComplianceEvidenceRecord = {
   evidenceDomain: ComplianceEvidenceDomain;
@@ -32,9 +32,11 @@ type EvidenceQuery = {
 
 function normalizeRecord(value: unknown): ComplianceEvidenceRecord {
   const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const domain = row.evidence_domain === "operational_work_start"
+  const domain: ComplianceEvidenceDomain = row.evidence_domain === "operational_work_start"
     ? "operational_work_start"
-    : "home_solicitation";
+    : row.evidence_domain === "counsel_review"
+      ? "counsel_review"
+      : "home_solicitation";
   const decision = row.decision === "ALLOWED" || row.decision === "BLOCKED" ? row.decision : null;
 
   return {
