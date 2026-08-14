@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
-import { escapeContractEmailText, estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
+import { estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
+import { renderBrandedEstimateEmail } from "@/lib/estimates/branded-estimate-email";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
@@ -13,21 +14,42 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: estimate, error } = await supabase
     .from("estimates")
-    .select("id, title, estimate_number, customer_id, status, customers(email, first_name, last_name)")
+    .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name)")
     .eq("company_id", workspace.context.companyId).eq("id", estimateId).maybeSingle();
   if (error || !estimate) return NextResponse.json({ error: "Estimate not found." }, { status: 404 });
   const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
   if (!customer?.email) return NextResponse.json({ error: "The linked customer needs an email address before sending a contract." }, { status: 400 });
+
+  const { data: company, error: companyError } = await supabase
+    .from("companies")
+    .select("name, display_name, legal_name, logo_url")
+    .eq("id", workspace.context.companyId)
+    .single();
+  if (companyError || !company) {
+    return NextResponse.json({ error: "Company email branding is unavailable." }, { status: 500 });
+  }
+  const companyName = company.display_name || company.legal_name || company.name;
 
   const result = await createEstimateWorkflowService(supabase).generatePublicToken({
     companyId: workspace.context.companyId, estimateId, actorProfileId: workspace.context.userId, ttlHours: 24 * 14,
     metadata: { purpose: "contract_signature" },
   });
   const url = estimateContractPublicUrl(result.token);
+  const termsUrl = new URL("/legal/electronic-signature-and-platform-terms", url).toString();
   const delivery = await sendContractEmail({
     to: customer.email.trim(),
-    subject: `Review and sign ${estimate.estimate_number || "your estimate"}`,
-    html: `<p>Hello ${escapeContractEmailText(customer.first_name || "there")},</p><p>Your contract for <strong>${escapeContractEmailText(estimate.title)}</strong> is ready to review and sign.</p><p><a href="${url}">Open and sign contract</a></p><p>This secure link expires ${new Date(result.expiresAt).toLocaleString()}.</p>`,
+    subject: `${companyName} | ${estimate.estimate_number || "Estimate"} ready for review`,
+    html: renderBrandedEstimateEmail({
+      companyName,
+      companyLogoUrl: company.logo_url,
+      customerFirstName: customer.first_name,
+      estimateTitle: estimate.title,
+      estimateNumber: estimate.estimate_number,
+      totalAmount: Number(estimate.total_amount || 0),
+      reviewUrl: url,
+      termsUrl,
+      expiresAt: result.expiresAt,
+    }),
     idempotencyKey: `estimate-contract/${workspace.context.companyId}/${estimateId}/${result.token.slice(0, 16)}`,
   });
   if (!delivery.delivered) {
