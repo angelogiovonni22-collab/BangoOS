@@ -6,6 +6,10 @@ const sql = readFileSync(
   new URL("../../supabase/migrations/20260814170000_operational_work_start_compliance.sql", import.meta.url),
   "utf8",
 );
+const integritySql = readFileSync(
+  new URL("../../supabase/migrations/20260814171000_operational_work_start_integrity.sql", import.meta.url),
+  "utf8",
+);
 const service = readFileSync(new URL("./operational-work-start-service.ts", import.meta.url), "utf8");
 
 test("Phase 6 composes existing legal guards instead of duplicating their rules", () => {
@@ -22,6 +26,18 @@ test("change-order work fails closed when the governing estimate cannot be ident
 test("a governing estimate must belong to the requesting company", () => {
   assert.match(sql, /v_estimate_company <> p_company_id/);
   assert.match(sql, /GOVERNING_ESTIMATE_NOT_FOUND/);
+});
+
+test("a caller cannot label change-order authorization with a different governing estimate", () => {
+  assert.match(integritySql, /v_change_order_estimate_id <> p_estimate_id/);
+  assert.match(integritySql, /CHANGE_ORDER_GOVERNING_ESTIMATE_MISMATCH/);
+  assert.match(integritySql, /v_change_order_estimate_id <> new\.estimate_id/);
+  assert.match(integritySql, /before insert on public\.operational_work_start_authorizations/i);
+});
+
+test("authorization evidence project must match the governing estimate project", () => {
+  assert.match(integritySql, /new\.project_id is distinct from v_estimate_project_id/);
+  assert.match(integritySql, /OPERATIONAL_PROJECT_ESTIMATE_MISMATCH/);
 });
 
 test("operational decisions preserve known compliance blocker codes", () => {
