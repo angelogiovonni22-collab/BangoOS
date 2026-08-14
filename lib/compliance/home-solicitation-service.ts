@@ -6,6 +6,9 @@ type AnySupabase = SupabaseClient<any>;
 
 export type HomeSolicitationProfile = Omit<HomeSolicitationInput, "purchasePrice"> & {
   id?: string;
+  sellerSignerName?: string | null;
+  sellerSignedAt?: string | null;
+  sellerSignedBy?: string | null;
   transactionSignedAt?: string | null;
   cancellationDeadlineDate?: string | null;
   cancelledAt?: string | null;
@@ -13,6 +16,7 @@ export type HomeSolicitationProfile = Omit<HomeSolicitationInput, "purchasePrice
 };
 
 function rowToProfile(row: Record<string, unknown> | null): HomeSolicitationProfile {
+  const sellerSignedAt = (row?.seller_signed_at as string | null) || null;
   return {
     id: (row?.id as string | undefined) || undefined,
     consumerPurpose: (row?.consumer_purpose as HomeSolicitationProfile["consumerPurpose"]) || "unknown",
@@ -29,7 +33,10 @@ function rowToProfile(row: Record<string, unknown> | null): HomeSolicitationProf
     cancellationFax: (row?.cancellation_fax as string | null) || null,
     noticeTemplateReady: Boolean(row?.notice_template_ready),
     duplicateNoticeConfigured: Boolean(row?.duplicate_notice_configured),
-    signedSellerCopyConfigured: Boolean(row?.signed_seller_copy_configured),
+    signedSellerCopyConfigured: Boolean(sellerSignedAt),
+    sellerSignerName: (row?.seller_signer_name as string | null) || null,
+    sellerSignedAt,
+    sellerSignedBy: (row?.seller_signed_by as string | null) || null,
     assistedLiveSigning: Boolean(row?.assisted_live_signing),
     oralDisclosureWorkflowConfirmed: Boolean(row?.oral_disclosure_workflow_confirmed),
     workStartHoldConfigured: Boolean(row?.work_start_hold_configured),
@@ -58,7 +65,7 @@ export async function recordHomeSolicitationEvaluation(
   db: AnySupabase,
   companyId: string,
   estimateId: string,
-  actorProfileId: string,
+  actorProfileId: string | null,
   evaluation: HomeSolicitationEvaluation,
   metadata: Record<string, unknown> = {},
 ) {
@@ -100,7 +107,6 @@ export async function saveHomeSolicitationCompliance(
     cancellation_fax: profile.cancellationFax || null,
     notice_template_ready: profile.noticeTemplateReady === true,
     duplicate_notice_configured: profile.duplicateNoticeConfigured === true,
-    signed_seller_copy_configured: profile.signedSellerCopyConfigured === true,
     assisted_live_signing: profile.assistedLiveSigning === true,
     oral_disclosure_workflow_confirmed: profile.oralDisclosureWorkflowConfirmed === true,
     work_start_hold_configured: profile.workStartHoldConfigured === true,
@@ -112,6 +118,28 @@ export async function saveHomeSolicitationCompliance(
   const result = await loadHomeSolicitationCompliance(db, companyId, estimateId);
   await recordHomeSolicitationEvaluation(db, companyId, estimateId, actorProfileId, result.evaluation, { source: "manual_check" });
   return result;
+}
+
+export async function recordHomeSolicitationSellerSignature(
+  db: AnySupabase,
+  companyId: string,
+  estimateId: string,
+  actorProfileId: string,
+  signerName: string,
+) {
+  const normalizedName = signerName.trim();
+  if (!normalizedName) throw new Error("Authorized seller signer name is required.");
+  const signedAt = new Date().toISOString();
+  const { error } = await db.from("estimate_home_solicitation_profiles").update({
+    seller_signer_name: normalizedName,
+    seller_signed_at: signedAt,
+    seller_signed_by: actorProfileId,
+    signed_seller_copy_configured: true,
+    updated_by: actorProfileId,
+    updated_at: signedAt,
+  }).eq("company_id", companyId).eq("estimate_id", estimateId);
+  if (error) throw new Error(error.message || "Unable to record seller signature.");
+  return loadHomeSolicitationCompliance(db, companyId, estimateId);
 }
 
 export async function recordHomeSolicitationSignature(
