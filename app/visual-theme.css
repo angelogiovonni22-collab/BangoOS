@@ -133,6 +133,42 @@ body { background: var(--bos-bg-root); color: var(--color-text-primary); transit
   --color-surface-elevated: #ffffff;
 }
 
+/* Sidebar gets a subtle ambient field and responsive nav motion without changing layout. */
+#bangoos-sidebar {
+  background-color: var(--bos-bg-sidebar);
+  background-image:
+    radial-gradient(circle at 12% 8%, rgb(55 124 246 / 0.18), transparent 15rem),
+    radial-gradient(circle at 92% 82%, rgb(34 196 214 / 0.08), transparent 17rem),
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 28%);
+}
+
+#bangoos-sidebar nav a {
+  position: relative;
+  will-change: transform;
+  transition: transform 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+#bangoos-sidebar nav a:hover {
+  transform: translateX(2px);
+}
+
+#bangoos-sidebar nav a > span:first-child {
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+#bangoos-sidebar nav a:hover > span:first-child {
+  transform: scale(1.08);
+  filter: drop-shadow(0 0 7px rgb(96 165 250 / 0.34));
+}
+
+#bangoos-sidebar nav section > button {
+  transition: background-color 160ms ease, color 160ms ease, letter-spacing 160ms ease;
+}
+
+#bangoos-sidebar nav section > button:hover {
+  letter-spacing: 0.2em;
+}
+
 /* Shared authenticated-page hero material. */
 [data-bos-page-header="true"] {
   border-radius: 1.25rem;
@@ -257,6 +293,9 @@ body { background: var(--bos-bg-root); color: var(--color-text-primary); transit
   .enterprise-shell main input,
   .enterprise-shell main textarea,
   .enterprise-shell main select,
+  #bangoos-sidebar nav a,
+  #bangoos-sidebar nav a > span:first-child,
+  #bangoos-sidebar nav section > button,
   .motion-hover-button {
     transition: none !important;
     transform: none !important;

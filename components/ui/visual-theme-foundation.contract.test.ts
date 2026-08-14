@@ -9,6 +9,7 @@ const settings = readFileSync(new URL("../../app/(app)/settings/page.tsx", impor
 const shell = readFileSync(new URL("../../app/(app)/app-shell.tsx", import.meta.url), "utf8");
 const pageHeader = readFileSync(new URL("./page-header.tsx", import.meta.url), "utf8");
 const card = readFileSync(new URL("./card.tsx", import.meta.url), "utf8");
+const statusBadge = readFileSync(new URL("./status-badge.tsx", import.meta.url), "utf8");
 
 test("visual system defines explicit light and dark semantic contracts", () => {
   assert.match(themeCss, /:root,\s*\[data-theme="light"\]/);
@@ -35,6 +36,14 @@ test("shared visual materials make authenticated pages dimensional and alive", (
   assert.match(themeCss, /\[data-bos-card-variant="kpi"\]:hover/);
   assert.match(themeCss, /table tbody tr:hover/);
   assert.match(themeCss, /prefers-reduced-motion/);
+});
+
+test("primary-page uplift adds restrained navigation and status feedback", () => {
+  assert.match(themeCss, /#bangoos-sidebar/);
+  assert.match(themeCss, /#bangoos-sidebar nav a:hover/);
+  assert.match(themeCss, /translateX\(2px\)/);
+  assert.match(statusBadge, /rounded-full bg-current opacity-70/);
+  assert.match(statusBadge, /gap-1\.5/);
 });
 
 test("visual uplift preserves Orion provider architecture", () => {
