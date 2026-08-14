@@ -11,7 +11,7 @@ export type JurisdictionPack = {
   statutoryReferences: readonly string[];
 };
 
-export const OHIO_RESIDENTIAL_HOME_CONSTRUCTION_PACK = {
+export const OHIO_RESIDENTIAL_HOME_CONSTRUCTION_PACK: JurisdictionPack = {
   packId: "US-OH-RESIDENTIAL-HOME-CONSTRUCTION",
   jurisdiction: "OH",
   rulesetId: "OH_RESIDENTIAL_HOME_CONSTRUCTION",
@@ -20,11 +20,11 @@ export const OHIO_RESIDENTIAL_HOME_CONSTRUCTION_PACK = {
   effectiveTo: null,
   status: "active",
   statutoryReferences: ["ORC 4722.01", "ORC 4722.02", "ORC 4722.04"],
-} as const satisfies JurisdictionPack;
+};
 
-const JURISDICTION_PACKS = [OHIO_RESIDENTIAL_HOME_CONSTRUCTION_PACK] as const;
+const JURISDICTION_PACKS: readonly JurisdictionPack[] = [OHIO_RESIDENTIAL_HOME_CONSTRUCTION_PACK];
 
-export type SupportedJurisdictionPack = (typeof JURISDICTION_PACKS)[number];
+export type SupportedJurisdictionPack = JurisdictionPack;
 
 export function listJurisdictionPacks(): readonly SupportedJurisdictionPack[] {
   return JURISDICTION_PACKS;
