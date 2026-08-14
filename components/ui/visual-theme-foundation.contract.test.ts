@@ -3,8 +3,11 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 
 const themeCss = readFileSync(new URL("../../app/visual-theme.css", import.meta.url), "utf8");
+const galleryCss = readFileSync(new URL("../../app/theme-gallery.css", import.meta.url), "utf8");
 const layout = readFileSync(new URL("../../app/layout.tsx", import.meta.url), "utf8");
 const toggle = readFileSync(new URL("./theme-toggle.tsx", import.meta.url), "utf8");
+const gallery = readFileSync(new URL("./theme-gallery.tsx", import.meta.url), "utf8");
+const themeOptions = readFileSync(new URL("../../lib/theme/theme-options.ts", import.meta.url), "utf8");
 const settings = readFileSync(new URL("../../app/(app)/settings/page.tsx", import.meta.url), "utf8");
 const shell = readFileSync(new URL("../../app/(app)/app-shell.tsx", import.meta.url), "utf8");
 const pageHeader = readFileSync(new URL("./page-header.tsx", import.meta.url), "utf8");
@@ -23,11 +26,36 @@ test("visual system defines explicit light and dark semantic contracts", () => {
   assert.match(layout, /visual-theme\.css/);
 });
 
-test("theme toggle persists the user's selection", () => {
-  assert.match(toggle, /bangoos-theme/);
+test("theme gallery exposes eight persistent B.O.S. appearance packs", () => {
+  for (const themeId of ["light", "dark", "executive", "blueprint", "emerald", "graphite", "high-contrast", "digital-command"]) {
+    assert.match(themeOptions, new RegExp(`"${themeId}"`));
+  }
+  assert.match(gallery, /role="radiogroup"/);
+  assert.match(gallery, /localStorage\.setItem/);
+  assert.match(gallery, /document\.documentElement\.dataset\.theme/);
+  assert.match(settings, /ThemeGallery/);
+  assert.match(layout, /theme-gallery\.css/);
+  assert.match(layout, /themeBootstrapScript/);
+  assert.match(layout, /localStorage\.getItem\("bangoos-theme"\)/);
+});
+
+test("quick light-dark toggle remains compatible with gallery selections", () => {
+  assert.match(toggle, /BANGO_THEME_STORAGE_KEY/);
+  assert.match(toggle, /getBangoThemeOption/);
   assert.match(toggle, /localStorage\.setItem/);
   assert.match(toggle, /document\.documentElement\.dataset\.theme/);
-  assert.match(settings, /ThemeToggle/);
+});
+
+test("extended themes provide semantic token packs and theme-aware accent language", () => {
+  assert.match(galleryCss, /\[data-theme="executive"\]/);
+  assert.match(galleryCss, /\[data-theme="blueprint"\]/);
+  assert.match(galleryCss, /\[data-theme="emerald"\]/);
+  assert.match(galleryCss, /\[data-theme="graphite"\]/);
+  assert.match(galleryCss, /\[data-theme="high-contrast"\]/);
+  assert.match(galleryCss, /\[data-theme="digital-command"\]/);
+  assert.match(galleryCss, /--bos-theme-accent:/);
+  assert.match(galleryCss, /\[data-bos-page-header="true"\]::before/);
+  assert.match(shell, /data-bos-topbar="true"/);
 });
 
 test("shared visual materials make authenticated pages dimensional and alive", () => {
