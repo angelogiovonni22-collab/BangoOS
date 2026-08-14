@@ -97,7 +97,7 @@ export async function recordChangeOrderExcessCostEvidence(
   const evaluation = evaluateOhioExcessCostCompliance({
     applicable: compliance.evaluation.applicable,
     pricingType: compliance.profile.pricingType,
-    contractEstimateMethod: compliance.profile.excessCostMethod,
+    contractEstimateMethod: compliance.profile.excessCostMethod ?? null,
     qualifiesAsReasonablyUnforeseenNecessary: input.qualifiesAsReasonablyUnforeseenNecessary,
     currentExcessCostCents: Math.round(currentAmount * 100),
     priorQualifyingExcessCostCents: Math.round(priorQualifyingExcessAmount * 100),
