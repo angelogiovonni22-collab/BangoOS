@@ -22,13 +22,25 @@ export function SummaryCard({ icon, label, value, context, tone = "brand", trend
     analytics: "bg-[var(--color-analytics-700)] text-white ring-[rgb(255_255_255/0.14)]",
   };
 
+  const glowClass: Record<NonNullable<SummaryCardProps["tone"]>, string> = {
+    brand: "bg-[var(--color-primary-500)]",
+    success: "bg-[var(--color-success-500)]",
+    warning: "bg-[var(--color-warning-500)]",
+    danger: "bg-[var(--color-danger-500)]",
+    info: "bg-[var(--color-info-500)]",
+    neutral: "bg-[var(--color-neutral-500)]",
+    analytics: "bg-[var(--color-analytics-500)]",
+  };
+
   return (
-    <Card variant="kpi" className="h-full border-[var(--color-border-subtle)] shadow-[var(--shadow-small)]">
-      <CardContent className={`flex h-full flex-col justify-between ${compact ? "min-h-[112px] p-3.5" : "min-h-[140px] p-4"}`}>
+    <Card variant="kpi" className="group h-full overflow-hidden border-[var(--color-border-subtle)] shadow-[var(--shadow-small)]">
+      <div aria-hidden="true" className={`pointer-events-none absolute -right-9 -top-9 h-28 w-28 rounded-full opacity-[0.12] blur-2xl transition-opacity duration-200 group-hover:opacity-[0.2] ${glowClass[tone]}`} />
+      <div aria-hidden="true" className={`pointer-events-none absolute inset-x-0 top-0 h-[3px] opacity-75 ${glowClass[tone]}`} />
+      <CardContent className={`relative flex h-full flex-col justify-between ${compact ? "min-h-[112px] p-3.5" : "min-h-[140px] p-4"}`}>
         <div className="flex items-start justify-between gap-4">
           <div
             className={[
-              "flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-[0_10px_18px_-14px_rgb(15_23_42/0.34)] ring-1 ring-inset",
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-[0_10px_18px_-14px_rgb(15_23_42/0.34)] ring-1 ring-inset transition-transform duration-200 group-hover:scale-[1.04]",
               toneClass[tone],
               "[&>svg]:h-[22px] [&>svg]:w-[22px] [&>svg]:shrink-0 [&>svg]:stroke-[2.5] [&>svg]:text-white [&>svg]:fill-none [&>span]:text-[22px] [&>span]:font-semibold [&>span]:leading-none",
             ].join(" ")}
