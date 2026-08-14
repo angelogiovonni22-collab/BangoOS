@@ -111,10 +111,6 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
                   );
                 })}
               </nav>
-              <div className="mt-auto shrink-0 rounded-[var(--radius-xl)] border border-[var(--bos-border-subtle)] bg-[linear-gradient(180deg,rgba(17,31,55,0.86),rgba(11,22,39,0.86))] p-4 backdrop-blur">
-                <p className="text-sm font-semibold text-[var(--bos-text-primary)]">{t("common.projectPulse")}</p>
-                <p className="mt-2 text-sm leading-6 text-[var(--bos-text-secondary)]">{t("common.projectPulseDescription")}</p>
-              </div>
             </div>
           </aside>
         </LayerManager>
