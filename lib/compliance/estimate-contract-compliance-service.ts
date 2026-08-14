@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { evaluateOhioResidentialContract, type OhioResidentialContractInput } from "./contract-compliance";
+import { evaluateOhioResidentialContract, type ContractComplianceEvaluation, type OhioResidentialContractInput } from "./contract-compliance";
 
 // The compliance tables are introduced by the same migration as this service and will be folded into
 // generated Database types after migration/type regeneration.
@@ -18,6 +18,7 @@ export type EstimateComplianceProfile = Omit<OhioResidentialContractInput,
 
 function profileFromRow(row: Record<string, unknown> | null): EstimateComplianceProfile {
   return {
+    id: (row?.id as string | undefined) || undefined,
     propertyState: (row?.property_state as string | null) || null,
     propertyClass: (row?.property_class as EstimateComplianceProfile["propertyClass"]) || "unknown",
     pricingType: (row?.pricing_type as EstimateComplianceProfile["pricingType"]) || "unknown",
@@ -71,6 +72,30 @@ export async function loadEstimateCompliance(db: AnySupabase, companyId: string,
   return { profile, evaluation, totalAmount };
 }
 
+export async function recordEstimateComplianceEvaluation(
+  db: AnySupabase,
+  companyId: string,
+  estimateId: string,
+  actorProfileId: string,
+  evaluation: ContractComplianceEvaluation,
+  profileId?: string | null,
+  metadata: Record<string, unknown> = {},
+) {
+  const { error } = await db.from("estimate_contract_compliance_evaluations").insert({
+    company_id: companyId,
+    estimate_id: estimateId,
+    profile_id: profileId || null,
+    ruleset_id: evaluation.rulesetId,
+    ruleset_version: evaluation.rulesetVersion,
+    jurisdiction: evaluation.jurisdiction,
+    status: evaluation.status,
+    applicable: evaluation.applicable,
+    evaluation: { ...evaluation, metadata },
+    evaluated_by: actorProfileId,
+  });
+  if (error) throw new Error(error.message || "Unable to preserve contract compliance evaluation.");
+}
+
 export async function saveEstimateCompliance(
   db: AnySupabase,
   companyId: string,
@@ -106,24 +131,23 @@ export async function saveEstimateCompliance(
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await db
+  const { data: saved, error } = await db
     .from("estimate_contract_compliance_profiles")
-    .upsert(payload, { onConflict: "company_id,estimate_id" });
+    .upsert(payload, { onConflict: "company_id,estimate_id" })
+    .select("id")
+    .single();
   if (error) throw new Error(error.message || "Unable to save contract compliance details.");
 
   const result = await loadEstimateCompliance(db, companyId, estimateId);
-  const { error: evaluationError } = await db.from("estimate_contract_compliance_evaluations").insert({
-    company_id: companyId,
-    estimate_id: estimateId,
-    ruleset_id: result.evaluation.rulesetId,
-    ruleset_version: result.evaluation.rulesetVersion,
-    jurisdiction: result.evaluation.jurisdiction,
-    status: result.evaluation.status,
-    applicable: result.evaluation.applicable,
-    evaluation: result.evaluation,
-    evaluated_by: actorProfileId,
-  });
-  if (evaluationError) throw new Error(evaluationError.message || "Unable to preserve contract compliance evaluation.");
+  await recordEstimateComplianceEvaluation(
+    db,
+    companyId,
+    estimateId,
+    actorProfileId,
+    result.evaluation,
+    (saved?.id as string | undefined) || result.profile.id || null,
+    { source: "manual_check" },
+  );
 
   return result;
 }
