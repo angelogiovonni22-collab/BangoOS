@@ -12,6 +12,12 @@ async function context(token: string, request: Request) {
   return { admin, workflow, validated: { ...validated, companyId: validated.companyId as string, estimateId: validated.estimateId as string } };
 }
 
+function conservativeOhioHoldUntil(deadlineDate: string) {
+  const nextDay = new Date(`${deadlineDate}T12:00:00Z`);
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+  return `${nextDay.toISOString().slice(0, 10)}T05:00:00Z`;
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
     const token = decodeURIComponent((await params).token);
@@ -36,6 +42,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
             rulesetVersion: result.evaluation.rulesetVersion,
             sellerName: result.profile.sellerName,
             sellerAddress: result.profile.sellerAddress,
+            sellerSignerName: result.profile.sellerSignerName,
+            sellerSignedAt: result.profile.sellerSignedAt,
             cancellationEmail: result.profile.cancellationEmail,
             cancellationFax: result.profile.cancellationFax,
             transactionDate: today,
@@ -65,14 +73,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     let homeSolicitationResult = null;
     if (isOhioResidential) {
       homeSolicitationResult = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
-      await recordHomeSolicitationEvaluation(admin, validated.companyId, validated.estimateId, validated.companyId, homeSolicitationResult.evaluation, { source: "signature_gate" });
+      await recordHomeSolicitationEvaluation(admin, validated.companyId, validated.estimateId, null, homeSolicitationResult.evaluation, { source: "signature_gate" });
       if (homeSolicitationResult.evaluation.status !== "COMPLIANT") throw new Error("Home-solicitation compliance requires attention before signing can be finalized.");
     }
 
     const signedAt = new Date().toISOString();
     const agreement = await workflow.generateAgreementSnapshot({ companyId: validated.companyId!, estimateId: validated.estimateId!, actorProfileId: null, includeSourceFields: true });
     const idempotencyKey = `contract-signature:${validated.tokenId}:${agreement.agreementHash}:${body.typedName.trim().toLowerCase()}`;
-    const signature = await workflow.storeSignature({ companyId: validated.companyId!, estimateId: validated.estimateId!, agreementVersionId: agreement.agreementVersionId, estimateVersionNumber: estimate.version_number, typedName: body.typedName, consentAccepted: true, verificationResult: "unverified", idempotencyKey, publicTokenId: validated.tokenId, ipAddress: request.headers.get("x-forwarded-for"), userAgent: request.headers.get("user-agent"), metadata: homeSolicitationResult?.evaluation.applicable === true ? { home_solicitation_ruleset_version: homeSolicitationResult.evaluation.rulesetVersion, home_solicitation_applicable: true } : undefined });
+    const signature = await workflow.storeSignature({ companyId: validated.companyId!, estimateId: validated.estimateId!, agreementVersionId: agreement.agreementVersionId, estimateVersionNumber: estimate.version_number, typedName: body.typedName, consentAccepted: true, verificationResult: "unverified", idempotencyKey, publicTokenId: validated.tokenId, ipAddress: request.headers.get("x-forwarded-for"), userAgent: request.headers.get("user-agent"), metadata: homeSolicitationResult?.evaluation.applicable === true ? { home_solicitation_ruleset_version: homeSolicitationResult.evaluation.rulesetVersion, home_solicitation_applicable: true, seller_signer_name: homeSolicitationResult.profile.sellerSignerName, seller_signed_at: homeSolicitationResult.profile.sellerSignedAt } : undefined });
     await workflow.storeAcceptance({ companyId: validated.companyId, estimateId: validated.estimateId, actorProfileId: null, eventType: "signed", actorType: "customer", signatureId: signature.signatureId, idempotencyKey: `${idempotencyKey}:signed` });
     const { data: actor, error: actorError } = await admin
       .from("profiles")
@@ -91,7 +99,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
           verification_method: "secure_email_link",
           public_token_id: validated.tokenId,
           finalized_at: signedAt,
-          ...(homeSolicitationResult?.evaluation.applicable === true ? { home_solicitation_ruleset_version: homeSolicitationResult.evaluation.rulesetVersion, home_solicitation_applicable: true } : {}),
+          ...(homeSolicitationResult?.evaluation.applicable === true ? { home_solicitation_ruleset_version: homeSolicitationResult.evaluation.rulesetVersion, home_solicitation_applicable: true, seller_signer_name: homeSolicitationResult.profile.sellerSignerName, seller_signed_at: homeSolicitationResult.profile.sellerSignedAt } : {}),
         },
       })
       .eq("id", signature.signatureId)
@@ -131,10 +139,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
     const projectId = conversion?.[0]?.project_id || null;
     if (projectId && cancellationDeadlineDate) {
-      const holdUntil = `${cancellationDeadlineDate}T23:59:59-04:00`;
       const { error: holdError } = await admin.from("projects").update({
         contract_compliance_hold_active: true,
-        contract_compliance_hold_until: holdUntil,
+        contract_compliance_hold_until: conservativeOhioHoldUntil(cancellationDeadlineDate),
         contract_compliance_hold_reason: "Ohio home-solicitation cancellation period",
       } as never).eq("company_id", validated.companyId).eq("id", projectId);
       if (holdError) throw new Error(holdError.message || "Unable to apply the project compliance hold.");
