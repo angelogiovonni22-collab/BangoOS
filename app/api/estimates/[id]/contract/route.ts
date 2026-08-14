@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
-import { sendContractEmail } from "@/lib/estimates/contract-email";
+import { escapeContractEmailText, estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
@@ -23,12 +23,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     companyId: workspace.context.companyId, estimateId, actorProfileId: workspace.context.userId, ttlHours: 24 * 14,
     metadata: { purpose: "contract_signature" },
   });
-  const url = new URL(`/contracts/estimate/${encodeURIComponent(result.token)}`, request.url).toString();
+  const url = estimateContractPublicUrl(result.token);
   const delivery = await sendContractEmail({
-    to: customer.email,
+    to: customer.email.trim(),
     subject: `Review and sign ${estimate.estimate_number || "your estimate"}`,
-    html: `<p>Hello ${customer.first_name || "there"},</p><p>Your contract for <strong>${estimate.title}</strong> is ready to review and sign.</p><p><a href="${url}">Open and sign contract</a></p><p>This secure link expires ${new Date(result.expiresAt).toLocaleString()}.</p>`,
+    html: `<p>Hello ${escapeContractEmailText(customer.first_name || "there")},</p><p>Your contract for <strong>${escapeContractEmailText(estimate.title)}</strong> is ready to review and sign.</p><p><a href="${url}">Open and sign contract</a></p><p>This secure link expires ${new Date(result.expiresAt).toLocaleString()}.</p>`,
+    idempotencyKey: `estimate-contract/${workspace.context.companyId}/${estimateId}/${result.token.slice(0, 16)}`,
   });
-  await supabase.from("estimates").update({ status: "sent", updated_by: workspace.context.userId }).eq("company_id", workspace.context.companyId).eq("id", estimateId);
+  if (!delivery.delivered) {
+    const configurationErrors: Record<string, string> = {
+      resend_api_key_missing: "RESEND_API_KEY is missing from this deployment.",
+      contract_email_sender_missing: "BOS_CONTRACT_EMAIL_FROM is missing from this deployment.",
+    };
+    return NextResponse.json({ error: configurationErrors[delivery.reason || ""] || `Email provider rejected the message: ${delivery.reason || "unknown error"}`, url, expiresAt: result.expiresAt, delivery }, { status: 503 });
+  }
+  const { error: updateError } = await supabase.from("estimates").update({ status: "sent", updated_by: workspace.context.userId }).eq("company_id", workspace.context.companyId).eq("id", estimateId);
+  if (updateError) return NextResponse.json({ error: "Email was accepted, but BOS could not update the estimate status. Do not resend.", url, expiresAt: result.expiresAt, delivery }, { status: 500 });
   return NextResponse.json({ url, expiresAt: result.expiresAt, delivery });
 }

@@ -1,7 +1,8 @@
 export async function sendContractEmail(input: { to: string; subject: string; html: string; idempotencyKey?: string }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.BOS_CONTRACT_EMAIL_FROM;
-  if (!apiKey || !from) return { delivered: false, providerId: null, reason: "email_not_configured" };
+  if (!apiKey?.trim()) return { delivered: false, providerId: null, reason: "resend_api_key_missing" };
+  if (!from?.trim()) return { delivered: false, providerId: null, reason: "contract_email_sender_missing" };
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey.slice(0, 256) } : {}) },
