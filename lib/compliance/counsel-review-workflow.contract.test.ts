@@ -6,7 +6,12 @@ const migration = readFileSync(
   new URL("../../supabase/migrations/20260814200000_counsel_review_workflow.sql", import.meta.url),
   "utf8",
 );
+const evidenceMigration = readFileSync(
+  new URL("../../supabase/migrations/20260814201000_counsel_review_evidence_center.sql", import.meta.url),
+  "utf8",
+);
 const service = readFileSync(new URL("./counsel-review-service.ts", import.meta.url), "utf8");
+const evidenceService = readFileSync(new URL("./compliance-evidence-center-service.ts", import.meta.url), "utf8");
 const boundary = readFileSync(new URL("../../docs/compliance/LEGAL_REVIEW_BOUNDARY.md", import.meta.url), "utf8");
 
 test("Phase 9 preserves reviewer identity scope timestamp and disposition", () => {
@@ -68,4 +73,12 @@ test("counsel-review dispositions remain descriptive rather than operational per
   assert.match(migration, /ADVISORY_ONLY/);
   assert.doesNotMatch(migration, /ALLOWED_BY_COUNSEL/);
   assert.doesNotMatch(migration, /OVERRIDE/);
+});
+
+test("counsel reviews flow into the unified evidence center", () => {
+  assert.match(evidenceMigration, /'counsel_review'::text as evidence_domain/);
+  assert.match(evidenceMigration, /from public\.compliance_counsel_reviews r/);
+  assert.match(evidenceMigration, /r\.jurisdiction_pack_id/);
+  assert.match(evidenceMigration, /r\.ruleset_version/);
+  assert.match(evidenceService, /"counsel_review"/);
 });
