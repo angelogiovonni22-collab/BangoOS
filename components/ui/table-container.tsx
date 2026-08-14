@@ -9,8 +9,8 @@ export function TableContainer({ title, description, controls, children }: Table
       <CardHeader className="bg-[var(--color-surface-subtle)] px-[var(--space-card-padding)] py-4">
         <div className="flex flex-col gap-[var(--space-grid-gap)] lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <CardTitle>{title}</CardTitle>
-            {description ? <CardDescription>{description}</CardDescription> : null}
+            <CardTitle className="text-[var(--bos-text-strong-on-light)]">{title}</CardTitle>
+            {description ? <CardDescription className="text-[var(--bos-text-medium-on-light)]">{description}</CardDescription> : null}
           </div>
           {controls ? <div className="w-full min-w-0 lg:w-auto lg:shrink-0">{controls}</div> : null}
         </div>
