@@ -14,12 +14,12 @@ export default function SettingsPage() {
       <Card as="section" variant="elevated">
         <CardHeader className="bg-[var(--color-surface-subtle)]">
           <CardTitle>Appearance</CardTitle>
-          <p className="text-sm text-[var(--color-text-secondary)]">Choose the B.O.S. visual environment that fits how you work. Every theme uses the same protected readability and interaction system, and your selection is saved on this device.</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">Choose a B.O.S. theme or full interface experience. Themes change the visual language; Experiences can also reshape navigation, spacing, surfaces, depth, and interaction while keeping the same protected B.O.S. data and workflows.</p>
         </CardHeader>
         <CardContent className="space-y-5 p-5">
           <div>
-            <p className="font-semibold text-[var(--color-text-primary)]">Workspace theme</p>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Select a preview to apply it instantly across B.O.S. You can change themes at any time.</p>
+            <p className="font-semibold text-[var(--color-text-primary)]">Themes & Experiences</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Select a preview to apply it instantly across B.O.S. Future 2030 is the first layout-changing experience. Your choice is saved on this device and can be changed at any time.</p>
           </div>
           <ThemeGallery />
         </CardContent>
