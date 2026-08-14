@@ -13,8 +13,7 @@ type ActivityFeedProps = {
 
 export function ActivityFeed({ items, isLoading = false, errorMessage = null, t }: ActivityFeedProps) {
   const [filterValue, setFilterValue] = useState<"all" | DashboardActivityItem["category"]>("all");
-  const [visibleCount, setVisibleCount] = useState(6);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [visibleCount, setVisibleCount] = useState(5);
   const knownActivityIdsRef = useRef<Set<string>>(new Set());
   const [newActivityIds, setNewActivityIds] = useState<Record<string, true>>({});
 
@@ -49,31 +48,6 @@ export function ActivityFeed({ items, isLoading = false, errorMessage = null, t 
     return () => window.clearTimeout(timeout);
   }, [filteredItems]);
 
-  useEffect(() => {
-    if (!sentinelRef.current) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-
-        if (!entry?.isIntersecting) {
-          return;
-        }
-
-        setVisibleCount((current) => Math.min(current + 4, filteredItems.length));
-      },
-      { threshold: 0.2 },
-    );
-
-    observer.observe(sentinelRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [filteredItems.length]);
-
   return (
     <Card as="section" variant="elevated">
       <CardHeader className="bg-[var(--color-surface-subtle)]/40">
@@ -89,7 +63,7 @@ export function ActivityFeed({ items, isLoading = false, errorMessage = null, t 
             value={filterValue}
             onChange={(event) => {
               setFilterValue(event.target.value as "all" | DashboardActivityItem["category"]);
-              setVisibleCount(6);
+              setVisibleCount(5);
             }}
             className="w-full sm:w-56"
           >
@@ -145,12 +119,11 @@ export function ActivityFeed({ items, isLoading = false, errorMessage = null, t 
 
         {filteredItems.length > visibleItems.length ? (
           <>
-            <div ref={sentinelRef} aria-hidden="true" className="h-1" />
             <Button
               type="button"
               variant="secondary"
               fullWidth
-              onClick={() => setVisibleCount((current) => Math.min(current + 4, filteredItems.length))}
+              onClick={() => setVisibleCount((current) => Math.min(current + 5, filteredItems.length))}
             >
               {t("dashboard.activityLoadMore")}
             </Button>
