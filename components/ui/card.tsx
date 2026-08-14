@@ -41,7 +41,7 @@ export function Card({ as = "article", variant = "default", className, ...props 
     .filter(Boolean)
     .join(" ");
 
-  return <Component className={composedClassName} {...props} />;
+  return <Component data-bos-card="true" data-bos-card-variant={variant} className={composedClassName} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: CardHeaderProps) {

@@ -1,0 +1,266 @@
+/* BangoOS visual uplift: semantic theme overrides loaded after the legacy token layers. */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bos-bg-root: #eef4fb;
+  --bos-bg-shell: #f7faff;
+  --bos-bg-sidebar: #0a1730;
+  --bos-bg-panel: #ffffff;
+  --bos-bg-panel-elevated: #ffffff;
+  --bos-bg-control: #f1f6fc;
+  --bos-bg-hover: #e5eef9;
+  --bos-border-subtle: #d5e1ef;
+  --bos-border-default: #bfd0e4;
+  --bos-border-strong: #9fb7d2;
+  --bos-text-primary: #10243f;
+  --bos-text-secondary: #385574;
+  --bos-text-muted: #617b98;
+  --bos-text-inverse: #f8fbff;
+  --bos-text-strong-on-light: #10243f;
+  --bos-text-medium-on-light: #385574;
+  --bos-bg-workspace-surface: #eef4fb;
+  --bos-bg-workspace-surface-soft: #f6f9fd;
+  --bos-bg-workspace-card: #ffffff;
+  --bos-border-light: #d5e1ef;
+  --bos-border-light-strong: #bfd0e4;
+  --color-background-app: #eef4fb;
+  --color-background-root: #eef4fb;
+  --color-background-workspace: #eef4fb;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f1f6fc;
+  --color-surface-muted: #e5eef9;
+  --color-surface-elevated: #ffffff;
+  --color-text-primary: #10243f;
+  --color-text-secondary: #385574;
+  --color-text-muted: #617b98;
+  --color-text-inverse: #f8fbff;
+  --color-border-subtle: #d5e1ef;
+  --color-border-strong: #bfd0e4;
+  --color-disabled-bg: #edf2f7;
+  --color-disabled-text: #6b7f95;
+  --color-disabled-border: #d5e1ef;
+  --background: #eef4fb;
+  --foreground: #10243f;
+  --shadow-small: 0 1px 2px rgb(15 35 65 / 0.08);
+  --shadow-medium: 0 16px 36px -24px rgb(15 35 65 / 0.35);
+  --shadow-large: 0 28px 60px -34px rgb(15 35 65 / 0.42);
+  --bos-ambient-blue: rgb(51 123 255 / 0.12);
+  --bos-ambient-cyan: rgb(36 190 214 / 0.09);
+  --bos-card-highlight: rgb(255 255 255 / 0.82);
+  --bos-card-shadow: 0 18px 44px -30px rgb(22 53 91 / 0.38), 0 3px 12px rgb(22 53 91 / 0.06);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bos-bg-root: #050b16;
+  --bos-bg-shell: #091427;
+  --bos-bg-sidebar: #070f1f;
+  --bos-bg-panel: #0d182b;
+  --bos-bg-panel-elevated: #12203a;
+  --bos-bg-control: #14243f;
+  --bos-bg-hover: #1a2c4a;
+  --bos-border-subtle: rgb(99 130 174 / 0.22);
+  --bos-border-default: rgb(121 156 206 / 0.32);
+  --bos-border-strong: rgb(144 180 230 / 0.48);
+  --bos-text-primary: #eff6ff;
+  --bos-text-secondary: #c2d2ea;
+  --bos-text-muted: #8ba1bf;
+  --bos-text-inverse: #031122;
+  --bos-text-strong-on-light: #eff6ff;
+  --bos-text-medium-on-light: #c2d2ea;
+  --bos-bg-workspace-surface: #07111f;
+  --bos-bg-workspace-surface-soft: #0b1728;
+  --bos-bg-workspace-card: #0d182b;
+  --bos-border-light: rgb(99 130 174 / 0.28);
+  --bos-border-light-strong: rgb(121 156 206 / 0.4);
+  --color-background-app: #050b16;
+  --color-background-root: #050b16;
+  --color-background-workspace: #07111f;
+  --color-surface-card: #0d182b;
+  --color-surface-subtle: #14243f;
+  --color-surface-muted: #1a2c4a;
+  --color-surface-elevated: #12203a;
+  --color-text-primary: #eff6ff;
+  --color-text-secondary: #c2d2ea;
+  --color-text-muted: #8ba1bf;
+  --color-text-inverse: #031122;
+  --color-border-subtle: rgb(99 130 174 / 0.22);
+  --color-border-strong: rgb(121 156 206 / 0.38);
+  --color-disabled-bg: #0d182b;
+  --color-disabled-text: #8ba1bf;
+  --color-disabled-border: rgb(99 130 174 / 0.22);
+  --background: #050b16;
+  --foreground: #eff6ff;
+  --bos-ambient-blue: rgb(38 122 255 / 0.16);
+  --bos-ambient-cyan: rgb(43 206 224 / 0.09);
+  --bos-card-highlight: rgb(255 255 255 / 0.045);
+  --bos-card-shadow: 0 22px 52px -32px rgb(0 0 0 / 0.72), 0 4px 18px rgb(0 0 0 / 0.22);
+}
+
+html { background: var(--bos-bg-root); }
+body { background: var(--bos-bg-root); color: var(--color-text-primary); transition: background-color 180ms ease, color 180ms ease; }
+
+.enterprise-shell { background: var(--bos-bg-root) !important; color: var(--color-text-primary); }
+.enterprise-shell main {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--color-background-workspace);
+  background-image:
+    radial-gradient(circle at 12% 8%, var(--bos-ambient-blue), transparent 28rem),
+    radial-gradient(circle at 88% 18%, var(--bos-ambient-cyan), transparent 24rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-background-workspace) 96%, white 4%), var(--color-background-workspace));
+  color: var(--color-text-primary);
+  --color-text-primary: var(--bos-text-primary);
+  --color-text-secondary: var(--bos-text-secondary);
+  --color-text-muted: var(--bos-text-muted);
+  --color-border-subtle: var(--bos-border-subtle);
+  --color-border-strong: var(--bos-border-default);
+  --color-surface-card: var(--bos-bg-panel);
+  --color-surface-subtle: var(--bos-bg-control);
+  --color-surface-muted: var(--bos-bg-hover);
+  --color-surface-elevated: var(--bos-bg-panel-elevated);
+}
+
+[data-theme="light"] .enterprise-shell main {
+  --color-text-primary: #10243f;
+  --color-text-secondary: #385574;
+  --color-text-muted: #617b98;
+  --color-border-subtle: #d5e1ef;
+  --color-border-strong: #bfd0e4;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f1f6fc;
+  --color-surface-muted: #e5eef9;
+  --color-surface-elevated: #ffffff;
+}
+
+/* Shared authenticated-page hero material. */
+[data-bos-page-header="true"] {
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(118deg, var(--bos-card-highlight), transparent 54%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-surface-elevated) 92%, #3b82f6 8%), var(--color-surface-elevated));
+  box-shadow: var(--bos-card-shadow);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+[data-bos-page-header="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, #2f7cf6, #22c4d6 58%, #47d39b);
+  box-shadow: 0 0 28px rgb(47 124 246 / 0.42);
+}
+
+[data-bos-page-header="true"]::after {
+  content: "";
+  position: absolute;
+  width: 15rem;
+  height: 15rem;
+  right: -5rem;
+  top: -8rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--bos-ambient-blue), transparent 68%);
+  pointer-events: none;
+}
+
+/* Shared card material: dimensional but restrained. */
+.enterprise-shell main [data-bos-card="true"] {
+  position: relative;
+  box-shadow: var(--bos-card-shadow);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.enterprise-shell main [data-bos-card="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 var(--bos-card-highlight);
+}
+
+.enterprise-shell main [data-bos-card-variant="kpi"]:hover,
+.enterprise-shell main [data-bos-card-variant="elevated"]:hover {
+  transform: translateY(-2px);
+  border-color: var(--bos-border-strong);
+  box-shadow: 0 24px 54px -34px rgb(24 65 113 / 0.5), 0 6px 18px rgb(24 65 113 / 0.09);
+}
+
+[data-theme="dark"] .enterprise-shell main [data-bos-card-variant="kpi"]:hover,
+[data-theme="dark"] .enterprise-shell main [data-bos-card-variant="elevated"]:hover {
+  box-shadow: 0 28px 62px -34px rgb(0 0 0 / 0.85), 0 7px 22px rgb(0 0 0 / 0.3);
+}
+
+/* Tables feel active without sacrificing scanability. */
+.enterprise-shell main table tbody tr {
+  transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.enterprise-shell main table tbody tr:hover {
+  box-shadow: inset 3px 0 0 #3b82f6;
+}
+
+.enterprise-shell main table thead {
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--color-surface-subtle) 82%, white 18%), var(--color-surface-subtle));
+}
+
+/* Controls get clearer depth and focus in both themes. */
+.enterprise-shell main input,
+.enterprise-shell main textarea,
+.enterprise-shell main select {
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.enterprise-shell main input:focus,
+.enterprise-shell main textarea:focus,
+.enterprise-shell main select:focus {
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.12), 0 8px 22px -16px rgb(37 99 235 / 0.45);
+}
+
+.motion-hover-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+/* Keep explicit light surfaces readable even when legacy modules nest them. */
+.enterprise-shell main .bg-white {
+  color: #10243f;
+  --color-text-primary: #10243f;
+  --color-text-secondary: #385574;
+  --color-text-muted: #617b98;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f1f6fc;
+  --color-surface-muted: #e5eef9;
+  --color-surface-elevated: #ffffff;
+  --color-border-subtle: #d5e1ef;
+  --color-border-strong: #bfd0e4;
+}
+
+[data-theme="dark"] .enterprise-shell main .bg-white {
+  background-color: var(--color-surface-card) !important;
+  color: var(--color-text-primary);
+  --color-text-primary: #eff6ff;
+  --color-text-secondary: #c2d2ea;
+  --color-text-muted: #8ba1bf;
+  --color-surface-card: #0d182b;
+  --color-surface-subtle: #14243f;
+  --color-surface-muted: #1a2c4a;
+  --color-surface-elevated: #12203a;
+  --color-border-subtle: rgb(99 130 174 / 0.22);
+  --color-border-strong: rgb(121 156 206 / 0.38);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-bos-page-header="true"],
+  .enterprise-shell main [data-bos-card="true"],
+  .enterprise-shell main table tbody tr,
+  .enterprise-shell main input,
+  .enterprise-shell main textarea,
+  .enterprise-shell main select,
+  .motion-hover-button {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+::selection { background: rgb(59 130 246 / 0.28); }
