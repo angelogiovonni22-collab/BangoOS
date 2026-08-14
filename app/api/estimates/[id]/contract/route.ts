@@ -5,6 +5,7 @@ import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service"
 import { estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
 import { renderBrandedEstimateEmail } from "@/lib/estimates/branded-estimate-email";
 import { loadEstimateCompliance, recordEstimateComplianceEvaluation } from "@/lib/compliance/estimate-contract-compliance-service";
+import { loadHomeSolicitationCompliance, recordHomeSolicitationEvaluation } from "@/lib/compliance/home-solicitation-service";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
@@ -15,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: estimate, error } = await supabase
     .from("estimates")
-    .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name)")
+    .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name, customer_type, state)")
     .eq("company_id", workspace.context.companyId).eq("id", estimateId).maybeSingle();
   if (error || !estimate) return NextResponse.json({ error: "Estimate not found." }, { status: 404 });
   const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
@@ -46,6 +47,33 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({
         error: complianceError instanceof Error ? complianceError.message : "Unable to verify contract compliance.",
         code: "CONTRACT_COMPLIANCE_UNAVAILABLE",
+      }, { status: 409 });
+    }
+  }
+
+  const isOhioResidentialCustomer = customer.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
+  if (isOhioResidentialCustomer) {
+    try {
+      const homeSolicitation = await loadHomeSolicitationCompliance(supabase, workspace.context.companyId, estimateId);
+      await recordHomeSolicitationEvaluation(
+        supabase,
+        workspace.context.companyId,
+        estimateId,
+        workspace.context.userId,
+        homeSolicitation.evaluation,
+        { source: "send_gate" },
+      );
+      if (homeSolicitation.evaluation.status !== "COMPLIANT") {
+        return NextResponse.json({
+          error: "Home-solicitation review requires attention before this agreement can be sent.",
+          code: "HOME_SOLICITATION_COMPLIANCE_BLOCKED",
+          compliance: homeSolicitation.evaluation,
+        }, { status: 409 });
+      }
+    } catch (complianceError) {
+      return NextResponse.json({
+        error: complianceError instanceof Error ? complianceError.message : "Unable to verify home-solicitation compliance.",
+        code: "HOME_SOLICITATION_COMPLIANCE_UNAVAILABLE",
       }, { status: 409 });
     }
   }
