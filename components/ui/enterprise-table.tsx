@@ -10,7 +10,7 @@ export function EnterpriseTable({ children, className, minWidthClassName = "min-
 }
 
 export function EnterpriseTableHead({ children, className, ...props }: TableHTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={["bg-[var(--color-surface-subtle)]", className || ""].filter(Boolean).join(" ")} {...props}>{children}</thead>;
+  return <thead className={["bg-[var(--bos-bg-control)]", className || ""].filter(Boolean).join(" ")} {...props}>{children}</thead>;
 }
 
 export function EnterpriseTableBody({ children, className, ...props }: TableHTMLAttributes<HTMLTableSectionElement>) {
@@ -18,7 +18,7 @@ export function EnterpriseTableBody({ children, className, ...props }: TableHTML
 }
 
 export function EnterpriseTableHeading({ children, align = "left", className }: EnterpriseTableHeadingProps) {
-  return <th scope="col" className={["px-3 py-3 text-table-header font-semibold text-[var(--color-text-secondary)] sm:px-5", align === "right" ? "text-right" : "text-left", className || ""].filter(Boolean).join(" ")}>{children}</th>;
+  return <th scope="col" className={["px-3 py-3 text-table-header font-semibold text-[var(--bos-text-medium-on-light)] sm:px-5", align === "right" ? "text-right" : "text-left", className || ""].filter(Boolean).join(" ")}>{children}</th>;
 }
 
 export function EnterpriseTableRow({ children, className, selected = false, ...props }: EnterpriseTableRowProps) {
