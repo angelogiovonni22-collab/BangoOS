@@ -22,8 +22,9 @@ export function ThemeToggle() {
         ? "light"
         : "dark";
 
-    setTheme(preferred);
     applyTheme(preferred);
+    const frame = window.requestAnimationFrame(() => setTheme(preferred));
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   function toggleTheme() {
