@@ -1,8 +1,10 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Badge, Button, Card, CardContent, EmptyState, ErrorState, SectionHeader, Select, SkeletonLoader } from "@/components/ui";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { WorkspaceEnvironment } from "@/components/bangoflow";
+import { Badge, Button, Card, CardContent, ConfirmDialog, Dialog, EmptyState, ErrorState, PermissionState, SectionHeader, Select, SkeletonLoader } from "@/components/ui";
+import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n, type AppLocale } from "@/lib/i18n/provider";
 import type { Database } from "@/types/database.types";
@@ -132,7 +134,6 @@ export function SiteCamWorkspace({
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
-  const modalPrimaryActionRef = useRef<HTMLButtonElement | null>(null);
 
   const viewerPhoto = photos.find((photo) => photo.id === viewerPhotoId) || null;
   const editingPhoto = photos.find((photo) => photo.id === editingPhotoId) || null;
@@ -271,31 +272,30 @@ export function SiteCamWorkspace({
   }, [activeMenuId]);
 
   useEffect(() => {
-    if (!viewerPhoto && !editingPhoto && !deletingPhoto) {
-      document.body.style.removeProperty("overflow");
+    if (!viewerPhoto || editingPhoto) {
       return;
     }
 
-    document.body.style.overflow = "hidden";
-    modalPrimaryActionRef.current?.focus();
+    const nextIndex = filteredPhotos.findIndex((photo) => photo.id === viewerPhoto.id);
+    const previousPhoto = nextIndex > 0 ? filteredPhotos[nextIndex - 1] : null;
+    const nextPhoto = nextIndex >= 0 && nextIndex < filteredPhotos.length - 1 ? filteredPhotos[nextIndex + 1] : null;
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft" && previousPhoto) {
+        setViewerPhotoId(previousPhoto.id);
       }
 
-      setViewerPhotoId(null);
-      setEditingPhotoId(null);
-      setDeletingPhotoId(null);
+      if (event.key === "ArrowRight" && nextPhoto) {
+        setViewerPhotoId(nextPhoto.id);
+      }
     };
 
-    window.addEventListener("keydown", handleEscape);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.removeProperty("overflow");
-      window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [deletingPhoto, editingPhoto, viewerPhoto]);
+  }, [editingPhoto, filteredPhotos, viewerPhoto]);
 
   useEffect(() => {
     return () => {
@@ -363,6 +363,8 @@ export function SiteCamWorkspace({
       setUploadStatus({ kind: "error", message: t("projects.errorConnect") });
       return;
     }
+
+    const orionPublisher = createSupabaseOrionEventPublisher(supabase);
 
     if (pendingFiles.length === 0) {
       setUploadStatus({ kind: "error", message: t("projects.sitecamValidationNoFiles") });
@@ -432,6 +434,34 @@ export function SiteCamWorkspace({
         failureCount += 1;
         setUploadCount({ done: index + 1, total: pendingFiles.length });
         continue;
+      }
+
+      try {
+        await orionPublisher.publishEvent({
+          company_id: companyId,
+          actor_profile_id: userId,
+          event_type: "document.uploaded",
+          aggregate_type: "document",
+          aggregate_id: photoId,
+          source_module: "documents",
+          idempotency_key: `project-photo:${photoId}:uploaded`,
+          payload: {
+            project_id: projectId,
+            photo_id: photoId,
+            category: selectedCategory,
+            caption: uploadNote.trim() || null,
+            uploaded_at: new Date().toISOString(),
+            deep_link: `/projects/${projectId}?tab=documents`,
+          },
+          metadata: {
+            event_category: "field",
+            event_severity: "info",
+            deep_link: `/projects/${projectId}?tab=documents`,
+          },
+        });
+      } catch (eventError) {
+        const message = eventError instanceof Error ? eventError.message : "Unable to publish timeline event for uploaded photo.";
+        failureDetails.push(`Timeline: ${message}`);
       }
 
       successCount += 1;
@@ -537,6 +567,8 @@ export function SiteCamWorkspace({
       return;
     }
 
+    const orionPublisher = createSupabaseOrionEventPublisher(supabase);
+
     setIsDeletingPhoto(true);
 
     const { error: storageError } = await supabase.storage
@@ -561,6 +593,31 @@ export function SiteCamWorkspace({
     if (deleteError) {
       setUploadStatus({ kind: "error", message: t("projects.sitecamDeleteFailed", { message: deleteError.message }) });
       return;
+    }
+
+    try {
+      await orionPublisher.publishEvent({
+        company_id: companyId,
+        actor_profile_id: userId,
+        event_type: "document.deleted",
+        aggregate_type: "document",
+        aggregate_id: deletingPhoto.id,
+        source_module: "documents",
+        idempotency_key: `project-photo:${deletingPhoto.id}:deleted`,
+        payload: {
+          project_id: projectId,
+          photo_id: deletingPhoto.id,
+          deep_link: `/projects/${projectId}?tab=documents`,
+        },
+        metadata: {
+          event_category: "field",
+          event_severity: "attention",
+          deep_link: `/projects/${projectId}?tab=documents`,
+        },
+      });
+    } catch (eventError) {
+      const message = eventError instanceof Error ? eventError.message : t("projects.sitecamDeleteFailed", { message: "timeline event publish failed" });
+      setUploadStatus({ kind: "error", message });
     }
 
     setViewerPhotoId((current) => (current === deletingPhoto.id ? null : current));
@@ -611,7 +668,8 @@ export function SiteCamWorkspace({
   const hasPermissionError = isPermissionError(errorMessage || "");
 
   return (
-    <div className="space-y-4">
+    <WorkspaceEnvironment workspace="camera" routeKey={`${projectId}:sitecam`} className="bf-sitecam-environment">
+      <div className="space-y-4">
       <Card>
         <CardContent className="space-y-6 p-6">
           <SectionHeader
@@ -756,11 +814,11 @@ export function SiteCamWorkspace({
       {isLoading ? (
         <SiteCamLoadingState />
       ) : errorMessage ? (
-        <ErrorState
-          title={hasPermissionError ? t("projects.sitecamPermissionTitle") : t("projects.sitecamLoadErrorTitle")}
-          description={errorMessage}
-          compact
-        />
+        hasPermissionError ? (
+          <PermissionState title={t("projects.sitecamPermissionTitle")} description={errorMessage} />
+        ) : (
+          <ErrorState title={t("projects.sitecamLoadErrorTitle")} description={errorMessage} compact />
+        )
       ) : filteredPhotos.length === 0 ? (
         <EmptyState
           compact
@@ -845,14 +903,15 @@ export function SiteCamWorkspace({
         </div>
       )}
 
-      {viewerPhoto ? (
-        <DialogOverlay closeLabel={t("projects.close")} onClose={() => setViewerPhotoId(null)}>
-          <article
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("projects.sitecamViewerTitle")}
-            className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-[var(--radius-xl)] bg-white shadow-[var(--shadow-large)]"
-          >
+      <Dialog
+        open={Boolean(viewerPhoto)}
+        onClose={() => setViewerPhotoId(null)}
+        ariaLabel={t("projects.sitecamViewerTitle")}
+        backdropLabel={t("projects.close")}
+        panelClassName="max-h-[90vh] max-w-4xl overflow-auto rounded-[var(--radius-xl)] p-0"
+      >
+        {viewerPhoto ? (
+          <article>
             <div className="grid gap-0 lg:grid-cols-[1.5fr_1fr]">
               <div className="min-h-80 bg-[var(--color-surface-subtle)]">
                 {signedUrlsByPath[viewerPhoto.storagePath] && !brokenPhotoIds[viewerPhoto.id] ? (
@@ -873,7 +932,6 @@ export function SiteCamWorkspace({
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{t("projects.sitecamViewerTitle")}</h2>
                   <button
-                    ref={modalPrimaryActionRef}
                     type="button"
                     onClick={() => setViewerPhotoId(null)}
                     className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1 text-sm font-semibold text-[var(--color-text-secondary)]"
@@ -914,17 +972,18 @@ export function SiteCamWorkspace({
               </div>
             </div>
           </article>
-        </DialogOverlay>
-      ) : null}
+        ) : null}
+      </Dialog>
 
-      {editingPhoto ? (
-        <DialogOverlay closeLabel={t("projects.close")} onClose={() => setEditingPhotoId(null)}>
-          <article
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("projects.sitecamEditTitle")}
-            className="w-full max-w-xl rounded-[var(--radius-xl)] bg-white p-6 shadow-[var(--shadow-large)]"
-          >
+      <Dialog
+        open={Boolean(editingPhoto)}
+        onClose={() => setEditingPhotoId(null)}
+        ariaLabel={t("projects.sitecamEditTitle")}
+        backdropLabel={t("projects.close")}
+        panelClassName="max-w-xl rounded-[var(--radius-xl)] p-6"
+      >
+        {editingPhoto ? (
+          <article>
             <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{t("projects.sitecamEditTitle")}</h2>
 
             <div className="mt-4 grid gap-4">
@@ -959,32 +1018,23 @@ export function SiteCamWorkspace({
               </Button>
             </div>
           </article>
-        </DialogOverlay>
-      ) : null}
+        ) : null}
+      </Dialog>
 
-      {deletingPhoto ? (
-        <DialogOverlay closeLabel={t("projects.close")} onClose={() => setDeletingPhotoId(null)}>
-          <article
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("projects.sitecamDeleteTitle")}
-            className="w-full max-w-lg rounded-[var(--radius-xl)] bg-white p-6 shadow-[var(--shadow-large)]"
-          >
-            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{t("projects.sitecamDeleteTitle")}</h2>
-            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{t("projects.sitecamDeleteDescription")}</p>
-
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setDeletingPhotoId(null)}>
-                {t("projects.cancel")}
-              </Button>
-              <Button type="button" variant="danger" disabled={isDeletingPhoto} onClick={() => void deletePhoto()}>
-                {isDeletingPhoto ? t("projects.sitecamDeleting") : t("projects.sitecamConfirmDelete")}
-              </Button>
-            </div>
-          </article>
-        </DialogOverlay>
-      ) : null}
-    </div>
+      <ConfirmDialog
+        open={Boolean(deletingPhoto)}
+        title={t("projects.sitecamDeleteTitle")}
+        description={t("projects.sitecamDeleteDescription")}
+        cancelLabel={t("projects.cancel")}
+        confirmLabel={isDeletingPhoto ? t("projects.sitecamDeleting") : t("projects.sitecamConfirmDelete")}
+        isConfirming={isDeletingPhoto}
+        onCancel={() => setDeletingPhotoId(null)}
+        onConfirm={() => {
+          void deletePhoto();
+        }}
+      />
+      </div>
+    </WorkspaceEnvironment>
   );
 }
 
@@ -1215,28 +1265,6 @@ function InfoChip({ label, value }: { label: string; value: string }) {
     <div className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2">
       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">{label}</p>
       <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{value}</p>
-    </div>
-  );
-}
-
-function DialogOverlay({
-  children,
-  closeLabel,
-  onClose,
-}: {
-  children: ReactNode;
-  closeLabel: string;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label={closeLabel}
-        onClick={onClose}
-        className="absolute inset-0 bg-slate-950/50"
-      />
-      <div className="relative z-10 w-full">{children}</div>
     </div>
   );
 }

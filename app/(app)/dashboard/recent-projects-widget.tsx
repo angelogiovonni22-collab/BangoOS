@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ProjectStatusBadge as SharedProjectStatusBadge } from "@/components/projects";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { formatProjectDate, normalizeProjectStatus, getProjectDisplayName, type ProjectRow } from "@/lib/projects";
 import type { Database } from "@/types/database.types";
-import { getProjectStatusBadgeClass } from "@/lib/projects/statuses";
 import { useI18n } from "@/lib/i18n/provider";
 
 type CustomerSummaryRow = Pick<
@@ -223,7 +223,7 @@ function WidgetEmptyState() {
 }
 
 function ProjectStatusBadge({ statusKey, label }: { statusKey: string; label: string }) {
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${getProjectStatusBadgeClass(statusKey)}`}>{label}</span>;
+  return <SharedProjectStatusBadge statusKey={statusKey} label={label} />;
 }
 
 function getCustomerDisplayName(customer: CustomerSummaryRow, fallbackLabel = "Unnamed Customer") {

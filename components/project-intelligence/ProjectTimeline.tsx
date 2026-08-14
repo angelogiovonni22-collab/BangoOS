@@ -151,7 +151,7 @@ export function ProjectTimeline({ projectId, localeTag, currentUserId, currentUs
       occurredAt: `${formState.occurredAt}T12:00:00Z`,
       relatedEntity: formState.relatedEntityLabel.trim()
         ? {
-            id: `manual-related-${Math.random().toString(36).slice(2, 8)}`,
+            id: `manual-related-${toSlug(`${projectId}-${formState.relatedEntityLabel}-${formState.occurredAt}`)}`,
             type: "note",
             label: formState.relatedEntityLabel.trim(),
             href: formState.relatedEntityHref.trim() || null,
@@ -338,4 +338,13 @@ function categoryKey(category: ProjectEventCategory) {
   }
 
   return `projects.intelligenceCategory${toTitle(category)}`;
+}
+
+function toSlug(value: string) {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized.slice(0, 40) || "related";
 }

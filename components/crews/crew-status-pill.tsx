@@ -10,10 +10,18 @@ type CrewStatusPillProps = {
 export function CrewStatusPill({ status, availability, t }: CrewStatusPillProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge tone={statusTone(status)}>{t(`crews.status.${status}`)}</Badge>
-      <Badge tone={availabilityTone(availability)}>{t(`crews.availability.${availability}`)}</Badge>
+      <Badge tone={statusTone(status)}>{statusLabel(status, t)}</Badge>
+      <Badge tone={availabilityTone(availability)}>{availability === "assigned" ? "Assigned" : "Available"}</Badge>
     </div>
   );
+}
+
+function statusLabel(status: CrewStatus, t: CrewStatusPillProps["t"]) {
+  if (status === "archived") {
+    return "Archived";
+  }
+
+  return t(`crews.status.${status}`);
 }
 
 function statusTone(status: CrewStatus): "success" | "warning" | "neutral" {
@@ -21,24 +29,16 @@ function statusTone(status: CrewStatus): "success" | "warning" | "neutral" {
     return "success";
   }
 
-  if (status === "standby") {
-    return "warning";
-  }
-
   return "neutral";
 }
 
-function availabilityTone(status: CrewAvailabilityStatus): "success" | "info" | "warning" | "neutral" {
+function availabilityTone(status: CrewAvailabilityStatus): "success" | "info" | "neutral" {
   if (status === "available") {
     return "success";
   }
 
   if (status === "assigned") {
     return "info";
-  }
-
-  if (status === "training") {
-    return "warning";
   }
 
   return "neutral";

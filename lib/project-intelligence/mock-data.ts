@@ -906,9 +906,10 @@ export function createManualNoteEvent(
 ): ProjectEvent {
   const now = new Date().toISOString();
   const occurredAt = new Date(input.occurredAt).toISOString();
+  const idBase = slugify(`${projectId}-${input.title}-${occurredAt}`);
 
   return {
-    id: `evt-note-${Math.random().toString(36).slice(2, 10)}`,
+    id: `evt-note-${idBase}`,
     projectId,
     eventType: "note_added",
     category: input.category,
@@ -931,6 +932,15 @@ export function createManualNoteEvent(
     scheduleImpact: null,
     aiContext: null,
   };
+}
+
+function slugify(value: string) {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized.slice(0, 48) || "manual-note";
 }
 
 export function buildMockTimelineSummary(events: ProjectEvent[]): ProjectTimelineSummary {

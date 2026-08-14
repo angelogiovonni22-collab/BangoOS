@@ -1,542 +1,126 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button, PageHeader } from "@/components/ui";
+import { EstimatesDirectory } from "@/components/estimates";
+import { loadEstimateDirectoryData, getCustomerDisplayName, getProjectDisplayName } from "@/lib/estimates/service";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import type { Database } from "@/types/database.types";
-import {
-  Badge,
-  Button,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-  SearchInput,
-  Select,
-  SkeletonLoader,
-  SummaryCard,
-  TableContainer,
-  getButtonClassName,
-} from "@/components/ui";
-import {
-  formatEstimateCurrency,
-  formatEstimateDate,
-  getEstimateNumber,
-  normalizeEstimateStatus,
-} from "@/lib/estimates";
-import {
-  ESTIMATE_STATUSES,
-  getEstimateStatusBadgeClass,
-} from "@/lib/estimates/statuses";
 import { useI18n } from "@/lib/i18n/provider";
 
-type CustomerSummaryRow = Pick<
-  Database["public"]["Tables"]["customers"]["Row"],
-  "id" | "first_name" | "last_name" | "company_name" | "customer_type"
->;
-
-type ProjectSummaryRow = Pick<
-  Database["public"]["Tables"]["projects"]["Row"],
-  "id" | "name"
->;
-
-type EstimateDashboardRow = Pick<
-  Database["public"]["Tables"]["estimates"]["Row"],
-  | "id"
-  | "status"
-  | "estimate_number"
-  | "customer_id"
-  | "project_id"
-  | "total_amount"
-  | "created_at"
-  | "expiration_date"
-> & {
-  deleted_at?: string | null;
-};
-
-type EstimateListItem = {
-  id: string;
-  statusKey: string;
-  statusLabel: string;
-  estimateNumber: string;
-  customerId: string | null;
-  customerName: string;
-  projectId: string | null;
-  projectName: string;
-  totalAmountValue: number;
-  totalAmount: string;
-  createdAtLabel: string;
-  expiresAtLabel: string;
-  searchText: string;
-};
-
 export default function EstimatesPage() {
-  const { t, locale } = useI18n();
+  const { locale } = useI18n();
+  const localeTag = locale === "es" ? "es-ES" : "en-US";
   const supabase = useMemo(() => createClient(), []);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [estimates, setEstimates] = useState<EstimateListItem[]>([]);
+  const [companyId, setCompanyId] = useState("");
+  const [userId, setUserId] = useState("");
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [customerFilter, setCustomerFilter] = useState("all");
-  const [projectFilter, setProjectFilter] = useState("all");
+  const [items, setItems] = useState<Array<{
+    id: string;
+    estimateNumber: string;
+    title: string;
+    customerName: string;
+    customerId: string | null;
+    projectName: string;
+    projectId: string | null;
+    status: string;
+    issueDate: string | null;
+    expirationDate: string | null;
+    totalAmount: number;
+    updatedAt: string;
+  }>>([]);
 
-  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string }>>([]);
-  const [projectOptions, setProjectOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [customerOptions, setCustomerOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [projectOptions, setProjectOptions] = useState<Array<{ value: string; label: string }>>([]);
+
+  const load = useCallback(async () => {
+    if (!supabase) {
+      setErrorMessage("Unable to connect right now. Please try again shortly.");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    const workspace = await resolveWorkspaceContext(supabase);
+
+    if (workspace.errorMessage || !workspace.context) {
+      setErrorMessage(workspace.errorMessage || "Unable to load workspace.");
+      setIsLoading(false);
+      return;
+    }
+
+    setCompanyId(workspace.context.companyId);
+    setUserId(workspace.context.userId);
+
+    const result = await loadEstimateDirectoryData(supabase, workspace.context.companyId);
+
+    if (result.error || !result.customers || !result.projects || !result.estimates) {
+      setErrorMessage(result.error || "Unable to load estimates.");
+      setIsLoading(false);
+      return;
+    }
+
+    const customerMap = new Map(result.customers.map((customer) => [customer.id, getCustomerDisplayName(customer)]));
+    const projectMap = new Map(result.projects.map((project) => [project.id, getProjectDisplayName(project)]));
+
+    const directoryItems = result.estimates.map((estimate) => ({
+      id: estimate.id,
+      estimateNumber: estimate.estimate_number || "Unassigned",
+      title: estimate.title,
+      customerName: estimate.customer_id ? customerMap.get(estimate.customer_id) || "Not linked" : "Not linked",
+      customerId: estimate.customer_id,
+      projectName: estimate.project_id ? projectMap.get(estimate.project_id) || "Not linked" : "Not linked",
+      projectId: estimate.project_id,
+      status: estimate.status,
+      issueDate: estimate.issue_date,
+      expirationDate: estimate.expiration_date,
+      totalAmount: estimate.total_amount || 0,
+      updatedAt: estimate.updated_at,
+    }));
+
+    setItems(directoryItems);
+    setCustomerOptions(result.customers.map((customer) => ({ value: customer.id, label: getCustomerDisplayName(customer) })));
+    setProjectOptions(result.projects.map((project) => ({ value: project.id, label: getProjectDisplayName(project) })));
+    setIsLoading(false);
+  }, [supabase]);
 
   useEffect(() => {
-    let isSubscribed = true;
-
-    const loadEstimates = async () => {
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      const workspace = await resolveWorkspaceContext(supabase);
-
-      if (workspace.errorMessage || !workspace.context) {
-        if (isSubscribed) {
-          setErrorMessage(workspace.errorMessage || t("estimates.errorConnect"));
-          setIsLoading(false);
-        }
-
-        return;
-      }
-
-      const client = supabase;
-
-      if (!client) {
-        if (isSubscribed) {
-          setErrorMessage(t("estimates.errorConnect"));
-          setIsLoading(false);
-        }
-
-        return;
-      }
-
-      try {
-        const [estimatesResponse, customersResponse, projectsResponse] = await Promise.all([
-          client
-            .from("estimates")
-            .select(
-              "id, status, estimate_number, customer_id, project_id, total_amount, created_at, expiration_date, deleted_at",
-            )
-            .eq("company_id", workspace.context.companyId)
-            .order("created_at", { ascending: false }),
-          client
-            .from("customers")
-            .select("id, first_name, last_name, company_name, customer_type")
-            .eq("company_id", workspace.context.companyId)
-            .order("created_at", { ascending: false }),
-          client
-            .from("projects")
-            .select("id, name")
-            .eq("company_id", workspace.context.companyId)
-            .order("created_at", { ascending: false }),
-        ]);
-
-        if (estimatesResponse.error) {
-          if (isSubscribed) {
-            setErrorMessage(t("estimates.errorLoadEstimates"));
-          }
-
-          return;
-        }
-
-        if (customersResponse.error) {
-          if (isSubscribed) {
-            setErrorMessage(t("estimates.errorLoadCustomers"));
-          }
-
-          return;
-        }
-
-        if (projectsResponse.error) {
-          if (isSubscribed) {
-            setErrorMessage(t("estimates.errorLoadProjects"));
-          }
-
-          return;
-        }
-
-        const customerRows = (customersResponse.data ?? []) as CustomerSummaryRow[];
-        const projectRows = (projectsResponse.data ?? []) as ProjectSummaryRow[];
-        const estimateRows = (estimatesResponse.data ?? []) as unknown as EstimateDashboardRow[];
-
-        const customerNameMap = new Map(
-          customerRows.map((customer) => [customer.id, getCustomerDisplayName(customer, t)]),
-        );
-
-        const projectNameMap = new Map(
-          projectRows.map((project) => [project.id, getProjectDisplayName(project.name, t)]),
-        );
-
-        const activeEstimates = estimateRows.filter((estimate) => !estimate.deleted_at);
-
-        const mappedEstimates = activeEstimates.map((estimate) => {
-          const status = normalizeEstimateStatus(estimate.status);
-          const customerName = estimate.customer_id
-            ? customerNameMap.get(estimate.customer_id) || t("estimates.notLinked")
-            : t("estimates.notLinked");
-          const projectName = estimate.project_id
-            ? projectNameMap.get(estimate.project_id) || t("estimates.notLinked")
-            : t("estimates.notLinked");
-          const estimateNumber = getEstimateNumber(estimate.estimate_number);
-          const totalAmount = formatEstimateCurrency(
-            estimate.total_amount,
-            locale === "es" ? "es-ES" : "en-US",
-            t("projects.notProvided"),
-          );
-          const createdAtLabel = formatEstimateDate(
-            estimate.created_at,
-            locale === "es" ? "es-ES" : "en-US",
-            t("projects.notProvided"),
-          );
-          const expiresAtLabel = formatEstimateDate(
-            estimate.expiration_date,
-            locale === "es" ? "es-ES" : "en-US",
-            t("projects.notProvided"),
-          );
-          const searchText = [
-            estimateNumber,
-            customerName,
-            projectName,
-            mapEstimateStatus(status.key, t),
-            totalAmount,
-          ]
-            .join(" ")
-            .toLowerCase();
-
-          return {
-            id: estimate.id,
-            statusKey: status.key,
-            statusLabel: mapEstimateStatus(status.key, t),
-            estimateNumber,
-            customerId: estimate.customer_id,
-            customerName,
-            projectId: estimate.project_id,
-            projectName,
-            totalAmountValue: typeof estimate.total_amount === "number" ? estimate.total_amount : 0,
-            totalAmount,
-            createdAtLabel,
-            expiresAtLabel,
-            searchText,
-          };
-        });
-
-        if (isSubscribed) {
-          setEstimates(mappedEstimates);
-          setCustomerOptions(
-            customerRows.map((customer) => ({
-              id: customer.id,
-              label: getCustomerDisplayName(customer, t),
-            })),
-          );
-          setProjectOptions(
-            projectRows.map((project) => ({
-              id: project.id,
-              label: getProjectDisplayName(project.name, t),
-            })),
-          );
-        }
-      } catch (caughtError) {
-        console.error("Load estimates error:", caughtError);
-
-        if (isSubscribed) {
-          setErrorMessage(t("estimates.errorUnexpected"));
-        }
-      } finally {
-        if (isSubscribed) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadEstimates();
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [supabase, t, locale]);
-
-  const summary = useMemo(() => {
-    const totalEstimates = estimates.length;
-    const draftCount = estimates.filter((estimate) => estimate.statusKey === "draft").length;
-    const sentCount = estimates.filter((estimate) => estimate.statusKey === "sent").length;
-    const approvedCount = estimates.filter((estimate) => estimate.statusKey === "approved").length;
-
-    const totalEstimateValue = estimates.reduce(
-      (sum, estimate) => sum + estimate.totalAmountValue,
-      0,
-    );
-
-    return {
-      totalEstimates,
-      draftCount,
-      sentCount,
-      approvedCount,
-      totalEstimateValue: formatEstimateCurrency(
-        totalEstimateValue,
-        locale === "es" ? "es-ES" : "en-US",
-        t("projects.notProvided"),
-      ),
-    };
-  }, [estimates, locale, t]);
-
-  const filteredEstimates = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-
-    return estimates.filter((estimate) => {
-      const matchesSearch = !normalizedSearch || estimate.searchText.includes(normalizedSearch);
-      const matchesStatus = statusFilter === "all" || estimate.statusKey === statusFilter;
-      const matchesCustomer = customerFilter === "all" || estimate.customerId === customerFilter;
-      const matchesProject = projectFilter === "all" || estimate.projectId === projectFilter;
-
-      return matchesSearch && matchesStatus && matchesCustomer && matchesProject;
+    queueMicrotask(() => {
+      void load();
     });
-  }, [estimates, searchTerm, statusFilter, customerFilter, projectFilter]);
+  }, [load]);
 
   return (
-    <div className="space-y-8">
+    <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
-        title={t("estimates.pageTitle")}
-        description={t("estimates.pageDescription")}
-        primaryAction={
-          <Link href="/estimates/new" className={getButtonClassName({ variant: "primary", size: "lg" })}>
-            <span className="text-lg leading-none">+</span>
-            <span>{t("estimates.createEstimate")}</span>
+        compact
+        eyebrow="COMPANY WORKSPACE"
+        title="Estimates"
+        description="Create, price, send, and track construction estimates."
+        primaryAction={(
+          <Link href="/estimates/new">
+            <Button size="md">New Estimate</Button>
           </Link>
-        }
+        )}
       />
 
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard icon={<span className="text-sm font-bold">Σ</span>} label={t("estimates.summaryTotal")} value={String(summary.totalEstimates)} />
-        <SummaryCard icon={<span className="text-sm font-bold">D</span>} label={t("estimates.summaryDraft")} value={String(summary.draftCount)} />
-        <SummaryCard icon={<span className="text-sm font-bold">S</span>} label={t("estimates.summarySent")} value={String(summary.sentCount)} />
-        <SummaryCard icon={<span className="text-sm font-bold">A</span>} label={t("estimates.summaryApproved")} value={String(summary.approvedCount)} />
-        <SummaryCard icon={<span className="text-sm font-bold">$</span>} label={t("estimates.summaryTotalValue")} value={summary.totalEstimateValue} />
-      </section>
-
-      <TableContainer
-        title={t("estimates.directoryTitle")}
-        description={t("estimates.directoryDescription")}
-        controls={
-          <div className="grid gap-3 md:grid-cols-4">
-            <SearchInput value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder={t("estimates.searchPlaceholder")} />
-
-            <label className="block">
-              <span className="sr-only">{t("estimates.filterStatus")}</span>
-              <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="all">{t("estimates.allStatuses")}</option>
-                {ESTIMATE_STATUSES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {mapEstimateStatus(option.value, t)}
-                  </option>
-                ))}
-              </Select>
-            </label>
-
-            <label className="block">
-              <span className="sr-only">{t("estimates.filterCustomer")}</span>
-              <Select value={customerFilter} onChange={(event) => setCustomerFilter(event.target.value)}>
-                <option value="all">{t("estimates.allCustomers")}</option>
-                {customerOptions.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.label}
-                  </option>
-                ))}
-              </Select>
-            </label>
-
-            <label className="block">
-              <span className="sr-only">{t("estimates.filterProject")}</span>
-              <Select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}>
-                <option value="all">{t("estimates.allProjects")}</option>
-                {projectOptions.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.label}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          </div>
-        }
-      >
-        {isLoading ? (
-          <EstimatesLoadingState />
-        ) : errorMessage ? (
-          <EstimatesErrorState message={errorMessage} />
-        ) : filteredEstimates.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <TableHeading>{t("estimates.tableStatus")}</TableHeading>
-                  <TableHeading>{t("estimates.tableEstimateNumber")}</TableHeading>
-                  <TableHeading>{t("estimates.tableCustomer")}</TableHeading>
-                  <TableHeading>{t("estimates.tableProject")}</TableHeading>
-                  <TableHeading>{t("estimates.tableTotal")}</TableHeading>
-                  <TableHeading>{t("estimates.tableCreated")}</TableHeading>
-                  <TableHeading>{t("estimates.tableExpires")}</TableHeading>
-                  <TableHeading align="right">{t("estimates.tableActions")}</TableHeading>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredEstimates.map((estimate) => (
-                  <tr key={estimate.id} className="transition hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <EstimateStatusBadge statusKey={estimate.statusKey} label={estimate.statusLabel} />
-                    </td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-950">{estimate.estimateNumber}</td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.customerName}</td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.projectName}</td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.totalAmount}</td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.createdAtLabel}</td>
-
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{estimate.expiresAtLabel}</td>
-
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/estimates/${estimate.id}`} className={getButtonClassName({ variant: "secondary", size: "sm" })}>
-                          {t("estimates.view")}
-                        </Link>
-
-                        <Link href={`/estimates/${estimate.id}/edit`} className={getButtonClassName({ variant: "secondary", size: "sm" })}>
-                          {t("estimates.edit")}
-                        </Link>
-
-                        <Button type="button" variant="secondary" size="sm">
-                          {t("estimates.duplicate")}
-                        </Button>
-
-                        <Button type="button" variant="secondary" size="sm" aria-label={t("estimates.moreActions")}>
-                          {t("estimates.more")}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : estimates.length === 0 ? (
-          <EstimatesEmptyState />
-        ) : (
-          <EstimatesFilteredEmptyState />
-        )}
-      </TableContainer>
+      <EstimatesDirectory
+        items={items}
+        customerOptions={customerOptions}
+        projectOptions={projectOptions}
+        localeTag={localeTag}
+        companyId={companyId}
+        userId={userId}
+        onMutationComplete={load}
+        isLoading={isLoading}
+        errorMessage={errorMessage}
+      />
     </div>
   );
-}
-
-function TableHeading({
-  children,
-  align = "left",
-}: {
-  children: React.ReactNode;
-  align?: "left" | "right";
-}) {
-  return (
-    <th
-      scope="col"
-      className={`px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 ${
-        align === "right" ? "text-right" : "text-left"
-      }`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function EstimateStatusBadge({ statusKey, label }: { statusKey: string; label: string }) {
-  return <Badge className={getEstimateStatusBadgeClass(statusKey)}>{label}</Badge>;
-}
-
-function EstimatesLoadingState() {
-  return (
-    <div className="p-6">
-      <div className="space-y-3">
-        <SkeletonLoader className="h-12 w-full" />
-        <SkeletonLoader className="h-12 w-full" />
-        <SkeletonLoader className="h-12 w-full" />
-        <SkeletonLoader className="h-12 w-full" />
-      </div>
-    </div>
-  );
-}
-
-function EstimatesErrorState({ message }: { message: string }) {
-  const { t } = useI18n();
-
-  return <ErrorState title={t("estimates.errorTitle")} description={message} compact />;
-}
-
-function EstimatesEmptyState() {
-  const { t } = useI18n();
-
-  return (
-    <EmptyState
-      icon="E"
-      title={t("estimates.emptyTitle")}
-      description={t("estimates.emptyDescription")}
-      compact
-      action={
-        <Link href="/estimates/new" className={getButtonClassName({ variant: "primary", size: "lg" })}>
-          {t("estimates.createEstimate")}
-        </Link>
-      }
-    />
-  );
-}
-
-function EstimatesFilteredEmptyState() {
-  const { t } = useI18n();
-
-  return (
-    <EmptyState
-      icon="?"
-      title={t("estimates.filteredEmptyTitle")}
-      description={t("estimates.filteredEmptyDescription")}
-      compact
-    />
-  );
-}
-
-function mapEstimateStatus(statusKey: string, t: (key: string) => string) {
-  const map: Record<string, string> = {
-    draft: "estimates.statusDraft",
-    sent: "estimates.statusSent",
-    approved: "estimates.statusApproved",
-    rejected: "estimates.statusRejected",
-    expired: "estimates.statusExpired",
-    converted: "estimates.statusConverted",
-  };
-
-  return map[statusKey] ? t(map[statusKey]) : normalizeEstimateStatus(statusKey).label;
-}
-
-function getCustomerDisplayName(customer: CustomerSummaryRow, t: (key: string) => string) {
-  const companyName = customer.company_name?.trim() || "";
-  const firstName = customer.first_name?.trim() || "";
-  const lastName = customer.last_name?.trim() || "";
-  const fallbackName = [firstName, lastName].filter(Boolean).join(" ");
-
-  if (customer.customer_type?.trim().toLowerCase() === "commercial" && companyName) {
-    return companyName;
-  }
-
-  return fallbackName || companyName || t("estimates.unnamedCustomer");
-}
-
-function getProjectDisplayName(name: string | null, t: (key: string) => string) {
-  const normalized = name?.trim() || "";
-
-  return normalized || t("estimates.unnamedProject");
 }

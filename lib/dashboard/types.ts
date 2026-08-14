@@ -9,7 +9,17 @@ export type WidgetId =
   | "weather"
   | "activity"
   | "business-score"
-  | "command-center";
+  | "command-center"
+  | "pending-followups"
+  | "automation-queue"
+  | "recent-automations"
+  | "estimate-pipeline"
+  | "top-priorities"
+  | "business-health"
+  | "risk-summary"
+  | "decision-recommendations"
+  | "todays-decisions"
+  | "critical-alerts";
 
 export type DashboardMetric = {
   id: string;
@@ -19,6 +29,7 @@ export type DashboardMetric = {
   valueKind: MetricValueKind;
   href: string;
   tooltipKey: string;
+  displayValueKey?: string;
   trendPercent?: number;
   subtitleKey?: string;
   trendLabelKey?: string;
@@ -32,8 +43,10 @@ export type DashboardActivityItem = {
   timestampMinutesAgo: number;
   user: string;
   avatarLabel: string;
-  actionLabelKey: string;
+  actionLabelKey: string | null;
+  actionLabel?: string | null;
   projectName?: string;
+  href?: string;
 };
 
 export type ProjectHealthRow = {
@@ -58,14 +71,16 @@ export type ProjectHealthSummary = {
 
 export type ScheduleEvent = {
   id: string;
-  period: "morning" | "afternoon" | "evening";
+  period: "morning" | "afternoon" | "evening" | "all_day" | "time_unavailable";
   timeLabel: string;
-  titleKey: string;
+  titleKey: string | null;
+  title?: string;
   projectName: string;
   location: string;
   employeesAssigned: number;
   status: "confirmed" | "pending" | "travel" | "complete";
   href: string;
+  occurredAt?: string | null;
 };
 
 export type WeatherSnapshot = {
@@ -97,6 +112,17 @@ export type AIBusinessScoreSnapshot = {
   breakdown: BusinessScoreBreakdownItem[];
 };
 
+export type BusinessHealthSummaryItem = {
+  id: "projects" | "financial" | "scheduling" | "documentation" | "safety";
+  labelKey: string;
+  state: "healthy" | "attention" | "restricted" | "unavailable";
+  detailsKey: string;
+};
+
+export type BusinessHealthSummary = {
+  items: BusinessHealthSummaryItem[];
+};
+
 export type AIRecommendationAction = {
   id: string;
   labelKey: string;
@@ -110,6 +136,84 @@ export type AIRecommendation = {
   timestampMinutesAgo: number;
   messageKey: string;
   actions: AIRecommendationAction[];
+};
+
+export type DashboardPendingFollowupItem = {
+  id: string;
+  estimateNumber: string;
+  title: string;
+  status: string;
+  dueAt: string;
+  daysOverdue: number;
+  href: string;
+};
+
+export type DashboardAutomationQueueItem = {
+  runId: string;
+  ruleId: string;
+  triggerEvent: string;
+  startedAt: string;
+  status: "running" | "failed";
+  relatedEstimateId: string | null;
+  relatedProjectId: string | null;
+};
+
+export type DashboardRecentAutomationItem = {
+  id: string;
+  runId: string;
+  ruleId: string;
+  triggerEvent: string;
+  completedAt: string;
+  status: "completed" | "failed";
+  durationMs: number | null;
+  href: string | null;
+};
+
+export type DashboardEstimatePipeline = {
+  total: number;
+  draft: number;
+  sent: number;
+  viewed: number;
+  revisionRequested: number;
+  approved: number;
+  rejected: number;
+};
+
+export type DashboardDecisionItem = {
+  id: string;
+  priority: "critical" | "high" | "medium" | "low";
+  category: string;
+  title: string;
+  summary: string;
+  recommendation: string;
+  actionLabel: string;
+  actionHref: string;
+  commandKey: string;
+  commandInput: Record<string, unknown>;
+  confirmationLevel: "NONE" | "REVIEW" | "REQUIRED";
+  hrefFallback: string;
+  permissionRequirement: string[];
+  unsupportedReason: string | null;
+  detectedAt: string;
+  status: "new" | "acknowledged" | "resolved" | "dismissed";
+};
+
+export type DashboardDecisionHealthItem = {
+  id: "sales" | "operations" | "financial" | "scheduling" | "customer" | "overall";
+  score: number;
+  rating: "Excellent" | "Good" | "Attention" | "Critical";
+};
+
+export type DashboardDecisionRiskSummary = {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+};
+
+export type DashboardMorningBriefing = {
+  greeting: string;
+  lines: string[];
 };
 
 export type DashboardLayoutState = {
@@ -129,8 +233,24 @@ export type ExecutiveDashboardData = {
   activities: DashboardActivityItem[];
   projectHealth: ProjectHealthSummary;
   schedule: ScheduleEvent[];
-  weather: WeatherSnapshot;
-  businessScore: AIBusinessScoreSnapshot;
+  weather: WeatherSnapshot | null;
+  businessScore: AIBusinessScoreSnapshot | null;
+  businessSummary: BusinessHealthSummary | null;
   recommendations: AIRecommendation[];
+  pendingFollowups: DashboardPendingFollowupItem[];
+  automationQueue: DashboardAutomationQueueItem[];
+  recentAutomations: DashboardRecentAutomationItem[];
+  estimatePipeline: DashboardEstimatePipeline;
+  topPriorities: DashboardDecisionItem[];
+  businessHealth: DashboardDecisionHealthItem[];
+  riskSummary: DashboardDecisionRiskSummary;
+  decisionRecommendations: DashboardDecisionItem[];
+  todaysDecisions: DashboardDecisionItem[];
+  criticalAlerts: DashboardDecisionItem[];
+  morningBriefing: DashboardMorningBriefing;
   widgetDefinitions: DashboardWidgetDefinition[];
 };
+
+export type DashboardSectionId = WidgetId | "weather";
+
+export type DashboardSectionErrors = Partial<Record<DashboardSectionId, string>>;

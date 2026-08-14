@@ -17,12 +17,13 @@ export function CrewTable({ items, t }: CrewTableProps) {
             <tr>
               <TableHeading>{t("crews.table.crew")}</TableHeading>
               <TableHeading>{t("crews.table.lead")}</TableHeading>
+              <TableHeading>Supervisor</TableHeading>
               <TableHeading>{t("crews.table.members")}</TableHeading>
               <TableHeading>{t("crews.table.currentProject")}</TableHeading>
-              <TableHeading>{t("crews.table.specialty")}</TableHeading>
+              <TableHeading>{t("crews.table.assignment")}</TableHeading>
               <TableHeading>{t("crews.table.status")}</TableHeading>
-              <TableHeading>{t("crews.table.utilization")}</TableHeading>
-              <TableHeading>{t("crews.table.lastActivity")}</TableHeading>
+              <TableHeading>Next assignment</TableHeading>
+              <TableHeading>{t("crews.table.updated")}</TableHeading>
               <TableHeading align="right">{t("crews.table.actions")}</TableHeading>
             </tr>
           </thead>
@@ -36,26 +37,27 @@ export function CrewTable({ items, t }: CrewTableProps) {
                     </span>
                     <div>
                       <p className="font-semibold text-[var(--color-text-primary)]">{crew.name}</p>
-                      <p className="text-xs font-medium text-[var(--color-text-secondary)]">{crew.code}</p>
+                      <p className="text-xs font-medium text-[var(--color-text-secondary)]">{crew.crewCode}</p>
                     </div>
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.lead}</td>
-                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.memberCount}</td>
-                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.currentProject || t("crews.unassigned")}</td>
-                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.primarySpecialty}</td>
+                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.leadName || "Unassigned"}</td>
+                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.supervisorName || "Unassigned"}</td>
+                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.activeMemberCount}</td>
+                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.currentProjectName || t("crews.unassigned")}</td>
+                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.currentAssignmentTitle || t("crews.unassigned")}</td>
                 <td className="whitespace-nowrap px-6 py-5 align-top">
                   <CrewStatusPill status={crew.status} availability={crew.availability} t={t} />
                 </td>
-                <td className="whitespace-nowrap px-6 py-5 text-sm font-semibold text-[var(--color-text-primary)]">{crew.utilization}%</td>
-                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{formatDate(crew.lastActivity)}</td>
+                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.nextAssignmentTitle || "None"}</td>
+                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{formatDate(crew.updatedAt)}</td>
                 <td className="whitespace-nowrap px-6 py-5 text-right text-sm font-semibold">
                   <div className="inline-flex gap-2">
                     <Link href={`/crews/${crew.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
                       {t("crews.actions.view")}
                     </Link>
                     <Link href={`/crews/${crew.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
-                      {t("crews.actions.edit")}
+                      Edit
                     </Link>
                   </div>
                 </td>
@@ -75,17 +77,19 @@ export function CrewTable({ items, t }: CrewTableProps) {
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-base font-semibold text-[var(--color-text-primary)]">{crew.name}</p>
-                  <p className="text-sm font-medium text-[var(--color-text-secondary)]">{crew.code}</p>
+                  <p className="text-sm font-medium text-[var(--color-text-secondary)]">{crew.crewCode}</p>
                 </div>
               </div>
               <CrewStatusPill status={crew.status} availability={crew.availability} t={t} />
             </div>
 
             <div className="mt-4 grid gap-3 text-sm text-[var(--color-text-secondary)] sm:grid-cols-2">
-              <InfoLine label={t("crews.table.lead")} value={crew.lead} />
-              <InfoLine label={t("crews.table.members")} value={String(crew.memberCount)} />
-              <InfoLine label={t("crews.table.currentProject")} value={crew.currentProject || t("crews.unassigned")} />
-              <InfoLine label={t("crews.table.utilization")} value={`${crew.utilization}%`} />
+              <InfoLine label={t("crews.table.lead")} value={crew.leadName || "Unassigned"} />
+              <InfoLine label="Supervisor" value={crew.supervisorName || "Unassigned"} />
+              <InfoLine label={t("crews.table.members")} value={String(crew.activeMemberCount)} />
+              <InfoLine label={t("crews.table.currentProject")} value={crew.currentProjectName || t("crews.unassigned")} />
+              <InfoLine label={t("crews.table.assignment")} value={crew.currentAssignmentTitle || t("crews.unassigned")} />
+              <InfoLine label="Next assignment" value={crew.nextAssignmentTitle || "None"} />
             </div>
 
             <div className="mt-4 flex gap-2">
@@ -93,7 +97,7 @@ export function CrewTable({ items, t }: CrewTableProps) {
                 {t("crews.actions.view")}
               </Link>
               <Link href={`/crews/${crew.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-sm font-semibold text-[var(--color-brand-700)]">
-                {t("crews.actions.edit")}
+                Edit
               </Link>
             </div>
           </article>

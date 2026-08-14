@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ErrorState } from "@/components/ui";
+import { Button, Dialog, ErrorState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import { useLaborForecast, useScheduling, type LaborForecastRange, type ScheduleView } from "@/lib/scheduling";
 import { AssignmentForm } from "./assignment-form";
@@ -15,7 +15,6 @@ import { LaborShortageTable } from "./labor-shortage-table";
 import { OpenShiftsPanel } from "./open-shifts-panel";
 import { ScheduleCalendar } from "./schedule-calendar";
 import { ScheduleHealthCard } from "./schedule-health-card";
-import { SchedulingAiAssistant } from "./scheduling-ai-assistant";
 import { SchedulingAnalytics } from "./scheduling-analytics";
 import { SchedulingEmptyState } from "./scheduling-empty-state";
 import { SchedulingHeader } from "./scheduling-header";
@@ -24,9 +23,10 @@ import { SchedulingLoadingState } from "./scheduling-loading-state";
 
 type SchedulingDashboardProps = {
   initialSection?: "overview" | "dispatch" | "calendar" | "forecast";
+  workspace?: "schedule" | "dispatch";
 };
 
-export function SchedulingDashboard({ initialSection = "overview" }: SchedulingDashboardProps) {
+export function SchedulingDashboard({ initialSection = "overview", workspace = "dispatch" }: SchedulingDashboardProps) {
   const { t } = useI18n();
   const scheduling = useScheduling();
   const [activeSection, setActiveSection] = useState(initialSection);
@@ -76,18 +76,21 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
     return <SchedulingLoadingState />;
   }
 
-  if (scheduling.errorMessage || !scheduling.payload) {
+  if (!scheduling.payload) {
     return <ErrorState title={t("scheduling.errorTitle")} description={t(scheduling.errorMessage || "scheduling.errorLoad")} />;
   }
 
   const payload = scheduling.payload;
+  const pageTitle = workspace === "schedule" ? t("scheduling.pageTitleSchedule") : t("scheduling.pageTitleDispatch");
+  const pageSummary = workspace === "schedule" ? t("scheduling.summary.scheduleOperational") : t("scheduling.summary.dispatchOperational");
+  const emptyStateHref = workspace === "schedule" ? "/schedule" : "/dispatch";
 
   return (
     <div className="space-y-6">
       <SchedulingHeader
-        title={t("scheduling.pageTitle")}
+        title={pageTitle}
         dateRangeLabel={t(payload.summary.dateRangeLabel)}
-        summary={t(payload.summary.operationalSummary)}
+        summary={pageSummary}
         companyContext={payload.summary.companyContext}
         branchContext={payload.summary.branchContext}
         periodDate={scheduling.periodDate}
@@ -119,9 +122,9 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
             {section.label}
           </button>
         ))}
-        <Link href="/scheduling/dispatch" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.dispatch")}</Link>
-        <Link href="/scheduling/calendar" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.calendar")}</Link>
-        <Link href="/scheduling/forecast" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.forecast")}</Link>
+        <Link href="/dispatch" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.dispatch")}</Link>
+        <Link href="/schedule" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.calendar")}</Link>
+        <Link href="/dispatch/forecast" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.forecast")}</Link>
       </nav>
 
       <SchedulingKpiGrid
@@ -140,6 +143,12 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
         t={t}
       />
 
+      {scheduling.errorMessage ? (
+        <div className="rounded-[var(--radius-lg)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">
+          {t(scheduling.errorMessage)}
+        </div>
+      ) : null}
+
       {undoSnapshot ? (
         <div className="flex items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-info-200)] bg-[var(--color-info-50)] px-4 py-3 text-sm text-[var(--color-info-700)]">
           <p>{t("scheduling.feedback.assignmentMoved")}</p>
@@ -152,6 +161,7 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
           title={t("scheduling.empty.filteredTitle")}
           description={t("scheduling.empty.filteredDescription")}
           actionLabel={t("scheduling.actions.refresh")}
+          href={emptyStateHref}
         />
       ) : null}
 
@@ -210,8 +220,7 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
           t={t}
         />
         <AvailableResourcesPanel
-          items={payload.availability}
-          onQuickAssign={() => setIsCreateOpen(true)}
+          items={payload.contractorVendors ?? []}
           t={t}
         />
       </div>
@@ -227,45 +236,35 @@ export function SchedulingDashboard({ initialSection = "overview" }: SchedulingD
         <ScheduleHealthCard health={payload.health} t={t} />
       </div>
 
-      <div className="grid gap-5 2xl:grid-cols-2">
-        <SchedulingAiAssistant
-          insights={payload.insights}
-          onAccept={(insightId) => {
-            void scheduling.acceptInsight(insightId);
+      <SchedulingAnalytics analytics={payload.analytics} t={t} />
+
+      <Dialog
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        ariaLabel={t("scheduling.form.titleCreate")}
+        backdropLabel={t("scheduling.actions.close")}
+        panelClassName="max-h-[92vh] max-w-4xl overflow-auto rounded-[var(--radius-2xl)] p-5"
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{t("scheduling.form.titleCreate")}</h3>
+          <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>
+            {t("scheduling.actions.close")}
+          </Button>
+        </div>
+
+        <AssignmentForm
+          projectOptions={payload.projectOptions}
+          crewOptions={payload.crewOptions}
+          employeeOptions={payload.employeeOptions}
+          tradeOptions={payload.tradeOptions}
+          onSubmit={async (draft) => {
+            await scheduling.createNewAssignment(draft);
+            setIsCreateOpen(false);
           }}
-          onDismiss={(insightId) => {
-            void scheduling.dismissInsight(insightId);
-          }}
+          onCancel={() => setIsCreateOpen(false)}
           t={t}
         />
-        <SchedulingAnalytics analytics={payload.analytics} t={t} />
-      </div>
-
-      {isCreateOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-          <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-large)]">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{t("scheduling.form.titleCreate")}</h3>
-              <button type="button" className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-sm" onClick={() => setIsCreateOpen(false)}>
-                {t("scheduling.actions.close")}
-              </button>
-            </div>
-
-            <AssignmentForm
-              projectOptions={payload.projectOptions}
-              crewOptions={payload.crewOptions}
-              employeeOptions={payload.employeeOptions}
-              tradeOptions={payload.tradeOptions}
-              onSubmit={async (draft) => {
-                await scheduling.createNewAssignment(draft);
-                setIsCreateOpen(false);
-              }}
-              onCancel={() => setIsCreateOpen(false)}
-              t={t}
-            />
-          </div>
-        </div>
-      ) : null}
+      </Dialog>
     </div>
   );
 }

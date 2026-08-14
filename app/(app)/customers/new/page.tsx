@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, FormField, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { createCustomer, CustomerCreateError } from "@/lib/customers";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
+import { RecordPhotoUpload, type RecordPhotoUploadHandle } from "@/components/attachments/record-photo-upload";
 
 type CustomerType = "residential" | "commercial";
 
@@ -41,6 +43,7 @@ export default function NewCustomerPage() {
   const { t } = useI18n();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const photoUploadRef = useRef<RecordPhotoUploadHandle>(null);
 
   const [formData, setFormData] = useState<CustomerFormData>(initialFormData);
   const [isSaving, setIsSaving] = useState(false);
@@ -141,39 +144,60 @@ export default function NewCustomerPage() {
         return;
       }
 
-      const { data, error: insertError } = await supabase.from("customers").insert({
-        company_id: workspace.context.companyId,
-        customer_type: formData.customerType,
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        company_name: formData.companyName.trim() || null,
-        email: formData.email.trim(),
-        phone: formData.phoneNumber.trim() || null,
-        address_line_1: formData.streetAddress.trim() || null,
-        address_line_2: null,
-        city: formData.city.trim() || null,
-        state: formData.state.trim() || null,
-        postal_code: formData.zipCode.trim() || null,
-        notes: formData.notes.trim() || null,
-        created_by: workspace.context.userId,
-      })
-        .select("id")
-        .single();
+      const created = await createCustomer({
+        supabase,
+        companyId: workspace.context.companyId,
+        actorProfileId: workspace.context.userId,
+        role: workspace.context.role,
+        input: {
+          customerType: formData.customerType,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phoneNumber,
+          addressLine1: formData.streetAddress,
+          city: formData.city,
+          state: formData.state,
+          postalCode: formData.zipCode,
+          companyName: formData.companyName,
+          addressLine2: null,
+          notes: formData.notes,
+        },
+        duplicateMode: "allow",
+      });
 
-      if (insertError) {
-        setErrorMessage(t("customers.errorSaveCustomer", { message: insertError.message }));
-        return;
-      }
+      await photoUploadRef.current?.upload(created.customerId, workspace.context.companyId, workspace.context.userId);
 
-      if (!data?.id) {
-        setErrorMessage(t("customers.errorMissingCustomerLink"));
-        return;
-      }
-
-      router.push(`/customers/${data.id}`);
+      router.push(created.deepLink);
       router.refresh();
     } catch (caughtError) {
       console.error("Save customer error:", caughtError);
+
+      if (caughtError instanceof CustomerCreateError) {
+        if (caughtError.code === "VALIDATION") {
+          const firstError = Array.isArray(caughtError.details.validationErrors)
+            ? String(caughtError.details.validationErrors[0] || "")
+            : caughtError.message;
+          setErrorMessage(firstError || t("customers.errorSaveUnexpected"));
+          return;
+        }
+
+        if (caughtError.code === "PERMISSION") {
+          setErrorMessage(t("customers.errorSaveUnexpected"));
+          return;
+        }
+
+        if (caughtError.code === "DUPLICATE") {
+          setErrorMessage(caughtError.message);
+          return;
+        }
+
+        if (caughtError.code === "PERSISTENCE") {
+          setErrorMessage(t("customers.errorSaveCustomer", { message: caughtError.message }));
+          return;
+        }
+      }
+
       setErrorMessage(t("customers.errorSaveUnexpected"));
     } finally {
       setIsSaving(false);
@@ -181,22 +205,20 @@ export default function NewCustomerPage() {
   };
 
   return (
-    <div className="space-y-8">
-      <section>
-        <p className="text-sm font-medium text-slate-500">{t("customers.pageEyebrow")}</p>
+    <div className="container-content space-y-[var(--space-section)]">
+      <PageHeader
+        compact
+        eyebrow={t("customers.pageEyebrow")}
+        title={t("customers.newTitle")}
+        description={t("customers.newDescription")}
+      />
 
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{t("customers.newTitle")}</h1>
-
-        <p className="mt-2 text-slate-600">{t("customers.newDescription")}</p>
-      </section>
-
-      <form id="new-customer-form" onSubmit={handleSubmit} className="space-y-6">
+      <form id="new-customer-form" onSubmit={handleSubmit} className="space-y-[var(--space-section)]">
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">{t("customers.sectionCustomerInfo")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field>
-              <Label htmlFor="customerType">{t("customers.customerType")}</Label>
+            <FormField label={t("customers.customerType")} htmlFor="customerType" required>
               <Select
                 id="customerType"
                 value={formData.customerType}
@@ -206,10 +228,9 @@ export default function NewCustomerPage() {
                 <option value="residential">{t("customers.typeResidential")}</option>
                 <option value="commercial">{t("customers.typeCommercial")}</option>
               </Select>
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="companyName">{t("customers.companyNameOptional")}</Label>
+            <FormField label={t("customers.companyNameOptional")} htmlFor="companyName">
               <Input
                 id="companyName"
                 type="text"
@@ -217,10 +238,9 @@ export default function NewCustomerPage() {
                 onChange={(event) => handleFieldChange("companyName", event.target.value)}
                 placeholder="Bango Construction LLC"
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="firstName">{t("customers.firstName")}</Label>
+            <FormField label={t("customers.firstName")} htmlFor="firstName" required>
               <Input
                 id="firstName"
                 type="text"
@@ -229,10 +249,9 @@ export default function NewCustomerPage() {
                 placeholder="Jordan"
                 required
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="lastName">{t("customers.lastName")}</Label>
+            <FormField label={t("customers.lastName")} htmlFor="lastName" required>
               <Input
                 id="lastName"
                 type="text"
@@ -241,7 +260,7 @@ export default function NewCustomerPage() {
                 placeholder="Smith"
                 required
               />
-            </Field>
+            </FormField>
           </div>
         </section>
 
@@ -249,8 +268,7 @@ export default function NewCustomerPage() {
           <h2 className="text-lg font-semibold text-slate-950">{t("customers.sectionContactInfo")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field>
-              <Label htmlFor="email">{t("customers.email")}</Label>
+            <FormField label={t("customers.email")} htmlFor="email" required>
               <Input
                 id="email"
                 type="email"
@@ -259,10 +277,9 @@ export default function NewCustomerPage() {
                 placeholder="customer@example.com"
                 required
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="phoneNumber">{t("customers.phoneNumber")}</Label>
+            <FormField label={t("customers.phoneNumber")} htmlFor="phoneNumber" required>
               <Input
                 id="phoneNumber"
                 type="tel"
@@ -271,7 +288,7 @@ export default function NewCustomerPage() {
                 placeholder="(555) 123-4567"
                 required
               />
-            </Field>
+            </FormField>
           </div>
         </section>
 
@@ -279,8 +296,7 @@ export default function NewCustomerPage() {
           <h2 className="text-lg font-semibold text-slate-950">{t("customers.sectionAddress")}</h2>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field className="md:col-span-2">
-              <Label htmlFor="streetAddress">{t("customers.streetAddress")}</Label>
+            <FormField label={t("customers.streetAddress")} htmlFor="streetAddress" required className="md:col-span-2">
               <Input
                 id="streetAddress"
                 type="text"
@@ -289,10 +305,9 @@ export default function NewCustomerPage() {
                 placeholder="123 Main St"
                 required
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="city">{t("customers.city")}</Label>
+            <FormField label={t("customers.city")} htmlFor="city" required>
               <Input
                 id="city"
                 type="text"
@@ -301,10 +316,9 @@ export default function NewCustomerPage() {
                 placeholder="Austin"
                 required
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="state">{t("customers.state")}</Label>
+            <FormField label={t("customers.state")} htmlFor="state" required>
               <Input
                 id="state"
                 type="text"
@@ -313,10 +327,9 @@ export default function NewCustomerPage() {
                 placeholder="TX"
                 required
               />
-            </Field>
+            </FormField>
 
-            <Field>
-              <Label htmlFor="zipCode">{t("customers.zipCode")}</Label>
+            <FormField label={t("customers.zipCode")} htmlFor="zipCode" required>
               <Input
                 id="zipCode"
                 type="text"
@@ -325,24 +338,25 @@ export default function NewCustomerPage() {
                 placeholder="78701"
                 required
               />
-            </Field>
+            </FormField>
           </div>
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="text-lg font-semibold text-slate-950">{t("customers.sectionAdditional")}</h2>
 
-          <Field className="mt-5">
-            <Label htmlFor="notes">{t("customers.notes")}</Label>
-            <textarea
+          <div className="mt-5">
+            <FormField label={t("customers.notes")} htmlFor="notes">
+            <Textarea
               id="notes"
               value={formData.notes}
               onChange={(event) => handleFieldChange("notes", event.target.value)}
               placeholder="Add any customer-specific details, preferences, or project notes..."
               rows={5}
-              className={`${inputClassName} min-h-28`}
+              className="min-h-28"
             />
-          </Field>
+            </FormField>
+          </div>
         </section>
 
         {errorMessage ? (
@@ -370,34 +384,8 @@ export default function NewCustomerPage() {
             {isSaving ? t("customers.saving") : t("customers.saveCustomer")}
           </Button>
         </div>
+        <RecordPhotoUpload ref={photoUploadRef} entityType="customer" />
       </form>
     </div>
-  );
-}
-
-const inputClassName =
-  "w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]";
-
-function Field({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return <div className={className}>{children}</div>;
-}
-
-function Label({
-  children,
-  htmlFor,
-}: {
-  children: React.ReactNode;
-  htmlFor: string;
-}) {
-  return (
-    <label htmlFor={htmlFor} className="mb-2 block text-sm font-medium text-slate-700">
-      {children}
-    </label>
   );
 }

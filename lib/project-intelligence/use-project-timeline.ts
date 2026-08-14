@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createManualNoteEvent } from "./mock-data";
 import { createProjectIntelligenceService, type ProjectIntelligenceService } from "./service";
+import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type {
   NewManualProjectNoteInput,
   ProjectEvent,
@@ -39,7 +41,7 @@ export function useProjectTimeline({
   locale,
   t,
   currentActor,
-  service = createProjectIntelligenceService(),
+  service,
 }: UseProjectTimelineParams) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -52,10 +54,53 @@ export function useProjectTimeline({
   const [summary, setSummary] = useState<ProjectTimelineSummary | null>(null);
   const [riskSummary, setRiskSummary] = useState<ProjectTimelineRiskItem[]>([]);
 
+  const [internalService, setInternalService] = useState<ProjectIntelligenceService | null>(null);
+  const resolvedService = service || internalService;
+
+  useEffect(() => {
+    if (service) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const initializeService = async () => {
+      const supabase = createClient();
+      const workspaceResult = await resolveWorkspaceContext(supabase);
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (!workspaceResult.context || !supabase) {
+        setErrorMessage(workspaceResult.errorMessage || t("projects.intelligenceErrorLoad"));
+        setIsLoading(false);
+        return;
+      }
+
+      setInternalService(
+        createProjectIntelligenceService({
+          supabase,
+          companyId: workspaceResult.context.companyId,
+        }),
+      );
+    };
+
+    void initializeService();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [service, t]);
+
   const loadTimeline = useCallback(async () => {
     if (!projectId) {
       setErrorMessage(t("projects.intelligenceErrorProjectId"));
       setIsLoading(false);
+      return;
+    }
+
+    if (!resolvedService) {
       return;
     }
 
@@ -64,9 +109,9 @@ export function useProjectTimeline({
 
     try {
       const [projectEvents, timelineSummary, timelineRisks] = await Promise.all([
-        service.getProjectEvents(projectId),
-        service.getProjectTimelineSummary(projectId),
-        service.getProjectRiskEvents(projectId),
+        resolvedService.getProjectEvents(projectId),
+        resolvedService.getProjectTimelineSummary(projectId),
+        resolvedService.getProjectRiskEvents(projectId),
       ]);
 
       setEvents(sortEvents(projectEvents));
@@ -77,7 +122,7 @@ export function useProjectTimeline({
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, service, t]);
+  }, [projectId, resolvedService, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -224,9 +269,33 @@ export function useProjectTimeline({
   }, [debouncedSearchTerm, filters]);
 
   const addManualNote = useCallback((input: NewManualProjectNoteInput) => {
-    const createdEvent = createManualNoteEvent(projectId, input, currentActor);
-    setManualNotes((current) => sortEvents([createdEvent, ...current]));
-  }, [currentActor, projectId]);
+    const publish = async () => {
+      if (!resolvedService) {
+        const createdEvent = createManualNoteEvent(projectId, input, currentActor);
+        setManualNotes((current) => sortEvents([createdEvent, ...current]));
+        return;
+      }
+
+      await resolvedService.publishProjectIntelligenceEvent({
+        projectId,
+        actorProfileId: currentActor.type === "employee" ? currentActor.id : null,
+        eventType: "project.updated",
+        title: input.title,
+        note: input.note,
+        metadata: {
+          source: "manual_note",
+          category: input.category,
+          priority: input.priority,
+          related_entity_id: input.relatedEntity?.id || null,
+          related_entity_type: input.relatedEntity?.type || null,
+        },
+      });
+
+      await loadTimeline();
+    };
+
+    void publish();
+  }, [currentActor, loadTimeline, projectId, resolvedService]);
 
   const setCategoryFilter = useCallback((category: ProjectEventCategory | "all") => {
     setFilters((current) => ({ ...current, category }));

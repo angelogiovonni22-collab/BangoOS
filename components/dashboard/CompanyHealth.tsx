@@ -15,8 +15,8 @@ export function CompanyHealth({ snapshot, t }: CompanyHealthProps) {
       : "var(--color-danger-500)";
 
   return (
-    <Card as="section">
-      <CardHeader>
+    <Card as="section" variant="elevated">
+      <CardHeader className="bg-[var(--color-surface-subtle)]/40">
         <CardTitle>{t("dashboard.companyHealth")}</CardTitle>
         <CardDescription>{t("dashboard.companyHealthDescription")}</CardDescription>
       </CardHeader>
@@ -30,7 +30,7 @@ export function CompanyHealth({ snapshot, t }: CompanyHealthProps) {
             }}
             aria-hidden="true"
           >
-            <div className="absolute inset-2 flex items-center justify-center rounded-full bg-white text-xl font-semibold text-[var(--color-text-primary)]">
+            <div className="absolute inset-2 flex items-center justify-center rounded-full bg-[var(--color-surface-card)] text-xl font-semibold text-[var(--color-text-primary)] shadow-[var(--shadow-small)]">
               {normalizedScore}
             </div>
           </div>

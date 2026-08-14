@@ -45,7 +45,7 @@ export default function CrewProfilePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={crew.name}
+        title={crew.overview.name}
         description={t("crews.profile.description")}
         primaryAction={
           <div className="flex flex-wrap gap-2">
@@ -56,10 +56,10 @@ export default function CrewProfilePage() {
               {t("crews.actions.backToDirectory")}
             </Link>
             <Link
-              href={`/crews/${crew.id}/edit`}
-              className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white"
+              href={`/crews/${crewId}/edit`}
+              className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]"
             >
-              {t("crews.actions.edit")}
+              Edit Crew
             </Link>
           </div>
         }

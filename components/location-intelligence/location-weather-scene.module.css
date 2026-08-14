@@ -1,0 +1,42 @@
+.panel {
+  position: relative;
+  height: 11rem;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: var(--radius-xl);
+  color: white;
+  isolation: isolate;
+  background: linear-gradient(165deg,#3c9fd1 0%,#14628f 52%,#062f58 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 12px 28px rgba(3,39,70,.24);
+}
+.weatherContent { position: relative; z-index: 5; display: flex; height: 100%; flex-direction: column; justify-content: space-between; }
+.atmosphere { position: absolute; inset: -12%; overflow: hidden; transform: scale(1.05); }
+.sun { position: absolute; right: 8%; top: -28%; width: 9rem; height: 9rem; border-radius: 50%; background: radial-gradient(circle,#fffce0 0 9%,#ffe66f 24%,#ffb22e 48%,rgba(255,171,38,.18) 67%,transparent 72%); filter: blur(.2px) drop-shadow(0 0 30px rgba(255,205,73,.65)); animation: sunBreathe 6s ease-in-out infinite; }
+.cloudBack,.cloudFront { position: absolute; left: -20%; width: 145%; height: 70%; opacity: 0; filter: blur(10px); background: radial-gradient(ellipse at 12% 62%,rgba(255,255,255,.82) 0 9%,transparent 25%),radial-gradient(ellipse at 35% 40%,rgba(244,250,255,.78) 0 13%,transparent 29%),radial-gradient(ellipse at 58% 65%,rgba(225,239,247,.72) 0 14%,transparent 31%),radial-gradient(ellipse at 83% 38%,rgba(255,255,255,.72) 0 11%,transparent 28%); }
+.cloudBack { top: -22%; transform: scale(.8); animation: cloudPan 28s linear infinite; }
+.cloudFront { bottom: -32%; filter: blur(7px); animation: cloudPan 20s linear infinite reverse; }
+.precipitation { position: absolute; inset: -50% -20%; display: none; opacity: .72; background: repeating-linear-gradient(105deg,transparent 0 10px,rgba(195,235,255,.62) 11px 12px,transparent 13px 22px); background-size: 28px 40px; filter: blur(.3px); animation: rainSweep .65s linear infinite; }
+.snowfall { position: absolute; inset: -40% -10%; display: none; opacity: .85; background-image: radial-gradient(circle,#fff 0 2px,transparent 2.5px),radial-gradient(circle,rgba(255,255,255,.75) 0 1.5px,transparent 2px); background-size: 31px 37px,47px 53px; animation: snowSweep 7s linear infinite; }
+.fog { position: absolute; inset: 0 -25%; display: none; background: repeating-linear-gradient(0deg,transparent 0 21px,rgba(238,249,252,.42) 27px 38px,transparent 45px 62px); filter: blur(8px); animation: fogPan 12s ease-in-out infinite; }
+.flash { position: absolute; inset: 0; display: none; background: radial-gradient(circle at 58% 22%,rgba(255,255,255,.95),rgba(151,190,255,.42) 27%,transparent 58%); mix-blend-mode: screen; animation: stormFlash 5.6s steps(1,end) infinite; }
+.vignette { position: absolute; inset: 0; background: linear-gradient(90deg,rgba(2,18,39,.4),transparent 48%,rgba(2,17,38,.16)),linear-gradient(0deg,rgba(1,20,42,.48),transparent 60%); }
+.panel[data-kind="clear"] { background: linear-gradient(160deg,#4cbbe0 0%,#1685bb 45%,#075284 100%); }
+.panel[data-kind="cloud"] { background: linear-gradient(160deg,#5e91ae 0%,#3b6e8f 48%,#183e60 100%); }
+.panel[data-kind="rain"] { background: linear-gradient(160deg,#315c78 0%,#173f5e 48%,#081f39 100%); }
+.panel[data-kind="snow"] { background: linear-gradient(160deg,#91b7ca 0%,#56809c 52%,#284b69 100%); }
+.panel[data-kind="fog"] { background: linear-gradient(160deg,#9cadb3 0%,#70868f 52%,#435c69 100%); }
+.panel[data-kind="storm"] { background: linear-gradient(160deg,#2f3c64 0%,#172646 50%,#070e24 100%); }
+.panel[data-kind="cloud"] .cloudBack,.panel[data-kind="cloud"] .cloudFront,.panel[data-kind="rain"] .cloudBack,.panel[data-kind="rain"] .cloudFront,.panel[data-kind="snow"] .cloudBack,.panel[data-kind="storm"] .cloudBack,.panel[data-kind="storm"] .cloudFront { opacity: 1; }
+.panel[data-kind="rain"] .precipitation,.panel[data-kind="storm"] .precipitation { display: block; }
+.panel[data-kind="snow"] .snowfall { display: block; }
+.panel[data-kind="fog"] .fog { display: block; }
+.panel[data-kind="storm"] .flash { display: block; }
+.panel[data-kind="cloud"] .sun,.panel[data-kind="rain"] .sun,.panel[data-kind="snow"] .sun,.panel[data-kind="fog"] .sun,.panel[data-kind="storm"] .sun { opacity: .12; }
+.panel[data-paused="true"],.panel[data-paused="true"] * { animation-play-state: paused !important; }
+@keyframes sunBreathe { 0%,100%{transform:scale(.96);filter:drop-shadow(0 0 24px rgba(255,205,73,.55))} 50%{transform:scale(1.06);filter:drop-shadow(0 0 42px rgba(255,205,73,.8))} }
+@keyframes cloudPan { from{transform:translateX(-8%) scale(.9)} to{transform:translateX(12%) scale(1.02)} }
+@keyframes rainSweep { from{transform:translate3d(-20px,-35px,0)} to{transform:translate3d(15px,35px,0)} }
+@keyframes snowSweep { from{transform:translate3d(-10px,-45px,0)} to{transform:translate3d(20px,65px,0)} }
+@keyframes fogPan { 0%,100%{transform:translateX(-7%);opacity:.55} 50%{transform:translateX(7%);opacity:.9} }
+@keyframes stormFlash { 0%,84%,87%,91%,100%{opacity:0} 85%,89%{opacity:.9} 86%,90%{opacity:.22} }
+@media (prefers-reduced-motion:reduce){.panel,.panel *{animation:none!important}}

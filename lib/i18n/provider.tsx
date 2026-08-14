@@ -8,9 +8,11 @@ import dashboardEn from "@/locales/en/dashboard.json";
 import crewsEn from "@/locales/en/crews.json";
 import employeesEn from "@/locales/en/employees.json";
 import estimatesEn from "@/locales/en/estimates.json";
+import dailyReportsEn from "@/locales/en/daily-reports.json";
 import navigationEn from "@/locales/en/navigation.json";
 import onboardingEn from "@/locales/en/onboarding.json";
 import operationsEn from "@/locales/en/operations.json";
+import orionEn from "@/locales/en/orion.json";
 import projectsEn from "@/locales/en/projects.json";
 import schedulingEn from "@/locales/en/scheduling.json";
 import commonEs from "@/locales/es/common.json";
@@ -20,9 +22,11 @@ import dashboardEs from "@/locales/es/dashboard.json";
 import crewsEs from "@/locales/es/crews.json";
 import employeesEs from "@/locales/es/employees.json";
 import estimatesEs from "@/locales/es/estimates.json";
+import dailyReportsEs from "@/locales/es/daily-reports.json";
 import navigationEs from "@/locales/es/navigation.json";
 import onboardingEs from "@/locales/es/onboarding.json";
 import operationsEs from "@/locales/es/operations.json";
+import orionEs from "@/locales/es/orion.json";
 import projectsEs from "@/locales/es/projects.json";
 import schedulingEs from "@/locales/es/scheduling.json";
 
@@ -38,9 +42,11 @@ type LocaleDictionaries = {
   crews: NamespaceDictionary;
   employees: NamespaceDictionary;
   estimates: NamespaceDictionary;
+  dailyReports: NamespaceDictionary;
   navigation: NamespaceDictionary;
   onboarding: NamespaceDictionary;
   operations: NamespaceDictionary;
+  orion: NamespaceDictionary;
   projects: NamespaceDictionary;
   scheduling: NamespaceDictionary;
 };
@@ -78,9 +84,11 @@ const resources: TranslationResources = {
     crews: crewsEn,
     employees: employeesEn,
     estimates: estimatesEn,
+    dailyReports: dailyReportsEn,
     navigation: navigationEn,
     onboarding: onboardingEn,
     operations: operationsEn,
+    orion: orionEn,
     projects: projectsEn,
     scheduling: schedulingEn,
   },
@@ -92,9 +100,11 @@ const resources: TranslationResources = {
     crews: crewsEs,
     employees: employeesEs,
     estimates: estimatesEs,
+    dailyReports: dailyReportsEs,
     navigation: navigationEs,
     onboarding: onboardingEs,
     operations: operationsEs,
+    orion: orionEs,
     projects: projectsEs,
     scheduling: schedulingEs,
   },
@@ -180,9 +190,11 @@ function resolveNamespaceAndKey(path: string): {
     || firstSegment === "crews"
     || firstSegment === "employees"
     || firstSegment === "estimates"
+    || firstSegment === "dailyReports"
     || firstSegment === "navigation"
     || firstSegment === "onboarding"
     || firstSegment === "operations"
+    || firstSegment === "orion"
     || firstSegment === "projects"
     || firstSegment === "scheduling"
   ) {

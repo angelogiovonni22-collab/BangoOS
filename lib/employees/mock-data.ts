@@ -1,13 +1,109 @@
-import type {
-  Employee,
-  EmploymentStatus,
-  AvailabilityStatus,
-  EmployeeDashboardSummary,
-  EmployeeFilters,
-  EmployeeListResult,
-  SortKey,
-  UpsertEmployeeInput,
-} from "./types";
+type EmploymentStatus = "active" | "on_leave" | "inactive";
+type AvailabilityStatus = "available" | "assigned" | "off_shift";
+type SortKey =
+  | "name_asc"
+  | "name_desc"
+  | "position_asc"
+  | "position_desc"
+  | "crew_asc"
+  | "crew_desc"
+  | "status_asc"
+  | "status_desc";
+
+type Employee = {
+  id: string;
+  fullName: string;
+  position: string;
+  crew: string;
+  supervisor: string;
+  phone: string;
+  email: string;
+  employmentStatus: EmploymentStatus;
+  availabilityStatus: AvailabilityStatus;
+  currentAssignment: string | null;
+  activeToday: boolean;
+  hiredOn: string;
+  birthDate: string;
+  address: string;
+  emergencyContact: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+  certifications: Array<{
+    id: string;
+    name: string;
+    issuer: string;
+    expiresAt: string | null;
+  }>;
+  skills: string[];
+  assignedProjects: Array<{
+    id: string;
+    projectName: string;
+    role: string;
+    startDate: string;
+    status: "active" | "upcoming" | "completed";
+  }>;
+  employmentHistory: Array<{
+    id: string;
+    title: string;
+    crew: string;
+    startedOn: string;
+    endedOn: string | null;
+    summary: string;
+  }>;
+  notes: string;
+  avatarUrl?: string | null;
+  primaryCrew?: string | null;
+  secondaryCrew?: string | null;
+  crewRole?: string | null;
+  crewAssignedOn?: string | null;
+  crewHistory?: Array<{
+    id: string;
+    crewName: string;
+    role: string;
+    startedOn: string;
+    endedOn: string | null;
+    primaryCrew: boolean;
+  }>;
+};
+type EmployeeDashboardSummary = {
+  totalEmployees: number;
+  activeToday: number;
+  available: number;
+  assignedToProjects: number;
+  onLeave: number;
+};
+type EmployeeFilters = {
+  query: string;
+  crew: string;
+  employmentStatus: EmploymentStatus | "all";
+  availabilityStatus: AvailabilityStatus | "all";
+  sortBy: SortKey;
+  page: number;
+  pageSize: number;
+};
+type EmployeeListResult = {
+  items: Employee[];
+  total: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+};
+type UpsertEmployeeInput = Omit<Employee, "id"> & {
+  primaryCrew?: string | null;
+  secondaryCrew?: string | null;
+  crewRole?: string | null;
+  crewAssignedOn?: string | null;
+  crewHistory?: Array<{
+    id: string;
+    crewName: string;
+    role: string;
+    startedOn: string;
+    endedOn: string | null;
+    primaryCrew: boolean;
+  }>;
+};
 
 const STORAGE_KEY = "bangoos.mock.employees.v1";
 

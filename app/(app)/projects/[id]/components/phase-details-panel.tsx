@@ -5,26 +5,43 @@ import type { PhaseListItem } from "./workspace-types";
 
 type PhaseDetailsPanelProps = {
   phase: PhaseListItem | null;
+  phaseDescription?: string | null;
+  tasks?: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    assigneeLabel?: string;
+    dueDate?: string | null;
+    completionPercent?: number;
+    href?: string;
+  }>;
   phaseNameInput: string;
   phaseColorInput: string;
   isSaving: boolean;
   saveLabel: string;
+  addTaskLabel?: string;
   onNameChange: (value: string) => void;
   onColorChange: (value: string) => void;
   onSave: () => void;
   onDelete: () => void;
+  onAddTask?: () => void;
 };
 
 export function PhaseDetailsPanel({
   phase,
+  phaseDescription,
+  tasks = [],
   phaseNameInput,
   phaseColorInput,
   isSaving,
   saveLabel,
+  addTaskLabel = "Add Task",
   onNameChange,
   onColorChange,
   onSave,
   onDelete,
+  onAddTask,
 }: PhaseDetailsPanelProps) {
   if (!phase) {
     return (
@@ -60,8 +77,7 @@ export function PhaseDetailsPanel({
               type="text"
               value={phaseNameInput}
               onChange={(event) => onNameChange(event.target.value)}
-              placeholder="Enter phase name"
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               disabled={isSaving}
             />
           </label>
@@ -91,7 +107,7 @@ export function PhaseDetailsPanel({
         <div>
           <h3 className="text-sm font-semibold text-slate-700">Description</h3>
           <div className="mt-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-            Phase descriptions are not stored in the current schema yet. Tasks and notes in this panel will be added in a future release.
+            {phaseDescription?.trim() || "No phase description has been added."}
           </div>
         </div>
 
@@ -100,20 +116,46 @@ export function PhaseDetailsPanel({
             <h3 className="text-sm font-semibold text-slate-700">Tasks</h3>
             <button
               type="button"
-              disabled
-              title="Tasks module coming soon"
-              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white opacity-60"
+              disabled={!onAddTask || isSaving}
+              onClick={() => onAddTask?.()}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Add Task
+              {addTaskLabel}
             </button>
           </div>
 
-          <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-            <p className="text-sm font-semibold text-slate-800">Tasks placeholder</p>
-            <p className="mt-2 text-xs leading-6 text-slate-500">
-              Task cards and scheduling tools will appear here in the next module.
-            </p>
-          </div>
+          {tasks.length > 0 ? (
+            <ul className="mt-3 space-y-2" aria-label="Phase tasks">
+              {tasks.map((task) => (
+                <li key={task.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      {task.href ? (
+                        <a href={task.href} className="truncate text-sm font-semibold text-blue-700 hover:text-blue-800 hover:underline">
+                          {task.title}
+                        </a>
+                      ) : (
+                        <p className="truncate text-sm font-semibold text-slate-900">{task.title}</p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-600">
+                        Status: {formatLabel(task.status)} | Priority: {formatLabel(task.priority)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Assignee: {task.assigneeLabel || "Unassigned"} | Due: {task.dueDate || "Not set"} | Complete: {Math.max(0, Math.min(100, Math.round(task.completionPercent || 0)))}%
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+              <p className="text-sm font-semibold text-slate-800">No tasks in this phase yet.</p>
+              <p className="mt-2 text-xs leading-6 text-slate-500">
+                Add a task to begin tracking execution for this phase.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
@@ -138,4 +180,13 @@ export function PhaseDetailsPanel({
       </div>
     </section>
   );
+}
+
+function formatLabel(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }

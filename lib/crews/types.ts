@@ -1,143 +1,48 @@
-export type CrewStatus = "active" | "standby" | "inactive";
+import type {
+  CrewDirectoryResult,
+  CrewDirectoryRow,
+  CrewDirectorySortKey,
+  CrewProfileData,
+  SelectOption,
+  WorkforceAssignmentStatus,
+  WorkforceCrewStatus,
+} from "@/lib/workforce";
+
+export type CrewStatus = WorkforceCrewStatus;
 
 export type CrewAvailabilityStatus = "available" | "assigned" | "off_shift" | "pto" | "training" | "unavailable";
 
-export type CrewSortKey =
-  | "name_asc"
-  | "name_desc"
-  | "lead_asc"
-  | "lead_desc"
-  | "members_desc"
-  | "utilization_desc"
-  | "last_activity_desc";
+export type CrewSortKey = CrewDirectorySortKey;
 
-export type CrewMember = {
-  employeeId: string;
-  fullName: string;
-  role: string;
-  position: string;
-  employmentStatus: "active" | "on_leave" | "inactive";
-  availabilityStatus: "available" | "assigned" | "off_shift";
-  assignedCrewId?: string | null;
-  primaryCrew: boolean;
-  joinedOn: string;
+export type Crew = CrewDirectoryRow & {
+  code?: string | null;
+  lead?: string | null;
+  supervisor?: string | null;
+  primarySpecialty?: string;
+  secondarySpecialties?: string[];
+  availability?: CrewAvailabilityStatus;
+  homeLocation?: string | null;
+  currentProject?: string | null;
+  notes?: string | null;
+  members?: CrewMember[];
 };
 
-export type CrewAssignment = {
-  id: string;
-  projectId: string;
-  projectName: string;
-  role: string;
-  startDate: string;
-  endDate: string | null;
-  estimatedManpower: number;
-  actualManpower: number;
-  allocationPercentage: number;
-  status: "active" | "upcoming" | "completed";
-};
-
-export type CrewScheduleEntry = {
-  id: string;
-  date: string;
-  shift: "day" | "swing" | "night";
-  availabilityStatus: CrewAvailabilityStatus;
-  assignment: string | null;
-  hasConflict: boolean;
-};
-
-export type CrewCertification = {
-  id: string;
-  name: string;
-  validUntil: string | null;
-  compliant: boolean;
-};
-
-export type CrewEquipmentItem = {
-  id: string;
-  name: string;
-  status: "available" | "in_use" | "maintenance";
-};
-
-export type CrewActivityItem = {
-  id: string;
-  title: string;
-  details: string;
-  happenedAt: string;
-};
-
-export type CrewHistoryEntry = {
-  id: string;
-  change: string;
-  changedAt: string;
-  changedBy: string;
-};
-
-export type CrewAnalytics = {
-  utilizationPercentage: number;
-  laborAvailability: number;
-  overtimeRisk: number;
-  certificationCompliance: number;
-  workload: number;
-  productivity: number;
-  safetyIncidents: number;
-  scheduleConflicts: number;
-};
-
-export type Crew = {
-  id: string;
-  name: string;
-  code: string;
-  lead: string;
-  supervisor: string;
-  avatarUrl: string | null;
-  status: CrewStatus;
-  availability: CrewAvailabilityStatus;
-  primarySpecialty: string;
-  secondarySpecialties: string[];
-  homeLocation: string;
-  currentProject: string | null;
-  memberCount: number;
-  utilization: number;
-  certificationCompliance: number;
-  scheduleConflicts: number;
-  lastActivity: string;
-  notes: string;
-  members: CrewMember[];
-  assignments: CrewAssignment[];
-  schedule: CrewScheduleEntry[];
-  certifications: CrewCertification[];
-  skills: string[];
-  safetyMetrics: {
-    incidents30d: number;
-    nearMisses30d: number;
-    lastIncidentDate: string | null;
-  };
-  productivityMetrics: {
-    completedTasks7d: number;
-    plannedTasks7d: number;
-    onTimePercentage: number;
-  };
-  equipment: CrewEquipmentItem[];
-  recentActivity: CrewActivityItem[];
-  history: CrewHistoryEntry[];
-};
+export type CrewProfile = CrewProfileData;
 
 export type CrewDashboardSummary = {
   totalCrews: number;
   activeCrews: number;
   availableCrews: number;
   assignedCrews: number;
-  averageCrewSize: number;
-  utilization: number;
-  certificationCompliance: number;
-  schedulingConflicts: number;
 };
 
 export type CrewFilters = {
   query: string;
   status: CrewStatus | "all";
-  availability: CrewAvailabilityStatus | "all";
-  specialty: string;
+  leadId: string;
+  supervisorId: string;
+  projectId: string;
+  assignmentStatus: WorkforceAssignmentStatus | "none" | "all";
   sortBy: CrewSortKey;
   page: number;
   pageSize: number;
@@ -149,9 +54,30 @@ export type CrewListResult = {
   totalPages: number;
   page: number;
   pageSize: number;
+  summary: CrewDashboardSummary;
+  options: {
+    leadOptions: SelectOption[];
+    supervisorOptions: SelectOption[];
+    projectOptions: SelectOption[];
+  };
+  partialNotices: string[];
+};
+
+export type CrewMember = {
+  employeeId: string;
+  fullName: string;
+  role: string;
+  position: string;
+  employmentStatus: "active" | "on_leave" | "inactive";
+  availabilityStatus: "available" | "assigned" | "off_shift";
+  assignedCrewId: string | null;
+  primaryCrew: boolean;
+  joinedOn: string;
 };
 
 export type UpsertCrewInput = {
+  leadProfileId?: string | null;
+  supervisorProfileId?: string | null;
   name: string;
   code: string;
   lead: string;
@@ -172,7 +98,7 @@ export type CrewEmployeeOption = {
   position: string;
   employmentStatus: "active" | "on_leave" | "inactive";
   availabilityStatus: "available" | "assigned" | "off_shift";
-  assignedCrewId?: string | null;
+  assignedCrewId: string | null;
 };
 
 export type ProjectCrewAssignmentSummary = {
@@ -184,3 +110,5 @@ export type ProjectCrewAssignmentSummary = {
   actualManpower: number;
   allocationPercentage: number;
 };
+
+export type CrewDirectoryPayload = CrewDirectoryResult;

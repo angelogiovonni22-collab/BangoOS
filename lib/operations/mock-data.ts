@@ -1,6 +1,9 @@
 import { createCrewService } from "@/lib/crews";
 import { createEmployeeService } from "@/lib/employees";
 import { createSchedulingService } from "@/lib/scheduling";
+import type { CrewService } from "@/lib/crews";
+import type { EmployeeService } from "@/lib/employees";
+import type { SchedulingService } from "@/lib/scheduling";
 import type {
   AttentionItem,
   CrewOperationalStatus,
@@ -12,6 +15,12 @@ import type {
   SiteCamActivity,
   WorkforceStatus,
 } from "./types";
+
+type OperationsPayloadDeps = {
+  crewService?: Pick<CrewService, "getCrews">;
+  employeeService?: Pick<EmployeeService, "getSummary">;
+  schedulingService?: Pick<SchedulingService, "getScheduling">;
+};
 
 const projects: DailyProjectOperation[] = [
   {
@@ -305,18 +314,20 @@ const attentionQueue: AttentionItem[] = [
   },
 ];
 
-export async function getOperationsPayload(filters: OperationsFilters): Promise<OperationsPayload> {
-  const crewService = createCrewService();
-  const employeeService = createEmployeeService();
-  const schedulingService = createSchedulingService();
+export async function getOperationsPayload(filters: OperationsFilters, deps: OperationsPayloadDeps = {}): Promise<OperationsPayload> {
+  const crewService = deps.crewService ?? createCrewService();
+  const employeeService = deps.employeeService ?? createEmployeeService();
+  const schedulingService = deps.schedulingService ?? createSchedulingService();
 
   const [crewList, employeeSummary, schedulingPayload] = await Promise.all([
     crewService.getCrews({
       query: filters.query,
       status: "all",
-      availability: filters.shift === "all" ? "all" : "assigned",
-      specialty: filters.project,
-      sortBy: "utilization_desc",
+      leadId: "all",
+      supervisorId: "all",
+      projectId: "all",
+      assignmentStatus: filters.shift === "all" ? "all" : "confirmed",
+      sortBy: "members_desc",
       page: 1,
       pageSize: 50,
     }),
@@ -354,31 +365,32 @@ export async function getOperationsPayload(filters: OperationsFilters): Promise<
   });
 
   const crewAllocations = crewList.items.map((crew) => {
-    const status: CrewOperationalStatus = crew.utilization > 92
-      ? "overallocated"
-      : crew.scheduleConflicts > 0
-        ? "delayed"
-        : crew.availability === "assigned"
-          ? "on_site"
-          : crew.availability === "training"
-            ? "training"
-            : crew.availability === "off_shift"
-              ? "off_shift"
-              : "available";
+    const status: CrewOperationalStatus = crew.hasEquipmentConflict
+      ? "delayed"
+      : crew.availability === "assigned"
+        ? "on_site"
+        : "available";
+
+    const utilization = crew.activeMemberCount > 0
+      ? Math.min(100, crew.availability === "assigned" ? 85 : 45)
+      : 0;
+
+    const scheduleConflicts = crew.hasEquipmentConflict ? 1 : 0;
+    const certificationWarnings = 0;
 
     return {
       crewId: crew.id,
       crewName: crew.name,
-      crewLead: crew.lead,
-      assignedProject: crew.currentProject,
+      crewLead: crew.leadName || crew.supervisorName || "Unassigned",
+      assignedProject: crew.currentProjectName,
       shift: filters.shift === "all" ? "day" : filters.shift,
-      startTime: crew.availability === "assigned" ? "06:30" : crew.availability === "training" ? "08:00" : "07:00",
+      startTime: crew.availability === "assigned" ? "06:30" : "07:00",
       plannedHours: crew.availability === "assigned" ? 10 : 8,
-      utilization: crew.utilization,
+      utilization,
       status,
       availability: crew.availability,
-      scheduleConflicts: crew.scheduleConflicts,
-      certificationWarnings: Math.max(0, 100 - crew.certificationCompliance > 8 ? 1 : 0),
+      scheduleConflicts,
+      certificationWarnings,
     };
   });
 

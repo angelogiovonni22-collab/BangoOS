@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createCrewService, type CrewService } from "./service";
-import type { Crew } from "./types";
+import type { CrewProfile } from "./types";
 
 type UseCrewProfileParams = {
   crewId: string;
   service?: CrewService;
 };
 
-export function useCrewProfile({ crewId, service = createCrewService() }: UseCrewProfileParams) {
-  const [crew, setCrew] = useState<Crew | null>(null);
+export function useCrewProfile({ crewId, service }: UseCrewProfileParams) {
+  const crewService = useMemo(() => service ?? createCrewService(), [service]);
+  const [crew, setCrew] = useState<CrewProfile | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(crewId));
   const [errorMessage, setErrorMessage] = useState<string | null>(crewId ? null : "crews.errorMissingId");
   const [notFound, setNotFound] = useState(false);
@@ -24,7 +25,7 @@ export function useCrewProfile({ crewId, service = createCrewService() }: UseCre
       setNotFound(false);
 
       try {
-        const result = await service.getCrew(crewId);
+        const result = await crewService.getCrew(crewId);
 
         if (!active) {
           return;
@@ -57,7 +58,7 @@ export function useCrewProfile({ crewId, service = createCrewService() }: UseCre
     return () => {
       active = false;
     };
-  }, [crewId, service]);
+  }, [crewId, crewService]);
 
   return {
     crew,

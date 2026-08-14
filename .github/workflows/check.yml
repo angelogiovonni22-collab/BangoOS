@@ -1,0 +1,145 @@
+name: BangoOS Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - feature/bos-3d-command-center
+  push:
+    branches:
+      - chatgpt/bos-hardening
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full BOS contrast audit
+        run: node scripts/contrast-audit.mjs
+
+      - name: Run shell hardening regression
+        run: npx -y tsx 'app/(app)/app-shell-mobile-nav-scroll.test.ts'
+
+      - name: Run timeline render-loop regression
+        run: npx -y tsx 'app/(app)/timeline/timeline-render-loop.test.ts'
+
+      - name: Run core UI foundation regression
+        run: npx -y tsx components/ui/core-ui-foundation.test.ts
+
+      - name: Run core UI Phase 2 regression
+        run: npx -y tsx components/ui/core-ui-foundation-phase2.test.ts
+
+      - name: Run hardening contract regression
+        run: npx -y tsx components/ui/hardening-contract.test.ts
+
+      - name: Run Orion workflow speech handoff regression
+        run: npx -y tsx lib/orion/voice/phase11c-workflow-prompt-speech-handoff.test.ts
+
+      - name: Run Orion operational voice gate regression
+        run: npx -y tsx lib/orion/voice/phase11d-voice-freeze-gate.test.ts
+
+      - name: Run Orion voice selection regression
+        run: npx -y tsx lib/orion/voice/phase10a-voice-selection.test.ts
+
+      - name: Run Orion daily report operations regression
+        run: npx -y tsx lib/orion/commands/orion-daily-report-operations.contract.test.ts
+
+      - name: Run Orion production command coverage regression
+        run: npx -y tsx lib/orion/commands/orion-production-command-coverage.contract.test.ts
+
+      - name: Run Orion daily report voice intent regression
+        run: npx -y tsx lib/orion/voice/orion-daily-report-voice-intent.contract.test.ts
+
+      - name: Run Orion project health voice regression
+        run: npx -y tsx lib/orion/voice/orion-project-health-read.contract.test.ts
+
+      - name: Run Orion project operations voice regression
+        run: npx -y tsx lib/orion/voice/orion-project-ops-readouts.contract.test.ts
+
+      - name: Run Orion zero-pause wake regression
+        run: npx -y tsx lib/orion/voice/orion-zero-pause-wake.contract.test.ts
+
+      - name: Run Orion conversational follow-up regression
+        run: npx -y tsx lib/orion/voice/orion-conversation-continuation.contract.test.ts
+
+      - name: Run Orion transient recognition recovery regression
+        run: npx -y tsx lib/orion/voice/orion-transient-recognition-recovery.contract.test.ts
+
+      - name: Run Orion conversation routing regression
+        run: npx -y tsx lib/orion/voice/orion-conversation-routing-policy.contract.test.ts
+
+      - name: Run Orion universal BOS control regression
+        run: npx -y tsx lib/orion/intelligence/universal-command-catalog.contract.test.ts
+
+      - name: Run Orion OpenAI intelligence regression
+        run: npx -y tsx lib/orion/intelligence/openai-intelligence.contract.test.ts
+
+      - name: Run Orion LLM-first voice routing regression
+        run: npx -y tsx lib/orion/intelligence/orion-llm-first-voice-routing.contract.test.ts
+
+      - name: Run Orion live intelligence fallback regression
+        run: npx -y tsx lib/orion/intelligence/live-voice-intelligence-fallback.contract.test.ts
+
+      - name: Run Orion estimate voice workflow regression
+        run: npx -y tsx lib/orion/workflows/orion-estimate-voice-workflow.contract.test.ts
+
+      - name: Run Orion Realtime foundation regression
+        run: npx -y tsx lib/orion/realtime/orion-realtime-foundation.contract.test.ts
+
+      - name: Run Orion Realtime BOS tool bridge regression
+        run: npx -y tsx lib/orion/realtime/orion-realtime-tool-bridge.contract.test.ts
+
+      - name: Run Orion Realtime response lifecycle regression
+        run: npx -y tsx lib/orion/realtime/orion-realtime-response-lifecycle.test.ts
+
+      - name: Run Orion persistent Realtime integration regression
+        run: npx -y tsx components/orion/voice/orion-realtime-persistent-integration.contract.test.ts
+
+      - name: Run Orion Realtime web research regression
+        run: npx -y tsx lib/orion/realtime/orion-realtime-web-research.contract.test.ts
+
+      - name: Run Orion Realtime context resolution regression
+        run: npx -y tsx lib/orion/realtime/orion-realtime-context-resolution.contract.test.ts
+
+      - name: Run Orion advanced task-agent regression
+        run: npx -y tsx lib/orion/task-agent/orion-task-agent.contract.test.ts
+
+      - name: Run Orion semantic UI operator regression
+        run: npx -y tsx lib/orion/operator/orion-ui-operator.contract.test.ts
+
+      - name: Run BOS global search regression
+        run: npx -y tsx components/search/global-search.contract.test.ts
+
+      - name: Run contractor and vendor availability regression
+        run: npx -y tsx lib/scheduling/contractor-vendor-availability.test.ts
+
+      - name: Run location intelligence regression
+        run: npx -y tsx lib/location-intelligence/location-intelligence.contract.test.ts
+
+      - name: Run estimate contract lifecycle regression
+        run: npx -y tsx lib/estimates/estimate-contract-lifecycle.contract.test.ts
+
+      - name: Run repository checks
+        run: npm run check
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high

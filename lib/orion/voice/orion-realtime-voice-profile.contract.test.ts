@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+const unified = read("../../../components/orion/voice/useOrionUnifiedVoice.ts");
+const route = read("../../../app/api/orion/realtime/session/route.ts");
+const client = read("../realtime/client.ts");
+assert.match(unified, /pendingVoiceStyleRef/, "previewed style must remain pending until the user approves it");
+assert.match(unified, /profileCommand\?\.type === "save"/, "save-this-voice must explicitly persist the pending style");
+assert.match(unified, /ORION_REALTIME_VOICE_STYLE_STORAGE_KEY/, "approved profiles must survive future sessions on the device");
+assert.match(client, /voiceStyle: options\.voiceStyle \|\| null/, "saved style must be sent when a new Realtime session starts");
+assert.match(route, /isOrionVoiceStyleProfile\(body\.voiceStyle\)/, "the server must allowlist voice styles before using them in instructions");
+assert.match(route, /voiceStyleInstruction\(voiceStyle\)/, "validated style must augment the server-owned Orion policy");
+console.log("Orion Realtime voice-profile contract passed");

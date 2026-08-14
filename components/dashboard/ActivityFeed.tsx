@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, SkeletonLoader } from "@/components/ui";
+import { FadeIn, StatusPulse } from "@/components/motion";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Select, SkeletonLoader } from "@/components/ui";
+import { buildActivityPulseKey, collectNewDashboardIds, hasNewDashboardItems } from "@/lib/dashboard/motion-helpers";
 import type { DashboardActivityItem } from "@/lib/dashboard/types";
 
 type ActivityFeedProps = {
   items: DashboardActivityItem[];
   isLoading?: boolean;
+  errorMessage?: string | null;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps) {
+export function ActivityFeed({ items, isLoading = false, errorMessage = null, t }: ActivityFeedProps) {
   const [filterValue, setFilterValue] = useState<"all" | DashboardActivityItem["category"]>("all");
-  const [visibleCount, setVisibleCount] = useState(6);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [visibleCount, setVisibleCount] = useState(5);
+  const knownActivityIdsRef = useRef<Set<string>>(new Set());
+  const [newActivityIds, setNewActivityIds] = useState<Record<string, true>>({});
 
   const filteredItems = useMemo(() => {
     if (filterValue === "all") {
@@ -24,33 +28,29 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
   const visibleItems = useMemo(() => filteredItems.slice(0, visibleCount), [filteredItems, visibleCount]);
 
   useEffect(() => {
-    if (!sentinelRef.current) {
+    const nextIds = filteredItems.map((item) => item.id);
+    const nextNew = collectNewDashboardIds(knownActivityIdsRef.current, nextIds);
+
+    for (const id of nextIds) {
+      knownActivityIdsRef.current.add(id);
+    }
+
+    if (!hasNewDashboardItems(nextNew)) {
       return;
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
+    setNewActivityIds(nextNew);
 
-        if (!entry?.isIntersecting) {
-          return;
-        }
+    const timeout = window.setTimeout(() => {
+      setNewActivityIds({});
+    }, 380);
 
-        setVisibleCount((current) => Math.min(current + 4, filteredItems.length));
-      },
-      { threshold: 0.2 },
-    );
-
-    observer.observe(sentinelRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [filteredItems.length]);
+    return () => window.clearTimeout(timeout);
+  }, [filteredItems]);
 
   return (
-    <Card as="section">
-      <CardHeader>
+    <Card as="section" variant="elevated">
+      <CardHeader className="bg-[var(--color-surface-subtle)]/40">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>{t("dashboard.recentActivity")}</CardTitle>
@@ -58,14 +58,14 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
           </div>
 
           <label className="sr-only" htmlFor="activity-filter">{t("dashboard.activityFilter")}</label>
-          <select
+          <Select
             id="activity-filter"
             value={filterValue}
             onChange={(event) => {
               setFilterValue(event.target.value as "all" | DashboardActivityItem["category"]);
-              setVisibleCount(6);
+              setVisibleCount(5);
             }}
-            className="w-full rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm text-[var(--color-text-primary)] sm:w-56"
+            className="w-full sm:w-56"
           >
             <option value="all">{t("dashboard.activityFilterAll")}</option>
             <option value="customer">{t("dashboard.activityFilterCustomer")}</option>
@@ -74,47 +74,59 @@ export function ActivityFeed({ items, isLoading = false, t }: ActivityFeedProps)
             <option value="estimate">{t("dashboard.activityFilterEstimate")}</option>
             <option value="invoice">{t("dashboard.activityFilterInvoice")}</option>
             <option value="team">{t("dashboard.activityFilterTeam")}</option>
-          </select>
+          </Select>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3 p-5">
         {isLoading ? (
           <FeedLoadingState />
+        ) : errorMessage ? (
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+            {errorMessage}
+          </p>
         ) : filteredItems.length === 0 ? (
-          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+          <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
             {t("dashboard.activityEmpty")}
           </p>
         ) : (
-          visibleItems.map((item) => (
-            <article key={item.id} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
-              <div className="flex items-start gap-3">
-                <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${getAvatarTone(item.category)}`}>
-                  {item.avatarLabel}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.user}</p>
-                  <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{t(item.actionLabelKey)}</p>
-                  {item.projectName ? (
-                    <p className="mt-1 text-xs font-medium uppercase tracking-[0.08em] text-[var(--color-text-muted)]">{item.projectName}</p>
-                  ) : null}
-                </div>
-                <span className="shrink-0 text-xs text-[var(--color-text-muted)]">{formatRelativeMinutes(item.timestampMinutesAgo, t)}</span>
-              </div>
-            </article>
-          ))
+          visibleItems.map((item) => {
+            const isNew = Boolean(newActivityIds[item.id]);
+
+            return (
+              <FadeIn key={item.id} durationMs={isNew ? 180 : 0} className={isNew ? "" : "bf-no-motion"}>
+                <StatusPulse triggerKey={buildActivityPulseKey(item)} tone="neutral">
+                  <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)] transition hover:shadow-[var(--shadow-medium)]">
+                    <div className="flex items-start gap-3">
+                      <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${getAvatarTone(item.category)}`}>
+                        {item.avatarLabel}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.user}</p>
+                        <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{item.actionLabel ?? (item.actionLabelKey ? t(item.actionLabelKey) : "")}</p>
+                        {item.projectName ? (
+                          <p className="mt-1 text-xs font-medium uppercase tracking-[0.08em] text-[var(--color-text-muted)]">{item.projectName}</p>
+                        ) : null}
+                      </div>
+                      <span className="shrink-0 text-xs text-[var(--color-text-muted)]">{formatRelativeMinutes(item.timestampMinutesAgo, t)}</span>
+                    </div>
+                  </article>
+                </StatusPulse>
+              </FadeIn>
+            );
+          })
         )}
 
         {filteredItems.length > visibleItems.length ? (
           <>
-            <div ref={sentinelRef} aria-hidden="true" className="h-1" />
-            <button
+            <Button
               type="button"
-              className="w-full rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)]"
-              onClick={() => setVisibleCount((current) => Math.min(current + 4, filteredItems.length))}
+              variant="secondary"
+              fullWidth
+              onClick={() => setVisibleCount((current) => Math.min(current + 5, filteredItems.length))}
             >
               {t("dashboard.activityLoadMore")}
-            </button>
+            </Button>
           </>
         ) : null}
       </CardContent>

@@ -132,7 +132,7 @@ export function detectSchedulingConflicts(input: ConflictEngineInput): ScheduleC
         explanation: `${pto.employeeName} has ${pto.type.replace(/_/g, " ")} during this assignment.`,
         affectedResources: [pto.employeeId],
         affectedAssignments: [current.id],
-        recommendedAction: "Assign a replacement from available resources.",
+        recommendedAction: "Assign an available employee or crew replacement.",
         resolutionStatus: "open",
         relatedProjectId: current.scope.projectId,
         relatedCrewId: null,
@@ -325,6 +325,6 @@ export function buildScheduleHealth(payload: Pick<SchedulingPayload, "conflicts"
       "Fill urgent open shifts using deterministic recommendations.",
       "Rebalance utilization to keep crew load between 70% and 90%.",
     ],
-    isMock: true,
+    isMock: false,
   };
 }

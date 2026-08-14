@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+const client = read("../realtime/client.ts");
+const route = read("../../../app/api/orion/realtime/session/route.ts");
+const panel = read("../../../components/orion/persistent/PersistentOrionPanel.tsx");
+assert.match(client, /microphoneConstraints\(options\.isolationMode/, "WebRTC capture must use the canonical isolation policy");
+assert.match(route, /isOrionVoiceIsolationMode\(body\.isolationMode\)/, "server must allowlist isolation modes");
+assert.match(route, /noise_reduction: \{ type: isolationMode === "focused" \? "near_field" : "far_field" \}/, "focused mode must use Realtime near-field reduction");
+assert.match(route, /voiceIsolationInstruction\(isolationMode\)/, "server policy must reject unrelated room speech");
+assert.match(panel, /not biometric speaker verification/, "UI must not misrepresent audio isolation as identity verification");
+assert.match(route, /confirmation-sensitive BOS actions remain authenticated and explicitly confirmed|confirmation-sensitive/, "isolation must preserve sensitive-action confirmation");
+console.log("Orion voice-isolation contract passed");

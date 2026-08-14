@@ -2,9 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { LanguageSelector, ProfileMenu, SearchBar } from "@/components/ui";
+import { useEffect, useState, type ReactNode } from "react";
+import { MotionProvider } from "@/components/motion";
+import { OrionCommandCenterOverlay } from "@/components/orion/command-center";
+import { PersistentOrion } from "@/components/orion/persistent";
+import { GlobalOrionVoiceProvider, OrionUnifiedVoiceProvider } from "@/components/orion/voice";
+import { DepartmentNavigator, LayerManager, NavigationBreadcrumb } from "@/components/bangoflow";
+import { LanguageSelector, ProfileMenu } from "@/components/ui";
+import { GlobalSearch } from "@/components/search/global-search";
+import { useBodyScrollLock } from "@/components/ui/use-body-scroll-lock";
 import { useI18n } from "@/lib/i18n/provider";
+import { ORION_SIDEBAR_NAVIGATION_GROUPS } from "@/lib/orion/navigation";
+import { shouldIgnoreGlobalShortcut } from "@/lib/ui/keyboard";
 
 type AppShellProps = {
   children: ReactNode;
@@ -13,24 +22,28 @@ type AppShellProps = {
   companyName: string | null;
 };
 
-const navigationItems = [
-  { key: "dashboard", href: "/dashboard", icon: "◉" },
-  { key: "operations", href: "/operations", icon: "◈" },
-  { key: "scheduling", href: "/scheduling", icon: "◧" },
-  { key: "customers", href: "/customers", icon: "◌" },
-  { key: "projects", href: "/projects", icon: "◍" },
-  { key: "estimates", href: "/estimates", icon: "◎" },
-  { key: "invoices", href: "/invoices", icon: "◐" },
-  { key: "schedule", href: "/schedule", icon: "◑" },
-  { key: "employees", href: "/employees", icon: "◒" },
-  { key: "crew", href: "/crews", icon: "◒" },
-  { key: "settings", href: "/settings", icon: "◓" },
-];
-
 export function AppShell({ children, userName, userEmail, companyName }: AppShellProps) {
+  return (
+    <MotionProvider>
+      <GlobalOrionVoiceProvider>
+        <OrionUnifiedVoiceProvider>
+          <AppShellFrame userName={userName} userEmail={userEmail} companyName={companyName}>
+            {children}
+          </AppShellFrame>
+        </OrionUnifiedVoiceProvider>
+      </GlobalOrionVoiceProvider>
+    </MotionProvider>
+  );
+}
+
+function AppShellFrame({ children, userName, userEmail, companyName }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [commandCenterOpen, setCommandCenterOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
   const { t } = useI18n();
+
+  useBodyScrollLock(mobileOpen);
 
   useEffect(() => {
     if (!mobileOpen) {
@@ -50,259 +63,187 @@ export function AppShell({ children, userName, userEmail, companyName }: AppShel
     };
   }, [mobileOpen]);
 
-  const pageHeader = useMemo(() => {
-    if (pathname === "/dashboard") {
-      return {
-        title: t("navigation.dashboard"),
-        description: t("dashboard.executiveSummary"),
-      };
-    }
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (shouldIgnoreGlobalShortcut(event)) {
+        return;
+      }
 
-    if (pathname.startsWith("/operations")) {
-      return {
-        title: t("navigation.operations"),
-        description: t("operations.summary.default"),
-      };
-    }
+      const isCommandKey = event.key.toLowerCase() === "k";
+      if (!isCommandKey || (!event.ctrlKey && !event.metaKey)) {
+        return;
+      }
 
-    if (pathname.startsWith("/scheduling")) {
-      return {
-        title: t("navigation.scheduling"),
-        description: t("scheduling.summary.operational"),
-      };
-    }
-
-    if (pathname === "/customers") {
-      return {
-        title: t("customers.pageTitle"),
-        description: t("customers.pageDescription"),
-      };
-    }
-
-    if (pathname === "/customers/new") {
-      return {
-        title: t("customers.newTitle"),
-        description: t("customers.newDescription"),
-      };
-    }
-
-    if (pathname.startsWith("/customers/")) {
-      return {
-        title: t("customers.detailsTitle"),
-        description: t("customers.detailsDescription"),
-      };
-    }
-
-    if (pathname === "/projects") {
-      return {
-        title: t("projects.pageTitle"),
-        description: t("projects.pageDescription"),
-      };
-    }
-
-    if (pathname === "/projects/new") {
-      return {
-        title: t("projects.newTitle"),
-        description: t("projects.newDescription"),
-      };
-    }
-
-    if (pathname.startsWith("/projects/")) {
-      return {
-        title: t("projects.pageTitle"),
-        description: t("projects.pageDescription"),
-      };
-    }
-
-    if (pathname.startsWith("/estimates")) {
-      return {
-        title: t("estimates.pageTitle"),
-        description: t("estimates.pageDescription"),
-      };
-    }
-
-    if (pathname.startsWith("/invoices")) {
-      return {
-        title: t("navigation.invoices"),
-        description: t("common.moduleUnderDevelopmentDescription"),
-      };
-    }
-
-    if (pathname.startsWith("/schedule")) {
-      return {
-        title: t("navigation.schedule"),
-        description: t("common.moduleUnderDevelopmentDescription"),
-      };
-    }
-
-    if (pathname === "/employees") {
-      return {
-        title: t("employees.pageTitle"),
-        description: t("employees.pageDescription"),
-      };
-    }
-
-    if (pathname === "/employees/new") {
-      return {
-        title: t("employees.new.title"),
-        description: t("employees.new.description"),
-      };
-    }
-
-    if (pathname.startsWith("/employees/")) {
-      return {
-        title: t("employees.pageTitle"),
-        description: t("employees.profile.description"),
-      };
-    }
-
-    if (pathname === "/crews") {
-      return {
-        title: t("crews.pageTitle"),
-        description: t("crews.pageDescription"),
-      };
-    }
-
-    if (pathname === "/crews/new") {
-      return {
-        title: t("crews.new.title"),
-        description: t("crews.new.description"),
-      };
-    }
-
-    if (pathname.startsWith("/crews/")) {
-      return {
-        title: t("navigation.crew"),
-        description: t("crews.profile.description"),
-      };
-    }
-
-    if (pathname.startsWith("/settings")) {
-      return {
-        title: t("navigation.settings"),
-        description: t("common.moduleUnderDevelopmentDescription"),
-      };
-    }
-
-    return {
-      title: t("common.appName"),
-      description: t("common.homeDescription"),
+      event.preventDefault();
+      setCommandCenterOpen(true);
     };
-  }, [pathname, t]);
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_25%),linear-gradient(135deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
-      <div className="flex min-h-screen">
-        <aside
-          id="bangoos-sidebar"
-          role={mobileOpen ? "dialog" : undefined}
-          aria-modal={mobileOpen ? true : undefined}
-          aria-label={mobileOpen ? t("common.openSidebar") : undefined}
-          className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200/80 bg-slate-950 px-5 py-6 text-slate-100 shadow-[0_30px_70px_-22px_rgba(15,23,42,0.8)] transition-transform duration-300 lg:static lg:translate-x-0 ${
-            mobileOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="flex items-center justify-between gap-3">
+    <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
+      <PersistentOrion />
+      <div className="flex min-h-screen min-w-0">
+        <LayerManager layer={mobileOpen ? "dialog" : "popover"}>
+          <aside
+            id="bangoos-sidebar"
+            role={mobileOpen ? "dialog" : undefined}
+            aria-modal={mobileOpen ? true : undefined}
+            aria-label={mobileOpen ? t("common.openSidebar") : undefined}
+            className={`fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] px-5 py-6 text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${
+              mobileOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+          <div className="shrink-0 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 text-lg font-semibold text-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2f5ec9] to-[#2d9ad4] text-lg font-semibold text-white shadow-lg shadow-blue-500/20">
                 B
               </div>
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.28em] text-blue-300">
-                  BangoOS
+                <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#8ec3ff]">
+                  B.O.S.
                 </p>
-                <p className="text-sm text-slate-400">{t("common.constructionOs")}</p>
+                <p className="text-sm text-[var(--bos-text-muted)]">{t("common.constructionOs")}</p>
               </div>
             </div>
 
             <button
               type="button"
               aria-label={t("common.closeSidebar")}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-white transition hover:bg-white/10 lg:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white/10 lg:hidden"
               onClick={() => setMobileOpen(false)}
             >
               ×
             </button>
           </div>
 
-          <nav className="mt-8 space-y-1.5">
-            {navigationItems.map((item) => (
-              <SidebarItem
-                key={item.key}
-                label={t(`navigation.${item.key}`)}
-                href={item.href}
-                icon={item.icon}
-                active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                onNavigate={() => setMobileOpen(false)}
-              />
-            ))}
-          </nav>
+          <div className="mt-7 flex min-h-0 flex-1 flex-col overflow-hidden">
+            <nav className="h-full min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+              {ORION_SIDEBAR_NAVIGATION_GROUPS.map((group) => {
+                const isCollapsed = collapsedGroups[group.key] ?? false;
 
-          <div className="mt-auto rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-            <p className="text-sm font-semibold text-white">{t("common.projectPulse")}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
-              {t("common.projectPulseDescription")}
-            </p>
+                return (
+                  <section key={group.key} className="space-y-2">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--bos-text-muted)] transition hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)]"
+                      onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))}
+                      aria-expanded={!isCollapsed}
+                    >
+                      <span>{group.label}</span>
+                      <span>{isCollapsed ? "+" : "-"}</span>
+                    </button>
+
+                    {!isCollapsed ? (
+                      <div className="space-y-1.5">
+                        {group.items.map((item) => (
+                          <SidebarItem
+                            key={item.key}
+                            label={t(`navigation.${item.key}`)}
+                            href={item.href}
+                            icon={item.icon}
+                            active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                            onNavigate={() => setMobileOpen(false)}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                );
+              })}
+            </nav>
+
+            <div className="mt-auto shrink-0 rounded-[var(--radius-xl)] border border-[var(--bos-border-subtle)] bg-[linear-gradient(180deg,rgba(17,31,55,0.86),rgba(11,22,39,0.86))] p-4 backdrop-blur">
+              <p className="text-sm font-semibold text-[var(--bos-text-primary)]">{t("common.projectPulse")}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--bos-text-secondary)]">
+                {t("common.projectPulseDescription")}
+              </p>
+            </div>
           </div>
-        </aside>
+          </aside>
+        </LayerManager>
 
         {mobileOpen ? (
-          <button
-            type="button"
-            aria-label={t("common.closeSidebar")}
-            className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden"
-            onClick={() => setMobileOpen(false)}
-          />
+          <LayerManager layer="backdrop">
+            <button
+              type="button"
+              aria-label={t("common.closeSidebar")}
+              className="fixed inset-0 z-[var(--z-backdrop)] bg-slate-950/40 lg:hidden"
+              onClick={() => setMobileOpen(false)}
+            />
+          </LayerManager>
         ) : null}
 
-        <div className="flex min-h-screen flex-1 flex-col">
-          <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  aria-label={t("common.openSidebar")}
-                  aria-controls="bangoos-sidebar"
-                  aria-expanded={mobileOpen}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 shadow-sm transition hover:bg-slate-100 lg:hidden"
-                  onClick={() => setMobileOpen(true)}
-                >
-                  <span className="text-lg">☰</span>
-                </button>
-                <div>
-                  <p className="text-sm font-medium text-slate-500">
-                    {companyName || t("common.operationsWorkspace")}
-                  </p>
-                  <h1 className="text-lg font-semibold text-slate-950">{pageHeader.title}</h1>
-                  <p className="mt-0.5 hidden text-sm text-slate-500 md:block">{pageHeader.description}</p>
+        <div className="flex min-h-screen min-h-0 min-w-0 flex-1 flex-col">
+          <LayerManager layer="header">
+            <header className="sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[color:rgb(10_18_34/0.92)] px-4 py-3.5 backdrop-blur-sm sm:px-6 lg:px-8">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3 sm:items-center">
+                  <button
+                    type="button"
+                    aria-label={t("common.openSidebar")}
+                    aria-controls="bangoos-sidebar"
+                    aria-expanded={mobileOpen}
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] lg:hidden"
+                    onClick={() => setMobileOpen(true)}
+                  >
+                    <span className="text-lg">☰</span>
+                  </button>
+                  <div className="min-w-0 space-y-1.5">
+                    <p className="truncate text-sm font-medium text-[var(--bos-text-secondary)]">
+                      {companyName || t("common.operationsWorkspace")}
+                    </p>
+                    <NavigationBreadcrumb />
+                    <DepartmentNavigator t={t} />
+                  </div>
+                </div>
+
+                <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
+                  <div className="hidden min-w-[220px] md:block">
+                    <GlobalSearch placeholder={t("common.search")} />
+                  </div>
+                  <button
+                    type="button"
+                    className="hidden rounded-[var(--radius-md)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 py-2 text-sm font-semibold text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] md:inline-flex md:items-center md:gap-2"
+                    onClick={() => setCommandCenterOpen(true)}
+                    aria-label="Open Orion Command Center"
+                  >
+                    <span>Orion</span>
+                    <span className="rounded border border-[var(--bos-border-subtle)] px-1.5 py-0.5 text-xs text-[var(--bos-text-secondary)]">Ctrl+K</span>
+                  </button>
+                  <LanguageSelector />
+                  <button
+                    type="button"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] transition hover:bg-[var(--bos-bg-hover)]"
+                    aria-label={t("common.notifications")}
+                  >
+                    🔔
+                  </button>
+                  <ProfileMenu
+                    userName={userName}
+                    userEmail={userEmail}
+                    companyName={companyName}
+                    showSettingsAction
+                  />
                 </div>
               </div>
+            </header>
+          </LayerManager>
 
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="hidden min-w-[220px] md:block">
-                  <SearchBar placeholder={t("common.search")} />
-                </div>
-                <LanguageSelector />
-                <button
-                  type="button"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100"
-                  aria-label={t("common.notifications")}
-                >
-                  🔔
-                </button>
-                <ProfileMenu
-                  userName={userName}
-                  userEmail={userEmail}
-                  companyName={companyName}
-                  showSettingsAction
-                />
-              </div>
-            </div>
-          </header>
-
-          <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+          <main className="min-h-0 min-w-0 flex-1 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,0.08),transparent_26%)] p-4 sm:p-6 lg:p-7">{children}</main>
         </div>
       </div>
+
+      <OrionCommandCenterOverlay
+        open={commandCenterOpen}
+        onClose={() => setCommandCenterOpen(false)}
+        currentPath={pathname || "/dashboard"}
+      />
     </div>
   );
 }
@@ -324,10 +265,10 @@ function SidebarItem({
     <Link
       href={href}
       onClick={onNavigate}
-      className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
+      className={`flex items-center gap-3 rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold motion-nav transition-colors duration-200 ${
         active
-          ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-          : "text-slate-300 hover:bg-white/10 hover:text-white"
+            ? "bg-[linear-gradient(135deg,rgba(56,116,227,0.42),rgba(40,72,140,0.62))] text-white shadow-[0_16px_26px_-18px_rgba(37,99,235,0.55)]"
+            : "text-[var(--bos-text-secondary)] hover:bg-[rgba(82,130,210,0.16)] hover:text-[var(--bos-text-primary)]"
       }`}
     >
       <span className="text-base">{icon}</span>

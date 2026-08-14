@@ -14,7 +14,7 @@ export default function HomePage() {
             {t("common.homeEyebrow")}
           </p>
 
-          <h1 className="mt-3 text-5xl font-bold">BangoOS</h1>
+          <h1 className="mt-3 text-5xl font-bold">B.O.S.</h1>
 
           <p className="mt-4 max-w-2xl text-lg text-slate-300">
             {t("common.homeDescription")}

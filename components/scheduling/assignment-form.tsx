@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, FormField, Input, Select } from "@/components/ui";
 import type { AssignmentDraft, AssignmentType } from "@/lib/scheduling";
 
 type AssignmentFormProps = {
@@ -59,6 +59,23 @@ export function AssignmentForm({
 
     if (!form.title.trim() || !form.projectId || !form.requiredTrade) {
       setError(t("scheduling.validation.required"));
+      return;
+    }
+
+    if (form.type === "project_work") {
+      if (form.assignedCrewIds.length === 0 && form.assignedEmployeeIds.length === 0) {
+        setError("Select an assigned crew or employee.");
+        return;
+      }
+    }
+
+    if (form.type === "crew_mobilization" && form.assignedCrewIds.length === 0) {
+      setError("A crew assignment is required for crew mobilization.");
+      return;
+    }
+
+    if ((form.type === "inspection" || form.type === "training" || form.type === "meeting") && form.assignedEmployeeIds.length === 0) {
+      setError("An assigned employee is required for this assignment type.");
       return;
     }
 
@@ -189,10 +206,5 @@ export function AssignmentForm({
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
-      <span>{label}</span>
-      {children}
-    </label>
-  );
+  return <FormField label={label}>{children}</FormField>;
 }

@@ -194,6 +194,16 @@ export type ResourceAvailability = {
   utilization: number;
 };
 
+export type ContractorVendorAvailability = {
+  id: string;
+  vendorId: string;
+  name: string;
+  vendorCode: string;
+  location: string;
+  contact: string;
+  preferred: boolean;
+};
+
 export type SchedulingInsight = {
   id: string;
   title: string;
@@ -226,7 +236,7 @@ export type ScheduleHealth = {
   biggestRisks: string[];
   strongestAreas: string[];
   recommendedImprovements: string[];
-  isMock: true;
+  isMock: boolean;
 };
 
 export type LaborDemand = {
@@ -341,7 +351,9 @@ export type SchedulingPayload = {
   openShifts: OpenShift[];
   conflicts: ScheduleConflict[];
   availability: ResourceAvailability[];
+  contractorVendors?: ContractorVendorAvailability[];
   insights: SchedulingInsight[];
+  timeOff?: TimeOffEntry[];
   health: ScheduleHealth;
   analytics: SchedulingAnalytics;
   projectOptions: Array<{ id: string; name: string }>;

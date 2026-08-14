@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, FormField, Input, Select } from "@/components/ui";
 import type {
   Crew,
   CrewAvailabilityStatus,
@@ -336,13 +336,5 @@ function Field({
   required?: boolean;
   className?: string;
 }) {
-  return (
-    <label className={`space-y-2 ${className}`}>
-      <span className="text-sm font-semibold text-[var(--color-text-primary)]">
-        {label}
-        {required ? " *" : ""}
-      </span>
-      {children}
-    </label>
-  );
+  return <FormField label={label} required={required} className={className}>{children}</FormField>;
 }

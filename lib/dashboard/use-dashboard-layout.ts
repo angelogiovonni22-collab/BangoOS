@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardLayoutState, WidgetId } from "./types";
 
-const STORAGE_KEY = "bangoos.dashboard.layout.v1";
+const STORAGE_KEY = "bangoos.dashboard.layout.v2";
 
 const defaultLayout: DashboardLayoutState = {
   order: [
@@ -12,11 +12,33 @@ const defaultLayout: DashboardLayoutState = {
     "project-health",
     "weather",
     "activity",
+    "pending-followups",
+    "automation-queue",
+    "recent-automations",
+    "estimate-pipeline",
+    "top-priorities",
+    "business-health",
+    "risk-summary",
+    "decision-recommendations",
+    "todays-decisions",
+    "critical-alerts",
     "business-score",
     "command-center",
   ],
   hidden: [],
-  collapsed: [],
+  collapsed: [
+    "schedule",
+    "project-health",
+    "weather",
+    "pending-followups",
+    "automation-queue",
+    "recent-automations",
+    "risk-summary",
+    "decision-recommendations",
+    "todays-decisions",
+    "critical-alerts",
+    "command-center",
+  ],
 };
 
 function sanitizeLayout(input: Partial<DashboardLayoutState> | null | undefined): DashboardLayoutState {
@@ -39,26 +61,35 @@ function sanitizeLayout(input: Partial<DashboardLayoutState> | null | undefined)
 }
 
 export function useDashboardLayout() {
-  const [layout, setLayout] = useState<DashboardLayoutState>(() => {
-    if (typeof window === "undefined") {
-      return defaultLayout;
-    }
+  const [layout, setLayout] = useState<DashboardLayoutState>(defaultLayout);
+  const layoutHydratedRef = useRef(false);
 
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
 
       if (!raw) {
-        return defaultLayout;
+        layoutHydratedRef.current = true;
+        return;
       }
 
       const parsed = JSON.parse(raw) as Partial<DashboardLayoutState>;
-      return sanitizeLayout(parsed);
+      const nextLayout = sanitizeLayout(parsed);
+      queueMicrotask(() => {
+        layoutHydratedRef.current = true;
+        setLayout(nextLayout);
+      });
     } catch {
-      return defaultLayout;
+      // Ignore storage parse/read errors and continue with defaults.
+      layoutHydratedRef.current = true;
     }
-  });
+  }, []);
 
   useEffect(() => {
+    if (!layoutHydratedRef.current) {
+      return;
+    }
+
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
   }, [layout]);
 

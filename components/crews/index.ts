@@ -6,3 +6,5 @@ export { CrewStatusPill } from "./crew-status-pill";
 export { CrewProfileSections } from "./crew-profile-sections";
 export { CrewForm } from "./crew-form";
 export { CrewLoadingState } from "./crew-loading-state";
+export { WorkforceOperationsDashboard } from "./workforce-operations-dashboard";
+export { MobileFieldOperationsWorkspace } from "./mobile-field-operations-workspace";

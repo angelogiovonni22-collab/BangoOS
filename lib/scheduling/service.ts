@@ -1,13 +1,4 @@
-import {
-  acceptInsight,
-  assignOpenShift,
-  createAssignment,
-  dismissInsight,
-  getSchedulingPayload,
-  moveAssignment,
-  moveDispatchResource,
-  resolveConflict,
-} from "./mock-data";
+import { createSupabaseSchedulingService } from "./supabase-service";
 import type {
   AssignmentDraft,
   DispatchStatus,
@@ -27,37 +18,5 @@ export type SchedulingService = {
 };
 
 export function createSchedulingService(): SchedulingService {
-  return {
-    async getScheduling() {
-      return getSchedulingPayload();
-    },
-
-    async createAssignment(draft) {
-      return createAssignment(draft);
-    },
-
-    async moveDispatchResource(dispatchId, status, delayReason) {
-      return moveDispatchResource(dispatchId, status, delayReason);
-    },
-
-    async assignOpenShift(openShiftId, employeeId, crewId) {
-      return assignOpenShift(openShiftId, employeeId, crewId);
-    },
-
-    async resolveConflict(conflictId, status) {
-      return resolveConflict(conflictId, status);
-    },
-
-    async acceptInsight(insightId) {
-      return acceptInsight(insightId);
-    },
-
-    async dismissInsight(insightId) {
-      return dismissInsight(insightId);
-    },
-
-    async moveAssignment(assignmentId, changes) {
-      return moveAssignment(assignmentId, changes);
-    },
-  };
+  return createSupabaseSchedulingService();
 }

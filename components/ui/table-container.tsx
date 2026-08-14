@@ -15,14 +15,16 @@ export function TableContainer({
   children,
 }: TableContainerProps) {
   return (
-    <Card as="section" className="overflow-hidden">
-      <CardHeader>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <CardTitle>{title}</CardTitle>
-            {description ? <CardDescription>{description}</CardDescription> : null}
+    <Card as="section" variant="elevated" className="overflow-hidden border-[var(--color-border-subtle)]">
+      <CardHeader className="bg-[var(--bos-bg-workspace-surface-soft)] px-[var(--space-card-padding)] py-4">
+        <div className="flex flex-col gap-[var(--space-grid-gap)] lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="text-[var(--bos-text-strong-on-light)]">{title}</CardTitle>
+            {description ? (
+              <CardDescription className="text-[var(--bos-text-medium-on-light)]">{description}</CardDescription>
+            ) : null}
           </div>
-          {controls ? <div className="w-full lg:w-auto">{controls}</div> : null}
+          {controls ? <div className="w-full min-w-0 lg:w-auto lg:shrink-0">{controls}</div> : null}
         </div>
       </CardHeader>
       {children}

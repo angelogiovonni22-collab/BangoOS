@@ -2,13 +2,9 @@ import { Card, CardContent } from "@/components/ui";
 import type { CrewDashboardSummary } from "@/lib/crews";
 import {
   BriefcaseBusiness,
-  CalendarX2,
   CircleCheck,
-  Gauge,
-  ShieldCheck,
   UserCheck,
   Users,
-  UsersRound,
 } from "./crew-icons";
 
 type CrewDashboardMetricsProps = {
@@ -49,38 +45,6 @@ export function CrewDashboardMetrics({ summary, t }: CrewDashboardMetricsProps) 
       insight: t("crews.dashboardInsight.assignedCrews", { count: summary.assignedCrews }),
       icon: <BriefcaseBusiness className="h-5 w-5" />,
       iconTone: "bg-[var(--color-warning-50)] text-[var(--color-warning-700)]",
-    },
-    {
-      key: "averageCrewSize",
-      label: t("crews.dashboard.averageCrewSize"),
-      value: String(summary.averageCrewSize),
-      insight: t("crews.dashboardInsight.averageCrewSize", { count: summary.averageCrewSize }),
-      icon: <UsersRound className="h-5 w-5" />,
-      iconTone: "bg-[var(--color-brand-50)] text-[var(--color-brand-700)]",
-    },
-    {
-      key: "utilization",
-      label: t("crews.dashboard.crewUtilization"),
-      value: `${summary.utilization}%`,
-      insight: t("crews.dashboardInsight.utilization", { count: summary.utilization }),
-      icon: <Gauge className="h-5 w-5" />,
-      iconTone: "bg-[var(--color-warning-50)] text-[var(--color-warning-700)]",
-    },
-    {
-      key: "certificationCompliance",
-      label: t("crews.dashboard.certificationCompliance"),
-      value: `${summary.certificationCompliance}%`,
-      insight: t("crews.dashboardInsight.certificationCompliance", { count: summary.certificationCompliance }),
-      icon: <ShieldCheck className="h-5 w-5" />,
-      iconTone: "bg-[var(--color-success-50)] text-[var(--color-success-700)]",
-    },
-    {
-      key: "schedulingConflicts",
-      label: t("crews.dashboard.schedulingConflicts"),
-      value: String(summary.schedulingConflicts),
-      insight: t("crews.dashboardInsight.schedulingConflicts", { count: summary.schedulingConflicts }),
-      icon: <CalendarX2 className="h-5 w-5" />,
-      iconTone: "bg-[var(--color-danger-50)] text-[var(--color-danger-700)]",
     },
   ];
 

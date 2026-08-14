@@ -3,27 +3,33 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "node scripts/copy-web-ifc-wasm.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "npm run lint && npm run build"
+    "check": "npm run lint && npx -y tsx lib/orion/navigation/orion-realtime-deterministic-navigation.test.ts && npx -y tsx components/plans/blueprints-foundation.contract.test.ts && npx -y tsx components/plans/blueprints-release.contract.test.ts && npx -y tsx lib/blueprints/operations.contract.test.ts && npx -y tsx app/api/orion/realtime/session/orion-realtime-multipart.contract.test.ts && npx -y tsx lib/orion/realtime/orion-realtime-response-lifecycle.test.ts && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.8",
     "lucide-react": "^1.27.0",
-    "next": "16.2.11",
+    "next": "16.3.0",
+    "openai": "^7.3.0",
+    "pdfjs-dist": "5.4.624",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "three": "^0.185.1",
+    "web-ifc": "^0.0.77"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.185.0",
     "eslint": "^9",
-    "eslint-config-next": "16.2.11",
+    "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

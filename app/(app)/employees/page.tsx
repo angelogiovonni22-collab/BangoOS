@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import {
   EmptyState,
   ErrorState,
   PageHeader,
+  PartialDataNotice,
   TableContainer,
+  Button,
 } from "@/components/ui";
 import {
   EmployeeDashboardMetrics,
@@ -17,6 +18,7 @@ import {
 import { UsersIcon } from "@/components/employees/employee-icons";
 import { useEmployees } from "@/lib/employees";
 import { useI18n } from "@/lib/i18n/provider";
+import Link from "next/link";
 
 export default function EmployeesPage() {
   const { t } = useI18n();
@@ -24,10 +26,16 @@ export default function EmployeesPage() {
     items,
     summary,
     crewOptions,
+    supervisorOptions,
+    projectOptions,
     query,
     setQuery,
-    crew,
-    setCrew,
+    crewId,
+    setCrewId,
+    supervisorId,
+    setSupervisorId,
+    projectId,
+    setProjectId,
     employmentStatus,
     setEmploymentStatus,
     availabilityStatus,
@@ -45,23 +53,26 @@ export default function EmployeesPage() {
     activeFilters,
     isLoading,
     errorMessage,
+    partialNotices,
   } = useEmployees();
 
   return (
-    <div className="space-y-8">
+    <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
         title={t("employees.pageTitle")}
         description={t("employees.pageDescription")}
-        primaryAction={
-          <Link href="/employees/new" className="inline-flex">
-            <span className="inline-flex h-11 items-center rounded-[var(--radius-lg)] bg-[var(--color-brand-600)] px-5 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition hover:-translate-y-px hover:bg-[var(--color-brand-700)]">
-              + {t("employees.actions.addEmployee")}
-            </span>
+        secondaryActions={(
+          <Link href="/employees/new">
+            <Button size="md">New Employee</Button>
           </Link>
-        }
+        )}
       />
 
       <EmployeeDashboardMetrics summary={summary} t={t} />
+
+      {partialNotices.map((notice) => (
+        <PartialDataNotice key={notice} message={notice} />
+      ))}
 
       <TableContainer
         title={t("employees.directoryTitle")}
@@ -69,14 +80,20 @@ export default function EmployeesPage() {
         controls={
           <EmployeeFilters
             query={query}
-            crew={crew}
+            crewId={crewId}
+            supervisorId={supervisorId}
+            projectId={projectId}
             employmentStatus={employmentStatus}
             availabilityStatus={availabilityStatus}
             sortBy={sortBy}
             crewOptions={crewOptions}
+            supervisorOptions={supervisorOptions}
+            projectOptions={projectOptions}
             activeFilters={activeFilters}
             onQueryChange={setQuery}
-            onCrewChange={setCrew}
+            onCrewChange={setCrewId}
+            onSupervisorChange={setSupervisorId}
+            onProjectChange={setProjectId}
             onEmploymentStatusChange={setEmploymentStatus}
             onAvailabilityStatusChange={setAvailabilityStatus}
             onSortChange={setSortBy}
@@ -94,14 +111,6 @@ export default function EmployeesPage() {
             icon={<UsersIcon className="h-7 w-7" />}
             title={t("employees.empty.title")}
             description={t("employees.empty.description")}
-            action={
-              <Link
-                href="/employees/new"
-                className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white"
-              >
-                {t("employees.actions.addEmployee")}
-              </Link>
-            }
           />
         ) : (
           <>

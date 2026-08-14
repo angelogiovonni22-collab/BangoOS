@@ -1,37 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CustomerTable } from "@/components/customers";
 import {
-  Badge,
   Button,
   EmptyState,
   ErrorState,
   PageHeader,
   SearchInput,
-  Select,
   SkeletonLoader,
-  SummaryCard,
-  TableContainer,
 } from "@/components/ui";
+import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import { useI18n } from "@/lib/i18n/provider";
 
 type Customer = {
   id: string;
   name: string;
   companyName: string;
   type: string;
-  typeKey: "residential" | "commercial";
+  typeKey: string;
   email: string;
   phone: string;
-  location: string;
   city: string;
-  state: string;
   status: string;
   statusKey: string;
+  createdAt: string;
 };
 
 type CustomerRow = {
@@ -42,23 +38,21 @@ type CustomerRow = {
   company_name: string | null;
   email: string | null;
   phone: string | null;
-  address_line_1: string | null;
-  address_line_2: string | null;
   city: string | null;
-  state: string | null;
-  postal_code: string | null;
   status: string | null;
   created_at: string;
 };
 
+const PAGE_SIZE = 8;
+
 export default function CustomersPage() {
-  const router = useRouter();
   const { t } = useI18n();
   const supabase = useMemo(() => createClient(), []);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [chipFilter, setChipFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -96,6 +90,7 @@ export default function CustomersPage() {
           setErrorMessage(t("customers.errorConnect"));
           setIsLoading(false);
         }
+
         return;
       }
 
@@ -111,9 +106,7 @@ export default function CustomersPage() {
 
         const { data: rows, error: customersError } = await client
           .from("customers")
-          .select(
-            "id, customer_type, first_name, last_name, company_name, email, phone, address_line_1, address_line_2, city, state, postal_code, status, created_at",
-          )
+          .select("id, customer_type, first_name, last_name, company_name, email, phone, city, status, created_at")
           .eq("company_id", workspace.context.companyId)
           .order("created_at", { ascending: false });
 
@@ -126,29 +119,30 @@ export default function CustomersPage() {
 
         const mappedCustomers = (rows as CustomerRow[]).map((row) => {
           const customerType = normalizeCustomerType(row.customer_type, t);
+          const customerStatus = normalizeCustomerStatus(row.status, t);
           const firstName = row.first_name?.trim() || "";
           const lastName = row.last_name?.trim() || "";
           const companyName = row.company_name?.trim() || "";
-          const fallbackName = [firstName, lastName].filter(Boolean).join(" ");
-          const name =
+          const contactName = [firstName, lastName].filter(Boolean).join(" ") || t("customers.notProvided");
+          const customerName =
             customerType.key === "commercial" && companyName
               ? companyName
-              : fallbackName || companyName || t("customers.unnamedCustomer");
-          const status = normalizeCustomerStatus(row.status, t);
+              : contactName === t("customers.notProvided")
+                ? companyName || t("customers.unnamedCustomer")
+                : contactName;
 
           return {
             id: row.id,
-            name,
+            name: customerName,
             companyName,
             type: customerType.label,
             typeKey: customerType.key,
-            email: row.email?.trim() || t("customers.na"),
-            phone: row.phone?.trim() || t("customers.na"),
-            location: formatLocation(row.city, row.state, row.postal_code, t),
-            city: row.city?.trim() || "",
-            state: row.state?.trim() || "",
-            status: status.label,
-            statusKey: status.key,
+            email: row.email?.trim() || "-",
+            phone: row.phone?.trim() || "-",
+            city: row.city?.trim() || "-",
+            status: customerStatus.label,
+            statusKey: customerStatus.key,
+            createdAt: row.created_at,
           };
         });
 
@@ -175,331 +169,222 @@ export default function CustomersPage() {
     };
   }, [resolveWorkspaceError, supabase, t]);
 
-  const summary = useMemo(() => {
-    const activeCustomers = customers.filter((customer) => customer.statusKey === "active").length;
-    const leadCustomers = customers.filter((customer) => customer.statusKey === "lead").length;
-    const commercialCustomers = customers.filter((customer) => customer.typeKey === "commercial").length;
-
-    return {
-      totalCustomers: customers.length,
-      activeCustomers,
-      leadCustomers,
-      commercialCustomers,
-    };
-  }, [customers]);
-
   const filteredCustomers = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
     return customers.filter((customer) => {
       const matchesSearch =
-        !normalizedSearch ||
-        customer.name.toLowerCase().includes(normalizedSearch) ||
-        customer.email.toLowerCase().includes(normalizedSearch) ||
-        customer.phone.toLowerCase().includes(normalizedSearch) ||
-        customer.city.toLowerCase().includes(normalizedSearch) ||
-        customer.state.toLowerCase().includes(normalizedSearch) ||
-        customer.companyName.toLowerCase().includes(normalizedSearch);
+        !normalizedSearch
+        || customer.name.toLowerCase().includes(normalizedSearch)
+        || customer.email.toLowerCase().includes(normalizedSearch)
+        || customer.phone.toLowerCase().includes(normalizedSearch);
 
-      const matchesStatus = statusFilter === "all" || customer.statusKey === statusFilter;
+      if (chipFilter === "residential" || chipFilter === "commercial") {
+        return matchesSearch && customer.typeKey === chipFilter;
+      }
 
-      return matchesSearch && matchesStatus;
+      if (chipFilter === "active" || chipFilter === "archived") {
+        return matchesSearch && customer.statusKey === chipFilter;
+      }
+
+      return matchesSearch;
     });
-  }, [customers, searchTerm, statusFilter]);
+  }, [chipFilter, customers, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCustomers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+
+    return filteredCustomers.slice(start, start + PAGE_SIZE);
+  }, [currentPage, filteredCustomers]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setPage(1);
+  };
+
+  const handleFilterChipClick = (value: string) => {
+    setChipFilter(value);
+    setPage(1);
+  };
+
+  const filterChips = [
+    { key: "all", label: "All" },
+    { key: "residential", label: "Residential" },
+    { key: "commercial", label: "Commercial" },
+    { key: "active", label: "Active" },
+    { key: "archived", label: "Archived" },
+  ];
+
+  const kpis = useMemo(() => {
+    const now = new Date();
+    const totalCustomers = customers.length;
+    const activeCustomers = customers.filter((customer) => customer.statusKey === "active").length;
+    const newThisMonth = customers.filter((customer) => {
+      const created = new Date(customer.createdAt);
+
+      return !Number.isNaN(created.getTime())
+        && created.getMonth() === now.getMonth()
+        && created.getFullYear() === now.getFullYear();
+    }).length;
+
+    return {
+      totalCustomers,
+      activeCustomers,
+      newThisMonth,
+      lifetimeRevenue: "Coming Soon",
+    };
+  }, [customers]);
 
   return (
-    <div className="space-y-8">
+    <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
-        title={t("customers.pageTitle")}
-        description={t("customers.pageDescription")}
-        primaryAction={
+        compact
+        title="Customers"
+        description="Manage residential, commercial, and property management customers."
+        primaryAction={(
           <Link href="/customers/new">
-            <Button size="lg">+ {t("customers.addCustomer")}</Button>
+            <Button size="md">
+              <Plus size={16} aria-hidden="true" />
+              New Customer
+            </Button>
           </Link>
-        }
+        )}
       />
 
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard icon="C" label={t("customers.summaryTotal")} value={String(summary.totalCustomers)} />
-        <SummaryCard icon="A" label={t("customers.summaryActive")} value={String(summary.activeCustomers)} />
-        <SummaryCard icon="L" label={t("customers.summaryLeads")} value={String(summary.leadCustomers)} />
-        <SummaryCard icon="B" label={t("customers.summaryCommercial")} value={String(summary.commercialCustomers)} />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard label="Total Customers" value={kpis.totalCustomers.toLocaleString()} />
+        <KpiCard label="Active Customers" value={kpis.activeCustomers.toLocaleString()} />
+        <KpiCard label="New This Month" value={kpis.newThisMonth.toLocaleString()} />
+        <KpiCard label="Lifetime Revenue" value={kpis.lifetimeRevenue} />
       </section>
 
-      <TableContainer
-        title={t("customers.directoryTitle")}
-        description={t("customers.directoryDescription")}
-        controls={
-          <div className="grid gap-3 sm:grid-cols-2">
-            <SearchInput
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder={t("customers.searchPlaceholder")}
-              aria-label={t("customers.searchPlaceholder")}
-            />
+      <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-3 shadow-[var(--shadow-small)] sm:px-4 sm:py-3.5">
+        <div className="space-y-3">
+          <SearchInput
+            value={searchTerm}
+            onChange={(event) => handleSearchChange(event.target.value)}
+            placeholder="Search customers by name, email, or phone"
+            aria-label="Search customers"
+            className="h-10 rounded-[var(--radius-lg)] transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.12)]"
+          />
 
-            <Select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              aria-label={t("customers.filterStatus")}
-            >
-              <option value="all">{t("customers.allStatuses")}</option>
-              <option value="lead">{t("customers.statusLead")}</option>
-              <option value="active">{t("customers.statusActive")}</option>
-              <option value="inactive">{t("customers.statusInactive")}</option>
-            </Select>
+          <div className="flex flex-wrap gap-2">
+            {filterChips.map((chip) => {
+              const isActive = chipFilter === chip.key;
+
+              return (
+                <Button
+                  key={chip.key}
+                  type="button"
+                  size="sm"
+                  variant={isActive ? "primary" : "outline"}
+                  className="h-8 px-3.5 text-xs transition-all duration-200 hover:-translate-y-px"
+                  onClick={() => handleFilterChipClick(chip.key)}
+                >
+                  {chip.label}
+                </Button>
+              );
+            })}
           </div>
-        }
-      >
-        {isLoading ? (
-          <CustomersLoadingState />
-        ) : errorMessage ? (
-          <ErrorState title={t("customers.errorTitle")} description={errorMessage} compact />
-        ) : filteredCustomers.length > 0 ? (
-          <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <TableHeading>{t("customers.tableCustomer")}</TableHeading>
-                    <TableHeading>{t("customers.tableType")}</TableHeading>
-                    <TableHeading>{t("customers.tableContact")}</TableHeading>
-                    <TableHeading>{t("customers.tableLocation")}</TableHeading>
-                    <TableHeading>{t("customers.tableStatus")}</TableHeading>
-                    <TableHeading align="right">{t("customers.tableActions")}</TableHeading>
-                  </tr>
-                </thead>
+        </div>
+      </section>
 
-                <tbody className="divide-y divide-slate-200 bg-white">
-                  {filteredCustomers.map((customer) => (
-                    <tr
-                      key={customer.id}
-                      className="cursor-pointer transition hover:bg-slate-50"
-                      role="link"
-                      tabIndex={0}
-                      aria-label={`${t("customers.view")} ${customer.name}`}
-                      onClick={(event) => {
-                        const target = event.target as HTMLElement;
-
-                        if (target.closest("a,button,input,select,textarea")) {
-                          return;
-                        }
-
-                        router.push(`/customers/${customer.id}`);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== "Enter" && event.key !== " ") {
-                          return;
-                        }
-
-                        event.preventDefault();
-                        router.push(`/customers/${customer.id}`);
-                      }}
-                    >
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <Link
-                          href={`/customers/${customer.id}`}
-                          className="font-semibold text-slate-950 transition hover:text-blue-700"
-                        >
-                          {customer.name}
-                        </Link>
-
-                        <div className="mt-1 text-sm text-slate-500">
-                          {t("customers.customerId")}: {customer.id}
-                        </div>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{customer.type}</td>
-
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <div className="text-sm text-slate-700">{customer.email}</div>
-                        <div className="mt-1 text-sm text-slate-500">{customer.phone}</div>
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{customer.location}</td>
-
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <StatusBadge status={customer.status} statusKey={customer.statusKey} />
-                      </td>
-
-                      <td className="whitespace-nowrap px-6 py-4 text-right">
-                        <Link
-                          href={`/customers/${customer.id}`}
-                          className="text-sm font-semibold text-blue-600 transition hover:text-blue-800"
-                        >
-                          {t("customers.view")}
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="grid gap-4 p-4 md:hidden">
-              {filteredCustomers.map((customer) => (
-                <article key={customer.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <Link
-                        href={`/customers/${customer.id}`}
-                        className="text-base font-semibold text-slate-900"
-                      >
-                        {customer.name}
-                      </Link>
-                      <p className="mt-1 text-sm text-slate-500">{customer.type}</p>
-                    </div>
-                    <StatusBadge status={customer.status} statusKey={customer.statusKey} />
-                  </div>
-
-                  <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                    <InfoLine label={t("customers.tableContact")} value={`${customer.email} · ${customer.phone}`} />
-                    <InfoLine label={t("customers.tableLocation")} value={customer.location} />
-                  </div>
-
-                  <Link href={`/customers/${customer.id}`} className="mt-4 inline-flex text-sm font-semibold text-blue-700">
-                    {t("customers.view")}
-                  </Link>
-                </article>
-              ))}
-            </div>
-          </>
-        ) : customers.length === 0 ? (
-          <EmptyState
-            icon="C"
-            title={t("customers.emptyTitle")}
-            description={t("customers.emptyDescription")}
-            compact
-            action={
-              <Link href="/customers/new">
-                <Button>{t("customers.addFirstCustomer")}</Button>
-              </Link>
-            }
-          />
-        ) : (
-          <EmptyState
-            icon="?"
-            title={t("customers.emptyTitle")}
-            description={t("customers.filteredEmptyDescription")}
-            compact
-          />
-        )}
-      </TableContainer>
+      <section>
+          {isLoading ? (
+            <CustomersLoadingState />
+          ) : errorMessage ? (
+            <ErrorState title={t("customers.errorTitle")} description={errorMessage} compact />
+          ) : customers.length === 0 ? (
+            <EmptyState
+              icon="C"
+              title="No customers yet"
+              description="Create your first customer to start managing your account relationships."
+              compact
+              action={
+                <Link href="/customers/new">
+                  <Button>New Customer</Button>
+                </Link>
+              }
+            />
+          ) : filteredCustomers.length === 0 ? (
+            <EmptyState
+              icon="?"
+              title="No customers match this filter"
+              description="Try a different filter or search term."
+              compact
+            />
+          ) : (
+            <CustomerTable
+              items={pagedCustomers}
+              total={filteredCustomers.length}
+              page={currentPage}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+              t={t}
+            />
+          )}
+      </section>
     </div>
   );
 }
 
 function CustomersLoadingState() {
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-3 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-card)] sm:p-5">
+      <SkeletonLoader className="h-10 w-full" />
       <SkeletonLoader className="h-12 w-full" />
-      <SkeletonLoader className="h-16 w-full" />
-      <SkeletonLoader className="h-16 w-full" />
-      <SkeletonLoader className="h-16 w-full" />
+      <SkeletonLoader className="h-12 w-full" />
+      <SkeletonLoader className="h-12 w-full" />
+      <SkeletonLoader className="h-12 w-full" />
     </div>
   );
 }
 
-function TableHeading({
-  children,
-  align = "left",
-}: {
-  children: React.ReactNode;
-  align?: "left" | "right";
-}) {
+function KpiCard({ label, value }: { label: string; value: string }) {
   return (
-    <th
-      scope="col"
-      className={`px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-500 ${
-        align === "right" ? "text-right" : "text-left"
-      }`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function StatusBadge({
-  status,
-  statusKey,
-}: {
-  status: string;
-  statusKey: string;
-}) {
-  const styles: Record<string, string> = {
-    lead: "warning",
-    active: "success",
-    inactive: "neutral",
-  };
-  const tone = styles[statusKey] || "neutral";
-
-  return <Badge tone={tone as "warning" | "success" | "neutral"}>{status}</Badge>;
-}
-
-function InfoLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="font-medium text-slate-800">{value}</p>
-    </div>
+    <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-3.5 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)]">{label}</p>
+      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{value}</p>
+    </article>
   );
 }
 
 function normalizeCustomerType(customerType: string | null, t: (key: string) => string) {
-  const normalized = customerType?.trim().toLowerCase();
+  const normalized = customerType?.trim().toLowerCase() || "other";
 
   if (normalized === "commercial") {
-    return { key: "commercial" as const, label: t("customers.typeCommercial") };
+    return { key: "commercial", label: t("customers.typeCommercial") };
   }
 
-  return { key: "residential" as const, label: t("customers.typeResidential") };
+  if (normalized === "residential") {
+    return { key: "residential", label: t("customers.typeResidential") };
+  }
+
+  if (normalized === "government") {
+    return { key: "government", label: t("customers.typeGovernment") };
+  }
+
+  return { key: "other", label: t("customers.typeOther") };
 }
 
 function normalizeCustomerStatus(status: string | null, t: (key: string) => string) {
-  const normalized = status?.trim().toLowerCase();
+  const normalized = status?.trim().toLowerCase() || "archived";
 
   if (normalized === "active") {
     return { key: "active", label: t("customers.statusActive") };
   }
 
-  if (normalized === "lead") {
-    return { key: "lead", label: t("customers.statusLead") };
+  if (normalized === "archived" || normalized === "inactive") {
+    return { key: "archived", label: t("customers.statusArchived") };
   }
 
-  if (normalized === "inactive") {
-    return { key: "inactive", label: t("customers.statusInactive") };
+  if (normalized === "lead" || normalized === "pending") {
+    return { key: normalized, label: toTitleCase(normalized) };
   }
 
-  return {
-    key: normalized || "inactive",
-    label: toTitleCase(normalized || "inactive"),
-  };
-}
-
-function formatLocation(
-  city: string | null,
-  state: string | null,
-  postalCode: string | null,
-  t: (key: string) => string,
-) {
-  const normalizedCity = city?.trim() || "";
-  const normalizedState = state?.trim() || "";
-  const normalizedPostalCode = postalCode?.trim() || "";
-  const locationParts: string[] = [];
-
-  if (normalizedCity && normalizedState) {
-    locationParts.push(`${normalizedCity}, ${normalizedState}`);
-  } else if (normalizedCity) {
-    locationParts.push(normalizedCity);
-  } else if (normalizedState) {
-    locationParts.push(normalizedState);
-  }
-
-  if (normalizedPostalCode) {
-    locationParts.push(normalizedPostalCode);
-  }
-
-  return locationParts.join(" ") || t("customers.na");
+  return { key: normalized, label: toTitleCase(normalized.replace(/_/g, " ")) };
 }
 
 function toTitleCase(value: string) {

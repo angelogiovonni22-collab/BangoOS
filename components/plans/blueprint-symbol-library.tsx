@@ -1,0 +1,10 @@
+"use client";
+import type { DragEvent } from "react";
+import { Shapes, X } from "lucide-react";
+import type { BlueprintSymbol } from "@/lib/blueprints/symbols";
+export const BLUEPRINT_SYMBOL_MIME = "application/x-bango-blueprint-symbol";
+export function BlueprintSymbolLibrary({ symbols, selected, onSelect, onClose }: { symbols: BlueprintSymbol[]; selected: BlueprintSymbol | null; onSelect: (symbol: BlueprintSymbol) => void; onClose: () => void }) {
+  const drag = (event: DragEvent<HTMLButtonElement>, symbol: BlueprintSymbol) => { event.dataTransfer.setData(BLUEPRINT_SYMBOL_MIME, JSON.stringify(symbol)); event.dataTransfer.effectAllowed = "copy"; };
+  const categories = [...new Set(symbols.map((item) => item.category))];
+  return <aside className="absolute inset-y-0 left-0 z-20 flex w-[min(20rem,88%)] flex-col border-r border-slate-700 bg-slate-950/95 text-white shadow-2xl" data-orion-region="blueprint-symbol-library"><header className="flex items-center justify-between border-b border-white/10 px-3 py-2"><span className="inline-flex items-center gap-2 text-sm font-bold"><Shapes size={16}/>Symbol library</span><button type="button" aria-label="Close symbol library" onClick={onClose}><X size={16}/></button></header><p className="px-3 pt-2 text-[10px] text-slate-400">Drag onto the plan, or select then tap a location.</p><div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">{categories.map((category) => <section key={category}><h3 className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{category}</h3><div className="grid grid-cols-3 gap-2">{symbols.filter((item) => item.category === category).map((symbol) => <button key={symbol.id} type="button" draggable onDragStart={(event) => drag(event, symbol)} onClick={() => onSelect(symbol)} aria-pressed={selected?.id === symbol.id} className={`rounded-lg border p-2 text-center ${selected?.id === symbol.id ? "border-blue-300 bg-blue-600" : "border-white/10 bg-white/5 hover:bg-white/10"}`}><span className="block text-lg font-bold">{symbol.glyph}</span><span className="mt-1 block truncate text-[9px]">{symbol.label}</span></button>)}</div></section>)}</div></aside>;
+}

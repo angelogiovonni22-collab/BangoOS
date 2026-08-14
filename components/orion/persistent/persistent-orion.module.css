@@ -1,0 +1,252 @@
+.persistentOrionRoot {
+  --po-glow: rgba(74, 144, 255, 0.28);
+  --po-panel: rgba(11, 22, 39, 0.97);
+  --po-border: rgba(121, 156, 206, 0.3);
+  --po-motion: var(--motion-standard);
+  --po-min-size: 86px;
+  --po-full-size: 116px;
+
+  position: fixed;
+  right: clamp(0.7rem, 2.2vw, 1.35rem);
+  bottom: max(0.8rem, calc(env(safe-area-inset-bottom) + 0.55rem));
+
+  z-index: var(--z-orion-persistent, 46);
+  isolation: isolate;
+
+  pointer-events: auto;
+}
+
+.persistentOrionRoot :global(.persistentOrionButton),
+.persistentOrionRoot :global(.persistentOrionPanel) {
+  pointer-events: auto;
+}
+
+.persistentOrionRoot :global(.persistentOrionButton) {
+  all: unset;
+  display: inline-grid;
+  place-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  width: calc(var(--po-full-size) + 0.5rem);
+  height: calc(var(--po-full-size) + 0.5rem);
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--bos-text-primary);
+  padding: 0;
+  cursor: grab;
+  transition: transform var(--po-motion) ease;
+  touch-action: none;
+  user-select: none;
+  z-index: 1;
+}
+
+.persistentOrionRoot :global(.persistentOrionButton:hover) {
+  transform: translateY(-1px);
+}
+
+.persistentOrionRoot :global(.persistentOrionButtonDragging) {
+  cursor: grabbing;
+}
+
+.persistentOrionRoot :global(.persistentOrionButton:focus-visible),
+.persistentOrionRoot :global(.persistentOrionClose:focus-visible),
+.persistentOrionRoot :global(.persistentOrionMinimize:focus-visible),
+.persistentOrionRoot :global(.persistentOrionLinkAction:focus-visible) {
+  outline: 2px solid #9ac4ef;
+  outline-offset: 2px;
+}
+
+.persistentOrionRoot :global(.persistentOrionButtonMinimized) {
+  width: calc(var(--po-min-size) + 0.35rem);
+  height: calc(var(--po-min-size) + 0.35rem);
+}
+
+.persistentOrionRoot :global(.persistentOrionVisual) {
+  position: relative;
+  width: var(--po-full-size);
+  height: var(--po-full-size);
+  display: inline-grid;
+  place-items: center;
+  filter: drop-shadow(0 0 12px rgba(83, 159, 255, 0.22));
+  pointer-events: none;
+}
+
+.persistentOrionRoot
+  :global(.persistentOrionButtonMinimized .persistentOrionVisual) {
+  width: var(--po-min-size);
+  height: var(--po-min-size);
+}
+
+.persistentOrionRoot :global(.persistentOrionCanvas) {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.persistentOrionRoot :global(.persistentOrionSr) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.persistentOrionRoot :global(.persistentOrionPanel) {
+  margin-top: 0;
+  z-index: 2;
+  width: min(20.8rem, calc(100vw - 1.4rem));
+  max-height: min(72vh, 32rem);
+  overflow: auto;
+  border: 1px solid var(--po-border);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(13, 24, 43, 0.98), rgba(10, 20, 36, 0.97));
+  box-shadow: 0 22px 48px rgba(1, 8, 18, 0.76);
+  color: var(--bos-text-primary);
+  padding: 0.9rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionPanelHeader) {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionPanelHeader h3) {
+  margin: 0.12rem 0 0;
+  font-size: 1rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionEyebrow) {
+  margin: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bos-text-muted);
+}
+
+.persistentOrionRoot :global(.persistentOrionStateLine) {
+  margin: 0.22rem 0 0;
+  color: var(--bos-text-secondary);
+  font-size: 0.79rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionClose),
+.persistentOrionRoot :global(.persistentOrionMinimize) {
+  all: unset;
+  border: 1px solid var(--bos-border-default);
+  border-radius: 0.6rem;
+  padding: 0.35rem 0.55rem;
+  color: var(--bos-text-primary);
+  cursor: pointer;
+}
+
+.persistentOrionRoot :global(.persistentOrionFixtureTags) {
+  margin-top: 0.7rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.persistentOrionRoot :global(.persistentOrionFixtureTags span) {
+  border-radius: 999px;
+  border: 1px solid var(--bos-border-subtle);
+  padding: 0.18rem 0.5rem;
+  font-size: 0.68rem;
+  color: var(--bos-text-secondary);
+  background: rgba(20, 36, 64, 0.7);
+}
+
+.persistentOrionRoot :global(.persistentOrionSection) {
+  margin-top: 0.72rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionSection p) {
+  margin: 0.18rem 0 0;
+  font-size: 0.83rem;
+  color: var(--bos-text-secondary);
+}
+
+.persistentOrionRoot :global(.persistentOrionFacts) {
+  margin: 0.82rem 0 0;
+  display: grid;
+  gap: 0.62rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionFacts div) {
+  border-top: 1px solid var(--bos-border-subtle);
+  padding-top: 0.5rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionFacts dt) {
+  font-size: 0.72rem;
+  color: var(--bos-text-muted);
+}
+
+.persistentOrionRoot :global(.persistentOrionFacts dd) {
+  margin: 0.16rem 0 0;
+  font-size: 0.82rem;
+  color: var(--bos-text-secondary);
+}
+
+.persistentOrionRoot :global(.persistentOrionPanelFooter) {
+  margin-top: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.persistentOrionRoot :global(.persistentOrionLinkAction) {
+  color: var(--orion-cyan);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
+}
+
+.persistentOrionInstructions {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+@media (max-width: 768px) {
+  .persistentOrionRoot {
+    right: 0.62rem;
+    bottom: max(0.7rem, calc(env(safe-area-inset-bottom) + 0.7rem));
+  }
+
+  .persistentOrionRoot :global(.persistentOrionButton) {
+    width: calc(86px + 0.34rem);
+    height: calc(86px + 0.34rem);
+  }
+
+  .persistentOrionRoot :global(.persistentOrionVisual) {
+    width: 86px;
+    height: 86px;
+  }
+
+  .persistentOrionRoot
+    :global(.persistentOrionButtonMinimized .persistentOrionVisual) {
+    width: 64px;
+    height: 64px;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionPanel) {
+    width: min(19.6rem, calc(100vw - 1rem));
+    max-height: min(68vh, 27.5rem);
+  }
+}

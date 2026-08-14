@@ -1,0 +1,71 @@
+.root {
+  position: relative;
+}
+
+.gridGlow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.42;
+  background-image:
+    linear-gradient(to right, rgb(31 56 84 / 38%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(31 56 84 / 38%) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at 20% 12%, black 0%, transparent 68%);
+}
+
+.kineticRail {
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(24 183 217 / 16%), rgb(159 122 234 / 20%), rgb(246 182 79 / 20%));
+  height: 10px;
+  overflow: hidden;
+}
+
+.kineticRailInner {
+  height: 100%;
+  width: 45%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(24 183 217), rgb(159 122 234));
+  animation: quantum-flow var(--q-motion) ease-out;
+}
+
+@keyframes quantum-flow {
+  from {
+    transform: translateX(-12%);
+    opacity: 0.25;
+  }
+
+  to {
+    transform: translateX(0%);
+    opacity: 1;
+  }
+}
+
+@keyframes quantum-breathe {
+  0% {
+    opacity: 0.55;
+    transform: scaleX(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  100% {
+    opacity: 0.55;
+    transform: scaleX(0.96);
+  }
+}
+
+@keyframes quantum-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,13 +1,126 @@
-import type {
-  Crew,
-  CrewAnalytics,
-  CrewEmployeeOption,
-  CrewFilters,
-  CrewListResult,
-  CrewSortKey,
-  ProjectCrewAssignmentSummary,
-  UpsertCrewInput,
-} from "./types";
+type CrewSortKey =
+  | "name_asc"
+  | "name_desc"
+  | "lead_asc"
+  | "lead_desc"
+  | "members_desc"
+  | "utilization_desc"
+  | "last_activity_desc";
+
+type CrewMember = {
+  employeeId: string;
+  fullName: string;
+  role: string;
+  position: string;
+  employmentStatus: "active" | "on_leave" | "inactive";
+  availabilityStatus: "available" | "assigned" | "off_shift";
+  assignedCrewId: string | null;
+  primaryCrew: boolean;
+  joinedOn: string;
+};
+
+type CrewAssignment = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  role: string;
+  startDate: string;
+  endDate: string | null;
+  estimatedManpower: number;
+  actualManpower: number;
+  allocationPercentage: number;
+  status: "active" | "upcoming" | "completed";
+};
+
+type Crew = {
+  id: string;
+  name: string;
+  code: string;
+  lead: string;
+  supervisor: string;
+  status: "active" | "standby" | "inactive";
+  availability: "available" | "assigned" | "off_shift" | "pto" | "training" | "unavailable";
+  primarySpecialty: string;
+  secondarySpecialties: string[];
+  homeLocation: string;
+  currentProject: string | null;
+  memberCount: number;
+  utilization: number;
+  certificationCompliance: number;
+  scheduleConflicts: number;
+  lastActivity: string;
+  notes: string;
+  members: CrewMember[];
+  assignments: CrewAssignment[];
+  productivityMetrics: {
+    completedTasks7d: number;
+    plannedTasks7d: number;
+    onTimePercentage: number;
+  };
+  safetyMetrics: {
+    incidents30d: number;
+    nearMisses30d: number;
+    lastIncidentDate: string | null;
+  };
+  [key: string]: unknown;
+};
+type CrewAnalytics = {
+  utilizationPercentage: number;
+  laborAvailability: number;
+  overtimeRisk: number;
+  certificationCompliance: number;
+  workload: number;
+  productivity: number;
+  safetyIncidents: number;
+  scheduleConflicts: number;
+};
+type CrewEmployeeOption = {
+  employeeId: string;
+  fullName: string;
+  position: string;
+  employmentStatus: "active" | "on_leave" | "inactive";
+  availabilityStatus: "available" | "assigned" | "off_shift";
+  assignedCrewId: string | null;
+};
+type CrewFilters = {
+  query: string;
+  status: string;
+  availability: string;
+  specialty: string;
+  sortBy: CrewSortKey;
+  page: number;
+  pageSize: number;
+};
+type CrewListResult = {
+  items: Crew[];
+  total: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+};
+type ProjectCrewAssignmentSummary = {
+  crewId: string;
+  crewName: string;
+  role: string;
+  startDate: string;
+  estimatedManpower: number;
+  actualManpower: number;
+  allocationPercentage: number;
+};
+type UpsertCrewInput = {
+  name: string;
+  code: string;
+  lead: string;
+  supervisor: string;
+  status: Crew["status"];
+  availability: Crew["availability"];
+  primarySpecialty: string;
+  secondarySpecialties: string[];
+  homeLocation: string;
+  currentProject: string | null;
+  notes: string;
+  members: CrewMember[];
+};
 
 const STORAGE_KEY = "bangoos.mock.crews.v1";
 

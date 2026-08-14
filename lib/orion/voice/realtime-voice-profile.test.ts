@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { detectRealtimeVoiceProfileCommand, isOrionVoiceStyleProfile, voiceStyleInstruction } from "./realtime-voice-profile";
+assert.deepEqual(detectRealtimeVoiceProfileCommand("Orion, speak with an Australian accent and a warm tone"), { type: "preview", profile: { accent: "australian", tone: "warm" } });
+assert.deepEqual(detectRealtimeVoiceProfileCommand("Orion, save this voice"), { type: "save" });
+assert.deepEqual(detectRealtimeVoiceProfileCommand("Reset my saved voice preference"), { type: "reset" });
+assert.equal(detectRealtimeVoiceProfileCommand("Open the project"), null);
+assert.equal(isOrionVoiceStyleProfile({ accent: "australian", tone: "warm" }), true);
+assert.equal(isOrionVoiceStyleProfile({ accent: "celebrity", tone: "deceptive" }), false);
+assert.match(voiceStyleInstruction({ accent: "irish", tone: "calm" }), /do not imitate a specific person/);
+console.log("Orion Realtime voice-profile tests passed");

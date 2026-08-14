@@ -10,10 +10,38 @@ type EmployeeStatusPillProps = {
 export function EmployeeStatusPill({ employmentStatus, availabilityStatus, t }: EmployeeStatusPillProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge tone={employmentTone(employmentStatus)}>{t(`employees.employmentStatus.${employmentStatus}`)}</Badge>
-      <Badge tone={availabilityTone(availabilityStatus)}>{t(`employees.availabilityStatus.${availabilityStatus}`)}</Badge>
+      <Badge tone={employmentTone(employmentStatus)}>{employmentLabel(employmentStatus, t)}</Badge>
+      <Badge tone={availabilityTone(availabilityStatus)}>{availabilityLabel(availabilityStatus, t)}</Badge>
     </div>
   );
+}
+
+function employmentLabel(status: EmploymentStatus, t: EmployeeStatusPillProps["t"]) {
+  if (status === "leave") {
+    return "On leave";
+  }
+
+  if (status === "terminated") {
+    return "Terminated";
+  }
+
+  return t(`employees.employmentStatus.${status}`);
+}
+
+function availabilityLabel(status: AvailabilityStatus, t: EmployeeStatusPillProps["t"]) {
+  if (status === "unavailable") {
+    return "Unavailable";
+  }
+
+  if (status === "restricted") {
+    return "Restricted";
+  }
+
+  if (status === "unknown") {
+    return "Unknown";
+  }
+
+  return t(`employees.availabilityStatus.${status}`);
 }
 
 function employmentTone(status: EmploymentStatus): "success" | "warning" | "neutral" {
@@ -21,20 +49,24 @@ function employmentTone(status: EmploymentStatus): "success" | "warning" | "neut
     return "success";
   }
 
-  if (status === "on_leave") {
+  if (status === "leave") {
     return "warning";
   }
 
   return "neutral";
 }
 
-function availabilityTone(status: AvailabilityStatus): "success" | "info" | "neutral" {
+function availabilityTone(status: AvailabilityStatus): "success" | "info" | "warning" | "neutral" {
   if (status === "available") {
     return "success";
   }
 
   if (status === "assigned") {
     return "info";
+  }
+
+  if (status === "restricted") {
+    return "warning";
   }
 
   return "neutral";

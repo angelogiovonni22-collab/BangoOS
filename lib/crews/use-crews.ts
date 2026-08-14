@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createCrewService, type CrewService } from "./service";
 import type {
   Crew,
-  CrewAvailabilityStatus,
   CrewDashboardSummary,
   CrewSortKey,
   CrewStatus,
@@ -16,23 +15,24 @@ type UseCrewsParams = {
 
 const DEFAULT_PAGE_SIZE = 8;
 
-export function useCrews({ service = createCrewService() }: UseCrewsParams = {}) {
+export function useCrews({ service }: UseCrewsParams = {}) {
+  const crewService = useMemo(() => service ?? createCrewService(), [service]);
   const [items, setItems] = useState<Crew[]>([]);
   const [summary, setSummary] = useState<CrewDashboardSummary>({
     totalCrews: 0,
     activeCrews: 0,
     availableCrews: 0,
     assignedCrews: 0,
-    averageCrewSize: 0,
-    utilization: 0,
-    certificationCompliance: 0,
-    schedulingConflicts: 0,
   });
-  const [specialtyOptions, setSpecialtyOptions] = useState<string[]>([]);
+  const [leadOptions, setLeadOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [supervisorOptions, setSupervisorOptions] = useState<Array<{ id: string; label: string }>>([]);
+  const [projectOptions, setProjectOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [query, setQueryState] = useState("");
   const [status, setStatusState] = useState<CrewStatus | "all">("all");
-  const [availability, setAvailabilityState] = useState<CrewAvailabilityStatus | "all">("all");
-  const [specialty, setSpecialtyState] = useState("all");
+  const [leadId, setLeadIdState] = useState("all");
+  const [supervisorId, setSupervisorIdState] = useState("all");
+  const [projectId, setProjectIdState] = useState("all");
+  const [assignmentStatus, setAssignmentStatusState] = useState<"all" | "none" | "planned" | "confirmed" | "in_progress" | "completed" | "cancelled">("all");
   const [sortBy, setSortByState] = useState<CrewSortKey>("name_asc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -40,6 +40,7 @@ export function useCrews({ service = createCrewService() }: UseCrewsParams = {})
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [partialNotices, setPartialNotices] = useState<string[]>([]);
 
   const setQuery = useCallback((value: string) => {
     setQueryState(value);
@@ -51,13 +52,23 @@ export function useCrews({ service = createCrewService() }: UseCrewsParams = {})
     setPage(1);
   }, []);
 
-  const setAvailability = useCallback((value: CrewAvailabilityStatus | "all") => {
-    setAvailabilityState(value);
+  const setLeadId = useCallback((value: string) => {
+    setLeadIdState(value);
     setPage(1);
   }, []);
 
-  const setSpecialty = useCallback((value: string) => {
-    setSpecialtyState(value);
+  const setSupervisorId = useCallback((value: string) => {
+    setSupervisorIdState(value);
+    setPage(1);
+  }, []);
+
+  const setProjectId = useCallback((value: string) => {
+    setProjectIdState(value);
+    setPage(1);
+  }, []);
+
+  const setAssignmentStatus = useCallback((value: "all" | "none" | "planned" | "confirmed" | "in_progress" | "completed" | "cancelled") => {
+    setAssignmentStatusState(value);
     setPage(1);
   }, []);
 
@@ -71,33 +82,34 @@ export function useCrews({ service = createCrewService() }: UseCrewsParams = {})
     setErrorMessage(null);
 
     try {
-      const [listResult, summaryResult, specialtyResult] = await Promise.all([
-        service.getCrews({
-          query,
-          status,
-          availability,
-          specialty,
-          sortBy,
-          page,
-          pageSize,
-        }),
-        service.getSummary(),
-        service.getSpecialtyOptions(),
-      ]);
+      const listResult = await crewService.getCrews({
+        query,
+        status,
+        leadId,
+        supervisorId,
+        projectId,
+        assignmentStatus,
+        sortBy,
+        page,
+        pageSize,
+      });
 
       setItems(listResult.items);
       setTotal(listResult.total);
       setTotalPages(listResult.totalPages);
       setPage(listResult.page);
       setPageSize(listResult.pageSize);
-      setSummary(summaryResult);
-      setSpecialtyOptions(specialtyResult);
+      setSummary(listResult.summary);
+      setLeadOptions(listResult.options.leadOptions);
+      setSupervisorOptions(listResult.options.supervisorOptions);
+      setProjectOptions(listResult.options.projectOptions);
+      setPartialNotices(listResult.partialNotices);
     } catch {
       setErrorMessage("crews.errorLoad");
     } finally {
       setIsLoading(false);
     }
-  }, [availability, page, pageSize, query, service, sortBy, specialty, status]);
+  }, [assignmentStatus, page, pageSize, projectId, query, crewService, leadId, sortBy, status, supervisorId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -123,29 +135,43 @@ export function useCrews({ service = createCrewService() }: UseCrewsParams = {})
       count += 1;
     }
 
-    if (availability !== "all") {
+    if (leadId !== "all") {
       count += 1;
     }
 
-    if (specialty !== "all") {
+    if (supervisorId !== "all") {
+      count += 1;
+    }
+
+    if (projectId !== "all") {
+      count += 1;
+    }
+
+    if (assignmentStatus !== "all") {
       count += 1;
     }
 
     return count;
-  }, [availability, query, specialty, status]);
+  }, [assignmentStatus, leadId, projectId, query, status, supervisorId]);
 
   return {
     items,
     summary,
-    specialtyOptions,
+    leadOptions,
+    supervisorOptions,
+    projectOptions,
     query,
     setQuery,
     status,
     setStatus,
-    availability,
-    setAvailability,
-    specialty,
-    setSpecialty,
+    leadId,
+    setLeadId,
+    supervisorId,
+    setSupervisorId,
+    projectId,
+    setProjectId,
+    assignmentStatus,
+    setAssignmentStatus,
     sortBy,
     setSortBy,
     page,
@@ -159,6 +185,7 @@ export function useCrews({ service = createCrewService() }: UseCrewsParams = {})
     activeFilters,
     isLoading,
     errorMessage,
+    partialNotices,
     refresh,
   };
 }

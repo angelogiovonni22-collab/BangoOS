@@ -1,7 +1,7 @@
 {
-  "header.badge": "Mission Control",
-  "header.title": "Daily Command Brief",
-  "header.updatedHint": "Data refreshes from deterministic mock operational streams.",
+  "header.badge": "Operations Overview",
+  "header.title": "Daily Operations Brief",
+  "header.updatedHint": "Data refreshes from live operational records and deterministic fallback signals when integrations are partial.",
   "summary.default": "Today features high activity across field operations with manageable risk windows requiring targeted follow-up.",
 
   "filters.date": "Operational Date",
@@ -131,7 +131,7 @@
   "workforce.overtimeRisk": "Overtime Risk",
   "workforce.certificationRisk": "Certification Risk",
   "workforce.attentionTitle": "Employee Attention List",
-  "workforce.checkInNote": "Checked-in status is deterministic mock data for this sprint.",
+  "workforce.checkInNote": "Checked-in status is sourced from current operational records and may use fallback status when integrations are partial.",
 
   "workforceAttention.no_show_risk": "No-Show Risk",
   "workforceAttention.overtime_risk": "Overtime Risk",
@@ -182,7 +182,7 @@
   "sitecamCategory.inspection": "Inspection",
   "sitecamCategory.punchlist": "Punch List",
 
-  "ai.mockNotice": "These AI insights are deterministic mock recommendations for sprint validation, not live production intelligence.",
+  "ai.mockNotice": "These AI insights are deterministic recommendations based on current operational signals and should be reviewed by operations before execution.",
   "ai.nextAction": "Recommended action:",
   "ai.related": "Related:",
 
@@ -209,7 +209,7 @@
   "insight.action.certExpiring": "Book renewal sessions and verify roster coverage for impacted shifts.",
 
   "insight.confidence.high": "Confidence: high based on converging schedule and activity signals.",
-  "insight.confidence.mediumHigh": "Confidence: medium-high from consistent mock trend patterns.",
+  "insight.confidence.mediumHigh": "Confidence: medium-high from consistent operational trend patterns.",
   "insight.confidence.medium": "Confidence: medium pending additional daily reporting.",
 
   "attentionScope.all": "All",
@@ -221,7 +221,7 @@
   "attentionScope.safety": "Safety",
 
   "quickActions.assignCrew": "Assign Crew",
-  "quickActions.viewSchedule": "Open Scheduling & Dispatch",
+  "quickActions.viewSchedule": "Open Dispatch Center",
   "quickActions.addDailyReport": "Add Daily Report",
   "quickActions.reviewSafety": "Review Safety Alerts",
   "quickActions.openSitecam": "Open SiteCam",

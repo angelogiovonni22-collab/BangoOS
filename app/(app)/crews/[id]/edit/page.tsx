@@ -1,118 +1,193 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { CrewForm } from "@/components/crews";
 import { EmptyState, ErrorState, PageHeader } from "@/components/ui";
-import { CrewForm, CrewLoadingState } from "@/components/crews";
-import { HardHat } from "@/components/crews/crew-icons";
-import { createCrewService, useCrewProfile } from "@/lib/crews";
-import type { CrewEmployeeOption, UpsertCrewInput } from "@/lib/crews";
+import { createCrewService, type Crew, type CrewEmployeeOption, type CrewMember, type CrewProfile } from "@/lib/crews";
 import { useI18n } from "@/lib/i18n/provider";
 
-const PROJECT_OPTIONS = [
-  "Northpoint Medical Center",
-  "Project Oak",
-  "Dock Expansion",
-  "Harper Residence",
-  "Summit Retail TI",
-];
-
 export default function EditCrewPage() {
-  const { t } = useI18n();
   const params = useParams<{ id?: string | string[] }>();
   const crewId = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
+  const { t } = useI18n();
   const router = useRouter();
-  const service = useMemo(() => createCrewService(), []);
-  const [isSaving, setIsSaving] = useState(false);
+  const crewService = useMemo(() => createCrewService(), []);
+
+  const [profile, setProfile] = useState<CrewProfile | null>(null);
   const [employeeOptions, setEmployeeOptions] = useState<CrewEmployeeOption[]>([]);
   const [specialtyOptions, setSpecialtyOptions] = useState<string[]>([]);
-  const { crew, isLoading, errorMessage, notFound } = useCrewProfile({ crewId, service });
+  const [projectOptions, setProjectOptions] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    const loadFormOptions = async () => {
-      const [employees, specialties] = await Promise.all([
-        service.getEmployeeOptions(),
-        service.getSpecialtyOptions(),
-      ]);
-
-      if (!active) {
+    const run = async () => {
+      if (!crewId) {
+        setErrorMessage("crews.errorMissingId");
+        setIsLoading(false);
         return;
       }
 
-      setEmployeeOptions(employees);
-      setSpecialtyOptions(specialties);
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const [loadedProfile, employees, specialties, projects] = await Promise.all([
+          crewService.getCrew(crewId),
+          crewService.getEmployeeOptions(),
+          crewService.getSpecialtyOptions(),
+          crewService.getProjectOptions(),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        if (!loadedProfile) {
+          setErrorMessage("crews.notFound.description");
+          setIsLoading(false);
+          return;
+        }
+
+        setProfile(loadedProfile);
+        setEmployeeOptions(employees);
+        setSpecialtyOptions(specialties.length > 0 ? specialties : ["General Labor"]);
+        setProjectOptions(projects.map((project) => project.label));
+      } catch {
+        if (active) {
+          setErrorMessage("crews.errorLoadProfile");
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
     };
 
-    void loadFormOptions();
+    void run();
 
     return () => {
       active = false;
     };
-  }, [service]);
+  }, [crewId, crewService]);
 
-  if (isLoading) {
-    return <CrewLoadingState />;
-  }
-
-  if (errorMessage) {
-    return <ErrorState title={t("crews.errorTitle")} description={t(errorMessage)} />;
-  }
-
-  if (notFound || !crew) {
-    return (
-      <EmptyState
-        icon={<HardHat className="h-7 w-7" />}
-        title={t("crews.notFound.title")}
-        description={t("crews.notFound.description")}
-        action={
-          <Link
-            href="/crews"
-            className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-brand-600)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-700)]"
-          >
-            {t("crews.actions.backToDirectory")}
-          </Link>
-        }
-      />
+  let initialValue: Crew | undefined;
+  if (profile) {
+    const overview = profile.overview;
+    const memberByEmployeeId = new Map(
+      employeeOptions.map((employee) => [employee.employeeId, employee]),
     );
+
+    const members: CrewMember[] = profile.memberships.current.map((membership) => {
+      const option = memberByEmployeeId.get(membership.employeeId);
+      return {
+        employeeId: membership.employeeId,
+        fullName: membership.employeeName,
+        role: membership.role,
+        position: option?.position || "Crew Member",
+        employmentStatus: option?.employmentStatus || "active",
+        availabilityStatus: option?.availabilityStatus || "available",
+        assignedCrewId: option?.assignedCrewId || membership.crewId,
+        primaryCrew: membership.isPrimary,
+        joinedOn: membership.startsOn,
+      };
+    });
+
+    initialValue = {
+      id: overview.id,
+      crewCode: overview.crewCode,
+      name: overview.name,
+      status: overview.status,
+      leadName: overview.leadName,
+      leadProfileId: overview.leadProfileId,
+      supervisorName: overview.supervisorName,
+      supervisorProfileId: overview.supervisorProfileId,
+      homeLocation: overview.homeLocation,
+      description: overview.description,
+      notes: overview.notes,
+      activeMemberCount: overview.activeMemberCount,
+      primaryMemberCount: overview.primaryMemberCount,
+      currentAssignmentId: overview.currentAssignmentId,
+      currentAssignmentTitle: overview.currentAssignmentTitle,
+      currentProjectId: overview.currentProjectId,
+      currentProjectName: overview.currentProjectName,
+      currentPhaseOrTask: overview.currentPhaseOrTask,
+      currentAssignmentStatus: overview.currentAssignmentStatus,
+      nextAssignmentTitle: overview.nextAssignmentTitle,
+      nextProjectName: overview.nextProjectName,
+      updatedAt: overview.updatedAt,
+      equipmentCount: overview.equipmentCount,
+      projectEquipmentCount: overview.projectEquipmentCount,
+      hasEquipmentConflict: overview.hasEquipmentConflict,
+      availability: overview.availability,
+      isActive: overview.isActive,
+      code: overview.crewCode,
+      lead: overview.leadName || "",
+      supervisor: overview.supervisorName || "",
+      primarySpecialty: overview.description || specialtyOptions[0] || "General Labor",
+      secondarySpecialties: [],
+      currentProject: overview.currentProjectName,
+      members,
+    };
   }
 
-  const handleSubmit = async (value: UpsertCrewInput) => {
-    if (isSaving) {
+  const handleSubmit = async (value: Parameters<typeof crewService.updateCrew>[1]) => {
+    if (!crewId || isSaving) {
       return;
     }
 
     setIsSaving(true);
-
     try {
-      const updated = await service.updateCrew(crew.id, value);
-
+      const updated = await crewService.updateCrew(crewId, value);
       if (!updated) {
-        throw new Error("Crew not found");
+        throw new Error("Unable to update crew");
       }
 
-      router.push(`/crews/${crew.id}`);
+      router.push(`/crews/${crewId}`);
       router.refresh();
     } finally {
       setIsSaving(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Crew records" description="Update operations crew details." />
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return <ErrorState title={t("crews.errorTitle")} description={t(errorMessage)} />;
+  }
+
+  if (!initialValue) {
+    return (
+      <EmptyState
+        title={t("crews.notFound.title")}
+        description={t("crews.notFound.description")}
+      />
+    );
+  }
+
   return (
     <div className="space-y-8">
-      <PageHeader title={t("crews.edit.title")} description={t("crews.edit.description")} />
-
+      <PageHeader title="Crew records" description="Update operations crew details." />
       <CrewForm
         mode="edit"
-        initialValue={crew}
+        initialValue={initialValue}
         employeeOptions={employeeOptions}
         specialtyOptions={specialtyOptions}
-        projectOptions={PROJECT_OPTIONS}
+        projectOptions={projectOptions}
         isSaving={isSaving}
         onSubmit={handleSubmit}
-        onCancel={() => router.push(`/crews/${crew.id}`)}
+        onCancel={() => router.push(crewId ? `/crews/${crewId}` : "/crews")}
         t={t}
       />
     </div>

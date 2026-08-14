@@ -95,6 +95,21 @@ export function buildLaborForecast(assignments: ScheduleAssignment[], range: Lab
   const totalScheduled = scoped.reduce((sum, item) => sum + item.assignedEmployeeIds.length, 0);
   const totalOpenShifts = scoped.filter((item) => item.isOpenShift).length;
   const totalOvertimeRisk = scoped.filter((item) => item.assignedEmployeeIds.length > item.requiredHeadcount).length;
+  const totalShortage = Math.max(0, totalRequired - totalScheduled);
+  const totalOpenShiftRisk = scoped.filter((item) => item.isOpenShift).length;
+
+  const risks: string[] = [];
+  if (totalShortage > 0) {
+    risks.push(`Labor shortage projected: ${totalShortage} unfilled headcount in selected range.`);
+  }
+
+  if (totalOpenShiftRisk > 0) {
+    risks.push(`${totalOpenShiftRisk} assignment(s) flagged as open shift in selected range.`);
+  }
+
+  if (totalOvertimeRisk > 0) {
+    risks.push(`${totalOvertimeRisk} assignment(s) exceed required staffing and may increase overtime exposure.`);
+  }
 
   return {
     range,
@@ -140,10 +155,6 @@ export function buildLaborForecast(assignments: ScheduleAssignment[], range: Lab
     demandByCrew,
     demandByLocation,
     demandByShift,
-    risks: [
-      "Upcoming certification expirations in electrical and sitework coverage.",
-      "Potential carpenter shortage on Project Oak in the next seven days.",
-      "Night-shift utilization exceeds healthy threshold in dock expansion scope.",
-    ],
+    risks,
   };
 }
