@@ -79,7 +79,7 @@ export function renderBrandedEstimateEmail(input: BrandedEstimateEmailInput) {
               </table>
 
               <p style="margin:0 0 12px;text-align:center;font-size:13px;line-height:1.5;color:#64748b;">This private link expires ${expiration}. Do not forward it.</p>
-              <p style="margin:0;text-align:center;font-size:13px;line-height:1.5;color:#64748b;">By signing, you agree to the estimate and acknowledge the <a href="${termsUrl}" style="color:#0d315f;font-weight:600;">Electronic Signature &amp; BOS Platform Terms</a>.</p>
+              <p style="margin:0;text-align:center;font-size:13px;line-height:1.5;color:#64748b;">By signing, you agree to the estimate, the incorporated Construction Agreement, and the <a href="${termsUrl}" style="color:#0d315f;font-weight:600;">B.O.S. Electronic Signature &amp; Platform Terms</a>.</p>
             </td>
           </tr>
           <tr>
