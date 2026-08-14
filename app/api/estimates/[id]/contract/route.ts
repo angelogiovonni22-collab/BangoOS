@@ -4,11 +4,12 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
 import { renderBrandedEstimateEmail } from "@/lib/estimates/branded-estimate-email";
+import { loadEstimateCompliance, recordEstimateComplianceEvaluation } from "@/lib/compliance/estimate-contract-compliance-service";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
   const supabase = await createClient();
-  if (!supabase) return NextResponse.json({ error: "BOS database is unavailable." }, { status: 503 });
+  if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
 
@@ -19,6 +20,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (error || !estimate) return NextResponse.json({ error: "Estimate not found." }, { status: 404 });
   const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
   if (!customer?.email) return NextResponse.json({ error: "The linked customer needs an email address before sending a contract." }, { status: 400 });
+
+  // Server-side compliance authorization happens before a public token is minted or an email is sent.
+  // The same endpoint is used by the UI and automation, so there is no Orion bypass.
+  if (Number(estimate.total_amount || 0) >= 25_000) {
+    try {
+      const compliance = await loadEstimateCompliance(supabase, workspace.context.companyId, estimateId);
+      await recordEstimateComplianceEvaluation(
+        supabase,
+        workspace.context.companyId,
+        estimateId,
+        workspace.context.userId,
+        compliance.evaluation,
+        compliance.profile.id || null,
+        { source: "send_gate" },
+      );
+      if (compliance.evaluation.status !== "COMPLIANT") {
+        return NextResponse.json({
+          error: "Contract compliance requires attention before this agreement can be sent.",
+          code: "CONTRACT_COMPLIANCE_BLOCKED",
+          compliance: compliance.evaluation,
+        }, { status: 409 });
+      }
+    } catch (complianceError) {
+      return NextResponse.json({
+        error: complianceError instanceof Error ? complianceError.message : "Unable to verify contract compliance.",
+        code: "CONTRACT_COMPLIANCE_UNAVAILABLE",
+      }, { status: 409 });
+    }
+  }
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
@@ -60,6 +90,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: configurationErrors[delivery.reason || ""] || `Email provider rejected the message: ${delivery.reason || "unknown error"}`, url, expiresAt: result.expiresAt, delivery }, { status: 503 });
   }
   const { error: updateError } = await supabase.from("estimates").update({ status: "sent", updated_by: workspace.context.userId }).eq("company_id", workspace.context.companyId).eq("id", estimateId);
-  if (updateError) return NextResponse.json({ error: "Email was accepted, but BOS could not update the estimate status. Do not resend.", url, expiresAt: result.expiresAt, delivery }, { status: 500 });
+  if (updateError) return NextResponse.json({ error: "Email was accepted, but B.O.S. could not update the estimate status. Do not resend.", url, expiresAt: result.expiresAt, delivery }, { status: 500 });
   return NextResponse.json({ url, expiresAt: result.expiresAt, delivery });
 }
