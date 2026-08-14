@@ -7,8 +7,11 @@ declare
   v_estimate_id uuid;
   v_link_metadata jsonb := '{}'::jsonb;
   v_contract_amount numeric(14,2) := 0;
+  v_property_state text := '';
   v_eval_status text;
   v_eval_applicable boolean;
+  v_eval_created_at timestamptz;
+  v_profile_updated_at timestamptz;
   v_pricing_type text := 'unknown';
   v_special_order_amount numeric(14,2) := 0;
   v_special_order_nonreturnable boolean := false;
@@ -39,14 +42,40 @@ begin
     return new;
   end if;
 
-  select e.total_amount
-    into v_contract_amount
+  select
+    e.total_amount,
+    upper(trim(coalesce(cp.property_state, c.state, ''))),
+    cp.pricing_type,
+    cp.special_order_amount,
+    cp.special_order_nonreturnable,
+    cp.updated_at
+  into
+    v_contract_amount,
+    v_property_state,
+    v_pricing_type,
+    v_special_order_amount,
+    v_special_order_nonreturnable,
+    v_profile_updated_at
   from public.estimates e
+  left join public.estimate_contract_compliance_profiles cp
+    on cp.company_id = e.company_id and cp.estimate_id = e.id
+  left join public.customers c
+    on c.company_id = e.company_id and c.id = e.customer_id
   where e.company_id = new.company_id
     and e.id = v_estimate_id;
 
-  select ce.status, ce.applicable
-    into v_eval_status, v_eval_applicable
+  if v_property_state not in ('OH', 'OHIO') then
+    return new;
+  end if;
+
+  -- Preserve the existing Phase 1 boundary review at exactly $25,000 rather than guessing around
+  -- the differing threshold language in ORC 4722.01/4722.02.
+  if coalesce(v_contract_amount, 0) < 25000 then
+    return new;
+  end if;
+
+  select ce.status, ce.applicable, ce.created_at
+    into v_eval_status, v_eval_applicable, v_eval_created_at
   from public.estimate_contract_compliance_evaluations ce
   where ce.company_id = new.company_id
     and ce.estimate_id = v_estimate_id
@@ -57,7 +86,13 @@ begin
   if v_eval_status is null then
     raise exception using
       errcode = '23514',
-      message = 'B.O.S. deposit compliance review is required before recording this workflow deposit payment.';
+      message = 'B.O.S. deposit compliance review is required before recording this Ohio workflow deposit payment.';
+  end if;
+
+  if v_profile_updated_at is not null and v_eval_created_at < v_profile_updated_at then
+    raise exception using
+      errcode = '23514',
+      message = 'B.O.S. contract compliance changed after the last evaluation. Recheck compliance before collecting this deposit.';
   end if;
 
   if v_eval_applicable is false then
@@ -69,13 +104,6 @@ begin
       errcode = '23514',
       message = 'B.O.S. deposit compliance is not cleared for payment collection.';
   end if;
-
-  select cp.pricing_type, cp.special_order_amount, cp.special_order_nonreturnable
-    into v_pricing_type, v_special_order_amount, v_special_order_nonreturnable
-  from public.estimate_contract_compliance_profiles cp
-  where cp.company_id = new.company_id
-    and cp.estimate_id = v_estimate_id
-  limit 1;
 
   if coalesce(v_pricing_type, 'unknown') = 'cost_plus' then
     return new;
@@ -98,7 +126,8 @@ begin
   from public.invoice_payment_history ph
   where ph.company_id = new.company_id
     and ph.invoice_id = new.invoice_id
-    and ph.status in ('recorded', 'pending');
+    and ph.status in ('recorded', 'pending')
+    and (tg_op <> 'UPDATE' or ph.id <> old.id);
 
   v_prospective := round(greatest(v_prior, 0) + greatest(coalesce(new.amount, 0), 0), 2);
   if v_prospective > v_maximum then
