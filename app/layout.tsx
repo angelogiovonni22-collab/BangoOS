@@ -7,6 +7,7 @@ import "./app-content-surface.css";
 import "./visual-theme.css";
 import "./theme-gallery.css";
 import "./theme-gallery-hardening.css";
+import "./future-2030.css";
 import { I18nProvider } from "@/lib/i18n/provider";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
@@ -35,10 +36,10 @@ function isAppLocale(value: string | undefined): value is "en" | "es" { return v
 
 const themeBootstrapScript = `(() => {
   try {
-    const allowed = new Set(["light","dark","executive","blueprint","emerald","graphite","high-contrast","digital-command"]);
+    const allowed = new Set(["light","dark","executive","blueprint","emerald","graphite","high-contrast","digital-command","future-2030"]);
     const stored = localStorage.getItem("bangoos-theme");
     const theme = allowed.has(stored) ? stored : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    const dark = theme === "dark" || theme === "digital-command";
+    const dark = theme === "dark" || theme === "digital-command" || theme === "future-2030";
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}

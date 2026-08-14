@@ -1,0 +1,304 @@
+/* Future 2030 is a layout-changing B.O.S. experience, not only a palette swap. */
+[data-theme="future-2030"] {
+  color-scheme: dark;
+  --bos-bg-root: #01040a;
+  --bos-bg-shell: #020711;
+  --bos-bg-sidebar: rgb(4 16 29 / 0.9);
+  --bos-bg-panel: rgb(7 21 38 / 0.78);
+  --bos-bg-panel-elevated: rgb(9 28 49 / 0.88);
+  --bos-bg-control: rgb(12 34 57 / 0.88);
+  --bos-bg-hover: rgb(19 48 77 / 0.92);
+  --bos-border-subtle: rgb(90 215 255 / 0.14);
+  --bos-border-default: rgb(88 224 255 / 0.26);
+  --bos-border-strong: rgb(106 232 255 / 0.44);
+  --bos-text-primary: #effcff;
+  --bos-text-secondary: #b8d8e5;
+  --bos-text-muted: #789baa;
+  --bos-text-inverse: #021017;
+  --bos-text-strong-on-light: #effcff;
+  --bos-text-medium-on-light: #b8d8e5;
+  --bos-bg-workspace-surface: #020710;
+  --bos-bg-workspace-surface-soft: #06101c;
+  --bos-bg-workspace-card: rgb(7 21 38 / 0.8);
+  --bos-border-light: rgb(90 215 255 / 0.18);
+  --bos-border-light-strong: rgb(90 215 255 / 0.32);
+  --color-background-app: #01040a;
+  --color-background-root: #01040a;
+  --color-background-workspace: #020710;
+  --color-surface-card: rgb(7 21 38 / 0.84);
+  --color-surface-subtle: rgb(11 31 52 / 0.86);
+  --color-surface-muted: rgb(18 45 72 / 0.9);
+  --color-surface-elevated: rgb(8 24 42 / 0.92);
+  --color-text-primary: #effcff;
+  --color-text-secondary: #b8d8e5;
+  --color-text-muted: #789baa;
+  --color-text-inverse: #021017;
+  --color-border-subtle: rgb(90 215 255 / 0.16);
+  --color-border-strong: rgb(90 215 255 / 0.32);
+  --background: #01040a;
+  --foreground: #effcff;
+  --bos-ambient-blue: rgb(80 98 255 / 0.18);
+  --bos-ambient-cyan: rgb(66 232 255 / 0.15);
+  --bos-card-highlight: rgb(255 255 255 / 0.07);
+  --bos-card-shadow: 0 24px 70px -34px rgb(0 0 0 / 0.92), 0 0 0 1px rgb(90 215 255 / 0.04), 0 0 42px -28px rgb(66 232 255 / 0.52);
+  --future-cyan: #42e8ff;
+  --future-violet: #7c5cff;
+  --future-emerald: #45f0b3;
+  --future-grid: rgb(89 214 255 / 0.055);
+}
+
+[data-theme="future-2030"] body {
+  background:
+    radial-gradient(circle at 17% -8%, rgb(58 98 255 / 0.22), transparent 34rem),
+    radial-gradient(circle at 88% 8%, rgb(49 229 255 / 0.13), transparent 30rem),
+    #01040a;
+}
+
+[data-theme="future-2030"] .enterprise-shell {
+  position: relative;
+  overflow-x: clip;
+  background:
+    linear-gradient(var(--future-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--future-grid) 1px, transparent 1px),
+    radial-gradient(circle at 72% 14%, rgb(124 92 255 / 0.13), transparent 30rem),
+    radial-gradient(circle at 28% 74%, rgb(66 232 255 / 0.08), transparent 34rem),
+    #01040a !important;
+  background-size: 34px 34px, 34px 34px, auto, auto, auto;
+}
+
+[data-theme="future-2030"] .enterprise-shell::before,
+[data-theme="future-2030"] .enterprise-shell::after {
+  content: "";
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(12px);
+}
+
+[data-theme="future-2030"] .enterprise-shell::before {
+  width: 22rem;
+  height: 22rem;
+  right: -8rem;
+  top: 18vh;
+  border: 1px solid rgb(66 232 255 / 0.14);
+  box-shadow: inset 0 0 90px rgb(66 232 255 / 0.04), 0 0 90px rgb(66 232 255 / 0.04);
+}
+
+[data-theme="future-2030"] .enterprise-shell::after {
+  width: 15rem;
+  height: 15rem;
+  left: 19rem;
+  bottom: -5rem;
+  border: 1px solid rgb(124 92 255 / 0.15);
+  box-shadow: inset 0 0 80px rgb(124 92 255 / 0.05), 0 0 80px rgb(124 92 255 / 0.05);
+}
+
+[data-theme="future-2030"] #bangoos-sidebar {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent 24%),
+    radial-gradient(circle at 20% 6%, rgb(66 232 255 / 0.15), transparent 15rem),
+    radial-gradient(circle at 80% 88%, rgb(124 92 255 / 0.11), transparent 16rem),
+    rgb(4 16 29 / 0.89);
+  border-color: rgb(66 232 255 / 0.18);
+  box-shadow: 0 24px 90px -38px rgb(0 0 0 / 0.96), inset -1px 0 rgb(255 255 255 / 0.025);
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+[data-theme="future-2030"] #bangoos-sidebar nav section > button {
+  color: #75a8ba;
+}
+
+[data-theme="future-2030"] #bangoos-sidebar nav a {
+  border: 1px solid transparent;
+  border-radius: 13px;
+}
+
+[data-theme="future-2030"] #bangoos-sidebar nav a:hover {
+  transform: translateX(4px);
+  border-color: rgb(66 232 255 / 0.16);
+  background: linear-gradient(90deg, rgb(66 232 255 / 0.08), rgb(124 92 255 / 0.045));
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.035), 0 12px 30px -22px rgb(66 232 255 / 0.65);
+}
+
+[data-theme="future-2030"] #bangoos-sidebar nav a[aria-current="page"] {
+  border-color: rgb(66 232 255 / 0.26);
+}
+
+[data-theme="future-2030"] [data-bos-topbar="true"] {
+  background:
+    linear-gradient(100deg, rgb(66 232 255 / 0.04), transparent 34%, rgb(124 92 255 / 0.05)),
+    rgb(4 15 27 / 0.78) !important;
+  border-color: rgb(66 232 255 / 0.16);
+  box-shadow: 0 18px 55px -38px rgb(0 0 0 / 0.9), inset 0 -1px rgb(66 232 255 / 0.035);
+  backdrop-filter: blur(22px) saturate(145%);
+}
+
+[data-theme="future-2030"] .enterprise-shell main {
+  z-index: 1;
+  background:
+    linear-gradient(var(--future-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--future-grid) 1px, transparent 1px),
+    radial-gradient(circle at 22% 2%, rgb(66 232 255 / 0.08), transparent 26rem),
+    radial-gradient(circle at 82% 18%, rgb(124 92 255 / 0.08), transparent 28rem),
+    transparent;
+  background-size: 34px 34px, 34px 34px, auto, auto, auto;
+}
+
+[data-theme="future-2030"] [data-bos-page-header="true"] {
+  border: 1px solid rgb(66 232 255 / 0.2);
+  background:
+    linear-gradient(118deg, rgb(255 255 255 / 0.07), transparent 38%),
+    radial-gradient(circle at 88% 20%, rgb(124 92 255 / 0.12), transparent 15rem),
+    linear-gradient(135deg, rgb(7 24 42 / 0.94), rgb(5 16 29 / 0.86));
+  box-shadow: 0 28px 70px -42px rgb(0 0 0 / 0.94), inset 0 1px rgb(255 255 255 / 0.055), 0 0 50px -38px rgb(66 232 255 / 0.66);
+  backdrop-filter: blur(20px) saturate(145%);
+}
+
+[data-theme="future-2030"] [data-bos-page-header="true"]::before {
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--future-cyan) 22%, var(--future-violet) 72%, transparent);
+  box-shadow: 0 0 24px rgb(66 232 255 / 0.88);
+}
+
+[data-theme="future-2030"] [data-bos-page-header="true"]::after {
+  width: 18rem;
+  height: 18rem;
+  right: -5rem;
+  top: -9rem;
+  border: 1px solid rgb(66 232 255 / 0.13);
+  background: radial-gradient(circle, rgb(66 232 255 / 0.08), transparent 65%);
+  box-shadow: 0 0 60px rgb(66 232 255 / 0.045);
+}
+
+[data-theme="future-2030"] .enterprise-shell main [data-bos-card="true"] {
+  border-color: rgb(66 232 255 / 0.14);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.035), transparent 40%),
+    linear-gradient(180deg, rgb(8 27 47 / 0.9), rgb(5 18 33 / 0.82));
+  box-shadow: 0 22px 64px -42px rgb(0 0 0 / 0.98), inset 0 1px rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(16px) saturate(135%);
+}
+
+[data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="kpi"] {
+  overflow: hidden;
+}
+
+[data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="kpi"]::after {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--future-cyan), var(--future-violet), transparent);
+  opacity: 0.5;
+  box-shadow: 0 0 14px rgb(66 232 255 / 0.3);
+}
+
+[data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="kpi"]:hover,
+[data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="elevated"]:hover {
+  transform: translateY(-3px) scale(1.004);
+  border-color: rgb(66 232 255 / 0.28);
+  box-shadow: 0 30px 74px -42px rgb(0 0 0 / 0.96), 0 0 45px -34px rgb(66 232 255 / 0.66), inset 0 1px rgb(255 255 255 / 0.07);
+}
+
+[data-theme="future-2030"] .enterprise-shell main table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+[data-theme="future-2030"] .enterprise-shell main thead {
+  background: rgb(8 27 46 / 0.8);
+}
+
+[data-theme="future-2030"] .enterprise-shell main tbody tr {
+  transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+[data-theme="future-2030"] .enterprise-shell main tbody tr:hover {
+  background: linear-gradient(90deg, rgb(66 232 255 / 0.055), rgb(124 92 255 / 0.035));
+  box-shadow: inset 2px 0 var(--future-cyan);
+}
+
+[data-theme="future-2030"] input,
+[data-theme="future-2030"] select,
+[data-theme="future-2030"] textarea,
+[data-theme="future-2030"] button {
+  accent-color: var(--future-cyan);
+}
+
+[data-theme="future-2030"] input:focus,
+[data-theme="future-2030"] select:focus,
+[data-theme="future-2030"] textarea:focus {
+  border-color: rgb(66 232 255 / 0.48) !important;
+  box-shadow: 0 0 0 3px rgb(66 232 255 / 0.1), 0 0 28px -18px rgb(66 232 255 / 0.8);
+}
+
+/* Desktop layout transformation: floating navigation capsule + detached command bar. */
+@media (min-width: 1024px) {
+  [data-theme="future-2030"] #bangoos-sidebar {
+    top: 14px !important;
+    height: calc(100dvh - 28px) !important;
+    min-height: 0 !important;
+    margin-left: 14px;
+    width: 248px !important;
+    border: 1px solid rgb(66 232 255 / 0.17) !important;
+    border-radius: 22px;
+  }
+
+  [data-theme="future-2030"] [data-bos-topbar="true"] {
+    top: 14px;
+    margin: 14px 18px 0 20px;
+    border: 1px solid rgb(66 232 255 / 0.16);
+    border-radius: 18px;
+  }
+
+  [data-theme="future-2030"] .enterprise-shell main {
+    margin: 14px 18px 18px 20px;
+    border: 1px solid rgb(66 232 255 / 0.08);
+    border-radius: 22px;
+    min-height: calc(100vh - 110px);
+    box-shadow: inset 0 1px rgb(255 255 255 / 0.02);
+  }
+}
+
+@media (max-width: 1023px) {
+  [data-theme="future-2030"] #bangoos-sidebar {
+    border-right: 1px solid rgb(66 232 255 / 0.18);
+  }
+
+  [data-theme="future-2030"] [data-bos-topbar="true"] {
+    box-shadow: 0 14px 42px -32px rgb(0 0 0 / 0.95);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="future-2030"] [data-bos-page-header="true"]::after {
+    animation: bos-future-orbit 12s ease-in-out infinite alternate;
+  }
+
+  [data-theme="future-2030"] .enterprise-shell main [data-bos-card-variant="kpi"]::after {
+    animation: bos-future-scanline 5.6s ease-in-out infinite;
+  }
+}
+
+@keyframes bos-future-orbit {
+  from { transform: translate3d(-5px, -4px, 0) scale(0.98); opacity: 0.62; }
+  to { transform: translate3d(8px, 7px, 0) scale(1.04); opacity: 0.92; }
+}
+
+@keyframes bos-future-scanline {
+  0%, 100% { opacity: 0.28; transform: scaleX(0.74); }
+  50% { opacity: 0.72; transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="future-2030"] *,
+  [data-theme="future-2030"] *::before,
+  [data-theme="future-2030"] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const themeCss = readFileSync(new URL("../../app/visual-theme.css", import.meta.url), "utf8");
 const galleryCss = readFileSync(new URL("../../app/theme-gallery.css", import.meta.url), "utf8");
+const futureCss = readFileSync(new URL("../../app/future-2030.css", import.meta.url), "utf8");
 const layout = readFileSync(new URL("../../app/layout.tsx", import.meta.url), "utf8");
 const toggle = readFileSync(new URL("./theme-toggle.tsx", import.meta.url), "utf8");
 const gallery = readFileSync(new URL("./theme-gallery.tsx", import.meta.url), "utf8");
@@ -26,15 +27,19 @@ test("visual system defines explicit light and dark semantic contracts", () => {
   assert.match(layout, /visual-theme\.css/);
 });
 
-test("theme gallery exposes eight persistent B.O.S. appearance packs", () => {
-  for (const themeId of ["light", "dark", "executive", "blueprint", "emerald", "graphite", "high-contrast", "digital-command"]) {
+test("theme gallery exposes persistent B.O.S. themes and experiences", () => {
+  for (const themeId of ["light", "dark", "executive", "blueprint", "emerald", "graphite", "high-contrast", "digital-command", "future-2030"]) {
     assert.match(themeOptions, new RegExp(`"${themeId}"`));
   }
+  assert.match(themeOptions, /experience\?: "classic" \| "future"/);
   assert.match(gallery, /role="radiogroup"/);
+  assert.match(gallery, /experience/);
   assert.match(gallery, /localStorage\.setItem/);
   assert.match(gallery, /document\.documentElement\.dataset\.theme/);
   assert.match(settings, /ThemeGallery/);
+  assert.match(settings, /Themes & Experiences/);
   assert.match(layout, /theme-gallery\.css/);
+  assert.match(layout, /future-2030\.css/);
   assert.match(layout, /themeBootstrapScript/);
   assert.match(layout, /localStorage\.getItem\("bangoos-theme"\)/);
 });
@@ -56,6 +61,17 @@ test("extended themes provide semantic token packs and theme-aware accent langua
   assert.match(galleryCss, /--bos-theme-accent:/);
   assert.match(galleryCss, /\[data-bos-page-header="true"\]::before/);
   assert.match(shell, /data-bos-topbar="true"/);
+});
+
+test("Future 2030 is a layout-changing command experience", () => {
+  assert.match(futureCss, /\[data-theme="future-2030"\]/);
+  assert.match(futureCss, /#bangoos-sidebar/);
+  assert.match(futureCss, /\[data-bos-topbar="true"\]/);
+  assert.match(futureCss, /border-radius: 22px/);
+  assert.match(futureCss, /backdrop-filter: blur/);
+  assert.match(futureCss, /background-size: 34px 34px/);
+  assert.match(futureCss, /data-bos-card-variant="kpi"/);
+  assert.match(futureCss, /prefers-reduced-motion/);
 });
 
 test("shared visual materials make authenticated pages dimensional and alive", () => {
