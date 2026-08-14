@@ -5,6 +5,7 @@ import "./globals.css";
 import "./legacy-token-aliases.css";
 import "./app-content-surface.css";
 import "./visual-theme.css";
+import "./theme-gallery.css";
 import { I18nProvider } from "@/lib/i18n/provider";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
