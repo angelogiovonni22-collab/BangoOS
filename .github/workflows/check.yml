@@ -120,6 +120,9 @@ jobs:
       - name: Run Orion Realtime context resolution regression
         run: npx -y tsx lib/orion/realtime/orion-realtime-context-resolution.contract.test.ts
 
+      - name: Run Orion canonical fast-path regression
+        run: npx -y tsx lib/orion/realtime/orion-canonical-fast-paths.contract.test.ts
+
       - name: Run Orion advanced task-agent regression
         run: npx -y tsx lib/orion/task-agent/orion-task-agent.contract.test.ts
 
