@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { Button, IconButton, PortalHost } from "@/components/ui";
+import { getButtonClassName, IconButton, PortalHost } from "@/components/ui";
 
 export const PROJECT_HUB_SECTIONS = [
   "overview",
@@ -118,12 +118,10 @@ export function ProjectActions({ projectId, projectName, viewLabel, moreLabel }:
         <Link href={`/projects/${projectId}`}>
           <IconButton icon={<Eye size={15} aria-hidden="true" />} label={viewLabel} variant="ghost" size="sm" />
         </Link>
-        <Button
+        <button
           ref={buttonRef}
           type="button"
-          variant="ghost"
-          size="sm"
-          className="h-10 w-10 p-0"
+          className={`${getButtonClassName({ variant: "ghost", size: "icon" })} h-10 w-10`}
           disabled={busy}
           aria-label={moreLabel}
           aria-haspopup="menu"
@@ -131,7 +129,7 @@ export function ProjectActions({ projectId, projectName, viewLabel, moreLabel }:
           onClick={toggleMenu}
         >
           <MoreHorizontal size={15} aria-hidden="true" />
-        </Button>
+        </button>
       </div>
 
       {menu ? (
