@@ -12,8 +12,8 @@ test("subcontractor foundation stores master agreements, project authorizations,
   assert.match(sql, /subcontractor_mobilization_requirements/);
   assert.match(sql, /refresh_subcontractor_mobilization_status/);
   assert.match(sql, /mobilization_status/);
-  assert.match(sql, /auth\.role\(\).*service_role/s);
-  assert.match(sql, /auth\.uid\(\).*company_id = p_company_id/s);
+  assert.match(sql, /auth\.role\(\)[\s\S]*service_role/);
+  assert.match(sql, /auth\.uid\(\)[\s\S]*company_id = p_company_id/);
   assert.match(sql, /revoke insert, update, delete .* authenticated/i);
 });
 
