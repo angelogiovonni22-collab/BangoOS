@@ -55,6 +55,7 @@ export default async function MobileHomePage() {
     <MobileHomeClient
       role={role}
       userName={userName}
+      companyName={workspace.context.companyName || "Bango Construction"}
       dashboardData={dashboardData}
       tradePartnerJobs={tradePartnerJobs}
     />
