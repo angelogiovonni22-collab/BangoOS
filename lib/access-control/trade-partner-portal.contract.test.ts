@@ -5,8 +5,12 @@ const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
 const portal = read("app/(app)/partner/[projectId]/page.tsx");
 const index = read("app/(app)/partner/page.tsx");
+const inbox = read("app/(app)/trade-partner-messages/page.tsx");
+const shell = read("app/(app)/app-shell.tsx");
+const permissions = read("lib/access-control/permissions.ts");
 const migration = read("supabase/migrations/20260815174500_trade_partner_portal_channels.sql");
 const hardening = read("supabase/migrations/20260815175500_trade_partner_portal_channel_hardening.sql");
+const internalMessaging = read("supabase/migrations/20260815180500_trade_partner_internal_messaging.sql");
 
 const checks: Array<[string, boolean]> = [
   ["assigned jobs link into a project-scoped trade partner workspace", index.includes("/partner/${job.project_id}")],
@@ -24,8 +28,14 @@ const checks: Array<[string, boolean]> = [
   ["trade partner plan objects are read-only", hardening.includes("blueprint_storage_update_guard") && hardening.includes("blueprint_storage_delete_guard")],
   ["partner photo object mutation is owner scoped", hardening.includes("pp.uploaded_by = auth.uid()")],
   ["message table is project and vendor scoped", migration.includes("create table if not exists public.trade_partner_messages") && migration.includes("vendor_id uuid not null")],
-  ["message body is bounded", migration.includes("between 1 and 4000")],
-  ["financial terms are absent from channel RPC return contracts", !migration.includes("contract_amount") && !migration.includes("profit") && !migration.includes("markup")],
+  ["message body is bounded", migration.includes("between 1 and 4000") && internalMessaging.includes("between 1 and 4000")],
+  ["internal B.O.S. inbox is wired into navigation", shell.includes("/trade-partner-messages") && shell.includes("Trade Partner Messages")],
+  ["internal inbox is permission-gated", permissions.includes('{ prefix: "/trade-partner-messages", permission: "communications.view" }') && inbox.includes('hasBosPermission(workspace.context.role, "communications.view")')],
+  ["internal inbox loads controlled thread and message RPCs", inbox.includes('rpc("get_trade_partner_message_threads"') && inbox.includes('rpc("get_trade_partner_messages_for_assignment"')],
+  ["internal replies use controlled manage-permission RPC", inbox.includes('rpc("send_trade_partner_message_for_assignment"') && internalMessaging.includes("communications.manage")],
+  ["internal message RPCs stay assignment/project/vendor scoped", internalMessaging.includes("v_assignment.project_id") && internalMessaging.includes("v_assignment.vendor_id")],
+  ["external roles cannot use the internal message RPCs", internalMessaging.includes("not public.bos_is_trade_partner_for_company") && inbox.includes('["subcontractor", "customer"]')],
+  ["financial terms are absent from partner channel RPC return contracts", !migration.includes("contract_amount") && !migration.includes("profit") && !migration.includes("markup") && !internalMessaging.includes("contract_amount")],
 ];
 
 let failed = 0;
