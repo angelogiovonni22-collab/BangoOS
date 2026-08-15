@@ -168,6 +168,11 @@ async function enrichNamedReferences(args: {
     return { params: next, aliases, error };
   }
 
+  if (args.commandId === "daily_report.create") {
+    const error = await resolveInto(next, "projectId", "projectName", "project");
+    return { params: next, aliases, error };
+  }
+
   return { params: next, aliases, error: null };
 }
 
@@ -240,6 +245,16 @@ function normalizeProjectCreate(params: ParamsRecord) {
   return next;
 }
 
+function normalizeDailyReportCreate(params: ParamsRecord) {
+  const next = { ...params };
+  next.projectId = text(next.projectId);
+  next.reportDate = text(next.reportDate) || today();
+  if (next.updates && typeof next.updates === "object" && !Array.isArray(next.updates)) {
+    next.updates = record(next.updates);
+  }
+  return next;
+}
+
 export async function normalizeRealtimeFastCommandParams(args: {
   supabase: SupabaseClient<Database>;
   companyId: string;
@@ -256,6 +271,7 @@ export async function normalizeRealtimeFastCommandParams(args: {
   else if (args.commandId === "project.create") params = normalizeProjectCreate(params);
   else if (args.commandId === "estimate.create") params = normalizeEstimateCreate(params);
   else if (args.commandId === "invoice.create") params = normalizeInvoiceCreate(params);
+  else if (args.commandId === "daily_report.create") params = normalizeDailyReportCreate(params);
 
   return { params, error: null, resolvedAliases: enriched.aliases };
 }
