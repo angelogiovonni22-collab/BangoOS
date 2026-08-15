@@ -19,6 +19,10 @@ create index if not exists idx_project_deletion_history_company_active
 create index if not exists idx_project_deletion_history_project
   on public.project_deletion_history(project_id, deleted_at desc);
 
+create unique index if not exists idx_project_deletion_history_one_active
+  on public.project_deletion_history(project_id)
+  where restored_at is null;
+
 alter table public.project_deletion_history enable row level security;
 
 drop policy if exists project_deletion_history_select on public.project_deletion_history;
@@ -38,7 +42,7 @@ using (
 create or replace function public.soft_delete_project(p_project_id uuid)
 returns table(history_id uuid, deleted_at timestamptz)
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
@@ -56,7 +60,7 @@ begin
     raise exception 'Project not found.';
   end if;
 
-  if not exists (
+  if auth.uid() is null or not exists (
     select 1 from public.profiles p
     where p.id = auth.uid() and p.company_id = v_company_id
   ) then
@@ -85,7 +89,7 @@ $$;
 create or replace function public.restore_deleted_project(p_project_id uuid)
 returns table(history_id uuid, restored_status text, restored_at timestamptz)
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
@@ -103,7 +107,7 @@ begin
     raise exception 'Project not found.';
   end if;
 
-  if not exists (
+  if auth.uid() is null or not exists (
     select 1 from public.profiles p
     where p.id = auth.uid() and p.company_id = v_company_id
   ) then
@@ -135,6 +139,8 @@ begin
 end;
 $$;
 
+revoke all on function public.soft_delete_project(uuid) from public;
+revoke all on function public.restore_deleted_project(uuid) from public;
 grant execute on function public.soft_delete_project(uuid) to authenticated;
 grant execute on function public.restore_deleted_project(uuid) to authenticated;
 
