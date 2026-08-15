@@ -1,5 +1,7 @@
 import { randomBytes, createHash } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -30,7 +32,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id: projectId, assignmentId } = await params;
     const supabase = await createClient();
     if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
-    const workspace = await resolveWorkspaceContext(supabase);
+    const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
     if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
     const companyId = workspace.context.companyId;
     const admin = createAdminClient();
