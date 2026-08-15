@@ -118,17 +118,20 @@ export function ProjectActions({ projectId, projectName, viewLabel, moreLabel }:
         <Link href={`/projects/${projectId}`}>
           <IconButton icon={<Eye size={15} aria-hidden="true" />} label={viewLabel} variant="ghost" size="sm" />
         </Link>
-        <IconButton
+        <Button
           ref={buttonRef}
-          icon={<MoreHorizontal size={15} aria-hidden="true" />}
-          label={moreLabel}
+          type="button"
           variant="ghost"
           size="sm"
+          className="h-10 w-10 p-0"
           disabled={busy}
+          aria-label={moreLabel}
           aria-haspopup="menu"
           aria-expanded={Boolean(menu)}
           onClick={toggleMenu}
-        />
+        >
+          <MoreHorizontal size={15} aria-hidden="true" />
+        </Button>
       </div>
 
       {menu ? (
