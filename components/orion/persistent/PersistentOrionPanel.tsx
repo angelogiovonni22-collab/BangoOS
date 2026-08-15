@@ -2,6 +2,17 @@
 
 import Link from "next/link";
 import { useRef, type CSSProperties, type RefObject } from "react";
+import {
+  AudioLines,
+  Binoculars,
+  BrainCircuit,
+  Check,
+  CircleUserRound,
+  Mic,
+  ShieldCheck,
+  Target,
+  X,
+} from "lucide-react";
 import { useFocusTrap } from "@/components/motion";
 import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, type OrionRealtimeVoice, type OrionUnifiedVoiceController } from "@/components/orion/voice";
 import type { PersistentOrionFixture } from "./types";
@@ -47,6 +58,7 @@ export function PersistentOrionPanel({
   }
 
   const realtimeSessionActive = voice.realtimeState !== "closed" && voice.realtimeState !== "idle" && voice.realtimeState !== "error";
+  const stateLabel = fixture.state.replace(/_/g, " ");
 
   return (
     <section
@@ -59,11 +71,25 @@ export function PersistentOrionPanel({
       style={panelStyle}
       tabIndex={-1}
     >
+      <span className="persistentOrionSr">Prototype Intelligence</span>
+      <span className="persistentOrionSr">Fixture Data</span>
+
       <header className="persistentOrionPanelHeader">
-        <div>
-          <p className="persistentOrionEyebrow">ORION V2</p>
-          <h3>{fixture.workspace}</h3>
-          <p className="persistentOrionStateLine">State: {fixture.state.replace(/_/g, " ")}</p>
+        <div className="persistentOrionTitleBlock">
+          <div className="persistentOrionIdentity">
+            <div className="persistentOrionIdentityMark" aria-hidden="true">
+              <BrainCircuit size={24} />
+            </div>
+            <div>
+              <p className="persistentOrionPanelTitle">ORION V2</p>
+              <h3>{fixture.workspace}</h3>
+            </div>
+          </div>
+          <p className="persistentOrionStateLine">
+            <span className="persistentOrionStateDot" aria-hidden="true" />
+            <span>State:</span>
+            <strong>{stateLabel}</strong>
+          </p>
         </div>
         <button
           ref={closeButtonRef}
@@ -72,28 +98,38 @@ export function PersistentOrionPanel({
           onClick={onClose}
           aria-label="Close Orion panel"
         >
-          Close
+          <X size={24} aria-hidden="true" />
+          <span>Close</span>
         </button>
       </header>
 
       <div className="persistentOrionFixtureTags" aria-label="Orion architecture">
-        <span>Realtime LLM Intelligence</span>
-        <span>Controlled BOS Tools</span>
+        <span><BrainCircuit size={15} aria-hidden="true" />Realtime LLM Intelligence</span>
+        <span><ShieldCheck size={15} aria-hidden="true" />Controlled BOS Tools</span>
       </div>
 
-      <section className="persistentOrionSection">
-        <p className="persistentOrionEyebrow">Observation</p>
-        <p>{fixture.observation}</p>
+      <section className="persistentOrionSection persistentOrionSectionBordered">
+        <div className="persistentOrionSectionHeading">
+          <Binoculars size={21} aria-hidden="true" />
+          <p className="persistentOrionEyebrow">Observation</p>
+        </div>
+        <p className="persistentOrionSectionCopy">{fixture.observation}</p>
       </section>
 
-      <section className="persistentOrionSection">
-        <p className="persistentOrionEyebrow">Why it matters</p>
-        <p>{fixture.whyItMatters}</p>
+      <section className="persistentOrionSection persistentOrionSectionBordered">
+        <div className="persistentOrionSectionHeading">
+          <Target size={21} aria-hidden="true" />
+          <p className="persistentOrionEyebrow">Why it matters</p>
+        </div>
+        <p className="persistentOrionSectionCopy">{fixture.whyItMatters}</p>
       </section>
 
-      <section className="persistentOrionSection" aria-label="Orion voice controls">
-        <p className="persistentOrionEyebrow">Voice</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+      <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Orion voice controls">
+        <div className="persistentOrionSectionHeading">
+          <Mic size={21} aria-hidden="true" />
+          <p className="persistentOrionEyebrow">Voice</p>
+        </div>
+        <div className="persistentOrionVoiceActions">
           <OrionVoiceButton
             state={voice.micActive ? "listening" : "idle"}
             mode="tap_to_listen"
@@ -102,14 +138,14 @@ export function PersistentOrionPanel({
           />
           <button
             type="button"
-            className="persistentOrionMinimize"
+            className="persistentOrionVoicePrimary"
             onClick={() => voice.setSpokenResponsesEnabled(!voice.settings.spokenResponsesEnabled)}
           >
             {voice.settings.spokenResponsesEnabled ? "Mute Voice" : "Unmute Voice"}
           </button>
           <button
             type="button"
-            className="persistentOrionMinimize"
+            className="persistentOrionVoiceSecondary"
             onClick={() => {
               if (voice.settings.enabled) {
                 void voice.disableVoice();
@@ -121,39 +157,51 @@ export function PersistentOrionPanel({
             {voice.settings.enabled ? "Disable Voice" : "Enable Voice"}
           </button>
         </div>
+      </section>
 
-        <label className="mt-3 block text-xs font-semibold uppercase tracking-wide" htmlFor="orion-realtime-voice-select">
-          Realtime voice
+      <section className="persistentOrionSection persistentOrionRealtimeSection" aria-label="Realtime voice settings">
+        <div className="persistentOrionSectionHeading">
+          <AudioLines size={21} aria-hidden="true" />
+          <p className="persistentOrionEyebrow">Realtime Voice</p>
+        </div>
+
+        <label className="persistentOrionVoiceSelectWrap" htmlFor="orion-realtime-voice-select">
+          <CircleUserRound size={24} aria-hidden="true" />
+          <span className="persistentOrionVoiceSelectText">
+            <strong>{voiceLabel(voice.realtimeVoice)}</strong>
+            <span>OpenAI Realtime voice</span>
+          </span>
+          <select
+            id="orion-realtime-voice-select"
+            className="persistentOrionVoiceSelect"
+            value={voice.realtimeVoice}
+            disabled={realtimeSessionActive}
+            onChange={(event) => voice.setRealtimeVoice(event.target.value as OrionRealtimeVoice)}
+            aria-label="Realtime voice"
+          >
+            {voice.availableRealtimeVoices.map((option) => (
+              <option key={option} value={option}>{voiceLabel(option)}</option>
+            ))}
+          </select>
         </label>
-        <select
-          id="orion-realtime-voice-select"
-          className="mt-1 w-full rounded-lg border border-current/20 bg-transparent px-3 py-2 text-sm"
-          value={voice.realtimeVoice}
-          disabled={realtimeSessionActive}
-          onChange={(event) => voice.setRealtimeVoice(event.target.value as OrionRealtimeVoice)}
-        >
-          {voice.availableRealtimeVoices.map((option) => (
-            <option key={option} value={option}>{voiceLabel(option)}</option>
-          ))}
-        </select>
-        <p className="mt-1 text-xs opacity-70">
+
+        <p className="persistentOrionVoiceNote">
           {realtimeSessionActive ? "End the current Realtime conversation to change voices." : "Your Realtime voice choice is saved on this device."}
         </p>
-        <p className="mt-2 text-xs opacity-70" role="status">
-          Focused voice isolation is active: background audio is suppressed and unrelated room speech is ignored. This improves isolation but is not biometric speaker verification.
+        <p className="persistentOrionVoiceNote persistentOrionIsolationNote" role="status">
+          Focused voice isolation is active: background noise is reduced.
+          <Check size={17} aria-hidden="true" />
         </p>
 
-        <div className="mt-2 text-xs font-medium uppercase tracking-wide opacity-70">
-          Engine: ORION V2 · OPENAI REALTIME
-        </div>
-        <div className="mt-2">
+        <div className="persistentOrionEngineLabel">Engine: ORION V2 · OPENAI REALTIME</div>
+        <div className="persistentOrionVoiceStatusWrap">
           <OrionVoiceStatus
             state={voice.phase}
             message={voice.statusMessage || voice.supportMessage}
             showNotice
           />
         </div>
-        <div className="mt-2">
+        <div className="persistentOrionVoiceTranscriptWrap">
           <OrionVoiceTranscript
             interimTranscript={voice.interimTranscript}
             finalTranscript={voice.finalTranscript}

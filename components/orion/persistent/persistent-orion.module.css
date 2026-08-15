@@ -1,19 +1,35 @@
 .persistentOrionRoot {
   --po-glow: rgba(74, 144, 255, 0.28);
-  --po-panel: rgba(11, 22, 39, 0.97);
-  --po-border: rgba(121, 156, 206, 0.3);
+  --po-panel: rgba(5, 13, 24, 0.985);
+  --po-border: rgba(96, 165, 250, 0.5);
   --po-motion: var(--motion-standard);
   --po-min-size: 86px;
   --po-full-size: 116px;
+  --po-text: #f8fafc;
+  --po-text-soft: #cbd5e1;
+  --po-text-muted: #94a3b8;
+  --po-blue: #4da3ff;
+  --po-blue-strong: #2f8cff;
+  --po-purple: #c084fc;
+  --po-green: #55d86a;
+  --po-line: rgba(148, 163, 184, 0.22);
 
   position: fixed;
   right: clamp(0.7rem, 2.2vw, 1.35rem);
   bottom: max(0.8rem, calc(env(safe-area-inset-bottom) + 0.55rem));
-
   z-index: var(--z-orion-persistent, 46);
   isolation: isolate;
-
   pointer-events: auto;
+}
+
+.persistentOrionRoot :global(.persistentOrionBackdrop) {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(1, 8, 18, 0.7);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
 }
 
 .persistentOrionRoot :global(.persistentOrionButton),
@@ -53,9 +69,12 @@
 .persistentOrionRoot :global(.persistentOrionButton:focus-visible),
 .persistentOrionRoot :global(.persistentOrionClose:focus-visible),
 .persistentOrionRoot :global(.persistentOrionMinimize:focus-visible),
-.persistentOrionRoot :global(.persistentOrionLinkAction:focus-visible) {
-  outline: 2px solid #9ac4ef;
-  outline-offset: 2px;
+.persistentOrionRoot :global(.persistentOrionLinkAction:focus-visible),
+.persistentOrionRoot :global(.persistentOrionVoicePrimary:focus-visible),
+.persistentOrionRoot :global(.persistentOrionVoiceSecondary:focus-visible),
+.persistentOrionRoot :global(.persistentOrionVoiceSelect:focus-visible) {
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
 }
 
 .persistentOrionRoot :global(.persistentOrionButtonMinimized) {
@@ -102,114 +121,410 @@
 .persistentOrionRoot :global(.persistentOrionPanel) {
   margin-top: 0;
   z-index: 2;
-  width: min(20.8rem, calc(100vw - 1.4rem));
-  max-height: min(72vh, 32rem);
-  overflow: auto;
-  border: 1px solid var(--po-border);
-  border-radius: 1rem;
-  background: linear-gradient(180deg, rgba(13, 24, 43, 0.98), rgba(10, 20, 36, 0.97));
-  box-shadow: 0 22px 48px rgba(1, 8, 18, 0.76);
-  color: var(--bos-text-primary);
-  padding: 0.9rem;
+  width: min(35rem, calc(100vw - 1.5rem));
+  max-height: min(90vh, 54rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid rgba(96, 165, 250, 0.55);
+  border-radius: 1.45rem;
+  background:
+    radial-gradient(circle at 16% 4%, rgba(37, 99, 235, 0.13), transparent 28%),
+    linear-gradient(180deg, rgba(7, 16, 29, 0.995), rgba(3, 10, 20, 0.995));
+  box-shadow:
+    0 36px 90px rgba(0, 0, 0, 0.72),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  color: var(--po-text);
+  padding: 0;
+  scrollbar-color: rgba(96, 165, 250, 0.45) rgba(15, 23, 42, 0.45);
+  scrollbar-width: thin;
+}
+
+.persistentOrionRoot :global(.persistentOrionPanel *) {
+  box-sizing: border-box;
 }
 
 .persistentOrionRoot :global(.persistentOrionPanelHeader) {
   display: flex;
   justify-content: space-between;
-  gap: 0.7rem;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.35rem 1.35rem 1rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionTitleBlock) {
+  min-width: 0;
+}
+
+.persistentOrionRoot :global(.persistentOrionIdentity) {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionIdentityMark) {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  border: 1px solid rgba(96, 165, 250, 0.72);
+  border-radius: 999px;
+  color: #dbeafe;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(191, 219, 254, 0.34), rgba(59, 130, 246, 0.2) 35%, rgba(76, 29, 149, 0.4) 70%, rgba(4, 13, 25, 0.9));
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.36), inset 0 0 14px rgba(147, 51, 234, 0.25);
+}
+
+.persistentOrionRoot :global(.persistentOrionPanelTitle) {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.32rem;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: 0.08em;
 }
 
 .persistentOrionRoot :global(.persistentOrionPanelHeader h3) {
-  margin: 0.12rem 0 0;
-  font-size: 1rem;
-}
-
-.persistentOrionRoot :global(.persistentOrionEyebrow) {
-  margin: 0;
-  font-size: 0.66rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--bos-text-muted);
+  margin: 0.24rem 0 0;
+  color: #dbe4f0;
+  font-size: 1.08rem;
+  line-height: 1.3;
+  font-weight: 500;
 }
 
 .persistentOrionRoot :global(.persistentOrionStateLine) {
-  margin: 0.22rem 0 0;
-  color: var(--bos-text-secondary);
-  font-size: 0.79rem;
+  margin: 0.78rem 0 0 0.12rem;
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: #cbd5e1;
+  font-size: 0.94rem;
+  line-height: 1.4;
 }
 
-.persistentOrionRoot :global(.persistentOrionClose),
-.persistentOrionRoot :global(.persistentOrionMinimize) {
+.persistentOrionRoot :global(.persistentOrionStateLine strong) {
+  color: var(--po-green);
+  font-weight: 700;
+}
+
+.persistentOrionRoot :global(.persistentOrionStateDot) {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--po-green);
+  box-shadow: 0 0 0 5px rgba(85, 216, 106, 0.15), 0 0 14px rgba(85, 216, 106, 0.45);
+}
+
+.persistentOrionRoot :global(.persistentOrionClose) {
   all: unset;
-  border: 1px solid var(--bos-border-default);
-  border-radius: 0.6rem;
-  padding: 0.35rem 0.55rem;
-  color: var(--bos-text-primary);
+  display: inline-flex;
+  min-width: 4.6rem;
+  min-height: 4.6rem;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  border: 1px solid #3b9bff;
+  border-radius: 1rem;
+  color: #ffffff;
+  background: rgba(4, 13, 25, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.08);
   cursor: pointer;
+  font-size: 0.82rem;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.persistentOrionRoot :global(.persistentOrionClose:hover) {
+  border-color: #74b9ff;
+  background: rgba(13, 31, 53, 0.95);
+  transform: translateY(-1px);
 }
 
 .persistentOrionRoot :global(.persistentOrionFixtureTags) {
-  margin-top: 0.7rem;
+  padding: 0 1.35rem 1.05rem;
   display: flex;
-  gap: 0.45rem;
+  gap: 0.55rem;
   flex-wrap: wrap;
 }
 
 .persistentOrionRoot :global(.persistentOrionFixtureTags span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
   border-radius: 999px;
-  border: 1px solid var(--bos-border-subtle);
-  padding: 0.18rem 0.5rem;
-  font-size: 0.68rem;
-  color: var(--bos-text-secondary);
-  background: rgba(20, 36, 64, 0.7);
+  border: 1px solid #3b9bff;
+  padding: 0.5rem 0.72rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #e5f1ff;
+  background: rgba(8, 22, 38, 0.92);
+  box-shadow: inset 0 0 18px rgba(37, 99, 235, 0.08);
+}
+
+.persistentOrionRoot :global(.persistentOrionFixtureTags svg) {
+  color: #4da3ff;
 }
 
 .persistentOrionRoot :global(.persistentOrionSection) {
-  margin-top: 0.72rem;
+  margin: 0;
+  padding: 1.2rem 1.35rem;
+  color: var(--po-text);
 }
 
-.persistentOrionRoot :global(.persistentOrionSection p) {
-  margin: 0.18rem 0 0;
-  font-size: 0.83rem;
-  color: var(--bos-text-secondary);
+.persistentOrionRoot :global(.persistentOrionSectionBordered) {
+  border-top: 1px solid var(--po-line);
+}
+
+.persistentOrionRoot :global(.persistentOrionSectionHeading) {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--po-blue);
+}
+
+.persistentOrionRoot :global(.persistentOrionEyebrow) {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-weight: 750;
+  color: var(--po-blue);
+}
+
+.persistentOrionRoot :global(.persistentOrionSectionCopy) {
+  margin: 0.72rem 0 0 2rem;
+  max-width: 29rem;
+  color: #d5deea;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceActions) {
+  margin-top: 0.95rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: stretch;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceActions > :first-child) {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceActions button) {
+  color: #f8fafc !important;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoicePrimary),
+.persistentOrionRoot :global(.persistentOrionVoiceSecondary),
+.persistentOrionRoot :global(.persistentOrionMinimize) {
+  all: unset;
+  display: inline-flex;
+  min-height: 3.15rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  padding: 0.3rem 1rem;
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoicePrimary) {
+  grid-column: 2;
+  border: 1px solid #a855f7;
+  color: #d8a4ff !important;
+  background: linear-gradient(180deg, rgba(88, 28, 135, 0.18), rgba(30, 14, 48, 0.34));
+  box-shadow: inset 0 0 22px rgba(168, 85, 247, 0.08);
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceSecondary) {
+  grid-column: 1 / -1;
+  border: 1px solid #2997ff;
+  color: #59aaff !important;
+  background: rgba(7, 20, 35, 0.92);
+}
+
+.persistentOrionRoot :global(.persistentOrionVoicePrimary:hover),
+.persistentOrionRoot :global(.persistentOrionVoiceSecondary:hover) {
+  filter: brightness(1.14);
+}
+
+.persistentOrionRoot :global(.persistentOrionRealtimeSection) {
+  border-top: 1px solid var(--po-line);
+  padding-bottom: 1.25rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceSelectWrap) {
+  position: relative;
+  margin-top: 0.95rem;
+  display: flex;
+  min-height: 4.15rem;
+  align-items: center;
+  gap: 0.72rem;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 1rem;
+  padding: 0.7rem 2.8rem 0.7rem 0.85rem;
+  color: #eef6ff;
+  background: linear-gradient(180deg, rgba(20, 31, 46, 0.95), rgba(13, 23, 36, 0.95));
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceSelectWrap > svg) {
+  flex: 0 0 auto;
+  color: #4da3ff;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceSelectText) {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceSelectText strong) {
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 750;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceSelectText span) {
+  color: #9caabd;
+  font-size: 0.78rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceSelect) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceSelect:disabled) {
+  cursor: not-allowed;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceSelect option) {
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceNote) {
+  margin: 0.85rem 0 0;
+  color: #b7c3d3;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.persistentOrionRoot :global(.persistentOrionIsolationNote) {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.persistentOrionRoot :global(.persistentOrionIsolationNote svg) {
+  flex: 0 0 auto;
+  color: var(--po-green);
+}
+
+.persistentOrionRoot :global(.persistentOrionEngineLabel) {
+  margin-top: 1rem;
+  color: #7f8da2;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceStatusWrap),
+.persistentOrionRoot :global(.persistentOrionVoiceTranscriptWrap) {
+  margin-top: 0.65rem;
+  color: #e2e8f0;
+}
+
+.persistentOrionRoot :global(.persistentOrionVoiceStatusWrap *),
+.persistentOrionRoot :global(.persistentOrionVoiceTranscriptWrap *) {
+  color: inherit;
 }
 
 .persistentOrionRoot :global(.persistentOrionFacts) {
-  margin: 0.82rem 0 0;
+  margin: 0;
+  padding: 0 1.35rem 1.15rem;
   display: grid;
-  gap: 0.62rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
 }
 
 .persistentOrionRoot :global(.persistentOrionFacts div) {
-  border-top: 1px solid var(--bos-border-subtle);
-  padding-top: 0.5rem;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 0.9rem;
+  padding: 0.75rem;
+  background: rgba(12, 22, 35, 0.72);
+}
+
+.persistentOrionRoot :global(.persistentOrionFacts div:last-child) {
+  grid-column: 1 / -1;
 }
 
 .persistentOrionRoot :global(.persistentOrionFacts dt) {
-  font-size: 0.72rem;
-  color: var(--bos-text-muted);
+  color: #7fa9d8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .persistentOrionRoot :global(.persistentOrionFacts dd) {
-  margin: 0.16rem 0 0;
+  margin: 0.3rem 0 0;
+  color: #d3dce8;
   font-size: 0.82rem;
-  color: var(--bos-text-secondary);
+  line-height: 1.45;
 }
 
 .persistentOrionRoot :global(.persistentOrionPanelFooter) {
-  margin-top: 0.9rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.65rem;
-  flex-wrap: wrap;
+  padding: 0.85rem 1.35rem 1.15rem;
+  border-top: 1px solid var(--po-line);
+  background: linear-gradient(180deg, rgba(4, 12, 23, 0.88), rgba(3, 10, 20, 0.99) 35%);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 
-.persistentOrionRoot :global(.persistentOrionLinkAction) {
-  color: var(--orion-cyan);
+.persistentOrionRoot :global(.persistentOrionLinkAction),
+.persistentOrionRoot :global(.persistentOrionMinimize) {
+  min-height: 2.8rem;
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  border-radius: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.8rem;
+  color: #b9dcff;
+  background: rgba(14, 27, 44, 0.82);
   font-size: 0.8rem;
-  text-decoration: underline;
-  text-underline-offset: 0.18rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.persistentOrionRoot :global(.persistentOrionLinkAction:hover),
+.persistentOrionRoot :global(.persistentOrionMinimize:hover) {
+  border-color: rgba(96, 165, 250, 0.6);
+  color: #ffffff;
 }
 
 .persistentOrionInstructions {
@@ -246,7 +561,90 @@
   }
 
   .persistentOrionRoot :global(.persistentOrionPanel) {
-    width: min(19.6rem, calc(100vw - 1rem));
-    max-height: min(68vh, 27.5rem);
+    width: calc(100vw - 1rem);
+    max-height: min(91vh, 48rem);
+    border-radius: 1.15rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionPanelHeader) {
+    padding: 1rem 1rem 0.9rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionIdentity) {
+    gap: 0.62rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionIdentityMark) {
+    width: 2.6rem;
+    height: 2.6rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionPanelTitle) {
+    font-size: 1.12rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionPanelHeader h3) {
+    font-size: 0.95rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionClose) {
+    min-width: 4rem;
+    min-height: 4rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionFixtureTags),
+  .persistentOrionRoot :global(.persistentOrionSection),
+  .persistentOrionRoot :global(.persistentOrionFacts),
+  .persistentOrionRoot :global(.persistentOrionPanelFooter) {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionFixtureTags span) {
+    font-size: 0.71rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionSectionCopy) {
+    margin-left: 0;
+    font-size: 0.94rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionFacts) {
+    grid-template-columns: 1fr;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionFacts div:last-child) {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 430px) {
+  .persistentOrionRoot :global(.persistentOrionPanelHeader) {
+    gap: 0.55rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionIdentityMark) {
+    display: none;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionStateLine) {
+    font-size: 0.83rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionClose) {
+    min-width: 3.65rem;
+    min-height: 3.65rem;
+    font-size: 0.72rem;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionVoiceActions) {
+    grid-template-columns: 1fr;
+  }
+
+  .persistentOrionRoot :global(.persistentOrionVoiceActions > :first-child),
+  .persistentOrionRoot :global(.persistentOrionVoicePrimary),
+  .persistentOrionRoot :global(.persistentOrionVoiceSecondary) {
+    grid-column: 1;
+    grid-row: auto;
   }
 }
