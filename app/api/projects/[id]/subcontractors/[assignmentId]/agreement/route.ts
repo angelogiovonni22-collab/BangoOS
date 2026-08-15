@@ -40,16 +40,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const [{ data: assignment }, { data: project }, { data: company }] = await Promise.all([
       admin.from("trade_partner_assignments").select("*").eq("company_id", companyId).eq("project_id", projectId).eq("id", assignmentId).single(),
       admin.from("projects").select("*").eq("company_id", companyId).eq("id", projectId).single(),
-      admin.from("companies").select("id,name").eq("id", companyId).single(),
+      admin.from("companies").select("id,company_name").eq("id", companyId).single(),
     ]);
     if (!assignment || !project || !company) return NextResponse.json({ error: "Subcontractor assignment not found." }, { status: 404 });
 
+    const companyName = asText(company.company_name) || "Bango Construction";
     const { data: vendor } = await admin.from("vendors").select("*").eq("company_id", companyId).eq("id", assignment.vendor_id).single();
     if (!vendor) return NextResponse.json({ error: "Vendor not found." }, { status: 404 });
     const email = asText(assignment.primary_contact_email) || asText(vendor.email);
     if (!email) return NextResponse.json({ error: "A subcontractor email address is required before sending an agreement." }, { status: 400 });
     const personName = [asText(vendor.first_name), asText(vendor.last_name)].filter(Boolean).join(" ");
-    const vendorName = asText(vendor.name) || asText(vendor.company_name) || personName || "Subcontractor";
+    const vendorName = asText(vendor.company_name) || personName || "Subcontractor";
 
     const { data: existingAuthorizationRaw } = await admin
       .from("project_subcontract_work_authorizations" as never)
@@ -72,7 +73,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       master = pendingMasterRaw as MasterRecord | null;
     }
     if (!master) {
-      const snapshot = buildMasterSnapshot({ companyName: company.name, vendorName, vendorEmail: email });
+      const snapshot = buildMasterSnapshot({ companyName, vendorName, vendorEmail: email });
       const { data, error } = await admin.from("subcontractor_master_agreements" as never).insert({
         company_id: companyId, vendor_id: assignment.vendor_id, status: "draft",
         agreement_version: MASTER_SUBCONTRACT_AGREEMENT_VERSION, agreement_snapshot: snapshot,
@@ -84,9 +85,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const waSnapshot = buildWorkAuthorizationSnapshot({
-      companyName: company.name,
+      companyName,
       vendorName,
-      projectName: asText(project.name) || asText(project.project_name) || asText(project.job_site_name) || "Project",
+      projectName: asText(project.name) || asText(project.job_site_name) || "Project",
       projectAddress: projectAddress(project as Record<string, unknown>),
       tradeName: assignment.trade_name,
       scopeOfWork: asText(assignment.scope_of_work),
@@ -138,8 +139,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const url = new URL(`/subcontracts/${encodeURIComponent(token)}`, request.url).toString();
     const delivery = await sendContractEmail({
       to: email,
-      subject: `${company.name} subcontract agreement — ${waSnapshot.project}`,
-      html: `<p>Hello ${asText(assignment.primary_contact_name) || asText(vendor.first_name) || "there"},</p><p>${company.name} has assigned your company to <strong>${waSnapshot.project}</strong> for <strong>${assignment.trade_name}</strong>.</p><p>Please review and sign the subcontract documents using the secure link below.</p><p><a href="${url}">Review &amp; Sign Subcontract</a></p><p>This link expires in 14 days.</p>`,
+      subject: `${companyName} subcontract agreement — ${waSnapshot.project}`,
+      html: `<p>Hello ${asText(assignment.primary_contact_name) || asText(vendor.first_name) || "there"},</p><p>${companyName} has assigned your company to <strong>${waSnapshot.project}</strong> for <strong>${assignment.trade_name}</strong>.</p><p>Please review and sign the subcontract documents using the secure link below.</p><p><a href="${url}">Review &amp; Sign Subcontract</a></p><p>This link expires in 14 days.</p>`,
     });
     await admin.from("subcontractor_signature_events" as never).insert({ company_id: companyId, vendor_id: assignment.vendor_id, assignment_id: assignmentId, master_agreement_id: master.id, work_authorization_id: authorization.id, event_type: "sent", signer_email: email, document_hash: authorization.authorization_hash, metadata: { delivery } } as never);
 
