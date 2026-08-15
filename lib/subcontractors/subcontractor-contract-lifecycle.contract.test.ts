@@ -50,12 +50,15 @@ test("signing updates contract status but mobilization remains independently gat
   assert.match(mobilization, /safety_acknowledgement/);
 });
 
-test("project UI has reusable subcontract contract and mobilization controls", () => {
+test("project subcontractor cards expose agreement and mobilization controls", () => {
   const component = read("components/projects/workspace/subcontractor-contract-actions.tsx");
+  const workspace = read("components/projects/workspace/project-trade-partners-workspace.tsx");
   assert.match(component, /Send Agreement/);
   assert.match(component, /Resend Agreement/);
   assert.match(component, /CLEARED TO MOBILIZE/);
   assert.match(component, /Mobilization Requirements/);
   assert.match(component, /Verify/);
   assert.match(component, /Waive/);
+  assert.match(workspace, /SubcontractorContractActions/);
+  assert.match(workspace, /assignmentId=\{assignment\.id\}/);
 });
