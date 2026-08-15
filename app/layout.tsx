@@ -9,6 +9,7 @@ import "./theme-gallery.css";
 import "./theme-gallery-hardening.css";
 import "./future-2030.css";
 import "./top-command-layout.css";
+import "./mobile-reference.css";
 import { I18nProvider } from "@/lib/i18n/provider";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
