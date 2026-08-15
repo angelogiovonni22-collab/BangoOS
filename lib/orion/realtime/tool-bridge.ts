@@ -2,6 +2,12 @@
 
 import { executeOrionTaskAgent, ORION_TASK_AGENT_TOOL } from "@/lib/orion/task-agent/browser";
 import { executeOrionUiOperator, ORION_UI_OPERATOR_TOOL } from "@/lib/orion/operator/browser";
+import {
+  executeOrionPersonalAssistant,
+  executeOrionViewportControl,
+  ORION_PERSONAL_ASSISTANT_TOOL,
+  ORION_VIEWPORT_CONTROL_TOOL,
+} from "@/lib/orion/personal-assistant/browser";
 import type { OrionRealtimeServerEvent, OrionRealtimeToolExecutionResult } from "./types";
 
 export const ORION_REALTIME_CONFIRM_TOOL = "bos_confirm_pending_action";
@@ -98,6 +104,8 @@ export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall, 
   if (call.toolName === ORION_REALTIME_RESOLVE_ENTITY_TOOL) return executeEntityResolution(call);
   if (call.toolName === ORION_UI_OPERATOR_TOOL) return executeOrionUiOperator(call.params);
   if (call.toolName === ORION_TASK_AGENT_TOOL) return executeOrionTaskAgent(call.params);
+  if (call.toolName === ORION_PERSONAL_ASSISTANT_TOOL) return executeOrionPersonalAssistant(call.params);
+  if (call.toolName === ORION_VIEWPORT_CONTROL_TOOL) return executeOrionViewportControl(call.params);
 
   const response = await fetch("/api/orion/realtime/tool", {
     method: "POST",
