@@ -14,6 +14,8 @@ const RESEARCH_TOOL_NAME = "orion_web_research";
 const CONTEXT_TOOL_NAME = "orion_current_context";
 const RESOLVE_ENTITY_TOOL_NAME = "orion_resolve_entity";
 const UI_OPERATOR_TOOL_NAME = "orion_ui_operator";
+const PERSONAL_ASSISTANT_TOOL_NAME = "orion_personal_assistant";
+const VIEWPORT_CONTROL_TOOL_NAME = "orion_viewport_control";
 
 function openAIKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -67,6 +69,30 @@ function realtimeBosTools() {
           },
         },
         direction: { type: "string", enum: ["up", "down", "top", "bottom", "control"], description: "Scroll one active-content viewport, jump to a boundary, or bring ref into view. Used only with scroll." },
+      }, ["action"]),
+    },
+    {
+      type: "function" as const,
+      name: PERSONAL_ASSISTANT_TOOL_NAME,
+      description: "Create, list, or cancel persistent Orion reminders and calendar-event alerts on this B.O.S. device. Use action=now first whenever the user's requested time is relative or ambiguous so you resolve the device-local date, time, and timezone before setting the reminder. For event alerts, dueAt is the actual alert time and eventStartsAt is the calendar event start time when known.",
+      parameters: wrappedToolParameters({
+        action: { type: "string", enum: ["now", "set_reminder", "set_event_alert", "list", "cancel"] },
+        title: { type: "string", description: "Short reminder title." },
+        message: { type: "string", description: "What Orion should alert the user about." },
+        dueAt: { type: "string", description: "Future date/time for the alert. Use an ISO 8601 value with the device timezone offset whenever possible." },
+        eventTitle: { type: "string", description: "Calendar event or appointment title for event alerts." },
+        eventStartsAt: { type: "string", description: "Calendar event start date/time when known." },
+        linkedHref: { type: "string", description: "Optional internal B.O.S. path associated with the reminder." },
+        reminderId: { type: "string", description: "Exact id returned by list/set. Required only for cancel." },
+      }, ["action"]),
+    },
+    {
+      type: "function" as const,
+      name: VIEWPORT_CONTROL_TOOL_NAME,
+      description: "Control B.O.S. page zoom directly by voice. Use for zoom in, zoom out, reset zoom, set a specific percentage, or report the current zoom. This changes B.O.S. application zoom, not camera zoom or blueprint-specific model scale.",
+      parameters: wrappedToolParameters({
+        action: { type: "string", enum: ["zoom_in", "zoom_out", "reset", "set", "get"] },
+        percent: { type: ["number", "string"], description: "Requested B.O.S. zoom percentage from 75 to 150. Used only with action=set." },
       }, ["action"]),
     },
     {
@@ -165,6 +191,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         voiceStyleInstruction(voiceStyle),
         voiceIsolationInstruction(isolationMode),
         "Execution-speed policy: for clear reversible BOS requests, call the correct tool immediately and narrate briefly after the tool result. Do not spend a response explaining what you are about to do when you can safely start doing it.",
+        `Reminder policy: use ${PERSONAL_ASSISTANT_TOOL_NAME} for spoken reminders and calendar-event alerts. If the user says a relative time such as later, in 30 minutes, tomorrow morning, or before an event, call action=now first so you anchor the request to the device-local clock. Never claim a reminder is set until the tool returns success.`,
+        `Calendar-alert policy: use ${PERSONAL_ASSISTANT_TOOL_NAME} action=set_event_alert when the user asks to be alerted before or at a meeting, appointment, inspection, job, schedule item, or other calendar event. Keep eventStartsAt separate from dueAt so the alert can occur before the event.`,
+        `Zoom policy: when the user says zoom in, zoom out, make this bigger/smaller, reset zoom, or set a B.O.S. zoom percentage, call ${VIEWPORT_CONTROL_TOOL_NAME} immediately. Do not use UI scrolling for zoom requests.`,
         "Direct-work fast path: when the user asks you to create or save a customer, project, estimate, or invoice now, prefer bos_customer_create, bos_project_create, bos_estimate_create, or bos_invoice_create. These execute through canonical BOS services and should not require opening the form first.",
         "Fast create tools accept documented human-name aliases such as customerName, projectName, and estimateName. Use those aliases directly instead of making a separate entity-resolution tool call when the fast tool supports the alias. BOS will resolve a unique company-scoped match inside the same request and will reject ambiguous matches rather than guessing.",
         "Visible-form boundary: use Orion UI Operator when the user explicitly says to open, show, fill out, edit on screen, review, or watch the form, or when a canonical command does not cover the requested operation. Do not force a visible form for a direct create/save request.",
@@ -213,7 +242,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           transcription: {
             model: "gpt-4o-mini-transcribe",
             language: "en",
-            prompt: "BangoOS construction terminology, customer names, project names, estimates, invoices, crews, change orders, line items, quantities, square feet, linear feet, markup, tax, scope, confirm, cancel.",
+            prompt: "BangoOS construction terminology, customer names, project names, estimates, invoices, crews, change orders, line items, quantities, square feet, linear feet, markup, tax, scope, reminders, calendar alerts, zoom in, zoom out, confirm, cancel.",
           },
           turn_detection: { type: "semantic_vad", eagerness: "high", create_response: true, interrupt_response: true },
         },
