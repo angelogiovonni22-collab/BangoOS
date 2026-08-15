@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createOrionCommandRouter, createOrionCommandRegistry, type OrionCommandPermission } from "@/lib/orion/commands";
 import { createOrionExecutionEnvelope } from "@/lib/orion/commands/execution-envelope";
 import { getUniversalBosCommandByToolName } from "@/lib/orion/intelligence";
+import { normalizeRealtimeFastCommandParams } from "@/lib/orion/realtime/fast-command-params";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -82,7 +83,28 @@ async function executeCanonicalCommand(args: {
     return { status: 400, body: { ok: false, statusCategory: "command_validation_failed", userMessage: "That BOS action is not available." } };
   }
 
-  const validation = command.validate(args.params);
+  const fastParams = args.confirmed
+    ? { params: args.params, error: null, resolvedAliases: [] }
+    : await normalizeRealtimeFastCommandParams({
+        supabase: args.supabase,
+        companyId: args.companyId,
+        commandId: command.id,
+        params: args.params,
+      });
+
+  if (fastParams.error) {
+    return {
+      status: 400,
+      body: {
+        ok: false,
+        commandId: command.id,
+        statusCategory: "command_validation_failed",
+        userMessage: fastParams.error,
+      },
+    };
+  }
+
+  const validation = command.validate(fastParams.params);
   if (!validation.ok) {
     return {
       status: 400,
@@ -119,6 +141,7 @@ async function executeCanonicalCommand(args: {
     };
   }
 
+  const startedAt = performance.now();
   const { correlationId, idempotencyKey } = createOrionExecutionEnvelope(command.id, "orion-realtime", args.executionId);
   const router = createOrionCommandRouter({ supabase: args.supabase });
   const result = await router.executeCommand({
@@ -133,6 +156,7 @@ async function executeCanonicalCommand(args: {
     correlationId,
     idempotencyKey,
   });
+  const elapsedMs = Math.round(performance.now() - startedAt);
 
   return {
     status: result.success ? 200 : 400,
@@ -143,6 +167,11 @@ async function executeCanonicalCommand(args: {
       userMessage: result.userMessage,
       href: result.href,
       confirmationRequired: false,
+      details: {
+        fastPath: !args.confirmed,
+        elapsedMs,
+        resolvedAliases: fastParams.resolvedAliases,
+      },
     },
   };
 }
