@@ -49,6 +49,14 @@ const OVERRIDE_PERMISSIONS: Array<{ key: BosPermission; label: string; sensitive
   { key: "settings.view", label: "Settings", sensitive: true },
 ];
 
+function toEditableMembership(member: Membership): EditableMembership {
+  return {
+    ...member,
+    department: member.department || "",
+    permission_overrides: member.permission_overrides || {},
+  };
+}
+
 export default function AccessControlPage() {
   const [payload, setPayload] = useState<AccessPayload | null>(null);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -65,18 +73,22 @@ export default function AccessControlPage() {
     const response = await fetch("/api/settings/access-control", { cache: "no-store" });
     const body = await response.json();
     if (!response.ok) { setMessage(body.error || "Unable to load access control."); return; }
-    setPayload(body as AccessPayload);
-    const firstId = (body.memberships as Membership[])[0]?.id || "";
-    setSelectedId((current) => current || firstId);
+
+    const nextPayload = body as AccessPayload;
+    setPayload(nextPayload);
+    const preferredId = selectedId || nextPayload.memberships[0]?.id || "";
+    const selectedMember = nextPayload.memberships.find((item) => item.id === preferredId) ?? nextPayload.memberships[0] ?? null;
+    setSelectedId(selectedMember?.id || "");
+    setDraft(selectedMember ? toEditableMembership(selectedMember) : null);
   }
 
   const profileMap = useMemo(() => new Map((payload?.profiles ?? []).map((profile) => [profile.id, profile])), [payload]);
-  const selected = useMemo(() => payload?.memberships.find((item) => item.id === selectedId) ?? null, [payload, selectedId]);
 
-  useEffect(() => {
-    if (!selected) { setDraft(null); return; }
-    setDraft({ ...selected, department: selected.department || "", permission_overrides: selected.permission_overrides || {} });
-  }, [selected]);
+  function selectMember(member: Membership) {
+    setSelectedId(member.id);
+    setDraft(toEditableMembership(member));
+    setMessage("");
+  }
 
   function memberName(member: Membership) {
     const profile = profileMap.get(member.user_id);
@@ -113,7 +125,7 @@ export default function AccessControlPage() {
       <section className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)]">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8ec3ff]">B.O.S. Security</p>
         <h1 className="mt-2 text-2xl font-semibold">Roles, Departments & Permissions</h1>
-        <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--bos-text-secondary)]">Control what each person can see and do. Role defaults are enforced in the interface and sensitive database tables. Individual permission overrides can further tighten or expand a trusted internal user's access.</p>
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--bos-text-secondary)]">Control what each person can see and do. Role defaults are enforced in the interface and sensitive database tables. Individual permission overrides can further tighten or expand a trusted internal user&apos;s access.</p>
       </section>
 
       {message ? <div role="status" className="rounded-xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] px-4 py-3 text-sm font-semibold">{message}</div> : null}
@@ -123,7 +135,7 @@ export default function AccessControlPage() {
           <aside className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-3 shadow-[var(--shadow-small)]">
             <p className="px-2 pb-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--bos-text-muted)]">Company Members</p>
             <div className="space-y-1">
-              {payload.memberships.map((member) => <button key={member.id} type="button" onClick={() => setSelectedId(member.id)} className={`w-full rounded-xl px-3 py-3 text-left transition ${selectedId === member.id ? "bg-blue-600 text-white" : "hover:bg-[var(--bos-bg-hover)]"}`}><span className="block text-sm font-semibold">{memberName(member)}</span><span className={`mt-1 block text-xs ${selectedId === member.id ? "text-blue-100" : "text-[var(--bos-text-muted)]"}`}>{formatLabel(member.role)}{member.department ? ` · ${member.department}` : ""}</span></button>)}
+              {payload.memberships.map((member) => <button key={member.id} type="button" onClick={() => selectMember(member)} className={`w-full rounded-xl px-3 py-3 text-left transition ${selectedId === member.id ? "bg-blue-600 text-white" : "hover:bg-[var(--bos-bg-hover)]"}`}><span className="block text-sm font-semibold">{memberName(member)}</span><span className={`mt-1 block text-xs ${selectedId === member.id ? "text-blue-100" : "text-[var(--bos-text-muted)]"}`}>{formatLabel(member.role)}{member.department ? ` · ${member.department}` : ""}</span></button>)}
             </div>
           </aside>
 
