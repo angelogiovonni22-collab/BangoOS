@@ -324,6 +324,7 @@ export function PersistentOrion() {
     <PortalHost>
       <LayerManager layer="orionPersistent">
         <div ref={shellRef} className={styles.persistentOrionRoot} style={rootStyle} aria-label="Persistent Orion surface">
+      {open ? <div className="persistentOrionBackdrop" aria-hidden="true" /> : null}
       <PersistentOrionButton
         open={open}
         minimized={minimized}
