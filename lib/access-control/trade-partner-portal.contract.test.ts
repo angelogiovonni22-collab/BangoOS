@@ -24,7 +24,7 @@ const checks: Array<[string, boolean]> = [
   ["receipts are excluded from partner-safe photos", migration.includes("'before','progress','after','safety','damage','materials','inspection','other'") && !migration.includes("pp.category in ('before','progress','after','safety','damage','materials','receipt")],
   ["trade partner plans require approved status", migration.includes("bv.status = 'approved'")],
   ["blueprint storage is assignment scoped", migration.includes("bos_trade_partner_blueprint_storage_select_guard") && migration.includes("public.bos_can_access_trade_partner_project(bv.project_id)")],
-  ["trade partner plan records are read-only", hardening.includes("blueprint_versions_update_guard") && hardening.includes("blueprint_versions_delete_guard")],
+  ["trade partner plan records are read-only", hardening.includes("array['blueprint_sets','blueprint_sheets','blueprint_versions']") && hardening.includes("'bos_trade_partner_' || t || '_update_guard'") && hardening.includes("'bos_trade_partner_' || t || '_delete_guard'")],
   ["trade partner plan objects are read-only", hardening.includes("blueprint_storage_update_guard") && hardening.includes("blueprint_storage_delete_guard")],
   ["partner photo object mutation is owner scoped", hardening.includes("pp.uploaded_by = auth.uid()")],
   ["message table is project and vendor scoped", migration.includes("create table if not exists public.trade_partner_messages") && migration.includes("vendor_id uuid not null")],
