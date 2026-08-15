@@ -40,11 +40,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const [{ data: assignment }, { data: project }, { data: company }] = await Promise.all([
       admin.from("trade_partner_assignments").select("*").eq("company_id", companyId).eq("project_id", projectId).eq("id", assignmentId).single(),
       admin.from("projects").select("*").eq("company_id", companyId).eq("id", projectId).single(),
-      admin.from("companies").select("id,company_name").eq("id", companyId).single(),
+      admin.from("companies").select("*").eq("id", companyId).single(),
     ]);
     if (!assignment || !project || !company) return NextResponse.json({ error: "Subcontractor assignment not found." }, { status: 404 });
 
-    const companyName = asText(company.company_name) || "Bango Construction";
+    const companyRecord = company as unknown as Record<string, unknown>;
+    const companyName = asText(companyRecord.name) || asText(companyRecord.display_name) || asText(companyRecord.legal_name) || asText(companyRecord.company_name) || "Bango Construction";
     const { data: vendor } = await admin.from("vendors").select("*").eq("company_id", companyId).eq("id", assignment.vendor_id).single();
     if (!vendor) return NextResponse.json({ error: "Vendor not found." }, { status: 404 });
     const email = asText(assignment.primary_contact_email) || asText(vendor.email);
