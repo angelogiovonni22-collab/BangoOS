@@ -20,7 +20,8 @@ function read(relativePath: string) {
 
 function main() {
   const session = read("app/api/orion/realtime/session/route.ts");
-  const resolver = read("app/api/orion/realtime/resolve-entity/route.ts");
+  const resolverRoute = read("app/api/orion/realtime/resolve-entity/route.ts");
+  const resolver = read("lib/orion/realtime/entity-resolution.ts");
   const bridge = read("lib/orion/realtime/tool-bridge.ts");
   const types = read("lib/orion/realtime/types.ts");
 
@@ -37,9 +38,9 @@ function main() {
   assert(bridge.includes("window.location.href"), "current context is resolved from the live browser route without reconnecting Realtime");
   assert(bridge.includes('routeEntityId(pathname, "projects")'), "current project id can be inferred from Project Workspace routes");
   assert(bridge.includes('/api/orion/realtime/resolve-entity'), "spoken entity names are resolved through an authenticated server endpoint");
-  assert(resolver.includes("resolveWorkspaceContext"), "entity resolution is scoped to the authenticated BOS workspace");
-  assert(resolver.includes('.eq("company_id", companyId)'), "entity candidate queries are company-scoped");
-  assert(resolver.includes('"customer", "project", "estimate", "invoice"'), "entity resolver supports core customer/project/estimate/invoice records");
+  assert(resolverRoute.includes("resolveWorkspaceContext") && resolverRoute.includes("resolveOrionEntity"), "entity resolution route is authenticated and delegates to the shared resolver");
+  assert(resolver.includes('.eq("company_id", params.companyId)'), "entity candidate queries are company-scoped in the shared resolver");
+  assert(resolver.includes('OrionResolvableEntityType = "customer" | "project" | "estimate" | "invoice"'), "entity resolver supports core customer/project/estimate/invoice records");
   assert(types.includes("details?: unknown"), "Realtime function outputs can return structured context and entity details");
   assert(bridge.includes("details: result.details ?? null"), "structured tool details are returned to the Realtime model");
 
