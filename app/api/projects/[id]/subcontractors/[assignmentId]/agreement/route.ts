@@ -12,6 +12,9 @@ import {
   hashSnapshot,
 } from "@/lib/subcontractors/agreement";
 
+type MasterRecord = { id: string; status: string; agreement_hash: string };
+type AuthorizationRecord = { id: string; authorization_hash: string };
+
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 const asText = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
 const asNumber = (value: unknown) => typeof value === "number" ? value : value == null ? null : Number(value);
@@ -44,16 +47,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const email = asText(assignment.primary_contact_email) || asText(vendor.email);
     if (!email) return NextResponse.json({ error: "A subcontractor email address is required before sending an agreement." }, { status: 400 });
 
-    let { data: master } = await admin.from("subcontractor_master_agreements" as never).select("*").eq("company_id", companyId).eq("vendor_id", assignment.vendor_id).eq("status", "signed").order("signed_at", { ascending: false }).limit(1).maybeSingle() as { data: Record<string, unknown> | null };
+    const { data: signedMasterRaw } = await admin.from("subcontractor_master_agreements" as never).select("*").eq("company_id", companyId).eq("vendor_id", assignment.vendor_id).eq("status", "signed").order("signed_at", { ascending: false }).limit(1).maybeSingle();
+    let master = signedMasterRaw as MasterRecord | null;
+    if (!master) {
+      const { data: pendingMasterRaw } = await admin.from("subcontractor_master_agreements" as never).select("*").eq("company_id", companyId).eq("vendor_id", assignment.vendor_id).in("status", ["draft", "sent"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      master = pendingMasterRaw as MasterRecord | null;
+    }
     if (!master) {
       const snapshot = buildMasterSnapshot({ companyName: company.name, vendorName: vendor.display_name || vendor.company_name, vendorEmail: email });
       const { data, error } = await admin.from("subcontractor_master_agreements" as never).insert({
         company_id: companyId, vendor_id: assignment.vendor_id, status: "draft",
         agreement_version: MASTER_SUBCONTRACT_AGREEMENT_VERSION, agreement_snapshot: snapshot,
-        agreement_hash: hashSnapshot(snapshot), created_by: workspace.context.userId, updated_by: workspace.context.userId,
-      } as never).select("*").single() as { data: Record<string, unknown> | null; error: { message: string } | null };
+        agreement_hash: hashSnapshot(snapshot), signer_email: email,
+        created_by: workspace.context.userId, updated_by: workspace.context.userId,
+      } as never).select("*").single();
       if (error || !data) throw new Error(error?.message || "Unable to create master subcontract agreement.");
-      master = data;
+      master = data as MasterRecord;
     }
 
     const waSnapshot = buildWorkAuthorizationSnapshot({
@@ -71,19 +80,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: authorization, error: authError } = await admin.from("project_subcontract_work_authorizations" as never).upsert({
+    const { data: authorizationRaw, error: authError } = await admin.from("project_subcontract_work_authorizations" as never).upsert({
       company_id: companyId, project_id: projectId, assignment_id: assignmentId, vendor_id: assignment.vendor_id,
       master_agreement_id: master.id, status: "sent", authorization_version: PROJECT_WORK_AUTHORIZATION_VERSION,
       authorization_snapshot: waSnapshot, authorization_hash: hashSnapshot(waSnapshot),
       scope_of_work: assignment.scope_of_work, contract_amount: assignment.contract_amount, payment_terms: assignment.payment_terms,
       retainage_percent: assignment.retainage_percent, start_date: assignment.start_date, target_completion_date: assignment.target_completion_date,
-      public_token_hash: tokenHash(token), token_expires_at: expiresAt, sent_at: new Date().toISOString(),
+      signer_email: email, public_token_hash: tokenHash(token), token_expires_at: expiresAt, sent_at: new Date().toISOString(),
       created_by: workspace.context.userId, updated_by: workspace.context.userId,
-    } as never, { onConflict: "company_id,assignment_id" }).select("*").single() as { data: Record<string, unknown> | null; error: { message: string } | null };
+    } as never, { onConflict: "company_id,assignment_id" }).select("*").single();
+    const authorization = authorizationRaw as AuthorizationRecord | null;
     if (authError || !authorization) throw new Error(authError?.message || "Unable to create project work authorization.");
 
     if (master.status !== "signed") {
-      await admin.from("subcontractor_master_agreements" as never).update({ status: "sent", public_token_hash: tokenHash(token), token_expires_at: expiresAt, sent_at: new Date().toISOString(), updated_by: workspace.context.userId } as never).eq("id", master.id);
+      await admin.from("subcontractor_master_agreements" as never).update({ status: "sent", signer_email: email, public_token_hash: tokenHash(token), token_expires_at: expiresAt, sent_at: new Date().toISOString(), updated_by: workspace.context.userId } as never).eq("id", master.id);
     }
 
     const requirementRows = [
