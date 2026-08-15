@@ -21,13 +21,15 @@ function main() {
   const row = read("components/estimates/estimate-line-item-row.tsx");
 
   console.log("\nOrion legacy task-agent isolation contract");
-  assert(session.includes('UI_OPERATOR_TOOL_NAME = "orion_ui_operator"'), "Realtime exposes the semantic UI operator as the interactive workflow layer");
+  assert(session.includes('UI_OPERATOR_TOOL_NAME = "orion_ui_operator"'), "Realtime retains the semantic UI operator for visible workflows");
   assert(!session.includes('TASK_AGENT_TOOL_NAME = "orion_task_agent"'), "legacy task-agent is no longer advertised to the model");
-  assert(session.includes("Orion Operator architecture"), "Realtime explicitly uses the operator-first architecture");
+  assert(session.includes("Orion Operator architecture"), "Realtime explicitly preserves Orion Operator for visible form workflows");
+  assert(session.includes("Direct-work fast path") && session.includes("Visible-form boundary"), "Realtime separates canonical direct execution from visible form operation");
   assert(session.includes("Do not force command syntax"), "Realtime policy still requires natural-language interaction");
   assert(session.includes("Never interpret the name of a field as the value for that field"), "field labels cannot be mis-saved as values");
   assert(session.includes("Corrections override earlier information"), "multi-turn corrections remain explicit in the operator policy");
-  assert(session.includes("watch you fill the estimate in real time"), "Realtime is instructed to operate the visible BOS form");
+  assert(session.includes("Visible estimate workflow") && session.includes("batch-fill every compatible known value"), "Realtime can still operate the visible BOS estimate form when the user asks to see or fill it");
+  assert(session.includes("If the user only asks you to create/save the estimate, use the canonical estimate fast path instead."), "direct estimate creation no longer pays unnecessary visible-form latency");
   assert(bridge.includes("executeOrionTaskAgent(call.params)"), "legacy task-agent remains internally routable for rollback compatibility");
   assert(bridge.includes("executeOrionUiOperator(call.params)"), "semantic UI operator is routed through the live browser bridge");
   assert(taskAgent.includes("window.sessionStorage"), "legacy task memory remains intact if rollback is ever required");
