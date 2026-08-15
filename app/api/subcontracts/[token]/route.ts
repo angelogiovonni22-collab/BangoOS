@@ -27,10 +27,23 @@ type MasterRecord = {
   signed_at: string | null;
 };
 
-type VendorRecord = { display_name: string | null; company_name: string; email: string | null };
+type VendorRecord = {
+  name: string;
+  company_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+};
 type CompanyRecord = { id: string; name: string };
 
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
+
+function vendorDisplayName(vendor: VendorRecord) {
+  const personName = [vendor.first_name, vendor.last_name]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ");
+  return vendor.name?.trim() || vendor.company_name?.trim() || personName || "Subcontractor";
+}
 
 async function loadContext(token: string) {
   const admin = createAdminClient();
@@ -47,7 +60,7 @@ async function loadContext(token: string) {
 
   const [masterResult, vendorResult, projectResult, companyResult, assignmentResult] = await Promise.all([
     admin.from("subcontractor_master_agreements" as never).select("*").eq("id", authorization.master_agreement_id).single(),
-    admin.from("vendors").select("display_name,company_name,email").eq("id", authorization.vendor_id).eq("company_id", authorization.company_id).single(),
+    admin.from("vendors").select("name,company_name,first_name,last_name,email").eq("id", authorization.vendor_id).eq("company_id", authorization.company_id).single(),
     admin.from("projects").select("id").eq("id", authorization.project_id).eq("company_id", authorization.company_id).single(),
     admin.from("companies").select("id,name").eq("id", authorization.company_id).single(),
     admin.from("trade_partner_assignments").select("id").eq("id", authorization.assignment_id).eq("company_id", authorization.company_id).single(),
@@ -78,7 +91,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     }
     return NextResponse.json({
       company: context.company,
-      vendor: { name: context.vendor.display_name || context.vendor.company_name, email: context.vendor.email },
+      vendor: { name: vendorDisplayName(context.vendor), email: context.vendor.email },
       master: { status: context.master.status, version: context.master.agreement_version, snapshot: context.master.agreement_snapshot, hash: context.master.agreement_hash, signedAt: context.master.signed_at },
       authorization: { status: context.authorization.status, version: context.authorization.authorization_version, snapshot: context.authorization.authorization_snapshot, hash: context.authorization.authorization_hash, signedAt: context.authorization.signed_at },
       expiresAt: context.authorization.token_expires_at,
