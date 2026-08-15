@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   Badge,
+  Button,
   EnterpriseTable,
   EnterpriseTableBody,
   EnterpriseTableCell,
@@ -36,15 +40,48 @@ type ProjectTableProps = {
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
+type DeletedProjectResponse = {
+  projects?: Array<{ projectId: string }>;
+};
+
 export function ProjectTable({ items, t }: ProjectTableProps) {
   const router = useRouter();
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/projects/deleted", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return await response.json() as DeletedProjectResponse;
+      })
+      .then((body) => {
+        if (!active || !body?.projects) return;
+        setDeletedIds(new Set(body.projects.map((project) => project.projectId)));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const visibleItems = useMemo(() => items.filter((project) => !deletedIds.has(project.id)), [deletedIds, items]);
 
   return (
-    <TableContainer
-      title={t("projects.directoryTitle")}
-      description={t("projects.directoryDescription")}
-    >
-      <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[1320px]">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2" aria-label="Project lifecycle views">
+        <Button type="button" size="sm" variant="primary" disabled>Projects</Button>
+        <Link href="/projects/deleted">
+          <Button type="button" size="sm" variant="outline">Previously Deleted</Button>
+        </Link>
+      </div>
+
+      <TableContainer
+        title={t("projects.directoryTitle")}
+        description={t("projects.directoryDescription")}
+      >
+        <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[1320px]">
           <EnterpriseTableHead>
             <tr>
               <EnterpriseTableHeading>{t("projects.tableProject")}</EnterpriseTableHeading>
@@ -62,7 +99,7 @@ export function ProjectTable({ items, t }: ProjectTableProps) {
           </EnterpriseTableHead>
 
           <EnterpriseTableBody>
-            {items.map((project) => (
+            {visibleItems.map((project) => (
               <EnterpriseTableRow
                 key={project.id}
                 className="cursor-pointer transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]/80 hover:shadow-[0_10px_24px_-20px_rgba(15,23,42,0.28)]"
@@ -120,35 +157,24 @@ export function ProjectTable({ items, t }: ProjectTableProps) {
                 <EnterpriseTableCell align="right">
                   <ProjectActions
                     projectId={project.id}
+                    projectName={project.projectName}
                     viewLabel={t("projects.viewWorkspace")}
                     moreLabel={t("projects.actionsMore")}
-                    comingSoonLabel={t("projects.comingSoon")}
                   />
                 </EnterpriseTableCell>
               </EnterpriseTableRow>
             ))}
           </EnterpriseTableBody>
-      </EnterpriseTable>
-    </TableContainer>
+        </EnterpriseTable>
+      </TableContainer>
+    </div>
   );
 }
 
-function getHealthTone(healthKey: ProjectTableItem["healthKey"]): "brand" | "success" | "warning" | "danger" | "neutral" {
-  if (healthKey === "complete") {
-    return "success";
-  }
-
-  if (healthKey === "at_risk") {
-    return "warning";
-  }
-
-  if (healthKey === "behind") {
-    return "danger";
-  }
-
-  if (healthKey === "on_track") {
-    return "brand";
-  }
-
+function getHealthTone(projectHealth: ProjectTableItem["healthKey"]): "brand" | "success" | "warning" | "danger" | "neutral" {
+  if (projectHealth === "complete") return "success";
+  if (projectHealth === "at_risk") return "warning";
+  if (projectHealth === "behind") return "danger";
+  if (projectHealth === "on_track") return "brand";
   return "neutral";
 }
