@@ -5,20 +5,35 @@ import { resolveKnownOrionOperatorHref, ORION_OPERATOR_MAIN_ROUTES } from "./rou
 
 export const ORION_UI_OPERATOR_TOOL = "orion_ui_operator";
 
-export type OrionUiOperatorAction = "observe" | "navigate" | "set" | "click" | "scroll";
+export type OrionUiOperatorAction = "observe" | "navigate" | "set" | "batch_set" | "click" | "scroll";
+
+type BatchChange = {
+  ref?: unknown;
+  value?: unknown;
+};
 
 type OperatorParams = {
   action?: unknown;
   href?: unknown;
   ref?: unknown;
   value?: unknown;
+  changes?: unknown;
   direction?: unknown;
 };
 
 type InteractiveElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement | HTMLAnchorElement;
+type SettableElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
+type PreparedChange = {
+  ref: string;
+  value: string;
+  element: SettableElement;
+  label: string;
+};
 
 const DESTRUCTIVE_TEXT = /\b(delete|remove|refund|void|archive permanently|discard permanently)\b/i;
 const MAX_CONTROLS = 120;
+const MAX_BATCH_CHANGES = 40;
 let observationRequiredAfterScroll = false;
 
 function ok(userMessage: string, details?: unknown, href?: string | null): OrionRealtimeToolExecutionResult {
@@ -162,7 +177,19 @@ function resolveRef(ref: string): InteractiveElement | null {
   return null;
 }
 
-function nativeSetValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string) {
+function isSettableElement(element: InteractiveElement): element is SettableElement {
+  return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
+}
+
+function canSelectValue(element: HTMLSelectElement, value: string) {
+  const wanted = normalizeText(value).toLowerCase();
+  const options = Array.from(element.options);
+  return options.some((option) => option.value.toLowerCase() === wanted)
+    || options.some((option) => normalizeText(option.textContent || "").toLowerCase() === wanted)
+    || options.some((option) => normalizeText(option.textContent || "").toLowerCase().includes(wanted));
+}
+
+function nativeSetValue(element: SettableElement, value: string, focus = true) {
   if (element instanceof HTMLSelectElement) {
     const wanted = normalizeText(value).toLowerCase();
     const options = Array.from(element.options);
@@ -173,6 +200,7 @@ function nativeSetValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSe
     if (!option) return false;
     element.value = option.value;
     element.dispatchEvent(new Event("change", { bubbles: true }));
+    if (focus) element.focus();
     return true;
   }
 
@@ -181,7 +209,7 @@ function nativeSetValue(element: HTMLInputElement | HTMLTextAreaElement | HTMLSe
   descriptor?.set?.call(element, value);
   element.dispatchEvent(new Event("input", { bubbles: true }));
   element.dispatchEvent(new Event("change", { bubbles: true }));
-  element.focus();
+  if (focus) element.focus();
   return true;
 }
 
@@ -189,7 +217,7 @@ function setControl(ref: string, value: string) {
   if (observationRequiredAfterScroll) return fail("The BOS screen changed after scrolling. Observe the visible screen again before editing.", { reobserveRequired: true });
   const element = resolveRef(ref);
   if (!element) return fail("That visible BOS control is no longer available. Observe the screen again before continuing.", { ref });
-  if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
+  if (!isSettableElement(element)) {
     return fail("That control cannot accept a value.", { ref, label: associatedLabel(element) });
   }
   if (!visible(element) || !inViewport(element) || element.hasAttribute("disabled")) return fail("That control is outside the active viewport. Scroll it into view, then observe again.", { ref, scrollRequired: true });
@@ -197,6 +225,61 @@ function setControl(ref: string, value: string) {
   const didSet = nativeSetValue(element, value);
   if (!didSet) return fail("That value does not match an available option. Observe the screen and use one of the visible options.", { ref, value });
   return ok("Visible BOS control updated.", { ref, label: associatedLabel(element), value });
+}
+
+function parseBatchChanges(value: unknown): BatchChange[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_BATCH_CHANGES) return null;
+  return value as BatchChange[];
+}
+
+function prepareBatchChange(change: BatchChange, index: number): PreparedChange | OrionRealtimeToolExecutionResult {
+  const ref = typeof change.ref === "string" ? change.ref : "";
+  const value = typeof change.value === "string" || typeof change.value === "number" ? String(change.value) : "";
+  if (!ref) return fail("Every batch update requires an exact semantic control reference from the latest observation.", { index });
+  const element = resolveRef(ref);
+  if (!element) return fail("A batch control is no longer available. Observe the BOS screen again before continuing.", { index, ref, reobserveRequired: true });
+  if (!isSettableElement(element)) return fail("A batch target cannot accept a value.", { index, ref, label: associatedLabel(element) });
+  if (!visible(element) || element.hasAttribute("disabled")) return fail("A batch target is no longer active on the mounted BOS form. Observe again before continuing.", { index, ref, reobserveRequired: true });
+  if (element.dataset.orionConfirmation === "required") return fail("A batch target requires Orion's confirmed canonical BOS action.", { index, ref, requiresCanonicalConfirmation: true });
+  if (element instanceof HTMLSelectElement && !canSelectValue(element, value)) {
+    return fail("A batch value does not match an available option. Observe the screen and use one of the returned options.", { index, ref, value });
+  }
+  return { ref, value, element, label: associatedLabel(element) };
+}
+
+function isPreparedChange(value: PreparedChange | OrionRealtimeToolExecutionResult): value is PreparedChange {
+  return "element" in value;
+}
+
+function batchSetControls(changesValue: unknown) {
+  if (observationRequiredAfterScroll) return fail("The BOS screen changed after scrolling. Observe the visible screen again before batch editing.", { reobserveRequired: true });
+  const changes = parseBatchChanges(changesValue);
+  if (!changes) return fail(`Batch editing requires between 1 and ${MAX_BATCH_CHANGES} field updates.`);
+
+  const startedAt = performance.now();
+  const seenRefs = new Set<string>();
+  const prepared: PreparedChange[] = [];
+  for (let index = 0; index < changes.length; index += 1) {
+    const next = prepareBatchChange(changes[index], index);
+    if (!isPreparedChange(next)) return next;
+    if (seenRefs.has(next.ref)) return fail("A batch update cannot target the same BOS control more than once.", { ref: next.ref });
+    seenRefs.add(next.ref);
+    prepared.push(next);
+  }
+
+  for (const change of prepared) {
+    nativeSetValue(change.element, change.value, false);
+  }
+
+  const last = prepared.at(-1);
+  if (last) last.element.focus({ preventScroll: true });
+
+  return ok(`${prepared.length} BOS fields updated in one operation.`, {
+    updatedCount: prepared.length,
+    elapsedMs: Math.round(performance.now() - startedAt),
+    updates: prepared.map((change) => ({ ref: change.ref, label: change.label, value: change.value })),
+    batch: true,
+  });
 }
 
 function operatorStatuses() {
@@ -292,6 +375,9 @@ export async function executeOrionUiOperator(params: OperatorParams): Promise<Or
     const value = typeof params.value === "string" || typeof params.value === "number" ? String(params.value) : "";
     if (!ref) return fail("A visible control reference is required. Observe the screen first.");
     return setControl(ref, value);
+  }
+  if (action === "batch_set") {
+    return batchSetControls(params.changes);
   }
   if (action === "click") {
     const ref = typeof params.ref === "string" ? params.ref : "";
