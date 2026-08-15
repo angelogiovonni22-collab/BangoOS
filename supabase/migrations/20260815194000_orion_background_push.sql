@@ -45,19 +45,19 @@ create policy "orion push subscriptions own rows"
   using (
     user_id = auth.uid()
     and exists (
-      select 1 from public.company_members cm
+      select 1 from public.company_memberships cm
       where cm.company_id = orion_push_subscriptions.company_id
         and cm.user_id = auth.uid()
-        and coalesce(cm.is_active, true) = true
+        and cm.status = 'active'
     )
   )
   with check (
     user_id = auth.uid()
     and exists (
-      select 1 from public.company_members cm
+      select 1 from public.company_memberships cm
       where cm.company_id = orion_push_subscriptions.company_id
         and cm.user_id = auth.uid()
-        and coalesce(cm.is_active, true) = true
+        and cm.status = 'active'
     )
   );
 
@@ -69,19 +69,19 @@ create policy "orion reminders own rows"
   using (
     user_id = auth.uid()
     and exists (
-      select 1 from public.company_members cm
+      select 1 from public.company_memberships cm
       where cm.company_id = orion_reminders.company_id
         and cm.user_id = auth.uid()
-        and coalesce(cm.is_active, true) = true
+        and cm.status = 'active'
     )
   )
   with check (
     user_id = auth.uid()
     and exists (
-      select 1 from public.company_members cm
+      select 1 from public.company_memberships cm
       where cm.company_id = orion_reminders.company_id
         and cm.user_id = auth.uid()
-        and coalesce(cm.is_active, true) = true
+        and cm.status = 'active'
     )
   );
 
