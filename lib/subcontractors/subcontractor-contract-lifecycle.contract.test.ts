@@ -62,6 +62,24 @@ test("signing updates contract status but mobilization remains independently gat
   assert.match(mobilization, /safety_acknowledgement/);
 });
 
+test("compliance documents are privately stored, scoped, and attached to mobilization evidence", () => {
+  const sql = read("supabase/migrations/20260815003000_subcontractor_compliance_documents.sql");
+  const route = read("app/api/projects/[id]/subcontractors/[assignmentId]/compliance-documents/route.ts");
+  const component = read("components/projects/workspace/subcontractor-contract-actions.tsx");
+  assert.match(sql, /subcontractor_compliance_documents/);
+  assert.match(sql, /subcontractor-compliance/);
+  assert.match(sql, /public,\s*file_size_limit/);
+  assert.match(sql, /exists\(select 1 from public\.profiles where id = auth\.uid\(\)/);
+  assert.match(route, /20 \* 1024 \* 1024/);
+  assert.match(route, /application\/pdf/);
+  assert.match(route, /createSignedUrl/);
+  assert.match(route, /status: "pending"/);
+  assert.match(route, /compliance_document_id/);
+  assert.match(component, /Upload/);
+  assert.match(component, /Replace/);
+  assert.match(component, /\.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx/);
+});
+
 test("project subcontractor cards expose agreement and mobilization controls", () => {
   const component = read("components/projects/workspace/subcontractor-contract-actions.tsx");
   const workspace = read("components/projects/workspace/project-trade-partners-workspace.tsx");
