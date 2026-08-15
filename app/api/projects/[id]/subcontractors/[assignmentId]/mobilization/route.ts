@@ -1,4 +1,6 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -6,7 +8,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 async function workspaceContext(projectId: string, assignmentId: string) {
   const supabase = await createClient();
   if (!supabase) throw new Error("B.O.S. database is unavailable.");
-  const workspace = await resolveWorkspaceContext(supabase);
+  const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
   if (!workspace.context) throw new Error(workspace.errorMessage || "Unauthorized.");
   const admin = createAdminClient();
   const { data: assignment } = await admin.from("trade_partner_assignments").select("id,company_id,project_id,vendor_id,contract_status").eq("company_id", workspace.context.companyId).eq("project_id", projectId).eq("id", assignmentId).single();
