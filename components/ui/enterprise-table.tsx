@@ -6,7 +6,7 @@ type EnterpriseTableRowProps = HTMLAttributes<HTMLTableRowElement> & { selected?
 type EnterpriseTableCellProps = { children: ReactNode; align?: "left" | "right"; className?: string };
 
 export function EnterpriseTable({ children, className, minWidthClassName = "min-w-full", ariaLabel }: EnterpriseTableProps) {
-  return <div className="max-w-full overflow-x-auto overflow-y-visible border-t border-[var(--color-border-subtle)] overscroll-x-contain"><table aria-label={ariaLabel} className={["w-full divide-y divide-[var(--color-border-subtle)]", minWidthClassName, className || ""].filter(Boolean).join(" ")}>{children}</table></div>;
+  return <div className="max-w-full overflow-x-auto border-t border-[var(--color-border-subtle)] overscroll-x-contain"><table aria-label={ariaLabel} className={["w-full divide-y divide-[var(--color-border-subtle)]", minWidthClassName, className || ""].filter(Boolean).join(" ")}>{children}</table></div>;
 }
 
 export function EnterpriseTableHead({ children, className, ...props }: TableHTMLAttributes<HTMLTableSectionElement>) {
