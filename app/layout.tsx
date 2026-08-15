@@ -19,7 +19,11 @@ export const metadata: Metadata = {
   applicationName: "B.O.S.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "B.O.S." },
-  icons: { icon: "/bos-app-icon.svg" },
+  icons: {
+    icon: [{ url: "/bos-app-icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/bos-app-icon.svg" }],
+    shortcut: ["/bos-app-icon.svg"],
+  },
 };
 
 export const viewport: Viewport = {
