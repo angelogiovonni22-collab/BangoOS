@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -48,7 +48,7 @@ type OverviewCard = {
   value: string | number;
   status: string;
   tone: "blue" | "green" | "orange" | "purple";
-  icon: React.ReactNode;
+  icon: ReactNode;
 };
 
 export function MobileHomeClient({ role, userName, companyName, dashboardData, tradePartnerJobs }: MobileHomeClientProps) {
@@ -83,7 +83,7 @@ export function MobileHomeClient({ role, userName, companyName, dashboardData, t
     <div className="bos-mobile-only bos-mobile-home">
       <header className="bos-mobile-home-header">
         <div>
-          <p className="bos-mobile-wordmark">B.O.S.</p>
+          <p className="bos-mobile-wordmark" title={companyName}>B.O.S.</p>
           <p className="bos-mobile-greeting">Good Morning,</p>
           <h1>{firstName}</h1>
           <p className="bos-mobile-date">{currentDate}</p>
@@ -284,7 +284,7 @@ function ActivityList({ title, activities }: { title: string; activities: Dashbo
   );
 }
 
-function UpdateRow({ icon, label, sublabel, time, href }: { icon: React.ReactNode; label: string; sublabel?: string; time: string; href?: string }) {
+function UpdateRow({ icon, label, sublabel, time, href }: { icon: ReactNode; label: string; sublabel?: string; time: string; href?: string }) {
   const content = <><span className="bos-mobile-update-icon">{icon}</span><div><strong>{label}</strong>{sublabel ? <small>{sublabel}</small> : null}</div><em>{time}</em></>;
   return href ? <Link href={href} className="bos-mobile-update-row">{content}</Link> : <div className="bos-mobile-update-row">{content}</div>;
 }
