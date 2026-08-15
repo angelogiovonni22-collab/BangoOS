@@ -1,9 +1,10 @@
+// @ts-nocheck -- Supabase Edge Functions run on Deno and are validated/deployed by the Supabase runtime, not the Next.js Node typechecker.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = { "Content-Type": "application/json" };
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return new Response(JSON.stringify({ ok: false, error: "POST required" }), { status: 405, headers: corsHeaders });
 
   const dispatchSecret = Deno.env.get("ORION_PUSH_DISPATCH_SECRET") || "";
