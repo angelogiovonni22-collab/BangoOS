@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, type CSSProperties, type RefObject } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import {
   AudioLines,
+  Bell,
   Binoculars,
   BrainCircuit,
   Check,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { useFocusTrap } from "@/components/motion";
 import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, type OrionRealtimeVoice, type OrionUnifiedVoiceController } from "@/components/orion/voice";
+import { enableOrionBackgroundPush, getOrionPushStatus, type OrionPushStatus } from "@/lib/orion/personal-assistant/push-client";
 import type { PersistentOrionFixture } from "./types";
 
 type PersistentOrionPanelProps = {
@@ -34,6 +36,15 @@ function voiceLabel(voice: OrionRealtimeVoice) {
   return voice === "marin" ? `${label} — Recommended` : label;
 }
 
+function pushStatusMessage(status: OrionPushStatus) {
+  if (status === "enabled") return "Background Orion notifications are enabled on this device.";
+  if (status === "denied") return "Notifications are blocked in your device settings.";
+  if (status === "not_installed") return "On iPhone, add B.O.S. to your Home Screen and open it from the B.O.S. icon first.";
+  if (status === "unsupported") return "Background notifications are not supported in this browser.";
+  if (status === "error") return "Orion could not read the notification status.";
+  return "Enable once to receive Orion reminders when B.O.S. is closed.";
+}
+
 export function PersistentOrionPanel({
   panelId,
   open,
@@ -46,12 +57,26 @@ export function PersistentOrionPanel({
   panelStyle,
 }: PersistentOrionPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [pushStatus, setPushStatus] = useState<OrionPushStatus>("default");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMessage, setPushMessage] = useState<string | null>(null);
 
   useFocusTrap({
     active: open,
     containerRef: panelRef,
     onEscape: onClose,
   });
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void getOrionPushStatus().then((status) => {
+      if (!cancelled) setPushStatus(status);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   if (!open) {
     return null;
@@ -155,6 +180,37 @@ export function PersistentOrionPanel({
             }}
           >
             {voice.settings.enabled ? "Disable Voice" : "Enable Voice"}
+          </button>
+        </div>
+      </section>
+
+      <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Orion background notifications">
+        <div className="persistentOrionSectionHeading">
+          <Bell size={21} aria-hidden="true" />
+          <p className="persistentOrionEyebrow">Reminders & Alerts</p>
+        </div>
+        <p className="persistentOrionSectionCopy">{pushMessage || pushStatusMessage(pushStatus)}</p>
+        <div className="persistentOrionVoiceActions">
+          <button
+            type="button"
+            className="persistentOrionVoicePrimary"
+            disabled={pushBusy || pushStatus === "enabled" || pushStatus === "unsupported" || pushStatus === "not_installed"}
+            onClick={() => {
+              setPushBusy(true);
+              setPushMessage(null);
+              void enableOrionBackgroundPush()
+                .then(() => {
+                  setPushStatus("enabled");
+                  setPushMessage("Background Orion notifications are enabled. You can now receive reminder alerts even when B.O.S. is closed.");
+                })
+                .catch((error) => {
+                  setPushMessage(error instanceof Error ? error.message : "Unable to enable Orion notifications.");
+                  void getOrionPushStatus().then(setPushStatus);
+                })
+                .finally(() => setPushBusy(false));
+            }}
+          >
+            {pushStatus === "enabled" ? "Notifications Enabled" : pushBusy ? "Enabling…" : "Enable Orion Notifications"}
           </button>
         </div>
       </section>
