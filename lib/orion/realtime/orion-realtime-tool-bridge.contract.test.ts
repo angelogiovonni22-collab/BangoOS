@@ -39,7 +39,7 @@ function main() {
   assert(client.includes("this.activeToolCalls.size === 0"), "parallel tool outputs trigger one shared spoken continuation");
   assert(client.includes("executeOrionRealtimeTool(call") && client.includes("activeToolCalls"), "browser bridge executes each finalized tool call once through the BOS endpoint");
   assert(toolRoute.includes("getUniversalBosCommandByToolName"), "Realtime tool names resolve back to canonical BOS commands");
-  assert(toolRoute.includes("command.validate(args.params)"), "Realtime BOS calls use canonical validation");
+  assert(toolRoute.includes("normalizeRealtimeFastCommandParams") && toolRoute.includes("command.validate(fastParams.params)"), "Realtime BOS calls normalize fast-path inputs before canonical validation");
   assert(toolRoute.includes("createOrionCommandRouter({ supabase: args.supabase })"), "Realtime BOS calls use the canonical command router");
   assert(toolRoute.includes("createOrionExecutionEnvelope(command.id, \"orion-realtime\", args.executionId)"), "Realtime uses compact retry-stable idempotency keys");
   assert(bridge.includes("executionId: call.callId"), "Realtime forwards the stable function-call ID to command execution");
