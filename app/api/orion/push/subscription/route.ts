@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid push subscription." }, { status: 400 });
   }
 
-  const { error } = await (supabase as any).from("orion_push_subscriptions").upsert({
+  const { error } = await supabase.from("orion_push_subscriptions" as never).upsert({
     company_id: workspace.context.companyId,
     user_id: workspace.context.userId,
     endpoint,
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     auth_key: authKey,
     user_agent: typeof body.userAgent === "string" ? body.userAgent.slice(0, 1000) : null,
     updated_at: new Date().toISOString(),
-  }, { onConflict: "endpoint" });
+  } as never, { onConflict: "endpoint" });
 
   if (error) return NextResponse.json({ ok: false, error: "Unable to save notification subscription." }, { status: 500 });
   return NextResponse.json({ ok: true });
