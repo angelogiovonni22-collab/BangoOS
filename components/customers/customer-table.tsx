@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Archive, ChevronLeft, ChevronRight, Eye, FilePlus2, MoreHorizontal, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import {
   Badge,
@@ -22,6 +22,7 @@ import { CustomerAvatar } from "./customer-avatar";
 type CustomerTableItem = {
   id: string;
   name: string;
+  companyName: string;
   type: string;
   typeKey: string;
   email: string;
@@ -166,11 +167,11 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
   );
 }
 
-function MenuLink({ href, icon, children }: { href: string; icon: React.ReactNode; children: React.ReactNode }) {
+function MenuLink({ href, icon, children }: { href: string; icon: ReactNode; children: ReactNode }) {
   return <Link href={href} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">{icon}<span>{children}</span></Link>;
 }
 
-function MenuButton({ icon, children, onClick, danger = false }: { icon: React.ReactNode; children: React.ReactNode; onClick: () => void; danger?: boolean }) {
+function MenuButton({ icon, children, onClick, danger = false }: { icon: ReactNode; children: ReactNode; onClick: () => void; danger?: boolean }) {
   return <button type="button" onClick={onClick} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-slate-50 ${danger ? "text-red-700" : "text-slate-700"}`}>{icon}<span>{children}</span></button>;
 }
 
