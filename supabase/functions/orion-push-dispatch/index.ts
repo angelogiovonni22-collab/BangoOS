@@ -1,4 +1,3 @@
-// @ts-nocheck -- Supabase Edge Functions run on Deno and are validated/deployed by the Supabase runtime, not the Next.js Node typechecker.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as webpush from "npm:web-push@3.6.7";
 
