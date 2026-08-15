@@ -3,291 +3,44 @@
 import { useEffect, useMemo, useState } from "react";
 import { CONSTRUCTION_AGREEMENT_VERSION, constructionAgreementSections } from "@/lib/estimates/construction-agreement";
 
-type HomeSolicitationNotice = {
-  applicable: true;
-  rulesetVersion: string;
-  sellerName: string | null;
-  sellerAddress: string | null;
-  sellerSignerName: string | null;
-  sellerSignedAt: string | null;
-  cancellationEmail: string | null;
-  cancellationFax: string | null;
-  transactionDate: string;
-  cancellationDeadlineDate: string;
-  cancelledAt: string | null;
-};
-
-type Customer = {
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  address_line_1: string | null;
-  address_line_2: string | null;
-  city: string | null;
-  state: string | null;
-  postal_code: string | null;
-  customer_type?: string | null;
-};
-
-type Contract = {
-  company: { name: string };
-  estimate: {
-    title: string;
-    estimate_number: string | null;
-    description: string | null;
-    total_amount: number;
-    terms: string | null;
-    payment_terms: string | null;
-    scope_inclusions: string | null;
-    scope_exclusions: string | null;
-    status: string;
-    customers?: Customer | Customer[] | null;
-  };
-  items: Array<{ description: string; quantity: number; unit: string; unit_price: number; line_total: number }>;
-  expiresAt: string;
-  homeSolicitation: HomeSolicitationNotice | null;
-};
+type HomeSolicitationNotice = { applicable: true; rulesetVersion: string; sellerName: string | null; sellerAddress: string | null; sellerSignerName: string | null; sellerSignedAt: string | null; cancellationEmail: string | null; cancellationFax: string | null; transactionDate: string; cancellationDeadlineDate: string; cancelledAt: string | null };
+type Customer = { first_name: string | null; last_name: string | null; email: string | null; address_line_1: string | null; address_line_2: string | null; city: string | null; state: string | null; postal_code: string | null; customer_type?: string | null };
+type Contract = { company: { name: string }; estimate: { title: string; estimate_number: string | null; description: string | null; total_amount: number; terms: string | null; payment_terms: string | null; scope_inclusions: string | null; scope_exclusions: string | null; status: string; customers?: Customer | Customer[] | null }; items: Array<{ description: string; quantity: number; unit: string; unit_price: number; line_total: number }>; expiresAt: string; homeSolicitation: HomeSolicitationNotice | null };
 
 const money = (value: number) => Number(value || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
 
 export default function EstimateContractPage({ params }: { params: Promise<{ token: string }> }) {
-  const [token, setToken] = useState("");
-  const [contract, setContract] = useState<Contract | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [typedName, setTypedName] = useState("");
-  const [consent, setConsent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [signed, setSigned] = useState(false);
-  const [signedDeadline, setSignedDeadline] = useState<string | null>(null);
-  const [projectId, setProjectId] = useState<string | null>(null);
-  const [cancelled, setCancelled] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const [cancellationMessage, setCancellationMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    void params.then(({ token: value }) => {
-      setToken(value);
-      fetch(`/api/contracts/estimate/${encodeURIComponent(value)}`)
-        .then(async (response) => {
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.error);
-          setContract(body);
-          setCancelled(Boolean(body.homeSolicitation?.cancelledAt || body.estimate?.status === "void"));
-        })
-        .catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to open contract."));
-    });
-  }, [params]);
-
-  async function sign() {
-    setSubmitting(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/contracts/estimate/${encodeURIComponent(token)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ typedName, consentAccepted: consent }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Unable to sign.");
-      setSignedDeadline(body.cancellationDeadlineDate || null);
-      setProjectId(body.projectId || null);
-      setSigned(true);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to sign.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function cancelTransaction() {
-    if (!window.confirm("Cancel this transaction? Your written cancellation notice will be recorded immediately.")) return;
-    setCancelling(true);
-    setCancellationMessage(null);
-    try {
-      const response = await fetch(`/api/contracts/estimate/${encodeURIComponent(token)}/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmation: true, notice: "I hereby cancel this transaction." }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Unable to record cancellation.");
-      if (body.cancelled) {
-        setCancelled(true);
-        setCancellationMessage("Your cancellation notice has been recorded.");
-      } else {
-        setCancellationMessage(body.message || "Your cancellation request has been recorded for review.");
-      }
-    } catch (caught) {
-      setCancellationMessage(caught instanceof Error ? caught.message : "Unable to record cancellation.");
-    } finally {
-      setCancelling(false);
-    }
-  }
-
-  if (error && !contract) return <StatusShell title="Estimate unavailable" body={error} tone="error" />;
-  if (!contract) return <main className="min-h-screen bg-slate-100 p-6 text-slate-900">Loading secure estimate…</main>;
-
-  const persistentSigned = contract.estimate.status === "approved";
-  const deadline = signedDeadline || contract.homeSolicitation?.cancellationDeadlineDate || null;
-
-  if (cancelled) {
-    return <StatusShell title="Transaction cancelled" body="Your written cancellation notice has been recorded. Bango Construction has been notified and any related project remains on compliance hold." tone="neutral" extra={cancellationMessage} />;
-  }
-
-  if (signed || persistentSigned) {
-    return (
-      <main className="min-h-screen bg-slate-100 px-4 py-10 text-slate-950 sm:px-6">
-        <div className="mx-auto max-w-3xl space-y-5">
-          <BrandHeader companyName={contract.company.name} compact />
-          <section className="overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-xl shadow-slate-900/5">
-            <div className="bg-emerald-600 px-7 py-3 text-xs font-bold uppercase tracking-[0.22em] text-white">Accepted & signed</div>
-            <div className="p-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl font-black text-emerald-700">✓</div>
-              <h1 className="mt-5 text-3xl font-black tracking-tight">Estimate signed</h1>
-              <p className="mt-3 text-base leading-7 text-slate-600">Your estimate and incorporated Construction Agreement have been accepted. Bango Construction has received the signed agreement and the project has been created in B.O.S.</p>
-              {projectId ? <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">Project reference: {projectId}</p> : null}
-              {deadline ? <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-950">Your Ohio cancellation period runs through midnight on {deadline}. Bango Construction will not begin covered services during that period.</p> : null}
-            </div>
-          </section>
-          {contract.homeSolicitation ? (
-            <section className="rounded-[28px] border border-slate-200 bg-white p-7 shadow-sm">
-              <h2 className="text-xl font-bold">Need to cancel?</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">You may use the cancellation notice provided with this agreement, send another written notice using the seller contact information, or record your written cancellation through this secure link.</p>
-              <button type="button" className="mt-5 rounded-xl border border-red-300 bg-red-50 px-5 py-3 font-bold text-red-800 disabled:opacity-50" disabled={cancelling} onClick={() => void cancelTransaction()}>{cancelling ? "Recording cancellation…" : "Cancel Transaction"}</button>
-              {cancellationMessage ? <p className="mt-3 text-sm font-semibold text-slate-800">{cancellationMessage}</p> : null}
-            </section>
-          ) : null}
-        </div>
-      </main>
-    );
-  }
-
+  const [token, setToken] = useState(""); const [contract, setContract] = useState<Contract | null>(null); const [error, setError] = useState<string | null>(null); const [typedName, setTypedName] = useState(""); const [consent, setConsent] = useState(false); const [submitting, setSubmitting] = useState(false); const [signed, setSigned] = useState(false); const [signedDeadline, setSignedDeadline] = useState<string | null>(null); const [projectId, setProjectId] = useState<string | null>(null); const [cancelled, setCancelled] = useState(false); const [cancelling, setCancelling] = useState(false); const [cancellationMessage, setCancellationMessage] = useState<string | null>(null);
+  useEffect(() => { void params.then(({ token: value }) => { setToken(value); fetch(`/api/contracts/estimate/${encodeURIComponent(value)}`).then(async (response) => { const body = await response.json(); if (!response.ok) throw new Error(body.error); setContract(body); setCancelled(Boolean(body.homeSolicitation?.cancelledAt || body.estimate?.status === "void")); }).catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to open contract.")); }); }, [params]);
+  async function sign() { setSubmitting(true); setError(null); try { const response = await fetch(`/api/contracts/estimate/${encodeURIComponent(token)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ typedName, consentAccepted: consent }) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || "Unable to sign."); setSignedDeadline(body.cancellationDeadlineDate || null); setProjectId(body.projectId || null); setSigned(true); } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to sign."); } finally { setSubmitting(false); } }
+  async function cancelTransaction() { if (!window.confirm("Cancel this transaction? Your written cancellation notice will be recorded immediately.")) return; setCancelling(true); setCancellationMessage(null); try { const response = await fetch(`/api/contracts/estimate/${encodeURIComponent(token)}/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation: true, notice: "I hereby cancel this transaction." }) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || "Unable to record cancellation."); if (body.cancelled) { setCancelled(true); setCancellationMessage("Your cancellation notice has been recorded."); } else setCancellationMessage(body.message || "Your cancellation request has been recorded for review."); } catch (caught) { setCancellationMessage(caught instanceof Error ? caught.message : "Unable to record cancellation."); } finally { setCancelling(false); } }
+  if (error && !contract) return <StatusShell title="Estimate unavailable" body={error} tone="error" />; if (!contract) return <main className="min-h-screen bg-slate-100 p-6 text-slate-900">Loading secure estimate…</main>;
+  const persistentSigned = contract.estimate.status === "approved"; const deadline = signedDeadline || contract.homeSolicitation?.cancellationDeadlineDate || null;
+  if (cancelled) return <StatusShell title="Transaction cancelled" body="Your written cancellation notice has been recorded. Bango Construction has been notified and any related project remains on compliance hold." tone="neutral" extra={cancellationMessage} />;
+  if (signed || persistentSigned) return <main className="min-h-screen bg-slate-100 px-4 py-10 text-slate-950 sm:px-6"><div className="mx-auto max-w-3xl space-y-5"><BrandHeader companyName={contract.company.name} compact /><section className="overflow-hidden rounded-[28px] border border-blue-200 bg-white shadow-xl shadow-slate-900/5"><div className="bg-[#0b1f3a] px-7 py-3 text-xs font-bold uppercase tracking-[0.22em] text-white">Accepted & signed</div><div className="p-8"><div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-2xl font-black text-blue-700">✓</div><h1 className="mt-5 text-3xl font-black tracking-tight">Estimate signed</h1><p className="mt-3 text-base leading-7 text-slate-600">Your estimate and incorporated Construction Agreement have been accepted. Bango Construction has received the signed agreement and the project has been created in B.O.S.</p>{projectId ? <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">Project reference: {projectId}</p> : null}{deadline ? <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-950">Your Ohio cancellation period runs through midnight on {deadline}. Bango Construction will not begin covered services during that period.</p> : null}</div></section>{contract.homeSolicitation ? <section className="rounded-[28px] border border-slate-200 bg-white p-7 shadow-sm"><h2 className="text-xl font-bold">Need to cancel?</h2><p className="mt-2 text-sm leading-6 text-slate-600">You may use the cancellation notice provided with this agreement, send another written notice using the seller contact information, or record your written cancellation through this secure link.</p><button type="button" className="mt-5 rounded-xl border border-red-300 bg-red-50 px-5 py-3 font-bold text-red-800 disabled:opacity-50" disabled={cancelling} onClick={() => void cancelTransaction()}>{cancelling ? "Recording cancellation…" : "Cancel Transaction"}</button>{cancellationMessage ? <p className="mt-3 text-sm font-semibold text-slate-800">{cancellationMessage}</p> : null}</section> : null}</div></main>;
   return <ContractReview contract={contract} typedName={typedName} consent={consent} submitting={submitting} error={error} onTypedName={setTypedName} onConsent={setConsent} onSign={() => void sign()} />;
 }
 
-function ContractReview({ contract, typedName, consent, submitting, error, onTypedName, onConsent, onSign }: {
-  contract: Contract;
-  typedName: string;
-  consent: boolean;
-  submitting: boolean;
-  error: string | null;
-  onTypedName: (value: string) => void;
-  onConsent: (value: boolean) => void;
-  onSign: () => void;
-}) {
-  const customer = useMemo(() => {
-    const raw = contract.estimate.customers;
-    return Array.isArray(raw) ? raw[0] : raw || null;
-  }, [contract.estimate.customers]);
-  const customerName = [customer?.first_name, customer?.last_name].filter(Boolean).join(" ") || "Customer";
-  const jobAddress = [customer?.address_line_1, customer?.address_line_2, [customer?.city, customer?.state, customer?.postal_code].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-  const expires = new Date(contract.expiresAt).toLocaleString();
-
-  return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950 sm:px-6 lg:py-12">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <BrandHeader companyName={contract.company.name} />
-
-        <section className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-xl shadow-slate-900/5">
-          <div className="grid gap-0 lg:grid-cols-[1.4fr_.6fr]">
-            <div className="p-7 sm:p-9">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">Estimate & Construction Agreement</p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{contract.estimate.title}</h1>
-              <p className="mt-3 text-sm text-slate-500">Estimate {contract.estimate.estimate_number || "—"} · Secure customer document</p>
-              <div className="mt-7 grid gap-4 sm:grid-cols-2">
-                <Info label="Prepared for" value={customerName} />
-                <Info label="Email" value={customer?.email || "Not provided"} />
-                <Info label="Project address" value={jobAddress || "Address not provided"} wide />
-              </div>
-            </div>
-            <div className="flex flex-col justify-between bg-slate-950 p-7 text-white sm:p-9">
-              <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Contract total</p><p className="mt-2 text-4xl font-black">{money(contract.estimate.total_amount)}</p></div>
-              <div className="mt-8 border-t border-white/15 pt-5 text-xs leading-5 text-slate-400">Secure link expires<br/><span className="font-semibold text-slate-200">{expires}</span></div>
-            </div>
-          </div>
-        </section>
-
-        <DocumentSection number="01" title="Scope of work">
-          <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{contract.estimate.description || "See the detailed line items below."}</p>
-          {contract.estimate.scope_inclusions ? <ScopeBlock title="Included" value={contract.estimate.scope_inclusions} /> : null}
-          {contract.estimate.scope_exclusions ? <ScopeBlock title="Excluded" value={contract.estimate.scope_exclusions} muted /> : null}
-        </DocumentSection>
-
-        <DocumentSection number="02" title="Estimate details" flush>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[620px] text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-500"><tr><th className="px-6 py-4">Description</th><th className="px-6 py-4">Qty</th><th className="px-6 py-4 text-right">Unit price</th><th className="px-6 py-4 text-right">Amount</th></tr></thead>
-              <tbody>{contract.items.map((item, index) => <tr className="border-t border-slate-100" key={`${item.description}-${index}`}><td className="px-6 py-4 font-semibold text-slate-900">{item.description}</td><td className="px-6 py-4 text-slate-600">{item.quantity} {item.unit}</td><td className="px-6 py-4 text-right text-slate-600">{money(item.unit_price)}</td><td className="px-6 py-4 text-right font-bold">{money(item.line_total)}</td></tr>)}</tbody>
-            </table>
-          </div>
-          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-5"><span className="font-bold text-slate-600">Contract total</span><span className="text-2xl font-black">{money(contract.estimate.total_amount)}</span></div>
-        </DocumentSection>
-
-        <DocumentSection number="03" title="Project terms">
-          <div className="grid gap-6 md:grid-cols-2">
-            <TermBlock title="Project-specific terms" value={contract.estimate.terms || "No additional project-specific terms were entered."} />
-            <TermBlock title="Payment terms" value={contract.estimate.payment_terms || "Payment terms are governed by the estimate and incorporated Construction Agreement."} />
-          </div>
-        </DocumentSection>
-
-        <details className="group overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm" open>
-          <summary className="flex cursor-pointer list-none items-center justify-between px-7 py-6 marker:hidden"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">04 · Incorporated terms</p><h2 className="mt-1 text-xl font-black">Construction Agreement</h2></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">Version {CONSTRUCTION_AGREEMENT_VERSION}</span></summary>
-          <div className="space-y-6 border-t border-slate-200 px-7 py-7">{constructionAgreementSections.map((section) => <section key={section.id}><h3 className="font-black text-slate-950">{section.title}</h3>{section.paragraphs.map((paragraph) => <p className="mt-2 text-sm leading-6 text-slate-600" key={paragraph}>{paragraph}</p>)}</section>)}</div>
-        </details>
-
-        {contract.homeSolicitation ? <HomeSolicitationNotices notice={contract.homeSolicitation} /> : null}
-
-        <section className="overflow-hidden rounded-[30px] border-2 border-emerald-700 bg-white shadow-xl shadow-emerald-900/10">
-          <div className="bg-emerald-700 px-7 py-4 text-sm font-black uppercase tracking-[0.16em] text-white">One-step acceptance & electronic signature</div>
-          <div className="p-7 sm:p-9">
-            <h2 className="text-2xl font-black">Accept estimate and sign agreement</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">This is the only acceptance step. Your signature finalizes this estimate, records the agreement evidence, and creates the project in B.O.S. No second verification is required.</p>
-            {contract.homeSolicitation ? <p className="mt-5 rounded-xl border-2 border-slate-900 bg-slate-50 p-4 text-sm font-bold leading-6">You, the buyer, may cancel this transaction at any time prior to midnight of the third business day after the date of this transaction. See the notice of cancellation below for an explanation of this right.</p> : null}
-            <label className="mt-6 block text-sm font-black" htmlFor="legal-name">Full legal name</label>
-            <input id="legal-name" className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-base font-semibold outline-none ring-emerald-600 transition focus:border-emerald-600 focus:ring-2" value={typedName} onChange={(event) => onTypedName(event.target.value)} autoComplete="name" placeholder="Type your full legal name" />
-            <label className="mt-5 flex items-start gap-3 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><input className="mt-1 h-4 w-4 accent-emerald-700" type="checkbox" checked={consent} onChange={(event) => onConsent(event.target.checked)} /><span>By signing, I confirm that I have reviewed and accept this estimate, its scope, price, project-specific terms, payment terms, and the incorporated Construction Agreement. I consent to use my typed name as my electronic signature and represent that I am authorized to accept for the customer. {contract.homeSolicitation ? "I also acknowledge that I received the Ohio cancellation-right notices shown with this agreement. " : ""}I also agree to the <a className="font-bold text-emerald-800 underline underline-offset-2" href="/legal/electronic-signature-and-platform-terms" target="_blank" rel="noreferrer">B.O.S. Electronic Signature &amp; Platform Terms</a>.</span></label>
-            {contract.homeSolicitation ? <div className="mt-5 rounded-xl border border-slate-200 p-4 text-sm text-slate-600"><p className="font-black text-slate-950">Seller acceptance</p><p className="mt-1">{contract.homeSolicitation.sellerName}</p><p>Authorized signer: {contract.homeSolicitation.sellerSignerName}</p><p>Electronically signed: {contract.homeSolicitation.sellerSignedAt ? new Date(contract.homeSolicitation.sellerSignedAt).toLocaleString() : "Not recorded"}</p></div> : null}
-            {error ? <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
-            <button className="mt-6 w-full rounded-xl bg-slate-950 px-5 py-4 text-base font-black text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:min-w-64" disabled={submitting || !typedName.trim() || !consent} onClick={onSign}>{submitting ? "Finalizing agreement…" : "Accept & Sign"}</button>
-            <p className="mt-4 text-xs leading-5 text-slate-500">Your acceptance is recorded with the agreement version, signature evidence, timestamp, secure-link evidence, and an immutable agreement hash.</p>
-          </div>
-        </section>
-
-        <footer className="pb-6 text-center text-xs text-slate-500">Prepared by {contract.company.name}. B.O.S. provides the secure document and electronic-signature workflow and is not a party to the construction agreement.</footer>
-      </div>
-    </main>
-  );
+function ContractReview({ contract, typedName, consent, submitting, error, onTypedName, onConsent, onSign }: { contract: Contract; typedName: string; consent: boolean; submitting: boolean; error: string | null; onTypedName: (value: string) => void; onConsent: (value: boolean) => void; onSign: () => void }) {
+  const [agreementOpen, setAgreementOpen] = useState(false); const customer = useMemo(() => { const raw = contract.estimate.customers; return Array.isArray(raw) ? raw[0] : raw || null; }, [contract.estimate.customers]); const customerName = [customer?.first_name, customer?.last_name].filter(Boolean).join(" ") || "Customer"; const jobAddress = [customer?.address_line_1, customer?.address_line_2, [customer?.city, customer?.state, customer?.postal_code].filter(Boolean).join(" ")].filter(Boolean).join(", "); const expires = new Date(contract.expiresAt).toLocaleString();
+  useEffect(() => { if (!agreementOpen) return; const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setAgreementOpen(false); }; document.addEventListener("keydown", onKeyDown); const previousOverflow = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.removeEventListener("keydown", onKeyDown); document.body.style.overflow = previousOverflow; }; }, [agreementOpen]);
+  return <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950 sm:px-6 lg:py-12"><div className="mx-auto max-w-5xl space-y-6"><BrandHeader companyName={contract.company.name} />
+    <section className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-xl shadow-slate-900/5"><div className="grid gap-0 lg:grid-cols-[1.4fr_.6fr]"><div className="p-7 sm:p-9"><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-700">Estimate & Construction Agreement</p><h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">{contract.estimate.title}</h1><p className="mt-3 text-sm text-slate-500">Estimate {contract.estimate.estimate_number || "—"} · Secure customer document</p><div className="mt-7 grid gap-4 sm:grid-cols-2"><Info label="Prepared for" value={customerName} /><Info label="Email" value={customer?.email || "Not provided"} /><Info label="Project address" value={jobAddress || "Address not provided"} wide /></div></div><div className="flex flex-col justify-between bg-[#07162f] p-7 text-white sm:p-9"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-200">Contract total</p><p className="mt-2 text-4xl font-black">{money(contract.estimate.total_amount)}</p></div><div className="mt-8 border-t border-white/15 pt-5 text-xs leading-5 text-slate-400">Secure link expires<br/><span className="font-semibold text-slate-200">{expires}</span></div></div></div></section>
+    <DocumentSection number="01" title="Scope of work"><p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{contract.estimate.description || "See the detailed line items below."}</p>{contract.estimate.scope_inclusions ? <ScopeBlock title="Included" value={contract.estimate.scope_inclusions} /> : null}{contract.estimate.scope_exclusions ? <ScopeBlock title="Excluded" value={contract.estimate.scope_exclusions} muted /> : null}</DocumentSection>
+    <DocumentSection number="02" title="Estimate details" flush><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-500"><tr><th className="px-6 py-4">Description</th><th className="px-6 py-4">Qty</th><th className="px-6 py-4 text-right">Unit price</th><th className="px-6 py-4 text-right">Amount</th></tr></thead><tbody>{contract.items.map((item, index) => <tr className="border-t border-slate-100" key={`${item.description}-${index}`}><td className="px-6 py-4 font-semibold text-slate-900">{item.description}</td><td className="px-6 py-4 text-slate-600">{item.quantity} {item.unit}</td><td className="px-6 py-4 text-right text-slate-600">{money(item.unit_price)}</td><td className="px-6 py-4 text-right font-bold">{money(item.line_total)}</td></tr>)}</tbody></table></div><div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-5"><span className="font-bold text-slate-600">Contract total</span><span className="text-2xl font-black">{money(contract.estimate.total_amount)}</span></div></DocumentSection>
+    <DocumentSection number="03" title="Project terms"><div className="grid gap-6 md:grid-cols-2"><TermBlock title="Project-specific terms" value={contract.estimate.terms || "No additional project-specific terms were entered."} /><TermBlock title="Payment terms" value={contract.estimate.payment_terms || "Payment terms are governed by the estimate and incorporated Construction Agreement."} /></div></DocumentSection>
+    <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm"><div className="flex flex-col gap-5 px-7 py-6 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-2xl text-blue-800">▤</div><div><p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">04 · Incorporated terms</p><h2 className="mt-1 text-xl font-black">Construction Agreement</h2><p className="mt-1 text-sm leading-6 text-slate-600">Review the complete agreement, terms, conditions, responsibilities, and protections before signing.</p></div></div><div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end"><span className="text-center text-xs font-bold text-slate-500">Version {CONSTRUCTION_AGREEMENT_VERSION}</span><button type="button" onClick={() => setAgreementOpen(true)} className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Open Agreement ↗</button></div></div></section>
+    {contract.homeSolicitation ? <HomeSolicitationNotices notice={contract.homeSolicitation} /> : null}
+    <section className="overflow-hidden rounded-[30px] border-2 border-blue-200 bg-white shadow-xl shadow-blue-950/5"><div className="bg-[#0b1f3a] px-7 py-4 text-sm font-black uppercase tracking-[0.16em] text-white">One-step acceptance & electronic signature</div><div className="p-7 sm:p-9"><h2 className="text-2xl font-black">Accept estimate and sign agreement</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">This is the only acceptance step. Your signature finalizes this estimate, records the agreement evidence, and creates the project in B.O.S. No second verification is required.</p>{contract.homeSolicitation ? <p className="mt-5 rounded-xl border-2 border-slate-900 bg-slate-50 p-4 text-sm font-bold leading-6">You, the buyer, may cancel this transaction at any time prior to midnight of the third business day after the date of this transaction. See the notice of cancellation below for an explanation of this right.</p> : null}<label className="mt-6 block text-sm font-black" htmlFor="legal-name">Full legal name</label><input id="legal-name" className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-base font-semibold outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-600" value={typedName} onChange={(event) => onTypedName(event.target.value)} autoComplete="name" placeholder="Type your full legal name" /><label className="mt-5 flex items-start gap-3 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><input className="mt-1 h-4 w-4 accent-blue-700" type="checkbox" checked={consent} onChange={(event) => onConsent(event.target.checked)} /><span>By signing, I confirm that I have reviewed and accept this estimate, its scope, price, project-specific terms, payment terms, and the incorporated Construction Agreement. I consent to use my typed name as my electronic signature and represent that I am authorized to accept for the customer. {contract.homeSolicitation ? "I also acknowledge that I received the Ohio cancellation-right notices shown with this agreement. " : ""}I also agree to the <a className="font-bold text-blue-800 underline underline-offset-2" href="/legal/electronic-signature-and-platform-terms" target="_blank" rel="noreferrer">B.O.S. Electronic Signature &amp; Platform Terms</a>.</span></label>{contract.homeSolicitation ? <div className="mt-5 rounded-xl border border-slate-200 p-4 text-sm text-slate-600"><p className="font-black text-slate-950">Seller acceptance</p><p className="mt-1">{contract.homeSolicitation.sellerName}</p><p>Authorized signer: {contract.homeSolicitation.sellerSignerName}</p><p>Electronically signed: {contract.homeSolicitation.sellerSignedAt ? new Date(contract.homeSolicitation.sellerSignedAt).toLocaleString() : "Not recorded"}</p></div> : null}{error ? <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}<button className="mt-6 w-full rounded-xl bg-blue-700 px-5 py-4 text-base font-black text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={submitting || !typedName.trim() || !consent} onClick={onSign}>{submitting ? "Finalizing agreement…" : "Accept & Sign"}</button><p className="mt-4 text-xs leading-5 text-slate-500">Your acceptance is recorded with the agreement version, signature evidence, timestamp, secure-link evidence, and an immutable agreement hash.</p></div></section>
+    <footer className="pb-6 text-center text-xs text-slate-500">Prepared by {contract.company.name}. B.O.S. provides the secure document and electronic-signature workflow and is not a party to the construction agreement.</footer></div>{agreementOpen ? <AgreementDialog onClose={() => setAgreementOpen(false)} /> : null}</main>;
 }
 
-function BrandHeader({ companyName, compact = false }: { companyName: string; compact?: boolean }) {
-  return <header className={`flex items-center justify-between gap-4 rounded-[26px] bg-slate-950 text-white shadow-lg ${compact ? "px-6 py-5" : "px-7 py-6"}`}><div className="flex items-center gap-4"><div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/10 text-xl font-black text-emerald-400"><span>B</span><span className="absolute bottom-1 right-1 h-2 w-2 rounded-sm bg-emerald-400" /></div><div><p className="text-lg font-black tracking-tight sm:text-xl">{companyName || "Bango Construction"}</p><p className="text-[10px] font-bold uppercase tracking-[0.28em] text-emerald-400">Built Different.</p></div></div><div className="hidden text-right sm:block"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Secure document</p><p className="mt-1 text-xs font-semibold text-slate-300">Estimate · Agreement · E-Sign</p></div></header>;
-}
-
-function DocumentSection({ number, title, children, flush = false }: { number: string; title: string; children: React.ReactNode; flush?: boolean }) {
-  return <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm"><div className="flex items-center gap-3 border-b border-slate-100 px-7 py-5"><span className="text-xs font-black tracking-[0.16em] text-emerald-700">{number}</span><h2 className="text-xl font-black">{title}</h2></div><div className={flush ? "" : "p-7"}>{children}</div></section>;
-}
-
-function Info({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
-  return <div className={wide ? "sm:col-span-2" : ""}><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</p><p className="mt-1 text-sm font-bold text-slate-800">{value}</p></div>;
-}
-
-function ScopeBlock({ title, value, muted = false }: { title: string; value: string; muted?: boolean }) {
-  return <div className={`mt-5 rounded-xl border p-4 ${muted ? "border-slate-200 bg-slate-50" : "border-emerald-200 bg-emerald-50"}`}><p className={`text-xs font-black uppercase tracking-[0.12em] ${muted ? "text-slate-500" : "text-emerald-800"}`}>{title}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{value}</p></div>;
-}
-
-function TermBlock({ title, value }: { title: string; value: string }) {
-  return <div><h3 className="text-sm font-black text-slate-950">{title}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{value}</p></div>;
-}
-
-function StatusShell({ title, body, tone, extra }: { title: string; body: string; tone: "error" | "neutral"; extra?: string | null }) {
-  return <main className="min-h-screen bg-slate-100 px-4 py-12"><div className="mx-auto max-w-2xl rounded-[28px] border border-slate-200 bg-white p-8 shadow-xl"><h1 className={`text-3xl font-black ${tone === "error" ? "text-red-800" : "text-slate-950"}`}>{title}</h1><p className="mt-3 leading-7 text-slate-600">{body}</p>{extra ? <p className="mt-4 font-bold text-slate-800">{extra}</p> : null}</div></main>;
-}
-
-function HomeSolicitationNotices({ notice }: { notice: HomeSolicitationNotice }) {
-  return <section className="rounded-[28px] border-2 border-slate-900 bg-white p-7 text-slate-950"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Ohio consumer notice</p><h2 className="mt-1 text-2xl font-black">Right to Cancel</h2></div><p className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold">Deadline: midnight {notice.cancellationDeadlineDate}</p></div><div className="mt-5 grid gap-2 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2"><p><strong>Transaction date:</strong> {notice.transactionDate}</p><p><strong>Seller:</strong> {notice.sellerName}</p><p><strong>Seller address:</strong> {notice.sellerAddress}</p><p><strong>Cancellation email:</strong> {notice.cancellationEmail || "Not provided"}</p>{notice.cancellationFax ? <p><strong>Cancellation fax:</strong> {notice.cancellationFax}</p> : null}<p><strong>Seller signer:</strong> {notice.sellerSignerName}</p></div><div className="mt-6 grid gap-4 md:grid-cols-2"><CancellationCopy notice={notice} copy="Copy 1" /><CancellationCopy notice={notice} copy="Copy 2" /></div></section>;
-}
-
-function CancellationCopy({ notice, copy }: { notice: HomeSolicitationNotice; copy: string }) {
-  const contact = notice.cancellationEmail || notice.cancellationFax || notice.sellerAddress || "seller contact shown in agreement";
-  return <div className="rounded-xl border-2 border-dashed border-slate-400 p-5 text-sm font-semibold leading-6"><p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{copy}</p><h3 className="mt-1 text-lg font-black">NOTICE OF CANCELLATION</h3><p className="mt-3"><strong>Date of transaction:</strong> {notice.transactionDate}</p><p className="mt-3">You may cancel this transaction, without any penalty or obligation, within three business days from the above date.</p><p className="mt-3">If you cancel, any property traded in, payments made by you under the contract or sale, and any negotiable instrument executed by you will be returned within ten business days following receipt by the seller of your cancellation notice, and any security interest arising out of the transaction will be cancelled.</p><p className="mt-3">If you cancel, you must make available to the seller at your residence, in substantially as good condition as when received, any goods delivered to you under this contract or sale; or you may follow the seller&apos;s instructions regarding return shipment of the goods at the seller&apos;s expense and risk.</p><p className="mt-3">If you make the goods available and the seller does not pick them up within twenty days after your cancellation notice, you may retain or dispose of the goods without further obligation. If you fail to make the goods available, or agree to return them and fail to do so, you remain liable for your obligations under the contract.</p><p className="mt-3">To cancel this transaction, mail with return receipt requested, deliver in person or manually, or send by facsimile or electronic mail a signed and dated copy of this notice or any other written cancellation notice to <strong>{notice.sellerName}</strong> at <strong>{contact}</strong> not later than midnight of <strong>{notice.cancellationDeadlineDate}</strong>.</p><div className="mt-5 space-y-3"><p>I hereby cancel this transaction.</p><p>Date: ____________________</p><p>Buyer signature: ______________________________</p></div></div>;
-}
+function AgreementDialog({ onClose }: { onClose: () => void }) { return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="construction-agreement-title" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[26px] bg-white shadow-2xl"><div className="flex items-center justify-between gap-4 bg-[#07162f] px-5 py-4 text-white sm:px-7"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-300">Secure incorporated terms · Version {CONSTRUCTION_AGREEMENT_VERSION}</p><h2 id="construction-agreement-title" className="mt-1 text-xl font-black">Construction Agreement</h2></div><button type="button" onClick={onClose} aria-label="Close Construction Agreement" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-xl font-bold text-white transition hover:bg-white/20">×</button></div><div className="overflow-y-auto px-5 py-6 sm:px-8 sm:py-8"><div className="space-y-7">{constructionAgreementSections.map((section) => <section key={section.id}><h3 className="font-black text-slate-950">{section.title}</h3>{section.paragraphs.map((paragraph) => <p className="mt-2 text-sm leading-6 text-slate-600" key={paragraph}>{paragraph}</p>)}</section>)}</div></div><div className="border-t border-slate-200 bg-slate-50 px-5 py-4 text-right sm:px-7"><button type="button" onClick={onClose} className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-black text-white transition hover:bg-blue-800">Close Agreement</button></div></div></div>; }
+function BrandHeader({ companyName, compact = false }: { companyName: string; compact?: boolean }) { return <header className={`flex items-center justify-between gap-4 rounded-[26px] bg-[#07162f] text-white shadow-lg ${compact ? "px-6 py-5" : "px-7 py-6"}`}><div className="flex items-center gap-4"><div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-blue-400/50 bg-blue-500/10 text-xl font-black text-blue-300"><span>B</span><span className="absolute bottom-1 right-1 h-2 w-2 rounded-sm bg-blue-400" /></div><div><p className="text-lg font-black tracking-tight sm:text-xl">{companyName || "Bango Construction"}</p><p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-300">Built Different.</p></div></div><div className="hidden text-right sm:block"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Secure document</p><p className="mt-1 text-xs font-semibold text-slate-300">Estimate · Agreement · E-Sign</p></div></header>; }
+function DocumentSection({ number, title, children, flush = false }: { number: string; title: string; children: React.ReactNode; flush?: boolean }) { return <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm"><div className="flex items-center gap-3 border-b border-slate-100 px-7 py-5"><span className="flex h-8 min-w-8 items-center justify-center rounded-lg bg-[#0b1f3a] px-2 text-xs font-black text-white">{number}</span><h2 className="text-xl font-black">{title}</h2></div><div className={flush ? "" : "p-7"}>{children}</div></section>; }
+function Info({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) { return <div className={wide ? "sm:col-span-2" : ""}><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</p><p className="mt-1 text-sm font-bold text-slate-800">{value}</p></div>; }
+function ScopeBlock({ title, value, muted = false }: { title: string; value: string; muted?: boolean }) { return <div className={`mt-5 rounded-xl border p-4 ${muted ? "border-slate-200 bg-slate-50" : "border-blue-100 bg-blue-50/60"}`}><h3 className="text-sm font-black text-slate-950">{title}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{value}</p></div>; }
+function TermBlock({ title, value }: { title: string; value: string }) { return <div><h3 className="text-sm font-black text-slate-950">{title}</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{value}</p></div>; }
+function StatusShell({ title, body, tone, extra }: { title: string; body: string; tone: "error" | "neutral"; extra?: string | null }) { return <main className="min-h-screen bg-slate-100 px-4 py-12"><div className="mx-auto max-w-2xl rounded-[28px] border border-slate-200 bg-white p-8 shadow-xl"><h1 className={`text-3xl font-black ${tone === "error" ? "text-red-800" : "text-slate-950"}`}>{title}</h1><p className="mt-3 leading-7 text-slate-600">{body}</p>{extra ? <p className="mt-4 font-bold text-slate-800">{extra}</p> : null}</div></main>; }
+function HomeSolicitationNotices({ notice }: { notice: HomeSolicitationNotice }) { return <section className="rounded-[28px] border-2 border-slate-900 bg-white p-7 text-slate-950"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Ohio consumer notice</p><h2 className="mt-1 text-2xl font-black">Right to Cancel</h2></div><p className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold">Deadline: midnight {notice.cancellationDeadlineDate}</p></div><div className="mt-5 grid gap-2 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2"><p><strong>Transaction date:</strong> {notice.transactionDate}</p><p><strong>Seller:</strong> {notice.sellerName}</p><p><strong>Seller address:</strong> {notice.sellerAddress}</p><p><strong>Cancellation email:</strong> {notice.cancellationEmail || "Not provided"}</p>{notice.cancellationFax ? <p><strong>Cancellation fax:</strong> {notice.cancellationFax}</p> : null}<p><strong>Seller signer:</strong> {notice.sellerSignerName}</p></div><div className="mt-6 grid gap-4 md:grid-cols-2"><CancellationCopy notice={notice} copy="Copy 1" /><CancellationCopy notice={notice} copy="Copy 2" /></div></section>; }
+function CancellationCopy({ notice, copy }: { notice: HomeSolicitationNotice; copy: string }) { const contact = notice.cancellationEmail || notice.cancellationFax || notice.sellerAddress || "seller contact shown in agreement"; return <div className="rounded-xl border-2 border-dashed border-slate-400 p-5 text-sm font-semibold leading-6"><p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{copy}</p><h3 className="mt-1 text-lg font-black">NOTICE OF CANCELLATION</h3><p className="mt-3"><strong>Date of transaction:</strong> {notice.transactionDate}</p><p className="mt-3">You may cancel this transaction, without any penalty or obligation, within three business days from the above date.</p><p className="mt-3">If you cancel, any property traded in, payments made by you under the contract or sale, and any negotiable instrument executed by you will be returned within ten business days following receipt by the seller of your cancellation notice, and any security interest arising out of the transaction will be cancelled.</p><p className="mt-3">If you cancel, you must make available to the seller at your residence, in substantially as good condition as when received, any goods delivered to you under this contract or sale; or you may follow the seller&apos;s instructions regarding return shipment of the goods at the seller&apos;s expense and risk.</p><p className="mt-3">If you make the goods available and the seller does not pick them up within twenty days after your cancellation notice, you may retain or dispose of the goods without further obligation. If you fail to make the goods available, or agree to return them and fail to do so, you remain liable for your obligations under the contract.</p><p className="mt-3">To cancel this transaction, mail with return receipt requested, deliver in person or manually, or send by facsimile or electronic mail a signed and dated copy of this notice or any other written cancellation notice to <strong>{notice.sellerName}</strong> at <strong>{contact}</strong> not later than midnight of <strong>{notice.cancellationDeadlineDate}</strong>.</p><div className="mt-5 space-y-3"><p>I hereby cancel this transaction.</p><p>Date: ____________________</p><p>Buyer signature: ______________________________</p></div></div>; }
