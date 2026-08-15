@@ -48,6 +48,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!vendor) return NextResponse.json({ error: "Vendor not found." }, { status: 404 });
     const email = asText(assignment.primary_contact_email) || asText(vendor.email);
     if (!email) return NextResponse.json({ error: "A subcontractor email address is required before sending an agreement." }, { status: 400 });
+    const personName = [asText(vendor.first_name), asText(vendor.last_name)].filter(Boolean).join(" ");
+    const vendorName = asText(vendor.name) || asText(vendor.company_name) || personName || "Subcontractor";
 
     const { data: signedMasterRaw } = await admin.from("subcontractor_master_agreements" as never).select("*").eq("company_id", companyId).eq("vendor_id", assignment.vendor_id).eq("status", "signed").order("signed_at", { ascending: false }).limit(1).maybeSingle();
     let master = signedMasterRaw as MasterRecord | null;
@@ -56,7 +58,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       master = pendingMasterRaw as MasterRecord | null;
     }
     if (!master) {
-      const snapshot = buildMasterSnapshot({ companyName: company.name, vendorName: vendor.display_name || vendor.company_name, vendorEmail: email });
+      const snapshot = buildMasterSnapshot({ companyName: company.name, vendorName, vendorEmail: email });
       const { data, error } = await admin.from("subcontractor_master_agreements" as never).insert({
         company_id: companyId, vendor_id: assignment.vendor_id, status: "draft",
         agreement_version: MASTER_SUBCONTRACT_AGREEMENT_VERSION, agreement_snapshot: snapshot,
@@ -69,7 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const waSnapshot = buildWorkAuthorizationSnapshot({
       companyName: company.name,
-      vendorName: vendor.display_name || vendor.company_name,
+      vendorName,
       projectName: asText(project.name) || asText(project.project_name) || asText(project.job_site_name) || "Project",
       projectAddress: projectAddress(project as Record<string, unknown>),
       tradeName: assignment.trade_name,
