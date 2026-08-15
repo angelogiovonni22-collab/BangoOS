@@ -1,6 +1,7 @@
 "use client";
 
 import type { OrionRealtimeToolExecutionResult } from "@/lib/orion/realtime/types";
+import { getOrionPushStatus } from "@/lib/orion/personal-assistant/push-client";
 
 export const ORION_PERSONAL_ASSISTANT_TOOL = "orion_personal_assistant";
 export const ORION_VIEWPORT_CONTROL_TOOL = "orion_viewport_control";
@@ -22,6 +23,20 @@ type ReminderRecord = {
   createdAt: string;
   firedAt: string | null;
   cancelledAt: string | null;
+  deliveredAt?: string | null;
+};
+
+type ServerReminder = {
+  id: string;
+  title: string;
+  message: string;
+  due_at: string;
+  event_title: string | null;
+  event_starts_at: string | null;
+  linked_href: string | null;
+  created_at: string;
+  cancelled_at: string | null;
+  delivered_at: string | null;
 };
 
 type PersonalAssistantParams = {
@@ -65,6 +80,50 @@ function writeReminders(reminders: ReminderRecord[]) {
   window.localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(reminders));
 }
 
+function fromServerReminder(reminder: ServerReminder): ReminderRecord {
+  return {
+    id: reminder.id,
+    title: reminder.title,
+    message: reminder.message,
+    dueAt: reminder.due_at,
+    eventTitle: reminder.event_title,
+    eventStartsAt: reminder.event_starts_at,
+    linkedHref: reminder.linked_href,
+    createdAt: reminder.created_at,
+    cancelledAt: reminder.cancelled_at,
+    deliveredAt: reminder.delivered_at,
+    firedAt: reminder.delivered_at,
+  };
+}
+
+async function listServerReminders() {
+  const response = await fetch("/api/orion/reminders", { cache: "no-store" });
+  const payload = await response.json() as { ok?: boolean; reminders?: ServerReminder[]; error?: string };
+  if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to load Orion reminders.");
+  return (payload.reminders || []).map(fromServerReminder);
+}
+
+async function createServerReminder(input: Omit<ReminderRecord, "id" | "createdAt" | "firedAt" | "cancelledAt" | "deliveredAt">) {
+  const response = await fetch("/api/orion/reminders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const payload = await response.json() as { ok?: boolean; reminder?: ServerReminder; error?: string };
+  if (!response.ok || !payload.ok || !payload.reminder) throw new Error(payload.error || "Unable to save Orion reminder.");
+  return fromServerReminder(payload.reminder);
+}
+
+async function cancelServerReminder(reminderId: string) {
+  const response = await fetch("/api/orion/reminders", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reminderId }),
+  });
+  const payload = await response.json() as { ok?: boolean; error?: string };
+  if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to cancel Orion reminder.");
+}
+
 function validDate(value: unknown) {
   if (typeof value !== "string" || !value.trim()) return null;
   const date = new Date(value);
@@ -101,7 +160,7 @@ function processDueReminders() {
   const reminders = readReminders();
   let changed = false;
   const next = reminders.map((reminder) => {
-    if (reminder.firedAt || reminder.cancelledAt) return reminder;
+    if (reminder.firedAt || reminder.cancelledAt || reminder.deliveredAt) return reminder;
     const due = new Date(reminder.dueAt).getTime();
     if (!Number.isFinite(due) || due > now) return reminder;
     changed = true;
@@ -123,17 +182,6 @@ export function stopOrionReminderScheduler() {
   reminderTimer = null;
 }
 
-async function requestNotificationPermission() {
-  if (typeof Notification === "undefined") return "unsupported";
-  if (Notification.permission === "granted") return "granted";
-  if (Notification.permission === "denied") return "denied";
-  try {
-    return await Notification.requestPermission();
-  } catch {
-    return Notification.permission;
-  }
-}
-
 export async function executeOrionPersonalAssistant(params: PersonalAssistantParams): Promise<OrionRealtimeToolExecutionResult> {
   if (typeof window === "undefined") return fail("Orion reminders require the B.O.S. browser or installed app.");
   ensureOrionReminderScheduler();
@@ -150,8 +198,15 @@ export async function executeOrionPersonalAssistant(params: PersonalAssistantPar
   }
 
   if (action === "list") {
-    const active = readReminders().filter((item) => !item.cancelledAt && !item.firedAt).sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
-    return ok(active.length ? `You have ${active.length} active Orion reminder${active.length === 1 ? "" : "s"}.` : "You have no active Orion reminders.", { reminders: active });
+    try {
+      const reminders = await listServerReminders();
+      writeReminders(reminders);
+      const active = reminders.filter((item) => !item.cancelledAt && !item.deliveredAt).sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
+      return ok(active.length ? `You have ${active.length} active Orion reminder${active.length === 1 ? "" : "s"}.` : "You have no active Orion reminders.", { reminders: active });
+    } catch {
+      const active = readReminders().filter((item) => !item.cancelledAt && !item.firedAt).sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
+      return ok(active.length ? `You have ${active.length} active Orion reminder${active.length === 1 ? "" : "s"}.` : "You have no active Orion reminders.", { reminders: active, source: "device_fallback" });
+    }
   }
 
   if (action === "cancel") {
@@ -159,9 +214,13 @@ export async function executeOrionPersonalAssistant(params: PersonalAssistantPar
     if (!reminderId) return fail("A reminder id is required to cancel a reminder.");
     const reminders = readReminders();
     const target = reminders.find((item) => item.id === reminderId);
-    if (!target) return fail("I could not find that reminder.");
+    try {
+      await cancelServerReminder(reminderId);
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : "Unable to cancel that reminder.");
+    }
     writeReminders(reminders.map((item) => item.id === reminderId ? { ...item, cancelledAt: new Date().toISOString() } : item));
-    return ok(`Cancelled reminder: ${target.title}.`, { reminder: target });
+    return ok(`Cancelled reminder${target?.title ? `: ${target.title}` : ""}.`, { reminder: target || { id: reminderId } });
   }
 
   if (action !== "set_reminder" && action !== "set_event_alert") return fail("A valid Orion reminder action is required.");
@@ -173,21 +232,32 @@ export async function executeOrionPersonalAssistant(params: PersonalAssistantPar
   const eventTitle = typeof params.eventTitle === "string" && params.eventTitle.trim() ? params.eventTitle.trim() : null;
   const title = typeof params.title === "string" && params.title.trim() ? params.title.trim() : eventTitle ? `Upcoming: ${eventTitle}` : "Orion reminder";
   const message = typeof params.message === "string" && params.message.trim() ? params.message.trim() : eventTitle ? `Reminder for ${eventTitle}.` : title;
-  const reminder: ReminderRecord = {
-    id: `orion-reminder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  const input = {
     title,
     message,
     dueAt: due.toISOString(),
     eventTitle,
     eventStartsAt: validDate(params.eventStartsAt)?.toISOString() || null,
     linkedHref: typeof params.linkedHref === "string" && params.linkedHref.startsWith("/") ? params.linkedHref : null,
-    createdAt: new Date().toISOString(),
-    firedAt: null,
-    cancelledAt: null,
   };
-  writeReminders([...readReminders(), reminder]);
-  const notificationPermission = await requestNotificationPermission();
-  return ok(`${action === "set_event_alert" ? "Calendar alert" : "Reminder"} set for ${displayLocal(reminder.dueAt)}.`, { reminder, notificationPermission });
+
+  let reminder: ReminderRecord;
+  try {
+    reminder = await createServerReminder(input);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Unable to save Orion reminder.");
+  }
+  const local = readReminders().filter((item) => item.id !== reminder.id);
+  writeReminders([...local, reminder]);
+  const pushStatus = await getOrionPushStatus();
+  const pushNote = pushStatus === "enabled"
+    ? " Background iPhone notification is enabled."
+    : pushStatus === "not_installed"
+      ? " Add B.O.S. to your iPhone Home Screen, open it from the icon, then enable Orion Notifications once."
+      : pushStatus === "denied"
+        ? " Notifications are blocked in device settings."
+        : " Tap Enable Orion Notifications once in the Orion panel for background alerts when B.O.S. is closed.";
+  return ok(`${action === "set_event_alert" ? "Calendar alert" : "Reminder"} set for ${displayLocal(reminder.dueAt)}.${pushNote}`, { reminder, pushStatus });
 }
 
 function clampZoom(value: number) {
