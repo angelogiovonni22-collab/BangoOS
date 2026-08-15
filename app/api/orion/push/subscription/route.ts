@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid push subscription." }, { status: 400 });
   }
 
-  const { error } = await supabase.from("orion_push_subscriptions").upsert({
+  const { error } = await (supabase as any).from("orion_push_subscriptions").upsert({
     company_id: workspace.context.companyId,
     user_id: workspace.context.userId,
     endpoint,
