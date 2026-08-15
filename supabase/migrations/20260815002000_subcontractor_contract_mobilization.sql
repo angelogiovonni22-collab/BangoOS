@@ -122,6 +122,21 @@ declare
   v_blockers jsonb;
   v_status text;
 begin
+  if coalesce(auth.role(), '') <> 'service_role'
+     and not exists (
+       select 1 from public.profiles
+       where id = auth.uid() and company_id = p_company_id
+     ) then
+    raise exception 'Unauthorized subcontractor mobilization access';
+  end if;
+
+  if not exists (
+    select 1 from public.trade_partner_assignments
+    where id = p_assignment_id and company_id = p_company_id
+  ) then
+    raise exception 'Subcontractor assignment not found';
+  end if;
+
   select coalesce(jsonb_agg(requirement_type order by requirement_type), '[]'::jsonb)
     into v_blockers
   from public.subcontractor_mobilization_requirements
