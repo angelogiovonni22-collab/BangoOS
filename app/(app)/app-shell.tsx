@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MotionProvider } from "@/components/motion";
 import { OrionCommandCenterOverlay } from "@/components/orion/command-center";
 import { PersistentOrion } from "@/components/orion/persistent";
@@ -13,6 +13,7 @@ import { GlobalSearch } from "@/components/search/global-search";
 import { useBodyScrollLock } from "@/components/ui/use-body-scroll-lock";
 import { useI18n } from "@/lib/i18n/provider";
 import { ORION_SIDEBAR_NAVIGATION_GROUPS } from "@/lib/orion/navigation";
+import { canAccessPath, getRoleHomePath, normalizeCompanyRole } from "@/lib/access-control/permissions";
 import { shouldIgnoreGlobalShortcut } from "@/lib/ui/keyboard";
 
 type AppShellProps = {
@@ -20,14 +21,15 @@ type AppShellProps = {
   userName: string | null;
   userEmail: string | null;
   companyName: string | null;
+  role: string | null;
 };
 
-export function AppShell({ children, userName, userEmail, companyName }: AppShellProps) {
+export function AppShell({ children, userName, userEmail, companyName, role }: AppShellProps) {
   return (
     <MotionProvider>
       <GlobalOrionVoiceProvider>
         <OrionUnifiedVoiceProvider>
-          <AppShellFrame userName={userName} userEmail={userEmail} companyName={companyName}>
+          <AppShellFrame userName={userName} userEmail={userEmail} companyName={companyName} role={role}>
             {children}
           </AppShellFrame>
         </OrionUnifiedVoiceProvider>
@@ -36,14 +38,44 @@ export function AppShell({ children, userName, userEmail, companyName }: AppShel
   );
 }
 
-function AppShellFrame({ children, userName, userEmail, companyName }: AppShellProps) {
+function AppShellFrame({ children, userName, userEmail, companyName, role }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
+  const router = useRouter();
   const { t } = useI18n();
+  const normalizedRole = normalizeCompanyRole(role);
+  const homePath = getRoleHomePath(normalizedRole);
 
   useBodyScrollLock(mobileOpen);
+
+  const visibleNavigationGroups = useMemo(() => {
+    const groups = ORION_SIDEBAR_NAVIGATION_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => canAccessPath(normalizedRole, item.href)),
+    })).filter((group) => group.items.length > 0);
+
+    if (normalizedRole === "subcontractor") {
+      return [
+        { key: "partner", label: "Trade Partner", items: [{ key: "partnerHome", href: "/partner", icon: "◇" }] },
+        ...groups,
+      ];
+    }
+
+    if (normalizedRole === "customer") {
+      return [
+        { key: "customer", label: "Customer", items: [{ key: "customerPortal", href: "/customer-portal", icon: "◉" }] },
+      ];
+    }
+
+    return groups;
+  }, [normalizedRole]);
+
+  useEffect(() => {
+    if (!pathname || canAccessPath(normalizedRole, pathname)) return;
+    router.replace(homePath);
+  }, [homePath, normalizedRole, pathname, router]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -66,7 +98,8 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const topNavigationItems = ORION_SIDEBAR_NAVIGATION_GROUPS.flatMap((group) => group.items);
+  const topNavigationItems = visibleNavigationGroups.flatMap((group) => group.items);
+  const routeAllowed = !pathname || canAccessPath(normalizedRole, pathname);
 
   return (
     <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
@@ -81,19 +114,19 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
             className={`fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] px-5 py-6 text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
           >
             <div className="shrink-0 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2f5ec9] to-[#2d9ad4] text-lg font-semibold text-white shadow-lg shadow-blue-500/20">B</div>
+              <Link href={homePath} className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2f5ec9] to-[#2d9ad4] text-xs font-bold text-white shadow-lg shadow-blue-500/20">B.O.S.</div>
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#8ec3ff]">B.O.S.</p>
                   <p className="text-sm text-[var(--bos-text-muted)]">{t("common.constructionOs")}</p>
                 </div>
-              </div>
+              </Link>
               <button type="button" aria-label={t("common.closeSidebar")} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white/10 lg:hidden" onClick={() => setMobileOpen(false)}>×</button>
             </div>
 
             <div className="mt-7 flex min-h-0 flex-1 flex-col overflow-hidden">
               <nav className="h-full min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
-                {ORION_SIDEBAR_NAVIGATION_GROUPS.map((group) => {
+                {visibleNavigationGroups.map((group) => {
                   const isCollapsed = collapsedGroups[group.key] ?? false;
                   return (
                     <section key={group.key} className="space-y-2">
@@ -103,7 +136,7 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
                       {!isCollapsed ? (
                         <div className="space-y-1.5">
                           {group.items.map((item) => (
-                            <SidebarItem key={item.key} label={t(`navigation.${item.key}`)} href={item.href} icon={item.icon} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} onNavigate={() => setMobileOpen(false)} />
+                            <SidebarItem key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t)} href={item.href} icon={item.icon} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} onNavigate={() => setMobileOpen(false)} />
                           ))}
                         </div>
                       ) : null}
@@ -130,43 +163,44 @@ function AppShellFrame({ children, userName, userEmail, companyName }: AppShellP
                   <div className="min-w-0 space-y-1.5">
                     <p className="truncate text-sm font-medium text-[var(--bos-text-secondary)]">{companyName || t("common.operationsWorkspace")}</p>
                     <NavigationBreadcrumb />
-                    <DepartmentNavigator t={t} />
+                    {!["subcontractor", "customer"].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
                   </div>
                 </div>
                 <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
-                  <div className="hidden min-w-[220px] md:block"><GlobalSearch placeholder={t("common.search")} /></div>
-                  <button type="button" className="hidden rounded-[var(--radius-md)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 py-2 text-sm font-semibold text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] md:inline-flex md:items-center md:gap-2" onClick={() => setCommandCenterOpen(true)} aria-label="Open Orion Command Center">
-                    <span>Orion</span><span className="rounded border border-[var(--bos-border-subtle)] px-1.5 py-0.5 text-xs text-[var(--bos-text-secondary)]">Ctrl+K</span>
-                  </button>
+                  {!['subcontractor', 'customer'].includes(normalizedRole) ? <div className="hidden min-w-[220px] md:block"><GlobalSearch placeholder={t("common.search")} /></div> : null}
+                  {!['subcontractor', 'customer'].includes(normalizedRole) ? <button type="button" className="hidden rounded-[var(--radius-md)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 py-2 text-sm font-semibold text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] md:inline-flex md:items-center md:gap-2" onClick={() => setCommandCenterOpen(true)} aria-label="Open Orion Command Center"><span>Orion</span><span className="rounded border border-[var(--bos-border-subtle)] px-1.5 py-0.5 text-xs text-[var(--bos-text-secondary)]">Ctrl+K</span></button> : null}
                   <LanguageSelector />
-                  <button type="button" className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] transition hover:bg-[var(--bos-bg-hover)]" aria-label={t("common.notifications")}>🔔</button>
-                  <ProfileMenu userName={userName} userEmail={userEmail} companyName={companyName} showSettingsAction />
+                  <ProfileMenu userName={userName} userEmail={userEmail} companyName={companyName} showSettingsAction={canAccessPath(normalizedRole, "/settings")} />
                 </div>
               </div>
 
-              <nav className="bos-top-command-nav" aria-label="Top Command navigation">
-                <Link href="/dashboard" className="bos-top-command-brand" aria-label="B.O.S. Dashboard">
-                  <span className="bos-top-command-brand-mark">B</span>
-                  <span><strong className="block text-xs tracking-[0.22em]">B.O.S.</strong><small className="block text-[9px] text-[var(--bos-text-muted)]">COMMAND WORKSPACE</small></span>
-                </Link>
-                {topNavigationItems.map((item) => {
-                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                  return (
-                    <Link key={item.key} href={item.href} className="bos-top-command-link" data-active={active ? "true" : "false"}>
-                      <span className="bos-top-command-link-icon" aria-hidden="true">{item.icon}</span>
-                      <span>{t(`navigation.${item.key}`)}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
+              {topNavigationItems.length > 0 ? (
+                <nav className="bos-top-command-nav" aria-label="Top Command navigation">
+                  <Link href={homePath} className="bos-top-command-brand" aria-label="B.O.S. Home">
+                    <span className="bos-top-command-brand-mark">B</span>
+                    <span><strong className="block text-xs tracking-[0.22em]">B.O.S.</strong><small className="block text-[9px] text-[var(--bos-text-muted)]">{formatRole(normalizedRole).toUpperCase()}</small></span>
+                  </Link>
+                  {topNavigationItems.map((item) => {
+                    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    return (
+                      <Link key={`${item.key}-${item.href}`} href={item.href} className="bos-top-command-link" data-active={active ? "true" : "false"}>
+                        <span className="bos-top-command-link-icon" aria-hidden="true">{item.icon}</span>
+                        <span>{getNavigationLabel(item.key, t)}</span>
+                      </Link>
+                    );
+                  })}
+                </nav>
+              ) : null}
             </header>
           </LayerManager>
 
-          <main className="min-h-0 min-w-0 flex-1 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,0.08),transparent_26%)] p-4 sm:p-6 lg:p-7">{children}</main>
+          <main className="min-h-0 min-w-0 flex-1 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,0.08),transparent_26%)] p-4 sm:p-6 lg:p-7">
+            {routeAllowed ? children : <AccessRedirect role={normalizedRole} />}
+          </main>
         </div>
       </div>
 
-      <OrionCommandCenterOverlay open={commandCenterOpen} onClose={() => setCommandCenterOpen(false)} currentPath={pathname || "/dashboard"} />
+      {!['subcontractor', 'customer'].includes(normalizedRole) ? <OrionCommandCenterOverlay open={commandCenterOpen} onClose={() => setCommandCenterOpen(false)} currentPath={pathname || homePath} /> : null}
     </div>
   );
 }
@@ -177,4 +211,18 @@ function SidebarItem({ label, href, icon, active, onNavigate }: { label: string;
       <span className="text-base">{icon}</span><span>{label}</span>
     </Link>
   );
+}
+
+function AccessRedirect({ role }: { role: string }) {
+  return <div className="mx-auto max-w-xl rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-6 shadow-[var(--shadow-card)]"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--bos-text-muted)]">B.O.S. ACCESS CONTROL</p><h1 className="mt-2 text-xl font-semibold">Opening your authorized workspace…</h1><p className="mt-2 text-sm text-[var(--bos-text-secondary)]">Your {formatRole(role)} account does not have permission to view this area.</p></div>;
+}
+
+function getNavigationLabel(key: string, t: (key: string) => string) {
+  if (key === "partnerHome") return "My Jobs";
+  if (key === "customerPortal") return "My Project";
+  return t(`navigation.${key}`);
+}
+
+function formatRole(role: string) {
+  return role.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
