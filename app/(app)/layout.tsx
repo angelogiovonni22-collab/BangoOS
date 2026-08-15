@@ -47,6 +47,7 @@ export default async function DashboardLayout({
         userName={userName}
         userEmail={user.email ?? null}
         companyName={workspace.context.companyName}
+        role={workspace.context.role}
       >
         {children}
       </AppShell>

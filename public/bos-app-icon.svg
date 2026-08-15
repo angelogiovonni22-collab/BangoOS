@@ -1,5 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="B.O.S.">
-  <rect width="512" height="512" rx="112" fill="#0a1222"/>
-  <path d="M116 96h158c82 0 132 39 132 105 0 40-20 70-57 88 45 17 68 51 68 99 0 75-55 124-145 124H116V96zm88 72v87h61c35 0 53-15 53-44 0-29-18-43-53-43h-61zm0 154v18h70c37 0 55-16 55-48 0-31-18-47-55-47h-70v77z" fill="#fff"/>
-  <path d="M92 430h328" stroke="#35b778" stroke-width="24" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="bosBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07101f"/>
+      <stop offset="1" stop-color="#15366f"/>
+    </linearGradient>
+    <linearGradient id="bosAccent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2f5ec9"/>
+      <stop offset="1" stop-color="#2d9ad4"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bosBg)"/>
+  <rect x="42" y="42" width="428" height="428" rx="88" fill="none" stroke="#5f8ee8" stroke-opacity=".35" stroke-width="4"/>
+  <circle cx="256" cy="206" r="112" fill="#0d1b32" stroke="#4e7ed8" stroke-width="6"/>
+  <text x="256" y="232" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="88" font-weight="700" letter-spacing="3" fill="#ffffff">B.O.S.</text>
+  <rect x="116" y="350" width="280" height="20" rx="10" fill="url(#bosAccent)"/>
+  <text x="256" y="410" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="8" fill="#a9c7ff">OPERATING SYSTEM</text>
 </svg>
