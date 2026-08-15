@@ -71,27 +71,42 @@ async function main() {
   });
   assert(project.params.status === "lead", "project fast path supplies the current safe default project status");
 
+  const dailyReport = await normalizeRealtimeFastCommandParams({
+    supabase: noDb,
+    companyId: "company-1",
+    commandId: "daily_report.create",
+    params: { projectId: "project-1", updates: { workCompleted: [{ description: "Framing completed" }] } },
+  });
+  assert(typeof dailyReport.params.reportDate === "string" && String(dailyReport.params.reportDate).length === 10, "daily report fast path defaults the report date to today");
+  assert((dailyReport.params.updates as Record<string, unknown>)?.workCompleted instanceof Array, "daily report fast path preserves supplied report content for one-call creation");
+
   const tools = buildUniversalBosToolCatalog();
   const estimateTool = tools.find((tool) => tool.name === "bos_estimate_create");
   const invoiceTool = tools.find((tool) => tool.name === "bos_invoice_create");
   const projectTool = tools.find((tool) => tool.name === "bos_project_create");
+  const dailyReportTool = tools.find((tool) => tool.name === "bos_daily_report_create");
   const estimateSchema = JSON.stringify(estimateTool?.parameters || {});
   const invoiceSchema = JSON.stringify(invoiceTool?.parameters || {});
   const projectSchema = JSON.stringify(projectTool?.parameters || {});
+  const dailyReportSchema = JSON.stringify(dailyReportTool?.parameters || {});
   assert(Boolean(estimateTool) && estimateSchema.includes("customerName") && estimateSchema.includes("projectName"), "estimate create tool exposes human-name aliases for one-call resolution");
   assert(Boolean(invoiceTool) && invoiceSchema.includes("customerName") && invoiceSchema.includes("projectName") && invoiceSchema.includes("estimateName"), "invoice create tool exposes human-name aliases for one-call resolution");
   assert(Boolean(projectTool) && projectSchema.includes("customerName"), "project create tool can resolve a spoken customer in the same create call");
+  assert(Boolean(dailyReportTool) && dailyReportSchema.includes("projectName") && dailyReportSchema.includes("workCompleted") && dailyReportSchema.includes("labor"), "daily report create tool supports spoken project resolution and populated one-call creation");
 
   const session = read("app/api/orion/realtime/session/route.ts");
   const toolRoute = read("app/api/orion/realtime/tool/route.ts");
   const resolverRoute = read("app/api/orion/realtime/resolve-entity/route.ts");
   const resolver = read("lib/orion/realtime/entity-resolution.ts");
+  const operational = read("lib/orion/commands/operational-command-patches.ts");
   assert(session.includes("Direct-work fast path") && session.includes("bos_estimate_create") && session.includes("bos_invoice_create"), "Realtime policy tells Orion to execute direct create/save requests without opening forms first");
   assert(session.includes("Visible-form boundary") && session.includes("If the user only asks you to create/save the estimate, use the canonical estimate fast path instead."), "visible UI operation remains available only when the user wants the form experience");
   assert(!session.includes("MANDATORY visible-create rule"), "legacy mandatory visible estimate creation rule is removed");
   assert(session.includes("issue them in the same response so they can execute concurrently"), "Realtime policy allows independent resolution/read calls to run concurrently");
   assert(toolRoute.includes("normalizeRealtimeFastCommandParams") && toolRoute.includes("resolvedAliases") && toolRoute.includes("elapsedMs"), "canonical Realtime route applies fast normalization and records latency telemetry");
   assert(resolverRoute.includes("resolveOrionEntity") && resolver.includes("scoreCandidate"), "entity matching is centralized and reused by both standalone and fast-path resolution");
+  assert(operational.includes("const input = updates ? mergeDailyReportUpdates(baseInput, updates) : baseInput") && operational.includes("populatedOnCreate"), "daily report command writes supplied operational detail during initial creation instead of requiring a second update command");
+  assert(operational.includes('input.header.overallStatus = "draft"'), "one-call daily report fast path cannot silently bypass the normal draft submission boundary");
 
   console.log(`\nOrion canonical fast-path results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;

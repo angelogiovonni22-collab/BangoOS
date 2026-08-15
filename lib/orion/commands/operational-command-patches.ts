@@ -149,34 +149,6 @@ function blankDailyReportInput(projectId: string, projectName: string, reportDat
   };
 }
 
-async function executeCreateDailyReportCommand(
-  params: Record<string, unknown>,
-  context: OrionCommandExecutionContext,
-  deps: OrionCommandDependencies,
-): Promise<OrionCommandExecutionOutput> {
-  const reportDate = requireString(params, "reportDate");
-  const projectId = requireString(params, "projectId");
-  const projectName = await resolveProjectName(deps, context, projectId);
-  const service = createDailyReportsService({ supabaseClient: deps.supabase });
-  const report = await service.createReport(blankDailyReportInput(projectId, projectName, reportDate), "draft");
-
-  return {
-    status: "completed",
-    entityType: "daily_report",
-    entityId: report.id,
-    createdEntityIds: [report.id],
-    publishedEventIds: [],
-    href: `/daily-reports/${report.id}`,
-    userMessage: `Daily report ${report.reportNumber} was created for ${projectName}.`,
-    details: {
-      reportNumber: report.reportNumber,
-      reportDate: report.header.date,
-      projectId,
-      projectName,
-    },
-  };
-}
-
 function mergeDailyReportUpdates(input: DailyReportUpsertInput, updates: Record<string, unknown>) {
   const next: DailyReportUpsertInput = {
     ...input,
@@ -220,6 +192,42 @@ function mergeDailyReportUpdates(input: DailyReportUpsertInput, updates: Record<
   }
 
   return next;
+}
+
+async function executeCreateDailyReportCommand(
+  params: Record<string, unknown>,
+  context: OrionCommandExecutionContext,
+  deps: OrionCommandDependencies,
+): Promise<OrionCommandExecutionOutput> {
+  const reportDate = requireString(params, "reportDate");
+  const projectId = requireString(params, "projectId");
+  const projectName = await resolveProjectName(deps, context, projectId);
+  const service = createDailyReportsService({ supabaseClient: deps.supabase });
+  const baseInput = blankDailyReportInput(projectId, projectName, reportDate);
+  const updates = asRecord(params.updates);
+  const input = updates ? mergeDailyReportUpdates(baseInput, updates) : baseInput;
+  input.header.projectId = projectId;
+  input.header.projectName = projectName;
+  input.header.date = reportDate;
+  input.header.overallStatus = "draft";
+  const report = await service.createReport(input, "draft");
+
+  return {
+    status: "completed",
+    entityType: "daily_report",
+    entityId: report.id,
+    createdEntityIds: [report.id],
+    publishedEventIds: [],
+    href: `/daily-reports/${report.id}`,
+    userMessage: `Daily report ${report.reportNumber} was created for ${projectName}.`,
+    details: {
+      reportNumber: report.reportNumber,
+      reportDate: report.header.date,
+      projectId,
+      projectName,
+      populatedOnCreate: Boolean(updates),
+    },
+  };
 }
 
 async function executeUpdateDailyReportCommand(

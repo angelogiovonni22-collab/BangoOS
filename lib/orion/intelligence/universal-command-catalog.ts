@@ -36,7 +36,8 @@ function isFastCreateCommand(commandId: string) {
   return commandId === "customer.create"
     || commandId === "project.create"
     || commandId === "estimate.create"
-    || commandId === "invoice.create";
+    || commandId === "invoice.create"
+    || commandId === "daily_report.create";
 }
 
 function toToolDescription(command: OrionCommandDefinition) {
@@ -46,7 +47,7 @@ function toToolDescription(command: OrionCommandDefinition) {
       ? "Review the action with the user before execution when the workflow requires it."
       : "Explicit user confirmation is required before execution.";
   const fastPath = isFastCreateCommand(command.id)
-    ? " Fast path: use this directly when the user wants the record created or saved now; do not navigate to a form first unless they asked to see or fill the form. Human-readable customer/project/estimate names are accepted in the documented alias fields and resolved company-safely."
+    ? " Fast path: use this directly when the user wants the record created or saved now; do not navigate to a form first unless they asked to see or fill the form. Human-readable customer/project/estimate names are accepted in documented alias fields and resolved company-safely."
     : "";
 
   return `${command.description} BOS command: ${command.id}. Expected input: ${command.inputSchema}.${fastPath} ${confirmation} Never bypass BOS validation, permissions, or confirmation controls.`;
@@ -212,6 +213,39 @@ function optimizedToolParameters(command: OrionCommandDefinition): Record<string
       },
       lineItems: { type: "array", items: invoiceLineItemSchema() },
     }, ["values", "lineItems"]);
+  }
+
+  if (command.id === "daily_report.create") {
+    return wrapParams({
+      projectId: TEXT,
+      projectName: { type: "string", description: "Human-readable project name. Use when projectId is not already known; BOS resolves a unique company-scoped match in the same request." },
+      reportDate: { type: "string", description: "YYYY-MM-DD. Omit for today's report; BOS supplies the current date." },
+      updates: {
+        type: "object",
+        description: "Optional daily-report content to save during creation so Orion does not need a second update call.",
+        properties: {
+          header: {
+            type: "object",
+            properties: {
+              shift: { type: "string", enum: ["day", "swing", "night"] },
+              superintendentName: TEXT,
+              projectManagerName: TEXT,
+              weather: { type: "string", enum: ["sunny", "cloudy", "rain", "storm", "snow", "mixed"] },
+              temperatureF: { type: "number" },
+              siteConditions: { type: "string", enum: ["dry", "wet", "muddy", "windy", "frozen", "restricted"] },
+            },
+            additionalProperties: true,
+          },
+          labor: { type: "array", items: { type: "object", additionalProperties: true } },
+          workCompleted: { type: "array", items: { type: "object", additionalProperties: true } },
+          materials: { type: "array", items: { type: "object", additionalProperties: true } },
+          equipment: { type: "array", items: { type: "object", additionalProperties: true } },
+          safety: { type: "array", items: { type: "object", additionalProperties: true } },
+          delays: { type: "array", items: { type: "object", additionalProperties: true } },
+        },
+        additionalProperties: true,
+      },
+    });
   }
 
   return null;
