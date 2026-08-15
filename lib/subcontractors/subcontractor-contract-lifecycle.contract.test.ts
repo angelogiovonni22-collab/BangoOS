@@ -12,6 +12,8 @@ test("subcontractor foundation stores master agreements, project authorizations,
   assert.match(sql, /subcontractor_mobilization_requirements/);
   assert.match(sql, /refresh_subcontractor_mobilization_status/);
   assert.match(sql, /mobilization_status/);
+  assert.match(sql, /auth\.role\(\).*service_role/s);
+  assert.match(sql, /auth\.uid\(\).*company_id = p_company_id/s);
   assert.match(sql, /revoke insert, update, delete .* authenticated/i);
 });
 
@@ -23,6 +25,16 @@ test("project assignment can generate and email a secure subcontract package", (
   assert.match(route, /sendContractEmail/);
   assert.match(route, /pending_signature/);
   assert.match(route, /refresh_subcontractor_mobilization_status/);
+});
+
+test("resending preserves verified compliance and never overwrites an executed authorization", () => {
+  const route = read("app/api/projects/[id]/subcontractors/[assignmentId]/agreement/route.ts");
+  const component = read("components/projects/workspace/subcontractor-contract-actions.tsx");
+  assert.match(route, /existingAuthorization\?\.status === "signed"/);
+  assert.match(route, /alreadySigned: true/);
+  assert.match(route, /ignoreDuplicates: true/);
+  assert.match(component, /signed \|\| busy === "send" \|\| !email/);
+  assert.match(component, /Agreement Signed/);
 });
 
 test("public subcontract portal requires explicit signer identity and consent", () => {
