@@ -6,9 +6,22 @@ import { Badge, Button } from "@/components/ui";
 type Requirement = { requirement_type: string; required: boolean; status: string; verified_at: string | null; expires_at: string | null };
 type ComplianceDocument = { id: string; requirementType: string; originalFilename: string; fileSizeBytes: number; expiresAt: string | null; viewUrl: string | null };
 type MobilizationPayload = { assignmentContractStatus: string; authorization: { id: string; status: string; signed_at: string | null; sent_at: string | null } | null; master: { id: string; status: string; signed_at: string | null } | null; requirements: Requirement[]; mobilizationStatus: string; blockers: string[] };
+type LoadedMobilization = { statusBody: MobilizationPayload; documents: ComplianceDocument[] };
 
 const label = (value: string) => value.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 const uploadable = new Set(["w9", "coi", "workers_comp", "licenses", "safety_acknowledgement"]);
+
+async function fetchMobilization(projectId: string, assignmentId: string): Promise<LoadedMobilization> {
+  const [statusResponse, docsResponse] = await Promise.all([
+    fetch(`/api/projects/${projectId}/subcontractors/${assignmentId}/mobilization`),
+    fetch(`/api/projects/${projectId}/subcontractors/${assignmentId}/compliance-documents`),
+  ]);
+  const statusBody = await statusResponse.json();
+  const docsBody = await docsResponse.json();
+  if (!statusResponse.ok) throw new Error(statusBody.error || "Unable to load subcontract status.");
+  if (!docsResponse.ok) throw new Error(docsBody.error || "Unable to load compliance documents.");
+  return { statusBody, documents: Array.isArray(docsBody.documents) ? docsBody.documents : [] };
+}
 
 export function SubcontractorContractActions({ projectId, assignmentId, email }: { projectId: string; assignmentId: string; email: string | null }) {
   const [data, setData] = useState<MobilizationPayload | null>(null);
@@ -18,20 +31,26 @@ export function SubcontractorContractActions({ projectId, assignmentId, email }:
 
   const load = useCallback(async () => {
     try {
-      const [statusResponse, docsResponse] = await Promise.all([
-        fetch(`/api/projects/${projectId}/subcontractors/${assignmentId}/mobilization`),
-        fetch(`/api/projects/${projectId}/subcontractors/${assignmentId}/compliance-documents`),
-      ]);
-      const statusBody = await statusResponse.json();
-      const docsBody = await docsResponse.json();
-      if (!statusResponse.ok) throw new Error(statusBody.error || "Unable to load subcontract status.");
-      if (!docsResponse.ok) throw new Error(docsBody.error || "Unable to load compliance documents.");
-      setData(statusBody);
-      setDocuments(Array.isArray(docsBody.documents) ? docsBody.documents : []);
+      const loaded = await fetchMobilization(projectId, assignmentId);
+      setData(loaded.statusBody);
+      setDocuments(loaded.documents);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to load subcontract status."); }
   }, [assignmentId, projectId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void fetchMobilization(projectId, assignmentId)
+      .then((loaded) => {
+        if (!active) return;
+        setData(loaded.statusBody);
+        setDocuments(loaded.documents);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setMessage(error instanceof Error ? error.message : "Unable to load subcontract status.");
+      });
+    return () => { active = false; };
+  }, [assignmentId, projectId]);
 
   async function sendAgreement() {
     setBusy("send"); setMessage(null);
