@@ -15,7 +15,7 @@ import {
 } from "@/lib/subcontractors/agreement";
 
 type MasterRecord = { id: string; status: string; agreement_hash: string };
-type AuthorizationRecord = { id: string; authorization_hash: string };
+type AuthorizationRecord = { id: string; status: string; authorization_hash: string };
 
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 const asText = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
@@ -50,6 +50,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!email) return NextResponse.json({ error: "A subcontractor email address is required before sending an agreement." }, { status: 400 });
     const personName = [asText(vendor.first_name), asText(vendor.last_name)].filter(Boolean).join(" ");
     const vendorName = asText(vendor.name) || asText(vendor.company_name) || personName || "Subcontractor";
+
+    const { data: existingAuthorizationRaw } = await admin
+      .from("project_subcontract_work_authorizations" as never)
+      .select("id,status,authorization_hash")
+      .eq("company_id", companyId)
+      .eq("assignment_id", assignmentId)
+      .maybeSingle();
+    const existingAuthorization = existingAuthorizationRaw as AuthorizationRecord | null;
+    if (existingAuthorization?.status === "signed") {
+      return NextResponse.json({
+        error: "This project work authorization is already signed. Create a change order or new authorization for additional work instead of replacing the executed agreement.",
+        alreadySigned: true,
+      }, { status: 409 });
+    }
 
     const { data: signedMasterRaw } = await admin.from("subcontractor_master_agreements" as never).select("*").eq("company_id", companyId).eq("vendor_id", assignment.vendor_id).eq("status", "signed").order("signed_at", { ascending: false }).limit(1).maybeSingle();
     let master = signedMasterRaw as MasterRecord | null;
@@ -105,7 +119,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       ["work_authorization", "pending"], ["w9", "missing"], ["coi", "missing"], ["workers_comp", "missing"],
       ["licenses", "missing"], ["safety_acknowledgement", "missing"], ["scope_confirmation", "pending"],
     ].map(([requirement_type, status]) => ({ company_id: companyId, project_id: projectId, assignment_id: assignmentId, vendor_id: assignment.vendor_id, requirement_type, status, required: true }));
-    await admin.from("subcontractor_mobilization_requirements" as never).upsert(requirementRows as never, { onConflict: "company_id,assignment_id,requirement_type", ignoreDuplicates: false });
+    await admin.from("subcontractor_mobilization_requirements" as never).upsert(requirementRows as never, {
+      onConflict: "company_id,assignment_id,requirement_type",
+      ignoreDuplicates: true,
+    });
+    await admin.from("subcontractor_mobilization_requirements" as never)
+      .update({ status: master.status === "signed" ? "verified" : "pending", verified_at: master.status === "signed" ? new Date().toISOString() : null } as never)
+      .eq("company_id", companyId).eq("assignment_id", assignmentId).eq("requirement_type", "master_agreement");
+    await admin.from("subcontractor_mobilization_requirements" as never)
+      .update({ status: "pending", verified_at: null } as never)
+      .eq("company_id", companyId).eq("assignment_id", assignmentId).eq("requirement_type", "work_authorization");
+    await admin.from("subcontractor_mobilization_requirements" as never)
+      .update({ status: "pending", verified_at: null } as never)
+      .eq("company_id", companyId).eq("assignment_id", assignmentId).eq("requirement_type", "scope_confirmation");
     await admin.from("trade_partner_assignments").update({ contract_status: "pending_signature" } as never).eq("company_id", companyId).eq("id", assignmentId);
     await admin.rpc("refresh_subcontractor_mobilization_status" as never, { p_company_id: companyId, p_assignment_id: assignmentId } as never);
 
