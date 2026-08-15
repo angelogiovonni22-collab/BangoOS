@@ -1,5 +1,6 @@
 "use client";
 
+import "@/lib/orion/personal-assistant/runtime";
 import { executeOrionTaskAgent, ORION_TASK_AGENT_TOOL } from "@/lib/orion/task-agent/browser";
 import { executeOrionUiOperator, ORION_UI_OPERATOR_TOOL } from "@/lib/orion/operator/browser";
 import {
