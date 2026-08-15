@@ -92,9 +92,9 @@ const ROLE_PERMISSIONS: Record<CompanyRole, readonly BosPermission[]> = {
   ],
   office_manager: [
     "dashboard.view", "operations.view", "projects.view", "project_financials.view", "schedule.view", "schedule.manage",
-    "daily_reports.view", "customers.view", "customers.manage", "estimates.view", "estimates.manage",
-    "invoices.view", "invoices.manage", "change_orders.view", "labor_rates.view", "workforce.view",
-    "vendors.view", "vendors.manage", "settings.view",
+    "daily_reports.view", "communications.view", "communications.manage", "customers.view", "customers.manage",
+    "estimates.view", "estimates.manage", "invoices.view", "invoices.manage", "change_orders.view", "labor_rates.view",
+    "workforce.view", "vendors.view", "vendors.manage", "settings.view",
   ],
   accountant: [
     "dashboard.view", "projects.view", "project_financials.view", "customers.view",
@@ -152,6 +152,7 @@ type RouteRule = { prefix: string; permission: BosPermission };
 const ROUTE_RULES: RouteRule[] = [
   { prefix: "/settings/access-control", permission: "access_control.manage" },
   { prefix: "/settings", permission: "settings.view" },
+  { prefix: "/trade-partner-messages", permission: "communications.view" },
   { prefix: "/labor-rates", permission: "labor_rates.view" },
   { prefix: "/invoices", permission: "invoices.view" },
   { prefix: "/estimates", permission: "estimates.view" },

@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
- type TradePartnerJob = {
+type TradePartnerJob = {
   assignment_id: string;
   project_id: string;
   project_name: string;
@@ -65,10 +66,11 @@ export default async function TradePartnerPortalPage() {
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--bos-text-primary)]">{job.scope_of_work || "Scope has not been published yet."}</p>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs font-semibold">
-                <div className="rounded-lg border border-[var(--bos-border-subtle)] p-3">Photos</div>
-                <div className="rounded-lg border border-[var(--bos-border-subtle)] p-3">Plans</div>
-                <div className="rounded-lg border border-[var(--bos-border-subtle)] p-3">Messages</div>
+                <Link href={`/partner/${job.project_id}#photos`} className="rounded-lg border border-[var(--bos-border-subtle)] p-3 transition hover:bg-[var(--bos-bg-hover)]">Photos</Link>
+                <Link href={`/partner/${job.project_id}#plans`} className="rounded-lg border border-[var(--bos-border-subtle)] p-3 transition hover:bg-[var(--bos-bg-hover)]">Plans</Link>
+                <Link href={`/partner/${job.project_id}#messages`} className="rounded-lg border border-[var(--bos-border-subtle)] p-3 transition hover:bg-[var(--bos-bg-hover)]">Messages</Link>
               </div>
+              <Link href={`/partner/${job.project_id}`} className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-500">Open Job Workspace</Link>
             </article>
           ))}
         </div>

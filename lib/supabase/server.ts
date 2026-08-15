@@ -11,7 +11,7 @@ export async function createClient() {
     return null
   }
 
-  return createServerClient<Database>(url, publishableKey, {
+  const client = createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll()
@@ -27,4 +27,10 @@ export async function createClient() {
       },
     },
   })
+
+  // Keep RPC safe for server modules that store a typed reference before invoking it.
+  // SupabaseClient.rpc delegates through `this.rest`, so binding preserves the client context.
+  client.rpc = client.rpc.bind(client)
+
+  return client
 }

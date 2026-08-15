@@ -13,7 +13,7 @@ import { GlobalSearch } from "@/components/search/global-search";
 import { useBodyScrollLock } from "@/components/ui/use-body-scroll-lock";
 import { useI18n } from "@/lib/i18n/provider";
 import { ORION_SIDEBAR_NAVIGATION_GROUPS } from "@/lib/orion/navigation";
-import { canAccessPath, getRoleHomePath, normalizeCompanyRole } from "@/lib/access-control/permissions";
+import { canAccessPath, getRoleHomePath, hasBosPermission, normalizeCompanyRole } from "@/lib/access-control/permissions";
 import { shouldIgnoreGlobalShortcut } from "@/lib/ui/keyboard";
 
 type AppShellProps = {
@@ -66,6 +66,13 @@ function AppShellFrame({ children, userName, userEmail, companyName, role }: App
     if (normalizedRole === "customer") {
       return [
         { key: "customer", label: "Customer", items: [{ key: "customerPortal", href: "/customer-portal", icon: "◉" }] },
+      ];
+    }
+
+    if (hasBosPermission(normalizedRole, "communications.view")) {
+      return [
+        ...groups,
+        { key: "communications", label: "Communications", items: [{ key: "tradePartnerMessages", href: "/trade-partner-messages", icon: "✉" }] },
       ];
     }
 
@@ -163,7 +170,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role }: App
                   <div className="min-w-0 space-y-1.5">
                     <p className="truncate text-sm font-medium text-[var(--bos-text-secondary)]">{companyName || t("common.operationsWorkspace")}</p>
                     <NavigationBreadcrumb />
-                    {!["subcontractor", "customer"].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
+                    {!['subcontractor', 'customer'].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
                   </div>
                 </div>
                 <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
@@ -220,6 +227,7 @@ function AccessRedirect({ role }: { role: string }) {
 function getNavigationLabel(key: string, t: (key: string) => string) {
   if (key === "partnerHome") return "My Jobs";
   if (key === "customerPortal") return "My Project";
+  if (key === "tradePartnerMessages") return "Trade Partner Messages";
   return t(`navigation.${key}`);
 }
 
