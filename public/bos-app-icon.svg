@@ -1,18 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="B.O.S.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BANGO app icon">
   <defs>
-    <linearGradient id="bosBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#07101f"/>
-      <stop offset="1" stop-color="#15366f"/>
+    <radialGradient id="bg" cx="50%" cy="42%" r="72%">
+      <stop offset="0" stop-color="#0d213e"/>
+      <stop offset="0.55" stop-color="#071426"/>
+      <stop offset="1" stop-color="#020814"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e6cff"/>
+      <stop offset="0.34" stop-color="#45e6ff"/>
+      <stop offset="0.5" stop-color="#eaffff"/>
+      <stop offset="0.68" stop-color="#2fbeff"/>
+      <stop offset="1" stop-color="#165dff"/>
     </linearGradient>
-    <linearGradient id="bosAccent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#2f5ec9"/>
-      <stop offset="1" stop-color="#2d9ad4"/>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.45" stop-color="#f8fbff"/>
+      <stop offset="0.72" stop-color="#cfd8e5"/>
+      <stop offset="1" stop-color="#ffffff"/>
     </linearGradient>
+    <filter id="blueGlow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softBlueGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="textGlow" x="-20%" y="-30%" width="140%" height="180%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#087dff" flood-opacity="0.75"/>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bosBg)"/>
-  <rect x="42" y="42" width="428" height="428" rx="88" fill="none" stroke="#5f8ee8" stroke-opacity=".35" stroke-width="4"/>
-  <circle cx="256" cy="206" r="112" fill="#0d1b32" stroke="#4e7ed8" stroke-width="6"/>
-  <text x="256" y="232" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="88" font-weight="700" letter-spacing="3" fill="#ffffff">B.O.S.</text>
-  <rect x="116" y="350" width="280" height="20" rx="10" fill="url(#bosAccent)"/>
-  <text x="256" y="410" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="8" fill="#a9c7ff">OPERATING SYSTEM</text>
+
+  <rect width="512" height="512" rx="90" fill="#01050b"/>
+  <rect x="7" y="7" width="498" height="498" rx="84" fill="url(#bg)" stroke="#1c4f93" stroke-width="2.2"/>
+  <rect x="12" y="12" width="488" height="488" rx="80" fill="none" stroke="#0b2a52" stroke-width="1.2"/>
+
+  <circle cx="256" cy="250" r="177" fill="none" stroke="#071a35" stroke-width="31" opacity="0.95"/>
+  <circle cx="256" cy="250" r="182" fill="none" stroke="#0c5dff" stroke-width="4" opacity="0.7" filter="url(#softBlueGlow)"/>
+
+  <path d="M94 177 A177 177 0 0 1 418 177" fill="none" stroke="#0f65ff" stroke-width="36" opacity="0.7" filter="url(#blueGlow)"/>
+  <path d="M94 323 A177 177 0 0 0 418 323" fill="none" stroke="#0f65ff" stroke-width="36" opacity="0.7" filter="url(#blueGlow)"/>
+  <path d="M94 177 A177 177 0 0 1 418 177" fill="none" stroke="url(#ring)" stroke-width="29" stroke-linecap="butt"/>
+  <path d="M94 323 A177 177 0 0 0 418 323" fill="none" stroke="url(#ring)" stroke-width="29" stroke-linecap="butt"/>
+  <path d="M99 171 A172 172 0 0 1 413 171" fill="none" stroke="#e9ffff" stroke-width="3.6" opacity="0.88"/>
+  <path d="M99 329 A172 172 0 0 0 413 329" fill="none" stroke="#dffcff" stroke-width="3.6" opacity="0.82"/>
+  <path d="M91 183 A184 184 0 0 1 421 183" fill="none" stroke="#0a79ff" stroke-width="2" opacity="0.95"/>
+  <path d="M91 317 A184 184 0 0 0 421 317" fill="none" stroke="#0a79ff" stroke-width="2" opacity="0.95"/>
+
+  <text x="256" y="290" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="94" font-weight="900" letter-spacing="-4" fill="url(#metal)" stroke="#ffffff" stroke-width="1.4" paint-order="stroke fill" filter="url(#textGlow)">BANGO</text>
+  <text x="256" y="290" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="94" font-weight="900" letter-spacing="-4" fill="none" stroke="#6d91c4" stroke-width="1" opacity="0.55">BANGO</text>
 </svg>
