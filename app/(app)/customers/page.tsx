@@ -4,14 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CustomerTable } from "@/components/customers";
-import {
-  Button,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-  SearchInput,
-  SkeletonLoader,
-} from "@/components/ui";
+import { Button, EmptyState, ErrorState, PageHeader, SearchInput, SkeletonLoader } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -48,59 +41,37 @@ const PAGE_SIZE = 8;
 export default function CustomersPage() {
   const { t } = useI18n();
   const supabase = useMemo(() => createClient(), []);
-
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [chipFilter, setChipFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
 
   const resolveWorkspaceError = useCallback((errorCode: string | null, fallback: string | null) => {
-    if (errorCode === "unauthenticated") {
-      return t("customers.errorViewLogin");
-    }
-
-    if (errorCode === "profile_missing") {
-      return t("customers.errorProfileMissing");
-    }
-
-    if (errorCode === "company_missing") {
-      return t("customers.errorNoCompanyYet");
-    }
-
-    if (errorCode === "supabase_unavailable") {
-      return t("customers.errorConnect");
-    }
-
+    if (errorCode === "unauthenticated") return t("customers.errorViewLogin");
+    if (errorCode === "profile_missing") return t("customers.errorProfileMissing");
+    if (errorCode === "company_missing") return t("customers.errorNoCompanyYet");
+    if (errorCode === "supabase_unavailable") return t("customers.errorConnect");
     return fallback || t("customers.errorLoadUnexpected");
   }, [t]);
 
   useEffect(() => {
     let isSubscribed = true;
-
     const loadCustomers = async () => {
       setIsLoading(true);
       setErrorMessage("");
-
       const client = supabase;
-
       if (!client) {
-        if (isSubscribed) {
-          setErrorMessage(t("customers.errorConnect"));
-          setIsLoading(false);
-        }
-
+        if (isSubscribed) { setErrorMessage(t("customers.errorConnect")); setIsLoading(false); }
         return;
       }
 
       try {
         const workspace = await resolveWorkspaceContext(client);
-
         if (workspace.errorMessage || !workspace.context) {
-          if (isSubscribed) {
-            setErrorMessage(resolveWorkspaceError(workspace.errorCode, workspace.errorMessage));
-          }
+          if (isSubscribed) setErrorMessage(resolveWorkspaceError(workspace.errorCode, workspace.errorMessage));
           return;
         }
 
@@ -111,9 +82,7 @@ export default function CustomersPage() {
           .order("created_at", { ascending: false });
 
         if (customersError) {
-          if (isSubscribed) {
-            setErrorMessage(t("customers.errorLoadCustomers"));
-          }
+          if (isSubscribed) setErrorMessage(t("customers.errorLoadCustomers"));
           return;
         }
 
@@ -124,12 +93,9 @@ export default function CustomersPage() {
           const lastName = row.last_name?.trim() || "";
           const companyName = row.company_name?.trim() || "";
           const contactName = [firstName, lastName].filter(Boolean).join(" ") || t("customers.notProvided");
-          const customerName =
-            customerType.key === "commercial" && companyName
-              ? companyName
-              : contactName === t("customers.notProvided")
-                ? companyName || t("customers.unnamedCustomer")
-                : contactName;
+          const customerName = customerType.key === "commercial" && companyName
+            ? companyName
+            : contactName === t("customers.notProvided") ? companyName || t("customers.unnamedCustomer") : contactName;
 
           return {
             id: row.id,
@@ -146,48 +112,76 @@ export default function CustomersPage() {
           };
         });
 
-        if (isSubscribed) {
-          setCustomers(mappedCustomers);
-        }
+        if (isSubscribed) setCustomers(mappedCustomers);
       } catch (caughtError) {
         console.error("Load customers error:", caughtError);
-
-        if (isSubscribed) {
-          setErrorMessage(t("customers.errorLoadUnexpected"));
-        }
+        if (isSubscribed) setErrorMessage(t("customers.errorLoadUnexpected"));
       } finally {
-        if (isSubscribed) {
-          setIsLoading(false);
-        }
+        if (isSubscribed) setIsLoading(false);
       }
     };
 
     void loadCustomers();
-
-    return () => {
-      isSubscribed = false;
-    };
+    return () => { isSubscribed = false; };
   }, [resolveWorkspaceError, supabase, t]);
+
+  const runLifecycleAction = useCallback(async (customer: Customer, action: "archive" | "restore") => {
+    setActionMessage("");
+    if (action === "archive" && !window.confirm(`Archive ${customer.name}? They will be hidden from the normal customer list but their history will be preserved.`)) return;
+
+    const response = await fetch(`/api/customers/${customer.id}/lifecycle`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || `Unable to ${action} customer.`);
+
+    const nextStatusKey = action === "archive" ? "archived" : "active";
+    const nextStatus = action === "archive" ? t("customers.statusArchived") : t("customers.statusActive");
+    setCustomers((current) => current.map((item) => item.id === customer.id ? { ...item, statusKey: nextStatusKey, status: nextStatus } : item));
+    setActionMessage(action === "archive" ? `${customer.name} was archived.` : `${customer.name} was restored.`);
+    setPage(1);
+  }, [t]);
+
+  const archiveCustomer = useCallback(async (customer: Customer) => {
+    try { await runLifecycleAction(customer, "archive"); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "Unable to archive customer."); }
+  }, [runLifecycleAction]);
+
+  const restoreCustomer = useCallback(async (customer: Customer) => {
+    try { await runLifecycleAction(customer, "restore"); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "Unable to restore customer."); }
+  }, [runLifecycleAction]);
+
+  const deleteCustomer = useCallback(async (customer: Customer) => {
+    setActionMessage("");
+    if (!window.confirm(`Delete ${customer.name} permanently? This is only allowed when the customer has no linked projects, estimates, invoices, or other protected business history. This cannot be undone.`)) return;
+
+    try {
+      const response = await fetch(`/api/customers/${customer.id}/lifecycle`, { method: "DELETE" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Unable to delete customer.");
+      setCustomers((current) => current.filter((item) => item.id !== customer.id));
+      setActionMessage(`${customer.name} was permanently deleted.`);
+      setPage(1);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Unable to delete customer.");
+    }
+  }, []);
 
   const filteredCustomers = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
-
     return customers.filter((customer) => {
-      const matchesSearch =
-        !normalizedSearch
+      const matchesSearch = !normalizedSearch
         || customer.name.toLowerCase().includes(normalizedSearch)
         || customer.email.toLowerCase().includes(normalizedSearch)
         || customer.phone.toLowerCase().includes(normalizedSearch);
 
-      if (chipFilter === "residential" || chipFilter === "commercial") {
-        return matchesSearch && customer.typeKey === chipFilter;
-      }
-
-      if (chipFilter === "active" || chipFilter === "archived") {
-        return matchesSearch && customer.statusKey === chipFilter;
-      }
-
-      return matchesSearch;
+      if (chipFilter === "residential" || chipFilter === "commercial") return matchesSearch && customer.statusKey !== "archived" && customer.typeKey === chipFilter;
+      if (chipFilter === "active") return matchesSearch && customer.statusKey === "active";
+      if (chipFilter === "archived") return matchesSearch && customer.statusKey === "archived";
+      return matchesSearch && customer.statusKey !== "archived";
     });
   }, [chipFilter, customers, searchTerm]);
 
@@ -195,19 +189,8 @@ export default function CustomersPage() {
   const currentPage = Math.min(page, totalPages);
   const pagedCustomers = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
-
     return filteredCustomers.slice(start, start + PAGE_SIZE);
   }, [currentPage, filteredCustomers]);
-
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    setPage(1);
-  };
-
-  const handleFilterChipClick = (value: string) => {
-    setChipFilter(value);
-    setPage(1);
-  };
 
   const filterChips = [
     { key: "all", label: "All" },
@@ -219,39 +202,18 @@ export default function CustomersPage() {
 
   const kpis = useMemo(() => {
     const now = new Date();
-    const totalCustomers = customers.length;
+    const visibleCustomers = customers.filter((customer) => customer.statusKey !== "archived");
     const activeCustomers = customers.filter((customer) => customer.statusKey === "active").length;
-    const newThisMonth = customers.filter((customer) => {
+    const newThisMonth = visibleCustomers.filter((customer) => {
       const created = new Date(customer.createdAt);
-
-      return !Number.isNaN(created.getTime())
-        && created.getMonth() === now.getMonth()
-        && created.getFullYear() === now.getFullYear();
+      return !Number.isNaN(created.getTime()) && created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
     }).length;
-
-    return {
-      totalCustomers,
-      activeCustomers,
-      newThisMonth,
-      lifetimeRevenue: "Coming Soon",
-    };
+    return { totalCustomers: visibleCustomers.length, activeCustomers, newThisMonth, lifetimeRevenue: "Coming Soon" };
   }, [customers]);
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader
-        compact
-        title="Customers"
-        description="Manage residential, commercial, and property management customers."
-        primaryAction={(
-          <Link href="/customers/new">
-            <Button size="md">
-              <Plus size={16} aria-hidden="true" />
-              New Customer
-            </Button>
-          </Link>
-        )}
-      />
+      <PageHeader compact title="Customers" description="Manage residential, commercial, and property management customers." primaryAction={<Link href="/customers/new"><Button size="md"><Plus size={16} aria-hidden="true" />New Customer</Button></Link>} />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Total Customers" value={kpis.totalCustomers.toLocaleString()} />
@@ -262,135 +224,51 @@ export default function CustomersPage() {
 
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-3 shadow-[var(--shadow-small)] sm:px-4 sm:py-3.5">
         <div className="space-y-3">
-          <SearchInput
-            value={searchTerm}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            placeholder="Search customers by name, email, or phone"
-            aria-label="Search customers"
-            className="h-10 rounded-[var(--radius-lg)] transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.12)]"
-          />
-
+          <SearchInput value={searchTerm} onChange={(event) => { setSearchTerm(event.target.value); setPage(1); }} placeholder="Search customers by name, email, or phone" aria-label="Search customers" className="h-10 rounded-[var(--radius-lg)] transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.12)]" />
           <div className="flex flex-wrap gap-2">
-            {filterChips.map((chip) => {
-              const isActive = chipFilter === chip.key;
-
-              return (
-                <Button
-                  key={chip.key}
-                  type="button"
-                  size="sm"
-                  variant={isActive ? "primary" : "outline"}
-                  className="h-8 px-3.5 text-xs transition-all duration-200 hover:-translate-y-px"
-                  onClick={() => handleFilterChipClick(chip.key)}
-                >
-                  {chip.label}
-                </Button>
-              );
-            })}
+            {filterChips.map((chip) => <Button key={chip.key} type="button" size="sm" variant={chipFilter === chip.key ? "primary" : "outline"} className="h-8 px-3.5 text-xs transition-all duration-200 hover:-translate-y-px" onClick={() => { setChipFilter(chip.key); setPage(1); }}>{chip.label}</Button>)}
           </div>
+          {actionMessage ? <p className="text-sm font-semibold text-[var(--color-text-secondary)]" role="status">{actionMessage}</p> : null}
         </div>
       </section>
 
       <section>
-          {isLoading ? (
-            <CustomersLoadingState />
-          ) : errorMessage ? (
-            <ErrorState title={t("customers.errorTitle")} description={errorMessage} compact />
-          ) : customers.length === 0 ? (
-            <EmptyState
-              icon="C"
-              title="No customers yet"
-              description="Create your first customer to start managing your account relationships."
-              compact
-              action={
-                <Link href="/customers/new">
-                  <Button>New Customer</Button>
-                </Link>
-              }
-            />
-          ) : filteredCustomers.length === 0 ? (
-            <EmptyState
-              icon="?"
-              title="No customers match this filter"
-              description="Try a different filter or search term."
-              compact
-            />
-          ) : (
-            <CustomerTable
-              items={pagedCustomers}
-              total={filteredCustomers.length}
-              page={currentPage}
-              pageSize={PAGE_SIZE}
-              onPageChange={setPage}
-              t={t}
-            />
-          )}
+        {isLoading ? <CustomersLoadingState /> : errorMessage ? <ErrorState title={t("customers.errorTitle")} description={errorMessage} compact /> : customers.length === 0 ? (
+          <EmptyState icon="C" title="No customers yet" description="Create your first customer to start managing your account relationships." compact action={<Link href="/customers/new"><Button>New Customer</Button></Link>} />
+        ) : filteredCustomers.length === 0 ? (
+          <EmptyState icon="?" title="No customers match this filter" description={chipFilter === "archived" ? "No customers have been archived." : "Try a different filter or search term."} compact />
+        ) : (
+          <CustomerTable items={pagedCustomers} total={filteredCustomers.length} page={currentPage} pageSize={PAGE_SIZE} onPageChange={setPage} onArchive={archiveCustomer} onRestore={restoreCustomer} onDelete={deleteCustomer} t={t} />
+        )}
       </section>
     </div>
   );
 }
 
 function CustomersLoadingState() {
-  return (
-    <div className="space-y-3 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-card)] sm:p-5">
-      <SkeletonLoader className="h-10 w-full" />
-      <SkeletonLoader className="h-12 w-full" />
-      <SkeletonLoader className="h-12 w-full" />
-      <SkeletonLoader className="h-12 w-full" />
-      <SkeletonLoader className="h-12 w-full" />
-    </div>
-  );
+  return <div className="space-y-3 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-card)] sm:p-5"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-12 w-full" /><SkeletonLoader className="h-12 w-full" /><SkeletonLoader className="h-12 w-full" /><SkeletonLoader className="h-12 w-full" /></div>;
 }
 
 function KpiCard({ label, value }: { label: string; value: string }) {
-  return (
-    <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-3.5 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]">
-      <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)]">{label}</p>
-      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{value}</p>
-    </article>
-  );
+  return <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-3.5 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]"><p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)]">{label}</p><p className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{value}</p></article>;
 }
 
 function normalizeCustomerType(customerType: string | null, t: (key: string) => string) {
   const normalized = customerType?.trim().toLowerCase() || "other";
-
-  if (normalized === "commercial") {
-    return { key: "commercial", label: t("customers.typeCommercial") };
-  }
-
-  if (normalized === "residential") {
-    return { key: "residential", label: t("customers.typeResidential") };
-  }
-
-  if (normalized === "government") {
-    return { key: "government", label: t("customers.typeGovernment") };
-  }
-
+  if (normalized === "commercial") return { key: "commercial", label: t("customers.typeCommercial") };
+  if (normalized === "residential") return { key: "residential", label: t("customers.typeResidential") };
+  if (normalized === "government") return { key: "government", label: t("customers.typeGovernment") };
   return { key: "other", label: t("customers.typeOther") };
 }
 
 function normalizeCustomerStatus(status: string | null, t: (key: string) => string) {
   const normalized = status?.trim().toLowerCase() || "archived";
-
-  if (normalized === "active") {
-    return { key: "active", label: t("customers.statusActive") };
-  }
-
-  if (normalized === "archived" || normalized === "inactive") {
-    return { key: "archived", label: t("customers.statusArchived") };
-  }
-
-  if (normalized === "lead" || normalized === "pending") {
-    return { key: normalized, label: toTitleCase(normalized) };
-  }
-
+  if (normalized === "active") return { key: "active", label: t("customers.statusActive") };
+  if (normalized === "archived" || normalized === "inactive") return { key: "archived", label: t("customers.statusArchived") };
+  if (normalized === "lead" || normalized === "pending") return { key: normalized, label: toTitleCase(normalized) };
   return { key: normalized, label: toTitleCase(normalized.replace(/_/g, " ")) };
 }
 
 function toTitleCase(value: string) {
-  return value
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  return value.split(" ").filter(Boolean).map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }
