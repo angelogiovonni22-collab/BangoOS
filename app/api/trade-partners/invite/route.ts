@@ -19,7 +19,7 @@ function readableError(value: unknown, fallback: string): string {
   if (value instanceof Error && value.message.trim()) return value.message.trim();
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
-    for (const key of ["message", "error_description", "error", "msg", "detail", "details", "description", "code"]) {
+    for (const key of ["message", "error_description", "error", "msg", "detail", "details", "description", "code", "name"]) {
       const nested = readableError(record[key], "");
       if (nested) return nested;
     }
@@ -27,8 +27,105 @@ function readableError(value: unknown, fallback: string): string {
   return fallback;
 }
 
-async function rollbackInvitedUser(admin: ReturnType<typeof createAdminClient>, userId: string) {
-  await admin.auth.admin.deleteUser(userId).catch(() => undefined);
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function rollbackInvitedUser(admin: ReturnType<typeof createAdminClient>, companyId: string, userId: string) {
+  try {
+    await admin.from("company_memberships").delete().eq("company_id", companyId).eq("user_id", userId);
+  } catch {
+    // Best-effort rollback; continue cleaning the remaining linked rows.
+  }
+  try {
+    await admin.from("user_profiles").delete().eq("id", userId);
+  } catch {
+    // Best-effort rollback; continue cleaning the remaining linked rows.
+  }
+  try {
+    await admin.from("profiles").delete().eq("id", userId);
+  } catch {
+    // Best-effort rollback; continue to remove the generated auth user.
+  }
+  try {
+    await admin.auth.admin.deleteUser(userId);
+  } catch {
+    // Best-effort rollback only.
+  }
+}
+
+async function sendTradePartnerInviteEmail(input: {
+  actionLink: string;
+  email: string;
+  firstName: string;
+  vendorName: string;
+  userId: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY?.trim() || "";
+  const from = process.env.BOS_AUTH_FROM_EMAIL?.trim() || "";
+  if (!apiKey || !from) {
+    throw new Error("Production Trade Partner email is not configured. Add RESEND_API_KEY and BOS_AUTH_FROM_EMAIL to the B.O.S. Production environment.");
+  }
+
+  const greeting = input.firstName ? `Hi ${escapeHtml(input.firstName)},` : "Hello,";
+  const vendorName = escapeHtml(input.vendorName);
+  const actionLink = escapeHtml(input.actionLink);
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": `bos-trade-partner-invite-${input.userId}`,
+      "User-Agent": "BangoOS/1.0",
+    },
+    body: JSON.stringify({
+      from,
+      to: [input.email],
+      subject: `You're invited to B.O.S. — ${input.vendorName}`,
+      html: `<!doctype html>
+<html>
+  <body style="margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#172033;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #dce4ee;border-radius:16px;overflow:hidden;">
+          <tr><td style="background:#07131f;padding:28px 32px;color:#ffffff;">
+            <div style="font-size:25px;font-weight:800;letter-spacing:.04em;">B.O.S.</div>
+            <div style="margin-top:5px;font-size:11px;letter-spacing:.16em;color:#8ec3ff;font-weight:700;">BANGO OPERATING SYSTEM</div>
+          </td></tr>
+          <tr><td style="padding:34px 32px;">
+            <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">${greeting}</p>
+            <h1 style="margin:0 0 14px;font-size:24px;line-height:1.25;color:#101827;">Your secure Trade Partner access is ready</h1>
+            <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#445166;">You have been invited to B.O.S. as an authorized Trade Partner for <strong>${vendorName}</strong>.</p>
+            <p style="margin:0 0 26px;font-size:15px;line-height:1.7;color:#445166;">Use the secure button below to finish your account, create your password, and access only the projects assigned to your Trade Partner company.</p>
+            <p style="margin:0 0 28px;">
+              <a href="${actionLink}" style="display:inline-block;background:#1479e8;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:13px 22px;border-radius:9px;">Finish My B.O.S. Account</a>
+            </p>
+            <div style="border-top:1px solid #e3e9f1;padding-top:20px;font-size:12px;line-height:1.6;color:#738096;">For security, do not forward this invitation. If you were not expecting access to B.O.S., you can ignore this email.</div>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`,
+    }),
+    cache: "no-store",
+  });
+
+  if (response.ok) return;
+
+  const raw = await response.text();
+  let providerError: unknown = raw;
+  try {
+    providerError = raw ? JSON.parse(raw) : null;
+  } catch {
+    // Keep raw provider text.
+  }
+  throw new Error(`Resend rejected the Trade Partner invitation: ${readableError(providerError, `HTTP ${response.status}`)}`);
 }
 
 export async function POST(request: NextRequest) {
@@ -90,22 +187,26 @@ export async function POST(request: NextRequest) {
 
   const redirectTo = new URL("/partner/welcome", request.url).toString();
   const vendorName = vendor.display_name || vendor.company_name || "Trade Partner";
-  const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
-    data: {
-      first_name: firstName || null,
-      last_name: lastName || null,
-      bos_role: "subcontractor",
-      bos_vendor_id: vendorId,
-      bos_company_id: membership.company_id,
-      bos_vendor_name: vendorName,
-    },
+  const metadata = {
+    first_name: firstName || null,
+    last_name: lastName || null,
+    bos_role: "subcontractor",
+    bos_vendor_id: vendorId,
+    bos_company_id: membership.company_id,
+    bos_vendor_name: vendorName,
+  };
+
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: { redirectTo, data: metadata },
   });
 
-  const invitedUser = inviteData.user;
-  if (inviteError || !invitedUser) {
-    const message = readableError(inviteError, "The authentication email provider rejected the Trade Partner invitation. Verify the custom SMTP sender and Resend configuration, then try again.");
-    return NextResponse.json({ error: /already/i.test(message) ? "That email already has a B.O.S. account. Use Access Control to link an existing account." : message }, { status: 400 });
+  const invitedUser = linkData.user;
+  const actionLink = linkData.properties?.action_link;
+  if (linkError || !invitedUser || !actionLink) {
+    const message = readableError(linkError, "Unable to generate a secure Trade Partner invitation link.");
+    return NextResponse.json({ error: /already|registered|exists/i.test(message) ? "That email already has a B.O.S. account. Use Access Control to link an existing account." : message }, { status: 400 });
   }
 
   const displayName = [firstName, lastName].filter(Boolean).join(" ") || null;
@@ -119,7 +220,7 @@ export async function POST(request: NextRequest) {
   }, { onConflict: "id" });
 
   if (profileError) {
-    await rollbackInvitedUser(admin, invitedUser.id);
+    await rollbackInvitedUser(admin, membership.company_id, invitedUser.id);
     return NextResponse.json({ error: `Unable to create the Trade Partner profile: ${readableError(profileError, "database write failed")}` }, { status: 500 });
   }
 
@@ -134,7 +235,7 @@ export async function POST(request: NextRequest) {
   }, { onConflict: "id" });
 
   if (userProfileError) {
-    await rollbackInvitedUser(admin, invitedUser.id);
+    await rollbackInvitedUser(admin, membership.company_id, invitedUser.id);
     return NextResponse.json({ error: `Unable to create the Trade Partner user profile: ${readableError(userProfileError, "database write failed")}` }, { status: 500 });
   }
 
@@ -150,8 +251,21 @@ export async function POST(request: NextRequest) {
   } as never, { onConflict: "company_id,user_id" });
 
   if (membershipError) {
-    await rollbackInvitedUser(admin, invitedUser.id);
+    await rollbackInvitedUser(admin, membership.company_id, invitedUser.id);
     return NextResponse.json({ error: `Unable to link the Trade Partner membership: ${readableError(membershipError, "database write failed")}` }, { status: 500 });
+  }
+
+  try {
+    await sendTradePartnerInviteEmail({
+      actionLink,
+      email,
+      firstName,
+      vendorName,
+      userId: invitedUser.id,
+    });
+  } catch (error) {
+    await rollbackInvitedUser(admin, membership.company_id, invitedUser.id);
+    return NextResponse.json({ error: readableError(error, "Unable to deliver the Trade Partner invitation email.") }, { status: 502 });
   }
 
   return NextResponse.json({
