@@ -10,6 +10,23 @@ type InviteBody = {
   lastName?: string;
 };
 
+function readableError(value: unknown, fallback: string): string {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (normalized && normalized !== "{}" && normalized !== "[object Object]") return normalized;
+    return fallback;
+  }
+  if (value instanceof Error && value.message.trim()) return value.message.trim();
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["message", "error_description", "error", "msg", "detail", "details", "description", "code"]) {
+      const nested = readableError(record[key], "");
+      if (nested) return nested;
+    }
+  }
+  return fallback;
+}
+
 async function rollbackInvitedUser(admin: ReturnType<typeof createAdminClient>, userId: string) {
   await admin.auth.admin.deleteUser(userId).catch(() => undefined);
 }
@@ -47,7 +64,7 @@ export async function POST(request: NextRequest) {
     .eq("id", vendorId)
     .maybeSingle();
 
-  if (vendorError) return NextResponse.json({ error: vendorError.message }, { status: 500 });
+  if (vendorError) return NextResponse.json({ error: readableError(vendorError, "Unable to load the selected Trade Partner.") }, { status: 500 });
   if (!vendor) return NextResponse.json({ error: "Trade Partner was not found in this company." }, { status: 404 });
 
   let admin;
@@ -66,7 +83,7 @@ export async function POST(request: NextRequest) {
     .eq("status", "active")
     .limit(1);
 
-  if (existingLinkError) return NextResponse.json({ error: existingLinkError.message }, { status: 500 });
+  if (existingLinkError) return NextResponse.json({ error: readableError(existingLinkError, "Unable to verify existing Trade Partner access.") }, { status: 500 });
   if ((existingLinks ?? []).length > 0) {
     return NextResponse.json({ error: "This Trade Partner already has an active B.O.S. login. Manage it from Access Control." }, { status: 409 });
   }
@@ -87,8 +104,8 @@ export async function POST(request: NextRequest) {
 
   const invitedUser = inviteData.user;
   if (inviteError || !invitedUser) {
-    const message = inviteError?.message || "Unable to create the Trade Partner invitation.";
-    return NextResponse.json({ error: message.includes("already") ? "That email already has a B.O.S. account. Use Access Control to link an existing account." : message }, { status: 400 });
+    const message = readableError(inviteError, "The authentication email provider rejected the Trade Partner invitation. Verify the custom SMTP sender and Resend configuration, then try again.");
+    return NextResponse.json({ error: /already/i.test(message) ? "That email already has a B.O.S. account. Use Access Control to link an existing account." : message }, { status: 400 });
   }
 
   const displayName = [firstName, lastName].filter(Boolean).join(" ") || null;
@@ -103,7 +120,7 @@ export async function POST(request: NextRequest) {
 
   if (profileError) {
     await rollbackInvitedUser(admin, invitedUser.id);
-    return NextResponse.json({ error: `Unable to create the Trade Partner profile: ${profileError.message}` }, { status: 500 });
+    return NextResponse.json({ error: `Unable to create the Trade Partner profile: ${readableError(profileError, "database write failed")}` }, { status: 500 });
   }
 
   const { error: userProfileError } = await admin.from("user_profiles").upsert({
@@ -118,7 +135,7 @@ export async function POST(request: NextRequest) {
 
   if (userProfileError) {
     await rollbackInvitedUser(admin, invitedUser.id);
-    return NextResponse.json({ error: `Unable to create the Trade Partner user profile: ${userProfileError.message}` }, { status: 500 });
+    return NextResponse.json({ error: `Unable to create the Trade Partner user profile: ${readableError(userProfileError, "database write failed")}` }, { status: 500 });
   }
 
   const { error: membershipError } = await admin.from("company_memberships").upsert({
@@ -134,7 +151,7 @@ export async function POST(request: NextRequest) {
 
   if (membershipError) {
     await rollbackInvitedUser(admin, invitedUser.id);
-    return NextResponse.json({ error: `Unable to link the Trade Partner membership: ${membershipError.message}` }, { status: 500 });
+    return NextResponse.json({ error: `Unable to link the Trade Partner membership: ${readableError(membershipError, "database write failed")}` }, { status: 500 });
   }
 
   return NextResponse.json({
