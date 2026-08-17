@@ -10,6 +10,10 @@ type InviteBody = {
   lastName?: string;
 };
 
+async function rollbackInvitedUser(admin: ReturnType<typeof createAdminClient>, userId: string) {
+  await admin.auth.admin.deleteUser(userId).catch(() => undefined);
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "B.O.S. authentication is unavailable." }, { status: 503 });
@@ -87,42 +91,50 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message.includes("already") ? "That email already has a B.O.S. account. Use Access Control to link an existing account." : message }, { status: 400 });
   }
 
-  try {
-    const displayName = [firstName, lastName].filter(Boolean).join(" ") || null;
+  const displayName = [firstName, lastName].filter(Boolean).join(" ") || null;
 
-    const { error: profileError } = await admin.from("profiles").upsert({
-      id: invitedUser.id,
-      company_id: membership.company_id,
-      role: "subcontractor",
-      first_name: firstName || null,
-      last_name: lastName || null,
-    }, { onConflict: "id" });
-    if (profileError) throw profileError;
+  const { error: profileError } = await admin.from("profiles").upsert({
+    id: invitedUser.id,
+    company_id: membership.company_id,
+    role: "subcontractor",
+    first_name: firstName || null,
+    last_name: lastName || null,
+  }, { onConflict: "id" });
 
-    const { error: userProfileError } = await admin.from("user_profiles").upsert({
-      id: invitedUser.id,
-      user_id: invitedUser.id,
-      first_name: firstName || null,
-      last_name: lastName || null,
-      display_name: displayName,
-    }, { onConflict: "id" });
-    if (userProfileError) throw userProfileError;
+  if (profileError) {
+    await rollbackInvitedUser(admin, invitedUser.id);
+    return NextResponse.json({ error: `Unable to create the Trade Partner profile: ${profileError.message}` }, { status: 500 });
+  }
 
-    const { error: membershipError } = await admin.from("company_memberships").upsert({
-      company_id: membership.company_id,
-      user_id: invitedUser.id,
-      role: "subcontractor",
-      status: "active",
-      is_primary: true,
-      vendor_id: vendorId,
-      department: "Trade Partner",
-      joined_at: new Date().toISOString(),
-    } as never, { onConflict: "company_id,user_id" });
-    if (membershipError) throw membershipError;
-  } catch (error) {
-    await admin.auth.admin.deleteUser(invitedUser.id).catch(() => undefined);
-    const message = error instanceof Error ? error.message : "Unable to link the invited account to this Trade Partner.";
-    return NextResponse.json({ error: message }, { status: 500 });
+  const { error: userProfileError } = await admin.from("user_profiles").upsert({
+    id: invitedUser.id,
+    user_id: invitedUser.id,
+    company_id: membership.company_id,
+    role: "subcontractor",
+    first_name: firstName || null,
+    last_name: lastName || null,
+    display_name: displayName,
+  }, { onConflict: "id" });
+
+  if (userProfileError) {
+    await rollbackInvitedUser(admin, invitedUser.id);
+    return NextResponse.json({ error: `Unable to create the Trade Partner user profile: ${userProfileError.message}` }, { status: 500 });
+  }
+
+  const { error: membershipError } = await admin.from("company_memberships").upsert({
+    company_id: membership.company_id,
+    user_id: invitedUser.id,
+    role: "subcontractor",
+    status: "active",
+    is_primary: true,
+    vendor_id: vendorId,
+    department: "Trade Partner",
+    joined_at: new Date().toISOString(),
+  } as never, { onConflict: "company_id,user_id" });
+
+  if (membershipError) {
+    await rollbackInvitedUser(admin, invitedUser.id);
+    return NextResponse.json({ error: `Unable to link the Trade Partner membership: ${membershipError.message}` }, { status: 500 });
   }
 
   return NextResponse.json({
