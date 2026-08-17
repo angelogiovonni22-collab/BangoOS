@@ -14,7 +14,7 @@ self.addEventListener("push", (event) => {
     tag: payload.tag || "orion-reminder",
     renotify: true,
     data: {
-      href: payload.href || "/mobile-entry",
+      href: payload.href || "/app-entry",
       reminderId: payload.reminderId || null,
     },
   };
@@ -24,7 +24,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const href = event.notification.data?.href || "/mobile-entry";
+  const href = event.notification.data?.href || "/app-entry";
   event.waitUntil((async () => {
     const windows = await clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of windows) {
