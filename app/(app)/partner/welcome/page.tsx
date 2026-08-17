@@ -7,26 +7,22 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function TradePartnerWelcomePage() {
   const router = useRouter();
+  const [supabase] = useState(() => createClient());
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(Boolean(supabase));
   const [authenticated, setAuthenticated] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(supabase ? "" : "B.O.S. authentication is unavailable.");
 
   useEffect(() => {
-    const supabase = createClient();
-    if (!supabase) {
-      setMessage("B.O.S. authentication is unavailable.");
-      setChecking(false);
-      return;
-    }
+    if (!supabase) return;
 
     void supabase.auth.getUser().then(({ data }) => {
       setAuthenticated(Boolean(data.user));
       setChecking(false);
     });
-  }, []);
+  }, [supabase]);
 
   async function finishSetup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +37,6 @@ export default function TradePartnerWelcomePage() {
       return;
     }
 
-    const supabase = createClient();
     if (!supabase) {
       setMessage("B.O.S. authentication is unavailable.");
       return;
