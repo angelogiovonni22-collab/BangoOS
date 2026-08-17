@@ -37,10 +37,26 @@ function escapeHtml(value: string) {
 }
 
 async function rollbackInvitedUser(admin: ReturnType<typeof createAdminClient>, companyId: string, userId: string) {
-  await admin.from("company_memberships").delete().eq("company_id", companyId).eq("user_id", userId).catch(() => undefined);
-  await admin.from("user_profiles").delete().eq("id", userId).catch(() => undefined);
-  await admin.from("profiles").delete().eq("id", userId).catch(() => undefined);
-  await admin.auth.admin.deleteUser(userId).catch(() => undefined);
+  try {
+    await admin.from("company_memberships").delete().eq("company_id", companyId).eq("user_id", userId);
+  } catch {
+    // Best-effort rollback; continue cleaning the remaining linked rows.
+  }
+  try {
+    await admin.from("user_profiles").delete().eq("id", userId);
+  } catch {
+    // Best-effort rollback; continue cleaning the remaining linked rows.
+  }
+  try {
+    await admin.from("profiles").delete().eq("id", userId);
+  } catch {
+    // Best-effort rollback; continue to remove the generated auth user.
+  }
+  try {
+    await admin.auth.admin.deleteUser(userId);
+  } catch {
+    // Best-effort rollback only.
+  }
 }
 
 async function sendTradePartnerInviteEmail(input: {
