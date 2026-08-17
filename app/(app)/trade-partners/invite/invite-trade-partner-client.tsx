@@ -8,6 +8,40 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 type VendorOption = { id: string; name: string };
 
+type InviteResponse = {
+  ok?: boolean;
+  message?: unknown;
+  error?: unknown;
+};
+
+function readableError(value: unknown, fallback: string): string {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (normalized && normalized !== "{}" && normalized !== "[object Object]") return normalized;
+    return fallback;
+  }
+  if (value instanceof Error && value.message.trim()) return value.message.trim();
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["message", "error", "msg", "detail", "details", "description"]) {
+      const nested = readableError(record[key], "");
+      if (nested) return nested;
+    }
+  }
+  return fallback;
+}
+
+async function readInviteResponse(response: Response): Promise<InviteResponse> {
+  const text = await response.text();
+  if (!text.trim()) return {};
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    return parsed && typeof parsed === "object" ? parsed as InviteResponse : { message: parsed };
+  } catch {
+    return { error: text };
+  }
+}
+
 export function InviteTradePartnerClient() {
   const supabase = useMemo(() => createClient(), []);
   const [vendors, setVendors] = useState<VendorOption[]>([]);
@@ -89,15 +123,17 @@ export function InviteTradePartnerClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vendorId, email, firstName, lastName }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Unable to send invitation.");
+      const body = await readInviteResponse(response);
+      if (!response.ok) {
+        throw new Error(readableError(body.error ?? body.message, "Unable to send the Trade Partner invitation. Check the authentication email provider and try again."));
+      }
       setSuccess(true);
-      setMessage(body.message || "Trade Partner invitation sent.");
+      setMessage(readableError(body.message, "Trade Partner invitation sent."));
       setEmail("");
       setFirstName("");
       setLastName("");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to send invitation.");
+      setMessage(readableError(error, "Unable to send the Trade Partner invitation. Check the authentication email provider and try again."));
     } finally {
       setBusy(false);
     }
