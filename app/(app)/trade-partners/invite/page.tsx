@@ -7,25 +7,11 @@ export default async function InviteTradePartnerPage() {
   const supabase = await createClient();
   if (!supabase) redirect("/login");
 
-  let membership;
   try {
-    membership = await requireCompanyAdmin(supabase);
+    await requireCompanyAdmin(supabase);
   } catch {
     redirect("/app-entry");
   }
-
-  const { data, error } = await supabase
-    .from("vendors")
-    .select("id,display_name,company_name,status")
-    .eq("company_id", membership.company_id)
-    .order("display_name");
-
-  const vendors = (data ?? [])
-    .filter((vendor) => vendor.status !== "inactive")
-    .map((vendor) => ({
-      id: vendor.id,
-      name: vendor.display_name || vendor.company_name,
-    }));
 
   return (
     <div className="container-content mx-auto max-w-3xl space-y-5">
@@ -35,7 +21,7 @@ export default async function InviteTradePartnerPage() {
         <p className="mt-2 text-sm leading-6 text-[var(--bos-text-secondary)]">Create a restricted B.O.S. login for a subcontractor or vendor contact. The account is linked to the selected vendor and remains limited by Trade Partner project assignments and portal security.</p>
       </section>
 
-      {error ? <div className="rounded-xl border border-red-300/40 bg-red-50 p-4 text-sm text-red-900">Unable to load vendors: {error.message}</div> : <InviteTradePartnerClient vendors={vendors} />}
+      <InviteTradePartnerClient />
     </div>
   );
 }
