@@ -3,56 +3,21 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireCompanyAdmin } from "@/lib/supabase/authorization";
 
-type VendorRow = {
-  id: string;
-  display_name: string;
-  company_name: string;
-  status: string;
-  preferred_vendor: boolean;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  phone: string | null;
-};
+type VendorRow = { id: string; display_name: string; company_name: string; status: string; preferred_vendor: boolean; first_name: string | null; last_name: string | null; email: string | null; phone: string | null };
+type AssignmentRow = { id: string; project_id: string; vendor_id: string; trade_name: string; scope_of_work: string | null; assignment_status: string; contract_status: string; start_date: string | null; target_completion_date: string | null; mobilization_status: string; mobilization_blockers: unknown };
+type MembershipRow = { id: string; user_id: string; vendor_id: string | null; role: string; status: string };
+type ProfileRow = { id: string; first_name: string | null; last_name: string | null };
+type ProjectRow = { id: string; name: string; status: string };
+type RequirementRow = { assignment_id: string; status: string; required: boolean };
 
-type AssignmentRow = {
-  id: string;
-  project_id: string;
-  vendor_id: string;
-  trade_name: string;
-  scope_of_work: string | null;
-  assignment_status: string;
-  contract_status: string;
-  start_date: string | null;
-  target_completion_date: string | null;
-  mobilization_status: string;
-  mobilization_blockers: unknown;
-};
-
-type MembershipRow = {
-  id: string;
-  user_id: string;
-  vendor_id: string | null;
-  role: string;
-  status: string;
-};
-
-type ProfileRow = {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-};
-
-type ProjectRow = {
-  id: string;
-  name: string;
-  status: string;
-};
-
-type RequirementRow = {
-  assignment_id: string;
-  status: string;
-  required: boolean;
+type QueryResult<T> = { data: T[] | null; error: { message: string } | null };
+type UntypedDb = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (column: string, value: string | boolean) => any;
+      order: (column: string, options?: { ascending?: boolean }) => any;
+    };
+  };
 };
 
 export default async function TradePartnersControlCenterPage() {
@@ -60,69 +25,36 @@ export default async function TradePartnersControlCenterPage() {
   if (!supabase) redirect("/login");
 
   let membership;
-  try {
-    membership = await requireCompanyAdmin(supabase);
-  } catch {
-    redirect("/app-entry");
-  }
+  try { membership = await requireCompanyAdmin(supabase); }
+  catch { redirect("/app-entry"); }
 
   const companyId = membership.company_id;
+  const db = supabase as unknown as UntypedDb;
+
   const [vendorsResponse, assignmentsResponse, membershipsResponse, profilesResponse, projectsResponse, requirementsResponse] = await Promise.all([
-    supabase
-      .from("vendors")
-      .select("id,display_name,company_name,status,preferred_vendor,first_name,last_name,email,phone")
-      .eq("company_id", companyId)
-      .order("display_name"),
-    supabase
-      .from("trade_partner_assignments")
-      .select("id,project_id,vendor_id,trade_name,scope_of_work,assignment_status,contract_status,start_date,target_completion_date,mobilization_status,mobilization_blockers")
-      .eq("company_id", companyId)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("company_memberships")
-      .select("id,user_id,vendor_id,role,status")
-      .eq("company_id", companyId)
-      .eq("role", "subcontractor"),
-    supabase
-      .from("profiles")
-      .select("id,first_name,last_name")
-      .eq("company_id", companyId),
-    supabase
-      .from("projects")
-      .select("id,name,status")
-      .eq("company_id", companyId),
-    supabase
-      .from("subcontractor_mobilization_requirements")
-      .select("assignment_id,status,required")
-      .eq("company_id", companyId),
+    db.from("vendors").select("id,display_name,company_name,status,preferred_vendor,first_name,last_name,email,phone").eq("company_id", companyId).order("display_name") as Promise<QueryResult<VendorRow>>,
+    db.from("trade_partner_assignments").select("id,project_id,vendor_id,trade_name,scope_of_work,assignment_status,contract_status,start_date,target_completion_date,mobilization_status,mobilization_blockers").eq("company_id", companyId).order("created_at", { ascending: false }) as Promise<QueryResult<AssignmentRow>>,
+    db.from("company_memberships").select("id,user_id,vendor_id,role,status").eq("company_id", companyId).eq("role", "subcontractor") as Promise<QueryResult<MembershipRow>>,
+    db.from("profiles").select("id,first_name,last_name").eq("company_id", companyId) as Promise<QueryResult<ProfileRow>>,
+    db.from("projects").select("id,name,status").eq("company_id", companyId) as Promise<QueryResult<ProjectRow>>,
+    db.from("subcontractor_mobilization_requirements").select("assignment_id,status,required").eq("company_id", companyId) as Promise<QueryResult<RequirementRow>>,
   ]);
 
   const error = vendorsResponse.error || assignmentsResponse.error || membershipsResponse.error || profilesResponse.error || projectsResponse.error || requirementsResponse.error;
-  if (error) {
-    return (
-      <div className="container-content">
-        <section className="rounded-2xl border border-red-300/40 bg-red-50 p-6 text-red-900">
-          <p className="text-xs font-bold uppercase tracking-[0.18em]">B.O.S. Trade Partners</p>
-          <h1 className="mt-2 text-xl font-semibold">Unable to load the Trade Partners control center</h1>
-          <p className="mt-2 text-sm">{error.message}</p>
-        </section>
-      </div>
-    );
-  }
+  if (error) return <LoadError message={error.message} />;
 
-  const vendors = (vendorsResponse.data ?? []) as VendorRow[];
-  const assignments = (assignmentsResponse.data ?? []) as AssignmentRow[];
-  const partnerMemberships = (membershipsResponse.data ?? []) as MembershipRow[];
-  const profiles = (profilesResponse.data ?? []) as ProfileRow[];
-  const projects = (projectsResponse.data ?? []) as ProjectRow[];
-  const requirements = (requirementsResponse.data ?? []) as RequirementRow[];
+  const vendors = vendorsResponse.data ?? [];
+  const assignments = assignmentsResponse.data ?? [];
+  const partnerMemberships = membershipsResponse.data ?? [];
+  const profiles = profilesResponse.data ?? [];
+  const projects = projectsResponse.data ?? [];
+  const requirements = requirementsResponse.data ?? [];
 
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
   const projectMap = new Map(projects.map((project) => [project.id, project]));
   const assignmentsByVendor = groupBy(assignments, (assignment) => assignment.vendor_id);
   const membershipsByVendor = groupBy(partnerMemberships.filter((item) => item.vendor_id), (item) => item.vendor_id as string);
   const requirementsByAssignment = groupBy(requirements, (requirement) => requirement.assignment_id);
-
   const partnerVendorIds = new Set(assignments.map((assignment) => assignment.vendor_id));
   partnerMemberships.forEach((member) => { if (member.vendor_id) partnerVendorIds.add(member.vendor_id); });
   const tradePartners = vendors.filter((vendor) => partnerVendorIds.has(vendor.id));
@@ -156,22 +88,15 @@ export default async function TradePartnersControlCenterPage() {
         <Metric label="Trade Partners" value={tradePartners.length} detail="Assigned or portal-linked" />
         <Metric label="Active Assignments" value={activeAssignments.length} detail="Current project scopes" />
         <Metric label="Linked Logins" value={linkedAccounts} detail="Active subcontractor accounts" />
-        <Metric label="Needs Attention" value={needsAttention} detail={`${clearedAssignments}/${activeAssignments.length || 0} active assignments cleared`} emphasize={needsAttention > 0} />
+        <Metric label="Needs Attention" value={needsAttention} detail={`${clearedAssignments}/${activeAssignments.length} active assignments cleared`} emphasize={needsAttention > 0} />
       </section>
 
-      {tradePartners.length === 0 ? (
-        <section className="rounded-2xl border border-dashed border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-8 text-center">
-          <h2 className="text-lg font-semibold">No Trade Partners are connected yet</h2>
-          <p className="mx-auto mt-2 max-w-2xl text-sm text-[var(--bos-text-secondary)]">Create or use an existing vendor, assign that company to a project as a trade partner, then link a subcontractor login to the same vendor in Access Control.</p>
-          <div className="mt-5 flex justify-center gap-2"><Link href="/vendors" className="rounded-lg border border-[var(--bos-border-default)] px-4 py-2 text-sm font-semibold">Open Vendors</Link><Link href="/settings/access-control" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Open Access Control</Link></div>
-        </section>
-      ) : (
+      {tradePartners.length === 0 ? <EmptyTradePartners /> : (
         <div className="space-y-4">
           {tradePartners.map((vendor) => {
             const vendorAssignments = assignmentsByVendor.get(vendor.id) ?? [];
             const activeVendorAssignments = vendorAssignments.filter((assignment) => assignment.assignment_status === "active");
-            const vendorMemberships = membershipsByVendor.get(vendor.id) ?? [];
-            const activeVendorMemberships = vendorMemberships.filter((item) => item.status === "active");
+            const activeVendorMemberships = (membershipsByVendor.get(vendor.id) ?? []).filter((item) => item.status === "active");
             const portalReady = activeVendorMemberships.length > 0 && activeVendorAssignments.length > 0;
 
             return (
@@ -206,7 +131,8 @@ export default async function TradePartnersControlCenterPage() {
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">Project Assignments</p><p className="mt-1 text-sm text-[var(--bos-text-secondary)]">{activeVendorAssignments.length} active · {vendorAssignments.length} total</p></div></div>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">Project Assignments</p>
+                    <p className="mt-1 text-sm text-[var(--bos-text-secondary)]">{activeVendorAssignments.length} active · {vendorAssignments.length} total</p>
                     {vendorAssignments.length === 0 ? <div className="mt-3 rounded-xl border border-dashed border-[var(--bos-border-default)] p-5 text-sm text-[var(--bos-text-secondary)]">No project assignment exists for this trade partner.</div> : (
                       <div className="mt-3 space-y-2">
                         {vendorAssignments.map((assignment) => {
@@ -220,10 +146,7 @@ export default async function TradePartnersControlCenterPage() {
                                 <div className="flex flex-wrap gap-2"><StatusPill label={assignment.assignment_status} /><StatusPill label={assignment.contract_status} /><StatusPill label={assignment.mobilization_status} warning={assignment.mobilization_status !== "cleared"} /></div>
                               </div>
                               <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--bos-text-secondary)]">{assignment.scope_of_work || "Scope of work has not been entered."}</p>
-                              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--bos-text-muted)]">
-                                <span>{formatDateRange(assignment.start_date, assignment.target_completion_date)}</span>
-                                <span>{openRequirements > 0 ? `${openRequirements} mobilization requirement${openRequirements === 1 ? "" : "s"} open` : "No open mobilization requirements"}</span>
-                              </div>
+                              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--bos-text-muted)]"><span>{formatDateRange(assignment.start_date, assignment.target_completion_date)}</span><span>{openRequirements > 0 ? `${openRequirements} mobilization requirement${openRequirements === 1 ? "" : "s"} open` : "No open mobilization requirements"}</span></div>
                               <div className="mt-3 flex flex-wrap gap-2">
                                 <Link href={`/projects/${assignment.project_id}?tab=trade-partners`} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-500">Manage Assignment</Link>
                                 <Link href={`/partner/${assignment.project_id}`} className="rounded-lg border border-[var(--bos-border-default)] px-3 py-2 text-xs font-semibold transition hover:bg-[var(--bos-bg-hover)]">Partner Workspace Route</Link>
@@ -244,36 +167,12 @@ export default async function TradePartnersControlCenterPage() {
   );
 }
 
-function Metric({ label, value, detail, emphasize = false }: { label: string; value: number; detail: string; emphasize?: boolean }) {
-  return <div className={`rounded-2xl border bg-[var(--bos-bg-panel)] p-4 shadow-[var(--shadow-small)] ${emphasize ? "border-amber-400/40" : "border-[var(--bos-border-default)]"}`}><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{label}</p><p className="mt-2 text-3xl font-semibold">{value}</p><p className="mt-1 text-xs text-[var(--bos-text-secondary)]">{detail}</p></div>;
-}
-
-function StatusPill({ label, warning = false }: { label: string; warning?: boolean }) {
-  return <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] ${warning ? "border-amber-400/30 bg-amber-500/10 text-amber-700" : "border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-secondary)]"}`}>{formatLabel(label)}</span>;
-}
-
-function groupBy<T>(items: T[], getKey: (item: T) => string) {
-  const map = new Map<string, T[]>();
-  for (const item of items) { const key = getKey(item); map.set(key, [...(map.get(key) ?? []), item]); }
-  return map;
-}
-
-function contactLabel(vendor: VendorRow) {
-  const name = [vendor.first_name, vendor.last_name].filter(Boolean).join(" ");
-  return [name, vendor.email, vendor.phone].filter(Boolean).join(" · ") || "No primary contact entered";
-}
-
-function formatDateRange(start: string | null, end: string | null) {
-  if (!start && !end) return "Schedule not published";
-  return `${formatDate(start)} → ${formatDate(end)}`;
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "Open";
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
-}
-
-function formatLabel(value: string) {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
+function LoadError({ message }: { message: string }) { return <div className="container-content"><section className="rounded-2xl border border-red-300/40 bg-red-50 p-6 text-red-900"><p className="text-xs font-bold uppercase tracking-[0.18em]">B.O.S. Trade Partners</p><h1 className="mt-2 text-xl font-semibold">Unable to load the Trade Partners control center</h1><p className="mt-2 text-sm">{message}</p></section></div>; }
+function EmptyTradePartners() { return <section className="rounded-2xl border border-dashed border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-8 text-center"><h2 className="text-lg font-semibold">No Trade Partners are connected yet</h2><p className="mx-auto mt-2 max-w-2xl text-sm text-[var(--bos-text-secondary)]">Create or use an existing vendor, assign that company to a project as a trade partner, then link a subcontractor login to the same vendor in Access Control.</p><div className="mt-5 flex justify-center gap-2"><Link href="/vendors" className="rounded-lg border border-[var(--bos-border-default)] px-4 py-2 text-sm font-semibold">Open Vendors</Link><Link href="/settings/access-control" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Open Access Control</Link></div></section>; }
+function Metric({ label, value, detail, emphasize = false }: { label: string; value: number; detail: string; emphasize?: boolean }) { return <div className={`rounded-2xl border bg-[var(--bos-bg-panel)] p-4 shadow-[var(--shadow-small)] ${emphasize ? "border-amber-400/40" : "border-[var(--bos-border-default)]"}`}><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{label}</p><p className="mt-2 text-3xl font-semibold">{value}</p><p className="mt-1 text-xs text-[var(--bos-text-secondary)]">{detail}</p></div>; }
+function StatusPill({ label, warning = false }: { label: string; warning?: boolean }) { return <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] ${warning ? "border-amber-400/30 bg-amber-500/10 text-amber-700" : "border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-secondary)]"}`}>{formatLabel(label)}</span>; }
+function groupBy<T>(items: T[], getKey: (item: T) => string) { const map = new Map<string, T[]>(); for (const item of items) { const key = getKey(item); map.set(key, [...(map.get(key) ?? []), item]); } return map; }
+function contactLabel(vendor: VendorRow) { const name = [vendor.first_name, vendor.last_name].filter(Boolean).join(" "); return [name, vendor.email, vendor.phone].filter(Boolean).join(" · ") || "No primary contact entered"; }
+function formatDateRange(start: string | null, end: string | null) { if (!start && !end) return "Schedule not published"; return `${formatDate(start)} → ${formatDate(end)}`; }
+function formatDate(value: string | null) { if (!value) return "Open"; const date = new Date(`${value}T00:00:00`); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date); }
+function formatLabel(value: string) { return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
