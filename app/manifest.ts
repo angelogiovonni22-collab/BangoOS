@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "B.O.S. — Bango Operating System",
     short_name: "B.O.S.",
     description: "Role-aware Bango Operating System for construction operations, field teams, trade partners, and customers.",
-    start_url: "/mobile-entry",
+    start_url: "/app-entry",
     scope: "/",
     display: "standalone",
     background_color: "#050b12",
