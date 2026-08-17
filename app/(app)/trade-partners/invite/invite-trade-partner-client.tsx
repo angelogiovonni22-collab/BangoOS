@@ -1,19 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, Input } from "@/components/ui";
+import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 type VendorOption = { id: string; name: string };
 
-export function InviteTradePartnerClient({ vendors }: { vendors: VendorOption[] }) {
-  const [vendorId, setVendorId] = useState(vendors[0]?.id || "");
+export function InviteTradePartnerClient() {
+  const supabase = useMemo(() => createClient(), []);
+  const [vendors, setVendors] = useState<VendorOption[]>([]);
+  const [vendorsLoading, setVendorsLoading] = useState(true);
+  const [vendorsError, setVendorsError] = useState("");
+  const [vendorId, setVendorId] = useState("");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadVendors = async () => {
+      setVendorsLoading(true);
+      setVendorsError("");
+
+      if (!supabase) {
+        if (active) {
+          setVendorsError("Unable to connect right now. Please try again shortly.");
+          setVendorsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const workspace = await resolveWorkspaceContext(supabase);
+        if (!workspace.context) {
+          if (active) setVendorsError(workspace.errorMessage || "Unable to verify your workspace.");
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("vendors")
+          .select("id,display_name,company_name,status")
+          .eq("company_id", workspace.context.companyId)
+          .order("display_name", { ascending: true });
+
+        if (error) {
+          if (active) setVendorsError(error.message);
+          return;
+        }
+        if (!active) return;
+
+        const mapped = (data ?? [])
+          .filter((vendor) => vendor.status !== "inactive")
+          .map((vendor) => ({
+            id: vendor.id,
+            name: vendor.display_name || vendor.company_name || "Unnamed vendor",
+          }));
+
+        setVendors(mapped);
+        setVendorId((current) => current || mapped[0]?.id || "");
+      } catch (error) {
+        if (active) setVendorsError(error instanceof Error ? error.message : "Unable to load vendors.");
+      } finally {
+        if (active) setVendorsLoading(false);
+      }
+    };
+
+    void loadVendors();
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,7 +105,11 @@ export function InviteTradePartnerClient({ vendors }: { vendors: VendorOption[] 
 
   return (
     <section className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)] sm:p-6">
-      {vendors.length === 0 ? (
+      {vendorsLoading ? (
+        <div className="rounded-xl border border-[var(--bos-border-default)] p-6 text-center text-sm text-[var(--bos-text-secondary)]">Loading vendors…</div>
+      ) : vendorsError ? (
+        <div className="rounded-xl border border-red-300/40 bg-red-50 p-4 text-sm text-red-900">Unable to load vendors: {vendorsError}</div>
+      ) : vendors.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--bos-border-default)] p-6 text-center">
           <h2 className="font-semibold">Create a vendor first</h2>
           <p className="mt-2 text-sm text-[var(--bos-text-secondary)]">A Trade Partner login must be linked to an existing B.O.S. vendor record.</p>
