@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     .from("company_memberships")
     .select("id,user_id,status")
     .eq("company_id", membership.company_id)
-    .eq("vendor_id", vendorId)
+    .eq("vendor_id" as never, vendorId as never)
     .eq("role", "subcontractor")
     .eq("status", "active")
     .limit(1);
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       vendor_id: vendorId,
       department: "Trade Partner",
       joined_at: new Date().toISOString(),
-    }, { onConflict: "company_id,user_id" });
+    } as never, { onConflict: "company_id,user_id" });
     if (membershipError) throw membershipError;
   } catch (error) {
     await admin.auth.admin.deleteUser(invitedUser.id).catch(() => undefined);
