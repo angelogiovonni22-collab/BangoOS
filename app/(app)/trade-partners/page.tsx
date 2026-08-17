@@ -11,14 +11,12 @@ type ProjectRow = { id: string; name: string; status: string };
 type RequirementRow = { assignment_id: string; status: string; required: boolean };
 
 type QueryResult<T> = { data: T[] | null; error: { message: string } | null };
-type UntypedDb = {
-  from: (table: string) => {
-    select: (columns: string) => {
-      eq: (column: string, value: string | boolean) => any;
-      order: (column: string, options?: { ascending?: boolean }) => any;
-    };
-  };
+type QueryBuilder<T> = PromiseLike<QueryResult<T>> & {
+  select: (columns: string) => QueryBuilder<T>;
+  eq: (column: string, value: string | boolean) => QueryBuilder<T>;
+  order: (column: string, options?: { ascending?: boolean }) => QueryBuilder<T>;
 };
+type UntypedDb = { from: <T>(table: string) => QueryBuilder<T> };
 
 export default async function TradePartnersControlCenterPage() {
   const supabase = await createClient();
@@ -32,12 +30,12 @@ export default async function TradePartnersControlCenterPage() {
   const db = supabase as unknown as UntypedDb;
 
   const [vendorsResponse, assignmentsResponse, membershipsResponse, profilesResponse, projectsResponse, requirementsResponse] = await Promise.all([
-    db.from("vendors").select("id,display_name,company_name,status,preferred_vendor,first_name,last_name,email,phone").eq("company_id", companyId).order("display_name") as Promise<QueryResult<VendorRow>>,
-    db.from("trade_partner_assignments").select("id,project_id,vendor_id,trade_name,scope_of_work,assignment_status,contract_status,start_date,target_completion_date,mobilization_status,mobilization_blockers").eq("company_id", companyId).order("created_at", { ascending: false }) as Promise<QueryResult<AssignmentRow>>,
-    db.from("company_memberships").select("id,user_id,vendor_id,role,status").eq("company_id", companyId).eq("role", "subcontractor") as Promise<QueryResult<MembershipRow>>,
-    db.from("profiles").select("id,first_name,last_name").eq("company_id", companyId) as Promise<QueryResult<ProfileRow>>,
-    db.from("projects").select("id,name,status").eq("company_id", companyId) as Promise<QueryResult<ProjectRow>>,
-    db.from("subcontractor_mobilization_requirements").select("assignment_id,status,required").eq("company_id", companyId) as Promise<QueryResult<RequirementRow>>,
+    db.from<VendorRow>("vendors").select("id,display_name,company_name,status,preferred_vendor,first_name,last_name,email,phone").eq("company_id", companyId).order("display_name"),
+    db.from<AssignmentRow>("trade_partner_assignments").select("id,project_id,vendor_id,trade_name,scope_of_work,assignment_status,contract_status,start_date,target_completion_date,mobilization_status,mobilization_blockers").eq("company_id", companyId).order("created_at", { ascending: false }),
+    db.from<MembershipRow>("company_memberships").select("id,user_id,vendor_id,role,status").eq("company_id", companyId).eq("role", "subcontractor"),
+    db.from<ProfileRow>("profiles").select("id,first_name,last_name").eq("company_id", companyId),
+    db.from<ProjectRow>("projects").select("id,name,status").eq("company_id", companyId),
+    db.from<RequirementRow>("subcontractor_mobilization_requirements").select("assignment_id,status,required").eq("company_id", companyId),
   ]);
 
   const error = vendorsResponse.error || assignmentsResponse.error || membershipsResponse.error || profilesResponse.error || projectsResponse.error || requirementsResponse.error;
