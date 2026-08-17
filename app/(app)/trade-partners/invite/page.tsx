@@ -18,13 +18,14 @@ export default async function InviteTradePartnerPage() {
     .from("vendors")
     .select("id,display_name,company_name,status")
     .eq("company_id", membership.company_id)
-    .neq("status", "inactive")
     .order("display_name");
 
-  const vendors = (data ?? []).map((vendor) => ({
-    id: vendor.id,
-    name: vendor.display_name || vendor.company_name,
-  }));
+  const vendors = (data ?? [])
+    .filter((vendor) => vendor.status !== "inactive")
+    .map((vendor) => ({
+      id: vendor.id,
+      name: vendor.display_name || vendor.company_name,
+    }));
 
   return (
     <div className="container-content mx-auto max-w-3xl space-y-5">
