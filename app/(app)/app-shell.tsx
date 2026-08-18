@@ -22,23 +22,34 @@ type AppShellProps = {
   userEmail: string | null;
   companyName: string | null;
   role: string | null;
+  orionEnabled: boolean;
 };
 
-export function AppShell({ children, userName, userEmail, companyName, role }: AppShellProps) {
+export function AppShell({ children, userName, userEmail, companyName, role, orionEnabled }: AppShellProps) {
+  const frame = (
+    <AppShellFrame
+      userName={userName}
+      userEmail={userEmail}
+      companyName={companyName}
+      role={role}
+      orionEnabled={orionEnabled}
+    >
+      {children}
+    </AppShellFrame>
+  );
+
   return (
     <MotionProvider>
-      <GlobalOrionVoiceProvider>
-        <OrionUnifiedVoiceProvider>
-          <AppShellFrame userName={userName} userEmail={userEmail} companyName={companyName} role={role}>
-            {children}
-          </AppShellFrame>
-        </OrionUnifiedVoiceProvider>
-      </GlobalOrionVoiceProvider>
+      {orionEnabled ? (
+        <GlobalOrionVoiceProvider>
+          <OrionUnifiedVoiceProvider>{frame}</OrionUnifiedVoiceProvider>
+        </GlobalOrionVoiceProvider>
+      ) : frame}
     </MotionProvider>
   );
 }
 
-function AppShellFrame({ children, userName, userEmail, companyName, role }: AppShellProps) {
+function AppShellFrame({ children, userName, userEmail, companyName, role, orionEnabled }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -94,6 +105,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role }: App
   }, [mobileOpen]);
 
   useEffect(() => {
+    if (!orionEnabled) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (shouldIgnoreGlobalShortcut(event)) return;
       const isCommandKey = event.key.toLowerCase() === "k";
@@ -103,14 +115,14 @@ function AppShellFrame({ children, userName, userEmail, companyName, role }: App
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [orionEnabled]);
 
   const topNavigationItems = visibleNavigationGroups.flatMap((group) => group.items);
   const routeAllowed = !pathname || canAccessPath(normalizedRole, pathname);
 
   return (
     <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
-      <PersistentOrion />
+      {orionEnabled ? <PersistentOrion /> : null}
       <div className="flex min-h-screen min-w-0">
         <LayerManager layer={mobileOpen ? "dialog" : "popover"}>
           <aside
@@ -175,7 +187,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role }: App
                 </div>
                 <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
                   {!['subcontractor', 'customer'].includes(normalizedRole) ? <div className="hidden min-w-[220px] md:block"><GlobalSearch placeholder={t("common.search")} /></div> : null}
-                  {!['subcontractor', 'customer'].includes(normalizedRole) ? <button type="button" className="hidden rounded-[var(--radius-md)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 py-2 text-sm font-semibold text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] md:inline-flex md:items-center md:gap-2" onClick={() => setCommandCenterOpen(true)} aria-label="Open Orion Command Center"><span>Orion</span><span className="rounded border border-[var(--bos-border-subtle)] px-1.5 py-0.5 text-xs text-[var(--bos-text-secondary)]">Ctrl+K</span></button> : null}
+                  {orionEnabled ? <button type="button" className="hidden rounded-[var(--radius-md)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 py-2 text-sm font-semibold text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] md:inline-flex md:items-center md:gap-2" onClick={() => setCommandCenterOpen(true)} aria-label="Open Orion Command Center"><span>Orion</span><span className="rounded border border-[var(--bos-border-subtle)] px-1.5 py-0.5 text-xs text-[var(--bos-text-secondary)]">Ctrl+K</span></button> : null}
                   <LanguageSelector />
                   <ProfileMenu userName={userName} userEmail={userEmail} companyName={companyName} showSettingsAction={canAccessPath(normalizedRole, "/settings")} />
                 </div>
@@ -207,7 +219,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role }: App
         </div>
       </div>
 
-      {!['subcontractor', 'customer'].includes(normalizedRole) ? <OrionCommandCenterOverlay open={commandCenterOpen} onClose={() => setCommandCenterOpen(false)} currentPath={pathname || homePath} /> : null}
+      {orionEnabled ? <OrionCommandCenterOverlay open={commandCenterOpen} onClose={() => setCommandCenterOpen(false)} currentPath={pathname || homePath} /> : null}
     </div>
   );
 }
@@ -225,7 +237,7 @@ function AccessRedirect({ role }: { role: string }) {
 }
 
 function getNavigationLabel(key: string, t: (key: string) => string) {
-  if (key === "partnerHome") return "My Jobs";
+  if (key === "partnerHome") return "My Projects";
   if (key === "customerPortal") return "My Project";
   if (key === "tradePartnerMessages") return "Trade Partner Messages";
   return t(`navigation.${key}`);
