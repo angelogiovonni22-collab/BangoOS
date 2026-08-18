@@ -26,7 +26,7 @@ function read(relativePath: string) {
 
 function main() {
   const migration = read("supabase/migrations/20260818023000_finance_ap_prevailing_wage_foundation.sql");
-  const reporting = read("lib/financial-reporting/service.ts");
+  const service = read("lib/finance/ap-prevailing-wage.ts");
 
   test("1. AP schema covers bills, lines, and payments", () => {
     check(migration.includes("create table if not exists public.vendor_bills"), "vendor bills table exists");
@@ -88,12 +88,12 @@ function main() {
     check(result.estimatedDeficiencyAmount === 0, "compliant row has no estimated deficiency");
   });
 
-  test("7. financial reporting consumes AP and prevailing wage actuals", () => {
-    check(reporting.includes('from("vendor_bills")'), "financial reporting loads vendor bills");
-    check(reporting.includes('from("vendor_bill_line_items")'), "financial reporting loads vendor bill lines");
-    check(reporting.includes('from("prevailing_wage_time_entries")'), "financial reporting loads prevailing-wage time");
-    check(reporting.includes("prevailingWageLaborCost"), "prevailing-wage labor becomes actual job cost");
-    check(reporting.includes("payableBillIds"), "only payable-stage vendor bills are treated as actuals");
+  test("7. finance service supports AP and project prevailing-wage compliance", () => {
+    check(service.includes("loadAccountsPayableSnapshot"), "AP snapshot service exists");
+    check(service.includes("loadPrevailingWageProjectCompliance"), "project prevailing-wage compliance service exists");
+    check(service.includes('from("vendor_bills")'), "AP service reads vendor bills");
+    check(service.includes('from("prevailing_wage_time_entries")'), "prevailing-wage service reads time entries");
+    check(service.includes('from("prevailing_wage_classifications")'), "prevailing-wage service reads classifications");
   });
 
   test("8. all finance/compliance tables enforce company RLS", () => {
