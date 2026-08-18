@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "./app-shell";
 import { CompanyProvider } from "@/lib/company";
+import { canUseOrion } from "@/lib/access-control/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -40,6 +41,7 @@ export default async function DashboardLayout({
   }
 
   const userName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || null;
+  const orionEnabled = canUseOrion(workspace.context.role, workspace.context.permissionOverrides);
 
   return (
     <CompanyProvider workspace={workspace.context}>
@@ -48,6 +50,7 @@ export default async function DashboardLayout({
         userEmail={user.email ?? null}
         companyName={workspace.context.companyName}
         role={workspace.context.role}
+        orionEnabled={orionEnabled}
       >
         {children}
       </AppShell>
