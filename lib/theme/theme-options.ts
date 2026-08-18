@@ -1,4 +1,5 @@
 export const BANGO_THEME_STORAGE_KEY = "bangoos-theme";
+export const BANGO_NEON_ACCENT_STORAGE_KEY = "bangoos-neon-accent";
 
 export const BANGO_THEME_IDS = [
   "light",
@@ -13,6 +14,37 @@ export const BANGO_THEME_IDS = [
 ] as const;
 
 export type BangoThemeId = (typeof BANGO_THEME_IDS)[number];
+
+export const BANGO_NEON_ACCENT_IDS = [
+  "cyan",
+  "blue",
+  "red",
+  "green",
+  "white",
+  "orange",
+  "yellow",
+  "purple",
+] as const;
+
+export type BangoNeonAccentId = (typeof BANGO_NEON_ACCENT_IDS)[number];
+
+export type BangoNeonAccentOption = {
+  id: BangoNeonAccentId;
+  name: string;
+  color: string;
+  secondary: string;
+};
+
+export const BANGO_NEON_ACCENT_OPTIONS: readonly BangoNeonAccentOption[] = [
+  { id: "cyan", name: "Cyan", color: "#00f6ff", secondary: "#2d7dff" },
+  { id: "blue", name: "Blue", color: "#3a86ff", secondary: "#68b5ff" },
+  { id: "red", name: "Red", color: "#ff3b4f", secondary: "#ff7a64" },
+  { id: "green", name: "Green", color: "#39ff88", secondary: "#00d98b" },
+  { id: "white", name: "White", color: "#f4fbff", secondary: "#a8c8dc" },
+  { id: "orange", name: "Orange", color: "#ff8a2a", secondary: "#ffbd45" },
+  { id: "yellow", name: "Yellow", color: "#ffe34a", secondary: "#ffab2e" },
+  { id: "purple", name: "Purple", color: "#b66cff", secondary: "#6f7cff" },
+] as const;
 
 export type BangoThemeOption = {
   id: BangoThemeId;
@@ -89,7 +121,7 @@ export const BANGO_THEME_OPTIONS: readonly BangoThemeOption[] = [
   {
     id: "future-2030",
     name: "Neon Grid Command",
-    description: "A true layout experience with a black glass command deck, electric cyan circuitry, luminous perspective grid, HUD framing, and sharp neon interaction states.",
+    description: "A true layout experience with a black glass command deck, luminous grid, HUD framing, and selectable neon accent colors.",
     mode: "dark",
     experience: "future",
     preview: { background: "#010306", panel: "#041018", sidebar: "#02080d", accent: "#00f6ff", secondary: "#2d7dff" },
@@ -98,6 +130,10 @@ export const BANGO_THEME_OPTIONS: readonly BangoThemeOption[] = [
 
 export function isBangoThemeId(value: string | null | undefined): value is BangoThemeId {
   return Boolean(value && (BANGO_THEME_IDS as readonly string[]).includes(value));
+}
+
+export function isBangoNeonAccentId(value: string | null | undefined): value is BangoNeonAccentId {
+  return Boolean(value && (BANGO_NEON_ACCENT_IDS as readonly string[]).includes(value));
 }
 
 export function getBangoThemeOption(themeId: BangoThemeId) {
