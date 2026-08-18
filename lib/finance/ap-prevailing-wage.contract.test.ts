@@ -26,6 +26,7 @@ function read(relativePath: string) {
 
 function main() {
   const migration = read("supabase/migrations/20260818023000_finance_ap_prevailing_wage_foundation.sql");
+  const hardening = read("supabase/migrations/20260818173000_finance_ap_prevailing_wage_hardening.sql");
   const service = read("lib/finance/ap-prevailing-wage.ts");
 
   test("1. AP schema covers bills, lines, and payments", () => {
@@ -120,7 +121,34 @@ function main() {
   test("10. finance permissions are narrower than field compliance permissions", () => {
     check(migration.includes("array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant'']"), "AP writes are restricted to finance/operations leadership");
     check(migration.includes("array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant'',''project_manager'',''superintendent'']"), "prevailing wage operations allow approved project leadership");
-    check(migration.includes("public.is_company_member(company_id)"), "reads require company membership");
+    check(migration.includes("public.is_company_member(company_id)"), "general prevailing-wage reads require company membership");
+  });
+
+  test("11. tenant identity survives optional composite-FK deletes", () => {
+    check(hardening.includes("on delete set null (project_id)"), "project deletion nulls only the optional project id");
+    check(hardening.includes("on delete set null (purchase_order_id)"), "purchase-order deletion preserves company identity");
+    check(hardening.includes("on delete set null (created_by)"), "actor deletion preserves company identity");
+    check(hardening.includes("on delete set null (source_time_entry_id)"), "source-time deletion preserves company identity");
+  });
+
+  test("12. certified payroll evidence covers current federal and Ohio reporting needs", () => {
+    check(hardening.includes("final_payroll"), "final certified payroll state is tracked");
+    check(hardening.includes("wage_determination_snapshot"), "wage determination is snapshotted with payroll evidence");
+    check(hardening.includes("worker_address"), "worker address evidence is available for Ohio payroll reporting");
+    check(hardening.includes("worker_ssn_last4"), "last-four identifier evidence is available without storing a full SSN in the certified row");
+    check(hardening.includes("daily_hours"), "daily hours are retained for classification and certified-payroll review");
+    check(hardening.includes("gross_all_work_amount"), "all-work gross wages are represented");
+    check(hardening.includes("deduction_detail"), "itemized deduction evidence is represented");
+    check(hardening.includes("fringe_plan_evidence"), "bona fide fringe-plan evidence is represented");
+    check(hardening.includes("statement_signature_method"), "electronic signature method is retained");
+    check(hardening.includes("records_retain_until"), "records retention deadline can be recorded");
+  });
+
+  test("13. sensitive payroll reads are not open to every company member", () => {
+    check(hardening.includes("prevailing_wage_worker_assignments"), "worker assignment access is hardened");
+    check(hardening.includes("prevailing_wage_time_entries"), "actual wage/time access is hardened");
+    check(hardening.includes("certified_payroll_worker_rows"), "certified payroll worker access is hardened");
+    check(hardening.includes("public.has_company_role(company_id"), "sensitive reads require an approved company role");
   });
 
   console.log(`\nAP + prevailing wage contract results: ${passed} passed, ${failed} failed`);
