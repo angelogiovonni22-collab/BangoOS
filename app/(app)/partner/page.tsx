@@ -38,14 +38,14 @@ export default async function TradePartnerPortalPage() {
     <div className="container-content space-y-6">
       <section className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)]">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8ec3ff]">B.O.S. Trade Partner</p>
-        <h1 className="mt-2 text-2xl font-semibold text-[var(--bos-text-primary)]">My Assigned Jobs</h1>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--bos-text-secondary)]">Your workspace contains only the operational information assigned to your company. B.O.S. company financials, profit, markup, customer billing, payroll, internal job costing, and other private records are not available here.</p>
+        <h1 className="mt-2 text-2xl font-semibold text-[var(--bos-text-primary)]">My Projects</h1>
+        <p className="mt-2 max-w-3xl text-sm text-[var(--bos-text-secondary)]">View your assigned projects, access project information, share field updates, and stay connected with the project team.</p>
       </section>
 
       {error ? (
-        <section className="rounded-2xl border border-amber-300/40 bg-amber-50 p-5 text-sm text-amber-900">Your trade partner profile needs to be linked by a B.O.S. administrator before assigned jobs can be displayed.</section>
+        <section className="rounded-2xl border border-amber-300/40 bg-amber-50 p-5 text-sm text-amber-900">Your Trade Partner profile needs to be linked by a B.O.S. administrator before assigned projects can be displayed.</section>
       ) : jobs.length === 0 ? (
-        <section className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-6 text-sm text-[var(--bos-text-secondary)]">No active job assignments are linked to this account yet.</section>
+        <section className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-6 text-sm text-[var(--bos-text-secondary)]">No active project assignments are linked to this account yet.</section>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {jobs.map((job) => (
@@ -70,7 +70,7 @@ export default async function TradePartnerPortalPage() {
                 <Link href={`/partner/${job.project_id}#plans`} className="rounded-lg border border-[var(--bos-border-subtle)] p-3 transition hover:bg-[var(--bos-bg-hover)]">Plans</Link>
                 <Link href={`/partner/${job.project_id}#messages`} className="rounded-lg border border-[var(--bos-border-subtle)] p-3 transition hover:bg-[var(--bos-bg-hover)]">Messages</Link>
               </div>
-              <Link href={`/partner/${job.project_id}`} className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-500">Open Job Workspace</Link>
+              <Link href={`/partner/${job.project_id}`} className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-500">Open Project Workspace</Link>
             </article>
           ))}
         </div>
