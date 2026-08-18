@@ -9,7 +9,8 @@ assert.match(history, /findOrionCommandHistoryByIdempotency/, "History layer mus
 assert.match(router, /findOrionCommandHistoryByIdempotency/, "Command router must check prior history before re-running an idempotent command.");
 assert.match(router, /idempotentReplay: true/, "Successful prior command execution must be returned as an idempotent replay.");
 assert.match(router, /verification_status/, "Completed command history must record a verification status.");
-assert.match(router, /verification_status:\s*"verified"/, "Successful commands must be marked verified before completion is reported.");
+assert.match(router, /const verificationStatus = succeeded \? "verified" : "failed"/, "Successful command state must resolve to verified and unsuccessful command state to failed.");
+assert.match(router, /verification_status:\s*verificationStatus/, "Resolved verification state must be persisted before completion is reported.");
 assert.match(router, /verification_status:\s*"failed"/, "Failed commands must record failed verification state.");
 assert.match(packageJson.scripts?.check || "", /execution-hardening\.contract\.test\.ts/, "Repository check must permanently include Orion execution hardening validation.");
 
