@@ -53,6 +53,7 @@ export type BosPermission =
   | "settings.view"
   | "settings.manage"
   | "access_control.manage"
+  | "orion.use"
   | "subcontractor_portal.view"
   | "customer_portal.view";
 
@@ -65,13 +66,13 @@ const ALL_PERMISSIONS: BosPermission[] = [
   "change_orders.view", "change_orders.manage", "labor_rates.view", "labor_rates.manage",
   "workforce.view", "workforce.manage", "equipment.view", "equipment.manage",
   "materials.view", "materials.manage", "vendors.view", "vendors.manage",
-  "settings.view", "settings.manage", "access_control.manage", "subcontractor_portal.view", "customer_portal.view",
+  "settings.view", "settings.manage", "access_control.manage", "orion.use", "subcontractor_portal.view", "customer_portal.view",
 ];
 
 const ROLE_PERMISSIONS: Record<CompanyRole, readonly BosPermission[]> = {
   owner: ALL_PERMISSIONS,
   administrator: ALL_PERMISSIONS,
-  operations_manager: ALL_PERMISSIONS.filter((permission) => permission !== "access_control.manage"),
+  operations_manager: ALL_PERMISSIONS.filter((permission) => permission !== "access_control.manage" && permission !== "orion.use"),
   project_manager: [
     "dashboard.view", "operations.view", "projects.view", "projects.manage", "project_financials.view",
     "schedule.view", "schedule.manage", "daily_reports.view", "daily_reports.manage",
@@ -120,6 +121,16 @@ const ROLE_PERMISSIONS: Record<CompanyRole, readonly BosPermission[]> = {
 
 export type PermissionOverrides = Partial<Record<BosPermission, boolean>>;
 
+const ORION_ALWAYS_ALLOWED_ROLES: readonly CompanyRole[] = ["owner", "administrator"];
+const ORION_CONFIGURABLE_ROLES: readonly CompanyRole[] = [
+  "operations_manager",
+  "project_manager",
+  "estimator",
+  "superintendent",
+  "office_manager",
+  "accountant",
+];
+
 export function normalizeCompanyRole(role: string | null | undefined): CompanyRole {
   const normalized = (role || "employee").trim().toLowerCase();
   return COMPANY_ROLES.includes(normalized as CompanyRole) ? normalized as CompanyRole : "employee";
@@ -132,6 +143,20 @@ export function hasBosPermission(
 ) {
   if (overrides && typeof overrides[permission] === "boolean") return Boolean(overrides[permission]);
   return ROLE_PERMISSIONS[normalizeCompanyRole(role)].includes(permission);
+}
+
+export function isOrionConfigurableRole(role: string | null | undefined) {
+  return ORION_CONFIGURABLE_ROLES.includes(normalizeCompanyRole(role));
+}
+
+export function canUseOrion(
+  role: string | null | undefined,
+  overrides?: PermissionOverrides | null,
+) {
+  const normalizedRole = normalizeCompanyRole(role);
+  if (ORION_ALWAYS_ALLOWED_ROLES.includes(normalizedRole)) return true;
+  if (!ORION_CONFIGURABLE_ROLES.includes(normalizedRole)) return false;
+  return overrides?.["orion.use"] === true;
 }
 
 export function getRoleHomePath(role: string | null | undefined) {
