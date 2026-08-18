@@ -47,11 +47,27 @@ function readNumber(payload: Record<string, unknown>, key: string) {
 
 function readStringArray(payload: Record<string, unknown>, key: string) {
   const value = payload[key];
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
+  if (!Array.isArray(value)) return [];
   return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+function mapHistoryRow(row: WorkflowHistoryRow) {
+  const payload = row.payload || {};
+  return {
+    eventId: row.id,
+    commandId: readString(payload, "command_id") || "unknown",
+    commandName: readString(payload, "command_name") || "Unknown command",
+    companyId: row.company_id,
+    actorProfileId: row.actor_profile_id,
+    occurredAt: row.occurred_at,
+    durationMs: readNumber(payload, "duration_ms"),
+    success: readBoolean(payload, "success"),
+    failure: readString(payload, "failure"),
+    validationErrors: readStringArray(payload, "validation_errors"),
+    correlationId: row.correlation_id,
+    idempotencyKey: row.idempotency_key,
+    payload,
+  };
 }
 
 export async function recordOrionCommandHistory(
@@ -89,6 +105,26 @@ export async function recordOrionCommandHistory(
   return result.event.event_id;
 }
 
+export async function findOrionCommandHistoryByIdempotency(
+  supabase: SupabaseClient<Database>,
+  companyId: string,
+  idempotencyKey: string,
+) {
+  const db = supabase as unknown as LooseWorkflowHistoryClient;
+  const { data, error } = await db
+    .from("workflow_events")
+    .select("id, company_id, actor_profile_id, occurred_at, correlation_id, idempotency_key, payload")
+    .eq("company_id", companyId)
+    .eq("event_type", "workflow.executed")
+    .eq("idempotency_key", idempotencyKey)
+    .order("occurred_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw new Error(error.message || "Unable to check Orion command history.");
+  const row = data?.[0] ?? null;
+  return row ? mapHistoryRow(row) : null;
+}
+
 export async function listOrionCommandHistory(
   supabase: SupabaseClient<Database>,
   companyId: string,
@@ -105,28 +141,6 @@ export async function listOrionCommandHistory(
     .order("occurred_at", { ascending: false })
     .limit(Math.max(1, Math.min(500, limit)));
 
-  if (error) {
-    throw new Error(error.message || "Unable to load Orion command history.");
-  }
-
-  const rows = (data ?? []) as WorkflowHistoryRow[];
-  return rows
-    .filter((row) => Boolean(readString(row.payload || {}, "command_id")))
-    .map((row) => {
-      const payload = row.payload || {};
-      return {
-        eventId: row.id,
-        commandId: readString(payload, "command_id") || "unknown",
-        commandName: readString(payload, "command_name") || "Unknown command",
-        companyId: row.company_id,
-        actorProfileId: row.actor_profile_id,
-        occurredAt: row.occurred_at,
-        durationMs: readNumber(payload, "duration_ms"),
-        success: readBoolean(payload, "success"),
-        failure: readString(payload, "failure"),
-        validationErrors: readStringArray(payload, "validation_errors"),
-        correlationId: row.correlation_id,
-        idempotencyKey: row.idempotency_key,
-      };
-    });
+  if (error) throw new Error(error.message || "Unable to load Orion command history.");
+  return (data ?? []).map(mapHistoryRow).filter((row) => Boolean(row.commandId));
 }
