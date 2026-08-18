@@ -71,14 +71,22 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    const { data: membership } = await supabase
-      .from("company_memberships")
-      .select("role,permission_overrides")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .order("is_primary", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [profileResponse, membershipsResponse] = await Promise.all([
+      supabase.from("profiles").select("company_id").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("company_memberships")
+        .select("company_id,role,status,is_primary,permission_overrides")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .order("is_primary", { ascending: false }),
+    ]);
+
+    const activeMemberships = membershipsResponse.data ?? [];
+    const membership =
+      activeMemberships.find((item) => item.company_id === profileResponse.data?.company_id)
+      || activeMemberships.find((item) => item.is_primary)
+      || activeMemberships[0]
+      || null;
 
     const overrides = (membership?.permission_overrides ?? null) as PermissionOverrides | null;
     if (!membership || !canUseOrion(membership.role, overrides)) {
