@@ -7,6 +7,7 @@ import "./app-content-surface.css";
 import "./visual-theme.css";
 import "./theme-gallery.css";
 import "./theme-gallery-hardening.css";
+import "./dark-theme-hardening.css";
 import "./future-2030.css";
 import "./top-command-layout.css";
 import "./mobile-reference.css";
