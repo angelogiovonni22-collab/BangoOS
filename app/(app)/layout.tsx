@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "./app-shell";
 import { CompanyProvider } from "@/lib/company";
-import { canUseOrion } from "@/lib/access-control/permissions";
+import { canUseOrion, type PermissionOverrides } from "@/lib/access-control/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -41,7 +41,19 @@ export default async function DashboardLayout({
   }
 
   const userName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || null;
-  const orionEnabled = canUseOrion(workspace.context.role, workspace.context.permissionOverrides);
+  let permissionOverrides: PermissionOverrides | null = null;
+
+  if (workspace.context.membershipId) {
+    const { data: permissionRow } = await supabase
+      .from("company_memberships")
+      .select("permission_overrides")
+      .eq("id", workspace.context.membershipId)
+      .eq("company_id", workspace.context.companyId)
+      .maybeSingle();
+    permissionOverrides = (permissionRow?.permission_overrides ?? null) as PermissionOverrides | null;
+  }
+
+  const orionEnabled = canUseOrion(workspace.context.role, permissionOverrides);
 
   return (
     <CompanyProvider workspace={workspace.context}>
