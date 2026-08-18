@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
-import type { PermissionOverrides } from "@/lib/access-control/permissions";
 
 export type WorkspaceContext = {
   userId: string;
@@ -10,7 +9,6 @@ export type WorkspaceContext = {
   companySlug: string | null;
   membershipId: string | null;
   membershipStatus: string | null;
-  permissionOverrides: PermissionOverrides | null;
 };
 
 export type WorkspaceErrorCode =
@@ -86,7 +84,7 @@ export async function resolveWorkspaceContext(
 
   const { data: memberships, error: membershipsError } = await supabase
     .from("company_memberships")
-    .select("id, company_id, role, status, is_primary, joined_at, created_at, permission_overrides")
+    .select("id, company_id, role, status, is_primary, joined_at, created_at")
     .eq("user_id", user.id)
     .order("is_primary", { ascending: false })
     .order("joined_at", { ascending: true, nullsFirst: false })
@@ -106,7 +104,6 @@ export async function resolveWorkspaceContext(
   let role = activeMembership?.role ?? profile.role;
   let membershipId = activeMembership?.id ?? null;
   let membershipStatus = activeMembership?.status ?? null;
-  let permissionOverrides = (activeMembership?.permission_overrides ?? null) as PermissionOverrides | null;
 
   if (!companyId) {
     const { data: ownerCompany, error: ownerCompanyError } = await supabase
@@ -146,14 +143,13 @@ export async function resolveWorkspaceContext(
               },
               { onConflict: "company_id,user_id" },
             )
-            .select("id, status, role, permission_overrides")
+            .select("id, status, role")
             .maybeSingle();
 
           if (ownerMembership) {
             membershipId = ownerMembership.id;
             membershipStatus = ownerMembership.status;
             role = ownerMembership.role;
-            permissionOverrides = (ownerMembership.permission_overrides ?? null) as PermissionOverrides | null;
           }
         }
       }
@@ -207,14 +203,13 @@ export async function resolveWorkspaceContext(
         },
         { onConflict: "company_id,user_id" },
       )
-      .select("id, status, role, permission_overrides")
+      .select("id, status, role")
       .maybeSingle();
 
     if (createdMembership) {
       membershipId = createdMembership.id;
       membershipStatus = createdMembership.status;
       role = createdMembership.role;
-      permissionOverrides = (createdMembership.permission_overrides ?? null) as PermissionOverrides | null;
     }
   }
 
@@ -240,7 +235,6 @@ export async function resolveWorkspaceContext(
       companySlug: null,
       membershipId,
       membershipStatus,
-      permissionOverrides,
     },
     errorMessage: null,
     errorCode: null,
