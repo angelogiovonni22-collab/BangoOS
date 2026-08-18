@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { COMPANY_ROLES, type BosPermission } from "@/lib/access-control/permissions";
+import { COMPANY_ROLES, isOrionConfigurableRole, type BosPermission } from "@/lib/access-control/permissions";
 import { requireCompanyAdmin } from "@/lib/supabase/authorization";
 import { createClient } from "@/lib/supabase/server";
 
@@ -69,9 +69,15 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Select a valid B.O.S. role." }, { status: 400 });
     }
 
-    const overrides = body.permissionOverrides ?? {};
+    const overrides = { ...(body.permissionOverrides ?? {}) };
     if (Object.values(overrides).some((value) => typeof value !== "boolean")) {
       return NextResponse.json({ error: "Permission overrides must be true or false." }, { status: 400 });
+    }
+
+    // Orion is never grantable to field, employee, Trade Partner, or customer roles.
+    // Owner/Administrator access is automatic, so no per-user Orion override is stored for them either.
+    if (!isOrionConfigurableRole(body.role)) {
+      delete overrides["orion.use"];
     }
 
     const { data: target, error: targetError } = await supabase
