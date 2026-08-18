@@ -1,0 +1,165 @@
+/*
+ * B.O.S. dark-theme hardening layer.
+ *
+ * Purpose: normalize legacy light-only workspace utilities onto semantic dark
+ * surfaces without changing layout or business logic. This file intentionally
+ * loads after the main theme/gallery layers so older modules cannot reintroduce
+ * white cards, light gradients, or low-contrast text inside a dark workspace.
+ */
+
+[data-theme="dark"] {
+  /* Legacy neutral palette must become dark-mode semantic neutrals. */
+  --color-neutral-50: #101d31;
+  --color-neutral-100: #14243a;
+  --color-neutral-200: #20324b;
+  --color-neutral-500: #93a8c4;
+  --color-neutral-700: #d5e2f3;
+
+  /* Legacy "on light" aliases are used by many project modules. */
+  --bos-text-strong-on-light: #f2f7ff;
+  --bos-text-medium-on-light: #c5d4e8;
+
+  /* Workspace cards should form one coherent dark elevation scale. */
+  --bos-bg-workspace-surface: #07111f;
+  --bos-bg-workspace-surface-soft: #0a1628;
+  --bos-bg-workspace-card: #0d1a2e;
+  --bos-border-light: rgb(117 151 198 / 0.28);
+  --bos-border-light-strong: rgb(140 176 224 / 0.42);
+  --bos-shadow-workspace-card: 0 18px 36px -24px rgb(0 0 0 / 0.72), 0 2px 10px rgb(0 0 0 / 0.24);
+}
+
+/*
+ * Older B.O.S. modules encode light fills directly in Tailwind arbitrary-value
+ * classes. In dark mode these must resolve to semantic dark surfaces rather
+ * than becoming white islands with pale text.
+ */
+[data-theme="dark"] .enterprise-shell main :is(
+  [class*="color-neutral-50"],
+  [class*="f8fbff"],
+  [class*="f3f7fd"],
+  [class*="f4f7fb"],
+  [class*="f6f9fd"],
+  [class*="f8fafc"]
+) {
+  background-color: var(--bos-bg-panel) !important;
+  background-image: none !important;
+  color: var(--bos-text-primary) !important;
+  --color-text-primary: var(--bos-text-primary);
+  --color-text-secondary: var(--bos-text-secondary);
+  --color-text-muted: var(--bos-text-muted);
+  --color-surface-card: var(--bos-bg-panel);
+  --color-surface-subtle: var(--bos-bg-control);
+  --color-surface-muted: var(--bos-bg-hover);
+  --color-surface-elevated: var(--bos-bg-panel-elevated);
+  --color-border-subtle: var(--bos-border-subtle);
+  --color-border-strong: var(--bos-border-default);
+}
+
+/* White utility surfaces are dark surfaces in B.O.S. Dark. */
+[data-theme="dark"] .enterprise-shell main :is(.bg-white, [class*="bg-white/"]) {
+  background-color: var(--bos-bg-panel) !important;
+  color: var(--bos-text-primary) !important;
+}
+
+/* Preserve a clear elevation step for card headers and nested summary rows. */
+[data-theme="dark"] .enterprise-shell main :is(
+  [class*="color-neutral-100"],
+  [class*="color-neutral-200"]
+) {
+  background-color: var(--bos-bg-control) !important;
+  color: var(--bos-text-primary) !important;
+}
+
+/* Legacy project cards frequently pair semantic dark text with explicit light
+ * gradients. Give those containers a consistent elevated dark material. */
+[data-theme="dark"] .enterprise-shell main :is(
+  [class*="bos-bg-workspace-card"],
+  [class*="bos-bg-workspace-surface-soft"]
+) {
+  color: var(--bos-text-primary);
+}
+
+/* Form controls: ensure browser-native states and placeholders remain readable. */
+[data-theme="dark"] .enterprise-shell :is(input, textarea, select) {
+  color: var(--bos-text-primary);
+  caret-color: #8ec3ff;
+}
+[data-theme="dark"] .enterprise-shell :is(input, textarea)::placeholder {
+  color: #8fa6c4;
+  opacity: 1;
+}
+[data-theme="dark"] .enterprise-shell select option {
+  background: #0d182b;
+  color: #eff6ff;
+}
+[data-theme="dark"] .enterprise-shell :is(input, textarea, select):disabled {
+  background: #0b1628;
+  color: #879bb8;
+  border-color: rgb(99 130 174 / 0.2);
+  opacity: 1;
+}
+
+/* Light-only helper panels and rows that are still common in project modules. */
+[data-theme="dark"] .enterprise-shell main :is(
+  [class*="bg-[#f8fbff]"],
+  [class*="bg-[#f3f7fd]"],
+  [class*="bg-[#f4f7fb]"],
+  [class*="bg-[#f8fafc]"]
+) {
+  background: var(--bos-bg-control) !important;
+  color: var(--bos-text-primary) !important;
+}
+
+/* Do not let explicit dark text utilities disappear against corrected dark surfaces. */
+[data-theme="dark"] .enterprise-shell main :is(
+  [class*="text-[#10243f]"],
+  [class*="text-[#0f2342]"],
+  [class*="text-slate-900"],
+  [class*="text-slate-800"],
+  [class*="text-gray-900"],
+  [class*="text-gray-800"]
+) {
+  color: var(--bos-text-primary) !important;
+}
+[data-theme="dark"] .enterprise-shell main :is(
+  [class*="text-[#385574]"],
+  [class*="text-[#3b587c]"],
+  [class*="text-slate-700"],
+  [class*="text-slate-600"],
+  [class*="text-gray-700"],
+  [class*="text-gray-600"]
+) {
+  color: var(--bos-text-secondary) !important;
+}
+
+/* Maintain visible card boundaries instead of relying on light/dark fill jumps. */
+[data-theme="dark"] .enterprise-shell main :is(
+  [class*="border-[#d8e5f5]"],
+  [class*="border-[#d5e1ef]"],
+  [class*="border-slate-200"],
+  [class*="border-gray-200"]
+) {
+  border-color: var(--bos-border-default) !important;
+}
+
+/* Tables and list rows should use the same surface hierarchy as cards. */
+[data-theme="dark"] .enterprise-shell main table :is(thead, th) {
+  background-color: var(--bos-bg-control);
+  color: var(--bos-text-secondary);
+}
+[data-theme="dark"] .enterprise-shell main table tbody tr:hover {
+  background-color: var(--bos-bg-hover);
+}
+
+/* Focus remains obvious without high-saturation glare. */
+[data-theme="dark"] .enterprise-shell :is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid #79b7ff;
+  outline-offset: 2px;
+}
+
+/* Make nested workspace cards uniform on the project pages shown in dark mode. */
+[data-theme="dark"] .enterprise-shell main [class*="rounded-"][class*="border-"][class*="bos-bg-workspace-card"] {
+  background-color: var(--bos-bg-workspace-card) !important;
+  border-color: var(--bos-border-light) !important;
+  box-shadow: var(--bos-shadow-workspace-card);
+}
