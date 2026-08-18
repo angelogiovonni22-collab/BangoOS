@@ -17,6 +17,10 @@ for (const role of ["foreman", "employee", "subcontractor", "customer"] as const
   assert.equal(canUseOrion(role, { "orion.use": true }), false, `${role} must remain blocked even if a forged override requests Orion.`);
 }
 
+const layout = readFileSync("app/(app)/layout.tsx", "utf8");
+assert.match(layout, /select\("permission_overrides"\)/, "Authenticated app layout must resolve the active membership's Orion override.");
+assert.match(layout, /canUseOrion\(workspace\.context\.role, permissionOverrides\)/, "App shell authorization must use the canonical Orion permission model.");
+
 const appShell = readFileSync("app/(app)/app-shell.tsx", "utf8");
 assert.match(appShell, /orionEnabled \? \(\s*<GlobalOrionVoiceProvider>/, "Orion voice providers must mount only for authorized sessions.");
 assert.match(appShell, /\{orionEnabled \? <PersistentOrion \/> : null\}/, "Persistent Orion must not render for unauthorized sessions.");
@@ -31,8 +35,5 @@ assert.match(middleware, /statusCategory: "orion_access_denied"/, "Unauthorized 
 const accessControlRoute = readFileSync("app/api/settings/access-control/route.ts", "utf8");
 assert.match(accessControlRoute, /if \(!isOrionConfigurableRole\(body\.role\)\)/, "Access Control API must reject persistence of Orion grants for ineligible roles.");
 assert.match(accessControlRoute, /delete overrides\["orion\.use"\]/, "Ineligible Orion grants must be stripped server-side.");
-
-const workspace = readFileSync("lib/supabase/workspace.ts", "utf8");
-assert.match(workspace, /permissionOverrides: PermissionOverrides \| null/, "Workspace context must carry permission overrides for server-resolved Orion access.");
 
 console.log("Orion privileged access contract passed.");
