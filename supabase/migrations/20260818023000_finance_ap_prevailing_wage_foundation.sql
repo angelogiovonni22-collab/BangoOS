@@ -6,25 +6,32 @@ begin;
 
 do $$
 begin
-  if not exists (
-    select 1 from pg_constraint where conname = 'vendors_id_company_unique'
-  ) then
-    alter table public.vendors
-      add constraint vendors_id_company_unique unique (id, company_id);
+  if not exists (select 1 from pg_constraint where conname = 'vendors_id_company_unique') then
+    alter table public.vendors add constraint vendors_id_company_unique unique (id, company_id);
   end if;
-
-  if not exists (
-    select 1 from pg_constraint where conname = 'projects_id_company_unique'
-  ) then
-    alter table public.projects
-      add constraint projects_id_company_unique unique (id, company_id);
+  if not exists (select 1 from pg_constraint where conname = 'projects_id_company_unique') then
+    alter table public.projects add constraint projects_id_company_unique unique (id, company_id);
   end if;
-
-  if not exists (
-    select 1 from pg_constraint where conname = 'cost_codes_id_company_unique'
-  ) then
-    alter table public.cost_codes
-      add constraint cost_codes_id_company_unique unique (id, company_id);
+  if not exists (select 1 from pg_constraint where conname = 'cost_codes_id_company_unique') then
+    alter table public.cost_codes add constraint cost_codes_id_company_unique unique (id, company_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'profiles_id_company_unique') then
+    alter table public.profiles add constraint profiles_id_company_unique unique (id, company_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'employees_id_company_unique') then
+    alter table public.employees add constraint employees_id_company_unique unique (id, company_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'purchase_orders_id_company_unique') then
+    alter table public.purchase_orders add constraint purchase_orders_id_company_unique unique (id, company_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'purchase_order_line_items_id_company_unique') then
+    alter table public.purchase_order_line_items add constraint purchase_order_line_items_id_company_unique unique (id, company_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'trade_partner_assignments_id_company_unique') then
+    alter table public.trade_partner_assignments add constraint trade_partner_assignments_id_company_unique unique (id, company_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'workforce_time_entries_id_company_unique') then
+    alter table public.workforce_time_entries add constraint workforce_time_entries_id_company_unique unique (id, company_id);
   end if;
 end $$;
 
@@ -56,7 +63,6 @@ create table if not exists public.vendor_bills (
   updated_by uuid null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-
   constraint vendor_bills_bill_number_not_blank_check check (btrim(bill_number) <> ''),
   constraint vendor_bills_status_check check (status in ('draft','submitted','approved','partially_paid','paid','voided','disputed')),
   constraint vendor_bills_subtotal_non_negative_check check (subtotal_amount >= 0),
@@ -65,7 +71,8 @@ create table if not exists public.vendor_bills (
   constraint vendor_bills_total_non_negative_check check (total_amount >= 0),
   constraint vendor_bills_paid_non_negative_check check (amount_paid >= 0),
   constraint vendor_bills_paid_not_over_total_check check (amount_paid <= total_amount),
-  constraint vendor_bills_attachments_array_check check (jsonb_typeof(attachments) = 'array')
+  constraint vendor_bills_attachments_array_check check (jsonb_typeof(attachments) = 'array'),
+  constraint vendor_bills_date_order_check check (due_date is null or due_date >= bill_date)
 );
 
 create table if not exists public.vendor_bill_line_items (
@@ -84,7 +91,6 @@ create table if not exists public.vendor_bill_line_items (
   updated_by uuid null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-
   constraint vendor_bill_line_items_description_not_blank_check check (btrim(description) <> ''),
   constraint vendor_bill_line_items_quantity_positive_check check (quantity > 0),
   constraint vendor_bill_line_items_unit_cost_non_negative_check check (unit_cost >= 0),
@@ -103,7 +109,6 @@ create table if not exists public.vendor_bill_payments (
   notes text null,
   created_by uuid null,
   created_at timestamptz not null default now(),
-
   constraint vendor_bill_payments_amount_positive_check check (amount > 0)
 );
 
@@ -131,10 +136,10 @@ create table if not exists public.prevailing_wage_project_profiles (
   updated_by uuid null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-
   constraint prevailing_wage_project_profiles_applicability_check check (applicability in ('not_applicable','federal_dbra','ohio_public_improvement','state_local_other')),
   constraint prevailing_wage_project_profiles_jurisdiction_check check (jurisdiction in ('none','federal','ohio','other')),
-  constraint prevailing_wage_project_profiles_project_unique unique (company_id, project_id)
+  constraint prevailing_wage_project_profiles_project_unique unique (company_id, project_id),
+  constraint prevailing_wage_project_profiles_date_order_check check (expiration_date is null or effective_date is null or expiration_date >= effective_date)
 );
 
 create table if not exists public.prevailing_wage_classifications (
@@ -158,11 +163,11 @@ create table if not exists public.prevailing_wage_classifications (
   updated_by uuid null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-
   constraint prevailing_wage_classifications_name_not_blank_check check (btrim(classification_name) <> ''),
   constraint prevailing_wage_classifications_base_non_negative_check check (base_hourly_rate >= 0),
   constraint prevailing_wage_classifications_fringe_non_negative_check check (fringe_hourly_rate >= 0),
-  constraint prevailing_wage_classifications_ot_multiplier_check check (overtime_multiplier >= 1)
+  constraint prevailing_wage_classifications_ot_multiplier_check check (overtime_multiplier >= 1),
+  constraint prevailing_wage_classifications_date_order_check check (expiration_date is null or effective_date is null or expiration_date >= effective_date)
 );
 
 create table if not exists public.prevailing_wage_worker_assignments (
@@ -186,14 +191,18 @@ create table if not exists public.prevailing_wage_worker_assignments (
   updated_by uuid null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-
   constraint prevailing_wage_worker_assignments_worker_check check (
     (employee_id is not null and trade_partner_assignment_id is null)
     or (employee_id is null and trade_partner_assignment_id is not null)
   ),
   constraint prevailing_wage_worker_assignments_apprentice_pct_check check (apprentice_percentage is null or (apprentice_percentage >= 0 and apprentice_percentage <= 100)),
   constraint prevailing_wage_worker_assignments_cash_fringe_non_negative_check check (cash_fringe_hourly >= 0),
-  constraint prevailing_wage_worker_assignments_bona_fide_fringe_non_negative_check check (bona_fide_fringe_hourly >= 0)
+  constraint prevailing_wage_worker_assignments_bona_fide_fringe_non_negative_check check (bona_fide_fringe_hourly >= 0),
+  constraint prevailing_wage_worker_assignments_date_order_check check (end_date is null or end_date >= effective_date),
+  constraint prevailing_wage_worker_assignments_apprentice_evidence_check check (
+    apprentice = false
+    or (btrim(coalesce(apprentice_program_name,'')) <> '' and btrim(coalesce(apprentice_registration_number,'')) <> '' and apprentice_percentage is not null)
+  )
 );
 
 create table if not exists public.prevailing_wage_time_entries (
@@ -215,12 +224,12 @@ create table if not exists public.prevailing_wage_time_entries (
   updated_by uuid null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-
   constraint prevailing_wage_time_entries_regular_non_negative_check check (regular_hours >= 0),
   constraint prevailing_wage_time_entries_overtime_non_negative_check check (overtime_hours >= 0),
   constraint prevailing_wage_time_entries_doubletime_non_negative_check check (doubletime_hours >= 0),
   constraint prevailing_wage_time_entries_rates_non_negative_check check (actual_base_rate >= 0 and actual_cash_fringe >= 0 and actual_bona_fide_fringe >= 0),
-  constraint prevailing_wage_time_entries_gross_non_negative_check check (gross_wages >= 0)
+  constraint prevailing_wage_time_entries_gross_non_negative_check check (gross_wages >= 0),
+  constraint prevailing_wage_time_entries_hours_positive_check check (regular_hours + overtime_hours + doubletime_hours > 0)
 );
 
 create table if not exists public.certified_payroll_periods (
@@ -242,10 +251,17 @@ create table if not exists public.certified_payroll_periods (
   updated_by uuid null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-
   constraint certified_payroll_periods_status_check check (status in ('draft','review','ready','submitted','accepted','rejected','corrected')),
   constraint certified_payroll_periods_attachments_array_check check (jsonb_typeof(attachments) = 'array'),
-  constraint certified_payroll_periods_project_week_unique unique (company_id, project_id, week_ending_date)
+  constraint certified_payroll_periods_project_week_unique unique (company_id, project_id, week_ending_date),
+  constraint certified_payroll_periods_statement_check check (
+    statement_of_compliance_signed = false
+    or (statement_signed_at is not null and statement_signed_by is not null)
+  ),
+  constraint certified_payroll_periods_submission_check check (
+    status not in ('submitted','accepted')
+    or (submitted_at is not null and submitted_by is not null)
+  )
 );
 
 create table if not exists public.certified_payroll_worker_rows (
@@ -269,7 +285,6 @@ create table if not exists public.certified_payroll_worker_rows (
   notes text null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-
   constraint certified_payroll_worker_rows_name_not_blank_check check (btrim(worker_name) <> ''),
   constraint certified_payroll_worker_rows_hours_non_negative_check check (regular_hours >= 0 and overtime_hours >= 0),
   constraint certified_payroll_worker_rows_amounts_non_negative_check check (
@@ -278,7 +293,7 @@ create table if not exists public.certified_payroll_worker_rows (
   constraint certified_payroll_worker_rows_compliance_status_check check (compliance_status in ('pending','compliant','underpaid','classification_issue','apprentice_issue','missing_data'))
 );
 
--- Composite company-scoped keys.
+-- Composite company-scoped keys for new tables and project matching.
 do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'vendor_bills_id_company_unique') then
@@ -287,11 +302,17 @@ begin
   if not exists (select 1 from pg_constraint where conname = 'prevailing_wage_profiles_id_company_unique') then
     alter table public.prevailing_wage_project_profiles add constraint prevailing_wage_profiles_id_company_unique unique (id, company_id);
   end if;
+  if not exists (select 1 from pg_constraint where conname = 'prevailing_wage_profiles_id_project_company_unique') then
+    alter table public.prevailing_wage_project_profiles add constraint prevailing_wage_profiles_id_project_company_unique unique (id, project_id, company_id);
+  end if;
   if not exists (select 1 from pg_constraint where conname = 'prevailing_wage_classifications_id_company_unique') then
     alter table public.prevailing_wage_classifications add constraint prevailing_wage_classifications_id_company_unique unique (id, company_id);
   end if;
   if not exists (select 1 from pg_constraint where conname = 'prevailing_wage_worker_assignments_id_company_unique') then
     alter table public.prevailing_wage_worker_assignments add constraint prevailing_wage_worker_assignments_id_company_unique unique (id, company_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'prevailing_wage_worker_assignments_id_project_company_unique') then
+    alter table public.prevailing_wage_worker_assignments add constraint prevailing_wage_worker_assignments_id_project_company_unique unique (id, project_id, company_id);
   end if;
   if not exists (select 1 from pg_constraint where conname = 'certified_payroll_periods_id_company_unique') then
     alter table public.certified_payroll_periods add constraint certified_payroll_periods_id_company_unique unique (id, company_id);
@@ -305,6 +326,21 @@ alter table public.vendor_bills
 alter table public.vendor_bills
   drop constraint if exists vendor_bills_project_company_fkey,
   add constraint vendor_bills_project_company_fkey foreign key (project_id, company_id) references public.projects(id, company_id) on delete set null;
+alter table public.vendor_bills
+  drop constraint if exists vendor_bills_purchase_order_company_fkey,
+  add constraint vendor_bills_purchase_order_company_fkey foreign key (purchase_order_id, company_id) references public.purchase_orders(id, company_id) on delete set null;
+alter table public.vendor_bills
+  drop constraint if exists vendor_bills_approved_by_company_fkey,
+  add constraint vendor_bills_approved_by_company_fkey foreign key (approved_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.vendor_bills
+  drop constraint if exists vendor_bills_voided_by_company_fkey,
+  add constraint vendor_bills_voided_by_company_fkey foreign key (voided_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.vendor_bills
+  drop constraint if exists vendor_bills_created_by_company_fkey,
+  add constraint vendor_bills_created_by_company_fkey foreign key (created_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.vendor_bills
+  drop constraint if exists vendor_bills_updated_by_company_fkey,
+  add constraint vendor_bills_updated_by_company_fkey foreign key (updated_by, company_id) references public.profiles(id, company_id) on delete set null;
 
 alter table public.vendor_bill_line_items
   drop constraint if exists vendor_bill_line_items_bill_company_fkey,
@@ -315,36 +351,93 @@ alter table public.vendor_bill_line_items
 alter table public.vendor_bill_line_items
   drop constraint if exists vendor_bill_line_items_cost_code_company_fkey,
   add constraint vendor_bill_line_items_cost_code_company_fkey foreign key (cost_code_id, company_id) references public.cost_codes(id, company_id) on delete set null;
+alter table public.vendor_bill_line_items
+  drop constraint if exists vendor_bill_line_items_purchase_order_line_company_fkey,
+  add constraint vendor_bill_line_items_purchase_order_line_company_fkey foreign key (purchase_order_line_item_id, company_id) references public.purchase_order_line_items(id, company_id) on delete set null;
+alter table public.vendor_bill_line_items
+  drop constraint if exists vendor_bill_line_items_created_by_company_fkey,
+  add constraint vendor_bill_line_items_created_by_company_fkey foreign key (created_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.vendor_bill_line_items
+  drop constraint if exists vendor_bill_line_items_updated_by_company_fkey,
+  add constraint vendor_bill_line_items_updated_by_company_fkey foreign key (updated_by, company_id) references public.profiles(id, company_id) on delete set null;
 
 alter table public.vendor_bill_payments
   drop constraint if exists vendor_bill_payments_bill_company_fkey,
   add constraint vendor_bill_payments_bill_company_fkey foreign key (vendor_bill_id, company_id) references public.vendor_bills(id, company_id) on delete cascade;
+alter table public.vendor_bill_payments
+  drop constraint if exists vendor_bill_payments_created_by_company_fkey,
+  add constraint vendor_bill_payments_created_by_company_fkey foreign key (created_by, company_id) references public.profiles(id, company_id) on delete set null;
 
 alter table public.prevailing_wage_project_profiles
   drop constraint if exists prevailing_wage_profiles_project_company_fkey,
   add constraint prevailing_wage_profiles_project_company_fkey foreign key (project_id, company_id) references public.projects(id, company_id) on delete cascade;
+alter table public.prevailing_wage_project_profiles
+  drop constraint if exists prevailing_wage_profiles_created_by_company_fkey,
+  add constraint prevailing_wage_profiles_created_by_company_fkey foreign key (created_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.prevailing_wage_project_profiles
+  drop constraint if exists prevailing_wage_profiles_updated_by_company_fkey,
+  add constraint prevailing_wage_profiles_updated_by_company_fkey foreign key (updated_by, company_id) references public.profiles(id, company_id) on delete set null;
 
 alter table public.prevailing_wage_classifications
   drop constraint if exists prevailing_wage_classifications_profile_company_fkey,
   add constraint prevailing_wage_classifications_profile_company_fkey foreign key (profile_id, company_id) references public.prevailing_wage_project_profiles(id, company_id) on delete cascade;
+alter table public.prevailing_wage_classifications
+  drop constraint if exists prevailing_wage_classifications_created_by_company_fkey,
+  add constraint prevailing_wage_classifications_created_by_company_fkey foreign key (created_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.prevailing_wage_classifications
+  drop constraint if exists prevailing_wage_classifications_updated_by_company_fkey,
+  add constraint prevailing_wage_classifications_updated_by_company_fkey foreign key (updated_by, company_id) references public.profiles(id, company_id) on delete set null;
 
 alter table public.prevailing_wage_worker_assignments
   drop constraint if exists prevailing_wage_worker_assignments_project_company_fkey,
   add constraint prevailing_wage_worker_assignments_project_company_fkey foreign key (project_id, company_id) references public.projects(id, company_id) on delete cascade;
 alter table public.prevailing_wage_worker_assignments
+  drop constraint if exists prevailing_wage_worker_assignments_employee_company_fkey,
+  add constraint prevailing_wage_worker_assignments_employee_company_fkey foreign key (employee_id, company_id) references public.employees(id, company_id) on delete cascade;
+alter table public.prevailing_wage_worker_assignments
+  drop constraint if exists prevailing_wage_worker_assignments_trade_partner_company_fkey,
+  add constraint prevailing_wage_worker_assignments_trade_partner_company_fkey foreign key (trade_partner_assignment_id, company_id) references public.trade_partner_assignments(id, company_id) on delete cascade;
+alter table public.prevailing_wage_worker_assignments
   drop constraint if exists prevailing_wage_worker_assignments_classification_company_fkey,
   add constraint prevailing_wage_worker_assignments_classification_company_fkey foreign key (classification_id, company_id) references public.prevailing_wage_classifications(id, company_id) on delete restrict;
+alter table public.prevailing_wage_worker_assignments
+  drop constraint if exists prevailing_wage_worker_assignments_created_by_company_fkey,
+  add constraint prevailing_wage_worker_assignments_created_by_company_fkey foreign key (created_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.prevailing_wage_worker_assignments
+  drop constraint if exists prevailing_wage_worker_assignments_updated_by_company_fkey,
+  add constraint prevailing_wage_worker_assignments_updated_by_company_fkey foreign key (updated_by, company_id) references public.profiles(id, company_id) on delete set null;
 
 alter table public.prevailing_wage_time_entries
   drop constraint if exists prevailing_wage_time_entries_project_company_fkey,
   add constraint prevailing_wage_time_entries_project_company_fkey foreign key (project_id, company_id) references public.projects(id, company_id) on delete cascade;
 alter table public.prevailing_wage_time_entries
-  drop constraint if exists prevailing_wage_time_entries_assignment_company_fkey,
-  add constraint prevailing_wage_time_entries_assignment_company_fkey foreign key (worker_assignment_id, company_id) references public.prevailing_wage_worker_assignments(id, company_id) on delete cascade;
+  drop constraint if exists prevailing_wage_time_entries_assignment_project_company_fkey,
+  add constraint prevailing_wage_time_entries_assignment_project_company_fkey foreign key (worker_assignment_id, project_id, company_id) references public.prevailing_wage_worker_assignments(id, project_id, company_id) on delete cascade;
+alter table public.prevailing_wage_time_entries
+  drop constraint if exists prevailing_wage_time_entries_source_time_company_fkey,
+  add constraint prevailing_wage_time_entries_source_time_company_fkey foreign key (source_time_entry_id, company_id) references public.workforce_time_entries(id, company_id) on delete set null;
+alter table public.prevailing_wage_time_entries
+  drop constraint if exists prevailing_wage_time_entries_created_by_company_fkey,
+  add constraint prevailing_wage_time_entries_created_by_company_fkey foreign key (created_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.prevailing_wage_time_entries
+  drop constraint if exists prevailing_wage_time_entries_updated_by_company_fkey,
+  add constraint prevailing_wage_time_entries_updated_by_company_fkey foreign key (updated_by, company_id) references public.profiles(id, company_id) on delete set null;
 
 alter table public.certified_payroll_periods
   drop constraint if exists certified_payroll_periods_project_company_fkey,
   add constraint certified_payroll_periods_project_company_fkey foreign key (project_id, company_id) references public.projects(id, company_id) on delete cascade;
+alter table public.certified_payroll_periods
+  drop constraint if exists certified_payroll_periods_statement_signed_by_company_fkey,
+  add constraint certified_payroll_periods_statement_signed_by_company_fkey foreign key (statement_signed_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.certified_payroll_periods
+  drop constraint if exists certified_payroll_periods_submitted_by_company_fkey,
+  add constraint certified_payroll_periods_submitted_by_company_fkey foreign key (submitted_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.certified_payroll_periods
+  drop constraint if exists certified_payroll_periods_created_by_company_fkey,
+  add constraint certified_payroll_periods_created_by_company_fkey foreign key (created_by, company_id) references public.profiles(id, company_id) on delete set null;
+alter table public.certified_payroll_periods
+  drop constraint if exists certified_payroll_periods_updated_by_company_fkey,
+  add constraint certified_payroll_periods_updated_by_company_fkey foreign key (updated_by, company_id) references public.profiles(id, company_id) on delete set null;
 
 alter table public.certified_payroll_worker_rows
   drop constraint if exists certified_payroll_worker_rows_period_company_fkey,
@@ -356,6 +449,13 @@ alter table public.certified_payroll_worker_rows
   drop constraint if exists certified_payroll_worker_rows_classification_company_fkey,
   add constraint certified_payroll_worker_rows_classification_company_fkey foreign key (classification_id, company_id) references public.prevailing_wage_classifications(id, company_id) on delete restrict;
 
+-- Bill identifiers are unique within a vendor/company, while allowing a vendor invoice number to be absent.
+create unique index if not exists idx_vendor_bills_company_vendor_bill_number_unique
+  on public.vendor_bills(company_id, vendor_id, bill_number);
+create unique index if not exists idx_vendor_bills_company_vendor_invoice_unique
+  on public.vendor_bills(company_id, vendor_id, vendor_invoice_number)
+  where vendor_invoice_number is not null and btrim(vendor_invoice_number) <> '' and status <> 'voided';
+
 create index if not exists idx_vendor_bills_company_status on public.vendor_bills(company_id, status);
 create index if not exists idx_vendor_bills_company_vendor on public.vendor_bills(company_id, vendor_id);
 create index if not exists idx_vendor_bills_company_project on public.vendor_bills(company_id, project_id);
@@ -365,9 +465,105 @@ create index if not exists idx_prevailing_wage_profiles_project on public.prevai
 create index if not exists idx_prevailing_wage_classifications_profile on public.prevailing_wage_classifications(company_id, profile_id, active);
 create index if not exists idx_prevailing_wage_assignments_project on public.prevailing_wage_worker_assignments(company_id, project_id, active);
 create index if not exists idx_prevailing_wage_time_project_date on public.prevailing_wage_time_entries(company_id, project_id, work_date);
+create unique index if not exists idx_prevailing_wage_time_source_unique
+  on public.prevailing_wage_time_entries(company_id, source_time_entry_id)
+  where source_time_entry_id is not null;
 create index if not exists idx_certified_payroll_periods_project_week on public.certified_payroll_periods(company_id, project_id, week_ending_date desc);
 
--- RLS
+-- Maintain bill payment totals and payment-state transitions at the database boundary.
+create or replace function public.recalculate_vendor_bill_payment_totals()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_bill_id uuid;
+  v_company_id uuid;
+  v_paid numeric(14,2);
+  v_total numeric(14,2);
+  v_status text;
+begin
+  v_bill_id := coalesce(new.vendor_bill_id, old.vendor_bill_id);
+  v_company_id := coalesce(new.company_id, old.company_id);
+
+  select coalesce(sum(amount), 0)
+    into v_paid
+  from public.vendor_bill_payments
+  where company_id = v_company_id and vendor_bill_id = v_bill_id;
+
+  select total_amount, status
+    into v_total, v_status
+  from public.vendor_bills
+  where company_id = v_company_id and id = v_bill_id
+  for update;
+
+  if not found then
+    return coalesce(new, old);
+  end if;
+
+  if v_paid > v_total then
+    raise exception 'Vendor bill payments exceed bill total';
+  end if;
+
+  update public.vendor_bills
+  set amount_paid = v_paid,
+      status = case
+        when v_status in ('voided','disputed','draft','submitted') then v_status
+        when v_paid = 0 then 'approved'
+        when v_paid < v_total then 'partially_paid'
+        else 'paid'
+      end,
+      updated_at = now()
+  where company_id = v_company_id and id = v_bill_id;
+
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_vendor_bill_payments_recalculate on public.vendor_bill_payments;
+create trigger trg_vendor_bill_payments_recalculate
+after insert or update or delete on public.vendor_bill_payments
+for each row execute function public.recalculate_vendor_bill_payment_totals();
+
+-- Reuse the application's existing updated_at trigger function when available.
+do $$
+declare
+  v_updated_at_fn regprocedure;
+  t text;
+begin
+  select p.oid::regprocedure
+    into v_updated_at_fn
+  from pg_trigger tr
+  join pg_class c on c.oid = tr.tgrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  join pg_proc p on p.oid = tr.tgfoid
+  join pg_attribute a on a.attrelid = c.oid and a.attname = 'updated_at'
+  where n.nspname = 'public'
+    and c.relname in ('companies','customers','projects','estimates','invoices','employees','vendors')
+    and not tr.tgisinternal
+  order by c.relname, tr.tgname
+  limit 1;
+
+  if v_updated_at_fn is not null then
+    foreach t in array array[
+      'vendor_bills','vendor_bill_line_items','prevailing_wage_project_profiles',
+      'prevailing_wage_classifications','prevailing_wage_worker_assignments',
+      'prevailing_wage_time_entries','certified_payroll_periods','certified_payroll_worker_rows'
+    ] loop
+      if not exists (
+        select 1 from pg_trigger tr
+        join pg_class c on c.oid = tr.tgrelid
+        join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relname = t and tr.tgname = 'trg_' || t || '_set_updated_at'
+      ) then
+        execute format('create trigger %I before update on public.%I for each row execute function %s', 'trg_' || t || '_set_updated_at', t, v_updated_at_fn);
+      end if;
+    end loop;
+  end if;
+end $$;
+
+-- RLS: finance write access is narrower than field/compliance write access.
 alter table public.vendor_bills enable row level security;
 alter table public.vendor_bill_line_items enable row level security;
 alter table public.vendor_bill_payments enable row level security;
@@ -382,8 +578,18 @@ do $$
 declare
   t text;
 begin
+  foreach t in array array['vendor_bills','vendor_bill_line_items','vendor_bill_payments'] loop
+    execute format('drop policy if exists %I_select on public.%I', t, t);
+    execute format('drop policy if exists %I_insert on public.%I', t, t);
+    execute format('drop policy if exists %I_update on public.%I', t, t);
+    execute format('drop policy if exists %I_delete on public.%I', t, t);
+    execute format('create policy %I_select on public.%I for select to authenticated using (public.is_company_member(company_id))', t, t);
+    execute format('create policy %I_insert on public.%I for insert to authenticated with check (public.has_company_role(company_id, array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant'']))', t, t);
+    execute format('create policy %I_update on public.%I for update to authenticated using (public.has_company_role(company_id, array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant''])) with check (public.has_company_role(company_id, array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant'']))', t, t);
+    execute format('create policy %I_delete on public.%I for delete to authenticated using (public.has_company_role(company_id, array[''owner'',''administrator'']))', t, t);
+  end loop;
+
   foreach t in array array[
-    'vendor_bills','vendor_bill_line_items','vendor_bill_payments',
     'prevailing_wage_project_profiles','prevailing_wage_classifications','prevailing_wage_worker_assignments',
     'prevailing_wage_time_entries','certified_payroll_periods','certified_payroll_worker_rows'
   ] loop
@@ -391,7 +597,6 @@ begin
     execute format('drop policy if exists %I_insert on public.%I', t, t);
     execute format('drop policy if exists %I_update on public.%I', t, t);
     execute format('drop policy if exists %I_delete on public.%I', t, t);
-
     execute format('create policy %I_select on public.%I for select to authenticated using (public.is_company_member(company_id))', t, t);
     execute format('create policy %I_insert on public.%I for insert to authenticated with check (public.has_company_role(company_id, array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant'',''project_manager'',''superintendent'']))', t, t);
     execute format('create policy %I_update on public.%I for update to authenticated using (public.has_company_role(company_id, array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant'',''project_manager'',''superintendent''])) with check (public.has_company_role(company_id, array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant'',''project_manager'',''superintendent'']))', t, t);
