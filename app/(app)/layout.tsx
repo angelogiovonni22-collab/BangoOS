@@ -50,7 +50,8 @@ export default async function DashboardLayout({
       .eq("id", workspace.context.membershipId)
       .eq("company_id", workspace.context.companyId)
       .maybeSingle();
-    permissionOverrides = (permissionRow?.permission_overrides ?? null) as PermissionOverrides | null;
+    const typedPermissionRow = permissionRow as unknown as { permission_overrides: PermissionOverrides | null } | null;
+    permissionOverrides = typedPermissionRow?.permission_overrides ?? null;
   }
 
   const orionEnabled = canUseOrion(workspace.context.role, permissionOverrides);
