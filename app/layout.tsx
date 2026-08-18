@@ -9,6 +9,7 @@ import "./theme-gallery.css";
 import "./theme-gallery-hardening.css";
 import "./dark-theme-hardening.css";
 import "./future-2030.css";
+import "./future-2030-hardening.css";
 import "./top-command-layout.css";
 import "./mobile-reference.css";
 import "./mobile-login.css";
@@ -45,10 +46,14 @@ function isAppLocale(value: string | undefined): value is "en" | "es" { return v
 const themeBootstrapScript = `(() => {
   try {
     const allowed = new Set(["light","dark","executive","blueprint","emerald","graphite","high-contrast","digital-command","future-2030"]);
+    const neonAllowed = new Set(["cyan","blue","red","green","white","orange","yellow","purple"]);
     const stored = localStorage.getItem("bangoos-theme");
+    const storedNeonAccent = localStorage.getItem("bangoos-neon-accent");
     const theme = allowed.has(stored) ? stored : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const neonAccent = neonAllowed.has(storedNeonAccent) ? storedNeonAccent : "cyan";
     const dark = theme === "dark" || theme === "digital-command" || theme === "future-2030";
     document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.neonAccent = neonAccent;
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
 
     const storedLayout = localStorage.getItem("bangoos-layout");
