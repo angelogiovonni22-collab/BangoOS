@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { COMPANY_ROLES, type BosPermission } from "@/lib/access-control/permissions";
+import { COMPANY_ROLES, isOrionConfigurableRole, type BosPermission } from "@/lib/access-control/permissions";
 import { Button } from "@/components/ui";
 
 type Membership = {
@@ -24,6 +24,7 @@ type EditableMembership = Membership & { department: string; permission_override
 
 const DEPARTMENTS = ["Executive", "Operations", "Project Management", "Estimating", "Field Operations", "Accounting", "Office", "Safety", "Equipment", "Trade Partner", "Customer"];
 const OVERRIDE_PERMISSIONS: Array<{ key: BosPermission; label: string; sensitive?: boolean }> = [
+  { key: "orion.use", label: "Orion AI & Voice", sensitive: true },
   { key: "dashboard.view", label: "Executive dashboard", sensitive: true },
   { key: "projects.view", label: "Projects" },
   { key: "projects.manage", label: "Manage projects" },
@@ -149,11 +150,14 @@ export default function AccessControlPage() {
             </div>
 
             <div>
-              <div className="flex items-end justify-between gap-3"><div><h3 className="font-semibold">Individual Overrides</h3><p className="mt-1 text-xs text-[var(--bos-text-muted)]">Leave a permission on Role Default unless this specific account needs an exception.</p></div></div>
+              <div className="flex items-end justify-between gap-3"><div><h3 className="font-semibold">Individual Overrides</h3><p className="mt-1 text-xs text-[var(--bos-text-muted)]">Orion is automatic for Owner/Administrator, opt-in for approved management roles, and unavailable to field employees, Trade Partners, and customers. Other permissions stay on Role Default unless this specific account needs an exception.</p></div></div>
               <div className="mt-3 grid gap-2 md:grid-cols-2">
                 {OVERRIDE_PERMISSIONS.map((permission) => {
                   const current = draft.permission_overrides[permission.key];
-                  return <div key={permission.key} className={`rounded-xl border p-3 ${permission.sensitive ? "border-amber-300/30" : "border-[var(--bos-border-subtle)]"}`}><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">{permission.label}</p>{permission.sensitive ? <p className="text-[11px] text-amber-600">Sensitive</p> : null}</div><select aria-label={`${permission.label} override`} value={current === true ? "allow" : current === false ? "deny" : "default"} onChange={(event) => { const next = { ...draft.permission_overrides }; if (event.target.value === "default") delete next[permission.key]; else next[permission.key] = event.target.value === "allow"; setDraft({ ...draft, permission_overrides: next }); }} className="h-9 rounded-lg border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-2 text-xs"><option value="default">Role Default</option><option value="allow">Allow</option><option value="deny">Deny</option></select></div></div>;
+                  const isOrion = permission.key === "orion.use";
+                  const orionAutomatic = isOrion && (draft.role === "owner" || draft.role === "administrator");
+                  const orionConfigurable = isOrion && isOrionConfigurableRole(draft.role);
+                  return <div key={permission.key} className={`rounded-xl border p-3 ${permission.sensitive ? "border-amber-300/30" : "border-[var(--bos-border-subtle)]"}`}><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">{permission.label}</p>{permission.sensitive ? <p className="text-[11px] text-amber-600">Sensitive</p> : null}</div>{orionAutomatic ? <span className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-2 text-xs font-semibold text-emerald-500">Always On</span> : isOrion && !orionConfigurable ? <span className="rounded-lg border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-2.5 py-2 text-xs font-semibold text-[var(--bos-text-muted)]">Not Available</span> : <select aria-label={`${permission.label} override`} value={current === true ? "allow" : current === false ? "deny" : "default"} onChange={(event) => { const next = { ...draft.permission_overrides }; if (event.target.value === "default") delete next[permission.key]; else next[permission.key] = event.target.value === "allow"; setDraft({ ...draft, permission_overrides: next }); }} className="h-9 rounded-lg border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-2 text-xs"><option value="default">Role Default</option><option value="allow">Allow</option><option value="deny">Deny</option></select>}</div></div>;
                 })}
               </div>
             </div>
