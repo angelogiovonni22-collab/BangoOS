@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, PageHeader } from "@/components/ui";
 import { loadPrevailingWageProjectCompliance } from "@/lib/finance/ap-prevailing-wage";
 import { createClient } from "@/lib/supabase/client";
@@ -189,7 +189,7 @@ function Metric({ label, value, detail, danger = false }: { label: string; value
   return <div className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)]"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--bos-text-muted)]">{label}</p><p className={`mt-2 text-2xl font-bold ${danger ? "text-red-400" : "text-[var(--bos-text-primary)]"}`}>{value}</p><p className="mt-1 text-xs text-[var(--bos-text-secondary)]">{detail}</p></div>;
 }
 function MiniMetric({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) { return <div className="rounded-xl bg-[var(--bos-bg-control)] p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{label}</p><p className={`mt-1 font-bold ${danger ? "text-red-400" : ""}`}>{value}</p></div>; }
-function Flag({ children }: { children: React.ReactNode }) { return <span className="rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-2.5 py-1">{children}</span>; }
+function Flag({ children }: { children: ReactNode }) { return <span className="rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-2.5 py-1">{children}</span>; }
 function ComplianceBadge({ deficient }: { deficient: boolean }) { return <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] ${deficient ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>{deficient ? "Review required" : "Compliant"}</span>; }
 function labelApplicability(value: string) { if (value === "federal_dbra") return "Federal DBRA"; if (value === "ohio_public_improvement") return "Ohio Public Improvement"; if (value === "state_local_other") return "State / Local Prevailing Wage"; return value.replaceAll("_", " "); }
 function currency(value: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number.isFinite(value) ? value : 0); }
