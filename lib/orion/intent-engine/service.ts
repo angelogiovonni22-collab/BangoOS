@@ -2,10 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createOrionTimelineService } from "@/lib/orion/timeline";
 import type { WorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
+import { parseEntityHint, parseIntent } from "./parser";
 import { resolveIntentWithRole } from "./resolver";
-import type { OrionIntentEntityRecord, OrionIntentInput } from "./types";
+import type { OrionIntentEntityRecord, OrionIntentEntityType, OrionIntentInput } from "./types";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const ENTITY_LIMIT = 40;
 
 function nowMs() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -84,6 +86,73 @@ function customerTerms(row: {
   ].filter((value): value is string => Boolean(value));
 }
 
+function requiredEntityTypes(input: OrionIntentInput): Set<OrionIntentEntityType> {
+  const intent = parseIntent(input.input);
+  const hinted = parseEntityHint(input.input);
+  const types = new Set<OrionIntentEntityType>();
+
+  if (hinted) types.add(hinted);
+
+  switch (intent) {
+    case "record_payment":
+    case "record_deposit":
+    case "generate_invoice":
+      types.add("invoice");
+      types.add("customer");
+      types.add("project");
+      break;
+    case "generate_estimate":
+    case "convert_estimate":
+      types.add("estimate");
+      types.add("customer");
+      types.add("project");
+      break;
+    case "inspection_schedule":
+    case "inspection_pass":
+    case "inspection_fail":
+    case "inspection_reinspection":
+      types.add("inspection");
+      types.add("project");
+      break;
+    case "permit_submit":
+    case "permit_approve":
+    case "permit_issue":
+    case "permit_reject":
+      types.add("permit");
+      types.add("project");
+      break;
+    case "customer_update_log":
+      types.add("communication");
+      types.add("customer");
+      types.add("project");
+      break;
+    case "assign":
+      types.add("employee");
+      types.add("crew");
+      types.add("task");
+      types.add("project");
+      break;
+    default:
+      break;
+  }
+
+  if (input.route.customerId) types.add("customer");
+  if (input.route.projectId) types.add("project");
+  if (input.route.estimateId) types.add("estimate");
+  if (input.route.invoiceId) types.add("invoice");
+  if (input.route.employeeId) types.add("employee");
+  if (input.route.crewId) types.add("crew");
+
+  return types;
+}
+
+function needsTimelineContext(input: OrionIntentInput, types: Set<OrionIntentEntityType>) {
+  const intent = parseIntent(input.input);
+  if (intent === "show_timeline") return true;
+  if (input.selectedCandidateId) return true;
+  return types.size === 0 && ["open", "view", "search", "update", "archive", "complete", "start", "pause", "send"].includes(intent);
+}
+
 export async function resolveOrionIntent(params: {
   supabase: SupabaseClient<Database>;
   workspace: WorkspaceContext;
@@ -123,66 +192,91 @@ export async function resolveOrionIntent(params: {
     return fastPathResolution;
   }
 
+  const requestedTypes = requiredEntityTypes(input);
+  const shouldLoadAll = requestedTypes.size === 0;
+  const wants = (type: OrionIntentEntityType) => shouldLoadAll || requestedTypes.has(type);
+
   const entityLookupStartedAt = nowMs();
   if (!IS_PRODUCTION && typeof console !== "undefined") {
-    console.info("[orion-timing] intent.entity_lookup.start");
+    console.info("[orion-timing] intent.entity_lookup.start", { requestedTypes: [...requestedTypes] });
   }
+
   const [customers, projects, estimates, invoices, employees, crews, tasks, inspections, permits, communications] = await Promise.all([
-    supabase
-      .from("customers")
-      .select("id, company_name, first_name, last_name, address_line_1, city, state, phone, email, status")
-      .eq("company_id", workspace.companyId)
-      .limit(80),
-    supabase
-      .from("projects")
-      .select("id, name, project_number, address_line_1, city, state, status")
-      .eq("company_id", workspace.companyId)
-      .limit(80),
-    supabase
-      .from("estimates")
-      .select("id, title, estimate_number, status")
-      .eq("company_id", workspace.companyId)
-      .limit(80),
-    supabase
-      .from("invoices")
-      .select("id, title, invoice_number, status")
-      .eq("company_id", workspace.companyId)
-      .limit(80),
-    supabase
-      .from("employees")
-      .select("id, employee_number, position_title, employment_status")
-      .eq("company_id", workspace.companyId)
-      .limit(80),
-    supabase
-      .from("crews")
-      .select("id, name, crew_code, status")
-      .eq("company_id", workspace.companyId)
-      .limit(80),
-    supabase
-      .from("tasks")
-      .select("id, title, task_number, status")
-      .eq("company_id", workspace.companyId)
-      .limit(80),
-    db
-      .from("project_inspections")
-      .select("id, project_id, inspection_type, status, scheduled_at")
-      .eq("company_id", workspace.companyId)
-      .order("updated_at", { ascending: false })
-      .limit(80),
-    db
-      .from("project_permits")
-      .select("id, project_id, permit_type, status, permit_number")
-      .eq("company_id", workspace.companyId)
-      .order("updated_at", { ascending: false })
-      .limit(80),
-    db
-      .from("project_communications")
-      .select("id, project_id, customer_id, channel, direction, subject, status")
-      .eq("company_id", workspace.companyId)
-      .order("created_at", { ascending: false })
-      .limit(80),
+    wants("customer")
+      ? supabase
+          .from("customers")
+          .select("id, company_name, first_name, last_name, address_line_1, city, state, phone, email, status")
+          .eq("company_id", workspace.companyId)
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
+    wants("project")
+      ? supabase
+          .from("projects")
+          .select("id, name, project_number, address_line_1, city, state, status")
+          .eq("company_id", workspace.companyId)
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
+    wants("estimate")
+      ? supabase
+          .from("estimates")
+          .select("id, title, estimate_number, status")
+          .eq("company_id", workspace.companyId)
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
+    wants("invoice")
+      ? supabase
+          .from("invoices")
+          .select("id, title, invoice_number, status")
+          .eq("company_id", workspace.companyId)
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
+    wants("employee")
+      ? supabase
+          .from("employees")
+          .select("id, employee_number, position_title, employment_status")
+          .eq("company_id", workspace.companyId)
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
+    wants("crew")
+      ? supabase
+          .from("crews")
+          .select("id, name, crew_code, status")
+          .eq("company_id", workspace.companyId)
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
+    wants("task")
+      ? supabase
+          .from("tasks")
+          .select("id, title, task_number, status")
+          .eq("company_id", workspace.companyId)
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
+    wants("inspection")
+      ? db
+          .from("project_inspections")
+          .select("id, project_id, inspection_type, status, scheduled_at")
+          .eq("company_id", workspace.companyId)
+          .order("updated_at", { ascending: false })
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
+    wants("permit")
+      ? db
+          .from("project_permits")
+          .select("id, project_id, permit_type, status, permit_number")
+          .eq("company_id", workspace.companyId)
+          .order("updated_at", { ascending: false })
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
+    wants("communication")
+      ? db
+          .from("project_communications")
+          .select("id, project_id, customer_id, channel, direction, subject, status")
+          .eq("company_id", workspace.companyId)
+          .order("created_at", { ascending: false })
+          .limit(ENTITY_LIMIT)
+      : Promise.resolve({ data: [] }),
   ]);
-  logIntentTiming("intent.entity_lookup.end", entityLookupStartedAt);
+  logIntentTiming("intent.entity_lookup.end", entityLookupStartedAt, { requestedTypes: [...requestedTypes] });
 
   const entities: OrionIntentEntityRecord[] = [];
 
@@ -296,16 +390,18 @@ export async function resolveOrionIntent(params: {
 
   addStaticEntities(entities);
 
-  const timelineLookupStartedAt = nowMs();
-  if (!IS_PRODUCTION && typeof console !== "undefined") {
-    console.info("[orion-timing] intent.timeline_lookup.start");
+  let recentEntityKeys: string[] = [];
+  if (needsTimelineContext(input, requestedTypes)) {
+    const timelineLookupStartedAt = nowMs();
+    if (!IS_PRODUCTION && typeof console !== "undefined") {
+      console.info("[orion-timing] intent.timeline_lookup.start");
+    }
+    const timeline = await createOrionTimelineService(supabase).listCompanyTimeline(workspace.companyId, { pageSize: 10 });
+    logIntentTiming("intent.timeline_lookup.end", timelineLookupStartedAt);
+    recentEntityKeys = timeline.items
+      .map((item) => `${item.entityType}:${item.entityId}`)
+      .filter((value) => value.includes(":"));
   }
-  const timeline = await createOrionTimelineService(supabase).listCompanyTimeline(workspace.companyId, { pageSize: 20 });
-  logIntentTiming("intent.timeline_lookup.end", timelineLookupStartedAt);
-
-  const recentEntityKeys = timeline.items
-    .map((item) => `${item.entityType}:${item.entityId}`)
-    .filter((value) => value.includes(":"));
 
   const resolved = resolveIntentWithRole({
     input,
@@ -317,6 +413,8 @@ export async function resolveOrionIntent(params: {
   logIntentTiming("intent.resolve.end", resolveStartedAt, {
     hasSuggestion: Boolean(resolved.suggestedCommand),
     requiresClarification: resolved.requiresClarification,
+    entityCount: entities.length,
+    requestedTypes: [...requestedTypes],
   });
 
   return resolved;
