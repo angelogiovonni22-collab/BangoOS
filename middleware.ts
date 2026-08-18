@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { canUseOrion, type PermissionOverrides } from "@/lib/access-control/permissions";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
 const PROTECTED_PATHS = [
@@ -23,6 +24,10 @@ function isProtectedPath(pathname: string) {
 
 function isAuthPath(pathname: string) {
   return AUTH_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+function isOrionApiPath(pathname: string) {
+  return pathname === "/api/orion" || pathname.startsWith("/api/orion/");
 }
 
 export async function middleware(request: NextRequest) {
@@ -57,6 +62,32 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname, search } = request.nextUrl;
+
+  if (isOrionApiPath(pathname)) {
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: "Authentication is required to use Orion.", statusCategory: "authentication_required" },
+        { status: 401 },
+      );
+    }
+
+    const { data: membership } = await supabase
+      .from("company_memberships")
+      .select("role,permission_overrides")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .order("is_primary", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const overrides = (membership?.permission_overrides ?? null) as PermissionOverrides | null;
+    if (!membership || !canUseOrion(membership.role, overrides)) {
+      return NextResponse.json(
+        { ok: false, error: "Orion is not available for this B.O.S. account.", statusCategory: "orion_access_denied" },
+        { status: 403 },
+      );
+    }
+  }
 
   if (!user && isProtectedPath(pathname)) {
     const redirectUrl = request.nextUrl.clone();
