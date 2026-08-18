@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createOrionCommandRegistry } from "./registry";
-import { recordOrionCommandHistory } from "./history";
+import { findOrionCommandHistoryByIdempotency, recordOrionCommandHistory } from "./history";
 import type {
   OrionCommandDefinition,
   OrionCommandDependencies,
@@ -12,75 +12,60 @@ import type {
 } from "./types";
 
 function computeCorrelationId(request: OrionCommandRequest) {
-  if (request.correlationId && request.correlationId.trim()) {
-    return request.correlationId.trim();
-  }
-
+  if (request.correlationId && request.correlationId.trim()) return request.correlationId.trim();
   return `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function computeIdempotencyKey(request: OrionCommandRequest, commandId: string) {
-  if (request.idempotencyKey && request.idempotencyKey.trim()) {
-    return request.idempotencyKey.trim();
-  }
-
+  if (request.idempotencyKey && request.idempotencyKey.trim()) return request.idempotencyKey.trim();
   const payload = JSON.stringify({
     commandId,
     companyId: request.companyContext.companyId,
     actorProfileId: request.userContext.actorProfileId,
     params: request.params || {},
   });
-
   const digest = createHash("sha256").update(payload).digest("hex").slice(0, 24);
   return `cmd:${commandId}:${digest}`;
 }
 
 function resolveCommand(request: OrionCommandRequest) {
   const registry = createOrionCommandRegistry();
-
-  if (request.commandId?.trim()) {
-    return registry.getById(request.commandId.trim());
-  }
-
-  if (request.commandName?.trim()) {
-    return registry.getByName(request.commandName.trim());
-  }
-
+  if (request.commandId?.trim()) return registry.getById(request.commandId.trim());
+  if (request.commandName?.trim()) return registry.getByName(request.commandName.trim());
   return null;
 }
 
 function normalizePermission(role: OrionCommandRequest["userContext"]["role"] | string): OrionCommandPermission {
   const normalized = role.trim().toLowerCase();
   switch (normalized) {
-    case "owner":
-      return "owner";
+    case "owner": return "owner";
     case "admin":
-    case "administrator":
-      return "administrator";
-    case "operations_manager":
-      return "operations_manager";
-    case "accountant":
-      return "accountant";
-    case "project_manager":
-      return "project_manager";
-    case "superintendent":
-      return "superintendent";
-    default:
-      return "employee";
+    case "administrator": return "administrator";
+    case "operations_manager": return "operations_manager";
+    case "accountant": return "accountant";
+    case "project_manager": return "project_manager";
+    case "superintendent": return "superintendent";
+    default: return "employee";
   }
 }
 
 function hasPermission(command: OrionCommandDefinition, role: OrionCommandRequest["userContext"]["role"] | string) {
-  const normalizedRole = normalizePermission(role);
-  return command.requiredPermissions.includes(normalizedRole);
+  return command.requiredPermissions.includes(normalizePermission(role));
 }
 
 function isCommandConfirmed(request: OrionCommandRequest) {
-  if (typeof request.confirmation === "boolean") {
-    return request.confirmation;
-  }
-
+  if (typeof request.confirmation === "boolean") return request.confirmation;
   return request.confirmation?.confirmed === true;
+}
+
+function readString(payload: Record<string, unknown>, key: string) {
+  const value = payload[key];
+  return typeof value === "string" ? value : null;
+}
+
+function readStringArray(payload: Record<string, unknown>, key: string) {
+  const value = payload[key];
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 }
 
 function toExecutionResult(params: {
@@ -144,7 +129,6 @@ function normalizeExecutionOutput(output: OrionCommandExecutionOutput, command: 
   const entityId = output.entityId || entityCreated?.id || entityUpdated?.id || null;
   const publishedEventIds = output.publishedEventIds || (output.publishedEvent ? [output.publishedEvent] : []);
   const href = output.href || output.deepLink || null;
-
   return {
     status: output.status || "completed",
     entityType,
@@ -166,6 +150,42 @@ function normalizeExecutionOutput(output: OrionCommandExecutionOutput, command: 
   };
 }
 
+function replayFromHistory(params: {
+  prior: Awaited<ReturnType<typeof findOrionCommandHistoryByIdempotency>>;
+  command: OrionCommandDefinition;
+  correlationId: string;
+}) {
+  const { prior, command, correlationId } = params;
+  if (!prior || !prior.success) return null;
+  const payload = prior.payload;
+  const status = readString(payload, "command_status") as OrionCommandExecutionResult["status"] | null;
+  if (status !== "completed" && status !== "unsupported") return null;
+  const entityId = readString(payload, "entity_id");
+  const href = readString(payload, "deep_link");
+  const userMessage = readString(payload, "user_message") || "Command already completed successfully.";
+  return toExecutionResult({
+    success: true,
+    status,
+    commandId: command.id,
+    commandName: command.name,
+    correlationId,
+    durationMs: 0,
+    failure: null,
+    entityType: command.entityType,
+    entityId,
+    createdEntityIds: readStringArray(payload, "created_entity_ids"),
+    updatedEntityIds: readStringArray(payload, "updated_entity_ids"),
+    publishedEventIds: readStringArray(payload, "published_events"),
+    href,
+    userMessage,
+    idempotentReplay: true,
+    details: {
+      verification_status: readString(payload, "verification_status") || "verified",
+      replayed_from_event_id: prior.eventId,
+    },
+  });
+}
+
 export function createOrionCommandRouter(deps: OrionCommandDependencies) {
   const registry = createOrionCommandRegistry();
 
@@ -175,158 +195,53 @@ export function createOrionCommandRouter(deps: OrionCommandDependencies) {
     async executeCommand(request: OrionCommandRequest): Promise<OrionCommandExecutionResult> {
       const startedAt = Date.now();
       const correlationId = computeCorrelationId(request);
-
       const command = resolveCommand(request);
       if (!command) {
-        const durationMs = Date.now() - startedAt;
-        return toExecutionResult({
-          success: false,
-          status: "failed",
-          commandId: request.commandId || "unknown",
-          commandName: request.commandName || "unknown",
-          correlationId,
-          durationMs,
-          failure: "Command was not found in registry.",
-          entityType: null,
-          entityId: null,
-          userMessage: "Command was not found in registry.",
-        });
+        return toExecutionResult({ success: false, status: "failed", commandId: request.commandId || "unknown", commandName: request.commandName || "unknown", correlationId, durationMs: Date.now() - startedAt, failure: "Command was not found in registry.", entityType: null, entityId: null, userMessage: "Command was not found in registry." });
       }
 
       const executionOrigin = request.executionContext?.origin || "user";
       const automationRuleId = request.executionContext?.automationRuleId || null;
       const automationRunId = request.executionContext?.automationRunId || null;
+      const idempotencyKey = computeIdempotencyKey(request, command.id);
 
       if (!hasPermission(command, request.userContext.role)) {
-        const durationMs = Date.now() - startedAt;
         const failure = `Permission denied for ${command.id}.`;
         const historyId = await recordOrionCommandHistory(deps.supabase, {
-          commandId: command.id,
-          commandName: command.name,
-          referenceId: null,
-          companyId: request.companyContext.companyId,
-          actorProfileId: request.userContext.actorProfileId,
-          occurredAt: new Date().toISOString(),
-          durationMs,
-          success: false,
-          failure,
-          validationErrors: [],
-          correlationId,
-          idempotencyKey: computeIdempotencyKey(request, command.id),
-          payload: {
-            command_description: command.description,
-            permission_required: command.requiredPermissions,
-            execution_origin: executionOrigin,
-            automation_rule_id: automationRuleId,
-            automation_run_id: automationRunId,
-          },
+          commandId: command.id, commandName: command.name, referenceId: null, companyId: request.companyContext.companyId,
+          actorProfileId: request.userContext.actorProfileId, occurredAt: new Date().toISOString(), durationMs: Date.now() - startedAt,
+          success: false, failure, validationErrors: [], correlationId, idempotencyKey,
+          payload: { command_description: command.description, permission_required: command.requiredPermissions, execution_origin: executionOrigin, automation_rule_id: automationRuleId, automation_run_id: automationRunId, verification_status: "failed" },
         });
-
-        return {
-          ...toExecutionResult({
-            success: false,
-            status: "rejected",
-            commandId: command.id,
-            commandName: command.name,
-            correlationId,
-            durationMs,
-            failure,
-            entityType: command.entityType,
-            entityId: null,
-            userMessage: failure,
-          }),
-          commandHistoryEventId: historyId,
-        };
+        return { ...toExecutionResult({ success: false, status: "rejected", commandId: command.id, commandName: command.name, correlationId, durationMs: Date.now() - startedAt, failure, entityType: command.entityType, entityId: null, userMessage: failure }), commandHistoryEventId: historyId };
       }
 
       if (command.confirmationLevel === "REQUIRED" && !isCommandConfirmed(request)) {
-        const durationMs = Date.now() - startedAt;
         const failure = `Confirmation is required before running ${command.id}.`;
         const historyId = await recordOrionCommandHistory(deps.supabase, {
-          commandId: command.id,
-          commandName: command.name,
-          referenceId: null,
-          companyId: request.companyContext.companyId,
-          actorProfileId: request.userContext.actorProfileId,
-          occurredAt: new Date().toISOString(),
-          durationMs,
-          success: false,
-          failure,
-          validationErrors: [],
-          correlationId,
-          idempotencyKey: computeIdempotencyKey(request, command.id),
-          payload: {
-            command_description: command.description,
-            confirmation_required: true,
-            execution_origin: executionOrigin,
-            automation_rule_id: automationRuleId,
-            automation_run_id: automationRunId,
-          },
+          commandId: command.id, commandName: command.name, referenceId: null, companyId: request.companyContext.companyId,
+          actorProfileId: request.userContext.actorProfileId, occurredAt: new Date().toISOString(), durationMs: Date.now() - startedAt,
+          success: false, failure, validationErrors: [], correlationId, idempotencyKey,
+          payload: { command_description: command.description, confirmation_required: true, execution_origin: executionOrigin, automation_rule_id: automationRuleId, automation_run_id: automationRunId, verification_status: "failed" },
         });
-
-        return {
-          ...toExecutionResult({
-            success: false,
-            status: "rejected",
-            commandId: command.id,
-            commandName: command.name,
-            correlationId,
-            durationMs,
-            failure,
-            entityType: command.entityType,
-            entityId: null,
-            userMessage: failure,
-            requiresConfirmation: true,
-            confirmationSummary: typeof request.confirmation === "object"
-              ? request.confirmation.summary || null
-              : null,
-          }),
-          commandHistoryEventId: historyId,
-        };
+        return { ...toExecutionResult({ success: false, status: "rejected", commandId: command.id, commandName: command.name, correlationId, durationMs: Date.now() - startedAt, failure, entityType: command.entityType, entityId: null, userMessage: failure, requiresConfirmation: true, confirmationSummary: typeof request.confirmation === "object" ? request.confirmation.summary || null : null }), commandHistoryEventId: historyId };
       }
 
       const validation = command.validate(request.params);
       if (!validation.ok || !validation.normalizedParams) {
-        const durationMs = Date.now() - startedAt;
         const failure = "Command validation failed.";
         const historyId = await recordOrionCommandHistory(deps.supabase, {
-          commandId: command.id,
-          commandName: command.name,
-          referenceId: null,
-          companyId: request.companyContext.companyId,
-          actorProfileId: request.userContext.actorProfileId,
-          occurredAt: new Date().toISOString(),
-          durationMs,
-          success: false,
-          failure,
-          validationErrors: validation.errors,
-          correlationId,
-          idempotencyKey: computeIdempotencyKey(request, command.id),
-          payload: {
-            command_description: command.description,
-            execution_origin: executionOrigin,
-            automation_rule_id: automationRuleId,
-            automation_run_id: automationRunId,
-          },
+          commandId: command.id, commandName: command.name, referenceId: null, companyId: request.companyContext.companyId,
+          actorProfileId: request.userContext.actorProfileId, occurredAt: new Date().toISOString(), durationMs: Date.now() - startedAt,
+          success: false, failure, validationErrors: validation.errors, correlationId, idempotencyKey,
+          payload: { command_description: command.description, execution_origin: executionOrigin, automation_rule_id: automationRuleId, automation_run_id: automationRunId, verification_status: "failed" },
         });
-
-        return {
-          ...toExecutionResult({
-            success: false,
-            status: "failed",
-            commandId: command.id,
-            commandName: command.name,
-            correlationId,
-            durationMs,
-            failure,
-            entityType: command.entityType,
-            entityId: null,
-            userMessage: failure,
-            validationErrors: validation.errors,
-          }),
-          commandHistoryEventId: historyId,
-        };
+        return { ...toExecutionResult({ success: false, status: "failed", commandId: command.id, commandName: command.name, correlationId, durationMs: Date.now() - startedAt, failure, entityType: command.entityType, entityId: null, userMessage: failure, validationErrors: validation.errors }), commandHistoryEventId: historyId };
       }
+
+      const prior = await findOrionCommandHistoryByIdempotency(deps.supabase, request.companyContext.companyId, idempotencyKey);
+      const replay = replayFromHistory({ prior, command, correlationId });
+      if (replay) return replay;
 
       const executionContext: OrionCommandExecutionContext = {
         request,
@@ -335,13 +250,15 @@ export function createOrionCommandRouter(deps: OrionCommandDependencies) {
         companyId: request.companyContext.companyId,
         actorProfileId: request.userContext.actorProfileId,
         correlationId,
-        idempotencyKey: computeIdempotencyKey(request, command.id),
+        idempotencyKey,
       };
 
       try {
         const output = await command.execute(validation.normalizedParams, executionContext, deps);
         const normalized = normalizeExecutionOutput(output, command);
         const durationMs = Date.now() - startedAt;
+        const succeeded = normalized.status === "completed" || normalized.status === "unsupported";
+        const verificationStatus = succeeded ? "verified" : "failed";
 
         const historyId = await recordOrionCommandHistory(deps.supabase, {
           commandId: command.id,
@@ -351,18 +268,21 @@ export function createOrionCommandRouter(deps: OrionCommandDependencies) {
           actorProfileId: executionContext.actorProfileId,
           occurredAt: new Date().toISOString(),
           durationMs,
-          success: normalized.status !== "failed" && normalized.status !== "rejected",
-          failure: normalized.status === "failed" || normalized.status === "rejected"
-            ? normalized.userMessage
-            : null,
+          success: succeeded,
+          failure: normalized.status === "failed" || normalized.status === "rejected" ? normalized.userMessage : null,
           validationErrors: [],
           correlationId: executionContext.correlationId,
           idempotencyKey: executionContext.idempotencyKey,
           payload: {
             command_description: command.description,
             command_status: normalized.status,
+            verification_status: verificationStatus,
+            entity_id: normalized.entityId,
+            created_entity_ids: normalized.createdEntityIds,
+            updated_entity_ids: normalized.updatedEntityIds,
             published_events: normalized.publishedEventIds,
             deep_link: normalized.href,
+            user_message: normalized.userMessage,
             undo_capable: command.undoCapable,
             execution_origin: executionOrigin,
             automation_rule_id: automationRuleId,
@@ -371,7 +291,7 @@ export function createOrionCommandRouter(deps: OrionCommandDependencies) {
         });
 
         return {
-          success: normalized.status === "completed" || normalized.status === "unsupported",
+          success: succeeded,
           status: normalized.status,
           commandExecutionId: null,
           entityType: normalized.entityType,
@@ -385,9 +305,7 @@ export function createOrionCommandRouter(deps: OrionCommandDependencies) {
           userMessage: normalized.userMessage,
           retryable: normalized.retryable,
           idempotentReplay: false,
-          failure: normalized.status === "failed" || normalized.status === "rejected"
-            ? normalized.userMessage
-            : null,
+          failure: normalized.status === "failed" || normalized.status === "rejected" ? normalized.userMessage : null,
           warnings: normalized.warnings,
           entityCreated: normalized.entityCreated,
           entityUpdated: normalized.entityUpdated,
@@ -398,49 +316,19 @@ export function createOrionCommandRouter(deps: OrionCommandDependencies) {
           correlationId,
           commandId: command.id,
           commandName: command.name,
-          details: normalized.details,
+          details: { ...normalized.details, verification_status: verificationStatus },
           validationErrors: [],
         };
       } catch (error) {
         const durationMs = Date.now() - startedAt;
         const failure = error instanceof Error ? error.message : "Command execution failed.";
         const historyId = await recordOrionCommandHistory(deps.supabase, {
-          commandId: command.id,
-          commandName: command.name,
-          referenceId: null,
-          companyId: executionContext.companyId,
-          actorProfileId: executionContext.actorProfileId,
-          occurredAt: new Date().toISOString(),
-          durationMs,
-          success: false,
-          failure,
-          validationErrors: [],
-          correlationId: executionContext.correlationId,
-          idempotencyKey: executionContext.idempotencyKey,
-          payload: {
-            command_description: command.description,
-            execution_origin: executionOrigin,
-            automation_rule_id: automationRuleId,
-            automation_run_id: automationRunId,
-          },
+          commandId: command.id, commandName: command.name, referenceId: null, companyId: executionContext.companyId,
+          actorProfileId: executionContext.actorProfileId, occurredAt: new Date().toISOString(), durationMs,
+          success: false, failure, validationErrors: [], correlationId: executionContext.correlationId, idempotencyKey: executionContext.idempotencyKey,
+          payload: { command_description: command.description, execution_origin: executionOrigin, automation_rule_id: automationRuleId, automation_run_id: automationRunId, verification_status: "failed" },
         });
-
-        return {
-          ...toExecutionResult({
-            success: false,
-            status: "failed",
-            commandId: command.id,
-            commandName: command.name,
-            correlationId,
-            durationMs,
-            failure,
-            entityType: command.entityType,
-            entityId: null,
-            userMessage: failure,
-            retryable: true,
-          }),
-          commandHistoryEventId: historyId,
-        };
+        return { ...toExecutionResult({ success: false, status: "failed", commandId: command.id, commandName: command.name, correlationId, durationMs, failure, entityType: command.entityType, entityId: null, userMessage: failure, retryable: true, details: { verification_status: "failed" } }), commandHistoryEventId: historyId };
       }
     },
   };
