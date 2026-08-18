@@ -21,7 +21,7 @@ type BillRow = {
   balance_due: number;
 };
 
-type VendorRow = { id: string; name: string | null; company_name: string | null };
+type VendorRow = { id: string; display_name: string | null; company_name: string | null };
 type ProjectRow = { id: string; name: string | null; project_number: string | null };
 
 type QueryBuilder = {
@@ -74,7 +74,7 @@ export default function AccountsPayablePage() {
       const [nextSnapshot, billsResult, vendorsResult, projectsResult] = await Promise.all([
         loadAccountsPayableSnapshot({ supabase, companyId }),
         db.from("vendor_bills").select("id,vendor_id,project_id,bill_number,vendor_invoice_number,bill_date,due_date,status,total_amount,amount_paid,balance_due").eq("company_id", companyId),
-        db.from("vendors").select("id,name,company_name").eq("company_id", companyId),
+        db.from("vendors").select("id,display_name,company_name").eq("company_id", companyId),
         db.from("projects").select("id,name,project_number").eq("company_id", companyId),
       ]);
 
@@ -89,7 +89,7 @@ export default function AccountsPayablePage() {
       nextBills.sort((a, b) => String(b.bill_date || "").localeCompare(String(a.bill_date || "")));
       setSnapshot(nextSnapshot);
       setBills(nextBills);
-      setVendorNames(Object.fromEntries(vendors.map((row) => [row.id, row.company_name || row.name || "Vendor"])));
+      setVendorNames(Object.fromEntries(vendors.map((row) => [row.id, row.display_name || row.company_name || "Vendor"])));
       setProjectNames(Object.fromEntries(projects.map((row) => [row.id, row.name || row.project_number || "Project"])));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to load accounts payable.");
