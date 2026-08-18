@@ -255,8 +255,18 @@ export async function loadPrevailingWageProjectCompliance(params: {
   });
 
   const totalEstimatedDeficiency = workerRows.reduce((sum, row) => sum + (row.compliance?.estimatedDeficiencyAmount || 0), 0);
-  const deficientWorkerCount = workerRows.filter((row) => row.missingClassification || (row.compliance && !row.compliance.compliant)).length;
-  const compliantWorkerCount = workerRows.filter((row) => row.compliance?.compliant).length;
+  const workerState = new Map<string, "compliant" | "deficient">();
+  for (const row of workerRows) {
+    const deficient = row.missingClassification || Boolean(row.compliance && !row.compliance.compliant);
+    const current = workerState.get(row.workerAssignmentId);
+    if (deficient) {
+      workerState.set(row.workerAssignmentId, "deficient");
+    } else if (!current) {
+      workerState.set(row.workerAssignmentId, "compliant");
+    }
+  }
+  const deficientWorkerCount = [...workerState.values()].filter((state) => state === "deficient").length;
+  const compliantWorkerCount = [...workerState.values()].filter((state) => state === "compliant").length;
 
   return {
     applicable: true,
