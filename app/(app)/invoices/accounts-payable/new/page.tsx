@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Button, PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
 
 type VendorRow = { id: string; display_name: string | null; company_name: string | null };
 type ProjectRow = { id: string; name: string | null; project_number: string | null };
-type InsertedBill = { id: string };
 
 type SelectBuilder = {
   select: (columns: string) => SelectBuilder;
@@ -17,15 +16,12 @@ type SelectBuilder = {
   then: PromiseLike<{ data: unknown; error: { message?: string } | null }>["then"];
 };
 
-type InsertBuilder = {
-  insert: (values: Record<string, unknown>) => InsertBuilder;
-  select: (columns: string) => InsertBuilder;
-  maybeSingle: () => Promise<{ data: unknown; error: { message?: string } | null }>;
+type LooseClient = {
+  from: (table: string) => SelectBuilder;
+  rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message?: string } | null }>;
 };
 
-type LooseClient = {
-  from: (table: string) => SelectBuilder & InsertBuilder;
-};
+const AP_WRITE_ROLES = new Set(["owner", "administrator", "operations_manager", "office_manager", "accountant"]);
 
 export default function NewVendorBillPage() {
   const router = useRouter();
@@ -57,6 +53,11 @@ export default function NewVendorBillPage() {
       const resolved = await resolveWorkspaceContext(supabase);
       if (!resolved.context) {
         if (active) { setErrorMessage(resolved.errorMessage || "Unable to load workspace."); setIsLoading(false); }
+        return;
+      }
+
+      if (!AP_WRITE_ROLES.has((resolved.context.role || "").toLowerCase())) {
+        if (active) { setErrorMessage("Your role can view invoices but cannot create vendor bills."); setIsLoading(false); }
         return;
       }
 
@@ -96,51 +97,30 @@ export default function NewVendorBillPage() {
       setErrorMessage("Vendor, bill number, line description, and a positive amount are required.");
       return;
     }
+    if (dueDate && billDate && dueDate < billDate) {
+      setErrorMessage("Due date cannot be before the bill date.");
+      return;
+    }
 
     setIsSaving(true);
     setErrorMessage(null);
 
     const db = supabase as unknown as LooseClient;
-    const billResult = await db.from("vendor_bills").insert({
-      company_id: workspace.companyId,
-      vendor_id: vendorId,
-      project_id: projectId || null,
-      bill_number: billNumber.trim(),
-      vendor_invoice_number: vendorInvoiceNumber.trim() || null,
-      bill_date: billDate,
-      due_date: dueDate || null,
-      status: "draft",
-      subtotal_amount: numericAmount,
-      tax_amount: 0,
-      retainage_amount: 0,
-      total_amount: numericAmount,
-      amount_paid: 0,
-      created_by: workspace.userId,
-      updated_by: workspace.userId,
-    }).select("id").maybeSingle();
+    const result = await db.rpc("create_vendor_bill_with_line", {
+      p_company_id: workspace.companyId,
+      p_vendor_id: vendorId,
+      p_project_id: projectId || null,
+      p_bill_number: billNumber.trim(),
+      p_vendor_invoice_number: vendorInvoiceNumber.trim() || null,
+      p_bill_date: billDate,
+      p_due_date: dueDate || null,
+      p_description: description.trim(),
+      p_category: category,
+      p_amount: numericAmount,
+    });
 
-    if (billResult.error || !billResult.data) {
-      setErrorMessage(billResult.error?.message || "Unable to create vendor bill.");
-      setIsSaving(false);
-      return;
-    }
-
-    const bill = billResult.data as InsertedBill;
-    const lineResult = await db.from("vendor_bill_line_items").insert({
-      company_id: workspace.companyId,
-      vendor_bill_id: bill.id,
-      project_id: projectId || null,
-      description: description.trim(),
-      quantity: 1,
-      unit_cost: numericAmount,
-      line_amount: numericAmount,
-      category,
-      created_by: workspace.userId,
-      updated_by: workspace.userId,
-    }).select("id").maybeSingle();
-
-    if (lineResult.error) {
-      setErrorMessage(`Bill created, but its line item could not be saved: ${lineResult.error.message || "Unknown database error"}. Review the bill before approval.`);
+    if (result.error) {
+      setErrorMessage(result.error.message || "Unable to create vendor bill.");
       setIsSaving(false);
       return;
     }
@@ -151,11 +131,11 @@ export default function NewVendorBillPage() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title="New Vendor Bill" description="Enter a company-scoped vendor bill and its first cost line. Payment totals remain database-maintained and overpayment-protected." />
+      <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title="New Vendor Bill" description="Create the bill header and first cost line atomically, with company-role authorization and database overpayment protections intact." />
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-6 shadow-[var(--shadow-card)]">
         {errorMessage ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMessage}</div> : null}
-        {isLoading ? <p className="text-sm text-[var(--bos-text-secondary)]">Loading finance options…</p> : (
+        {isLoading ? <p className="text-sm text-[var(--bos-text-secondary)]">Loading finance options…</p> : workspace ? (
           <>
             <div className="grid gap-5 md:grid-cols-2">
               <Field label="Vendor" required><select value={vendorId} onChange={(e) => setVendorId(e.target.value)} className="bos-input" required><option value="">Select vendor</option>{vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.display_name || vendor.company_name || "Vendor"}</option>)}</select></Field>
@@ -180,12 +160,12 @@ export default function NewVendorBillPage() {
               <Button type="submit" size="md" disabled={isSaving}>{isSaving ? "Saving…" : "Create Vendor Bill"}</Button>
             </div>
           </>
-        )}
+        ) : null}
       </form>
     </div>
   );
 }
 
-function Field({ label, required = false, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required = false, children }: { label: string; required?: boolean; children: ReactNode }) {
   return <label className="space-y-2"><span className="text-sm font-semibold text-[var(--bos-text-primary)]">{label}{required ? <span className="ml-1 text-red-400">*</span> : null}</span>{children}</label>;
 }
