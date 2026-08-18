@@ -120,6 +120,17 @@ export default function InvoicesPage() {
         )}
       />
 
+      <div className="grid gap-3 md:grid-cols-2">
+        <Link href="/invoices/accounts-payable" className="group rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)] transition hover:bg-[var(--bos-bg-hover)]">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--bos-text-muted)]">Finance</p>
+          <div className="mt-2 flex items-center justify-between gap-4"><div><h2 className="text-lg font-semibold">Accounts Payable</h2><p className="mt-1 text-sm text-[var(--bos-text-secondary)]">Vendor bills, approvals, balances, and overdue exposure.</p></div><span className="text-xl text-blue-400 transition group-hover:translate-x-1">→</span></div>
+        </Link>
+        <Link href="/invoices/prevailing-wage" className="group rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)] transition hover:bg-[var(--bos-bg-hover)]">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--bos-text-muted)]">Commercial Compliance</p>
+          <div className="mt-2 flex items-center justify-between gap-4"><div><h2 className="text-lg font-semibold">Prevailing Wage</h2><p className="mt-1 text-sm text-[var(--bos-text-secondary)]">DBRA, Ohio public work, certified payroll, and wage deficiencies.</p></div><span className="text-xl text-blue-400 transition group-hover:translate-x-1">→</span></div>
+        </Link>
+      </div>
+
       <InvoicesDirectory
         items={items}
         customerOptions={customerOptions}
