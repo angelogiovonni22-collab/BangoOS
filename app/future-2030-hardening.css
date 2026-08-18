@@ -1,0 +1,195 @@
+/* Neon Grid Command hardening and configurable accent palette. Loaded after future-2030.css. */
+
+[data-theme="future-2030"] {
+  --neon-accent: #00f6ff;
+  --neon-accent-rgb: 0 246 255;
+  --neon-secondary: #2d7dff;
+  --neon-secondary-rgb: 45 125 255;
+
+  /* Normalize older light-only workspace tokens into a coherent command palette. */
+  --bos-bg-root: #010306;
+  --bos-bg-shell: #020509;
+  --bos-bg-sidebar: #02080d;
+  --bos-bg-panel: #041018;
+  --bos-bg-panel-elevated: #071723;
+  --bos-bg-control: #081b28;
+  --bos-bg-hover: #0b2634;
+  --bos-bg-workspace-surface: #010509;
+  --bos-bg-workspace-surface-soft: #031019;
+  --bos-bg-workspace-card: #041018;
+
+  --bos-text-primary: #efffff;
+  --bos-text-secondary: #bedde2;
+  --bos-text-muted: #7fa6ad;
+  --bos-text-strong-on-light: #efffff;
+  --bos-text-medium-on-light: #bedde2;
+
+  --bos-border-subtle: rgb(var(--neon-accent-rgb) / 0.16);
+  --bos-border-default: rgb(var(--neon-accent-rgb) / 0.3);
+  --bos-border-strong: rgb(var(--neon-accent-rgb) / 0.55);
+  --bos-border-light: rgb(var(--neon-accent-rgb) / 0.18);
+  --bos-border-light-strong: rgb(var(--neon-accent-rgb) / 0.36);
+
+  --color-background-app: #010306;
+  --color-background-root: #010306;
+  --color-background-workspace: #010509;
+  --color-surface-card: #041018;
+  --color-surface-subtle: #081b28;
+  --color-surface-muted: #0b2634;
+  --color-surface-elevated: #071723;
+  --color-text-primary: #efffff;
+  --color-text-secondary: #bedde2;
+  --color-text-muted: #7fa6ad;
+  --color-text-inverse: #010306;
+  --color-border-subtle: rgb(var(--neon-accent-rgb) / 0.16);
+  --color-border-strong: rgb(var(--neon-accent-rgb) / 0.36);
+
+  /* Legacy neutral utilities now remain dark in this experience. */
+  --color-neutral-50: #06111a;
+  --color-neutral-100: #091822;
+  --color-neutral-200: #102431;
+  --color-neutral-500: #84a8af;
+  --color-neutral-700: #c4e0e4;
+  --color-primary-50: rgb(var(--neon-accent-rgb) / 0.1);
+  --color-primary-100: rgb(var(--neon-accent-rgb) / 0.16);
+  --color-primary-600: var(--neon-accent);
+  --color-primary-700: var(--neon-accent);
+  --color-primary-800: var(--neon-secondary);
+  --color-action-primary: var(--neon-accent);
+  --color-action-primary-hover: var(--neon-secondary);
+  --color-focus: var(--neon-accent);
+  --color-selected: rgb(var(--neon-accent-rgb) / 0.14);
+  --focus-ring-primary: rgb(var(--neon-accent-rgb) / 0.32);
+
+  --grid-cyan: var(--neon-accent);
+  --grid-blue: var(--neon-secondary);
+  --grid-white: #f3ffff;
+  --grid-dim: rgb(var(--neon-accent-rgb) / 0.08);
+  --grid-line: rgb(var(--neon-accent-rgb) / 0.13);
+  --bos-ambient-cyan: rgb(var(--neon-accent-rgb) / 0.12);
+  --bos-ambient-blue: rgb(var(--neon-secondary-rgb) / 0.1);
+  --bos-card-highlight: rgb(255 255 255 / 0.055);
+  --bos-card-shadow: 0 24px 70px -38px rgb(0 0 0 / 0.96), 0 0 0 1px rgb(var(--neon-accent-rgb) / 0.05), 0 0 36px -24px rgb(var(--neon-accent-rgb) / 0.5);
+}
+
+html[data-neon-accent="blue"] { --neon-accent: #3a86ff; --neon-accent-rgb: 58 134 255; --neon-secondary: #68b5ff; --neon-secondary-rgb: 104 181 255; }
+html[data-neon-accent="red"] { --neon-accent: #ff3b4f; --neon-accent-rgb: 255 59 79; --neon-secondary: #ff7a64; --neon-secondary-rgb: 255 122 100; }
+html[data-neon-accent="green"] { --neon-accent: #39ff88; --neon-accent-rgb: 57 255 136; --neon-secondary: #00d98b; --neon-secondary-rgb: 0 217 139; }
+html[data-neon-accent="white"] { --neon-accent: #f4fbff; --neon-accent-rgb: 244 251 255; --neon-secondary: #a8c8dc; --neon-secondary-rgb: 168 200 220; }
+html[data-neon-accent="orange"] { --neon-accent: #ff8a2a; --neon-accent-rgb: 255 138 42; --neon-secondary: #ffbd45; --neon-secondary-rgb: 255 189 69; }
+html[data-neon-accent="yellow"] { --neon-accent: #ffe34a; --neon-accent-rgb: 255 227 74; --neon-secondary: #ffab2e; --neon-secondary-rgb: 255 171 46; }
+html[data-neon-accent="purple"] { --neon-accent: #b66cff; --neon-accent-rgb: 182 108 255; --neon-secondary: #6f7cff; --neon-secondary-rgb: 111 124 255; }
+html[data-neon-accent="cyan"] { --neon-accent: #00f6ff; --neon-accent-rgb: 0 246 255; --neon-secondary: #2d7dff; --neon-secondary-rgb: 45 125 255; }
+
+/* Bring legacy white and light-gradient modules into the same black-glass hierarchy. */
+[data-theme="future-2030"] .enterprise-shell main .bg-white,
+[data-theme="future-2030"] .enterprise-shell main [class*="bg-[#fff"],
+[data-theme="future-2030"] .enterprise-shell main [class*="bg-[#f8"],
+[data-theme="future-2030"] .enterprise-shell main [class*="bg-[#f3"],
+[data-theme="future-2030"] .enterprise-shell main [class*="bg-[#f1"] {
+  background-color: var(--bos-bg-panel) !important;
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="future-2030"] .enterprise-shell main [class*="#f8fbff"],
+[data-theme="future-2030"] .enterprise-shell main [class*="#f3f7fd"],
+[data-theme="future-2030"] .enterprise-shell main [class*="var(--color-neutral-50)"] {
+  background: linear-gradient(180deg, rgb(7 23 35 / 0.98), rgb(4 16 24 / 0.98)) !important;
+  color: var(--bos-text-primary) !important;
+}
+
+/* Make project cards, summaries, forms, and nested rows consistent across legacy modules. */
+[data-theme="future-2030"] .enterprise-shell main :is(
+  [data-bos-card="true"],
+  .rounded-xl,
+  .rounded-2xl,
+  .rounded-[18px]
+) {
+  border-color: rgb(var(--neon-accent-rgb) / 0.2);
+}
+
+[data-theme="future-2030"] .enterprise-shell main input,
+[data-theme="future-2030"] .enterprise-shell main textarea,
+[data-theme="future-2030"] .enterprise-shell main select {
+  background-color: #071923 !important;
+  border-color: rgb(var(--neon-accent-rgb) / 0.25) !important;
+  color: var(--bos-text-primary) !important;
+  caret-color: var(--neon-accent);
+}
+
+[data-theme="future-2030"] .enterprise-shell main input::placeholder,
+[data-theme="future-2030"] .enterprise-shell main textarea::placeholder {
+  color: #789ba2 !important;
+  opacity: 1;
+}
+
+[data-theme="future-2030"] .enterprise-shell main input:focus,
+[data-theme="future-2030"] .enterprise-shell main textarea:focus,
+[data-theme="future-2030"] .enterprise-shell main select:focus {
+  border-color: var(--neon-accent) !important;
+  box-shadow: 0 0 0 3px rgb(var(--neon-accent-rgb) / 0.12), 0 0 24px -12px rgb(var(--neon-accent-rgb) / 0.68) !important;
+}
+
+[data-theme="future-2030"] .enterprise-shell main select option {
+  background: #06111a;
+  color: #efffff;
+}
+
+/* Replace hardcoded cyan emphasis from the original experience with the selected accent. */
+[data-theme="future-2030"] #bangoos-sidebar {
+  border-color: rgb(var(--neon-accent-rgb) / 0.28) !important;
+  box-shadow: inset -1px 0 rgb(var(--neon-accent-rgb) / 0.16), 0 0 36px rgb(var(--neon-accent-rgb) / 0.07), 18px 0 80px -48px #000;
+}
+
+[data-theme="future-2030"] #bangoos-sidebar nav a:hover {
+  border-color: rgb(var(--neon-accent-rgb) / 0.28);
+  background: linear-gradient(90deg, rgb(var(--neon-accent-rgb) / 0.12), rgb(var(--neon-accent-rgb) / 0.025));
+  box-shadow: inset 0 0 20px rgb(var(--neon-accent-rgb) / 0.04), 0 0 22px -14px rgb(var(--neon-accent-rgb) / 0.82);
+}
+
+[data-theme="future-2030"] #bangoos-sidebar nav a[aria-current="page"] {
+  border-color: rgb(var(--neon-accent-rgb) / 0.56);
+  background: linear-gradient(90deg, rgb(var(--neon-accent-rgb) / 0.17), rgb(var(--neon-secondary-rgb) / 0.06));
+  text-shadow: 0 0 12px rgb(var(--neon-accent-rgb) / 0.28);
+  box-shadow: inset 0 0 26px rgb(var(--neon-accent-rgb) / 0.07), 0 0 18px -10px rgb(var(--neon-accent-rgb) / 0.9);
+}
+
+[data-theme="future-2030"] [data-bos-topbar="true"] {
+  border-color: rgb(var(--neon-accent-rgb) / 0.3) !important;
+  box-shadow: inset 0 -1px rgb(var(--neon-accent-rgb) / 0.12), 0 0 28px rgb(var(--neon-accent-rgb) / 0.06);
+}
+
+[data-theme="future-2030"] [data-bos-page-header="true"] {
+  border-color: rgb(var(--neon-accent-rgb) / 0.36);
+  background: linear-gradient(115deg, rgb(var(--neon-accent-rgb) / 0.075), transparent 32%), linear-gradient(180deg, rgb(4 21 30 / 0.97), rgb(2 12 18 / 0.95));
+  box-shadow: inset 0 0 30px rgb(var(--neon-accent-rgb) / 0.025), 0 0 30px -20px rgb(var(--neon-accent-rgb) / 0.82), 0 20px 60px -36px #000;
+}
+
+[data-theme="future-2030"] .enterprise-shell main [data-bos-card="true"] {
+  border-color: rgb(var(--neon-accent-rgb) / 0.23);
+  background: linear-gradient(135deg, rgb(var(--neon-accent-rgb) / 0.04), transparent 30%), linear-gradient(180deg, rgb(4 18 27 / 0.97), rgb(2 11 17 / 0.97));
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.05), inset 0 0 24px rgb(var(--neon-accent-rgb) / 0.02), 0 18px 52px -34px #000;
+}
+
+[data-theme="future-2030"] .enterprise-shell main button:not(:disabled):focus-visible,
+[data-theme="future-2030"] .enterprise-shell main a:focus-visible {
+  outline-color: var(--neon-accent);
+  box-shadow: 0 0 0 3px rgb(var(--neon-accent-rgb) / 0.18), 0 0 18px rgb(var(--neon-accent-rgb) / 0.24);
+}
+
+/* Status colors keep their semantic meaning; only generic command accents are recolored. */
+[data-theme="future-2030"] .enterprise-shell main .text-blue-600,
+[data-theme="future-2030"] .enterprise-shell main .text-blue-500,
+[data-theme="future-2030"] .enterprise-shell main .text-cyan-500 {
+  color: var(--neon-accent) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="future-2030"] .enterprise-shell *,
+  [data-theme="future-2030"] .enterprise-shell *::before,
+  [data-theme="future-2030"] .enterprise-shell *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
