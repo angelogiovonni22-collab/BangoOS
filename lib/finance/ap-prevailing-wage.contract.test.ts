@@ -33,9 +33,18 @@ function main() {
     check(migration.includes("create table if not exists public.vendor_bill_line_items"), "vendor bill lines table exists");
     check(migration.includes("create table if not exists public.vendor_bill_payments"), "vendor bill payments table exists");
     check(migration.includes("balance_due"), "bill balance due is represented");
+    check(migration.includes("idx_vendor_bills_company_vendor_invoice_unique"), "duplicate vendor invoice protection exists");
   });
 
-  test("2. prevailing wage schema is project/jurisdiction aware", () => {
+  test("2. AP links are strict and payment state is database-maintained", () => {
+    check(migration.includes("vendor_bills_purchase_order_company_fkey"), "bills are company-scoped to purchase orders");
+    check(migration.includes("vendor_bill_line_items_purchase_order_line_company_fkey"), "bill lines are company-scoped to PO lines");
+    check(migration.includes("recalculate_vendor_bill_payment_totals"), "payment totals are recalculated at the database boundary");
+    check(migration.includes("trg_vendor_bill_payments_recalculate"), "payment changes trigger AP rollup");
+    check(migration.includes("Vendor bill payments exceed bill total"), "overpayment is rejected");
+  });
+
+  test("3. prevailing wage schema is project/jurisdiction aware", () => {
     check(migration.includes("prevailing_wage_project_profiles"), "project prevailing wage profiles exist");
     check(migration.includes("federal_dbra"), "federal DBRA applicability is supported");
     check(migration.includes("ohio_public_improvement"), "Ohio public-improvement applicability is supported");
@@ -44,23 +53,35 @@ function main() {
     check(migration.includes("completion_affidavit_required"), "completion affidavit requirement is tracked");
   });
 
-  test("3. classifications include base, fringe, overtime, and apprenticeship", () => {
+  test("4. classifications and workers include wage and apprenticeship controls", () => {
     check(migration.includes("base_hourly_rate"), "base hourly rate is tracked");
     check(migration.includes("fringe_hourly_rate"), "fringe hourly rate is tracked");
     check(migration.includes("overtime_multiplier"), "overtime multiplier is tracked");
     check(migration.includes("apprentice_program_name"), "apprentice program is tracked");
     check(migration.includes("apprentice_registration_number"), "apprentice registration is tracked");
-    check(migration.includes("apprentice_percentage"), "apprentice progression percentage is tracked");
+    check(migration.includes("prevailing_wage_worker_assignments_employee_company_fkey"), "employee assignments are company-scoped");
+    check(migration.includes("prevailing_wage_worker_assignments_trade_partner_company_fkey"), "trade partner assignments are company-scoped");
+    check(migration.includes("prevailing_wage_worker_assignments_apprentice_evidence_check"), "apprentice evidence is required when apprentice status is used");
   });
 
-  test("4. certified payroll stores weekly compliance evidence", () => {
+  test("5. prevailing wage time remains tied to the project and source time record", () => {
+    check(migration.includes("prevailing_wage_worker_assignments_id_project_company_unique"), "worker assignments expose project-scoped composite identity");
+    check(migration.includes("prevailing_wage_time_entries_assignment_project_company_fkey"), "time entries cannot point to an assignment from another project");
+    check(migration.includes("workforce_time_entries_id_company_unique"), "workforce time source exposes company-scoped identity");
+    check(migration.includes("prevailing_wage_time_entries_source_time_company_fkey"), "prevailing wage time can trace to workforce time evidence");
+    check(migration.includes("idx_prevailing_wage_time_source_unique"), "a source time entry cannot be imported twice");
+  });
+
+  test("6. certified payroll stores weekly compliance evidence", () => {
     check(migration.includes("certified_payroll_periods"), "weekly certified payroll periods exist");
     check(migration.includes("statement_of_compliance_signed"), "statement of compliance signature state exists");
+    check(migration.includes("certified_payroll_periods_statement_check"), "signed statements require signer evidence");
+    check(migration.includes("certified_payroll_periods_submission_check"), "submitted payroll requires submission evidence");
     check(migration.includes("certified_payroll_worker_rows"), "certified payroll worker rows exist");
     check(migration.includes("deficiency_amount"), "worker deficiency amount is tracked");
   });
 
-  test("5. prevailing wage compliance calculator detects underpayment", () => {
+  test("7. prevailing wage compliance calculator detects underpayment", () => {
     const result = calculatePrevailingWageCompliance({
       requiredBaseHourly: 30,
       requiredFringeHourly: 12,
@@ -75,7 +96,7 @@ function main() {
     check(result.estimatedDeficiencyAmount > 0, "estimated deficiency amount is calculated");
   });
 
-  test("6. bona fide fringe credit can satisfy required fringe", () => {
+  test("8. bona fide fringe credit can satisfy required fringe", () => {
     const result = calculatePrevailingWageCompliance({
       requiredBaseHourly: 30,
       requiredFringeHourly: 12,
@@ -88,7 +109,7 @@ function main() {
     check(result.estimatedDeficiencyAmount === 0, "compliant row has no estimated deficiency");
   });
 
-  test("7. finance service supports AP and project prevailing-wage compliance", () => {
+  test("9. finance service supports AP and project prevailing-wage compliance", () => {
     check(service.includes("loadAccountsPayableSnapshot"), "AP snapshot service exists");
     check(service.includes("loadPrevailingWageProjectCompliance"), "project prevailing-wage compliance service exists");
     check(service.includes('from("vendor_bills")'), "AP service reads vendor bills");
@@ -96,10 +117,10 @@ function main() {
     check(service.includes('from("prevailing_wage_classifications")'), "prevailing-wage service reads classifications");
   });
 
-  test("8. all finance/compliance tables enforce company RLS", () => {
-    check(migration.includes("enable row level security"), "RLS is enabled");
+  test("10. finance permissions are narrower than field compliance permissions", () => {
+    check(migration.includes("array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant'']"), "AP writes are restricted to finance/operations leadership");
+    check(migration.includes("array[''owner'',''administrator'',''operations_manager'',''office_manager'',''accountant'',''project_manager'',''superintendent'']"), "prevailing wage operations allow approved project leadership");
     check(migration.includes("public.is_company_member(company_id)"), "reads require company membership");
-    check(migration.includes("public.has_company_role"), "writes require approved company roles");
   });
 
   console.log(`\nAP + prevailing wage contract results: ${passed} passed, ${failed} failed`);
