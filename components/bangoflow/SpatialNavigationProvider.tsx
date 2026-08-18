@@ -40,6 +40,7 @@ const DEPARTMENT_LOOKUP: Record<string, { department: SpatialDepartment; label: 
   "daily-reports": { department: "operations", label: "Operations", href: "/operations" },
   schedule: { department: "operations", label: "Operations", href: "/operations" },
   projects: { department: "operations", label: "Operations", href: "/operations" },
+  partner: { department: "operations", label: "Trade Partner", href: "/partner" },
   estimates: { department: "financial", label: "Financial", href: "/estimates" },
   invoices: { department: "financial", label: "Financial", href: "/invoices" },
   "change-orders": { department: "financial", label: "Financial", href: "/change-orders" },
@@ -59,19 +60,24 @@ export function deriveSpatialRouteState(pathname: string): SpatialRouteState {
   const segments = normalized.split("/").filter(Boolean);
   const moduleKey = segments[0] || "dashboard";
   const lookup = DEPARTMENT_LOOKUP[moduleKey] ?? DEPARTMENT_LOOKUP.dashboard;
+  const isPartnerWorkspace = moduleKey === "partner" && segments.length > 1 && segments[1] !== "welcome";
   const surfaceKind: SpatialSurfaceKind = normalized === "/dashboard"
     ? "mission-control"
-    : moduleKey === "projects" && segments.length > 1
+    : (moduleKey === "projects" && segments.length > 1) || isPartnerWorkspace
       ? "workspace"
       : "module";
 
   const moduleLabel = surfaceKind === "mission-control"
     ? "Operations Overview"
-    : surfaceKind === "workspace"
+    : isPartnerWorkspace
       ? "Project Workspace"
-      : moduleKey === "dispatch"
-        ? "Dispatch Center"
-      : toTitle(moduleKey.replace(/-/g, " "));
+      : surfaceKind === "workspace"
+        ? "Project Workspace"
+        : moduleKey === "dispatch"
+          ? "Dispatch Center"
+          : moduleKey === "partner"
+            ? "Trade Partner"
+            : toTitle(moduleKey.replace(/-/g, " "));
 
   return {
     pathname: normalized,
@@ -106,6 +112,18 @@ function buildBreadcrumbs(segments: string[], surfaceKind: SpatialSurfaceKind): 
     return [
       { id: "dashboard", label: "Operations Overview", href: null },
     ];
+  }
+
+  if (segments[0] === "partner") {
+    const items: SpatialBreadcrumb[] = [
+      { id: "partner", label: "Trade Partner", href: segments.length > 1 ? "/partner" : null },
+    ];
+
+    if (segments.length > 1) {
+      items.push({ id: "partner-workspace", label: segments[1] === "welcome" ? "Account Setup" : "Project Workspace", href: null });
+    }
+
+    return items;
   }
 
   const items: SpatialBreadcrumb[] = [
