@@ -1,9 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 
-type LooseClient = SupabaseClient<Database> & {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => any;
+type UntypedQueryBuilder = {
+  select: (columns: string) => UntypedQueryBuilder;
+  eq: (column: string, value: unknown) => UntypedQueryBuilder;
+  neq: (column: string, value: unknown) => UntypedQueryBuilder;
+  in: (column: string, values: unknown[]) => UntypedQueryBuilder;
+  maybeSingle: () => Promise<{ data: unknown; error: { message?: string } | null }>;
+  then: PromiseLike<{ data: unknown; error: { message?: string } | null }>["then"];
+};
+
+type UntypedClient = {
+  from: (table: string) => UntypedQueryBuilder;
 };
 
 export type AccountsPayableSnapshot = {
@@ -31,12 +39,60 @@ export type PrevailingWageComplianceResult = {
   compliant: boolean;
 };
 
+type AccountsPayableRow = {
+  status: string | null;
+  total_amount: number | null;
+  amount_paid: number | null;
+  balance_due: number | null;
+  due_date: string | null;
+};
+
+type PrevailingWageProfileRow = {
+  id: string;
+  applicability: string;
+  jurisdiction: string;
+  certified_payroll_required: boolean;
+  wage_posting_required: boolean;
+  completion_affidavit_required: boolean;
+};
+
+type PrevailingWageTimeRow = {
+  id: string;
+  worker_assignment_id: string;
+  regular_hours: number;
+  overtime_hours: number;
+  actual_base_rate: number;
+  actual_cash_fringe: number;
+  actual_bona_fide_fringe: number;
+};
+
+type PrevailingWageAssignmentRow = {
+  id: string;
+  classification_id: string;
+};
+
+type PrevailingWageClassificationRow = {
+  id: string;
+  classification_name: string | null;
+  base_hourly_rate: number;
+  fringe_hourly_rate: number;
+  overtime_multiplier: number;
+};
+
+function asUntypedClient(client: SupabaseClient<Database>): UntypedClient {
+  return client as unknown as UntypedClient;
+}
+
 function money(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 function safe(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function rowsOf<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
 }
 
 export function calculatePrevailingWageCompliance(input: {
@@ -62,8 +118,6 @@ export function calculatePrevailingWageCompliance(input: {
   const actualCombinedHourly = actualBaseHourly + actualCashFringeHourly + actualBonaFideFringeHourly;
   const hourlyDeficiency = Math.max(0, requiredCombinedHourly - actualCombinedHourly);
 
-  // Conservative deficiency estimate: regular deficiency plus overtime deficiency
-  // applying the wage determination overtime multiplier to the base-wage component.
   const regularDeficiency = hourlyDeficiency * regularHours;
   const requiredOvertimeCombined = (requiredBaseHourly * overtimeMultiplier) + requiredFringeHourly;
   const actualOvertimeCombined = (actualBaseHourly * overtimeMultiplier) + actualCashFringeHourly + actualBonaFideFringeHourly;
@@ -90,7 +144,7 @@ export async function loadAccountsPayableSnapshot(params: {
   companyId: string;
   projectId?: string | null;
 }): Promise<AccountsPayableSnapshot> {
-  const db = params.supabase as LooseClient;
+  const db = asUntypedClient(params.supabase);
   let query = db
     .from("vendor_bills")
     .select("status, total_amount, amount_paid, balance_due, due_date")
@@ -106,6 +160,7 @@ export async function loadAccountsPayableSnapshot(params: {
     throw new Error(error.message || "Unable to load accounts payable.");
   }
 
+  const rows = rowsOf<AccountsPayableRow>(data);
   const today = new Date().toISOString().slice(0, 10);
   let totalOpenBills = 0;
   let totalApproved = 0;
@@ -114,7 +169,7 @@ export async function loadAccountsPayableSnapshot(params: {
   let overdueOutstanding = 0;
   let overdueBillCount = 0;
 
-  for (const row of data || []) {
+  for (const row of rows) {
     const total = safe(row.total_amount);
     const paid = safe(row.amount_paid);
     const balance = safe(row.balance_due);
@@ -129,7 +184,7 @@ export async function loadAccountsPayableSnapshot(params: {
     }
     totalPaid += paid;
 
-    if (balance > 0 && row.due_date && String(row.due_date) < today) {
+    if (balance > 0 && row.due_date && row.due_date < today) {
       overdueOutstanding += balance;
       overdueBillCount += 1;
     }
@@ -141,7 +196,7 @@ export async function loadAccountsPayableSnapshot(params: {
     totalPaid: money(totalPaid),
     totalOutstanding: money(totalOutstanding),
     overdueOutstanding: money(overdueOutstanding),
-    billCount: (data || []).length,
+    billCount: rows.length,
     overdueBillCount,
   };
 }
@@ -151,9 +206,9 @@ export async function loadPrevailingWageProjectCompliance(params: {
   companyId: string;
   projectId: string;
 }) {
-  const db = params.supabase as LooseClient;
+  const db = asUntypedClient(params.supabase);
 
-  const { data: profile, error: profileError } = await db
+  const { data: profileData, error: profileError } = await db
     .from("prevailing_wage_project_profiles")
     .select("id, applicability, jurisdiction, certified_payroll_required, wage_posting_required, completion_affidavit_required")
     .eq("company_id", params.companyId)
@@ -164,6 +219,7 @@ export async function loadPrevailingWageProjectCompliance(params: {
     throw new Error(profileError.message || "Unable to load prevailing wage profile.");
   }
 
+  const profile = profileData as PrevailingWageProfileRow | null;
   if (!profile || profile.applicability === "not_applicable") {
     return {
       applicable: false,
@@ -175,7 +231,7 @@ export async function loadPrevailingWageProjectCompliance(params: {
     };
   }
 
-  const { data: rows, error: rowsError } = await db
+  const { data: rowData, error: rowsError } = await db
     .from("prevailing_wage_time_entries")
     .select("id, worker_assignment_id, regular_hours, overtime_hours, actual_base_rate, actual_cash_fringe, actual_bona_fide_fringe")
     .eq("company_id", params.companyId)
@@ -185,8 +241,9 @@ export async function loadPrevailingWageProjectCompliance(params: {
     throw new Error(rowsError.message || "Unable to load prevailing wage time entries.");
   }
 
-  const assignmentIds = [...new Set((rows || []).map((row: { worker_assignment_id: string }) => row.worker_assignment_id))];
-  const { data: assignments, error: assignmentsError } = assignmentIds.length > 0
+  const rows = rowsOf<PrevailingWageTimeRow>(rowData);
+  const assignmentIds = [...new Set(rows.map((row) => row.worker_assignment_id))];
+  const assignmentResult = assignmentIds.length > 0
     ? await db
       .from("prevailing_wage_worker_assignments")
       .select("id, classification_id")
@@ -194,12 +251,13 @@ export async function loadPrevailingWageProjectCompliance(params: {
       .in("id", assignmentIds)
     : { data: [], error: null };
 
-  if (assignmentsError) {
-    throw new Error(assignmentsError.message || "Unable to load prevailing wage assignments.");
+  if (assignmentResult.error) {
+    throw new Error(assignmentResult.error.message || "Unable to load prevailing wage assignments.");
   }
 
-  const classificationIds = [...new Set((assignments || []).map((row: { classification_id: string }) => row.classification_id))];
-  const { data: classifications, error: classificationsError } = classificationIds.length > 0
+  const assignments = rowsOf<PrevailingWageAssignmentRow>(assignmentResult.data);
+  const classificationIds = [...new Set(assignments.map((row) => row.classification_id))];
+  const classificationResult = classificationIds.length > 0
     ? await db
       .from("prevailing_wage_classifications")
       .select("id, classification_name, base_hourly_rate, fringe_hourly_rate, overtime_multiplier")
@@ -207,22 +265,15 @@ export async function loadPrevailingWageProjectCompliance(params: {
       .in("id", classificationIds)
     : { data: [], error: null };
 
-  if (classificationsError) {
-    throw new Error(classificationsError.message || "Unable to load prevailing wage classifications.");
+  if (classificationResult.error) {
+    throw new Error(classificationResult.error.message || "Unable to load prevailing wage classifications.");
   }
 
-  const assignmentMap = new Map((assignments || []).map((row: { id: string; classification_id: string }) => [row.id, row]));
-  const classificationMap = new Map((classifications || []).map((row: { id: string }) => [row.id, row]));
+  const classifications = rowsOf<PrevailingWageClassificationRow>(classificationResult.data);
+  const assignmentMap = new Map(assignments.map((row) => [row.id, row]));
+  const classificationMap = new Map(classifications.map((row) => [row.id, row]));
 
-  const workerRows = (rows || []).map((row: {
-    id: string;
-    worker_assignment_id: string;
-    regular_hours: number;
-    overtime_hours: number;
-    actual_base_rate: number;
-    actual_cash_fringe: number;
-    actual_bona_fide_fringe: number;
-  }) => {
+  const workerRows = rows.map((row) => {
     const assignment = assignmentMap.get(row.worker_assignment_id);
     const classification = assignment ? classificationMap.get(assignment.classification_id) : null;
 
