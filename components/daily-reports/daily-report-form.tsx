@@ -22,9 +22,12 @@ type DailyReportFormProps = {
   isSaving: boolean;
   onChange: (next: DailyReportUpsertInput) => void;
   onSave: (status: DailyReportStatus) => Promise<void>;
+  allowedStatuses?: readonly DailyReportStatus[];
   onRegenerateSummary?: () => Promise<void> | void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
+
+const ALL_STATUSES: readonly DailyReportStatus[] = ["draft", "submitted", "reviewed", "approved"];
 
 export function DailyReportForm({
   value,
@@ -34,8 +37,11 @@ export function DailyReportForm({
   isSaving,
   onChange,
   onSave,
+  allowedStatuses = ALL_STATUSES,
   t,
 }: DailyReportFormProps) {
+  const canSaveAs = (status: DailyReportStatus) => allowedStatuses.includes(status);
+
   return (
     <div className="space-y-5">
       {validationErrors.length > 0 ? (
@@ -86,12 +92,14 @@ export function DailyReportForm({
       </section>
 
       <section className="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" disabled={isSaving} onClick={() => void onSave("draft")}>
-          {isSaving ? t("dailyReports.actions.saving") : t("dailyReports.actions.saveDraft")}
-        </Button>
-        <Button variant="secondary" disabled={isSaving} onClick={() => void onSave("submitted")}>{t("dailyReports.actions.submit")}</Button>
-        <Button variant="secondary" disabled={isSaving} onClick={() => void onSave("reviewed")}>{t("dailyReports.actions.markReviewed")}</Button>
-        <Button disabled={isSaving} onClick={() => void onSave("approved")}>{t("dailyReports.actions.approve")}</Button>
+        {canSaveAs("draft") ? (
+          <Button variant="outline" disabled={isSaving} onClick={() => void onSave("draft")}>
+            {isSaving ? t("dailyReports.actions.saving") : t("dailyReports.actions.saveDraft")}
+          </Button>
+        ) : null}
+        {canSaveAs("submitted") ? <Button variant="secondary" disabled={isSaving} onClick={() => void onSave("submitted")}>{t("dailyReports.actions.submit")}</Button> : null}
+        {canSaveAs("reviewed") ? <Button variant="secondary" disabled={isSaving} onClick={() => void onSave("reviewed")}>{t("dailyReports.actions.markReviewed")}</Button> : null}
+        {canSaveAs("approved") ? <Button disabled={isSaving} onClick={() => void onSave("approved")}>{t("dailyReports.actions.approve")}</Button> : null}
       </section>
     </div>
   );
