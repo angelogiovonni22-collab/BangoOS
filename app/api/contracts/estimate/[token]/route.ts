@@ -11,6 +11,9 @@ const SECURE_HEADERS = {
   "X-Content-Type-Options": "nosniff",
 };
 
+const PUBLIC_ESTIMATE_SELECT = "id,title,estimate_number,description,total_amount,terms,payment_terms,scope_inclusions,scope_exclusions,version_number,status,customer_id,agreement_snapshot,customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)";
+const PUBLIC_ITEM_SELECT = "description,quantity,unit,unit_price,line_total,sort_order";
+
 function secureJson(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: SECURE_HEADERS });
 }
@@ -37,45 +40,69 @@ async function context(token: string, request: Request) {
   };
 }
 
+async function loadPublicContract(admin: ReturnType<typeof createAdminClient>, companyId: string, estimateId: string) {
+  const [{ data: estimate, error: estimateError }, { data: items, error: itemsError }, { data: company, error: companyError }] = await Promise.all([
+    admin.from("estimates").select(PUBLIC_ESTIMATE_SELECT).eq("id", estimateId).eq("company_id", companyId).single(),
+    admin.from("estimate_line_items").select(PUBLIC_ITEM_SELECT).eq("estimate_id", estimateId).eq("company_id", companyId).order("sort_order"),
+    admin.from("companies").select("name").eq("id", companyId).single(),
+  ]);
+  if (estimateError || !estimate) throw new Error(estimateError?.message || "Estimate not found.");
+  if (itemsError) throw new Error(itemsError.message || "Unable to load estimate items.");
+  if (companyError || !company) throw new Error(companyError?.message || "Company identity is unavailable.");
+
+  const { agreement_snapshot: agreementSnapshot, ...publicEstimate } = estimate;
+  return {
+    estimate,
+    publicEstimate,
+    agreementSnapshot,
+    items: items || [],
+    company,
+  };
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
     const token = decodeURIComponent((await params).token);
     const { admin, validated } = await context(token, request);
-    const [{ data: estimate }, { data: items }, { data: company }] = await Promise.all([
-      admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
-      admin.from("estimate_line_items").select("description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
-      admin.from("companies").select("name").eq("id", validated.companyId).single(),
-    ]);
+    const contract = await loadPublicContract(admin, validated.companyId, validated.estimateId);
 
     let homeSolicitation = null;
-    if (estimate) {
-      const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
-      const isOhioResidential = customer?.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
-      if (isOhioResidential) {
-        const result = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
-        if (result.evaluation.applicable === true) {
-          if (result.evaluation.status !== "COMPLIANT" && !result.profile.cancelledAt) {
-            throw new Error("Home-solicitation compliance is not cleared for signing.");
-          }
-          const transactionDate = result.profile.transactionSignedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10);
-          homeSolicitation = {
-            applicable: true,
-            rulesetVersion: result.evaluation.rulesetVersion,
-            sellerName: result.profile.sellerName,
-            sellerAddress: result.profile.sellerAddress,
-            sellerSignerName: result.profile.sellerSignerName,
-            sellerSignedAt: result.profile.sellerSignedAt,
-            cancellationEmail: result.profile.cancellationEmail,
-            cancellationFax: result.profile.cancellationFax,
-            transactionDate,
-            cancellationDeadlineDate: result.profile.cancellationDeadlineDate || calculateOhioHomeSolicitationDeadline(transactionDate),
-            cancelledAt: result.profile.cancelledAt,
-          };
+    const customer = Array.isArray(contract.estimate.customers) ? contract.estimate.customers[0] : contract.estimate.customers;
+    const isOhioResidential = customer?.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
+    if (isOhioResidential) {
+      const result = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
+      if (result.evaluation.applicable === true) {
+        if (result.evaluation.status !== "COMPLIANT" && !result.profile.cancelledAt) {
+          throw new Error("Home-solicitation compliance is not cleared for signing.");
         }
+        const transactionDate = result.profile.transactionSignedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+        homeSolicitation = {
+          applicable: true,
+          rulesetVersion: result.evaluation.rulesetVersion,
+          sellerName: result.profile.sellerName,
+          sellerAddress: result.profile.sellerAddress,
+          sellerSignerName: result.profile.sellerSignerName,
+          sellerSignedAt: result.profile.sellerSignedAt,
+          cancellationEmail: result.profile.cancellationEmail,
+          cancellationFax: result.profile.cancellationFax,
+          transactionDate,
+          cancellationDeadlineDate: result.profile.cancellationDeadlineDate || calculateOhioHomeSolicitationDeadline(transactionDate),
+          cancelledAt: result.profile.cancelledAt,
+        };
       }
     }
 
-    return secureJson({ estimate, items: items || [], company, expiresAt: validated.expiresAt, homeSolicitation });
+    const signedDocument = contract.estimate.status === "approved"
+      ? (contract.agreementSnapshot as { contractDocument?: { estimate?: unknown; items?: unknown[]; company?: unknown } } | null)?.contractDocument
+      : null;
+
+    return secureJson({
+      estimate: signedDocument?.estimate || contract.publicEstimate,
+      items: signedDocument?.items || contract.items,
+      company: signedDocument?.company || contract.company,
+      expiresAt: validated.expiresAt,
+      homeSolicitation,
+    });
   } catch (error) {
     return secureJson({ error: error instanceof Error ? error.message : "Invalid contract link." }, 400);
   }
@@ -96,13 +123,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const { admin, workflow, validated } = await context(token, request);
     if (!validated.tokenId) throw new Error("Contract token identity is unavailable.");
 
-    const { data: estimate } = await admin
-      .from("estimates")
-      .select("version_number, status, customer_id, customers(email,customer_type,state)")
-      .eq("id", validated.estimateId)
-      .eq("company_id", validated.companyId)
-      .single();
-    if (!estimate) throw new Error("Estimate not found.");
+    const contract = await loadPublicContract(admin, validated.companyId, validated.estimateId);
+    const estimate = contract.estimate;
     if (estimate.status === "approved") return secureJson({ error: "This agreement has already been signed." }, 409);
     if (estimate.status === "void") return secureJson({ error: "This transaction has been cancelled." }, 409);
 
@@ -125,6 +147,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     }
 
     const signedAt = new Date().toISOString();
+    const contractDocument = {
+      capturedAt: signedAt,
+      company: contract.company,
+      estimate: contract.publicEstimate,
+      items: contract.items,
+    };
     const agreement = await workflow.generateAgreementSnapshot({
       companyId: validated.companyId,
       estimateId: validated.estimateId,
@@ -138,6 +166,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       baseSnapshot: agreement.snapshot,
       baseAgreementHash: agreement.agreementHash,
       signingAt: signedAt,
+      contractDocument,
     });
     const contractPackageMetadata = {
       contract_package_version: finalizedAgreement.compliancePackage.packageVersion,
