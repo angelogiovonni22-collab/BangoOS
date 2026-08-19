@@ -27,12 +27,34 @@ function isAuthorizedBosAppPath(pathname: string) {
     || pathname.startsWith("/customer-portal/");
 }
 
+function isSensitiveBearerPath(pathname: string) {
+  return pathname.startsWith("/contracts/estimate/")
+    || pathname.startsWith("/subcontracts/")
+    || pathname.startsWith("/api/contracts/estimate/")
+    || pathname.startsWith("/api/subcontracts/");
+}
+
+function applySensitiveBearerHeaders(response: NextResponse) {
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Referrer-Policy", "no-referrer");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+}
+
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
+
+  const { pathname, search } = request.nextUrl;
+  if (isSensitiveBearerPath(pathname)) {
+    applySensitiveBearerHeaders(response);
+  }
 
   const { url, publishableKey } = getSupabaseEnv();
 
@@ -58,7 +80,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname, search } = request.nextUrl;
   const orionApi = isOrionApiPath(pathname);
   const bosAppPath = isAuthorizedBosAppPath(pathname);
 
