@@ -5,6 +5,28 @@ import { calculateOhioHomeSolicitationDeadline } from "@/lib/compliance/ohio-hom
 import { loadHomeSolicitationCompliance, recordHomeSolicitationEvaluation, recordHomeSolicitationSignature } from "@/lib/compliance/home-solicitation-service";
 import { finalizeAgreementContractPackage } from "@/lib/compliance/contract-package";
 
+type ProspectRow = {
+  first_name: string | null;
+  last_name: string | null;
+  company_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address_line_1: string | null;
+  address_line_2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  customer_type: string | null;
+};
+
+type ProspectQuery = {
+  select: (columns: string) => ProspectQuery;
+  eq: (column: string, value: unknown) => ProspectQuery;
+  maybeSingle: () => Promise<{ data: ProspectRow | null; error: { message?: string } | null }>;
+};
+
+type ProspectDb = { from: (table: string) => ProspectQuery };
+
 async function context(token: string, request: Request) {
   const admin = createAdminClient();
   const workflow = createEstimateWorkflowService(admin);
@@ -19,19 +41,34 @@ function conservativeOhioHoldUntil(deadlineDate: string) {
   return `${nextDay.toISOString().slice(0, 10)}T05:00:00Z`;
 }
 
+async function loadProspect(admin: ReturnType<typeof createAdminClient>, companyId: string, estimateId: string) {
+  const db = admin as unknown as ProspectDb;
+  const result = await db.from("estimate_prospects")
+    .select("first_name,last_name,company_name,email,phone,address_line_1,address_line_2,city,state,postal_code,customer_type")
+    .eq("company_id", companyId)
+    .eq("estimate_id", estimateId)
+    .maybeSingle();
+  if (result.error) throw new Error(result.error.message || "Unable to load prospective customer details.");
+  return result.data;
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
     const token = decodeURIComponent((await params).token);
     const { admin, validated } = await context(token, request);
-    const [{ data: estimate }, { data: items }, { data: company }] = await Promise.all([
+    const [{ data: estimate }, { data: items }, { data: company }, prospect] = await Promise.all([
       admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
       admin.from("estimate_line_items").select("description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
       admin.from("companies").select("name").eq("id", validated.companyId).single(),
+      loadProspect(admin, validated.companyId, validated.estimateId),
     ]);
 
     let homeSolicitation = null;
+    let publicEstimate = estimate;
     if (estimate) {
-      const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
+      const linkedCustomer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
+      const customer = linkedCustomer || prospect;
+      publicEstimate = { ...estimate, customers: customer } as typeof estimate;
       const isOhioResidential = customer?.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
       if (isOhioResidential) {
         const result = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
@@ -55,7 +92,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       }
     }
 
-    return NextResponse.json({ estimate, items: items || [], company, expiresAt: validated.expiresAt, homeSolicitation });
+    return NextResponse.json({ estimate: publicEstimate, items: items || [], company, expiresAt: validated.expiresAt, homeSolicitation });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid contract link." }, { status: 400 });
   }
@@ -67,13 +104,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const body = await request.json() as { typedName?: string; consentAccepted?: boolean };
     if (!body.typedName?.trim() || body.consentAccepted !== true) return NextResponse.json({ error: "Your legal name and consent are required." }, { status: 400 });
     const { admin, workflow, validated } = await context(token, request);
-    const { data: estimate } = await admin.from("estimates").select("version_number, status, customer_id, customers(email,customer_type,state)").eq("id", validated.estimateId!).eq("company_id", validated.companyId!).single();
+    const [{ data: estimate }, prospect] = await Promise.all([
+      admin.from("estimates").select("version_number, status, customer_id, customers(email,customer_type,state)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
+      loadProspect(admin, validated.companyId, validated.estimateId),
+    ]);
     if (!estimate) throw new Error("Estimate not found.");
     if (estimate.status === "approved") return NextResponse.json({ error: "This agreement has already been signed." }, { status: 409 });
     if (estimate.status === "void") return NextResponse.json({ error: "This transaction has been cancelled." }, { status: 409 });
 
-    const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
-    const isOhioResidential = customer?.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
+    const linkedCustomer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
+    const customer = linkedCustomer || prospect;
+    if (!customer?.email) throw new Error("Customer or prospect contact information is missing.");
+
+    const isOhioResidential = customer.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
     let homeSolicitationResult = null;
     if (isOhioResidential) {
       homeSolicitationResult = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
@@ -82,7 +125,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     }
 
     const signedAt = new Date().toISOString();
-    const agreement = await workflow.generateAgreementSnapshot({ companyId: validated.companyId!, estimateId: validated.estimateId!, actorProfileId: null, includeSourceFields: true });
+    const agreement = await workflow.generateAgreementSnapshot({ companyId: validated.companyId, estimateId: validated.estimateId, actorProfileId: null, includeSourceFields: true });
     const finalizedAgreement = await finalizeAgreementContractPackage(admin, {
       companyId: validated.companyId,
       estimateId: validated.estimateId,
@@ -98,8 +141,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     };
     const idempotencyKey = `contract-signature:${validated.tokenId}:${finalizedAgreement.agreementHash}:${body.typedName.trim().toLowerCase()}`;
     const signature = await workflow.storeSignature({
-      companyId: validated.companyId!,
-      estimateId: validated.estimateId!,
+      companyId: validated.companyId,
+      estimateId: validated.estimateId,
       agreementVersionId: agreement.agreementVersionId,
       estimateVersionNumber: estimate.version_number,
       typedName: body.typedName,
@@ -136,7 +179,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     }
 
     const { data: conversion, error: conversionError } = await admin.rpc("convert_verified_estimate_contract" as never, { p_company_id: validated.companyId, p_estimate_id: validated.estimateId, p_signature_id: signature.signatureId, p_actor_profile_id: actor.id } as never) as { data: Array<{ project_id: string }> | null; error: { message: string } | null };
-    if (conversionError) throw new Error(conversionError.message || "Unable to create the project.");
+    if (conversionError) throw new Error(conversionError.message || "Unable to create the customer and project.");
 
     const projectId = conversion?.[0]?.project_id || null;
     if (projectId && cancellationDeadlineDate) {

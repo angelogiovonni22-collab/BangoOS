@@ -7,6 +7,22 @@ import { renderBrandedEstimateEmail } from "@/lib/estimates/branded-estimate-ema
 import { loadEstimateCompliance, recordEstimateComplianceEvaluation } from "@/lib/compliance/estimate-contract-compliance-service";
 import { loadHomeSolicitationCompliance, recordHomeSolicitationEvaluation } from "@/lib/compliance/home-solicitation-service";
 
+type Recipient = {
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  customer_type: string | null;
+  state: string | null;
+};
+
+type ProspectQuery = {
+  select: (columns: string) => ProspectQuery;
+  eq: (column: string, value: unknown) => ProspectQuery;
+  maybeSingle: () => Promise<{ data: Recipient | null; error: { message?: string } | null }>;
+};
+
+type ProspectDb = { from: (table: string) => ProspectQuery };
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
   const supabase = await createClient();
@@ -14,16 +30,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
 
-  const { data: estimate, error } = await supabase
-    .from("estimates")
-    .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name, customer_type, state)")
-    .eq("company_id", workspace.context.companyId).eq("id", estimateId).maybeSingle();
+  const prospectDb = supabase as unknown as ProspectDb;
+  const [{ data: estimate, error }, { data: prospect, error: prospectError }] = await Promise.all([
+    supabase
+      .from("estimates")
+      .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name, customer_type, state)")
+      .eq("company_id", workspace.context.companyId).eq("id", estimateId).maybeSingle(),
+    prospectDb.from("estimate_prospects")
+      .select("email,first_name,last_name,customer_type,state")
+      .eq("company_id", workspace.context.companyId).eq("estimate_id", estimateId).maybeSingle(),
+  ]);
   if (error || !estimate) return NextResponse.json({ error: "Estimate not found." }, { status: 404 });
-  const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
-  if (!customer?.email) return NextResponse.json({ error: "The linked customer needs an email address before sending a contract." }, { status: 400 });
+  if (prospectError) return NextResponse.json({ error: prospectError.message || "Unable to load prospective customer details." }, { status: 500 });
 
-  // Server-side compliance authorization happens before a public token is minted or an email is sent.
-  // The same endpoint is used by the UI and automation, so there is no Orion bypass.
+  const linkedCustomer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
+  const recipient = (linkedCustomer?.email ? linkedCustomer : prospect) as Recipient | null;
+  if (!recipient?.email?.trim()) {
+    return NextResponse.json({ error: "Add a customer or prospective customer email address before sending the estimate." }, { status: 400 });
+  }
+
   if (Number(estimate.total_amount || 0) >= 25_000) {
     try {
       const compliance = await loadEstimateCompliance(supabase, workspace.context.companyId, estimateId);
@@ -37,55 +62,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { source: "send_gate" },
       );
       if (compliance.evaluation.status !== "COMPLIANT") {
-        return NextResponse.json({
-          error: "Contract compliance requires attention before this agreement can be sent.",
-          code: "CONTRACT_COMPLIANCE_BLOCKED",
-          compliance: compliance.evaluation,
-        }, { status: 409 });
+        return NextResponse.json({ error: "Contract compliance requires attention before this agreement can be sent.", code: "CONTRACT_COMPLIANCE_BLOCKED", compliance: compliance.evaluation }, { status: 409 });
       }
     } catch (complianceError) {
-      return NextResponse.json({
-        error: complianceError instanceof Error ? complianceError.message : "Unable to verify contract compliance.",
-        code: "CONTRACT_COMPLIANCE_UNAVAILABLE",
-      }, { status: 409 });
+      return NextResponse.json({ error: complianceError instanceof Error ? complianceError.message : "Unable to verify contract compliance.", code: "CONTRACT_COMPLIANCE_UNAVAILABLE" }, { status: 409 });
     }
   }
 
-  const isOhioResidentialCustomer = customer.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
+  const isOhioResidentialCustomer = recipient.customer_type === "residential" && ["OH", "OHIO"].includes((recipient.state || "").trim().toUpperCase());
   if (isOhioResidentialCustomer) {
     try {
       const homeSolicitation = await loadHomeSolicitationCompliance(supabase, workspace.context.companyId, estimateId);
-      await recordHomeSolicitationEvaluation(
-        supabase,
-        workspace.context.companyId,
-        estimateId,
-        workspace.context.userId,
-        homeSolicitation.evaluation,
-        { source: "send_gate" },
-      );
+      await recordHomeSolicitationEvaluation(supabase, workspace.context.companyId, estimateId, workspace.context.userId, homeSolicitation.evaluation, { source: "send_gate" });
       if (homeSolicitation.evaluation.status !== "COMPLIANT") {
-        return NextResponse.json({
-          error: "Home-solicitation review requires attention before this agreement can be sent.",
-          code: "HOME_SOLICITATION_COMPLIANCE_BLOCKED",
-          compliance: homeSolicitation.evaluation,
-        }, { status: 409 });
+        return NextResponse.json({ error: "Home-solicitation review requires attention before this agreement can be sent.", code: "HOME_SOLICITATION_COMPLIANCE_BLOCKED", compliance: homeSolicitation.evaluation }, { status: 409 });
       }
     } catch (complianceError) {
-      return NextResponse.json({
-        error: complianceError instanceof Error ? complianceError.message : "Unable to verify home-solicitation compliance.",
-        code: "HOME_SOLICITATION_COMPLIANCE_UNAVAILABLE",
-      }, { status: 409 });
+      return NextResponse.json({ error: complianceError instanceof Error ? complianceError.message : "Unable to verify home-solicitation compliance.", code: "HOME_SOLICITATION_COMPLIANCE_UNAVAILABLE" }, { status: 409 });
     }
   }
 
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("name, display_name, legal_name, logo_url")
-    .eq("id", workspace.context.companyId)
-    .single();
-  if (companyError || !company) {
-    return NextResponse.json({ error: "Company email branding is unavailable." }, { status: 500 });
-  }
+  const { data: company, error: companyError } = await supabase.from("companies").select("name, display_name, legal_name, logo_url").eq("id", workspace.context.companyId).single();
+  if (companyError || !company) return NextResponse.json({ error: "Company email branding is unavailable." }, { status: 500 });
   const companyName = company.display_name || company.legal_name || company.name;
 
   const result = await createEstimateWorkflowService(supabase).generatePublicToken({
@@ -95,12 +93,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const url = estimateContractPublicUrl(result.token);
   const termsUrl = new URL("/legal/electronic-signature-and-platform-terms", url).toString();
   const delivery = await sendContractEmail({
-    to: customer.email.trim(),
+    to: recipient.email.trim(),
     subject: `${companyName} | ${estimate.estimate_number || "Estimate"} ready for review`,
     html: renderBrandedEstimateEmail({
       companyName,
       companyLogoUrl: company.logo_url,
-      customerFirstName: customer.first_name,
+      customerFirstName: recipient.first_name,
       estimateTitle: estimate.title,
       estimateNumber: estimate.estimate_number,
       totalAmount: Number(estimate.total_amount || 0),

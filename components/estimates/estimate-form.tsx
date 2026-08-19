@@ -11,6 +11,7 @@ import { EstimateTotalsSection } from "@/components/estimates/estimate-totals";
 import { calculateEstimateTotals } from "@/lib/estimates/calculations";
 import { getNextEstimateNumber } from "@/lib/estimates/numbering";
 import { getCustomerDisplayName, getProfileDisplayName, getProjectDisplayName, loadEstimateById, loadEstimateFormOptions, saveEstimate } from "@/lib/estimates/service";
+import { EMPTY_ESTIMATE_PROSPECT, loadEstimateProspect, removeEstimateProspect, saveEstimateProspect, validateEstimateProspect, type EstimateProspectErrors, type EstimateProspectValues } from "@/lib/estimates/prospect-service";
 import type { EstimateFormMode } from "@/components/estimates/types";
 import type { EstimateFormErrors, EstimateFormValues, EstimateLineItemDraft } from "@/lib/estimates/types";
 import { validateEstimateForm } from "@/lib/estimates/validation";
@@ -69,11 +70,13 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<EstimateFormErrors>({});
+  const [prospectErrors, setProspectErrors] = useState<EstimateProspectErrors>({});
 
   const [companyId, setCompanyId] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
 
   const [values, setValues] = useState<EstimateFormValues>(DEFAULT_FORM_VALUES);
+  const [prospect, setProspect] = useState<EstimateProspectValues>(EMPTY_ESTIMATE_PROSPECT);
   const [lineItems, setLineItems] = useState<EstimateLineItemDraft[]>(DEFAULT_LINE_ITEMS);
   const [isDirty, setIsDirty] = useState(false);
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
@@ -164,13 +167,9 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         const estimateNumber = await getNextEstimateNumber(supabase, workspace.context.companyId);
 
         if (isSubscribed) {
-          setValues((current) => ({
-            ...current,
-            estimateNumber,
-          }));
+          setValues((current) => ({ ...current, estimateNumber }));
           setIsLoading(false);
         }
-
         return;
       }
 
@@ -182,11 +181,22 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         return;
       }
 
-      const estimateResult = await loadEstimateById(supabase, workspace.context.companyId, estimateId);
+      const [estimateResult, prospectResult] = await Promise.all([
+        loadEstimateById(supabase, workspace.context.companyId, estimateId),
+        loadEstimateProspect(supabase, workspace.context.companyId, estimateId),
+      ]);
 
       if (estimateResult.error || !estimateResult.data) {
         if (isSubscribed) {
           setErrorMessage(estimateResult.error || "Unable to load estimate.");
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (prospectResult.error) {
+        if (isSubscribed) {
+          setErrorMessage(prospectResult.error);
           setIsLoading(false);
         }
         return;
@@ -214,7 +224,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
           terms: estimateResult.data.estimate.terms || "",
           paymentTerms: estimateResult.data.estimate.payment_terms || "",
         });
-
+        setProspect(prospectResult.data || EMPTY_ESTIMATE_PROSPECT);
         setLineItems(
           estimateResult.data.lineItems.length > 0
             ? estimateResult.data.lineItems.map((lineItem) => ({
@@ -231,74 +241,52 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
               }))
             : DEFAULT_LINE_ITEMS,
         );
-
         setIsLoading(false);
       }
     };
 
     void load();
-
-    return () => {
-      isSubscribed = false;
-    };
+    return () => { isSubscribed = false; };
   }, [supabase, mode, estimateId]);
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (!isDirty) {
-        return;
-      }
-
+      if (!isDirty) return;
       event.preventDefault();
       event.returnValue = "";
     };
-
     window.addEventListener("beforeunload", beforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", beforeUnload);
-    };
+    return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [isDirty]);
 
   function onFieldChange<K extends keyof EstimateFormValues>(field: K, value: EstimateFormValues[K]) {
-    setValues((current) => ({
-      ...current,
-      [field]: value,
-    }));
+    setValues((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
+    setSuccessMessage(null);
+    setIsDirty(true);
+  }
 
-    setErrors((current) => ({
-      ...current,
-      [field]: undefined,
-    }));
-
+  function onProspectChange<K extends keyof EstimateProspectValues>(field: K, value: EstimateProspectValues[K]) {
+    setProspect((current) => ({ ...current, [field]: value }));
+    setProspectErrors((current) => ({ ...current, [field]: undefined }));
     setSuccessMessage(null);
     setIsDirty(true);
   }
 
   async function submit(action: "draft" | "continue" | "changes") {
-    if (isSaving) {
-      return;
-    }
+    if (isSaving) return;
 
     setErrorMessage(null);
     setSuccessMessage(null);
 
     const nextErrors = validateEstimateForm(values, lineItems);
+    const nextProspectErrors = values.customerId ? {} : validateEstimateProspect(prospect);
     setErrors(nextErrors);
+    setProspectErrors(nextProspectErrors);
 
-    if (Object.keys(nextErrors).length > 0) {
-      return;
-    }
-
-    if (!companyId || !userId) {
-      setErrorMessage("Workspace is not ready.");
-      return;
-    }
-
-    if (!supabase) {
-      setErrorMessage("Unable to connect right now. Please try again shortly.");
-      return;
-    }
+    if (Object.keys(nextErrors).length > 0 || Object.keys(nextProspectErrors).length > 0) return;
+    if (!companyId || !userId) { setErrorMessage("Workspace is not ready."); return; }
+    if (!supabase) { setErrorMessage("Unable to connect right now. Please try again shortly."); return; }
 
     setSaveMode(action);
     setIsSaving(true);
@@ -318,10 +306,19 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         return;
       }
 
+      const prospectPersistence = values.customerId
+        ? await removeEstimateProspect(supabase, companyId, result.estimateId)
+        : await saveEstimateProspect({ supabase, companyId, estimateId: result.estimateId, userId, values: prospect });
+
+      if (prospectPersistence.error) {
+        setErrorMessage(prospectPersistence.error);
+        return;
+      }
+
       await photoUploadRef.current?.upload(result.estimateId, companyId, userId);
 
       setIsDirty(false);
-      setSuccessMessage("Estimate saved successfully.");
+      setSuccessMessage(values.customerId ? "Estimate saved successfully." : "Estimate and prospective customer details saved successfully.");
 
       if (action === "draft") {
         router.push("/estimates");
@@ -340,11 +337,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
   }
 
   function handleCancel() {
-    if (isDirty) {
-      setIsDiscardDialogOpen(true);
-      return;
-    }
-
+    if (isDirty) { setIsDiscardDialogOpen(true); return; }
     router.push(mode === "edit" && estimateId ? `/estimates/${estimateId}` : "/estimates");
   }
 
@@ -354,54 +347,34 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
   }
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <SkeletonLoader className="h-12 w-80" />
-        <SkeletonLoader className="h-52 w-full" />
-        <SkeletonLoader className="h-72 w-full" />
-        <SkeletonLoader className="h-72 w-full" />
-      </div>
-    );
+    return <div className="space-y-6"><SkeletonLoader className="h-12 w-80" /><SkeletonLoader className="h-52 w-full" /><SkeletonLoader className="h-72 w-full" /><SkeletonLoader className="h-72 w-full" /></div>;
   }
 
-  if (errorMessage && !companyId) {
-    return <ErrorState title="Unable to load estimate builder" description={errorMessage} />;
-  }
+  if (errorMessage && !companyId) return <ErrorState title="Unable to load estimate builder" description={errorMessage} />;
 
   return (
     <div className="space-y-6">
-      <ConfirmDialog
-        open={isDiscardDialogOpen}
-        title="Discard changes"
-        description="Discard unsaved changes?"
-        cancelLabel="Keep Editing"
-        confirmLabel="Discard Changes"
-        onCancel={() => setIsDiscardDialogOpen(false)}
-        onConfirm={confirmDiscardChanges}
-      />
+      <ConfirmDialog open={isDiscardDialogOpen} title="Discard changes" description="Discard unsaved changes?" cancelLabel="Keep Editing" confirmLabel="Discard Changes" onCancel={() => setIsDiscardDialogOpen(false)} onConfirm={confirmDiscardChanges} />
 
       <PageHeader
         eyebrow="COMPANY WORKSPACE"
         title={mode === "create" ? "New Estimate" : "Edit Estimate"}
-        description="Build a detailed construction estimate with customer/project links, line items, and live totals."
+        description="Build the quote once. For a new prospect, B.O.S. will create or match the Customer and create the Project automatically after acceptance."
         secondaryActions={<Button type="button" variant="secondary" size="md" onClick={handleCancel}>Cancel</Button>}
       />
 
-      <form
-        className="space-y-6"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit(mode === "edit" ? "changes" : "continue");
-        }}
-      >
+      <form className="space-y-6" onSubmit={(event) => { event.preventDefault(); void submit(mode === "edit" ? "changes" : "continue"); }}>
         <EstimateInformationSection values={values} errors={errors} preparedByOptions={preparedByOptions} onFieldChange={onFieldChange} />
 
         <EstimateCustomerProjectSection
           values={values}
           errors={errors}
+          prospect={prospect}
+          prospectErrors={prospectErrors}
           customers={customerOptions}
           projects={projectOptions}
           onFieldChange={onFieldChange}
+          onProspectChange={onProspectChange}
         />
 
         <EstimateLineItemsSection
@@ -410,51 +383,28 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
           error={errors["lineItems.0"] || errors["lineItems.1"] || errors["lineItems.2"]}
           onChange={(nextLineItems) => {
             setLineItems(nextLineItems);
-            setErrors((current) => ({
-              ...current,
-              "lineItems.0": undefined,
-              "lineItems.1": undefined,
-              "lineItems.2": undefined,
-            }));
+            setErrors((current) => ({ ...current, "lineItems.0": undefined, "lineItems.1": undefined, "lineItems.2": undefined }));
             setIsDirty(true);
           }}
         />
 
         <EstimateTotalsSection totals={totals} values={values} localeTag={localeTag} onFieldChange={onFieldChange} />
         <RecordPhotoUpload ref={photoUploadRef} entityType="estimate" />
-
         <EstimateNotesTermsSection values={values} onFieldChange={onFieldChange} />
 
-        {Object.keys(errors).length > 0 ? (
-          <div role="alert" data-orion-status="estimate-validation-error" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">
-            Please complete the highlighted required estimate information before saving.
-          </div>
+        {Object.keys(errors).length > 0 || Object.keys(prospectErrors).length > 0 ? (
+          <div role="alert" data-orion-status="estimate-validation-error" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">Please complete the highlighted required estimate and customer information before saving.</div>
         ) : null}
 
-        {errorMessage ? (
-          <div role="alert" data-orion-status="estimate-save-error" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">
-            {errorMessage}
-          </div>
-        ) : null}
-
-        {successMessage ? (
-          <div role="status" data-orion-status="estimate-save-success" className="rounded-[var(--radius-md)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-4 py-3 text-sm text-[var(--color-success-700)]">
-            {successMessage}
-          </div>
-        ) : null}
+        {errorMessage ? <div role="alert" data-orion-status="estimate-save-error" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">{errorMessage}</div> : null}
+        {successMessage ? <div role="status" data-orion-status="estimate-save-success" className="rounded-[var(--radius-md)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-4 py-3 text-sm text-[var(--color-success-700)]">{successMessage}</div> : null}
 
         <div className="flex flex-wrap items-center justify-end gap-3">
           <Button type="button" variant="outline" size="lg" onClick={handleCancel}>Cancel</Button>
-
           {mode === "create" ? (
-            <Button data-orion-action="save-estimate-draft" data-orion-verify="navigation-or-status" type="button" variant="secondary" size="lg" isLoading={isSaving && saveMode === "draft"} onClick={() => void submit("draft")}>
-              Save Draft
-            </Button>
+            <Button data-orion-action="save-estimate-draft" data-orion-verify="navigation-or-status" type="button" variant="secondary" size="lg" isLoading={isSaving && saveMode === "draft"} onClick={() => void submit("draft")}>Save Draft</Button>
           ) : null}
-
-          <Button data-orion-action="save-estimate-and-continue" data-orion-verify="navigation-or-status" type="submit" size="lg" isLoading={isSaving && (saveMode === "continue" || saveMode === "changes")}>
-            {mode === "create" ? "Save and Continue Editing" : "Save Changes"}
-          </Button>
+          <Button data-orion-action="save-estimate-and-continue" data-orion-verify="navigation-or-status" type="submit" size="lg" isLoading={isSaving && (saveMode === "continue" || saveMode === "changes")}>{mode === "create" ? "Save and Continue Editing" : "Save Changes"}</Button>
         </div>
       </form>
     </div>
