@@ -5,6 +5,7 @@ import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 import { sendContractEmail } from "@/lib/estimates/contract-email";
 import {
   MASTER_SUBCONTRACT_AGREEMENT_VERSION,
@@ -34,6 +35,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
     const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
     if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+    if (!hasBosPermission(workspace.context.role, "projects.manage")) {
+      return NextResponse.json({ error: "You do not have permission to manage project subcontractors." }, { status: 403 });
+    }
     const companyId = workspace.context.companyId;
     const admin = createAdminClient();
 
