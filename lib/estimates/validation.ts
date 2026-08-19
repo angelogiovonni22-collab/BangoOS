@@ -12,9 +12,8 @@ export function validateEstimateForm(values: EstimateFormValues, lineItems: Esti
     errors.title = "Estimate name is required.";
   }
 
-  if (!values.customerId) {
-    errors.customerId = "Customer is required.";
-  }
+  // A formal Customer is no longer required at estimate creation time. When no customer
+  // is linked, the estimate form validates and stores an estimate_prospects snapshot.
 
   if (!values.issueDate) {
     errors.issueDate = "Estimate date is required.";
