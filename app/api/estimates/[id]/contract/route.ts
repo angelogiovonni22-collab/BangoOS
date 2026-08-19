@@ -15,6 +15,14 @@ type Recipient = {
   state: string | null;
 };
 
+type ProspectQuery = {
+  select: (columns: string) => ProspectQuery;
+  eq: (column: string, value: unknown) => ProspectQuery;
+  maybeSingle: () => Promise<{ data: Recipient | null; error: { message?: string } | null }>;
+};
+
+type ProspectDb = { from: (table: string) => ProspectQuery };
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
   const supabase = await createClient();
@@ -22,12 +30,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
 
+  const prospectDb = supabase as unknown as ProspectDb;
   const [{ data: estimate, error }, { data: prospect, error: prospectError }] = await Promise.all([
     supabase
       .from("estimates")
       .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name, customer_type, state)")
       .eq("company_id", workspace.context.companyId).eq("id", estimateId).maybeSingle(),
-    (supabase as never as { from: (table: string) => any }).from("estimate_prospects")
+    prospectDb.from("estimate_prospects")
       .select("email,first_name,last_name,customer_type,state")
       .eq("company_id", workspace.context.companyId).eq("estimate_id", estimateId).maybeSingle(),
   ]);
@@ -40,8 +49,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Add a customer or prospective customer email address before sending the estimate." }, { status: 400 });
   }
 
-  // Server-side compliance authorization happens before a public token is minted or an email is sent.
-  // The same endpoint is used by the UI and automation, so there is no Orion bypass.
   if (Number(estimate.total_amount || 0) >= 25_000) {
     try {
       const compliance = await loadEstimateCompliance(supabase, workspace.context.companyId, estimateId);
@@ -55,17 +62,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { source: "send_gate" },
       );
       if (compliance.evaluation.status !== "COMPLIANT") {
-        return NextResponse.json({
-          error: "Contract compliance requires attention before this agreement can be sent.",
-          code: "CONTRACT_COMPLIANCE_BLOCKED",
-          compliance: compliance.evaluation,
-        }, { status: 409 });
+        return NextResponse.json({ error: "Contract compliance requires attention before this agreement can be sent.", code: "CONTRACT_COMPLIANCE_BLOCKED", compliance: compliance.evaluation }, { status: 409 });
       }
     } catch (complianceError) {
-      return NextResponse.json({
-        error: complianceError instanceof Error ? complianceError.message : "Unable to verify contract compliance.",
-        code: "CONTRACT_COMPLIANCE_UNAVAILABLE",
-      }, { status: 409 });
+      return NextResponse.json({ error: complianceError instanceof Error ? complianceError.message : "Unable to verify contract compliance.", code: "CONTRACT_COMPLIANCE_UNAVAILABLE" }, { status: 409 });
     }
   }
 
@@ -73,34 +73,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (isOhioResidentialCustomer) {
     try {
       const homeSolicitation = await loadHomeSolicitationCompliance(supabase, workspace.context.companyId, estimateId);
-      await recordHomeSolicitationEvaluation(
-        supabase,
-        workspace.context.companyId,
-        estimateId,
-        workspace.context.userId,
-        homeSolicitation.evaluation,
-        { source: "send_gate" },
-      );
+      await recordHomeSolicitationEvaluation(supabase, workspace.context.companyId, estimateId, workspace.context.userId, homeSolicitation.evaluation, { source: "send_gate" });
       if (homeSolicitation.evaluation.status !== "COMPLIANT") {
-        return NextResponse.json({
-          error: "Home-solicitation review requires attention before this agreement can be sent.",
-          code: "HOME_SOLICITATION_COMPLIANCE_BLOCKED",
-          compliance: homeSolicitation.evaluation,
-        }, { status: 409 });
+        return NextResponse.json({ error: "Home-solicitation review requires attention before this agreement can be sent.", code: "HOME_SOLICITATION_COMPLIANCE_BLOCKED", compliance: homeSolicitation.evaluation }, { status: 409 });
       }
     } catch (complianceError) {
-      return NextResponse.json({
-        error: complianceError instanceof Error ? complianceError.message : "Unable to verify home-solicitation compliance.",
-        code: "HOME_SOLICITATION_COMPLIANCE_UNAVAILABLE",
-      }, { status: 409 });
+      return NextResponse.json({ error: complianceError instanceof Error ? complianceError.message : "Unable to verify home-solicitation compliance.", code: "HOME_SOLICITATION_COMPLIANCE_UNAVAILABLE" }, { status: 409 });
     }
   }
 
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("name, display_name, legal_name, logo_url")
-    .eq("id", workspace.context.companyId)
-    .single();
+  const { data: company, error: companyError } = await supabase.from("companies").select("name, display_name, legal_name, logo_url").eq("id", workspace.context.companyId).single();
   if (companyError || !company) return NextResponse.json({ error: "Company email branding is unavailable." }, { status: 500 });
   const companyName = company.display_name || company.legal_name || company.name;
 
