@@ -12,6 +12,8 @@ type ScheduleCalendarProps = {
   groupBy: ScheduleGroup;
   date: string;
   assignments: ScheduleAssignment[];
+  crewOptions?: Array<{ id: string; name: string }>;
+  employeeOptions?: Array<{ id: string; name: string }>;
   onMoveAssignment: (assignmentId: string, targetDate: string) => void;
   onQuickMoveShift: (assignmentId: string, shift: "day" | "swing" | "night") => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -22,13 +24,15 @@ export function ScheduleCalendar({
   groupBy,
   date,
   assignments,
+  crewOptions = [],
+  employeeOptions = [],
   onMoveAssignment,
   onQuickMoveShift,
   t,
 }: ScheduleCalendarProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  const visible = useMemo(() => assignments.sort((a, b) => a.startTime.localeCompare(b.startTime)), [assignments]);
+  const visible = useMemo(() => [...assignments].sort((a, b) => a.startTime.localeCompare(b.startTime)), [assignments]);
 
   const moveToShift = (assignmentId: string, shift: "day" | "swing" | "night") => {
     onQuickMoveShift(assignmentId, shift);
@@ -66,6 +70,8 @@ export function ScheduleCalendar({
           baseDate={date}
           assignments={visible}
           groupBy={groupBy}
+          crewOptions={crewOptions}
+          employeeOptions={employeeOptions}
           onDropAssignment={(assignmentId, targetDate) => {
             setDraggingId(null);
             onMoveAssignment(assignmentId, targetDate);
