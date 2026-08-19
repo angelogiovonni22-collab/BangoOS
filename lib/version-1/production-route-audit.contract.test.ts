@@ -7,6 +7,7 @@ const read = (path: string) => readFileSync(join(root, path), "utf8");
 
 const customersPage = read("app/(app)/customers/page.tsx");
 const customerTable = read("components/customers/customer-table.tsx");
+const customerPortal = read("app/(app)/customer-portal/page.tsx");
 const estimateDetail = read("components/estimates/estimate-detail.tsx");
 const accessControlRoute = read("app/api/settings/access-control/route.ts");
 const accessPermissions = read("lib/access-control/permissions.ts");
@@ -26,6 +27,10 @@ assert.doesNotMatch(customersPage, /lifetimeRevenue:\s*"Coming Soon"/, "customer
 assert.doesNotMatch(customerTable, /\?edit=1/, "customer edit actions must not route to a no-op query-string view");
 assert.match(customerTable, /\/customers\/\$\{customer\.id\}\/edit/, "customer row edit action must open the real edit route");
 assert.match(customerTable, /\/customers\/\$\{openMenu\.customer\.id\}\/edit/, "customer action menu must open the real edit route");
+
+assert.doesNotMatch(customerPortal, />Photos<\/div>/, "customer portal must not render a dead Photos control");
+assert.doesNotMatch(customerPortal, />Updates<\/div>/, "customer portal must not render a dead Updates control");
+assert.doesNotMatch(customerPortal, />Messages<\/div>/, "customer portal must not render a dead Messages control");
 
 assert.doesNotMatch(estimateDetail, /future sprint/i, "estimate detail must not expose future-sprint placeholder copy in production");
 assert.doesNotMatch(estimateDetail, /Status history and estimate activity timeline will be expanded/, "estimate detail must not present an unimplemented activity section as production content");
