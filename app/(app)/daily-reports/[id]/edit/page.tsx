@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { DailyReportForm, ReportLoadingState } from "@/components/daily-reports";
 import { ErrorState } from "@/components/ui";
-import { useDailyReport, useDailyReports } from "@/lib/daily-reports";
+import { useDailyReport, useDailyReports, type DailyReportStatus } from "@/lib/daily-reports";
 import { useI18n } from "@/lib/i18n/provider";
 
 export default function EditDailyReportPage() {
@@ -33,6 +33,8 @@ export default function EditDailyReportPage() {
     return <ReportLoadingState />;
   }
 
+  const allowedStatuses = getAllowedStatuses(draft.header.overallStatus);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -52,6 +54,7 @@ export default function EditDailyReportPage() {
         validationErrors={validationErrors}
         isSaving={isSaving}
         onChange={setDraft}
+        allowedStatuses={allowedStatuses}
         onSave={async (status) => {
           const savedId = await save(status);
           if (savedId) {
@@ -63,4 +66,19 @@ export default function EditDailyReportPage() {
       />
     </div>
   );
+}
+
+function getAllowedStatuses(current: DailyReportStatus): readonly DailyReportStatus[] {
+  switch (current) {
+    case "draft":
+      return ["draft", "submitted"];
+    case "submitted":
+      return ["submitted", "reviewed"];
+    case "reviewed":
+      return ["reviewed", "approved"];
+    case "approved":
+      return ["approved"];
+    default:
+      return ["draft"];
+  }
 }
