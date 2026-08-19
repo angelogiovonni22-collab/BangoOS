@@ -52,6 +52,7 @@ function NewDailyReportPageContent() {
         validationErrors={validationErrors}
         isSaving={isSaving}
         onChange={setDraft}
+        allowedStatuses={["draft", "submitted"]}
         onSave={async (status) => {
           const createdId = await save(status);
           if (createdId) {
