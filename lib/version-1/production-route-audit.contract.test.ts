@@ -43,6 +43,11 @@ assert.doesNotMatch(accessControlRoute, /\.order\("name"\)/, "access control mus
 assert.match(accessPermissions, /normalizedRole === "subcontractor"[\s\S]*pathname === "\/partner" \|\| pathname\.startsWith\("\/partner\/"\)/, "subcontractor accounts must be restricted to the scoped partner portal routes");
 assert.match(accessPermissions, /normalizedRole === "customer"[\s\S]*pathname === "\/customer-portal" \|\| pathname\.startsWith\("\/customer-portal\/"\)/, "customer accounts must be restricted to the scoped customer portal routes");
 assert.match(accessPermissions, /feature permissions describe what can be[\s\S]*surfaced inside the scoped portal/, "external role permissions must remain explicitly separated from global route access");
+assert.match(accessPermissions, /MUTATION_ROUTE_PERMISSIONS/, "create and edit routes must be evaluated before broad view-only module routes");
+assert.match(accessPermissions, /projects\\\/new[\s\S]*projects\.manage/, "project creation must require projects.manage");
+assert.match(accessPermissions, /invoices\\\/new[\s\S]*invoices\.manage/, "invoice creation must require invoices.manage");
+assert.match(accessPermissions, /daily-reports\\\/new[\s\S]*daily_reports\.manage/, "daily report creation must require daily_reports.manage");
+assert.match(accessPermissions, /vendors\\\/[^\n]+edit[\s\S]*vendors\.manage/, "vendor edits must require vendors.manage");
 
 assert.match(tradePartnersPage, /\?tab=subcontractors/, "Trade Partners Manage Assignment must open the real project subcontractor workspace");
 assert.doesNotMatch(tradePartnersPage, /\?tab=trade-partners/, "Trade Partners must not navigate to an unrecognized project tab that falls back to Overview");
