@@ -9,6 +9,7 @@ const customersPage = read("app/(app)/customers/page.tsx");
 const customerTable = read("components/customers/customer-table.tsx");
 const estimateDetail = read("components/estimates/estimate-detail.tsx");
 const accessControlRoute = read("app/api/settings/access-control/route.ts");
+const accessPermissions = read("lib/access-control/permissions.ts");
 const tradePartnersPage = read("app/(app)/trade-partners/page.tsx");
 const projectsPage = read("app/(app)/projects/page.tsx");
 const projectFilters = read("components/projects/project-filters.tsx");
@@ -33,6 +34,10 @@ assert.match(accessControlRoute, /\.select\("id,company_name"\)/, "access contro
 assert.match(accessControlRoute, /name:\s*vendor\.company_name/, "access control must map the canonical vendor company name to the UI payload");
 assert.doesNotMatch(accessControlRoute, /\.select\("id,name"\)/, "access control must never query the nonexistent vendors.name column");
 assert.doesNotMatch(accessControlRoute, /\.order\("name"\)/, "access control must never sort on the nonexistent vendors.name column");
+
+assert.match(accessPermissions, /normalizedRole === "subcontractor"[\s\S]*pathname === "\/partner" \|\| pathname\.startsWith\("\/partner\/"\)/, "subcontractor accounts must be restricted to the scoped partner portal routes");
+assert.match(accessPermissions, /normalizedRole === "customer"[\s\S]*pathname === "\/customer-portal" \|\| pathname\.startsWith\("\/customer-portal\/"\)/, "customer accounts must be restricted to the scoped customer portal routes");
+assert.match(accessPermissions, /feature permissions describe what can be[\s\S]*surfaced inside the scoped portal/, "external role permissions must remain explicitly separated from global route access");
 
 assert.match(tradePartnersPage, /\?tab=subcontractors/, "Trade Partners Manage Assignment must open the real project subcontractor workspace");
 assert.doesNotMatch(tradePartnersPage, /\?tab=trade-partners/, "Trade Partners must not navigate to an unrecognized project tab that falls back to Overview");
