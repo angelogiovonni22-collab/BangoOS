@@ -11,6 +11,7 @@ const permissions = read("lib/access-control/permissions.ts");
 const migration = read("supabase/migrations/20260815174500_trade_partner_portal_channels.sql");
 const hardening = read("supabase/migrations/20260815175500_trade_partner_portal_channel_hardening.sql");
 const internalMessaging = read("supabase/migrations/20260815180500_trade_partner_internal_messaging.sql");
+const externalIsolation = read("supabase/migrations/20260819011500_external_portal_rls_hardening.sql");
 
 const checks: Array<[string, boolean]> = [
   ["assigned jobs link into a project-scoped trade partner workspace", index.includes("/partner/${job.project_id}")],
@@ -36,6 +37,13 @@ const checks: Array<[string, boolean]> = [
   ["internal message RPCs stay assignment/project/vendor scoped", internalMessaging.includes("v_assignment.project_id") && internalMessaging.includes("v_assignment.vendor_id")],
   ["external roles cannot use the internal message RPCs", internalMessaging.includes("not public.bos_is_trade_partner_for_company") && inbox.includes('["subcontractor", "customer"]')],
   ["financial terms are absent from partner channel RPC return contracts", !migration.includes("contract_amount") && !migration.includes("profit") && !migration.includes("markup") && !internalMessaging.includes("contract_amount")],
+  ["external company accounts are detected at the database boundary", externalIsolation.includes("create or replace function public.bos_is_external_company_user") && externalIsolation.includes("lower(cm.role) in ('subcontractor','customer')")],
+  ["company-scoped RLS tables default-deny external portal accounts", externalIsolation.includes("bos_external_portal_isolation_guard") && externalIsolation.includes("as restrictive for all to authenticated") && externalIsolation.includes("not public.bos_is_external_company_user(company_id)")],
+  ["workspace identity and explicitly scoped partner channels are the only table exceptions", externalIsolation.includes("'profiles'") && externalIsolation.includes("'company_memberships'") && externalIsolation.includes("'project_photos'") && externalIsolation.includes("'blueprint_versions'") && externalIsolation.includes("'trade_partner_messages'")],
+  ["customers cannot inherit partner photo plan or message channels", externalIsolation.includes("bos_customer_portal_channel_guard") && externalIsolation.includes("not public.bos_is_customer_for_company(company_id)")],
+  ["portal-only storage is limited to partner-safe buckets", externalIsolation.includes("bos_external_portal_storage_select_guard") && externalIsolation.includes("bucket_id in ('project-photos','blueprints')")],
+  ["portal-only storage writes are limited to project photos", externalIsolation.includes("bos_external_portal_storage_insert_guard") && externalIsolation.includes("bucket_id = 'project-photos'")],
+  ["customer portal has no direct storage channel", externalIsolation.includes("create or replace function public.bos_is_portal_only_user") && externalIsolation.includes("lower(cm.role) = 'subcontractor'")],
 ];
 
 let failed = 0;
