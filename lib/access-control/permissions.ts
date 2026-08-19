@@ -130,6 +130,15 @@ const ORION_CONFIGURABLE_ROLES: readonly CompanyRole[] = [
   "office_manager",
   "accountant",
 ];
+const PREVAILING_WAGE_ROUTE_ROLES: readonly CompanyRole[] = [
+  "owner",
+  "administrator",
+  "operations_manager",
+  "project_manager",
+  "superintendent",
+  "office_manager",
+  "accountant",
+];
 
 export function normalizeCompanyRole(role: string | null | undefined): CompanyRole {
   const normalized = (role || "employee").trim().toLowerCase();
@@ -209,6 +218,7 @@ const MUTATION_ROUTE_PERMISSIONS: ReadonlyArray<{ pattern: RegExp; permission: B
   { pattern: /^\/customers\/[^/]+\/edit(?:\/|$)/, permission: "customers.manage" },
   { pattern: /^\/estimates\/new(?:\/|$)/, permission: "estimates.manage" },
   { pattern: /^\/estimates\/[^/]+\/edit(?:\/|$)/, permission: "estimates.manage" },
+  { pattern: /^\/invoices\/accounts-payable\/new(?:\/|$)/, permission: "invoices.manage" },
   { pattern: /^\/invoices\/new(?:\/|$)/, permission: "invoices.manage" },
   { pattern: /^\/invoices\/[^/]+\/edit(?:\/|$)/, permission: "invoices.manage" },
   { pattern: /^\/change-orders\/new(?:\/|$)/, permission: "change_orders.manage" },
@@ -251,6 +261,12 @@ export function canAccessPath(role: string | null | undefined, pathname: string,
 
   if (normalizedRole === "customer") {
     return pathname === "/customer-portal" || pathname.startsWith("/customer-portal/");
+  }
+
+  // Prevailing wage is a scoped labor-compliance workspace. It intentionally includes
+  // field/compliance leadership without granting those roles access to all invoices.
+  if (pathname === "/invoices/prevailing-wage" || pathname.startsWith("/invoices/prevailing-wage/")) {
+    return PREVAILING_WAGE_ROUTE_ROLES.includes(normalizedRole);
   }
 
   const permission = permissionForPath(pathname);
