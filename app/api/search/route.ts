@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrionNavigationRoutesForRole } from "@/lib/orion/navigation";
 import type { OrionCommandPermission } from "@/lib/orion/commands";
+import { canAccessPath, hasBosPermission } from "@/lib/access-control/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -37,6 +38,8 @@ function score(result: SearchResult, query: string) {
   return words.reduce((total, word) => total + (text.includes(word) ? 10 : 0), 0);
 }
 
+const emptyResult = { data: [] as never[], error: null };
+
 export async function GET(req: NextRequest) {
   try {
     const query = normalize(new URL(req.url).searchParams.get("q") || "");
@@ -50,27 +53,37 @@ export async function GET(req: NextRequest) {
     }
 
     const companyId = workspace.context.companyId;
+    const workspaceRole = workspace.context.role;
+    const canCustomers = hasBosPermission(workspaceRole, "customers.view");
+    const canProjects = hasBosPermission(workspaceRole, "projects.view");
+    const canEstimates = hasBosPermission(workspaceRole, "estimates.view");
+    const canInvoices = hasBosPermission(workspaceRole, "invoices.view");
+    const canWorkforce = hasBosPermission(workspaceRole, "workforce.view");
+    const canVendors = hasBosPermission(workspaceRole, "vendors.view");
+
     const [customers, projects, estimates, invoices, employees, crews, vendors] = await Promise.all([
-      supabase.from("customers").select("id, company_name, first_name, last_name, email, phone, city, state, status").eq("company_id", companyId).limit(100),
-      supabase.from("projects").select("id, name, project_number, job_site_name, address_line_1, city, state, postal_code, status").eq("company_id", companyId).limit(100),
-      supabase.from("estimates").select("id, title, estimate_number, status").eq("company_id", companyId).limit(100),
-      supabase.from("invoices").select("id, title, invoice_number, status").eq("company_id", companyId).limit(100),
-      supabase.from("employees").select("id, employee_number, position_title, trade, employment_status").eq("company_id", companyId).limit(100),
-      supabase.from("crews").select("id, name, crew_code, status").eq("company_id", companyId).limit(100),
-      supabase.from("vendors").select("id, display_name, company_name, vendor_code, email, phone, city, state, status").eq("company_id", companyId).limit(100),
+      canCustomers ? supabase.from("customers").select("id, company_name, first_name, last_name, email, phone, city, state, status").eq("company_id", companyId).limit(100) : Promise.resolve(emptyResult),
+      canProjects ? supabase.from("projects").select("id, name, project_number, job_site_name, address_line_1, city, state, postal_code, status").eq("company_id", companyId).limit(100) : Promise.resolve(emptyResult),
+      canEstimates ? supabase.from("estimates").select("id, title, estimate_number, status").eq("company_id", companyId).limit(100) : Promise.resolve(emptyResult),
+      canInvoices ? supabase.from("invoices").select("id, title, invoice_number, status").eq("company_id", companyId).limit(100) : Promise.resolve(emptyResult),
+      canWorkforce ? supabase.from("employees").select("id, employee_number, position_title, trade, employment_status").eq("company_id", companyId).limit(100) : Promise.resolve(emptyResult),
+      canWorkforce ? supabase.from("crews").select("id, name, crew_code, status").eq("company_id", companyId).limit(100) : Promise.resolve(emptyResult),
+      canVendors ? supabase.from("vendors").select("id, display_name, company_name, vendor_code, email, phone, city, state, status").eq("company_id", companyId).limit(100) : Promise.resolve(emptyResult),
     ]);
 
     const failed = [customers, projects, estimates, invoices, employees, crews, vendors].find((result) => result.error);
     if (failed?.error) throw new Error(failed.error.message);
 
-    const results: SearchResult[] = getOrionNavigationRoutesForRole(role(workspace.context.role)).map((route) => ({
-      id: route.id,
-      type: "workspace",
-      label: route.label,
-      description: route.subtitle,
-      href: route.href,
-      searchText: [route.label, route.subtitle, ...route.keywords].join(" "),
-    }));
+    const results: SearchResult[] = getOrionNavigationRoutesForRole(role(workspaceRole))
+      .filter((route) => canAccessPath(workspaceRole, route.href))
+      .map((route) => ({
+        id: route.id,
+        type: "workspace",
+        label: route.label,
+        description: route.subtitle,
+        href: route.href,
+        searchText: [route.label, route.subtitle, ...route.keywords].join(" "),
+      }));
 
     for (const row of customers.data || []) {
       const person = [row.first_name, row.last_name].filter(Boolean).join(" ").trim();

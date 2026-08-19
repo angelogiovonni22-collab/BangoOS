@@ -5,7 +5,8 @@ import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import { sendContractEmail } from "@/lib/estimates/contract-email";
+import { hasBosPermission } from "@/lib/access-control/permissions";
+import { escapeContractEmailText, sendContractEmail, subcontractPublicUrl } from "@/lib/estimates/contract-email";
 import {
   MASTER_SUBCONTRACT_AGREEMENT_VERSION,
   PROJECT_WORK_AUTHORIZATION_VERSION,
@@ -27,13 +28,16 @@ function projectAddress(project: Record<string, unknown>) {
   return parts.length ? parts.join(", ") : asText(project.job_site_address) || null;
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string; assignmentId: string }> }) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string; assignmentId: string }> }) {
   try {
     const { id: projectId, assignmentId } = await params;
     const supabase = await createClient();
     if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
     const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
     if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+    if (!hasBosPermission(workspace.context.role, "projects.manage")) {
+      return NextResponse.json({ error: "You do not have permission to manage project subcontractors." }, { status: 403 });
+    }
     const companyId = workspace.context.companyId;
     const admin = createAdminClient();
 
@@ -99,21 +103,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       targetCompletionDate: asText(assignment.target_completion_date),
     });
     const token = randomBytes(32).toString("base64url");
+    const hashedToken = tokenHash(token);
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const sentAt = new Date().toISOString();
     const { data: authorizationRaw, error: authError } = await admin.from("project_subcontract_work_authorizations" as never).upsert({
       company_id: companyId, project_id: projectId, assignment_id: assignmentId, vendor_id: assignment.vendor_id,
       master_agreement_id: master.id, status: "sent", authorization_version: PROJECT_WORK_AUTHORIZATION_VERSION,
       authorization_snapshot: waSnapshot, authorization_hash: hashSnapshot(waSnapshot),
       scope_of_work: assignment.scope_of_work, contract_amount: assignment.contract_amount, payment_terms: assignment.payment_terms,
       retainage_percent: assignment.retainage_percent, start_date: assignment.start_date, target_completion_date: assignment.target_completion_date,
-      signer_email: email, public_token_hash: tokenHash(token), token_expires_at: expiresAt, sent_at: new Date().toISOString(),
+      signer_email: email, public_token_hash: hashedToken, token_expires_at: expiresAt, sent_at: sentAt,
       created_by: workspace.context.userId, updated_by: workspace.context.userId,
     } as never, { onConflict: "company_id,assignment_id" }).select("*").single();
     const authorization = authorizationRaw as AuthorizationRecord | null;
     if (authError || !authorization) throw new Error(authError?.message || "Unable to create project work authorization.");
 
     if (master.status !== "signed") {
-      await admin.from("subcontractor_master_agreements" as never).update({ status: "sent", signer_email: email, public_token_hash: tokenHash(token), token_expires_at: expiresAt, sent_at: new Date().toISOString(), updated_by: workspace.context.userId } as never).eq("id", master.id);
+      const { error: masterTokenError } = await admin.from("subcontractor_master_agreements" as never).update({
+        status: "sent", signer_email: email, public_token_hash: hashedToken,
+        token_expires_at: expiresAt, sent_at: sentAt, updated_by: workspace.context.userId,
+      } as never).eq("id", master.id).neq("status", "signed");
+      if (masterTokenError) throw new Error(masterTokenError.message || "Unable to prepare the master subcontract agreement.");
     }
 
     const requirementRows = [
@@ -137,13 +147,45 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await admin.from("trade_partner_assignments").update({ contract_status: "pending_signature" } as never).eq("company_id", companyId).eq("id", assignmentId);
     await admin.rpc("refresh_subcontractor_mobilization_status" as never, { p_company_id: companyId, p_assignment_id: assignmentId } as never);
 
-    const url = new URL(`/subcontracts/${encodeURIComponent(token)}`, request.url).toString();
+    const url = subcontractPublicUrl(token);
+    const safeCompanyName = escapeContractEmailText(companyName);
+    const safeProject = escapeContractEmailText(String(waSnapshot.project));
+    const safeTrade = escapeContractEmailText(String(assignment.trade_name || "assigned trade"));
+    const safeGreeting = escapeContractEmailText(asText(assignment.primary_contact_name) || asText(vendor.first_name) || "there");
     const delivery = await sendContractEmail({
       to: email,
       subject: `${companyName} subcontract agreement — ${waSnapshot.project}`,
-      html: `<p>Hello ${asText(assignment.primary_contact_name) || asText(vendor.first_name) || "there"},</p><p>${companyName} has assigned your company to <strong>${waSnapshot.project}</strong> for <strong>${assignment.trade_name}</strong>.</p><p>Please review and sign the subcontract documents using the secure link below.</p><p><a href="${url}">Review &amp; Sign Subcontract</a></p><p>This link expires in 14 days.</p>`,
+      html: `<p>Hello ${safeGreeting},</p><p>${safeCompanyName} has assigned your company to <strong>${safeProject}</strong> for <strong>${safeTrade}</strong>.</p><p>Please review and sign the subcontract documents using the secure link below.</p><p><a href="${url}">Review &amp; Sign Subcontract</a></p><p>This link expires in 14 days.</p>`,
     });
-    await admin.from("subcontractor_signature_events" as never).insert({ company_id: companyId, vendor_id: assignment.vendor_id, assignment_id: assignmentId, master_agreement_id: master.id, work_authorization_id: authorization.id, event_type: "sent", signer_email: email, document_hash: authorization.authorization_hash, metadata: { delivery } } as never);
+
+    if (!delivery.delivered) {
+      // A failed provider call must not leave an undisclosed bearer credential active
+      // or claim the subcontract was sent. Scope cleanup to this exact token so a
+      // concurrent successful signature/resend cannot be rolled backward.
+      await admin.from("project_subcontract_work_authorizations" as never).update({
+        status: "draft", public_token_hash: null, token_expires_at: null, updated_at: new Date().toISOString(),
+      } as never).eq("id", authorization.id).eq("status", "sent").eq("public_token_hash", hashedToken);
+      if (master.status !== "signed") {
+        await admin.from("subcontractor_master_agreements" as never).update({
+          status: "draft", public_token_hash: null, token_expires_at: null, updated_at: new Date().toISOString(),
+        } as never).eq("id", master.id).eq("status", "sent").eq("public_token_hash", hashedToken);
+      }
+      await admin.from("trade_partner_assignments").update({ contract_status: "draft" } as never)
+        .eq("company_id", companyId).eq("id", assignmentId).eq("contract_status", "pending_signature");
+      await admin.rpc("refresh_subcontractor_mobilization_status" as never, { p_company_id: companyId, p_assignment_id: assignmentId } as never);
+      return NextResponse.json({
+        error: delivery.reason || "The subcontract email could not be delivered. No signing link remains active.",
+        delivery,
+      }, { status: 503 });
+    }
+
+    const { error: eventError } = await admin.from("subcontractor_signature_events" as never).insert({
+      company_id: companyId, vendor_id: assignment.vendor_id, assignment_id: assignmentId,
+      master_agreement_id: master.id, work_authorization_id: authorization.id,
+      event_type: "sent", signer_email: email, document_hash: authorization.authorization_hash,
+      metadata: { delivery },
+    } as never);
+    if (eventError) throw new Error(eventError.message || "Agreement was delivered, but B.O.S. could not preserve the delivery audit event.");
 
     return NextResponse.json({ sent: true, url, expiresAt, delivery, workAuthorizationId: authorization.id, masterAgreementId: master.id });
   } catch (error) {

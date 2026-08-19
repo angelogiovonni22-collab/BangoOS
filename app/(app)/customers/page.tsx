@@ -36,12 +36,17 @@ type CustomerRow = {
   created_at: string;
 };
 
+type InvoiceRevenueRow = {
+  amount_paid: number | null;
+};
+
 const PAGE_SIZE = 8;
 
 export default function CustomersPage() {
   const { t } = useI18n();
   const supabase = useMemo(() => createClient(), []);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [lifetimeRevenue, setLifetimeRevenue] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [chipFilter, setChipFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -75,18 +80,24 @@ export default function CustomersPage() {
           return;
         }
 
-        const { data: rows, error: customersError } = await client
-          .from("customers")
-          .select("id, customer_type, first_name, last_name, company_name, email, phone, city, status, created_at")
-          .eq("company_id", workspace.context.companyId)
-          .order("created_at", { ascending: false });
+        const [customersResponse, revenueResponse] = await Promise.all([
+          client
+            .from("customers")
+            .select("id, customer_type, first_name, last_name, company_name, email, phone, city, status, created_at")
+            .eq("company_id", workspace.context.companyId)
+            .order("created_at", { ascending: false }),
+          client
+            .from("invoices")
+            .select("amount_paid")
+            .eq("company_id", workspace.context.companyId),
+        ]);
 
-        if (customersError) {
+        if (customersResponse.error) {
           if (isSubscribed) setErrorMessage(t("customers.errorLoadCustomers"));
           return;
         }
 
-        const mappedCustomers = (rows as CustomerRow[]).map((row) => {
+        const mappedCustomers = (customersResponse.data as CustomerRow[]).map((row) => {
           const customerType = normalizeCustomerType(row.customer_type, t);
           const customerStatus = normalizeCustomerStatus(row.status, t);
           const firstName = row.first_name?.trim() || "";
@@ -112,7 +123,17 @@ export default function CustomersPage() {
           };
         });
 
-        if (isSubscribed) setCustomers(mappedCustomers);
+        const collectedRevenue = revenueResponse.error
+          ? 0
+          : ((revenueResponse.data ?? []) as InvoiceRevenueRow[]).reduce(
+            (sum, invoice) => sum + Math.max(0, Number(invoice.amount_paid ?? 0)),
+            0,
+          );
+
+        if (isSubscribed) {
+          setCustomers(mappedCustomers);
+          setLifetimeRevenue(collectedRevenue);
+        }
       } catch (caughtError) {
         console.error("Load customers error:", caughtError);
         if (isSubscribed) setErrorMessage(t("customers.errorLoadUnexpected"));
@@ -208,8 +229,13 @@ export default function CustomersPage() {
       const created = new Date(customer.createdAt);
       return !Number.isNaN(created.getTime()) && created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
     }).length;
-    return { totalCustomers: visibleCustomers.length, activeCustomers, newThisMonth, lifetimeRevenue: "Coming Soon" };
-  }, [customers]);
+    const lifetimeRevenueLabel = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 2,
+    }).format(lifetimeRevenue);
+    return { totalCustomers: visibleCustomers.length, activeCustomers, newThisMonth, lifetimeRevenue: lifetimeRevenueLabel };
+  }, [customers, lifetimeRevenue]);
 
   return (
     <div className="container-content space-y-[var(--space-section)]">

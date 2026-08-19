@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { loadEstimateCompliance, saveEstimateCompliance, type EstimateComplianceProfile } from "@/lib/compliance/estimate-contract-compliance-service";
@@ -10,6 +11,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+  if (!hasBosPermission(workspace.context.role, "estimates.view")) {
+    return NextResponse.json({ error: "Estimate compliance access denied." }, { status: 403 });
+  }
 
   try {
     const result = await loadEstimateCompliance(supabase, workspace.context.companyId, estimateId);
@@ -26,6 +30,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+  if (!hasBosPermission(workspace.context.role, "estimates.manage")) {
+    return NextResponse.json({ error: "Estimate compliance management access denied." }, { status: 403 });
+  }
 
   let profile: EstimateComplianceProfile;
   try {

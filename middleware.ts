@@ -1,26 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { canUseOrion, type PermissionOverrides } from "@/lib/access-control/permissions";
+import {
+  canAccessPath,
+  canUseOrion,
+  getRoleHomePath,
+  permissionForPath,
+  type PermissionOverrides,
+} from "@/lib/access-control/permissions";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-const PROTECTED_PATHS = [
-  "/dashboard",
-  "/customers",
-  "/vendors",
-  "/projects",
-  "/estimates",
-  "/team",
-  "/schedule",
-  "/invoices",
-  "/settings",
-  "/onboarding",
-];
-
 const AUTH_PATHS = ["/login", "/signup"];
-
-function isProtectedPath(pathname: string) {
-  return PROTECTED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-}
 
 function isAuthPath(pathname: string) {
   return AUTH_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
@@ -30,12 +19,42 @@ function isOrionApiPath(pathname: string) {
   return pathname === "/api/orion" || pathname.startsWith("/api/orion/");
 }
 
+function isAuthorizedBosAppPath(pathname: string) {
+  return permissionForPath(pathname) !== null
+    || pathname === "/partner"
+    || pathname.startsWith("/partner/")
+    || pathname === "/customer-portal"
+    || pathname.startsWith("/customer-portal/");
+}
+
+function isSensitiveBearerPath(pathname: string) {
+  return pathname.startsWith("/contracts/estimate/")
+    || pathname.startsWith("/subcontracts/")
+    || pathname.startsWith("/api/contracts/estimate/")
+    || pathname.startsWith("/api/subcontracts/");
+}
+
+function applySensitiveBearerHeaders(response: NextResponse) {
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Referrer-Policy", "no-referrer");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Content-Security-Policy", "frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+}
+
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
+
+  const { pathname, search } = request.nextUrl;
+  if (isSensitiveBearerPath(pathname)) {
+    applySensitiveBearerHeaders(response);
+  }
 
   const { url, publishableKey } = getSupabaseEnv();
 
@@ -61,16 +80,24 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname, search } = request.nextUrl;
+  const orionApi = isOrionApiPath(pathname);
+  const bosAppPath = isAuthorizedBosAppPath(pathname);
 
-  if (isOrionApiPath(pathname)) {
-    if (!user) {
+  if (!user && (bosAppPath || orionApi)) {
+    if (orionApi) {
       return NextResponse.json(
         { ok: false, error: "Authentication is required to use Orion.", statusCategory: "authentication_required" },
         { status: 401 },
       );
     }
 
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    redirectUrl.searchParams.set("next", `${pathname}${search}`);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (user && (bosAppPath || orionApi)) {
     const [profileResponse, membershipsResponse] = await Promise.all([
       supabase.from("profiles").select("company_id").eq("id", user.id).maybeSingle(),
       supabase
@@ -89,24 +116,39 @@ export async function middleware(request: NextRequest) {
       || null;
 
     const overrides = (membership?.permission_overrides ?? null) as PermissionOverrides | null;
-    if (!membership || !canUseOrion(membership.role, overrides)) {
-      return NextResponse.json(
-        { ok: false, error: "Orion is not available for this B.O.S. account.", statusCategory: "orion_access_denied" },
-        { status: 403 },
-      );
-    }
-  }
 
-  if (!user && isProtectedPath(pathname)) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("next", `${pathname}${search}`);
-    return NextResponse.redirect(redirectUrl);
+    if (orionApi) {
+      if (!membership || !canUseOrion(membership.role, overrides)) {
+        return NextResponse.json(
+          { ok: false, error: "Orion is not available for this B.O.S. account.", statusCategory: "orion_access_denied" },
+          { status: 403 },
+        );
+      }
+    }
+
+    if (bosAppPath) {
+      // Authorization must happen before the route's server component is rendered.
+      // Client-side navigation hiding alone is insufficient because server pages may
+      // read company data before AppShell gets a chance to redirect.
+      if (!membership) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/app-entry";
+        redirectUrl.search = "";
+        return NextResponse.redirect(redirectUrl);
+      }
+
+      if (!canAccessPath(membership.role, pathname, overrides)) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = getRoleHomePath(membership.role);
+        redirectUrl.search = "";
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
   }
 
   if (user && isAuthPath(pathname)) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/dashboard";
+    redirectUrl.pathname = "/app-entry";
     redirectUrl.search = "";
     return NextResponse.redirect(redirectUrl);
   }

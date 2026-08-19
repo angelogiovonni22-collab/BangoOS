@@ -188,7 +188,7 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
                 <EnterpriseTableCell align="right">
                   <div className="inline-flex items-center gap-1">
                     <Link href={`/customers/${customer.id}`}><Button variant="ghost" size="sm" aria-label={t("customers.view")}><Eye size={15} aria-hidden="true" /></Button></Link>
-                    <Link href={`/customers/${customer.id}?edit=1`}><Button variant="ghost" size="sm" aria-label={t("customers.editCustomer")}><Pencil size={15} aria-hidden="true" /></Button></Link>
+                    <Link href={`/customers/${customer.id}/edit`}><Button variant="ghost" size="sm" aria-label={t("customers.editCustomer")}><Pencil size={15} aria-hidden="true" /></Button></Link>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -229,7 +229,7 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
             style={{ left: openMenu.left, top: openMenu.top }}
           >
             <MenuLink href={`/customers/${openMenu.customer.id}`} icon={<Eye size={14} />} onNavigate={() => setOpenMenu(null)}>View Customer</MenuLink>
-            <MenuLink href={`/customers/${openMenu.customer.id}?edit=1`} icon={<Pencil size={14} />} onNavigate={() => setOpenMenu(null)}>Edit Customer</MenuLink>
+            <MenuLink href={`/customers/${openMenu.customer.id}/edit`} icon={<Pencil size={14} />} onNavigate={() => setOpenMenu(null)}>Edit Customer</MenuLink>
             <MenuLink href={`/estimates/new?customerId=${openMenu.customer.id}`} icon={<FilePlus2 size={14} />} onNavigate={() => setOpenMenu(null)}>Create Estimate</MenuLink>
             <MenuLink href={`/projects/new?customerId=${openMenu.customer.id}`} icon={<FilePlus2 size={14} />} onNavigate={() => setOpenMenu(null)}>Create Project</MenuLink>
             <div className="my-1 border-t border-[var(--color-border-subtle)]" />

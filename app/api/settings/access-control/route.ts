@@ -32,9 +32,9 @@ export async function GET() {
         .eq("company_id", membership.company_id),
       supabase
         .from("vendors")
-        .select("id,name")
+        .select("id,company_name")
         .eq("company_id", membership.company_id)
-        .order("name"),
+        .order("company_name"),
       supabase
         .from("customers")
         .select("id,first_name,last_name,company_name,customer_type")
@@ -48,7 +48,10 @@ export async function GET() {
     return NextResponse.json({
       memberships: membersResponse.data ?? [],
       profiles: profilesResponse.data ?? [],
-      vendors: vendorsResponse.data ?? [],
+      vendors: (vendorsResponse.data ?? []).map((vendor) => ({
+        id: vendor.id,
+        name: vendor.company_name,
+      })),
       customers: customersResponse.data ?? [],
     });
   } catch (error) {

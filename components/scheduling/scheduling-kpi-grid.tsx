@@ -55,7 +55,6 @@ export function SchedulingKpiGrid({ items, onDrillDown, t }: SchedulingKpiGridPr
                 <p className="text-sm font-semibold text-[var(--color-text-secondary)]">{t(item.labelKey)}</p>
                 <p className="mt-2 text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{item.value}</p>
                 <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{t(item.insightKey)}</p>
-                <p className="mt-1 text-xs font-semibold text-[var(--color-text-secondary)]">{t(item.trendKey)}</p>
               </div>
             </CardContent>
           </Card>

@@ -171,6 +171,8 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
           groupBy={scheduling.filters.groupBy}
           date={scheduling.periodDate}
           assignments={assignments}
+          crewOptions={payload.crewOptions}
+          employeeOptions={payload.employeeOptions}
           onMoveAssignment={onMoveAssignment}
           onQuickMoveShift={onQuickMoveShift}
           t={t}

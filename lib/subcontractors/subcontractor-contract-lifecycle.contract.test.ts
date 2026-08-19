@@ -30,11 +30,41 @@ test("project assignment can generate and email a secure subcontract package", (
 test("resending preserves verified compliance and never overwrites an executed authorization", () => {
   const route = read("app/api/projects/[id]/subcontractors/[assignmentId]/agreement/route.ts");
   const component = read("components/projects/workspace/subcontractor-contract-actions.tsx");
+  const guard = read("supabase/migrations/20260819019500_subcontract_authorization_content_guard.sql");
   assert.match(route, /existingAuthorization\?\.status === "signed"/);
   assert.match(route, /alreadySigned: true/);
   assert.match(route, /ignoreDuplicates: true/);
+  assert.match(guard, /new\.status is distinct from old\.status/);
+  assert.match(guard, /SIGNED_WORK_AUTHORIZATION_IS_IMMUTABLE/);
   assert.match(component, /signed \|\| busy === "send" \|\| !email/);
   assert.match(component, /Agreement Signed/);
+});
+
+test("sent authorization terms invalidate the old bearer link and executed terms are immutable", () => {
+  const guard = read("supabase/migrations/20260819019500_subcontract_authorization_content_guard.sql");
+  assert.match(guard, /assignment_contract_terms_changed/);
+  assert.match(guard, /public_token_hash = null/);
+  assert.match(guard, /token_expires_at = null/);
+  assert.match(guard, /status = 'void'/);
+  assert.match(guard, /SIGNED_WORK_AUTHORIZATION_TERMS_ARE_IMMUTABLE/);
+  assert.match(guard, /old\.signer_name/);
+  assert.match(guard, /old\.signed_at/);
+  assert.match(guard, /SIGNED_MASTER_SUBCONTRACT_IS_IMMUTABLE/);
+});
+
+test("public subcontract signing is atomic, service-only, replay-resistant, and consumes the bearer token", () => {
+  const route = read("app/api/subcontracts/[token]/route.ts");
+  const sql = read("supabase/migrations/20260819016000_atomic_subcontract_signature.sql");
+  assert.match(route, /sign_public_subcontract_authorization/);
+  assert.doesNotMatch(route, /\.from\("subcontractor_signature_events"/);
+  assert.match(sql, /for update/i);
+  assert.match(sql, /public_token_hash = null/);
+  assert.match(sql, /token_expires_at = null/);
+  assert.match(sql, /subcontractor_signature_events/);
+  assert.match(sql, /contract_status = 'signed'/);
+  assert.match(sql, /refresh_subcontractor_mobilization_status/);
+  assert.match(sql, /revoke execute .*public, anon, authenticated/is);
+  assert.match(sql, /grant execute .*service_role/is);
 });
 
 test("public subcontract portal requires explicit signer identity and consent", () => {
@@ -46,20 +76,32 @@ test("public subcontract portal requires explicit signer identity and consent", 
   assert.match(page, /consent to electronic records and signatures/);
   assert.match(route, /typedName/);
   assert.match(route, /consentAccepted/);
-  assert.match(route, /authorization_hash/);
-  assert.match(route, /subcontractor_signature_events/);
+  assert.match(route, /typedName\.length > 200/);
+  assert.match(route, /title\.length > 200/);
 });
 
-test("signing updates contract status but mobilization remains independently gated", () => {
-  const route = read("app/api/subcontracts/[token]/route.ts");
+test("mobilization remains independently gated after signing", () => {
+  const sql = read("supabase/migrations/20260819016000_atomic_subcontract_signature.sql");
   const mobilization = read("app/api/projects/[id]/subcontractors/[assignmentId]/mobilization/route.ts");
-  assert.match(route, /contract_status: "signed"/);
-  assert.match(route, /refresh_subcontractor_mobilization_status/);
+  assert.match(sql, /contract_status = 'signed'/);
+  assert.match(sql, /refresh_subcontractor_mobilization_status/);
   assert.match(mobilization, /w9/);
   assert.match(mobilization, /coi/);
   assert.match(mobilization, /workers_comp/);
   assert.match(mobilization, /licenses/);
   assert.match(mobilization, /safety_acknowledgement/);
+});
+
+test("subcontract legal evidence is server-write-only and assignment writes require project-management authority", () => {
+  const evidence = read("supabase/migrations/20260819019700_subcontract_legal_evidence_write_isolation.sql");
+  const assignment = read("supabase/migrations/20260819019600_trade_partner_assignment_least_privilege.sql");
+  assert.match(evidence, /subcontractor_master_agreements/);
+  assert.match(evidence, /project_subcontract_work_authorizations/);
+  assert.match(evidence, /subcontractor_signature_events/);
+  assert.match(evidence, /for update to authenticated using \(false\)/i);
+  assert.match(evidence, /for insert to authenticated with check \(false\)/i);
+  assert.match(assignment, /projects\.manage/);
+  assert.match(assignment, /as restrictive/);
 });
 
 test("compliance documents are privately stored, scoped, and attached to mobilization evidence", () => {

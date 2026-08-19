@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AlertTriangle, HardHat, Users } from "./crew-icons";
+import { AlertTriangle } from "./crew-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -342,6 +342,8 @@ function CrewCalendarWorkspace() {
         groupBy="crew"
         date={scheduling.periodDate}
         assignments={scheduling.filteredAssignments}
+        crewOptions={scheduling.payload.crewOptions}
+        employeeOptions={scheduling.payload.employeeOptions}
         onMoveAssignment={(assignmentId, targetDate) => {
           void scheduling.moveAssignmentCard(assignmentId, { date: targetDate });
         }}
@@ -457,14 +459,6 @@ export function WorkforceOperationsDashboard() {
       <EquipmentAssignmentWorkspace data={data} disabled={isMutating} onAssignEquipment={assignEquipmentToCrew} />
       <DailyReportsWorkspace data={data} />
       <SafetyWorkspace data={data} />
-
-      <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <HardHat className="h-4 w-4 text-[var(--text-secondary)]" />
-          <Users className="h-4 w-4 text-[var(--text-secondary)]" />
-          <p className="text-[var(--text-secondary)]">Future integration interfaces for GPS, Time Clock, and Orion remain provider-based and are not implemented in this phase.</p>
-        </div>
-      </Card>
     </div>
   );
 }

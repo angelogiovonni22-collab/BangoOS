@@ -60,6 +60,8 @@ type ProjectListItem = ProjectTableItem & {
 
 type ProjectsErrorKind = "auth" | "company" | "database" | "network" | "unknown";
 
+const ACTIVE_PROJECT_STATUS_KEYS = new Set(["approved", "scheduled", "in_progress"]);
+
 export default function ProjectsPage() {
   const { t, locale } = useI18n();
   const supabase = useMemo(() => createClient(), []);
@@ -347,7 +349,7 @@ export default function ProjectsPage() {
   }, [projects, searchTerm, statusFilter, superintendentFilter, customerFilter, projectTypeFilter]);
 
   const summary = useMemo(() => {
-    const activeProjects = projects.filter((project) => !["completed", "cancelled"].includes(project.statusKey)).length;
+    const activeProjects = projects.filter((project) => ACTIVE_PROJECT_STATUS_KEYS.has(project.statusKey)).length;
     const behindSchedule = projects.filter((project) => project.isOverdue).length;
     const atRisk = projects.filter((project) => ["at_risk", "behind"].includes(project.healthKey)).length;
     const completedThisMonth = projects.filter((project) => {

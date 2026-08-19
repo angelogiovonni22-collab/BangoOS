@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 
 async function getContext(id: string) {
   const supabase = await createClient();
@@ -10,6 +11,9 @@ async function getContext(id: string) {
 
   const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
   if (!workspace.context) throw new Error(workspace.errorMessage || "Unauthorized.");
+  if (!hasBosPermission(workspace.context.role, "customers.manage")) {
+    throw new Error("Customer management access denied.");
+  }
 
   const { data: customer, error } = await supabase
     .from("customers")

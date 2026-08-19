@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
@@ -34,6 +35,9 @@ export async function GET() {
 
     const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
     if (!workspace.context) throw new Error(workspace.errorMessage || "Unauthorized.");
+    if (!hasBosPermission(workspace.context.role, "projects.manage")) {
+      return NextResponse.json({ error: "Deleted project history is restricted to project-management roles." }, { status: 403 });
+    }
 
     const { data: historyData, error: historyError } = await supabase
       .from("project_deletion_history" as never)

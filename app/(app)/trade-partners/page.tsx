@@ -146,7 +146,7 @@ export default async function TradePartnersControlCenterPage() {
                               <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--bos-text-secondary)]">{assignment.scope_of_work || "Scope of work has not been entered."}</p>
                               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--bos-text-muted)]"><span>{formatDateRange(assignment.start_date, assignment.target_completion_date)}</span><span>{openRequirements > 0 ? `${openRequirements} mobilization requirement${openRequirements === 1 ? "" : "s"} open` : "No open mobilization requirements"}</span></div>
                               <div className="mt-3 flex flex-wrap gap-2">
-                                <Link href={`/projects/${assignment.project_id}?tab=trade-partners`} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-500">Manage Assignment</Link>
+                                <Link href={`/projects/${assignment.project_id}?tab=subcontractors`} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-500">Manage Assignment</Link>
                                 <Link href={`/partner/${assignment.project_id}`} className="rounded-lg border border-[var(--bos-border-default)] px-3 py-2 text-xs font-semibold transition hover:bg-[var(--bos-bg-hover)]">Partner Workspace Route</Link>
                               </div>
                             </div>

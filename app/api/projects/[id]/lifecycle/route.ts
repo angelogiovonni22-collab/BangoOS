@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 import type { Database } from "@/types/database.types";
 
 async function getProjectContext(id: string) {
@@ -10,6 +11,9 @@ async function getProjectContext(id: string) {
 
   const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
   if (!workspace.context) throw new Error(workspace.errorMessage || "Unauthorized.");
+  if (!hasBosPermission(workspace.context.role, "projects.manage")) {
+    throw new Error("You do not have permission to manage projects.");
+  }
 
   const { data: project, error } = await supabase
     .from("projects")

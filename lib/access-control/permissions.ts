@@ -130,6 +130,15 @@ const ORION_CONFIGURABLE_ROLES: readonly CompanyRole[] = [
   "office_manager",
   "accountant",
 ];
+const PREVAILING_WAGE_ROUTE_ROLES: readonly CompanyRole[] = [
+  "owner",
+  "administrator",
+  "operations_manager",
+  "project_manager",
+  "superintendent",
+  "office_manager",
+  "accountant",
+];
 
 export function normalizeCompanyRole(role: string | null | undefined): CompanyRole {
   const normalized = (role || "employee").trim().toLowerCase();
@@ -202,14 +211,67 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/customer-portal", permission: "customer_portal.view" },
 ];
 
+const MUTATION_ROUTE_PERMISSIONS: ReadonlyArray<{ pattern: RegExp; permission: BosPermission }> = [
+  { pattern: /^\/projects\/deleted(?:\/|$)/, permission: "projects.manage" },
+  { pattern: /^\/projects\/new(?:\/|$)/, permission: "projects.manage" },
+  { pattern: /^\/projects\/[^/]+\/edit(?:\/|$)/, permission: "projects.manage" },
+  { pattern: /^\/customers\/new(?:\/|$)/, permission: "customers.manage" },
+  { pattern: /^\/customers\/[^/]+\/edit(?:\/|$)/, permission: "customers.manage" },
+  { pattern: /^\/estimates\/new(?:\/|$)/, permission: "estimates.manage" },
+  { pattern: /^\/estimates\/[^/]+\/edit(?:\/|$)/, permission: "estimates.manage" },
+  { pattern: /^\/invoices\/accounts-payable\/new(?:\/|$)/, permission: "invoices.manage" },
+  { pattern: /^\/invoices\/new(?:\/|$)/, permission: "invoices.manage" },
+  { pattern: /^\/invoices\/[^/]+\/edit(?:\/|$)/, permission: "invoices.manage" },
+  { pattern: /^\/change-orders\/new(?:\/|$)/, permission: "change_orders.manage" },
+  { pattern: /^\/change-orders\/[^/]+\/edit(?:\/|$)/, permission: "change_orders.manage" },
+  { pattern: /^\/labor-rates\/new(?:\/|$)/, permission: "labor_rates.manage" },
+  { pattern: /^\/labor-rates\/[^/]+\/edit(?:\/|$)/, permission: "labor_rates.manage" },
+  { pattern: /^\/employees\/new(?:\/|$)/, permission: "workforce.manage" },
+  { pattern: /^\/employees\/[^/]+\/edit(?:\/|$)/, permission: "workforce.manage" },
+  { pattern: /^\/crews\/new(?:\/|$)/, permission: "workforce.manage" },
+  { pattern: /^\/crews\/[^/]+\/edit(?:\/|$)/, permission: "workforce.manage" },
+  { pattern: /^\/equipment\/new(?:\/|$)/, permission: "equipment.manage" },
+  { pattern: /^\/equipment\/[^/]+\/edit(?:\/|$)/, permission: "equipment.manage" },
+  { pattern: /^\/materials\/new(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/materials\/[^/]+\/edit(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/materials\/procurement(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/units-of-measure\/new(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/units-of-measure\/[^/]+\/edit(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/vendors\/new(?:\/|$)/, permission: "vendors.manage" },
+  { pattern: /^\/vendors\/[^/]+\/edit(?:\/|$)/, permission: "vendors.manage" },
+  { pattern: /^\/daily-reports\/new(?:\/|$)/, permission: "daily_reports.manage" },
+  { pattern: /^\/daily-reports\/[^/]+\/edit(?:\/|$)/, permission: "daily_reports.manage" },
+];
+
 export function permissionForPath(pathname: string): BosPermission | null {
+  const mutationRule = MUTATION_ROUTE_PERMISSIONS.find(({ pattern }) => pattern.test(pathname));
+  if (mutationRule) return mutationRule.permission;
+
   const rule = ROUTE_RULES.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`));
   return rule?.permission ?? null;
 }
 
 export function canAccessPath(role: string | null | undefined, pathname: string, overrides?: PermissionOverrides | null) {
+  const normalizedRole = normalizeCompanyRole(role);
+
+  // External accounts are portal-only. Their feature permissions describe what can be
+  // surfaced inside the scoped portal, not permission to enter global company modules.
+  if (normalizedRole === "subcontractor") {
+    return pathname === "/partner" || pathname.startsWith("/partner/");
+  }
+
+  if (normalizedRole === "customer") {
+    return pathname === "/customer-portal" || pathname.startsWith("/customer-portal/");
+  }
+
+  // Prevailing wage is a scoped labor-compliance workspace. It intentionally includes
+  // field/compliance leadership without granting those roles access to all invoices.
+  if (pathname === "/invoices/prevailing-wage" || pathname.startsWith("/invoices/prevailing-wage/")) {
+    return PREVAILING_WAGE_ROUTE_ROLES.includes(normalizedRole);
+  }
+
   const permission = permissionForPath(pathname);
-  return permission ? hasBosPermission(role, permission, overrides) : true;
+  return permission ? hasBosPermission(normalizedRole, permission, overrides) : true;
 }
 
 export function isFinancialPermission(permission: BosPermission) {

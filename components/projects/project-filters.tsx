@@ -66,11 +66,11 @@ export function ProjectFilters({
         </label>
 
         <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-          <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Superintendent</span>
+          <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{t("projects.filterProjectManager")}</span>
           <Select
             value={managerValue}
             onChange={(event) => onManagerChange(event.target.value)}
-            aria-label="Superintendent"
+            aria-label={t("projects.filterProjectManager")}
           >
             {managerOptions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>

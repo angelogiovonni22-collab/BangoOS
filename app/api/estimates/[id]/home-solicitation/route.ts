@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { loadHomeSolicitationCompliance, recordHomeSolicitationOralDisclosure, recordHomeSolicitationSellerSignature, saveHomeSolicitationCompliance, type HomeSolicitationProfile } from "@/lib/compliance/home-solicitation-service";
@@ -9,6 +10,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+  if (!hasBosPermission(workspace.context.role, "estimates.view")) return NextResponse.json({ error: "Estimate compliance access denied." }, { status: 403 });
   try { return NextResponse.json(await loadHomeSolicitationCompliance(supabase, workspace.context.companyId, estimateId)); }
   catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load home-solicitation compliance." }, { status: 400 }); }
 }
@@ -19,6 +21,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+  if (!hasBosPermission(workspace.context.role, "estimates.manage")) return NextResponse.json({ error: "Estimate compliance management access denied." }, { status: 403 });
   let profile: HomeSolicitationProfile;
   try { profile = (await request.json()) as HomeSolicitationProfile; }
   catch { return NextResponse.json({ error: "Invalid home-solicitation payload." }, { status: 400 }); }
@@ -32,6 +35,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+  if (!hasBosPermission(workspace.context.role, "estimates.manage")) return NextResponse.json({ error: "Estimate compliance management access denied." }, { status: 403 });
 
   try {
     const body = await request.json() as { action?: string; signerName?: string; consentAccepted?: boolean };

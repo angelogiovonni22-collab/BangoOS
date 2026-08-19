@@ -4,6 +4,7 @@ import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 
 const BUCKET = "subcontractor-compliance";
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -26,6 +27,9 @@ async function context(projectId: string, assignmentId: string) {
   if (!supabase) throw new Error("B.O.S. database is unavailable.");
   const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
   if (!workspace.context) throw new Error(workspace.errorMessage || "Unauthorized.");
+  if (!hasBosPermission(workspace.context.role, "projects.manage")) {
+    throw new Error("You do not have permission to manage project subcontractors.");
+  }
   const admin = createAdminClient();
   const { data: assignment } = await admin
     .from("trade_partner_assignments")

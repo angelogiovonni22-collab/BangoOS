@@ -91,21 +91,17 @@ export async function resolveWorkspaceContext(
     .order("created_at", { ascending: true });
 
   const hasMembershipsTable = !membershipsError;
-
   const activeMemberships = (memberships ?? []).filter((membership) => membership.status === "active");
-
-  const activeMembership =
+  let activeMembership =
     activeMemberships.find((membership) => membership.company_id === profile.company_id)
     || activeMemberships.find((membership) => membership.is_primary)
     || activeMemberships[0]
     || null;
 
-  let companyId = activeMembership?.company_id ?? profile.company_id;
-  let role = activeMembership?.role ?? profile.role;
-  let membershipId = activeMembership?.id ?? null;
-  let membershipStatus = activeMembership?.status ?? null;
-
-  if (!companyId) {
+  // Once company_memberships exists, it is the authorization source of truth.
+  // Never recreate or reactivate a missing/suspended membership from the legacy
+  // profile row. The only safe bootstrap is the actual companies.owner_id owner.
+  if (hasMembershipsTable && !activeMembership) {
     const { data: ownerCompany, error: ownerCompanyError } = await supabase
       .from("companies")
       .select("id")
@@ -115,69 +111,116 @@ export async function resolveWorkspaceContext(
     if (ownerCompanyError) {
       return {
         context: null,
-        errorMessage:
-          "Unable to verify your workspace right now. Please try again shortly.",
+        errorMessage: "Unable to verify your workspace right now. Please try again shortly.",
+        errorCode: "company_unavailable",
+      };
+    }
+
+    if (!ownerCompany?.id) {
+      return {
+        context: null,
+        errorMessage: "Your company access is not active. Contact a company administrator.",
+        errorCode: "company_unavailable",
+      };
+    }
+
+    const { data: ownerMembership, error: ownerMembershipError } = await supabase
+      .from("company_memberships")
+      .upsert(
+        {
+          company_id: ownerCompany.id,
+          user_id: user.id,
+          role: "owner",
+          status: "active",
+          is_primary: true,
+        },
+        { onConflict: "company_id,user_id" },
+      )
+      .select("id, company_id, role, status, is_primary, joined_at, created_at")
+      .maybeSingle();
+
+    if (ownerMembershipError || !ownerMembership) {
+      return {
+        context: null,
+        errorMessage: "Unable to restore the company owner workspace.",
+        errorCode: "company_unavailable",
+      };
+    }
+
+    activeMembership = ownerMembership;
+  }
+
+  let companyId = hasMembershipsTable ? activeMembership?.company_id ?? null : profile.company_id;
+  let role = hasMembershipsTable ? activeMembership?.role ?? null : profile.role;
+  const membershipId = activeMembership?.id ?? null;
+  const membershipStatus = activeMembership?.status ?? null;
+
+  // Legacy fallback is retained only for installations where the memberships
+  // table genuinely does not exist. It must never override an inactive membership.
+  if (!companyId && !hasMembershipsTable) {
+    const { data: ownerCompany, error: ownerCompanyError } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("owner_id", user.id)
+      .maybeSingle<{ id: string }>();
+
+    if (ownerCompanyError) {
+      return {
+        context: null,
+        errorMessage: "Unable to verify your workspace right now. Please try again shortly.",
         errorCode: "company_unavailable",
       };
     }
 
     if (ownerCompany?.id) {
-      const { error: patchProfileError } = await supabase
-        .from("profiles")
-        .update({ company_id: ownerCompany.id })
-        .eq("id", user.id);
-
-      if (!patchProfileError) {
-        companyId = ownerCompany.id;
-
-        if (hasMembershipsTable) {
-          const { data: ownerMembership } = await supabase
-            .from("company_memberships")
-            .upsert(
-              {
-                company_id: ownerCompany.id,
-                user_id: user.id,
-                role: "owner",
-                status: "active",
-                is_primary: true,
-              },
-              { onConflict: "company_id,user_id" },
-            )
-            .select("id, status, role")
-            .maybeSingle();
-
-          if (ownerMembership) {
-            membershipId = ownerMembership.id;
-            membershipStatus = ownerMembership.status;
-            role = ownerMembership.role;
-          }
-        }
-      }
+      companyId = ownerCompany.id;
+      role = "owner";
     }
   }
 
   if (!companyId) {
     return {
       context: null,
-      errorMessage: "No company was found for your account yet.",
+      errorMessage: "No active company was found for your account.",
       errorCode: "company_missing",
     };
   }
 
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("id, name")
-    .eq("id", companyId)
-    .maybeSingle<{
-      id: string;
-      name: string | null;
-    }>();
+  const normalizedRole = (role || "").trim().toLowerCase();
+  const isExternalPortalRole = normalizedRole === "subcontractor" || normalizedRole === "customer";
+  let company: { id: string; name: string | null } | null = null;
+  let companyErrorMessage: string | null = null;
 
-  if (companyError) {
+  if (isExternalPortalRole) {
+    // Portal accounts are intentionally denied direct SELECT access to the full
+    // companies row because it contains license, insurance, owner/contact and
+    // configuration fields. Resolve only the identity needed by the portal shell.
+    const { data, error } = await supabase.rpc("get_my_portal_company_identity" as never, {
+      p_company_id: companyId,
+    } as never) as unknown as {
+      data: Array<{ company_id: string; company_name: string | null }> | null;
+      error: { message?: string } | null;
+    };
+    companyErrorMessage = error?.message || null;
+    const row = data?.[0] || null;
+    company = row ? { id: row.company_id, name: row.company_name } : null;
+  } else {
+    const result = await supabase
+      .from("companies")
+      .select("id, name")
+      .eq("id", companyId)
+      .maybeSingle<{
+        id: string;
+        name: string | null;
+      }>();
+    company = result.data;
+    companyErrorMessage = result.error?.message || null;
+  }
+
+  if (companyErrorMessage) {
     return {
       context: null,
-      errorMessage:
-        "Unable to verify your workspace right now. Please try again shortly.",
+      errorMessage: "Unable to verify your workspace right now. Please try again shortly.",
       errorCode: "company_unavailable",
     };
   }
@@ -190,33 +233,9 @@ export async function resolveWorkspaceContext(
     };
   }
 
-  if (hasMembershipsTable && !membershipId) {
-    const { data: createdMembership } = await supabase
-      .from("company_memberships")
-      .upsert(
-        {
-          company_id: company.id,
-          user_id: user.id,
-          role: role || "employee",
-          status: "active",
-          is_primary: true,
-        },
-        { onConflict: "company_id,user_id" },
-      )
-      .select("id, status, role")
-      .maybeSingle();
-
-    if (createdMembership) {
-      membershipId = createdMembership.id;
-      membershipStatus = createdMembership.status;
-      role = createdMembership.role;
-    }
-  }
-
-  if (
-    profile.company_id !== company.id
-    || (role && profile.role !== role)
-  ) {
+  // The profile mirrors authorization state for legacy display compatibility only.
+  // It is never used as the authority to reactivate a missing membership.
+  if (profile.company_id !== company.id || (role && profile.role !== role)) {
     await supabase
       .from("profiles")
       .update({
