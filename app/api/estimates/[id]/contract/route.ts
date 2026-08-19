@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
 import { renderBrandedEstimateEmail } from "@/lib/estimates/branded-estimate-email";
 import { loadEstimateCompliance, recordEstimateComplianceEvaluation } from "@/lib/compliance/estimate-contract-compliance-service";
 import { loadHomeSolicitationCompliance, recordHomeSolicitationEvaluation } from "@/lib/compliance/home-solicitation-service";
+
+const SENDABLE_ESTIMATE_STATUSES = new Set(["draft", "internal_review", "ready", "sent", "viewed", "revision_requested"]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: estimateId } = await params;
@@ -13,12 +16,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+  if (!hasBosPermission(workspace.context.role, "estimates.manage")) {
+    return NextResponse.json({ error: "You do not have permission to send estimate contracts." }, { status: 403 });
+  }
 
   const { data: estimate, error } = await supabase
     .from("estimates")
     .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name, customer_type, state)")
     .eq("company_id", workspace.context.companyId).eq("id", estimateId).maybeSingle();
   if (error || !estimate) return NextResponse.json({ error: "Estimate not found." }, { status: 404 });
+  if (!SENDABLE_ESTIMATE_STATUSES.has(estimate.status)) {
+    return NextResponse.json({
+      error: `This estimate cannot be sent while its status is ${estimate.status}. Create or restore an editable revision before sending another agreement.`,
+      code: "ESTIMATE_STATUS_NOT_SENDABLE",
+    }, { status: 409 });
+  }
   const customer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
   if (!customer?.email) return NextResponse.json({ error: "The linked customer needs an email address before sending a contract." }, { status: 400 });
 
@@ -117,7 +129,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     };
     return NextResponse.json({ error: configurationErrors[delivery.reason || ""] || `Email provider rejected the message: ${delivery.reason || "unknown error"}`, url, expiresAt: result.expiresAt, delivery }, { status: 503 });
   }
-  const { error: updateError } = await supabase.from("estimates").update({ status: "sent", updated_by: workspace.context.userId }).eq("company_id", workspace.context.companyId).eq("id", estimateId);
+  const { error: updateError } = await supabase.from("estimates").update({ status: "sent", updated_by: workspace.context.userId }).eq("company_id", workspace.context.companyId).eq("id", estimateId).in("status", Array.from(SENDABLE_ESTIMATE_STATUSES));
   if (updateError) return NextResponse.json({ error: "Email was accepted, but B.O.S. could not update the estimate status. Do not resend.", url, expiresAt: result.expiresAt, delivery }, { status: 500 });
   return NextResponse.json({ url, expiresAt: result.expiresAt, delivery });
 }
