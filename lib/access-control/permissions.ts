@@ -208,8 +208,20 @@ export function permissionForPath(pathname: string): BosPermission | null {
 }
 
 export function canAccessPath(role: string | null | undefined, pathname: string, overrides?: PermissionOverrides | null) {
+  const normalizedRole = normalizeCompanyRole(role);
+
+  // External accounts are portal-only. Their feature permissions describe what can be
+  // surfaced inside the scoped portal, not permission to enter global company modules.
+  if (normalizedRole === "subcontractor") {
+    return pathname === "/partner" || pathname.startsWith("/partner/");
+  }
+
+  if (normalizedRole === "customer") {
+    return pathname === "/customer-portal" || pathname.startsWith("/customer-portal/");
+  }
+
   const permission = permissionForPath(pathname);
-  return permission ? hasBosPermission(role, permission, overrides) : true;
+  return permission ? hasBosPermission(normalizedRole, permission, overrides) : true;
 }
 
 export function isFinancialPermission(permission: BosPermission) {
