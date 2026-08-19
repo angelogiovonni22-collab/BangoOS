@@ -16,6 +16,7 @@ const scheduleWeek = read("components/scheduling/schedule-week-view.tsx");
 const schedulingDashboard = read("components/scheduling/scheduling-dashboard.tsx");
 const crewOperations = read("components/crews/workforce-operations-dashboard.tsx");
 const orionButton = read("components/orion/persistent/PersistentOrionButton.tsx");
+const orionPanel = read("components/orion/persistent/PersistentOrionPanel.tsx");
 
 assert.match(customersPage, /\.from\("invoices"\)/, "customer directory must calculate revenue from persisted invoices");
 assert.doesNotMatch(customersPage, /lifetimeRevenue:\s*"Coming Soon"/, "customer revenue must not be a placeholder");
@@ -44,5 +45,9 @@ assert.match(orionButton, /normalizedVoicePhase/, "Orion accessible state must b
 assert.match(orionButton, /normalizedVoicePhase === "idle"/, "idle Orion must announce a neutral ready state");
 assert.doesNotMatch(orionButton, /fixture\.state === "UNAVAILABLE"/, "route fixtures must not make Orion announce false unavailability");
 assert.doesNotMatch(orionButton, /Orion is unavailable\./, "persistent Orion must not announce route-fixture unavailability when the control is available");
+assert.match(orionPanel, /formatVoicePhase\(voice\.phase\)/, "persistent Orion panel state must come from the live voice lifecycle");
+assert.doesNotMatch(orionPanel, /fixture\.observation/, "production Orion panel must not present deterministic route observations as live intelligence");
+assert.doesNotMatch(orionPanel, /fixture\.whyItMatters/, "production Orion panel must not present deterministic route impact claims as live intelligence");
+assert.doesNotMatch(orionPanel, /fixture\.evidenceStatus|fixture\.dataFreshness|fixture\.recommendedNextReview|fixture\.approvalBoundary|fixture\.limitations/, "production Orion panel must not present fixture evidence metadata as live operational facts");
 
 console.log("Production route audit contract passed.");
