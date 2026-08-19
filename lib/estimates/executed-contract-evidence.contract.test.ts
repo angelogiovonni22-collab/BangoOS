@@ -47,3 +47,11 @@ test("material estimate, line-item, customer and compliance edits revoke outstan
   assert.match(sql, /SIGNED_OR_CANCELLED_ESTIMATE_CONTENT_IS_IMMUTABLE/);
   assert.match(sql, /SIGNED_OR_CANCELLED_ESTIMATE_LINE_ITEMS_ARE_IMMUTABLE/);
 });
+
+test("post-sign project conversion is operational state, not a contract-content rewrite", () => {
+  const sql = read("supabase/migrations/20260819019900_estimate_conversion_contract_guard_alignment.sql");
+  assert.match(sql, /Project association is an operational consequence of execution/);
+  assert.doesNotMatch(sql, /old\.customer_id, old\.project_id/);
+  assert.doesNotMatch(sql, /new\.customer_id, new\.project_id/);
+  assert.match(sql, /SIGNED_OR_CANCELLED_ESTIMATE_CONTENT_IS_IMMUTABLE/);
+});
