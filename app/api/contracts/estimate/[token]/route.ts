@@ -120,8 +120,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       },
     });
     await workflow.storeAcceptance({ companyId: validated.companyId, estimateId: validated.estimateId, actorProfileId: null, eventType: "signed", actorType: "customer", signatureId: signature.signatureId, idempotencyKey: `${idempotencyKey}:signed`, metadata: contractPackageMetadata });
-    const { data: actor, error: actorError } = await admin.from("profiles").select("id").eq("company_id", validated.companyId).order("created_at").limit(1).maybeSingle();
-    if (actorError || !actor?.id) throw new Error(actorError?.message || "A company owner is required to finalize this estimate.");
+
+    const { data: company, error: companyError } = await admin
+      .from("companies")
+      .select("owner_id")
+      .eq("id", validated.companyId)
+      .single();
+    if (companyError || !company?.owner_id) throw new Error(companyError?.message || "A company owner is required to finalize this estimate.");
+    const { data: actor, error: actorError } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("id", company.owner_id)
+      .eq("company_id", validated.companyId)
+      .maybeSingle();
+    if (actorError || !actor?.id) throw new Error(actorError?.message || "The company owner profile is required to finalize this estimate.");
 
     const { error: signatureError } = await admin.from("estimate_signatures").update({ verification_result: "verified", metadata: { verification_method: "secure_contract_link", public_token_id: validated.tokenId, finalized_at: signedAt, ...contractPackageMetadata, ...(homeSolicitationResult?.evaluation.applicable === true ? { home_solicitation_ruleset_version: homeSolicitationResult.evaluation.rulesetVersion, home_solicitation_applicable: true, seller_signer_name: homeSolicitationResult.profile.sellerSignerName, seller_signed_at: homeSolicitationResult.profile.sellerSignedAt } : {}) } }).eq("id", signature.signatureId).eq("company_id", validated.companyId);
     if (signatureError) throw new Error(signatureError.message || "Unable to finalize the signature.");
