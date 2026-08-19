@@ -6,6 +6,8 @@ const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), "utf8");
 
 const customersPage = read("app/(app)/customers/page.tsx");
+const customerTable = read("components/customers/customer-table.tsx");
+const estimateDetail = read("components/estimates/estimate-detail.tsx");
 const projectsPage = read("app/(app)/projects/page.tsx");
 const projectFilters = read("components/projects/project-filters.tsx");
 const kpiGrid = read("components/scheduling/scheduling-kpi-grid.tsx");
@@ -17,6 +19,12 @@ const orionButton = read("components/orion/persistent/PersistentOrionButton.tsx"
 
 assert.match(customersPage, /\.from\("invoices"\)/, "customer directory must calculate revenue from persisted invoices");
 assert.doesNotMatch(customersPage, /lifetimeRevenue:\s*"Coming Soon"/, "customer revenue must not be a placeholder");
+assert.doesNotMatch(customerTable, /\?edit=1/, "customer edit actions must not route to a no-op query-string view");
+assert.match(customerTable, /\/customers\/\$\{customer\.id\}\/edit/, "customer row edit action must open the real edit route");
+assert.match(customerTable, /\/customers\/\$\{openMenu\.customer\.id\}\/edit/, "customer action menu must open the real edit route");
+
+assert.doesNotMatch(estimateDetail, /future sprint/i, "estimate detail must not expose future-sprint placeholder copy in production");
+assert.doesNotMatch(estimateDetail, /Status history and estimate activity timeline will be expanded/, "estimate detail must not present an unimplemented activity section as production content");
 
 assert.match(projectsPage, /ACTIVE_PROJECT_STATUS_KEYS = new Set\(\["approved", "scheduled", "in_progress"\]\)/, "project active KPI must use the same operating lifecycle as the dashboard");
 assert.match(projectsPage, /ACTIVE_PROJECT_STATUS_KEYS\.has\(project\.statusKey\)/, "project active KPI must exclude lead and estimating records");
