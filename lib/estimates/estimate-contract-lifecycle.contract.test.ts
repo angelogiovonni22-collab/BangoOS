@@ -42,6 +42,18 @@ test("secure estimate signing finalizes without a second email verification", ()
   assert.doesNotMatch(page, /select the verification link/);
 });
 
+test("legacy second-verification endpoint is inert and pending legacy tokens are retired", () => {
+  const route = read("app/api/contracts/verify/route.ts");
+  const migration = read("supabase/migrations/20260819018500_retire_legacy_contract_verifications.sql");
+  assert.match(route, /intentionally non-operational/);
+  assert.doesNotMatch(route, /createAdminClient/);
+  assert.doesNotMatch(route, /convert_verified_estimate_contract/);
+  assert.doesNotMatch(route, /verification_result: "verified"/);
+  assert.match(route, /status=invalid/);
+  assert.match(migration, /status = 'expired'/);
+  assert.match(migration, /where status = 'pending'/);
+});
+
 test("signature response exposes created project and immutable evidence", () => {
   const submit = read("app/api/contracts/estimate/[token]/route.ts");
   assert.match(submit, /projectId/);
