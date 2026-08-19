@@ -157,13 +157,23 @@ export async function finalizeAgreementContractPackage(
     baseSnapshot: Record<string, unknown>;
     baseAgreementHash: string;
     signingAt: string;
+    contractDocument?: Record<string, unknown> | null;
   },
 ) {
+  // Never trust the caller to pair an arbitrary object with the stored base hash.
+  // The snapshot supplied for finalization must be byte-for-byte the snapshot that
+  // originally produced baseAgreementHash before any compliance/document material
+  // is appended.
+  if (sha256(JSON.stringify(input.baseSnapshot)) !== input.baseAgreementHash) {
+    throw new Error("Agreement base snapshot integrity check failed.");
+  }
+
   const compliancePackage = await buildContractCompliancePackage(db, input.companyId, input.estimateId, {
     signingAt: input.signingAt,
   });
   const snapshot = {
     ...input.baseSnapshot,
+    ...(input.contractDocument ? { contractDocument: input.contractDocument } : {}),
     compliancePackage,
   };
   const agreementHash = sha256(JSON.stringify(snapshot));
