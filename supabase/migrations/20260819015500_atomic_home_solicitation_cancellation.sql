@@ -3,8 +3,9 @@ begin;
 -- A cancellation notice touches legal evidence, the compliance profile, the
 -- governing estimate, and possibly the converted project. Keep that transition in
 -- one database transaction so a network/process failure cannot leave partial legal
--- state. The public route validates the bearer token first; this RPC is service-role
--- only and receives the already-resolved company/estimate identity.
+-- state. The public route validates the bearer token first; this RPC independently
+-- revalidates that token under the same legal-action lock used by signature
+-- finalization so an old/revoked link cannot win a race after route validation.
 create or replace function public.record_verified_home_solicitation_cancellation(
   p_company_id uuid,
   p_estimate_id uuid,
@@ -29,23 +30,38 @@ set search_path = public, pg_temp
 as $$
 declare
   v_profile public.estimate_home_solicitation_profiles%rowtype;
+  v_token public.estimate_public_tokens%rowtype;
   v_project_id uuid;
   v_received_at timestamptz := coalesce(p_received_at, now());
   v_effective_date date := p_effective_date;
   v_timely boolean;
   v_notice text := btrim(coalesce(p_notice_text, ''));
+  v_existing_received_at timestamptz;
+  v_existing_deadline date;
+  v_existing_timely boolean;
 begin
   if coalesce(auth.role(), '') <> 'service_role' then
     raise exception 'Service role required.' using errcode = '42501';
   end if;
-  if p_company_id is null or p_estimate_id is null or v_effective_date is null then
-    raise exception 'Cancellation identity and effective date are required.' using errcode = '22023';
+  if p_company_id is null or p_estimate_id is null or p_public_token_id is null or v_effective_date is null then
+    raise exception 'Cancellation identity, bearer token, and effective date are required.' using errcode = '22023';
   end if;
   if char_length(v_notice) not between 1 and 4000 then
     raise exception 'Cancellation notice must contain between 1 and 4000 characters.' using errcode = '22023';
   end if;
 
   perform pg_advisory_xact_lock(hashtextextended('home-solicitation-cancel:' || p_estimate_id::text, 0));
+
+  select * into v_token
+  from public.estimate_public_tokens t
+  where t.id = p_public_token_id
+    and t.company_id = p_company_id
+    and t.estimate_id = p_estimate_id
+  for update;
+
+  if not found or v_token.revoked_at is not null or v_token.expires_at <= v_received_at then
+    raise exception 'CONTRACT_TOKEN_NO_LONGER_VALID' using errcode = '42501';
+  end if;
 
   select * into v_profile
   from public.estimate_home_solicitation_profiles p
@@ -60,7 +76,7 @@ begin
     raise exception 'The signed transaction record is not complete.' using errcode = '23514';
   end if;
 
-  select e.project_id into v_project_id
+  select coalesce(e.converted_project_id, e.project_id) into v_project_id
   from public.estimates e
   where e.company_id = p_company_id
     and e.id = p_estimate_id
@@ -75,6 +91,25 @@ begin
     return;
   end if;
 
+  -- Network retries/double submissions must not create duplicate legal notices.
+  -- A timely cancellation is handled by cancelled_at above; this branch primarily
+  -- makes late review requests idempotent as well.
+  select c.received_at, c.deadline_date, coalesce(c.timely, false)
+    into v_existing_received_at, v_existing_deadline, v_existing_timely
+  from public.estimate_home_solicitation_cancellations c
+  where c.company_id = p_company_id
+    and c.estimate_id = p_estimate_id
+    and c.public_token_id = p_public_token_id
+    and c.effective_date = v_effective_date
+    and c.notice_text = v_notice
+  order by c.received_at asc
+  limit 1;
+
+  if found then
+    return query select false, v_existing_timely, true, v_existing_received_at, coalesce(v_existing_deadline, v_profile.cancellation_deadline_date), v_project_id;
+    return;
+  end if;
+
   v_timely := v_effective_date <= v_profile.cancellation_deadline_date;
 
   insert into public.estimate_home_solicitation_cancellations(
@@ -83,8 +118,8 @@ begin
   ) values (
     p_company_id, p_estimate_id, p_public_token_id, v_received_at, v_effective_date,
     v_profile.cancellation_deadline_date, v_timely, v_notice,
-    nullif(btrim(coalesce(p_ip_address, '')), ''),
-    nullif(btrim(coalesce(p_user_agent, '')), ''),
+    nullif(left(btrim(coalesce(p_ip_address, '')), 256), ''),
+    nullif(left(btrim(coalesce(p_user_agent, '')), 1000), ''),
     jsonb_build_object('channel', 'bos_secure_contract_link')
   );
 
