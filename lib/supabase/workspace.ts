@@ -186,16 +186,38 @@ export async function resolveWorkspaceContext(
     };
   }
 
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("id, name")
-    .eq("id", companyId)
-    .maybeSingle<{
-      id: string;
-      name: string | null;
-    }>();
+  const normalizedRole = (role || "").trim().toLowerCase();
+  const isExternalPortalRole = normalizedRole === "subcontractor" || normalizedRole === "customer";
+  let company: { id: string; name: string | null } | null = null;
+  let companyErrorMessage: string | null = null;
 
-  if (companyError) {
+  if (isExternalPortalRole) {
+    // Portal accounts are intentionally denied direct SELECT access to the full
+    // companies row because it contains license, insurance, owner/contact and
+    // configuration fields. Resolve only the identity needed by the portal shell.
+    const { data, error } = await supabase.rpc("get_my_portal_company_identity" as never, {
+      p_company_id: companyId,
+    } as never) as unknown as {
+      data: Array<{ company_id: string; company_name: string | null }> | null;
+      error: { message?: string } | null;
+    };
+    companyErrorMessage = error?.message || null;
+    const row = data?.[0] || null;
+    company = row ? { id: row.company_id, name: row.company_name } : null;
+  } else {
+    const result = await supabase
+      .from("companies")
+      .select("id, name")
+      .eq("id", companyId)
+      .maybeSingle<{
+        id: string;
+        name: string | null;
+      }>();
+    company = result.data;
+    companyErrorMessage = result.error?.message || null;
+  }
+
+  if (companyErrorMessage) {
     return {
       context: null,
       errorMessage: "Unable to verify your workspace right now. Please try again shortly.",
@@ -211,6 +233,8 @@ export async function resolveWorkspaceContext(
     };
   }
 
+  // The profile mirrors authorization state for legacy display compatibility only.
+  // It is never used as the authority to reactivate a missing membership.
   if (profile.company_id !== company.id || (role && profile.role !== role)) {
     await supabase
       .from("profiles")
