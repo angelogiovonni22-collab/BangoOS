@@ -202,7 +202,40 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/customer-portal", permission: "customer_portal.view" },
 ];
 
+const MUTATION_ROUTE_PERMISSIONS: ReadonlyArray<{ pattern: RegExp; permission: BosPermission }> = [
+  { pattern: /^\/projects\/new(?:\/|$)/, permission: "projects.manage" },
+  { pattern: /^\/projects\/[^/]+\/edit(?:\/|$)/, permission: "projects.manage" },
+  { pattern: /^\/customers\/new(?:\/|$)/, permission: "customers.manage" },
+  { pattern: /^\/customers\/[^/]+\/edit(?:\/|$)/, permission: "customers.manage" },
+  { pattern: /^\/estimates\/new(?:\/|$)/, permission: "estimates.manage" },
+  { pattern: /^\/estimates\/[^/]+\/edit(?:\/|$)/, permission: "estimates.manage" },
+  { pattern: /^\/invoices\/new(?:\/|$)/, permission: "invoices.manage" },
+  { pattern: /^\/invoices\/[^/]+\/edit(?:\/|$)/, permission: "invoices.manage" },
+  { pattern: /^\/change-orders\/new(?:\/|$)/, permission: "change_orders.manage" },
+  { pattern: /^\/change-orders\/[^/]+\/edit(?:\/|$)/, permission: "change_orders.manage" },
+  { pattern: /^\/labor-rates\/new(?:\/|$)/, permission: "labor_rates.manage" },
+  { pattern: /^\/labor-rates\/[^/]+\/edit(?:\/|$)/, permission: "labor_rates.manage" },
+  { pattern: /^\/employees\/new(?:\/|$)/, permission: "workforce.manage" },
+  { pattern: /^\/employees\/[^/]+\/edit(?:\/|$)/, permission: "workforce.manage" },
+  { pattern: /^\/crews\/new(?:\/|$)/, permission: "workforce.manage" },
+  { pattern: /^\/crews\/[^/]+\/edit(?:\/|$)/, permission: "workforce.manage" },
+  { pattern: /^\/equipment\/new(?:\/|$)/, permission: "equipment.manage" },
+  { pattern: /^\/equipment\/[^/]+\/edit(?:\/|$)/, permission: "equipment.manage" },
+  { pattern: /^\/materials\/new(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/materials\/[^/]+\/edit(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/materials\/procurement(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/units-of-measure\/new(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/units-of-measure\/[^/]+\/edit(?:\/|$)/, permission: "materials.manage" },
+  { pattern: /^\/vendors\/new(?:\/|$)/, permission: "vendors.manage" },
+  { pattern: /^\/vendors\/[^/]+\/edit(?:\/|$)/, permission: "vendors.manage" },
+  { pattern: /^\/daily-reports\/new(?:\/|$)/, permission: "daily_reports.manage" },
+  { pattern: /^\/daily-reports\/[^/]+\/edit(?:\/|$)/, permission: "daily_reports.manage" },
+];
+
 export function permissionForPath(pathname: string): BosPermission | null {
+  const mutationRule = MUTATION_ROUTE_PERMISSIONS.find(({ pattern }) => pattern.test(pathname));
+  if (mutationRule) return mutationRule.permission;
+
   const rule = ROUTE_RULES.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`));
   return rule?.permission ?? null;
 }
