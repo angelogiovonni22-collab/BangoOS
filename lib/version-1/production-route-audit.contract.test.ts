@@ -40,7 +40,9 @@ assert.match(schedulingDashboard, /employeeOptions=\{payload\.employeeOptions\}/
 assert.match(crewOperations, /crewOptions=\{scheduling\.payload\.crewOptions\}/, "CrewOS calendar must provide crew names instead of exposing raw ids");
 assert.doesNotMatch(crewOperations, /Future integration interfaces for GPS, Time Clock, and Orion remain provider-based and are not implemented in this phase\./, "CrewOS must not expose a stale implementation disclaimer");
 
-assert.match(orionButton, /fixture\.state === "UNAVAILABLE"/, "Orion accessibility copy must recognize unavailable state");
-assert.match(orionButton, /Orion is unavailable\./, "Orion screen-reader copy must truthfully announce unavailability");
+assert.match(orionButton, /normalizedVoicePhase/, "Orion accessible state must be derived from the live voice lifecycle");
+assert.match(orionButton, /normalizedVoicePhase === "idle"/, "idle Orion must announce a neutral ready state");
+assert.doesNotMatch(orionButton, /fixture\.state === "UNAVAILABLE"/, "route fixtures must not make Orion announce false unavailability");
+assert.doesNotMatch(orionButton, /Orion is unavailable\./, "persistent Orion must not announce route-fixture unavailability when the control is available");
 
 console.log("Production route audit contract passed.");
