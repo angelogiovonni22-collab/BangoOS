@@ -274,15 +274,6 @@ export function EstimateDetail({ estimateId }: { estimateId: string }) {
           <DetailRow label="Project conversion" value={estimate.converted_project_id ? <Link className="font-semibold text-blue-700 underline" href={`/projects/${estimate.converted_project_id}`}>Open created project</Link> : "Waiting for verified contract"} />
         </CardContent>
       </Card>
-
-      <Card as="section" variant="elevated">
-        <CardHeader>
-          <CardTitle>Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-[var(--color-text-secondary)]">Status history and estimate activity timeline will be expanded in a future sprint.</p>
-        </CardContent>
-      </Card>
     </div>
   );
 }
