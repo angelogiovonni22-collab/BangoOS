@@ -48,6 +48,11 @@ export function PersistentOrionButton({
     .toLowerCase()
     .replace(/_/g, " ")
     .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+  const availabilityLabel = fixture.state === "UNAVAILABLE"
+    ? "Orion is unavailable."
+    : minimized
+      ? "Orion is minimized."
+      : "Orion is available.";
 
   return (
     <button
@@ -74,7 +79,7 @@ export function PersistentOrionButton({
         <PersistentOrionMiniSphere state={sphereState} reducedMotion={reducedMotion} minimized={minimized} voiceLevel={voiceLevel} />
       </span>
       <span className="persistentOrionSr">
-        Open Orion. Current state: {stateLabel}. {minimized ? "Orion is minimized." : "Orion is available."}
+        Open Orion. Current state: {stateLabel}. {availabilityLabel}
       </span>
     </button>
   );
