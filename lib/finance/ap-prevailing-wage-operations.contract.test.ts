@@ -30,6 +30,10 @@ assert.match(wageSetup, /ohio_public_improvement/, "setup must support Ohio publ
 assert.match(wageSetup, /weekly_statement_required: federal/, "federal setup must enable the weekly statement control");
 assert.match(wageSetup, /wage_posting_required: federal \|\| ohio/, "federal and Ohio setup must enable wage posting");
 assert.match(wageSetup, /completion_affidavit_required: ohio/, "Ohio setup must enable completion-affidavit tracking");
+assert.match(wageSetup, /prevailing_wage_project_profiles[\s\S]*\.eq\("project_id", projectId\)[\s\S]*\.maybeSingle\(\)/, "setup must load an existing project profile before editing");
+assert.match(wageSetup, /setDeterminationNumber\(profile\.determination_number \|\| ""\)/, "setup must hydrate the saved wage determination before editing");
+assert.match(wageSetup, /created_by: existingCreatedBy \|\| workspace\.userId/, "profile updates must preserve the original creator audit field");
+assert.match(wageSetup, /disabled=\{isSaving \|\| isLoadingProfile\}/, "profile save must remain disabled while saved values are loading");
 assert.match(wageProject, /prevailing_wage_classifications/, "project compliance workspace must manage wage classifications");
 assert.match(wageProject, /base_hourly_rate/, "classification workflow must retain base hourly rate");
 assert.match(wageProject, /fringe_hourly_rate/, "classification workflow must retain fringe hourly rate");
