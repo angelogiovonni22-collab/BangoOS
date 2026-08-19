@@ -125,9 +125,9 @@ create trigger trg_bos_trade_partner_assignment_contract_guard
 before update on public.trade_partner_assignments
 for each row execute function public.bos_trade_partner_assignment_contract_guard_fn();
 
--- Defense in depth: after execution, neither legal snapshot nor hash may be
--- rewritten directly through a privileged internal path. Lifecycle-only fields
--- (for example mobilization) live elsewhere and remain unaffected.
+-- Defense in depth: an executed master agreement is permanent evidence. A resend
+-- racing a signature must not move it back to sent, replace the signer identity, or
+-- rewrite the legal snapshot/hash after execution.
 create or replace function public.bos_signed_subcontract_document_guard_fn()
 returns trigger
 language plpgsql
@@ -135,18 +135,29 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
-  if old.status = 'signed' and row(
-    old.agreement_version,
-    old.agreement_snapshot,
-    old.agreement_hash,
-    old.vendor_id,
-    old.company_id
-  ) is distinct from row(
-    new.agreement_version,
-    new.agreement_snapshot,
-    new.agreement_hash,
-    new.vendor_id,
-    new.company_id
+  if old.status = 'signed' and (
+    new.status is distinct from old.status
+    or row(
+      old.agreement_version,
+      old.agreement_snapshot,
+      old.agreement_hash,
+      old.vendor_id,
+      old.company_id,
+      old.signer_name,
+      old.signer_title,
+      old.signer_email,
+      old.signed_at
+    ) is distinct from row(
+      new.agreement_version,
+      new.agreement_snapshot,
+      new.agreement_hash,
+      new.vendor_id,
+      new.company_id,
+      new.signer_name,
+      new.signer_title,
+      new.signer_email,
+      new.signed_at
+    )
   ) then
     raise exception 'SIGNED_MASTER_SUBCONTRACT_IS_IMMUTABLE' using errcode = '23514';
   end if;
@@ -164,6 +175,9 @@ create trigger trg_bos_signed_subcontract_document_guard
 before update on public.subcontractor_master_agreements
 for each row execute function public.bos_signed_subcontract_document_guard_fn();
 
+-- The project authorization has the same terminal-evidence rule. This closes the
+-- send/resend-vs-sign race: once the signer wins the row lock and status becomes
+-- signed, a concurrent upsert attempting signed -> sent is rejected by the trigger.
 create or replace function public.bos_signed_work_authorization_document_guard_fn()
 returns trigger
 language plpgsql
@@ -171,36 +185,47 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
-  if old.status = 'signed' and row(
-    old.authorization_version,
-    old.authorization_snapshot,
-    old.authorization_hash,
-    old.scope_of_work,
-    old.contract_amount,
-    old.payment_terms,
-    old.retainage_percent,
-    old.start_date,
-    old.target_completion_date,
-    old.project_id,
-    old.assignment_id,
-    old.vendor_id,
-    old.master_agreement_id,
-    old.company_id
-  ) is distinct from row(
-    new.authorization_version,
-    new.authorization_snapshot,
-    new.authorization_hash,
-    new.scope_of_work,
-    new.contract_amount,
-    new.payment_terms,
-    new.retainage_percent,
-    new.start_date,
-    new.target_completion_date,
-    new.project_id,
-    new.assignment_id,
-    new.vendor_id,
-    new.master_agreement_id,
-    new.company_id
+  if old.status = 'signed' and (
+    new.status is distinct from old.status
+    or row(
+      old.authorization_version,
+      old.authorization_snapshot,
+      old.authorization_hash,
+      old.scope_of_work,
+      old.contract_amount,
+      old.payment_terms,
+      old.retainage_percent,
+      old.start_date,
+      old.target_completion_date,
+      old.project_id,
+      old.assignment_id,
+      old.vendor_id,
+      old.master_agreement_id,
+      old.company_id,
+      old.signer_name,
+      old.signer_title,
+      old.signer_email,
+      old.signed_at
+    ) is distinct from row(
+      new.authorization_version,
+      new.authorization_snapshot,
+      new.authorization_hash,
+      new.scope_of_work,
+      new.contract_amount,
+      new.payment_terms,
+      new.retainage_percent,
+      new.start_date,
+      new.target_completion_date,
+      new.project_id,
+      new.assignment_id,
+      new.vendor_id,
+      new.master_agreement_id,
+      new.company_id,
+      new.signer_name,
+      new.signer_title,
+      new.signer_email,
+      new.signed_at
+    )
   ) then
     raise exception 'SIGNED_WORK_AUTHORIZATION_IS_IMMUTABLE' using errcode = '23514';
   end if;
