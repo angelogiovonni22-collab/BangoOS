@@ -44,15 +44,13 @@ export function PersistentOrionButton({
   onKeyDown,
   onClick,
 }: PersistentOrionButtonProps) {
-  const stateLabel = fixture.state
-    .toLowerCase()
-    .replace(/_/g, " ")
-    .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
-  const availabilityLabel = fixture.state === "UNAVAILABLE"
-    ? "Orion is unavailable."
-    : minimized
-      ? "Orion is minimized."
-      : "Orion is available.";
+  const normalizedVoicePhase = voicePhase.trim().toLowerCase();
+  const stateLabel = normalizedVoicePhase === "idle"
+    ? "Ready"
+    : normalizedVoicePhase
+      .replace(/_/g, " ")
+      .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+  const availabilityLabel = minimized ? "Orion is minimized." : "Orion is available.";
 
   return (
     <button
