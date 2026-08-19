@@ -28,13 +28,14 @@ type MasterRecord = {
 };
 
 type VendorRecord = {
-  name: string;
   company_name: string | null;
+  display_name: string | null;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
 };
 type CompanyRecord = { id: string; name: string };
+type SignResult = { signed_at: string; mobilization_status: string; blockers: unknown };
 
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -42,7 +43,7 @@ function vendorDisplayName(vendor: VendorRecord) {
   const personName = [vendor.first_name, vendor.last_name]
     .filter((value): value is string => Boolean(value?.trim()))
     .join(" ");
-  return vendor.name?.trim() || vendor.company_name?.trim() || personName || "Subcontractor";
+  return vendor.display_name?.trim() || vendor.company_name?.trim() || personName || "Subcontractor";
 }
 
 async function loadContext(token: string) {
@@ -57,45 +58,36 @@ async function loadContext(token: string) {
   if (!authorization) throw new Error("This subcontract link is invalid or has expired.");
   if (!authorization.token_expires_at || new Date(authorization.token_expires_at) <= new Date()) throw new Error("This subcontract link has expired.");
   if (authorization.status === "void") throw new Error("This subcontract authorization has been voided.");
+  if (!authorization.master_agreement_id) throw new Error("Subcontract documents are incomplete.");
 
   const [masterResult, vendorResult, projectResult, companyResult, assignmentResult] = await Promise.all([
-    admin.from("subcontractor_master_agreements" as never).select("*").eq("id", authorization.master_agreement_id).single(),
-    admin.from("vendors").select("name,company_name,first_name,last_name,email").eq("id", authorization.vendor_id).eq("company_id", authorization.company_id).single(),
+    admin.from("subcontractor_master_agreements" as never).select("*").eq("id", authorization.master_agreement_id).eq("company_id", authorization.company_id).eq("vendor_id", authorization.vendor_id).single(),
+    admin.from("vendors").select("display_name,company_name,first_name,last_name,email").eq("id", authorization.vendor_id).eq("company_id", authorization.company_id).single(),
     admin.from("projects").select("id").eq("id", authorization.project_id).eq("company_id", authorization.company_id).single(),
     admin.from("companies").select("id,name").eq("id", authorization.company_id).single(),
-    admin.from("trade_partner_assignments").select("id").eq("id", authorization.assignment_id).eq("company_id", authorization.company_id).single(),
+    admin.from("trade_partner_assignments").select("id,vendor_id,project_id").eq("id", authorization.assignment_id).eq("company_id", authorization.company_id).eq("vendor_id", authorization.vendor_id).eq("project_id", authorization.project_id).single(),
   ]);
   const master = masterResult.data as MasterRecord | null;
   const vendor = vendorResult.data as VendorRecord | null;
   const company = companyResult.data as CompanyRecord | null;
   if (!master || !vendor || !projectResult.data || !company || !assignmentResult.data) throw new Error("Subcontract documents are incomplete.");
-  return { admin, authorization, master, vendor, company };
+  return { admin, hash, authorization, master, vendor, company };
 }
 
-export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
     const token = decodeURIComponent((await params).token);
     const context = await loadContext(token);
-    if (context.authorization.status !== "signed") {
-      await context.admin.from("subcontractor_signature_events" as never).insert({
-        company_id: context.authorization.company_id,
-        vendor_id: context.authorization.vendor_id,
-        assignment_id: context.authorization.assignment_id,
-        master_agreement_id: context.master.id,
-        work_authorization_id: context.authorization.id,
-        event_type: "viewed",
-        document_hash: context.authorization.authorization_hash,
-        ip_address: request.headers.get("x-forwarded-for"),
-        user_agent: request.headers.get("user-agent"),
-      } as never);
-    }
+
+    // GET is deliberately read-only. Mail security scanners and link-preview bots
+    // routinely pre-open URLs; a read must never create signature/audit evidence.
     return NextResponse.json({
       company: context.company,
       vendor: { name: vendorDisplayName(context.vendor), email: context.vendor.email },
       master: { status: context.master.status, version: context.master.agreement_version, snapshot: context.master.agreement_snapshot, hash: context.master.agreement_hash, signedAt: context.master.signed_at },
       authorization: { status: context.authorization.status, version: context.authorization.authorization_version, snapshot: context.authorization.authorization_snapshot, hash: context.authorization.authorization_hash, signedAt: context.authorization.signed_at },
       expiresAt: context.authorization.token_expires_at,
-    });
+    }, { headers: { "Cache-Control": "no-store, max-age=0", "Referrer-Policy": "no-referrer" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to open subcontract." }, { status: 400 });
   }
@@ -105,42 +97,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   try {
     const token = decodeURIComponent((await params).token);
     const body = await request.json() as { typedName?: string; title?: string; consentAccepted?: boolean };
-    if (!body.typedName?.trim() || !body.title?.trim() || body.consentAccepted !== true) {
+    const typedName = body.typedName?.trim() || "";
+    const title = body.title?.trim() || "";
+    if (!typedName || !title || body.consentAccepted !== true) {
       return NextResponse.json({ error: "Full legal name, title, and electronic-signature consent are required." }, { status: 400 });
     }
-    const { admin, authorization, master } = await loadContext(token);
-    if (authorization.status === "signed") return NextResponse.json({ signed: true, alreadySigned: true, mobilizationStatus: "pending_compliance" });
-
-    const signedAt = new Date().toISOString();
-    const signerEmail = authorization.signer_email;
-    if (master.status !== "signed") {
-      const { error: masterError } = await admin.from("subcontractor_master_agreements" as never).update({
-        status: "signed", signer_name: body.typedName.trim(), signer_title: body.title.trim(), signer_email: signerEmail,
-        signed_at: signedAt, public_token_hash: null, token_expires_at: null, updated_at: signedAt,
-      } as never).eq("id", master.id).eq("agreement_hash", master.agreement_hash);
-      if (masterError) throw new Error(masterError.message || "Unable to sign the master subcontract agreement.");
-      await admin.from("subcontractor_mobilization_requirements" as never).update({ status: "verified", verified_at: signedAt, evidence: { master_agreement_id: master.id, document_hash: master.agreement_hash } } as never).eq("company_id", authorization.company_id).eq("assignment_id", authorization.assignment_id).eq("requirement_type", "master_agreement");
+    if (typedName.length > 200 || title.length > 200) {
+      return NextResponse.json({ error: "Signer name and title must be 200 characters or fewer." }, { status: 400 });
     }
 
-    const { error: authorizationError } = await admin.from("project_subcontract_work_authorizations" as never).update({
-      status: "signed", signer_name: body.typedName.trim(), signer_title: body.title.trim(), signer_email: signerEmail,
-      signed_at: signedAt, public_token_hash: null, token_expires_at: null, updated_at: signedAt,
-    } as never).eq("id", authorization.id).eq("authorization_hash", authorization.authorization_hash);
-    if (authorizationError) throw new Error(authorizationError.message || "Unable to sign the project work authorization.");
+    // Resolve the token once for a stable, non-sensitive hash. The RPC takes the row
+    // lock and re-validates status/expiry before making every legal/mobilization write
+    // in one transaction, eliminating partial-signature and double-submit races.
+    const admin = createAdminClient();
+    const hash = tokenHash(token);
+    const { data, error } = await admin.rpc("sign_public_subcontract_authorization" as never, {
+      p_token_hash: hash,
+      p_signer_name: typedName,
+      p_signer_title: title,
+      p_ip_address: request.headers.get("x-forwarded-for"),
+      p_user_agent: request.headers.get("user-agent"),
+    } as never) as { data: SignResult[] | null; error: { message?: string } | null };
+    if (error) throw new Error(error.message || "Unable to sign subcontract.");
+    const result = data?.[0];
+    if (!result) throw new Error("Subcontract signing returned no result.");
 
-    await admin.from("subcontractor_signature_events" as never).insert({
-      company_id: authorization.company_id, vendor_id: authorization.vendor_id, assignment_id: authorization.assignment_id,
-      master_agreement_id: master.id, work_authorization_id: authorization.id, event_type: "signed",
-      signer_name: body.typedName.trim(), signer_title: body.title.trim(), signer_email: signerEmail,
-      ip_address: request.headers.get("x-forwarded-for"), user_agent: request.headers.get("user-agent"),
-      document_hash: authorization.authorization_hash, metadata: { master_hash: master.agreement_hash, consent_accepted: true },
-    } as never);
-    await admin.from("subcontractor_mobilization_requirements" as never).update({ status: "verified", verified_at: signedAt, evidence: { work_authorization_id: authorization.id, document_hash: authorization.authorization_hash } } as never).eq("company_id", authorization.company_id).eq("assignment_id", authorization.assignment_id).eq("requirement_type", "work_authorization");
-    await admin.from("subcontractor_mobilization_requirements" as never).update({ status: "verified", verified_at: signedAt, evidence: { signer_name: body.typedName.trim() } } as never).eq("company_id", authorization.company_id).eq("assignment_id", authorization.assignment_id).eq("requirement_type", "scope_confirmation");
-    await admin.from("trade_partner_assignments").update({ contract_status: "signed" } as never).eq("company_id", authorization.company_id).eq("id", authorization.assignment_id);
-    const { data: refreshed } = await admin.rpc("refresh_subcontractor_mobilization_status" as never, { p_company_id: authorization.company_id, p_assignment_id: authorization.assignment_id } as never) as { data: Array<{ mobilization_status: string; blockers: unknown }> | null };
-
-    return NextResponse.json({ signed: true, signedAt, mobilizationStatus: refreshed?.[0]?.mobilization_status || "not_cleared", blockers: refreshed?.[0]?.blockers || [] });
+    return NextResponse.json({
+      signed: true,
+      signedAt: result.signed_at,
+      mobilizationStatus: result.mobilization_status || "not_cleared",
+      blockers: result.blockers || [],
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to sign subcontract." }, { status: 400 });
   }
