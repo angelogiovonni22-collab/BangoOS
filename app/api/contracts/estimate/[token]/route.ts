@@ -60,6 +60,20 @@ async function loadPublicContract(admin: ReturnType<typeof createAdminClient>, c
   };
 }
 
+function storedHomeSolicitationApplicable(agreementSnapshot: unknown) {
+  if (!agreementSnapshot || typeof agreementSnapshot !== "object" || Array.isArray(agreementSnapshot)) return false;
+  const snapshot = agreementSnapshot as Record<string, unknown>;
+  const compliance = snapshot.compliancePackage;
+  if (!compliance || typeof compliance !== "object" || Array.isArray(compliance)) return false;
+  const solicitation = (compliance as Record<string, unknown>).ohioHomeSolicitation;
+  return Boolean(
+    solicitation
+    && typeof solicitation === "object"
+    && !Array.isArray(solicitation)
+    && (solicitation as Record<string, unknown>).applicable === true,
+  );
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
     const token = decodeURIComponent((await params).token);
@@ -69,13 +83,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     let homeSolicitation = null;
     const customer = Array.isArray(contract.estimate.customers) ? contract.estimate.customers[0] : contract.estimate.customers;
     const isOhioResidential = customer?.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
-    if (isOhioResidential) {
+    const hasSignedHomeSolicitationPackage = storedHomeSolicitationApplicable(contract.agreementSnapshot);
+    if (isOhioResidential || hasSignedHomeSolicitationPackage) {
       const result = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
-      if (result.evaluation.applicable === true) {
-        if (result.evaluation.status !== "COMPLIANT" && !result.profile.cancelledAt) {
+      if (result.evaluation.applicable === true || hasSignedHomeSolicitationPackage) {
+        if (contract.estimate.status !== "approved" && result.evaluation.status !== "COMPLIANT" && !result.profile.cancelledAt) {
           throw new Error("Home-solicitation compliance is not cleared for signing.");
         }
-        const transactionDate = result.profile.transactionSignedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+        const signedPackage = contract.agreementSnapshot as {
+          compliancePackage?: { ohioHomeSolicitation?: { notice?: { transactionDate?: string; cancellationDeadlineDate?: string } | null } };
+        } | null;
+        const storedNotice = signedPackage?.compliancePackage?.ohioHomeSolicitation?.notice || null;
+        const transactionDate = result.profile.transactionSignedAt?.slice(0, 10)
+          || storedNotice?.transactionDate
+          || new Date().toISOString().slice(0, 10);
         homeSolicitation = {
           applicable: true,
           rulesetVersion: result.evaluation.rulesetVersion,
@@ -86,7 +107,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
           cancellationEmail: result.profile.cancellationEmail,
           cancellationFax: result.profile.cancellationFax,
           transactionDate,
-          cancellationDeadlineDate: result.profile.cancellationDeadlineDate || calculateOhioHomeSolicitationDeadline(transactionDate),
+          cancellationDeadlineDate: result.profile.cancellationDeadlineDate || storedNotice?.cancellationDeadlineDate || calculateOhioHomeSolicitationDeadline(transactionDate),
           cancelledAt: result.profile.cancelledAt,
         };
       }
