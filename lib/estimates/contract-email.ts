@@ -13,14 +13,21 @@ export async function sendContractEmail(input: { to: string; subject: string; ht
   return { delivered: true, providerId: payload.id || null, reason: null };
 }
 
-export function estimateContractPublicUrl(token: string) {
+function publicAppOrigin() {
   const configured = process.env.BOS_PUBLIC_APP_URL
     || process.env.NEXT_PUBLIC_APP_URL
     || process.env.VERCEL_PROJECT_PRODUCTION_URL
     || process.env.VERCEL_URL;
-  if (!configured?.trim()) throw new Error("BOS public application URL is not configured for estimate email delivery.");
-  const origin = /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
-  return new URL(`/contracts/estimate/${encodeURIComponent(token)}`, origin).toString();
+  if (!configured?.trim()) throw new Error("BOS public application URL is not configured for secure document delivery.");
+  return /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
+}
+
+export function estimateContractPublicUrl(token: string) {
+  return new URL(`/contracts/estimate/${encodeURIComponent(token)}`, publicAppOrigin()).toString();
+}
+
+export function subcontractPublicUrl(token: string) {
+  return new URL(`/subcontracts/${encodeURIComponent(token)}`, publicAppOrigin()).toString();
 }
 
 export function escapeContractEmailText(value: string) {
