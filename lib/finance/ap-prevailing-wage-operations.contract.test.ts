@@ -18,7 +18,7 @@ assert.match(apIndex, /\/invoices\/accounts-payable\/\$\{bill\.id\}/, "AP regist
 assert.match(apNew, /create_vendor_bill_with_line/, "vendor bill entry must use the atomic database operation");
 assert.match(rpcMigration, /security invoker/i, "AP creation RPC must preserve caller RLS identity");
 assert.match(rpcMigration, /has_company_role/, "AP creation RPC must enforce company role authorization");
-assert.match(rpcMigration, /owner.*administrator.*operations_manager.*office_manager.*accountant/s, "AP write roles must stay limited to finance\/operations leadership");
+assert.match(rpcMigration, /owner.*administrator.*operations_manager.*office_manager.*accountant[\s\S]*/, "AP write roles must stay limited to finance\/operations leadership");
 assert.match(apDetail, /status: "approved"/, "vendor bill detail must support explicit approval");
 assert.match(apDetail, /vendor_bill_payments/, "vendor bill detail must record payments through the protected payment table");
 assert.match(apDetail, /amount > bill\.balance_due/, "client payment workflow must reject obvious overpayment before database enforcement");
