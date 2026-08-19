@@ -3,6 +3,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { loadHomeSolicitationCompliance } from "@/lib/compliance/home-solicitation-service";
 
+const SECURE_HEADERS = {
+  "Cache-Control": "no-store, max-age=0",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+};
+
+function secureJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: SECURE_HEADERS });
+}
+
 function ohioDateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
@@ -27,13 +37,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     if (!validated.isValid || !validated.companyId || !validated.estimateId) throw new Error(validated.failureReason || "invalid_contract_link");
 
     const body = await request.json() as { confirmation?: boolean; notice?: string };
-    if (body.confirmation !== true) return NextResponse.json({ error: "Cancellation confirmation is required." }, { status: 400 });
+    if (body.confirmation !== true) return secureJson({ error: "Cancellation confirmation is required." }, 400);
     const noticeText = body.notice?.trim() || "I hereby cancel this transaction.";
-    if (noticeText.length > 4000) return NextResponse.json({ error: "Cancellation notice must be 4,000 characters or fewer." }, { status: 400 });
+    if (!noticeText || noticeText.length > 4000) return secureJson({ error: "Cancellation notice must contain between 1 and 4,000 characters." }, 400);
 
     const compliance = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
-    if (compliance.evaluation.applicable !== true) return NextResponse.json({ error: "This transaction does not have an active B.O.S. home-solicitation cancellation workflow." }, { status: 400 });
-    if (!compliance.profile.transactionSignedAt || !compliance.profile.cancellationDeadlineDate) return NextResponse.json({ error: "The signed transaction record is not complete." }, { status: 409 });
+    if (compliance.evaluation.applicable !== true) return secureJson({ error: "This transaction does not have an active B.O.S. home-solicitation cancellation workflow." }, 400);
+    if (!compliance.profile.transactionSignedAt || !compliance.profile.cancellationDeadlineDate) return secureJson({ error: "The signed transaction record is not complete." }, 409);
 
     const receivedAt = new Date().toISOString();
     const effectiveDate = ohioDateKey(new Date(receivedAt));
@@ -53,14 +63,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     if (!result) throw new Error("Cancellation workflow returned no result.");
 
     if (result.already_recorded) {
-      return NextResponse.json({ cancelled: true, timely: true, receivedAt: result.received_at, deadlineDate: result.deadline_date, alreadyRecorded: true });
+      return secureJson({
+        cancelled: result.cancelled,
+        timely: result.timely,
+        reviewRequired: !result.timely,
+        receivedAt: result.received_at,
+        deadlineDate: result.deadline_date,
+        alreadyRecorded: true,
+        message: result.timely ? "Your cancellation notice has already been recorded." : "Your cancellation request has already been recorded for review.",
+      });
     }
     if (!result.timely) {
-      return NextResponse.json({ cancelled: false, timely: false, reviewRequired: true, receivedAt: result.received_at, deadlineDate: result.deadline_date, message: "Your cancellation request has been recorded for review." });
+      return secureJson({ cancelled: false, timely: false, reviewRequired: true, receivedAt: result.received_at, deadlineDate: result.deadline_date, message: "Your cancellation request has been recorded for review." });
     }
 
-    return NextResponse.json({ cancelled: result.cancelled, timely: true, receivedAt: result.received_at, deadlineDate: result.deadline_date });
+    return secureJson({ cancelled: result.cancelled, timely: true, receivedAt: result.received_at, deadlineDate: result.deadline_date });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to record cancellation." }, { status: 400 });
+    return secureJson({ error: error instanceof Error ? error.message : "Unable to record cancellation." }, 400);
   }
 }
