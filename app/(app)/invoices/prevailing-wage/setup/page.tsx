@@ -9,6 +9,19 @@ import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/w
 
 type ProjectRow = { id: string; name: string | null; project_number: string | null; city: string | null; state: string | null };
 type SavedProfile = { id: string; project_id: string };
+type ExistingProfile = {
+  id: string;
+  project_id: string;
+  applicability: string;
+  determination_number: string | null;
+  determination_title: string | null;
+  contracting_agency: string | null;
+  effective_date: string | null;
+  expiration_date: string | null;
+  wage_source_url: string | null;
+  notes: string | null;
+  created_by: string | null;
+};
 
 type QueryBuilder = {
   select: (columns: string) => QueryBuilder;
@@ -27,6 +40,7 @@ export default function PrevailingWageSetupPage() {
   const [workspace, setWorkspace] = useState<WorkspaceContext | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [projectId, setProjectId] = useState("");
+  const [existingCreatedBy, setExistingCreatedBy] = useState<string | null>(null);
   const [applicability, setApplicability] = useState("federal_dbra");
   const [determinationNumber, setDeterminationNumber] = useState("");
   const [determinationTitle, setDeterminationTitle] = useState("");
@@ -36,8 +50,14 @@ export default function PrevailingWageSetupPage() {
   const [wageSourceUrl, setWageSourceUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const requestedProjectId = new URLSearchParams(window.location.search).get("projectId");
+    if (requestedProjectId) setProjectId(requestedProjectId);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -61,6 +81,65 @@ export default function PrevailingWageSetupPage() {
     return () => { active = false; };
   }, [supabase]);
 
+  useEffect(() => {
+    let active = true;
+    const resetProfile = () => {
+      setExistingCreatedBy(null);
+      setApplicability("federal_dbra");
+      setDeterminationNumber("");
+      setDeterminationTitle("");
+      setContractingAgency("");
+      setEffectiveDate("");
+      setExpirationDate("");
+      setWageSourceUrl("");
+      setNotes("");
+    };
+
+    const loadProfile = async () => {
+      if (!supabase || !workspace || !projectId) {
+        if (active) resetProfile();
+        return;
+      }
+
+      setIsLoadingProfile(true);
+      setErrorMessage(null);
+      const db = supabase as unknown as LooseClient;
+      const result = await db.from("prevailing_wage_project_profiles")
+        .select("id,project_id,applicability,determination_number,determination_title,contracting_agency,effective_date,expiration_date,wage_source_url,notes,created_by")
+        .eq("company_id", workspace.companyId)
+        .eq("project_id", projectId)
+        .maybeSingle();
+
+      if (!active) return;
+      if (result.error) {
+        setErrorMessage(result.error.message || "Unable to load the existing prevailing-wage profile.");
+        setIsLoadingProfile(false);
+        return;
+      }
+
+      if (!result.data) {
+        resetProfile();
+        setIsLoadingProfile(false);
+        return;
+      }
+
+      const profile = result.data as ExistingProfile;
+      setExistingCreatedBy(profile.created_by);
+      setApplicability(profile.applicability || "federal_dbra");
+      setDeterminationNumber(profile.determination_number || "");
+      setDeterminationTitle(profile.determination_title || "");
+      setContractingAgency(profile.contracting_agency || "");
+      setEffectiveDate(profile.effective_date || "");
+      setExpirationDate(profile.expiration_date || "");
+      setWageSourceUrl(profile.wage_source_url || "");
+      setNotes(profile.notes || "");
+      setIsLoadingProfile(false);
+    };
+
+    void loadProfile();
+    return () => { active = false; };
+  }, [projectId, supabase, workspace]);
+
   const selectedProject = projects.find((project) => project.id === projectId) || null;
   const federal = applicability === "federal_dbra";
   const ohio = applicability === "ohio_public_improvement";
@@ -68,6 +147,7 @@ export default function PrevailingWageSetupPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!supabase || !workspace || !projectId) { setErrorMessage("Select a project before saving."); return; }
+    if (isLoadingProfile) { setErrorMessage("Wait for the existing project profile to finish loading before saving."); return; }
     if (expirationDate && effectiveDate && expirationDate < effectiveDate) { setErrorMessage("Expiration date cannot be before the effective date."); return; }
 
     setIsSaving(true);
@@ -91,7 +171,7 @@ export default function PrevailingWageSetupPage() {
       completion_affidavit_required: ohio,
       lower_tier_tracking_required: applicability !== "not_applicable",
       notes: notes.trim() || null,
-      created_by: workspace.userId,
+      created_by: existingCreatedBy || workspace.userId,
       updated_by: workspace.userId,
     }, { onConflict: "company_id,project_id" }).select("id,project_id").maybeSingle();
 
@@ -110,24 +190,26 @@ export default function PrevailingWageSetupPage() {
         {isLoading ? <p className="text-sm text-[var(--bos-text-secondary)]">Loading projects…</p> : workspace ? <>
           <div className="grid gap-5 md:grid-cols-2">
             <Field label="Project" required><select className="bos-input" value={projectId} onChange={(e) => setProjectId(e.target.value)} required><option value="">Select project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name || project.project_number || "Project"}{project.city || project.state ? ` · ${[project.city, project.state].filter(Boolean).join(", ")}` : ""}</option>)}</select></Field>
-            <Field label="Applicability" required><select className="bos-input" value={applicability} onChange={(e) => setApplicability(e.target.value)}><option value="federal_dbra">Federal Davis-Bacon / Related Acts</option><option value="ohio_public_improvement">Ohio Public Improvement</option><option value="state_local_other">Other State / Local Prevailing Wage</option><option value="not_applicable">Not Applicable</option></select></Field>
-            <Field label="Wage Determination Number"><input className="bos-input" value={determinationNumber} onChange={(e) => setDeterminationNumber(e.target.value)} placeholder="Example: OH2026-0001" /></Field>
-            <Field label="Determination / Schedule Title"><input className="bos-input" value={determinationTitle} onChange={(e) => setDeterminationTitle(e.target.value)} placeholder="Building, highway, heavy, county schedule…" /></Field>
-            <Field label="Contracting Agency"><input className="bos-input" value={contractingAgency} onChange={(e) => setContractingAgency(e.target.value)} placeholder="Public authority / federal agency" /></Field>
-            <Field label="Official Wage Source"><input type="url" className="bos-input" value={wageSourceUrl} onChange={(e) => setWageSourceUrl(e.target.value)} placeholder="https://…" /></Field>
-            <Field label="Effective Date"><input type="date" className="bos-input" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} /></Field>
-            <Field label="Expiration Date"><input type="date" className="bos-input" value={expirationDate} onChange={(e) => setExpirationDate(e.target.value)} /></Field>
+            <Field label="Applicability" required><select className="bos-input" value={applicability} onChange={(e) => setApplicability(e.target.value)} disabled={isLoadingProfile}><option value="federal_dbra">Federal Davis-Bacon / Related Acts</option><option value="ohio_public_improvement">Ohio Public Improvement</option><option value="state_local_other">Other State / Local Prevailing Wage</option><option value="not_applicable">Not Applicable</option></select></Field>
+            <Field label="Wage Determination Number"><input className="bos-input" value={determinationNumber} onChange={(e) => setDeterminationNumber(e.target.value)} placeholder="Example: OH2026-0001" disabled={isLoadingProfile} /></Field>
+            <Field label="Determination / Schedule Title"><input className="bos-input" value={determinationTitle} onChange={(e) => setDeterminationTitle(e.target.value)} placeholder="Building, highway, heavy, county schedule…" disabled={isLoadingProfile} /></Field>
+            <Field label="Contracting Agency"><input className="bos-input" value={contractingAgency} onChange={(e) => setContractingAgency(e.target.value)} placeholder="Public authority / federal agency" disabled={isLoadingProfile} /></Field>
+            <Field label="Official Wage Source"><input type="url" className="bos-input" value={wageSourceUrl} onChange={(e) => setWageSourceUrl(e.target.value)} placeholder="https://…" disabled={isLoadingProfile} /></Field>
+            <Field label="Effective Date"><input type="date" className="bos-input" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} disabled={isLoadingProfile} /></Field>
+            <Field label="Expiration Date"><input type="date" className="bos-input" value={expirationDate} onChange={(e) => setExpirationDate(e.target.value)} disabled={isLoadingProfile} /></Field>
           </div>
+
+          {isLoadingProfile ? <div className="rounded-xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] p-4 text-sm text-[var(--bos-text-secondary)]">Loading the saved compliance profile…</div> : null}
 
           <div className="rounded-xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] p-4 text-sm text-[var(--bos-text-secondary)]">
             {federal ? "Federal DBRA defaults on weekly certified payroll, a signed Statement of Compliance, wage posting, and lower-tier tracking." : ohio ? "Ohio public-improvement defaults on certified payroll tracking, wage-schedule posting, lower-tier tracking, and the completion affidavit. Ohio filing cadence depends on project duration and the statutory reporting schedule." : "B.O.S. stores project-specific controls so the contract and governing authority remain the source of truth."}
           </div>
 
-          <Field label="Compliance Notes"><textarea className="bos-input min-h-28" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Agency instructions, coordinator, special wage determination notes, reporting cadence…" /></Field>
+          <Field label="Compliance Notes"><textarea className="bos-input min-h-28" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Agency instructions, coordinator, special wage determination notes, reporting cadence…" disabled={isLoadingProfile} /></Field>
 
           <div className="flex flex-wrap justify-end gap-3 border-t border-[var(--bos-border-subtle)] pt-5">
             <Link href="/invoices/prevailing-wage" className="inline-flex h-10 items-center rounded-lg border border-[var(--bos-border-default)] px-4 text-sm font-semibold hover:bg-[var(--bos-bg-hover)]">Cancel</Link>
-            <Button type="submit" size="md" disabled={isSaving}>{isSaving ? "Saving…" : "Save & Configure Rates"}</Button>
+            <Button type="submit" size="md" disabled={isSaving || isLoadingProfile}>{isSaving ? "Saving…" : isLoadingProfile ? "Loading Profile…" : "Save & Configure Rates"}</Button>
           </div>
         </> : null}
       </form>
