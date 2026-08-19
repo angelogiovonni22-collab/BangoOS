@@ -9,6 +9,7 @@ const customersPage = read("app/(app)/customers/page.tsx");
 const customerTable = read("components/customers/customer-table.tsx");
 const estimateDetail = read("components/estimates/estimate-detail.tsx");
 const accessControlRoute = read("app/api/settings/access-control/route.ts");
+const tradePartnersPage = read("app/(app)/trade-partners/page.tsx");
 const projectsPage = read("app/(app)/projects/page.tsx");
 const projectFilters = read("components/projects/project-filters.tsx");
 const kpiGrid = read("components/scheduling/scheduling-kpi-grid.tsx");
@@ -32,6 +33,9 @@ assert.match(accessControlRoute, /\.select\("id,company_name"\)/, "access contro
 assert.match(accessControlRoute, /name:\s*vendor\.company_name/, "access control must map the canonical vendor company name to the UI payload");
 assert.doesNotMatch(accessControlRoute, /\.select\("id,name"\)/, "access control must never query the nonexistent vendors.name column");
 assert.doesNotMatch(accessControlRoute, /\.order\("name"\)/, "access control must never sort on the nonexistent vendors.name column");
+
+assert.match(tradePartnersPage, /\?tab=subcontractors/, "Trade Partners Manage Assignment must open the real project subcontractor workspace");
+assert.doesNotMatch(tradePartnersPage, /\?tab=trade-partners/, "Trade Partners must not navigate to an unrecognized project tab that falls back to Overview");
 
 assert.match(projectsPage, /ACTIVE_PROJECT_STATUS_KEYS = new Set\(\["approved", "scheduled", "in_progress"\]\)/, "project active KPI must use the same operating lifecycle as the dashboard");
 assert.match(projectsPage, /ACTIVE_PROJECT_STATUS_KEYS\.has\(project\.statusKey\)/, "project active KPI must exclude lead and estimating records");
