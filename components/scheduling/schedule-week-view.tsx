@@ -6,6 +6,8 @@ type ScheduleWeekViewProps = {
   baseDate: string;
   assignments: ScheduleAssignment[];
   groupBy: ScheduleGroup;
+  crewOptions?: Array<{ id: string; name: string }>;
+  employeeOptions?: Array<{ id: string; name: string }>;
   onDropAssignment: (assignmentId: string, targetDate: string) => void;
   onDragStart: (event: DragEvent<HTMLElement>, assignmentId: string) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -25,39 +27,48 @@ function getWeekDays(baseDate: string) {
   });
 }
 
-function groupLabel(assignment: ScheduleAssignment, groupBy: ScheduleGroup) {
+function groupLabel(
+  assignment: ScheduleAssignment,
+  groupBy: ScheduleGroup,
+  crewNames: Map<string, string>,
+  employeeNames: Map<string, string>,
+) {
   if (groupBy === "project") {
     return assignment.scope.projectName;
   }
 
   if (groupBy === "crew") {
-    return assignment.assignedCrewIds.join(", ") || "Unassigned Crew";
+    return assignment.assignedCrewIds.map((id) => crewNames.get(id) || "Assigned Crew").join(", ") || "Unassigned Crew";
   }
 
   if (groupBy === "employee") {
-    return assignment.assignedEmployeeIds.join(", ") || "Unassigned Employee";
+    return assignment.assignedEmployeeIds.map((id) => employeeNames.get(id) || "Assigned Employee").join(", ") || "Unassigned Employee";
   }
 
   if (groupBy === "trade") {
-    return assignment.requiredTrade;
+    return assignment.requiredTrade || "Unspecified Trade";
   }
 
-  return assignment.scope.location;
+  return assignment.scope.location || "Unspecified Location";
 }
 
 export function ScheduleWeekView({
   baseDate,
   assignments,
   groupBy,
+  crewOptions = [],
+  employeeOptions = [],
   onDropAssignment,
   onDragStart,
   t,
 }: ScheduleWeekViewProps) {
   const days = getWeekDays(baseDate);
   const grouped = new Map<string, ScheduleAssignment[]>();
+  const crewNames = new Map(crewOptions.map((item) => [item.id, item.name]));
+  const employeeNames = new Map(employeeOptions.map((item) => [item.id, item.name]));
 
   for (const assignment of assignments) {
-    const key = groupLabel(assignment, groupBy);
+    const key = groupLabel(assignment, groupBy, crewNames, employeeNames);
     const current = grouped.get(key) || [];
     current.push(assignment);
     grouped.set(key, current);
