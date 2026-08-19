@@ -212,6 +212,7 @@ const ROUTE_RULES: RouteRule[] = [
 ];
 
 const MUTATION_ROUTE_PERMISSIONS: ReadonlyArray<{ pattern: RegExp; permission: BosPermission }> = [
+  { pattern: /^\/projects\/deleted(?:\/|$)/, permission: "projects.manage" },
   { pattern: /^\/projects\/new(?:\/|$)/, permission: "projects.manage" },
   { pattern: /^\/projects\/[^/]+\/edit(?:\/|$)/, permission: "projects.manage" },
   { pattern: /^\/customers\/new(?:\/|$)/, permission: "customers.manage" },
