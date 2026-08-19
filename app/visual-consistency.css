@@ -49,15 +49,24 @@
 
 .enterprise-shell main :is(label, legend) {
   color: var(--color-text-primary);
+  font-size: max(var(--font-size-label), 0.875rem);
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .enterprise-shell main :is(p, li, dd, dt) {
   text-wrap: pretty;
 }
 
+.enterprise-shell main :is(.text-metadata, small) {
+  font-size: max(var(--font-size-metadata), 0.8125rem);
+  line-height: 1.4;
+}
+
 /* Inputs must be readable before, during, and after editing. */
 .enterprise-shell main :is(input, textarea, select) {
   color: var(--color-text-primary);
+  font-size: max(var(--font-size-control), 1rem);
   font-weight: 500;
   caret-color: var(--color-focus);
 }
@@ -76,13 +85,14 @@
 /* Tables are one of the densest BOS surfaces. Keep headers and values scannable. */
 .enterprise-shell main table thead th {
   color: var(--color-text-secondary);
-  font-size: max(var(--font-size-table-header), 0.75rem);
+  font-size: max(var(--font-size-table-header), 0.8125rem);
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .enterprise-shell main table tbody td {
-  line-height: 1.4;
+  font-size: max(var(--font-size-table-body), 0.9375rem);
+  line-height: 1.45;
 }
 
 .enterprise-shell main table tbody tr {
@@ -95,7 +105,7 @@
 }
 
 .enterprise-shell main [data-bos-card="true"] :is(.text-metadata, .text-caption) {
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 /*
