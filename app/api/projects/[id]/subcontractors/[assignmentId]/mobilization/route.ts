@@ -4,6 +4,7 @@ import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 
 type MobilizationRefreshRow = { mobilization_status: string; blockers: unknown };
 type MobilizationRefreshResult = { data: MobilizationRefreshRow[] | null; error: { message?: string } | null };
@@ -13,6 +14,9 @@ async function workspaceContext(projectId: string, assignmentId: string) {
   if (!supabase) throw new Error("B.O.S. database is unavailable.");
   const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
   if (!workspace.context) throw new Error(workspace.errorMessage || "Unauthorized.");
+  if (!hasBosPermission(workspace.context.role, "projects.manage")) {
+    throw new Error("You do not have permission to manage project subcontractors.");
+  }
   const admin = createAdminClient();
   const { data: assignment } = await admin.from("trade_partner_assignments").select("id,company_id,project_id,vendor_id,contract_status").eq("company_id", workspace.context.companyId).eq("project_id", projectId).eq("id", assignmentId).single();
   if (!assignment) throw new Error("Subcontractor assignment not found.");
