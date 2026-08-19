@@ -12,6 +12,9 @@ const estimateDetail = read("components/estimates/estimate-detail.tsx");
 const accessControlRoute = read("app/api/settings/access-control/route.ts");
 const accessPermissions = read("lib/access-control/permissions.ts");
 const tradePartnersPage = read("app/(app)/trade-partners/page.tsx");
+const newDailyReportPage = read("app/(app)/daily-reports/new/page.tsx");
+const editDailyReportPage = read("app/(app)/daily-reports/[id]/edit/page.tsx");
+const dailyReportForm = read("components/daily-reports/daily-report-form.tsx");
 const projectsPage = read("app/(app)/projects/page.tsx");
 const projectFilters = read("components/projects/project-filters.tsx");
 const kpiGrid = read("components/scheduling/scheduling-kpi-grid.tsx");
@@ -48,6 +51,12 @@ assert.match(accessPermissions, /projects\\\/new[\s\S]*projects\.manage/, "proje
 assert.match(accessPermissions, /invoices\\\/new[\s\S]*invoices\.manage/, "invoice creation must require invoices.manage");
 assert.match(accessPermissions, /daily-reports\\\/new[\s\S]*daily_reports\.manage/, "daily report creation must require daily_reports.manage");
 assert.match(accessPermissions, /vendors\\\/[^\n]+edit[\s\S]*vendors\.manage/, "vendor edits must require vendors.manage");
+
+assert.match(newDailyReportPage, /allowedStatuses=\{\["draft", "submitted"\]\}/, "new daily reports must not skip directly to reviewed or approved");
+assert.match(editDailyReportPage, /getAllowedStatuses\(draft\.header\.overallStatus\)/, "daily report editing must derive actions from the current workflow status");
+assert.match(editDailyReportPage, /case "submitted":[\s\S]*\["submitted", "reviewed"\]/, "submitted reports may advance only to reviewed");
+assert.match(editDailyReportPage, /case "reviewed":[\s\S]*\["reviewed", "approved"\]/, "reviewed reports may advance only to approved");
+assert.match(dailyReportForm, /allowedStatuses/, "daily report form must render only workflow-allowed status actions");
 
 assert.match(tradePartnersPage, /\?tab=subcontractors/, "Trade Partners Manage Assignment must open the real project subcontractor workspace");
 assert.doesNotMatch(tradePartnersPage, /\?tab=trade-partners/, "Trade Partners must not navigate to an unrecognized project tab that falls back to Overview");
