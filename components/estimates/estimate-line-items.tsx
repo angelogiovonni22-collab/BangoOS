@@ -32,7 +32,7 @@ export function EstimateLineItemsSection({ lineItems, localeTag, error, onChange
       </CardHeader>
       <CardContent className="space-y-3 overflow-x-auto">
         {error ? <p className="text-sm text-[var(--color-danger-700)]">{error}</p> : null}
-        <table data-orion-estimate-line-items className="min-w-[1400px] w-full">
+        <table data-orion-estimate-line-items className="min-w-[2050px] w-full table-auto">
           <thead><tr className="text-left text-xs uppercase tracking-[0.06em] text-[var(--color-text-muted)]"><th className="px-3 py-2">Code</th><th className="px-3 py-2">Category</th><th className="px-3 py-2">Description</th><th className="px-3 py-2">Qty</th><th className="px-3 py-2">Unit</th><th className="px-3 py-2">Unit Cost</th><th className="px-3 py-2">Markup %</th><th className="px-3 py-2">Unit Price</th><th className="px-3 py-2">Line Total</th><th className="px-3 py-2">Notes</th><th className="px-3 py-2">Actions</th></tr></thead>
           <tbody>{lineItems.map((lineItem, index) => <EstimateLineItemRow key={lineItem.id} index={index} item={lineItem} localeTag={localeTag} onChange={updateRow} onMoveUp={(rowIndex) => moveRow(rowIndex, -1)} onMoveDown={(rowIndex) => moveRow(rowIndex, 1)} onRemove={removeRow} />)}</tbody>
         </table>
