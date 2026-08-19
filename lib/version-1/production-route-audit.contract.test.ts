@@ -8,6 +8,7 @@ const read = (path: string) => readFileSync(join(root, path), "utf8");
 const customersPage = read("app/(app)/customers/page.tsx");
 const customerTable = read("components/customers/customer-table.tsx");
 const estimateDetail = read("components/estimates/estimate-detail.tsx");
+const accessControlRoute = read("app/api/settings/access-control/route.ts");
 const projectsPage = read("app/(app)/projects/page.tsx");
 const projectFilters = read("components/projects/project-filters.tsx");
 const kpiGrid = read("components/scheduling/scheduling-kpi-grid.tsx");
@@ -26,6 +27,11 @@ assert.match(customerTable, /\/customers\/\$\{openMenu\.customer\.id\}\/edit/, "
 
 assert.doesNotMatch(estimateDetail, /future sprint/i, "estimate detail must not expose future-sprint placeholder copy in production");
 assert.doesNotMatch(estimateDetail, /Status history and estimate activity timeline will be expanded/, "estimate detail must not present an unimplemented activity section as production content");
+
+assert.match(accessControlRoute, /\.select\("id,company_name"\)/, "access control must select the canonical vendors.company_name column");
+assert.match(accessControlRoute, /name:\s*vendor\.company_name/, "access control must map the canonical vendor company name to the UI payload");
+assert.doesNotMatch(accessControlRoute, /\.select\("id,name"\)/, "access control must never query the nonexistent vendors.name column");
+assert.doesNotMatch(accessControlRoute, /\.order\("name"\)/, "access control must never sort on the nonexistent vendors.name column");
 
 assert.match(projectsPage, /ACTIVE_PROJECT_STATUS_KEYS = new Set\(\["approved", "scheduled", "in_progress"\]\)/, "project active KPI must use the same operating lifecycle as the dashboard");
 assert.match(projectsPage, /ACTIVE_PROJECT_STATUS_KEYS\.has\(project\.statusKey\)/, "project active KPI must exclude lead and estimating records");
