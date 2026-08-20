@@ -50,6 +50,10 @@ function formatVoicePhase(phase: string) {
     .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
 
+function sanitizeOrionStatusMessage(message: string) {
+  return message.replace(/Orion v2/gi, "Orion");
+}
+
 export function PersistentOrionPanel({
   panelId,
   open,
@@ -234,7 +238,7 @@ export function PersistentOrionPanel({
         <div className="persistentOrionVoiceStatusWrap">
           <OrionVoiceStatus
             state={voice.phase}
-            message={voice.statusMessage || voice.supportMessage}
+            message={sanitizeOrionStatusMessage(voice.statusMessage || voice.supportMessage)}
             showNotice
           />
         </div>
