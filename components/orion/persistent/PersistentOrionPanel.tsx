@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import {
   AudioLines,
@@ -9,7 +8,6 @@ import {
   Check,
   CircleUserRound,
   Mic,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import { useFocusTrap } from "@/components/motion";
@@ -24,6 +22,7 @@ type PersistentOrionPanelProps = {
   minimized: boolean;
   voice: OrionUnifiedVoiceController;
   onClose: () => void;
+  onOpenCommandCenter: () => void;
   onToggleMinimized: () => void;
   panelRef: RefObject<HTMLDivElement | null>;
   panelStyle?: CSSProperties;
@@ -58,6 +57,7 @@ export function PersistentOrionPanel({
   minimized,
   voice,
   onClose,
+  onOpenCommandCenter,
   onToggleMinimized,
   panelRef,
   panelStyle,
@@ -97,7 +97,7 @@ export function PersistentOrionPanel({
       ref={panelRef}
       role="dialog"
       aria-modal="false"
-      aria-label={`Persistent Orion panel. State ${stateLabel}.`}
+      aria-label={`Orion panel. State ${stateLabel}.`}
       className="persistentOrionPanel"
       style={panelStyle}
       tabIndex={-1}
@@ -109,7 +109,7 @@ export function PersistentOrionPanel({
               <BrainCircuit size={24} />
             </div>
             <div>
-              <p className="persistentOrionPanelTitle">ORION V2</p>
+              <p className="persistentOrionPanelTitle">ORION</p>
               <h3>{fixture.workspace}</h3>
             </div>
           </div>
@@ -130,11 +130,6 @@ export function PersistentOrionPanel({
           <span>Close</span>
         </button>
       </header>
-
-      <div className="persistentOrionFixtureTags" aria-label="Orion architecture">
-        <span><BrainCircuit size={15} aria-hidden="true" />Realtime LLM Intelligence</span>
-        <span><ShieldCheck size={15} aria-hidden="true" />Controlled BOS Tools</span>
-      </div>
 
       <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Orion voice controls">
         <div className="persistentOrionSectionHeading">
@@ -212,7 +207,7 @@ export function PersistentOrionPanel({
           <CircleUserRound size={24} aria-hidden="true" />
           <span className="persistentOrionVoiceSelectText">
             <strong>{voiceLabel(voice.realtimeVoice)}</strong>
-            <span>OpenAI Realtime voice</span>
+            <span>Realtime voice</span>
           </span>
           <select
             id="orion-realtime-voice-select"
@@ -236,7 +231,6 @@ export function PersistentOrionPanel({
           <Check size={17} aria-hidden="true" />
         </p>
 
-        <div className="persistentOrionEngineLabel">Engine: ORION V2 · OPENAI REALTIME</div>
         <div className="persistentOrionVoiceStatusWrap">
           <OrionVoiceStatus
             state={voice.phase}
@@ -270,15 +264,15 @@ export function PersistentOrionPanel({
           <dd>{voice.micActive ? "Active" : "Off"}</dd>
         </div>
         <div>
-          <dt>Realtime session</dt>
+          <dt>Session</dt>
           <dd>{realtimeSessionActive ? "Connected" : "Idle"}</dd>
         </div>
       </dl>
 
       <footer className="persistentOrionPanelFooter">
-        <Link href="/labs/orion-core" className="persistentOrionLinkAction" onClick={onClose}>
-          Open Orion Core Lab
-        </Link>
+        <button type="button" className="persistentOrionLinkAction" onClick={onOpenCommandCenter}>
+          Open Advanced Orion
+        </button>
         <button type="button" className="persistentOrionMinimize" onClick={onToggleMinimized}>
           {minimized ? "Restore Orion" : "Minimize Orion"}
         </button>
