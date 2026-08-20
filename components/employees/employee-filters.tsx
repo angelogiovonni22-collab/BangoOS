@@ -45,13 +45,15 @@ export function EmployeeFilters({
   t,
 }: EmployeeFiltersProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-      <SearchInput
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        placeholder={t("employees.filters.searchPlaceholder")}
-        aria-label={t("employees.filters.searchPlaceholder")}
-      />
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="md:col-span-2 xl:col-span-2">
+        <SearchInput
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={t("employees.filters.searchPlaceholder")}
+          aria-label={t("employees.filters.searchPlaceholder")}
+        />
+      </div>
 
       <Select value={crewId} onChange={(event) => onCrewChange(event.target.value)} aria-label={t("employees.filters.crew")}>
         <option value="all">{t("employees.filters.allCrews")}</option>

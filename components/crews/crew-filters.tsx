@@ -45,13 +45,15 @@ export function CrewFilters({
   t,
 }: CrewFiltersProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-      <SearchInput
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
-        placeholder={t("crews.filters.searchPlaceholder")}
-        aria-label={t("crews.filters.searchPlaceholder")}
-      />
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="md:col-span-2 xl:col-span-2">
+        <SearchInput
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={t("crews.filters.searchPlaceholder")}
+          aria-label={t("crews.filters.searchPlaceholder")}
+        />
+      </div>
 
       <Select value={status} onChange={(event) => onStatusChange(event.target.value as CrewStatus | "all")} aria-label={t("crews.filters.status")}>
         <option value="all">{t("crews.filters.allStatuses")}</option>
