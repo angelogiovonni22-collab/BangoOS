@@ -23,6 +23,7 @@ function main(): void {
   const aliases = read("app/legacy-token-aliases.css");
   const globals = read("app/globals.css");
   const appContentSurface = read("app/app-content-surface.css");
+  const visualConsistency = read("app/visual-consistency.css");
   const pageHeader = read("components/ui/page-header.tsx");
   const sectionHeader = read("components/ui/section-header.tsx");
   const input = read("components/ui/input.tsx");
@@ -106,6 +107,12 @@ function main(): void {
   assert(workspaceShell.includes("[background:var(--workspace-loading-surface)]"), "workspace loading state renders its gradient surface");
   assert(!workspaceNavigation.includes("bg-[var(--workspace-header-surface)]"), "workspace header no longer treats a gradient token as a background color");
   assert(!workspaceShell.includes("bg-[var(--workspace-shell-surface)]"), "workspace shell no longer treats a gradient token as a background color");
+  assert(workspaceNavigation.match(/data-bos-surface="dark"/g)?.length === 3, "workspace header, hero, and tabs own an explicit dark semantic surface");
+  assert(pageHeader.includes('data-bos-surface="light"'), "shared page header owns an explicit light semantic surface");
+  assert(visualConsistency.includes('[data-bos-surface="light"]'), "visual consistency layer defines the light surface contract");
+  assert(visualConsistency.includes('[data-bos-surface="dark"]'), "visual consistency layer defines the dark surface contract");
+  assert(visualConsistency.includes(":where(.enterprise-shell main h1"), "global heading defaults use zero specificity so owned surface colors can win");
+  assert(!visualConsistency.includes(".enterprise-shell main :is(h1, h2, h3, h4, h5, h6)"), "global heading rule cannot override component-owned dark-surface text");
 
   console.log(`\nHardening contract results: ${passed} passed, ${failed} failed`);
   if (failed > 0) {
