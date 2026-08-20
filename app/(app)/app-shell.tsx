@@ -9,6 +9,7 @@ import { PersistentOrion } from "@/components/orion/persistent";
 import { GlobalOrionVoiceProvider, OrionUnifiedVoiceProvider } from "@/components/orion/voice";
 import { DepartmentNavigator, LayerManager, NavigationBreadcrumb } from "@/components/bangoflow";
 import { LanguageSelector, ProfileMenu } from "@/components/ui";
+import { AutomaticWritingEditor } from "@/components/ui/automatic-writing-editor";
 import { GlobalSearch } from "@/components/search/global-search";
 import { useBodyScrollLock } from "@/components/ui/use-body-scroll-lock";
 import { useI18n } from "@/lib/i18n/provider";
@@ -122,6 +123,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
 
   return (
     <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
+      <AutomaticWritingEditor />
       {orionEnabled ? <PersistentOrion onOpenCommandCenter={() => setCommandCenterOpen(true)} /> : null}
       <div className="flex min-h-screen min-w-0">
         <LayerManager layer={mobileOpen ? "dialog" : "popover"}>
