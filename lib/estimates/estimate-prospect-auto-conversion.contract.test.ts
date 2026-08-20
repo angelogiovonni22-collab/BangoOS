@@ -34,7 +34,7 @@ assert.match(form, /response\.json\(\)\.catch\(\(\) => \(\{\}\)\)/, "send respon
 assert.match(form, /catch \(sendError\)/, "network delivery failures must be isolated from estimate creation failures");
 assert.match(form, /router\.push\(`\/estimates\/\$\{result\.estimateId\}`\)/, "delivery failure must route to the canonical saved estimate instead of allowing duplicate creation");
 assert.match(sendRoute, /version_number/, "send route must load the estimate version for stable provider idempotency");
-assert.match(sendRoute, /idempotencyKey: `estimate-contract\/\$\{workspace\.context\.companyId\}\/\$\{estimateId\}\/v\$\{Number\(estimate\.version_number \|\| 1\)\}`/, "provider delivery idempotency must be stable for one estimate version");
+assert.match(sendRoute, /idempotencyKey: `estimate-contract\/\$\{workspace\.context\.companyId\}\/\$\{estimateId\}\/v\$\{Number\(estimate\.version_number \|\| 1\)\}\/token-\$\{result\.tokenId\}`/, "provider delivery idempotency must be scoped to the exact secure-link email body");
 assert.doesNotMatch(sendRoute, /result\.token\.slice\(0, 16\)/, "provider idempotency must not depend on a newly generated token");
 assert.match(migration, /pg_advisory_xact_lock/, "conversion must remain concurrency-safe and idempotent");
 assert.match(migration, /lower\(btrim\(coalesce\(c\.email,''\)\)\)=v_email/, "conversion must strongly match existing customers by normalized email");
