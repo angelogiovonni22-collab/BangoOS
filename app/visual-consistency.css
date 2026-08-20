@@ -109,18 +109,18 @@
 }
 
 /*
- * Legacy utility colors are still present in older app modules. Remap the low
- * contrast neutral text only when it appears on normal cards/forms/tables,
- * avoiding specialized blueprint/canvas surfaces.
+ * Legacy utility colors are still present in older app modules. Remap low
+ * contrast neutral text while preserving deliberately specialized canvas
+ * surfaces, which do not use these legacy neutral utility combinations.
  */
-[data-theme="dark"] .enterprise-shell main :is([data-bos-card="true"], form, table) :is(
+[data-theme="dark"] .enterprise-shell main :is(
   [class*="text-slate-300"],
   [class*="text-gray-300"]
 ) {
   color: var(--bos-text-secondary) !important;
 }
 
-[data-theme="dark"] .enterprise-shell main :is([data-bos-card="true"], form, table) :is(
+[data-theme="dark"] .enterprise-shell main :is(
   [class*="text-slate-400"],
   [class*="text-slate-500"],
   [class*="text-gray-400"],
@@ -129,7 +129,7 @@
   color: var(--bos-text-muted) !important;
 }
 
-[data-theme="dark"] .enterprise-shell main :is([data-bos-card="true"], form, table) :is(
+[data-theme="dark"] .enterprise-shell main :is(
   [class*="text-slate-600"],
   [class*="text-slate-700"],
   [class*="text-gray-600"],
@@ -137,6 +137,15 @@
   [class*="text-black"]
 ) {
   color: var(--bos-text-primary) !important;
+}
+
+[data-theme="dark"] .enterprise-shell main :is(
+  [class*="text-blue-600"],
+  [class*="text-blue-700"],
+  [class*="text-indigo-600"],
+  [class*="text-indigo-700"]
+) {
+  color: #8ec3ff !important;
 }
 
 [data-theme="light"] .enterprise-shell main :is([data-bos-card="true"], form, table) :is(
@@ -166,6 +175,13 @@
 ) {
   background-color: var(--bos-bg-panel) !important;
   border-color: var(--bos-border-subtle) !important;
+}
+
+/* Partial-data warnings remain warnings without becoming bright white islands. */
+[data-theme="dark"] .enterprise-shell main [data-bos-partial-data-notice="true"] {
+  background: rgb(234 88 12 / 0.12) !important;
+  border-color: rgb(251 146 60 / 0.42) !important;
+  color: #fed7aa !important;
 }
 
 /* Keep interactive text and borders crisp without changing component geometry. */
