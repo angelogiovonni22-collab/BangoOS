@@ -117,37 +117,44 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
 
         {!loading && payload ? (
           <>
-            <div className={`grid gap-3 ${showMap && mapEmbed ? "lg:grid-cols-2" : ""}`}>
-              <section data-live-weather data-kind={weatherSceneKind(payload.forecast.current.weatherCode)} data-paused={!pageVisible} className={weatherSceneStyles.panel}>
+            <div className="grid gap-3">
+              <section data-live-weather data-kind={weatherSceneKind(payload.forecast.current.weatherCode)} data-paused={!pageVisible} data-compact={compact} className={weatherSceneStyles.panel}>
                 <WeatherAtmosphere />
                 <div className={weatherSceneStyles.weatherContent}>
-                  <div className="flex items-start justify-between gap-3 p-3 pb-2">
-                    <div>
-                      <p className="text-[2.7rem] font-light leading-none tracking-[-0.06em] drop-shadow-lg">{payload.forecast.current.temperatureF}°</p>
-                      <p className="mt-1 text-sm font-semibold drop-shadow-md">{payload.forecast.current.condition}</p>
-                      <p className="text-[11px] text-white/80">Feels {payload.forecast.current.apparentTemperatureF}° · Wind {payload.forecast.current.windMph} mph</p>
+                  <div className={weatherSceneStyles.currentConditions}>
+                    <div className={weatherSceneStyles.temperatureBlock}>
+                      <div className={weatherSceneStyles.liveLabel}><span />Live jobsite weather</div>
+                      <p className={weatherSceneStyles.temperature}>{payload.forecast.current.temperatureF}°</p>
+                      <p className={weatherSceneStyles.condition}>{payload.forecast.current.condition}</p>
+                      <div className={weatherSceneStyles.conditionMetrics}>
+                        <span>Feels like <strong>{payload.forecast.current.apparentTemperatureF}°</strong></span>
+                        <span>Wind <strong>{payload.forecast.current.windMph} mph</strong></span>
+                        <span>Rain <strong>{payload.forecast.hours[0]?.precipitationProbability ?? 0}%</strong></span>
+                      </div>
                     </div>
-                    <div className="max-w-[55%] text-right">
-                      <p className="text-[10px] font-semibold text-white/80">{clock ? formatWeatherDate(clock) : formatWeatherDate(new Date(payload.forecast.observedAt))} · {clock ? formatWeatherTime(clock) : formatWeatherTime(new Date(payload.forecast.observedAt))}</p>
-                      <p className="mt-1 flex items-center justify-end gap-1 text-[11px] font-semibold"><MapPin size={11} aria-hidden="true" />{payload.forecast.location}</p>
-                      <div className="mt-1.5 inline-flex rounded-full border border-white/20 bg-black/20 p-0.5 backdrop-blur-sm" aria-label="Forecast view">
-                        <button type="button" onClick={() => setForecastMode("hourly")} className={`rounded-full px-2 py-0.5 text-[9px] font-bold transition ${forecastMode === "hourly" ? "bg-white text-slate-900" : "text-white/75 hover:text-white"}`}>Hourly</button>
-                        <button type="button" onClick={() => setForecastMode("daily")} className={`rounded-full px-2 py-0.5 text-[9px] font-bold transition ${forecastMode === "daily" ? "bg-white text-slate-900" : "text-white/75 hover:text-white"}`}>7-Day</button>
+                    <div className={weatherSceneStyles.locationBlock}>
+                      <p className={weatherSceneStyles.localTime}>{clock ? formatWeatherDate(clock) : formatWeatherDate(new Date(payload.forecast.observedAt))}<span>{clock ? formatWeatherTime(clock) : formatWeatherTime(new Date(payload.forecast.observedAt))}</span></p>
+                      <p className={weatherSceneStyles.location}><MapPin size={15} aria-hidden="true" />{payload.forecast.location}</p>
+                      <div className={weatherSceneStyles.modeSwitch} aria-label="Forecast view">
+                        <button type="button" onClick={() => setForecastMode("hourly")} data-active={forecastMode === "hourly"}>Hourly</button>
+                        <button type="button" onClick={() => setForecastMode("daily")} data-active={forecastMode === "daily"}>7-Day</button>
                       </div>
                     </div>
                   </div>
-                  <div className={`grid grid-flow-col overflow-x-auto border-t border-white/15 bg-black/20 backdrop-blur-sm ${compact ? "auto-cols-[4.4rem]" : "auto-cols-[4.25rem]"}`}>
-                    {forecastMode === "hourly" ? payload.forecast.hours.map((hour, index) => (
-                      <article key={hour.time} className="border-r border-white/10 px-1 py-1.5 text-center last:border-r-0" title={`${hour.condition}; wind ${hour.windMph} mph`}>
-                        <p className="text-[9px] font-bold uppercase tracking-[0.05em] text-white/75">{index === 0 ? "Now" : formatHour(hour.time)}</p>
-                        <WeatherGlyph code={hour.weatherCode} size={15} className="mx-auto my-0.5 drop-shadow-md" />
-                        <p className="text-[10px] font-bold">{hour.temperatureF}° <span className="font-medium text-cyan-100/80">{hour.precipitationProbability}%</span></p>
+                  <div className={weatherSceneStyles.forecastRail} data-mode={forecastMode}>
+                    {forecastMode === "hourly" ? payload.forecast.hours.slice(0, 6).map((hour, index) => (
+                      <article key={hour.time} className={weatherSceneStyles.forecastItem} title={`${hour.condition}; wind ${hour.windMph} mph`}>
+                        <p>{index === 0 ? "Now" : formatHour(hour.time)}</p>
+                        <WeatherGlyph code={hour.weatherCode} size={24} className={weatherSceneStyles.forecastGlyph} />
+                        <strong>{hour.temperatureF}°</strong>
+                        <span>{hour.precipitationProbability}%</span>
                       </article>
                     )) : payload.forecast.days.map((day) => (
-                      <article key={day.date} className="border-r border-white/10 px-1 py-1.5 text-center last:border-r-0">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-white/75">{formatDay(day.date)}</p>
-                        <WeatherGlyph code={day.weatherCode} size={15} className="mx-auto my-0.5 drop-shadow-md" />
-                        <p className="text-[10px] font-bold">{day.highF}° <span className="font-medium text-white/65">{day.lowF}°</span></p>
+                      <article key={day.date} className={weatherSceneStyles.forecastItem}>
+                        <p>{formatDay(day.date)}</p>
+                        <WeatherGlyph code={day.weatherCode} size={24} className={weatherSceneStyles.forecastGlyph} />
+                        <strong>{day.highF}°</strong>
+                        <span>{day.lowF}° · {day.precipitationProbability}%</span>
                       </article>
                     ))}
                   </div>
@@ -209,12 +216,17 @@ function WeatherGlyph({ code, size, className }: { code: number; size: number; c
 function WeatherAtmosphere() {
   return (
     <div className={weatherSceneStyles.atmosphere} aria-hidden="true">
+      <span className={weatherSceneStyles.skyGlow} />
       <span className={weatherSceneStyles.sun} />
       <span className={weatherSceneStyles.cloudBack} />
+      <span className={weatherSceneStyles.cloudMiddle} />
       <span className={weatherSceneStyles.cloudFront} />
-      <span className={weatherSceneStyles.precipitation} />
-      <span className={weatherSceneStyles.snowfall} />
-      <span className={weatherSceneStyles.fog} />
+      <span className={weatherSceneStyles.rainFar} />
+      <span className={weatherSceneStyles.rainNear} />
+      <span className={weatherSceneStyles.snowFar} />
+      <span className={weatherSceneStyles.snowNear} />
+      <span className={weatherSceneStyles.fogBack} />
+      <span className={weatherSceneStyles.fogFront} />
       <span className={weatherSceneStyles.flash} />
       <span className={weatherSceneStyles.vignette} />
     </div>
