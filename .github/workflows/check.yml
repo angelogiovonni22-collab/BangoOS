@@ -144,6 +144,9 @@ jobs:
       - name: Run project overview layout regression
         run: npx -y tsx components/projects/workspace/project-overview-layout.contract.test.ts
 
+      - name: Run automatic writing editor regression
+        run: npx -y tsx lib/writing/automatic-editor.test.ts && npx -y tsx components/ui/automatic-writing-editor.contract.test.ts
+
       - name: Run estimate contract lifecycle regression
         run: npx -y tsx lib/estimates/estimate-contract-lifecycle.contract.test.ts
 
