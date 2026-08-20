@@ -21,6 +21,10 @@ assert.doesNotMatch(validation, /Customer is required\./, "estimate validation m
 assert.match(prospectService, /estimate_prospects/, "prospect service must use the dedicated estimate prospect table");
 assert.match(sendRoute, /linkedCustomer\?\.email \? linkedCustomer : prospect/, "email delivery must fall back to the prospect");
 assert.match(signRoute, /linkedCustomer \|\| prospect/, "public signing must resolve customer identity from the prospect when needed");
+assert.match(form, /action: \"draft\" \| \"continue\" \| \"changes\" \| \"send\"/, "estimate form must expose an explicit create-and-send action");
+assert.match(form, /fetch\(`\/api\/estimates\/\$\{result\.estimateId\}\/contract`, \{ method: \"POST\" \}\)/, "create-and-send must save the estimate before calling the canonical send route");
+assert.match(form, />Send Estimate<\/Button>/, "new estimate screen must expose Send Estimate directly");
+assert.match(form, /mode === \"edit\" \? \"changes\" : \"send\"/, "submitting a new estimate must use the send path by default");
 assert.match(migration, /pg_advisory_xact_lock/, "conversion must remain concurrency-safe and idempotent");
 assert.match(migration, /lower\(btrim\(coalesce\(c\.email,''\)\)\)=v_email/, "conversion must strongly match existing customers by normalized email");
 assert.match(migration, /regexp_replace\(coalesce\(c\.phone,''\)/, "conversion must strongly match existing customers by normalized phone");
