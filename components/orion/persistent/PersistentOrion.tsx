@@ -17,6 +17,10 @@ type FloatingPosition = {
   y: number;
 };
 
+type PersistentOrionProps = {
+  onOpenCommandCenter: () => void;
+};
+
 const PERSISTENT_ORION_POSITION_KEY = "bangoos:persistent-orion-position:v2-session";
 const FLOAT_MARGIN = 12;
 const DRAG_THRESHOLD_PX = 6;
@@ -151,7 +155,7 @@ function mapVoicePhaseToSphereState(
   return "idle";
 }
 
-export function PersistentOrion() {
+export function PersistentOrion({ onOpenCommandCenter }: PersistentOrionProps) {
   const pathname = usePathname();
   const { reducedMotion } = useMotionPreferences();
   const voice = useOrionUnifiedVoice();
@@ -458,6 +462,10 @@ export function PersistentOrion() {
         minimized={minimized}
         voice={voice}
         onClose={() => setOpen(false)}
+        onOpenCommandCenter={() => {
+          setOpen(false);
+          onOpenCommandCenter();
+        }}
         onToggleMinimized={() => setMinimized((current) => !current)}
         panelRef={panelRef}
         panelStyle={panelStyle}
