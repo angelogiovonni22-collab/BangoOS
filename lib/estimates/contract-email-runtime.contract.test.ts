@@ -12,6 +12,7 @@ assert.match(adapter, /contract_email_sender_missing/, "runtime diagnostics must
 assert.ok(route.indexOf("if (!delivery.delivered)") < route.indexOf('update({ status: "sent"'), "failed delivery must never mark an estimate sent");
 assert.match(route, /estimateContractPublicUrl/, "manual sends must use the configured public application origin");
 assert.match(route, /idempotencyKey:/, "manual sends must be idempotent");
+assert.match(route, /token-\$\{result\.tokenId\}/, "each generated secure link must use a matching provider idempotency scope");
 assert.match(button, /if \(body\.url\) setContractUrl/, "a secure link must remain available when email configuration fails");
 assert.match(button, />Send Estimate<\//, "the estimate action must use customer-facing estimate wording");
 assert.match(button, /Estimate sent\./, "successful provider acceptance must confirm the estimate send");

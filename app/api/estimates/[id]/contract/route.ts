@@ -106,10 +106,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       termsUrl,
       expiresAt: result.expiresAt,
     }),
-    // Keep the provider request stable for a given estimate version. If the email
-    // provider accepted delivery but B.O.S. lost the response or failed to persist
-    // `sent`, retrying the same estimate version cannot send a second copy.
-    idempotencyKey: `estimate-contract/${workspace.context.companyId}/${estimateId}/v${Number(estimate.version_number || 1)}`,
+    // Every generated secure link changes the email body. Scope provider
+    // idempotency to that exact delivery attempt so Resend never sees one key
+    // reused with a different token/body, while transport retries of this same
+    // attempt remain protected.
+    idempotencyKey: `estimate-contract/${workspace.context.companyId}/${estimateId}/v${Number(estimate.version_number || 1)}/token-${result.tokenId}`,
   });
   if (!delivery.delivered) {
     const configurationErrors: Record<string, string> = {
