@@ -1,17 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import {
   AudioLines,
   Bell,
-  Binoculars,
   BrainCircuit,
   Check,
   CircleUserRound,
   Mic,
-  ShieldCheck,
-  Target,
   X,
 } from "lucide-react";
 import { useFocusTrap } from "@/components/motion";
@@ -26,6 +22,7 @@ type PersistentOrionPanelProps = {
   minimized: boolean;
   voice: OrionUnifiedVoiceController;
   onClose: () => void;
+  onOpenCommandCenter: () => void;
   onToggleMinimized: () => void;
   panelRef: RefObject<HTMLDivElement | null>;
   panelStyle?: CSSProperties;
@@ -45,6 +42,14 @@ function pushStatusMessage(status: OrionPushStatus) {
   return "Enable once to receive Orion reminders when B.O.S. is closed.";
 }
 
+function formatVoicePhase(phase: string) {
+  const normalized = phase.trim().toLowerCase();
+  if (normalized === "idle") return "Ready";
+  return normalized
+    .replace(/_/g, " ")
+    .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+}
+
 export function PersistentOrionPanel({
   panelId,
   open,
@@ -52,6 +57,7 @@ export function PersistentOrionPanel({
   minimized,
   voice,
   onClose,
+  onOpenCommandCenter,
   onToggleMinimized,
   panelRef,
   panelStyle,
@@ -83,7 +89,7 @@ export function PersistentOrionPanel({
   }
 
   const realtimeSessionActive = voice.realtimeState !== "closed" && voice.realtimeState !== "idle" && voice.realtimeState !== "error";
-  const stateLabel = fixture.state.replace(/_/g, " ");
+  const stateLabel = formatVoicePhase(voice.phase);
 
   return (
     <section
@@ -91,14 +97,11 @@ export function PersistentOrionPanel({
       ref={panelRef}
       role="dialog"
       aria-modal="false"
-      aria-label={`Persistent Orion panel. State ${fixture.state}.`}
+      aria-label={`Orion panel. State ${stateLabel}.`}
       className="persistentOrionPanel"
       style={panelStyle}
       tabIndex={-1}
     >
-      <span className="persistentOrionSr">Prototype Intelligence</span>
-      <span className="persistentOrionSr">Fixture Data</span>
-
       <header className="persistentOrionPanelHeader">
         <div className="persistentOrionTitleBlock">
           <div className="persistentOrionIdentity">
@@ -106,7 +109,7 @@ export function PersistentOrionPanel({
               <BrainCircuit size={24} />
             </div>
             <div>
-              <p className="persistentOrionPanelTitle">ORION V2</p>
+              <p className="persistentOrionPanelTitle">ORION</p>
               <h3>{fixture.workspace}</h3>
             </div>
           </div>
@@ -127,27 +130,6 @@ export function PersistentOrionPanel({
           <span>Close</span>
         </button>
       </header>
-
-      <div className="persistentOrionFixtureTags" aria-label="Orion architecture">
-        <span><BrainCircuit size={15} aria-hidden="true" />Realtime LLM Intelligence</span>
-        <span><ShieldCheck size={15} aria-hidden="true" />Controlled BOS Tools</span>
-      </div>
-
-      <section className="persistentOrionSection persistentOrionSectionBordered">
-        <div className="persistentOrionSectionHeading">
-          <Binoculars size={21} aria-hidden="true" />
-          <p className="persistentOrionEyebrow">Observation</p>
-        </div>
-        <p className="persistentOrionSectionCopy">{fixture.observation}</p>
-      </section>
-
-      <section className="persistentOrionSection persistentOrionSectionBordered">
-        <div className="persistentOrionSectionHeading">
-          <Target size={21} aria-hidden="true" />
-          <p className="persistentOrionEyebrow">Why it matters</p>
-        </div>
-        <p className="persistentOrionSectionCopy">{fixture.whyItMatters}</p>
-      </section>
 
       <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Orion voice controls">
         <div className="persistentOrionSectionHeading">
@@ -225,7 +207,7 @@ export function PersistentOrionPanel({
           <CircleUserRound size={24} aria-hidden="true" />
           <span className="persistentOrionVoiceSelectText">
             <strong>{voiceLabel(voice.realtimeVoice)}</strong>
-            <span>OpenAI Realtime voice</span>
+            <span>Realtime voice</span>
           </span>
           <select
             id="orion-realtime-voice-select"
@@ -249,7 +231,6 @@ export function PersistentOrionPanel({
           <Check size={17} aria-hidden="true" />
         </p>
 
-        <div className="persistentOrionEngineLabel">Engine: ORION V2 · OPENAI REALTIME</div>
         <div className="persistentOrionVoiceStatusWrap">
           <OrionVoiceStatus
             state={voice.phase}
@@ -271,31 +252,27 @@ export function PersistentOrionPanel({
 
       <dl className="persistentOrionFacts">
         <div>
-          <dt>Evidence status</dt>
-          <dd>{fixture.evidenceStatus}</dd>
+          <dt>Workspace</dt>
+          <dd>{fixture.workspace}</dd>
         </div>
         <div>
-          <dt>Data freshness</dt>
-          <dd>{fixture.dataFreshness}</dd>
+          <dt>Voice status</dt>
+          <dd>{stateLabel}</dd>
         </div>
         <div>
-          <dt>Recommended next review</dt>
-          <dd>{fixture.recommendedNextReview}</dd>
+          <dt>Microphone</dt>
+          <dd>{voice.micActive ? "Active" : "Off"}</dd>
         </div>
         <div>
-          <dt>Approval boundary</dt>
-          <dd>{fixture.approvalBoundary}</dd>
-        </div>
-        <div>
-          <dt>Limitations</dt>
-          <dd>{fixture.limitations}</dd>
+          <dt>Session</dt>
+          <dd>{realtimeSessionActive ? "Connected" : "Idle"}</dd>
         </div>
       </dl>
 
       <footer className="persistentOrionPanelFooter">
-        <Link href="/labs/orion-core" className="persistentOrionLinkAction" onClick={onClose}>
-          Open Orion Core Lab
-        </Link>
+        <button type="button" className="persistentOrionLinkAction" onClick={onOpenCommandCenter}>
+          Open Advanced Orion
+        </button>
         <button type="button" className="persistentOrionMinimize" onClick={onToggleMinimized}>
           {minimized ? "Restore Orion" : "Minimize Orion"}
         </button>

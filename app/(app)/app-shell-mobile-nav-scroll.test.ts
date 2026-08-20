@@ -52,8 +52,9 @@ async function main() {
 
     assert(source.includes("import { PersistentOrion } from \"@/components/orion/persistent\";"), "app shell imports persistent Orion module");
 
-    const mountMatches = source.match(/<PersistentOrion \/>/g) ?? [];
+    const mountMatches = source.match(/<PersistentOrion\s/g) ?? [];
     assert(mountMatches.length === 1, "persistent Orion is mounted exactly once");
+    assert(source.includes("<PersistentOrion onOpenCommandCenter="), "persistent Orion owns the visible command-center entry point");
 
     const sidebarMatches = source.match(/id=\"bangoos-sidebar\"/g) ?? [];
     assert(sidebarMatches.length === 1, "sidebar remains singular and is not duplicated");

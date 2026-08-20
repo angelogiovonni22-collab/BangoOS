@@ -45,18 +45,20 @@ function testSourceSafetyContracts() {
   const globalsSource = read("app/globals.css");
   const portalHostSource = read("components/ui/portal-host.tsx");
 
-  assert.ok(shellSource.includes("<PersistentOrion />"), "App shell mounts PersistentOrion once");
-  const mountMatches = shellSource.match(/<PersistentOrion \/>/g) ?? [];
+  assert.ok(shellSource.includes("<PersistentOrion onOpenCommandCenter="), "App shell mounts PersistentOrion as the visible Orion entry point");
+  const mountMatches = shellSource.match(/<PersistentOrion\s/g) ?? [];
   assert.equal(mountMatches.length, 1, "PersistentOrion mount count should remain one");
+  assert.ok(!shellSource.includes('aria-label="Open Orion Command Center"'), "Top-bar Orion command-center button is removed");
   assert.ok(shellSource.includes("<div className=\"flex min-h-screen min-w-0\">"), "App shell retains stable root child structure");
   assert.ok(shellSource.includes("<LayerManager layer=\"backdrop\">"), "Sidebar uses navigation-safe backdrop layer instead of dialog/modal layer");
   assert.ok(shellSource.includes("<LayerManager layer=\"popover\">"), "Sidebar navigation uses popover layer instead of modal dialog layer");
   assert.ok(shellSource.includes("id=\"bangoos-sidebar\""), "Sidebar structure remains unchanged");
 
-  assert.ok(persistentSource.includes("usePathname"), "Persistent Orion uses pathname for context fixtures");
+  assert.ok(persistentSource.includes("usePathname"), "Persistent Orion uses pathname for workspace context");
   assert.ok(persistentSource.includes("useMotionPreferences"), "Persistent Orion consumes motion preference");
   assert.ok(persistentSource.includes("<PortalHost>"), "Persistent Orion renders in a body-level portal host");
   assert.ok(persistentSource.includes("<LayerManager layer=\"orionPersistent\">"), "Persistent Orion uses dedicated layer token");
+  assert.ok(persistentSource.includes("onOpenCommandCenter();"), "Persistent Orion routes advanced access into the existing command center");
   assert.ok(portalHostSource.includes("useSyncExternalStore") && portalHostSource.includes("getServerMountedSnapshot") && portalHostSource.includes("if (!mounted) {") && portalHostSource.includes("return null;"), "PortalHost defers portal activation until after hydration so SSR and first client render match");
   assert.ok(!stylesSource.includes(".persistentOrionRoot :global(.persistentOrionVisual)::before"), "1. dark circular background is removed");
   assert.ok(!stylesSource.includes(".persistentOrionRoot :global(.persistentOrionVisual)::after"), "2. outer visual halo backdrop is removed");
@@ -103,9 +105,12 @@ function testSourceSafetyContracts() {
   assert.ok(persistentSource.includes("if (suppressClickRef.current)") && persistentSource.includes("event.preventDefault();"), "17. panel does not open after drag");
   assert.ok(panelSource.includes("style={panelStyle}") && persistentSource.includes("setPanelStyle({ left, top, position: \"fixed\" })"), "18. panel positioning remains viewport-safe");
   assert.ok(buttonSource.includes("persistentOrionButtonMinimized") && persistentSource.includes("minimized"), "19. minimized Orion remains draggable");
-  assert.ok(panelSource.includes("Prototype Intelligence"), "Panel includes Prototype Intelligence label");
-  assert.ok(panelSource.includes("Fixture Data"), "Panel includes Fixture Data label");
-  assert.ok(panelSource.includes("Open Orion Core Lab"), "Panel links to Orion Core Lab");
+  assert.ok(!panelSource.includes("Prototype Intelligence"), "Prototype Intelligence label is not exposed in production Orion");
+  assert.ok(!panelSource.includes("Fixture Data"), "Fixture Data label is not exposed in production Orion");
+  assert.ok(!panelSource.includes("Open Orion Core Lab"), "Core Lab is not the primary production Orion action");
+  assert.ok(!panelSource.includes("ORION V2"), "Version label is not exposed in the production panel");
+  assert.ok(!panelSource.includes("Engine: ORION V2"), "Engine implementation label is not exposed in production Orion");
+  assert.ok(panelSource.includes("Open Advanced Orion"), "Panel exposes the preserved command center as Advanced Orion");
   assert.ok(panelSource.includes("Minimize Orion"), "Panel includes minimize action");
   assert.ok(panelSource.includes("Restore Orion"), "Panel includes restore action");
 
@@ -129,7 +134,7 @@ function testSourceSafetyContracts() {
   const combined = `${persistentSource}\n${panelSource}\n${sphereSource}`;
   assert.ok(!combined.includes("@/lib/supabase"), "No Supabase imports in persistent Orion");
   assert.ok(!combined.includes("fetch("), "No network calls in persistent Orion");
-  assert.ok(!combined.includes("openai"), "No OpenAI usage in persistent Orion");
+  assert.ok(!combined.includes("openai"), "No OpenAI branding or direct usage in persistent Orion");
   assert.ok(!combined.includes(".insert("), "No write operations in persistent Orion");
   assert.ok(!combined.includes(".update("), "No write operations in persistent Orion");
   assert.ok(!combined.includes(".delete("), "No write operations in persistent Orion");

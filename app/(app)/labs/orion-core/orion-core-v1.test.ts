@@ -85,8 +85,9 @@ function runOrionCorePrototypeContractTests() {
   assert.ok(!combined.toLowerCase().includes("openai"), "27. no OpenAI calls");
   assert.ok(!combined.includes("@/lib/orion/executive-brief-service"), "28. no production-service imports");
 
-  assert.ok(persistentSource.includes("export function PersistentOrion"), "29. Persistent Orion is untouched");
-  assert.ok(appShellSource.includes("<PersistentOrion />"), "30. app-shell mount remains untouched in this phase");
+  assert.ok(persistentSource.includes("export function PersistentOrion"), "29. Persistent Orion remains available");
+  assert.ok(appShellSource.includes("<PersistentOrion onOpenCommandCenter="), "30. app-shell keeps one unified Persistent Orion mount");
+  assert.equal((appShellSource.match(/<PersistentOrion\s/g) ?? []).length, 1, "31. app-shell does not duplicate Persistent Orion");
 
   assert.ok(coreSource.includes("OrionParticleSphere"), "Orion core should render particle sphere in showcase");
 

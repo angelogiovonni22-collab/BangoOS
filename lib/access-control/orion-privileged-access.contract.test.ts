@@ -23,7 +23,7 @@ assert.match(layout, /canUseOrion\(workspace\.context\.role, permissionOverrides
 
 const appShell = readFileSync("app/(app)/app-shell.tsx", "utf8");
 assert.match(appShell, /orionEnabled \? \(\s*<GlobalOrionVoiceProvider>/, "Orion voice providers must mount only for authorized sessions.");
-assert.match(appShell, /\{orionEnabled \? <PersistentOrion \/> : null\}/, "Persistent Orion must not render for unauthorized sessions.");
+assert.match(appShell, /\{orionEnabled \? <PersistentOrion onOpenCommandCenter=/, "Persistent Orion must not render for unauthorized sessions.");
 assert.match(appShell, /if \(!orionEnabled\) return;/, "Global Orion keyboard shortcut must be disabled for unauthorized sessions.");
 assert.match(appShell, /\{orionEnabled \? <OrionCommandCenterOverlay/, "Orion Command Center must not render for unauthorized sessions.");
 

@@ -35,10 +35,10 @@ function main() {
   });
 
   test("2. command center and persistent panel subscribe instead of owning sessions", () => {
-    assert(overlay.includes("useGlobalOrionVoice"), "overlay subscribes to global provider");
+    assert(overlay.includes("useGlobalOrionVoice"), "overlay subscribes through the compatibility facade");
     assert(!overlay.includes("useOrionVoiceSession({"), "overlay no longer creates a local voice session instance");
-    assert(persistentPanel.includes("useGlobalOrionVoice"), "persistent panel subscribes to global provider");
-    assert(!persistentPanel.includes("useOrionVoiceSession({"), "persistent panel no longer creates a local voice session instance");
+    assert(persistentPanel.includes("voice: OrionUnifiedVoiceController"), "persistent panel receives the shared unified voice controller");
+    assert(!persistentPanel.includes("useOrionUnifiedVoice()") && !persistentPanel.includes("useOrionVoiceSession({"), "persistent panel does not create its own voice controller or session");
   });
 
   test("3. provider defines canonical global phases", () => {

@@ -5,9 +5,12 @@ export type OrionCommandPermission =
   | "owner"
   | "administrator"
   | "operations_manager"
-  | "accountant"
   | "project_manager"
+  | "estimator"
   | "superintendent"
+  | "office_manager"
+  | "accountant"
+  | "foreman"
   | "employee";
 
 export type OrionCommandEntityType =

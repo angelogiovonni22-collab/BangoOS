@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createOrionCommandRouter, createOrionCommandRegistry, type OrionCommandPermission } from "@/lib/orion/commands";
+import { authorizeOrionCommand } from "@/lib/orion/commands/authorization";
 import { createOrionExecutionEnvelope } from "@/lib/orion/commands/execution-envelope";
 import { getUniversalBosCommandByToolName } from "@/lib/orion/intelligence";
 import { normalizeRealtimeFastCommandParams } from "@/lib/orion/realtime/fast-command-params";
@@ -23,9 +24,12 @@ function normalizeRole(role: string | null): OrionCommandPermission {
   if (normalized === "owner") return "owner";
   if (normalized === "admin" || normalized === "administrator") return "administrator";
   if (normalized === "operations_manager") return "operations_manager";
-  if (normalized === "accountant") return "accountant";
   if (normalized === "project_manager") return "project_manager";
+  if (normalized === "estimator") return "estimator";
   if (normalized === "superintendent") return "superintendent";
+  if (normalized === "office_manager") return "office_manager";
+  if (normalized === "accountant") return "accountant";
+  if (normalized === "foreman") return "foreman";
   return "employee";
 }
 
@@ -81,6 +85,25 @@ async function executeCanonicalCommand(args: {
   const command = createOrionCommandRegistry().getById(args.commandId);
   if (!command || command.coverage.status === "unsupported") {
     return { status: 400, body: { ok: false, statusCategory: "command_validation_failed", userMessage: "That BOS action is not available." } };
+  }
+
+  const authorization = await authorizeOrionCommand({
+    supabase: args.supabase,
+    companyId: args.companyId,
+    userId: args.userId,
+    command,
+    legacyRoleAllowed: (role) => command.requiredPermissions.includes(normalizeRole(role)),
+  });
+  if (!authorization.allowed) {
+    return {
+      status: 403,
+      body: {
+        ok: false,
+        commandId: command.id,
+        statusCategory: "permission_denied",
+        userMessage: authorization.reason,
+      },
+    };
   }
 
   const fastParams = args.confirmed
@@ -151,7 +174,7 @@ async function executeCanonicalCommand(args: {
       ? { confirmed: true, summary: `Confirmed in Orion Realtime conversation for ${command.id}.` }
       : undefined,
     companyContext: { companyId: args.companyId },
-    userContext: { actorProfileId: args.userId, role: normalizeRole(args.role) },
+    userContext: { actorProfileId: args.userId, role: normalizeRole(authorization.role) },
     executionContext: { origin: "user" },
     correlationId,
     idempotencyKey,
