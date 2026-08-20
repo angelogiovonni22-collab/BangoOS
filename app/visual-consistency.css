@@ -41,13 +41,49 @@
   text-rendering: optimizeLegibility;
 }
 
+/*
+ * Owned surface contexts keep nested primitives readable regardless of the
+ * active application theme or an intermediate legacy token reset. Components
+ * choose the surface once; headings, labels, controls, links, and disabled
+ * states then inherit a coherent semantic palette.
+ */
+.enterprise-shell main [data-bos-surface="light"] {
+  color: #10243f;
+  --color-text-primary: #10243f;
+  --color-text-secondary: #385574;
+  --color-text-muted: #526f90;
+  --color-text-inverse: #f8fbff;
+  --color-disabled-text: #64748b;
+  --color-border-subtle: #c8d7e7;
+  --color-border-strong: #adc2da;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f1f6fc;
+  --color-surface-muted: #e5eef9;
+  --color-surface-elevated: #ffffff;
+}
+
+.enterprise-shell main [data-bos-surface="dark"] {
+  color: #eff6ff;
+  --color-text-primary: #eff6ff;
+  --color-text-secondary: #c8d8ee;
+  --color-text-muted: #9fb4d0;
+  --color-text-inverse: #07111f;
+  --color-disabled-text: #91a6c2;
+  --color-border-subtle: rgb(121 156 206 / 0.34);
+  --color-border-strong: rgb(144 180 230 / 0.5);
+  --color-surface-card: #0d182b;
+  --color-surface-subtle: #14243f;
+  --color-surface-muted: #1a2c4a;
+  --color-surface-elevated: #12203a;
+}
+
 /* Shared readable text hierarchy. */
-.enterprise-shell main :is(h1, h2, h3, h4, h5, h6) {
+:where(.enterprise-shell main h1, .enterprise-shell main h2, .enterprise-shell main h3, .enterprise-shell main h4, .enterprise-shell main h5, .enterprise-shell main h6) {
   color: var(--color-text-primary);
   text-wrap: balance;
 }
 
-.enterprise-shell main :is(label, legend) {
+:where(.enterprise-shell main label, .enterprise-shell main legend) {
   color: var(--color-text-primary);
   font-size: max(var(--font-size-label), 0.875rem);
   font-weight: 600;
