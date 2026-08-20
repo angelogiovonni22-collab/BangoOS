@@ -61,7 +61,8 @@ function main() {
   assert(panel.includes("voice: OrionUnifiedVoiceController"), "persistent panel receives the shared unified controller by contract");
   assert(!panel.includes("useOrionUnifiedVoice()"), "persistent panel cannot create a second Realtime controller");
   assert(persistent.includes("micActive={voice.micActive}") && persistent.includes("voicePhase={voice.phase}"), "floating Orion sphere shares the same Realtime state as the panel");
-  assert(panel.includes("Engine: ORION V2 · OPENAI REALTIME"), "persistent Orion visibly identifies the v2 engine");
+  assert(!panel.includes("Engine: ORION V2 · OPENAI REALTIME"), "production Orion hides implementation-engine branding");
+  assert(panel.includes("Open Advanced Orion") && persistent.includes("onOpenCommandCenter();"), "persistent Orion preserves advanced command-center access behind the orb");
   assert(!panel.includes("Browser fallback"), "the persistent UI no longer advertises the retired legacy fallback");
   assert(panel.includes("void voice.start()") && panel.includes("void voice.stop()"), "persistent voice controls start and stop the Realtime conversation");
   assert(realtimeClient.includes("await this.disconnect()"), "Realtime client remains single-session before acquiring microphone resources");
