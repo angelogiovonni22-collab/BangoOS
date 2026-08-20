@@ -141,6 +141,9 @@ jobs:
       - name: Run location intelligence regression
         run: npx -y tsx lib/location-intelligence/location-intelligence.contract.test.ts
 
+      - name: Run project overview layout regression
+        run: npx -y tsx components/projects/workspace/project-overview-layout.contract.test.ts
+
       - name: Run estimate contract lifecycle regression
         run: npx -y tsx lib/estimates/estimate-contract-lifecycle.contract.test.ts
 
