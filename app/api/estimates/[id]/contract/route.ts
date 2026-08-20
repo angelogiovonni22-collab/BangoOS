@@ -34,7 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const [{ data: estimate, error }, { data: prospect, error: prospectError }] = await Promise.all([
     supabase
       .from("estimates")
-      .select("id, title, estimate_number, customer_id, status, total_amount, customers(email, first_name, last_name, customer_type, state)")
+      .select("id, title, estimate_number, customer_id, status, total_amount, version_number, customers(email, first_name, last_name, customer_type, state)")
       .eq("company_id", workspace.context.companyId).eq("id", estimateId).maybeSingle(),
     prospectDb.from("estimate_prospects")
       .select("email,first_name,last_name,customer_type,state")
@@ -106,7 +106,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       termsUrl,
       expiresAt: result.expiresAt,
     }),
-    idempotencyKey: `estimate-contract/${workspace.context.companyId}/${estimateId}/${result.token.slice(0, 16)}`,
+    // Keep the provider request stable for a given estimate version. If the email
+    // provider accepted delivery but B.O.S. lost the response or failed to persist
+    // `sent`, retrying the same estimate version cannot send a second copy.
+    idempotencyKey: `estimate-contract/${workspace.context.companyId}/${estimateId}/v${Number(estimate.version_number || 1)}`,
   });
   if (!delivery.delivered) {
     const configurationErrors: Record<string, string> = {
@@ -116,6 +119,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: configurationErrors[delivery.reason || ""] || `Email provider rejected the message: ${delivery.reason || "unknown error"}`, url, expiresAt: result.expiresAt, delivery }, { status: 503 });
   }
   const { error: updateError } = await supabase.from("estimates").update({ status: "sent", updated_by: workspace.context.userId }).eq("company_id", workspace.context.companyId).eq("id", estimateId);
-  if (updateError) return NextResponse.json({ error: "Email was accepted, but B.O.S. could not update the estimate status. Do not resend.", url, expiresAt: result.expiresAt, delivery }, { status: 500 });
+  if (updateError) return NextResponse.json({ error: "Email was accepted, but B.O.S. could not update the estimate status. Retrying is safe and will not send a duplicate for this estimate version.", url, expiresAt: result.expiresAt, delivery }, { status: 500 });
   return NextResponse.json({ url, expiresAt: result.expiresAt, delivery });
 }
