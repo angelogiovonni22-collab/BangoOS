@@ -24,7 +24,7 @@ assert.match(sendRoute, /linkedCustomer\?\.email \? linkedCustomer : prospect/, 
 assert.match(signRoute, /linkedCustomer \|\| prospect/, "public signing must resolve customer identity from the prospect when needed");
 assert.match(form, /action: \"draft\" \| \"continue\" \| \"changes\" \| \"send\"/, "estimate form must expose an explicit create-and-send action");
 assert.match(form, /fetch\(`\/api\/estimates\/\$\{result\.estimateId\}\/contract`, \{ method: \"POST\" \}\)/, "create-and-send must save the estimate before calling the canonical send route");
-assert.match(form, />Send Estimate<\/Button>/, "new estimate screen must expose Send Estimate directly");
+assert.match(form, /mode === "create" \? "Send Estimate" : "Save Changes"/, "new estimate screen must expose Send Estimate directly while edit mode remains Save Changes");
 assert.match(form, /mode === \"edit\" \? \"changes\" : \"send\"/, "submitting a new estimate must use the send path by default");
 assert.match(form, /response\.json\(\)\.catch\(\(\) => \(\{\}\)\)/, "send response parsing must not strand the newly saved estimate");
 assert.match(form, /catch \(sendError\)/, "network delivery failures must be isolated from estimate creation failures");
