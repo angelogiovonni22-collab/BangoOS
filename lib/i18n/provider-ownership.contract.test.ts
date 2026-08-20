@@ -40,7 +40,8 @@ function main() {
   });
 
   test("3. Persistent Orion remains in app shell tree", () => {
-    check(appShell.includes("<PersistentOrion />"), "persistent Orion is rendered by app shell");
+    check(appShell.includes("<PersistentOrion onOpenCommandCenter="), "persistent Orion is rendered by app shell as the unified visible entry point");
+    check(countMatches(appShell, /<PersistentOrion\s/g) === 1, "persistent Orion remains mounted exactly once");
     check(appShell.includes("<GlobalOrionVoiceProvider>"), "global Orion provider remains nested in app shell composition");
   });
 
