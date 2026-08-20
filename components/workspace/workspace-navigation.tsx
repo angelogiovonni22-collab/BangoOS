@@ -26,7 +26,7 @@ export function WorkspaceHeader({
   className?: string;
 }) {
   return (
-    <Card as="section" variant="elevated" className={["min-w-0 max-w-full overflow-hidden rounded-[20px] border-[var(--workspace-header-border)] [background:var(--workspace-header-surface)] shadow-[0_28px_52px_-30px_rgba(2,6,17,0.88)]", className].filter(Boolean).join(" ")}>
+    <Card data-bos-surface="dark" as="section" variant="elevated" className={["min-w-0 max-w-full overflow-hidden rounded-[20px] border-[var(--workspace-header-border)] [background:var(--workspace-header-surface)] shadow-[0_28px_52px_-30px_rgba(2,6,17,0.88)]", className].filter(Boolean).join(" ")}>
       <CardContent className="space-y-6 p-6 lg:p-7">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-body-secondary font-medium text-[var(--workspace-header-text)]">
@@ -76,7 +76,7 @@ export function WorkspaceHero({
   className?: string;
 }) {
   return (
-    <Card as="section" variant="elevated" className={["group min-w-0 max-w-full overflow-hidden rounded-[20px] border-[var(--workspace-hero-border)] [background:var(--workspace-hero-surface)] shadow-[0_26px_56px_-30px_rgba(2,6,17,0.88)]", className].filter(Boolean).join(" ")}>
+    <Card data-bos-surface="dark" as="section" variant="elevated" className={["group min-w-0 max-w-full overflow-hidden rounded-[20px] border-[var(--workspace-hero-border)] [background:var(--workspace-hero-surface)] shadow-[0_26px_56px_-30px_rgba(2,6,17,0.88)]", className].filter(Boolean).join(" ")}>
       <CardContent className="grid min-w-0 gap-6 p-5 lg:grid-cols-[1.3fr_minmax(0,1fr)] lg:p-7">
         <div>{media}</div>
         <section className="flex min-w-0 h-full flex-col justify-between rounded-[18px] border border-[var(--workspace-hero-panel-border)] [background:var(--workspace-hero-panel-surface)] p-5 text-[var(--workspace-hero-panel-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] md:p-6">
@@ -108,7 +108,7 @@ export function WorkspaceTabs({
   ariaLabel: string;
 }) {
   return (
-    <section className="min-w-0 max-w-full overflow-hidden rounded-[20px] border border-[var(--workspace-tabs-border)] [background:var(--workspace-tabs-surface)] p-2.5 shadow-[0_18px_32px_-22px_rgba(3,7,18,0.72)]">
+    <section data-bos-surface="dark" className="min-w-0 max-w-full overflow-hidden rounded-[20px] border border-[var(--workspace-tabs-border)] [background:var(--workspace-tabs-surface)] p-2.5 shadow-[0_18px_32px_-22px_rgba(3,7,18,0.72)]">
       <nav className="flex w-full min-w-0 max-w-full gap-1 overflow-x-auto pb-0.5" aria-label={ariaLabel}>
         {items.map((tab) => {
           const active = tab.key === activeKey;
