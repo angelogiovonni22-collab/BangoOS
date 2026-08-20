@@ -13,7 +13,7 @@ const sendRoute = read("app/api/estimates/[id]/contract/route.ts");
 const signRoute = read("app/api/contracts/estimate/[token]/route.ts");
 const migration = read("supabase/migrations/20260819233000_estimate_prospect_auto_conversion.sql");
 const recoveryMigration = read("supabase/migrations/20260820033000_estimate_acceptance_conversion_recovery.sql");
-const jobsiteMigration = read("supabase/migrations/20260820040000_estimate_project_jobsite_snapshot.sql");
+const jobsiteMigration = read("supabase/migrations/20260820040825_estimate_project_jobsite_snapshot.sql");
 
 assert.match(customerSection, /New prospective customer/, "estimate form must support a prospect without a pre-created customer");
 assert.match(form, /saveEstimateProspect/, "estimate form must persist the prospect snapshot");
