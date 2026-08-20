@@ -66,7 +66,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveMode, setSaveMode] = useState<"draft" | "continue" | "changes">("draft");
+  const [saveMode, setSaveMode] = useState<"draft" | "continue" | "changes" | "send">("draft");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<EstimateFormErrors>({});
@@ -273,7 +273,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
     setIsDirty(true);
   }
 
-  async function submit(action: "draft" | "continue" | "changes") {
+  async function submit(action: "draft" | "continue" | "changes" | "send") {
     if (isSaving) return;
 
     setErrorMessage(null);
@@ -318,6 +318,22 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
       await photoUploadRef.current?.upload(result.estimateId, companyId, userId);
 
       setIsDirty(false);
+
+      if (action === "send") {
+        const response = await fetch(`/api/estimates/${result.estimateId}/contract`, { method: "POST" });
+        const body = await response.json() as { error?: string };
+        if (!response.ok) {
+          setErrorMessage(body.error || "The estimate was saved, but B.O.S. could not send it. Open the saved estimate to review the send requirement and try again.");
+          router.push(`/estimates/${result.estimateId}`);
+          router.refresh();
+          return;
+        }
+        setSuccessMessage("Estimate sent successfully.");
+        router.push(`/estimates/${result.estimateId}`);
+        router.refresh();
+        return;
+      }
+
       setSuccessMessage(values.customerId ? "Estimate saved successfully." : "Estimate and prospective customer details saved successfully.");
 
       if (action === "draft") {
@@ -363,7 +379,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         secondaryActions={<Button type="button" variant="secondary" size="md" onClick={handleCancel}>Cancel</Button>}
       />
 
-      <form className="space-y-6" onSubmit={(event) => { event.preventDefault(); void submit(mode === "edit" ? "changes" : "continue"); }}>
+      <form className="space-y-6" onSubmit={(event) => { event.preventDefault(); void submit(mode === "edit" ? "changes" : "send"); }}>
         <EstimateInformationSection values={values} errors={errors} preparedByOptions={preparedByOptions} onFieldChange={onFieldChange} />
 
         <EstimateCustomerProjectSection
@@ -402,9 +418,12 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         <div className="flex flex-wrap items-center justify-end gap-3">
           <Button type="button" variant="outline" size="lg" onClick={handleCancel}>Cancel</Button>
           {mode === "create" ? (
-            <Button data-orion-action="save-estimate-draft" data-orion-verify="navigation-or-status" type="button" variant="secondary" size="lg" isLoading={isSaving && saveMode === "draft"} onClick={() => void submit("draft")}>Save Draft</Button>
+            <>
+              <Button data-orion-action="save-estimate-draft" data-orion-verify="navigation-or-status" type="button" variant="secondary" size="lg" isLoading={isSaving && saveMode === "draft"} onClick={() => void submit("draft")}>Save Draft</Button>
+              <Button data-orion-action="save-estimate-and-continue" data-orion-verify="navigation-or-status" type="button" variant="secondary" size="lg" isLoading={isSaving && saveMode === "continue"} onClick={() => void submit("continue")}>Save and Continue Editing</Button>
+            </>
           ) : null}
-          <Button data-orion-action="save-estimate-and-continue" data-orion-verify="navigation-or-status" type="submit" size="lg" isLoading={isSaving && (saveMode === "continue" || saveMode === "changes")}>{mode === "create" ? "Save and Continue Editing" : "Save Changes"}</Button>
+          <Button data-orion-action={mode === "create" ? "estimate.save-and-send" : "save-estimate-and-continue"} data-orion-verify="navigation-or-status" type="submit" size="lg" isLoading={isSaving && (saveMode === "send" || saveMode === "changes")}>{mode === "create" ? "Send Estimate" : "Save Changes"}</Button>
         </div>
       </form>
     </div>
