@@ -32,7 +32,8 @@ function main() {
   const depthTokens = read("components/bangoflow/DepthTokens.ts");
 
   test("1. app shell child order is stable", () => {
-    assert(appShell.includes("<PersistentOrion />"), "persistent Orion mount remains in app shell");
+    assert(appShell.includes("<PersistentOrion onOpenCommandCenter="), "persistent Orion mount remains in app shell");
+    assert((appShell.match(/<PersistentOrion\s/g) ?? []).length === 1, "persistent Orion remains mounted exactly once");
     assert(appShell.includes("<div className=\"flex min-h-screen min-w-0\">"), "shell main frame remains deterministic sibling after PersistentOrion");
   });
 
