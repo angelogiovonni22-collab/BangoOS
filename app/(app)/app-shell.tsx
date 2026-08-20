@@ -122,7 +122,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
 
   return (
     <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
-      {orionEnabled ? <PersistentOrion /> : null}
+      {orionEnabled ? <PersistentOrion onOpenCommandCenter={() => setCommandCenterOpen(true)} /> : null}
       <div className="flex min-h-screen min-w-0">
         <LayerManager layer={mobileOpen ? "dialog" : "popover"}>
           <aside
@@ -187,7 +187,6 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                 </div>
                 <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
                   {!['subcontractor', 'customer'].includes(normalizedRole) ? <div className="hidden min-w-[220px] md:block"><GlobalSearch placeholder={t("common.search")} /></div> : null}
-                  {orionEnabled ? <button type="button" className="hidden rounded-[var(--radius-md)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 py-2 text-sm font-semibold text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] md:inline-flex md:items-center md:gap-2" onClick={() => setCommandCenterOpen(true)} aria-label="Open Orion Command Center"><span>Orion</span><span className="rounded border border-[var(--bos-border-subtle)] px-1.5 py-0.5 text-xs text-[var(--bos-text-secondary)]">Ctrl+K</span></button> : null}
                   <LanguageSelector />
                   <ProfileMenu userName={userName} userEmail={userEmail} companyName={companyName} showSettingsAction={canAccessPath(normalizedRole, "/settings")} />
                 </div>
