@@ -19,7 +19,7 @@ const provider = read("lib/location-intelligence/provider.ts");
 const card = read("components/location-intelligence/location-forecast-card.tsx");
 const weatherScene = read("components/location-intelligence/location-weather-scene.module.css");
 const dashboard = read("components/dashboard/WeatherWidget.tsx");
-const project = read("components/projects/workspace/project-workspace-hero.tsx");
+const projectOverview = read("components/projects/workspace/project-command-center-foundation.tsx");
 
 assert.ok(route.includes("resolveWorkspaceContext"));
 assert.ok(route.includes('.eq("company_id", workspace.context.companyId)'));
@@ -65,7 +65,8 @@ assert.ok(weatherScene.includes("rainNear"));
 assert.ok(weatherScene.includes('grid-template-columns:repeat(6'));
 assert.ok(card.includes("formatWeatherTime"));
 assert.ok(dashboard.includes("<LocationForecastCard"));
-assert.ok(project.includes("<LocationForecastCard projectId={projectId}"));
-assert.ok(!read("components/projects/workspace/project-command-center-foundation.tsx").includes("<LocationForecastCard"));
+assert.ok(projectOverview.includes("<LocationForecastCard projectId={props.projectId}"));
+assert.ok(projectOverview.includes('<Collapsible title="Jobsite Intelligence"'));
+assert.ok(!read("app/(app)/projects/[id]/page.tsx").includes("<ProjectWorkspaceHero"));
 
 console.log("+ location intelligence is company-scoped, shared, cached, and provides seven-day weather, maps, and directions");
