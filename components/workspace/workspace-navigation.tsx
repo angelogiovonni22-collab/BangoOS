@@ -16,6 +16,7 @@ export function WorkspaceHeader({
   badgeTone = "neutral",
   actions,
   className = "",
+  compact = false,
 }: {
   breadcrumbs: WorkspaceBreadcrumbItem[];
   title: string;
@@ -24,10 +25,11 @@ export function WorkspaceHeader({
   badgeTone?: WorkspaceBadgeTone;
   actions?: ReactNode;
   className?: string;
+  compact?: boolean;
 }) {
   return (
     <Card data-bos-surface="dark" as="section" variant="elevated" className={["min-w-0 max-w-full overflow-hidden rounded-[20px] border-[var(--workspace-header-border)] [background:var(--workspace-header-surface)] shadow-[0_28px_52px_-30px_rgba(2,6,17,0.88)]", className].filter(Boolean).join(" ")}>
-      <CardContent className="space-y-6 p-6 lg:p-7">
+      <CardContent className={compact ? "space-y-3 p-4 sm:p-5" : "space-y-6 p-6 lg:p-7"}>
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-body-secondary font-medium text-[var(--workspace-header-text)]">
             {breadcrumbs.map((item, index) => (
@@ -43,7 +45,7 @@ export function WorkspaceHeader({
         <div className="space-y-3">
           <div className="flex min-w-0 flex-wrap items-start gap-3">
             <div className="min-w-0 space-y-2">
-              <h1 className="text-h1 break-words text-[var(--workspace-header-title)] sm:text-[2.4rem]">{title}</h1>
+              <h1 className={compact ? "break-words text-[1.75rem] font-extrabold leading-tight tracking-[-0.025em] text-[var(--workspace-header-title)]" : "text-h1 break-words text-[var(--workspace-header-title)] sm:text-[2.4rem]"}>{title}</h1>
             </div>
             {badgeLabel ? <Badge tone={badgeTone} className="mt-2 rounded-full border px-3 py-1 text-xs font-bold tracking-[0.05em]">{badgeLabel}</Badge> : null}
           </div>
