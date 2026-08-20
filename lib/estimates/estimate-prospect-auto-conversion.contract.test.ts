@@ -25,6 +25,10 @@ assert.match(signRoute, /linkedCustomer \|\| prospect/, "public signing must res
 assert.match(form, /action: \"draft\" \| \"continue\" \| \"changes\" \| \"send\"/, "estimate form must expose an explicit create-and-send action");
 assert.match(form, /fetch\(`\/api\/estimates\/\$\{result\.estimateId\}\/contract`, \{ method: \"POST\" \}\)/, "create-and-send must save the estimate before calling the canonical send route");
 assert.match(form, /mode === "create" \? "Send Estimate" : "Save Changes"/, "new estimate screen must expose Send Estimate directly while edit mode remains Save Changes");
+assert.match(form, /\?sendIssue=\$\{encodeURIComponent\(sendIssue\)\}/, "create-and-send failures must survive navigation to the saved estimate");
+
+const detail = read("components/estimates/estimate-detail.tsx");
+assert.match(detail, /data-orion-status="estimate-send-error"/, "the saved estimate must show the send failure prominently");
 assert.match(form, /mode === \"edit\" \? \"changes\" : \"send\"/, "submitting a new estimate must use the send path by default");
 assert.match(form, /response\.json\(\)\.catch\(\(\) => \(\{\}\)\)/, "send response parsing must not strand the newly saved estimate");
 assert.match(form, /catch \(sendError\)/, "network delivery failures must be isolated from estimate creation failures");
