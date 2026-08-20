@@ -324,8 +324,8 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
           const response = await fetch(`/api/estimates/${result.estimateId}/contract`, { method: "POST" });
           const body = await response.json().catch(() => ({})) as { error?: string };
           if (!response.ok) {
-            setErrorMessage(body.error || "The estimate was saved, but B.O.S. could not send it. Open the saved estimate to review the send requirement and try again.");
-            router.push(`/estimates/${result.estimateId}`);
+            const sendIssue = body.error || "The estimate was saved, but B.O.S. could not send it. Review the send requirement and try again.";
+            router.push(`/estimates/${result.estimateId}?sendIssue=${encodeURIComponent(sendIssue)}`);
             router.refresh();
             return;
           }
@@ -335,8 +335,8 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
           return;
         } catch (sendError) {
           console.error("Send estimate error", sendError);
-          setErrorMessage("The estimate was saved, but B.O.S. could not confirm delivery. Open the saved estimate and retry sending.");
-          router.push(`/estimates/${result.estimateId}`);
+          const sendIssue = "The estimate was saved, but B.O.S. could not confirm delivery. Retry sending from this page.";
+          router.push(`/estimates/${result.estimateId}?sendIssue=${encodeURIComponent(sendIssue)}`);
           router.refresh();
           return;
         }
