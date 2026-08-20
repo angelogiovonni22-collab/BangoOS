@@ -13,6 +13,7 @@ const sendRoute = read("app/api/estimates/[id]/contract/route.ts");
 const signRoute = read("app/api/contracts/estimate/[token]/route.ts");
 const migration = read("supabase/migrations/20260819233000_estimate_prospect_auto_conversion.sql");
 const recoveryMigration = read("supabase/migrations/20260820033000_estimate_acceptance_conversion_recovery.sql");
+const jobsiteMigration = read("supabase/migrations/20260820040000_estimate_project_jobsite_snapshot.sql");
 
 assert.match(customerSection, /New prospective customer/, "estimate form must support a prospect without a pre-created customer");
 assert.match(form, /saveEstimateProspect/, "estimate form must persist the prospect snapshot");
@@ -25,6 +26,12 @@ assert.match(form, /action: \"draft\" \| \"continue\" \| \"changes\" \| \"send\"
 assert.match(form, /fetch\(`\/api\/estimates\/\$\{result\.estimateId\}\/contract`, \{ method: \"POST\" \}\)/, "create-and-send must save the estimate before calling the canonical send route");
 assert.match(form, />Send Estimate<\/Button>/, "new estimate screen must expose Send Estimate directly");
 assert.match(form, /mode === \"edit\" \? \"changes\" : \"send\"/, "submitting a new estimate must use the send path by default");
+assert.match(form, /response\.json\(\)\.catch\(\(\) => \(\{\}\)\)/, "send response parsing must not strand the newly saved estimate");
+assert.match(form, /catch \(sendError\)/, "network delivery failures must be isolated from estimate creation failures");
+assert.match(form, /router\.push\(`\/estimates\/\$\{result\.estimateId\}`\)/, "delivery failure must route to the canonical saved estimate instead of allowing duplicate creation");
+assert.match(sendRoute, /version_number/, "send route must load the estimate version for stable provider idempotency");
+assert.match(sendRoute, /idempotencyKey: `estimate-contract\/\$\{workspace\.context\.companyId\}\/\$\{estimateId\}\/v\$\{Number\(estimate\.version_number \|\| 1\)\}`/, "provider delivery idempotency must be stable for one estimate version");
+assert.doesNotMatch(sendRoute, /result\.token\.slice\(0, 16\)/, "provider idempotency must not depend on a newly generated token");
 assert.match(migration, /pg_advisory_xact_lock/, "conversion must remain concurrency-safe and idempotent");
 assert.match(migration, /lower\(btrim\(coalesce\(c\.email,''\)\)\)=v_email/, "conversion must strongly match existing customers by normalized email");
 assert.match(migration, /regexp_replace\(coalesce\(c\.phone,''\)/, "conversion must strongly match existing customers by normalized phone");
@@ -38,5 +45,9 @@ assert.match(recoveryMigration, /convert_verified_estimate_contract\(/, "convers
 assert.match(recoveryMigration, /and e\.converted_project_id is null/, "recovery migration must target only stranded approved estimates");
 assert.match(recoveryMigration, /s\.verification_result = 'verified'/, "recovery must require a verified signature");
 assert.match(recoveryMigration, /coalesce\(r\.updated_by, r\.created_by\)/, "recovery must preserve a company-scoped conversion actor when available");
+
+assert.match(jobsiteMigration, /Reload the estimate prospect even after a strong Customer match/, "conversion must preserve the estimate's quoted jobsite snapshot after customer matching");
+assert.match(jobsiteMigration, /coalesce\(nullif\(btrim\(coalesce\(v_prospect\.address_line_1, ''\)\), ''\), v_customer\.address_line_1\)/, "project address must prefer the estimate prospect jobsite over stale customer master address");
+assert.match(jobsiteMigration, /coalesce\(nullif\(btrim\(coalesce\(v_prospect\.email, ''\)\), ''\), v_customer\.email\)/, "project contact must prefer the accepted estimate contact snapshot");
 
 console.log("Estimate prospect auto-conversion contract passed.");
