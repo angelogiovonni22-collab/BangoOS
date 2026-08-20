@@ -15,11 +15,9 @@ import {
   ProjectExecutionNote,
   ProjectExecutionTask,
   ProjectExecutionWorkspace,
-  ProjectKpiGrid,
   ProjectTabs,
   ProjectTradePartnersWorkspace,
   ProjectWorkspaceHeader,
-  ProjectWorkspaceHero,
   type ProjectWorkspaceTabKey,
   type WorkspaceActivityItem,
 } from "@/components/projects/workspace";
@@ -668,7 +666,6 @@ export default function ProjectWorkspacePage() {
   const statusLabel = getProjectStatusLabel(status.key, t);
   const startDate = formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided"));
   const completionDate = formatProjectDateLong(project.actual_end_date || project.estimated_end_date, localeTag, t("projects.notProvided"));
-  const progress = calculateProjectProgress(workspace.tasks);
 
   const budgetValueRaw = project.contract_amount ?? project.estimated_cost;
   const spentValueRaw = workspace.invoices.reduce((sum, invoice) => sum + Math.max(0, invoice.amount_paid), 0);
@@ -687,7 +684,6 @@ export default function ProjectWorkspacePage() {
   });
 
   const timeline = workspace.timelineEntries;
-  const completedTasks = workspace.tasks.filter((task) => task.status.trim().toLowerCase() === "completed").length;
   const remainingBudgetRaw = budgetValueRaw !== null ? budgetValueRaw - spentValueRaw : null;
   const remainingBudgetLabel = remainingBudgetRaw !== null
     ? formatProjectCurrency(Math.max(remainingBudgetRaw, 0), localeTag, "$0")
@@ -759,35 +755,7 @@ export default function ProjectWorkspacePage() {
           />
         </FadeIn>
 
-        <FadeIn className="min-w-0" delayMs={50} distancePx={6}>
-          <ProjectWorkspaceHero
-            projectId={project.id}
-            projectName={projectName}
-            customerName={customerName}
-            statusLabel={statusLabel}
-            statusKey={status.key}
-            customerHref={customerHref}
-            address={location}
-            imageUrl={workspace.heroImageUrl}
-            photoCount={workspace.counts.photos}
-          />
-        </FadeIn>
-
-        <FadeIn className="min-w-0" delayMs={90} distancePx={6}>
-          <ProjectKpiGrid
-            statusLabel={statusLabel}
-            statusKey={status.key}
-            budgetLabel={budgetValue}
-            spentLabel={spentValue}
-            startDate={startDate}
-            targetDate={completionDate}
-            progressPercent={progress}
-            taskCount={workspace.tasks.length}
-            completedTaskCount={completedTasks}
-          />
-        </FadeIn>
-
-        <FadeIn className="min-w-0" delayMs={130} distancePx={4}>
+        <FadeIn className="min-w-0" delayMs={50} distancePx={4}>
           <ProjectTabs activeTab={activeTab} onChange={handleTabChange} t={t} />
         </FadeIn>
 
@@ -797,10 +765,17 @@ export default function ProjectWorkspacePage() {
               <ProjectCommandCenterFoundation
                 projectId={project.id}
                 projectName={projectName}
+                projectDescription={project.description}
+                customerName={customerName}
+                projectAddress={location}
+                statusLabel={statusLabel}
                 tasks={workspace.tasks}
                 budgetLabel={budgetValue}
                 spentLabel={spentValue}
                 remainingLabel={remainingBudgetLabel}
+                startDate={startDate}
+                targetDate={completionDate}
+                crewCount={workspace.assignments.length}
                 estimatesCount={workspace.counts.estimates}
                 changeOrdersCount={workspace.counts.changeOrders}
                 invoicesCount={workspace.invoices.length}
@@ -1010,22 +985,6 @@ function getCustomerDisplayName(customer: CustomerSummary, fallbackLabel = "Unna
   }
 
   return fallbackName || companyName || fallbackLabel;
-}
-
-function calculateProjectProgress(tasks: TaskSummary[]) {
-  if (tasks.length === 0) {
-    return 0;
-  }
-
-  const completion = tasks.reduce((sum, task) => {
-    if (task.status.trim().toLowerCase() === "completed") {
-      return sum + 100;
-    }
-
-    return sum + Math.max(0, Math.min(100, task.completion_percentage));
-  }, 0);
-
-  return Math.round(completion / tasks.length);
 }
 
 function buildRecentActivity({

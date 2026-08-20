@@ -75,6 +75,7 @@ export function ProjectWorkspaceHeader({
 
   return (
     <WorkspaceHeader
+      compact
       breadcrumbs={[
         { label: "Projects", href: "/projects" },
         { label: customerLabel, href: customerProjectsHref },

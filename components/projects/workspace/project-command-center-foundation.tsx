@@ -1,262 +1,168 @@
 import Link from "next/link";
-import { Activity, ClipboardList, ShieldCheck, Wrench } from "lucide-react";
+import { Activity, CalendarDays, Camera, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, Gauge, MapPin, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { LocationForecastCard } from "@/components/location-intelligence";
 import { Badge, Button } from "@/components/ui";
-import { WorkspaceActivityFeed, WorkspaceQuickActions, WorkspaceSection, WorkspaceTimeline, WorkspaceWidget } from "@/components/workspace";
 
-type TaskSummary = {
-  id: string;
-  title: string;
-  status: string;
-  planned_finish: string | null;
-};
+type TaskSummary = { id: string; title: string; status: string; planned_finish: string | null };
+export type CommandCenterTimelineEntry = { id: string; title: string; detail: string; occurredAt: string; tone: "neutral" | "info" | "warning" | "success" };
 
-export type CommandCenterTimelineEntry = {
-  id: string;
-  title: string;
-  detail: string;
-  occurredAt: string;
-  tone: "neutral" | "info" | "warning" | "success";
-};
-
-type ProjectCommandCenterFoundationProps = {
-  projectId: string;
-  projectName: string;
-  tasks: TaskSummary[];
-  budgetLabel: string;
-  spentLabel: string;
-  remainingLabel: string;
-  estimatesCount: number;
-  changeOrdersCount: number;
-  invoicesCount: number;
-  photosCount: number;
-  permitsCount: number;
-  inspectionsCount: number;
-  dailyReportsCount: number;
-  openPunchItemsCount: number;
-  openPermitsCount: number;
-  pendingInspectionsCount: number;
-  closeoutStatusLabel: string;
-  closeoutReady: boolean;
+type Props = {
+  projectId: string; projectName: string; projectDescription: string | null; customerName: string;
+  projectAddress: string; statusLabel: string; tasks: TaskSummary[]; budgetLabel: string;
+  spentLabel: string; remainingLabel: string; startDate: string; targetDate: string; crewCount: number;
+  estimatesCount: number; changeOrdersCount: number; invoicesCount: number; photosCount: number;
+  permitsCount: number; inspectionsCount: number; dailyReportsCount: number; openPunchItemsCount: number;
+  openPermitsCount: number; pendingInspectionsCount: number; closeoutStatusLabel: string; closeoutReady: boolean;
   activityItems: Array<{ id: string; title: string; detail: string; timestamp: string; tone: string }>;
   timelineEntries: CommandCenterTimelineEntry[];
 };
 
-export function ProjectCommandCenterFoundation({
-  projectId,
-  projectName,
-  tasks,
-  budgetLabel,
-  spentLabel,
-  remainingLabel,
-  estimatesCount,
-  changeOrdersCount,
-  invoicesCount,
-  photosCount,
-  permitsCount,
-  inspectionsCount,
-  dailyReportsCount,
-  openPunchItemsCount,
-  openPermitsCount,
-  pendingInspectionsCount,
-  closeoutStatusLabel,
-  closeoutReady,
-  activityItems,
-  timelineEntries,
-}: ProjectCommandCenterFoundationProps) {
-  const nowDate = new Date().toISOString().slice(0, 10);
-  const grouped = groupTasksForBoard(tasks);
-  const tasksDueToday = tasks.filter((task) => task.planned_finish === nowDate).length;
-  const activeTasks = grouped.inProgress.length + grouped.blocked.length;
-  const completionRate = tasks.length ? Math.round((grouped.completed.length / tasks.length) * 100) : 0;
-
-  const healthWidgets = [
-    { label: "Schedule", value: `${completionRate}%`, context: `${grouped.completed.length}/${tasks.length} tasks complete` },
-    { label: "Field Quality", value: `${pendingInspectionsCount}`, context: "pending inspections" },
-    { label: "Permit Risk", value: `${openPermitsCount}`, context: "open permits" },
-    { label: "Closeout", value: closeoutReady ? "Ready" : "In Progress", context: closeoutStatusLabel },
-  ];
-
-  const quickActions = [
-    { id: "tasks", href: `/projects/${projectId}?tab=tasks`, label: "Open Task Planner" },
-    { id: "daily", href: `/projects/${projectId}?tab=daily_logs`, label: "Review Daily Logs" },
-    { id: "photos", href: `/projects/${projectId}?tab=photos`, label: "Open Photo Log" },
-    { id: "financials", href: `/projects/${projectId}?tab=financials`, label: "View Financials" },
-    { id: "docs", href: `/projects/${projectId}?tab=documents`, label: "Go To Documents" },
-    { id: "subs", href: `/projects/${projectId}?tab=subcontractors`, label: "Manage Subcontractors" },
-  ];
+export function ProjectCommandCenterFoundation(props: Props) {
+  const completed = props.tasks.filter((task) => status(task.status) === "completed");
+  const active = props.tasks.filter((task) => ["in_progress", "blocked"].includes(status(task.status)));
+  const progress = props.tasks.length ? Math.round((completed.length / props.tasks.length) * 100) : 0;
+  const priorities = prioritizeTasks(props.tasks);
+  const week = upcomingTasks(props.tasks);
+  const blocked = active.some((task) => status(task.status) === "blocked");
+  const healthAtRisk = props.openPermitsCount > 0 || props.pendingInspectionsCount > 0 || blocked;
+  const phases = buildScopePhases(props.tasks);
+  const projectHref = "/projects/" + props.projectId;
 
   return (
-    <div className="space-y-5">
-      <WorkspaceSection title="Project Command Center" className="rounded-[18px] border border-[var(--bos-border-light)]" contentClassName="p-4">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {healthWidgets.map((widget) => (
-            <WorkspaceWidget key={widget.label} label={widget.label} value={widget.value} context={widget.context} />
-          ))}
+    <div className="space-y-4" data-project-overview="scope-first">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project overview metrics">
+        <Metric icon={<Gauge size={20} />} label="Progress" value={progress + "%"} detail={completed.length + " of " + props.tasks.length + " tasks complete"} progress={progress} />
+        <Metric icon={<CircleDollarSign size={20} />} label="Budget" value={props.budgetLabel} detail={"Spent " + props.spentLabel} />
+        <Metric icon={<CalendarDays size={20} />} label="Schedule" value={daysRemainingLabel(props.targetDate)} detail={"Target " + props.targetDate} />
+        <Metric icon={<Users size={20} />} label="Crew" value={props.crewCount ? props.crewCount + " assigned" : "Not assigned"} detail={active.length + " active tasks"} />
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
+        <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)] sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[var(--orion-blue)]">
+                <ClipboardCheck size={19} aria-hidden="true" />
+                <h2 className="text-xl font-extrabold tracking-[-0.02em] text-[var(--bos-text-strong-on-light)]">Scope of Work</h2>
+              </div>
+              <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-[var(--bos-text-medium-on-light)]">
+                {props.projectDescription?.trim() || "The detailed scope for this project has not been entered yet."}
+              </p>
+            </div>
+            <Badge tone={progress === 100 ? "success" : "info"}>{progress}% complete</Badge>
+          </div>
+          <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[var(--color-neutral-200)]">
+            <div className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-primary-600),var(--color-info-500))]" style={{ width: progress + "%" }} />
+          </div>
+          <div className="mt-4 divide-y divide-[var(--bos-border-light)] rounded-[13px] border border-[var(--bos-border-light)]">
+            {phases.map((phase, index) => (
+              <div key={phase.id} className="grid min-w-0 grid-cols-[auto_1fr_auto] items-center gap-3 px-3 py-2.5">
+                <span className={phaseDotClass(phase.state)}>{phase.state === "completed" ? <CheckCircle2 size={15} /> : index + 1}</span>
+                <p className="truncate text-sm font-bold text-[var(--bos-text-strong-on-light)]">{phase.title}</p>
+                <Badge tone={phase.state === "completed" ? "success" : phase.state === "in_progress" ? "info" : "neutral"}>{phaseLabel(phase.state)}</Badge>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <Link href={projectHref + "?tab=tasks"}><Button variant="outline" size="sm">View Full Scope</Button></Link>
+            <Link href={projectHref + "?tab=tasks"}><Button size="sm">Update Progress</Button></Link>
+          </div>
+        </section>
+
+        <div className="grid gap-4">
+          <Card title="Today's Priorities" icon={<Activity size={18} />} action={<Link href={projectHref + "?tab=tasks"} className="text-xs font-bold text-[var(--orion-blue)]">View all</Link>}>
+            <div className="divide-y divide-[var(--bos-border-light)]">
+              {priorities.length ? priorities.map((task, index) => (
+                <div key={task.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-2.5">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary-100)] text-xs font-extrabold text-[var(--color-primary-700)]">{index + 1}</span>
+                  <p className="min-w-0 truncate text-sm font-bold text-[var(--bos-text-strong-on-light)]">{task.title}</p>
+                  <span className="text-xs font-semibold text-[var(--bos-text-medium-on-light)]">{formatDue(task.planned_finish)}</span>
+                </div>
+              )) : <Empty label="No priority tasks are scheduled." />}
+            </div>
+          </Card>
+          <Card title="Project Health" icon={<ShieldCheck size={18} />} action={<Badge tone={healthAtRisk ? "warning" : "success"}>{healthAtRisk ? "Needs attention" : "On track"}</Badge>}>
+            <div className="grid grid-cols-3 gap-2">
+              <Health label="Schedule" value={blocked ? "Blocked" : "On track"} warning={blocked} />
+              <Health label="Permits" value={props.openPermitsCount ? props.openPermitsCount + " open" : "Clear"} warning={props.openPermitsCount > 0} />
+              <Health label="Safety" value="No incidents" />
+            </div>
+          </Card>
         </div>
-      </WorkspaceSection>
-
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
-        <WorkspaceSection title="Today's Operations" className="rounded-[18px] border border-[var(--bos-border-light)]" action={<Badge tone="info">{projectName}</Badge>}>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <WorkspaceWidget icon={<ClipboardList size={15} aria-hidden="true" />} label="Due Today" value={`${tasksDueToday}`} context="tasks due" />
-            <WorkspaceWidget icon={<Activity size={15} aria-hidden="true" />} label="Active Work" value={`${activeTasks}`} context="in progress or blocked" />
-            <WorkspaceWidget icon={<ShieldCheck size={15} aria-hidden="true" />} label="Inspections" value={`${pendingInspectionsCount}`} context="pending review" />
-            <WorkspaceWidget icon={<Wrench size={15} aria-hidden="true" />} label="Punch List" value={`${openPunchItemsCount}`} context="open items" />
-          </div>
-        </WorkspaceSection>
-
-        <WorkspaceSection title="Quick Actions" className="rounded-[18px] border border-[var(--bos-border-light)]">
-          <WorkspaceQuickActions actions={quickActions} />
-        </WorkspaceSection>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-        <WorkspaceSection title="Task Board" className="rounded-[18px] border border-[var(--bos-border-light)]">
-          <div className="grid gap-3 lg:grid-cols-4">
-            <TaskColumn title="Planned" tasks={grouped.planned} tone="neutral" />
-            <TaskColumn title="In Progress" tasks={grouped.inProgress} tone="info" />
-            <TaskColumn title="Blocked" tasks={grouped.blocked} tone="warning" />
-            <TaskColumn title="Completed" tasks={grouped.completed} tone="success" />
+      <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
+        <Card title="Next 7 Days" icon={<CalendarDays size={18} />} action={<Link href={projectHref + "?tab=tasks"} className="text-xs font-bold text-[var(--orion-blue)]">View schedule</Link>}>
+          <div className="divide-y divide-[var(--bos-border-light)]">
+            {week.length ? week.map((task) => (
+              <div key={task.id} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 py-2.5">
+                <p className="text-xs font-bold text-[var(--bos-text-medium-on-light)]">{formatTaskDate(task.planned_finish)}</p>
+                <p className="truncate text-sm font-bold text-[var(--bos-text-strong-on-light)]">{task.title}</p>
+                <Badge tone={status(task.status) === "completed" ? "success" : "info"}>{pretty(task.status)}</Badge>
+              </div>
+            )) : <Empty label="No tasks are scheduled in the next seven days." />}
           </div>
-        </WorkspaceSection>
-
-        <WorkspaceSection title="Document Center" className="rounded-[18px] border border-[var(--bos-border-light)]">
-          <div className="grid gap-2.5">
-            <DocCard label="Daily Reports" value={dailyReportsCount} />
-            <DocCard label="Photos" value={photosCount} />
-            <DocCard label="Permits" value={permitsCount} />
-            <DocCard label="Inspections" value={inspectionsCount} />
-            <DocCard label="Estimates" value={estimatesCount} />
-            <DocCard label="Change Orders" value={changeOrdersCount} />
+        </Card>
+        <Card title="Project Team" icon={<Users size={18} />} action={<Link href={projectHref + "?tab=crew"} className="text-xs font-bold text-[var(--orion-blue)]">View team</Link>}>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Info label="Customer" value={props.customerName} />
+            <Info label="Assigned crew" value={props.crewCount ? props.crewCount + " members" : "Not assigned"} />
+            <Info label="Project status" value={props.statusLabel} />
+            <Info label="Job site" value={props.projectAddress} />
           </div>
-        </WorkspaceSection>
+        </Card>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-        <WorkspaceSection title="Financial Snapshot" className="rounded-[18px] border border-[var(--bos-border-light)]">
-          <div className="space-y-2.5">
-            <Row label="Budget" value={budgetLabel} />
-            <Row label="Spent" value={spentLabel} />
-            <Row label="Remaining" value={remainingLabel} />
-            <Row label="Invoices" value={`${invoicesCount}`} />
-            <Row label="Change Orders" value={`${changeOrdersCount}`} />
-          </div>
-        </WorkspaceSection>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Shortcut href={projectHref + "?tab=tasks"} icon={<TriangleAlert size={20} />} label="Open Issues" value={props.openPunchItemsCount} tone="danger" />
+        <Shortcut href={projectHref + "?tab=change_orders"} icon={<FileText size={20} />} label="Change Orders" value={props.changeOrdersCount} tone="warning" />
+        <Shortcut href={projectHref + "?tab=documents"} icon={<FileText size={20} />} label="Documents" value={props.dailyReportsCount + props.permitsCount + props.inspectionsCount} />
+        <Shortcut href={projectHref + "?tab=photos"} icon={<Camera size={20} />} label="Photos" value={props.photosCount} />
+      </section>
 
-        <WorkspaceActivityFeed
-          title="Activity Feed"
-          items={activityItems.map((item) => ({
-            id: item.id,
-            title: item.title,
-            detail: item.detail,
-            timestamp: item.timestamp,
-            tone: item.tone === "success" ? "success" : item.tone === "warning" ? "warning" : item.tone === "info" ? "info" : "neutral",
-          }))}
-          emptyLabel="No project activity logged yet."
-        />
-      </div>
-
-      <WorkspaceTimeline
-        title="Project Timeline"
-        items={timelineEntries.map((entry) => ({
-          id: entry.id,
-          title: entry.title,
-          detail: entry.detail,
-          timestamp: entry.occurredAt,
-          tone: entry.tone === "success" ? "success" : entry.tone === "warning" ? "warning" : entry.tone === "info" ? "info" : "neutral",
-        }))}
-        emptyLabel="No timeline events yet."
-      />
-
-      <div className="pt-2">
-        <Link href={`/projects/${projectId}?tab=activity`}>
-          <Button variant="outline" size="sm">Open Full Activity Workspace</Button>
-        </Link>
-      </div>
+      <Collapsible title="Financials" subtitle="Budget, costs, commitments and change orders">
+        <div className="grid gap-3 sm:grid-cols-3"><Info label="Budget" value={props.budgetLabel} /><Info label="Spent" value={props.spentLabel} /><Info label="Remaining" value={props.remainingLabel} /></div>
+      </Collapsible>
+      <Collapsible title="Documents & Activity" subtitle="Reports, records, communication and recent changes">
+        <div className="grid gap-3 lg:grid-cols-2">
+          <Info label="Project records" value={props.dailyReportsCount + " reports · " + props.invoicesCount + " invoices · " + props.estimatesCount + " estimates"} />
+          <Info label="Latest activity" value={props.activityItems[0]?.title || props.timelineEntries[0]?.title || "No activity recorded"} />
+        </div>
+      </Collapsible>
+      <Collapsible title="Jobsite Intelligence" subtitle="Weather, map and directions" icon={<MapPin size={17} />}>
+        <LocationForecastCard projectId={props.projectId} fallbackDirectionsAddress={props.projectAddress} title="Jobsite Weather and Directions" showMap />
+      </Collapsible>
     </div>
   );
 }
 
-function TaskColumn({ title, tasks, tone }: { title: string; tasks: TaskSummary[]; tone: "neutral" | "info" | "warning" | "success" }) {
-  return (
-    <section className="rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3">
-      <div className="mb-2.5 flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--bos-text-medium-on-light)]">{title}</p>
-        <Badge tone={badgeTone(tone)}>{tasks.length}</Badge>
-      </div>
-      <div className="space-y-2">
-        {tasks.slice(0, 4).map((task) => (
-          <article key={task.id} className="rounded-[10px] border border-[var(--bos-border-light)] bg-white px-2.5 py-2">
-            <p className="text-sm font-semibold text-[var(--bos-text-strong-on-light)]">{task.title}</p>
-            <p className="text-xs text-[var(--bos-text-medium-on-light)]">{task.planned_finish || "No due date"}</p>
-          </article>
-        ))}
-        {tasks.length === 0 ? <p className="text-xs text-[var(--bos-text-medium-on-light)]">No tasks in this lane.</p> : null}
-      </div>
-    </section>
-  );
+function Metric({ icon, label, value, detail, progress }: { icon: React.ReactNode; label: string; value: string; detail: string; progress?: number }) {
+  return <article className="rounded-[16px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]"><div className="flex items-center gap-3"><span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary-100)] text-[var(--color-primary-700)]">{icon}</span><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.1em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="truncate text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">{value}</p></div></div><p className="mt-2 truncate text-xs font-semibold text-[var(--bos-text-medium-on-light)]">{detail}</p>{typeof progress === "number" ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-neutral-200)]"><div className="h-full bg-[var(--color-primary-600)]" style={{ width: progress + "%" }} /></div> : null}</article>;
 }
-
-function DocCard({ label, value }: { label: string; value: number }) {
-  return (
-    <article className="flex items-center justify-between rounded-[11px] border border-[var(--bos-border-light)] bg-white px-3 py-2.5">
-      <p className="text-sm font-semibold text-[var(--bos-text-strong-on-light)]">{label}</p>
-      <Badge tone="neutral">{value}</Badge>
-    </article>
-  );
+function Card({ title, icon, action, children }: { title: string; icon: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) {
+  return <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]"><div className="mb-3 flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-[var(--orion-blue)]">{icon}<h2 className="text-lg font-extrabold text-[var(--bos-text-strong-on-light)]">{title}</h2></div>{action}</div>{children}</section>;
 }
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-[11px] border border-[var(--bos-border-light)] bg-white px-3 py-2.5">
-      <p className="text-sm font-semibold text-[var(--bos-text-medium-on-light)]">{label}</p>
-      <p className="text-sm font-bold text-[var(--bos-text-strong-on-light)]">{value}</p>
-    </div>
-  );
+function Health({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
+  return <div className="rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3 text-center"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className={warning ? "mt-1 text-xs font-extrabold text-[var(--color-warning-700)]" : "mt-1 text-xs font-extrabold text-[var(--color-success-700)]"}>{value}</p></div>;
 }
-
-function groupTasksForBoard(tasks: TaskSummary[]) {
-  const planned: TaskSummary[] = [];
-  const inProgress: TaskSummary[] = [];
-  const blocked: TaskSummary[] = [];
-  const completed: TaskSummary[] = [];
-
-  for (const task of tasks) {
-    const normalized = task.status.trim().toLowerCase();
-
-    if (normalized === "completed") {
-      completed.push(task);
-      continue;
-    }
-
-    if (normalized === "blocked" || normalized === "on_hold") {
-      blocked.push(task);
-      continue;
-    }
-
-    if (normalized === "in_progress") {
-      inProgress.push(task);
-      continue;
-    }
-
-    planned.push(task);
-  }
-
-  return { planned, inProgress, blocked, completed };
+function Info({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0 rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="mt-1 truncate text-sm font-extrabold text-[var(--bos-text-strong-on-light)]" title={value}>{value}</p></div>;
 }
-
-function badgeTone(tone: "neutral" | "info" | "warning" | "success") {
-  if (tone === "success") {
-    return "success" as const;
-  }
-
-  if (tone === "warning") {
-    return "warning" as const;
-  }
-
-  if (tone === "info") {
-    return "info" as const;
-  }
-
-  return "neutral" as const;
+function Shortcut({ href, icon, label, value, tone }: { href: string; icon: React.ReactNode; label: string; value: number; tone?: "danger" | "warning" }) {
+  const color = tone === "danger" ? "bg-[var(--color-danger-100)] text-[var(--color-danger-700)]" : tone === "warning" ? "bg-[var(--color-warning-100)] text-[var(--color-warning-700)]" : "bg-[var(--color-primary-100)] text-[var(--color-primary-700)]";
+  return <Link href={href} className="group flex items-center gap-3 rounded-[15px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-3.5 shadow-[var(--shadow-small)] transition hover:-translate-y-0.5"><span className={"inline-flex h-10 w-10 items-center justify-center rounded-full " + color}>{icon}</span><div><p className="text-xs font-bold text-[var(--bos-text-medium-on-light)]">{label}</p><p className="text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">{value}</p></div><ChevronDown size={16} className="ml-auto -rotate-90 text-[var(--bos-text-medium-on-light)]" /></Link>;
 }
+function Collapsible({ title, subtitle, icon, children }: { title: string; subtitle: string; icon?: React.ReactNode; children: React.ReactNode }) {
+  return <details className="group rounded-[15px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] shadow-[var(--shadow-small)]"><summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5"><span className="text-[var(--orion-blue)]">{icon || <FileText size={17} />}</span><p className="font-extrabold text-[var(--bos-text-strong-on-light)]">{title}</p><p className="hidden text-sm font-medium text-[var(--bos-text-medium-on-light)] sm:block">{subtitle}</p><ChevronDown size={17} className="ml-auto text-[var(--bos-text-medium-on-light)] transition group-open:rotate-180" /></summary><div className="border-t border-[var(--bos-border-light)] p-4">{children}</div></details>;
+}
+function Empty({ label }: { label: string }) { return <p className="py-4 text-sm font-medium text-[var(--bos-text-medium-on-light)]">{label}</p>; }
+function status(value: string) { return value.trim().toLowerCase().replaceAll(" ", "_"); }
+function pretty(value: string) { return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
+function prioritizeTasks(tasks: TaskSummary[]) { return [...tasks].filter((task) => status(task.status) !== "completed").sort((a, b) => (a.planned_finish || "9999").localeCompare(b.planned_finish || "9999")).slice(0, 3); }
+function upcomingTasks(tasks: TaskSummary[]) { const now = new Date(); const end = new Date(now); end.setDate(end.getDate() + 7); return [...tasks].filter((task) => { if (!task.planned_finish) return false; const date = new Date(task.planned_finish + "T12:00:00"); return date >= new Date(now.toDateString()) && date <= end; }).sort((a, b) => (a.planned_finish || "").localeCompare(b.planned_finish || "")).slice(0, 4); }
+function formatTaskDate(value: string | null) { return value ? new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(new Date(value + "T12:00:00")) : "Unscheduled"; }
+function formatDue(value: string | null) { if (!value) return "No date"; return value === new Date().toISOString().slice(0, 10) ? "Today" : formatTaskDate(value); }
+function daysRemainingLabel(value: string) { const target = new Date(value); if (Number.isNaN(target.getTime())) return "Not scheduled"; const days = Math.ceil((target.getTime() - Date.now()) / 86400000); return days < 0 ? Math.abs(days) + " days overdue" : days + " days left"; }
+function buildScopePhases(tasks: TaskSummary[]) { if (!tasks.length) return [{ id: "scope", title: "Scope details not entered", state: "upcoming" }]; return [...tasks].sort((a, b) => (a.planned_finish || "9999").localeCompare(b.planned_finish || "9999")).slice(0, 5).map((task) => ({ id: task.id, title: task.title, state: status(task.status) === "completed" ? "completed" : status(task.status) === "in_progress" ? "in_progress" : "upcoming" })); }
+function phaseDotClass(state: string) { return state === "completed" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-success-100)] text-xs font-bold text-[var(--color-success-700)]" : state === "in_progress" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-info-100)] text-xs font-bold text-[var(--color-info-700)]" : "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-neutral-100)] text-xs font-bold text-[var(--bos-text-medium-on-light)]"; }
+function phaseLabel(state: string) { return state === "completed" ? "Complete" : state === "in_progress" ? "In progress" : "Upcoming"; }
