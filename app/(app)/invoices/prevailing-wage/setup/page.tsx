@@ -39,7 +39,7 @@ export default function PrevailingWageSetupPage() {
   const supabase = useMemo(() => createClient(), []);
   const [workspace, setWorkspace] = useState<WorkspaceContext | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
-  const [projectId, setProjectId] = useState("");
+  const [projectId, setProjectId] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("projectId") || "");
   const [existingCreatedBy, setExistingCreatedBy] = useState<string | null>(null);
   const [applicability, setApplicability] = useState("federal_dbra");
   const [determinationNumber, setDeterminationNumber] = useState("");
@@ -53,11 +53,6 @@ export default function PrevailingWageSetupPage() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const requestedProjectId = new URLSearchParams(window.location.search).get("projectId");
-    if (requestedProjectId) setProjectId(requestedProjectId);
-  }, []);
 
   useEffect(() => {
     let active = true;
