@@ -61,6 +61,7 @@ export class OrionRealtimeClient {
   private lastUserTranscript: { text: string; at: number } | null = null;
   private lastDeterministicNavigation: { key: string; at: number } | null = null;
   private readonly responseLifecycle: OrionRealtimeResponseLifecycle;
+  private lifecycleGeneration = 0;
 
   constructor(callbacks: OrionRealtimeClientCallbacks = {}) {
     this.callbacks = callbacks;
@@ -171,12 +172,21 @@ export class OrionRealtimeClient {
     }
 
     await this.disconnect();
+    const generation = ++this.lifecycleGeneration;
 
     try {
       setState(this.callbacks, "requesting_microphone");
       const microphoneStream = await navigator.mediaDevices.getUserMedia({
         audio: microphoneConstraints(options.isolationMode || DEFAULT_ORION_VOICE_ISOLATION_MODE),
       });
+
+      if (generation !== this.lifecycleGeneration) {
+        for (const track of microphoneStream.getTracks()) {
+          track.stop();
+        }
+        return false;
+      }
+
       this.microphoneStream = microphoneStream;
 
       setState(this.callbacks, "connecting");
@@ -190,6 +200,7 @@ export class OrionRealtimeClient {
       this.remoteAudio = remoteAudio;
 
       peerConnection.ontrack = (event) => {
+        if (generation !== this.lifecycleGeneration) return;
         const [stream] = event.streams;
         if (stream && this.remoteAudio) {
           this.remoteAudio.srcObject = stream;
@@ -204,17 +215,25 @@ export class OrionRealtimeClient {
       const dataChannel = peerConnection.createDataChannel("oai-events");
       this.dataChannel = dataChannel;
 
-      dataChannel.onopen = () => setState(this.callbacks, "connected");
+      dataChannel.onopen = () => {
+        if (generation === this.lifecycleGeneration) setState(this.callbacks, "connected");
+      };
       dataChannel.onclose = () => setState(this.callbacks, "closed");
-      dataChannel.onerror = () => this.callbacks.onError?.(new Error("Orion Realtime data channel failed."));
+      dataChannel.onerror = () => {
+        if (generation === this.lifecycleGeneration) {
+          this.callbacks.onError?.(new Error("Orion Realtime data channel failed."));
+        }
+      };
       dataChannel.onmessage = (event) => {
-        if (typeof event.data !== "string") return;
+        if (generation !== this.lifecycleGeneration || typeof event.data !== "string") return;
         const parsed = parseServerEvent(event.data);
         if (parsed) void this.handleServerEvent(parsed);
       };
 
       const offer = await peerConnection.createOffer();
+      if (generation !== this.lifecycleGeneration) return false;
       await peerConnection.setLocalDescription(offer);
+      if (generation !== this.lifecycleGeneration) return false;
       if (!offer.sdp) throw new Error("Unable to create Orion Realtime SDP offer.");
 
       const response = await fetch("/api/orion/realtime/session", {
@@ -223,14 +242,20 @@ export class OrionRealtimeClient {
         body: JSON.stringify({ sdp: offer.sdp, voice: options.voice || null, voiceStyle: options.voiceStyle || null, isolationMode: options.isolationMode || DEFAULT_ORION_VOICE_ISOLATION_MODE }),
       });
 
+      if (generation !== this.lifecycleGeneration) return false;
       const payload = await response.json() as { ok?: boolean; sdp?: string; error?: string };
+      if (generation !== this.lifecycleGeneration) return false;
       if (!response.ok || !payload.ok || !payload.sdp) {
         throw new Error(payload.error || "Unable to establish Orion Realtime session.");
       }
 
       await peerConnection.setRemoteDescription({ type: "answer", sdp: payload.sdp });
+      if (generation !== this.lifecycleGeneration) return false;
       return true;
     } catch (error) {
+      if (generation !== this.lifecycleGeneration) {
+        return false;
+      }
       const resolved = error instanceof Error ? error : new Error("Unable to start Orion Realtime voice.");
       setState(this.callbacks, "error");
       this.callbacks.onError?.(resolved);
@@ -254,6 +279,8 @@ export class OrionRealtimeClient {
   }
 
   async disconnect() {
+    this.lifecycleGeneration += 1;
+
     if (this.peerConnection || this.microphoneStream || this.dataChannel) {
       setState(this.callbacks, "closing");
     }

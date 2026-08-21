@@ -166,6 +166,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   const ownerChannelRef = useRef<BroadcastChannel | null>(null);
   const ownershipBlockedRef = useRef(false);
   const connectPromiseRef = useRef<Promise<void> | null>(null);
+  const startRequestIdRef = useRef(0);
   const autoStartAttemptedRef = useRef(false);
   const manualStopRef = useRef(false);
   const voiceAutomationEnabled = isOrionVoiceAutomationEnabled();
@@ -195,6 +196,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
 
     const yieldToOwner = (nextOwnerId: string | null) => {
       if (!nextOwnerId || nextOwnerId === ownerId) return;
+      startRequestIdRef.current += 1;
       ownershipBlockedRef.current = true;
       const client = clientRef.current;
       clientRef.current = null;
@@ -245,6 +247,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
 
   const shutDownLegacyVoice = useCallback(() => {
     const current = legacyVoiceRef.current;
+    current.cancelSpeech();
     current.stopAllListening();
     if (current.settings.enabled) {
       current.disableGlobalVoice();
@@ -252,6 +255,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   }, []);
 
   const disconnectRealtime = useCallback(async () => {
+    startRequestIdRef.current += 1;
     const client = clientRef.current;
     clientRef.current = null;
     if (client) {
@@ -283,10 +287,17 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
       return;
     }
 
+    const startRequestId = ++startRequestIdRef.current;
     manualStopRef.current = false;
     ownershipBlockedRef.current = false;
     claimRealtimeOwnership(ownerIdRef.current, ownerChannelRef.current);
     await new Promise<void>((resolve) => window.setTimeout(resolve, 75));
+
+    if (manualStopRef.current || startRequestId !== startRequestIdRef.current) {
+      releaseRealtimeOwnership(ownerIdRef.current);
+      return;
+    }
+
     const currentOwner = readRealtimeOwner();
     if (currentOwner && currentOwner !== ownerIdRef.current) {
       ownershipBlockedRef.current = true;
@@ -309,8 +320,14 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
       if (clientRef.current === previousClient) clientRef.current = null;
     }
 
+    if (manualStopRef.current || startRequestId !== startRequestIdRef.current) {
+      releaseRealtimeOwnership(ownerIdRef.current);
+      return;
+    }
+
     const client = new OrionRealtimeClient({
       onStateChange: (state) => {
+        if (startRequestId !== startRequestIdRef.current || manualStopRef.current) return;
         setRealtimeState(state);
         if (state === "requesting_microphone") {
           setRealtimePhase("starting");
@@ -326,6 +343,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         }
       },
       onEvent: (event) => {
+        if (startRequestId !== startRequestIdRef.current || manualStopRef.current) return;
         const userTranscript = eventTranscript(event);
         if (userTranscript) {
           setRealtimeFinalTranscript(userTranscript);
@@ -388,6 +406,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         }
       },
       onToolResult: async (result) => {
+        if (startRequestId !== startRequestIdRef.current || manualStopRef.current) return;
         setRealtimePhase(result.confirmationRequired ? "confirmation_required" : result.ok ? "success" : "error");
         setRealtimeStatus(result.userMessage);
         const safeHref = result.href ? resolveKnownOrionOperatorHref(result.href) : null;
@@ -402,6 +421,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         }
       },
       onError: (error) => {
+        if (startRequestId !== startRequestIdRef.current || manualStopRef.current) return;
         // Orion v2 deliberately does not hand a failed Realtime turn to the old
         // deterministic browser engine. That prevents duplicate processing and
         // unrelated legacy navigation such as accidental Customers routing.
@@ -417,8 +437,18 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     browserWindow.__bangoOrionRealtimeClient = client;
     const connectPromise = (async () => {
       try {
-        await client.connect({ voice: realtimeVoice, voiceStyle, isolationMode: DEFAULT_ORION_VOICE_ISOLATION_MODE });
+        const connected = await client.connect({ voice: realtimeVoice, voiceStyle, isolationMode: DEFAULT_ORION_VOICE_ISOLATION_MODE });
+        if (!connected || manualStopRef.current || startRequestId !== startRequestIdRef.current) {
+          if (clientRef.current === client) clientRef.current = null;
+          if (browserWindow.__bangoOrionRealtimeClient === client) {
+            delete browserWindow.__bangoOrionRealtimeClient;
+          }
+          await client.disconnect();
+        }
       } catch (error) {
+        if (manualStopRef.current || startRequestId !== startRequestIdRef.current) {
+          return;
+        }
         if (clientRef.current === client) {
           clientRef.current = null;
         }
@@ -427,7 +457,9 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         setRealtimePhase("error");
         setRealtimeStatus(message);
       } finally {
-        connectPromiseRef.current = null;
+        if (startRequestId === startRequestIdRef.current) {
+          connectPromiseRef.current = null;
+        }
       }
     })();
 
@@ -465,7 +497,6 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     setRealtimePhase("disabled");
     setRealtimeStatus("Orion voice is disabled.");
   }, [disconnectRealtime, shutDownLegacyVoice]);
-
   const setSpokenResponsesEnabled = useCallback((spokenEnabled: boolean) => {
     spokenResponsesEnabledRef.current = spokenEnabled;
     setSpokenResponsesEnabledState(spokenEnabled);
@@ -501,6 +532,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   // reports Orion as disabled while the gate is off.
   useEffect(() => {
     if (voiceAutomationEnabled) return;
+    startRequestIdRef.current += 1;
     const client = clientRef.current;
     clientRef.current = null;
     if (client) {
@@ -510,6 +542,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   }, [shutDownLegacyVoice, voiceAutomationEnabled]);
 
   useEffect(() => () => {
+    startRequestIdRef.current += 1;
     const client = clientRef.current;
     clientRef.current = null;
     if (client) {
