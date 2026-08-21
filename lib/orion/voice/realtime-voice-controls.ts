@@ -1,4 +1,4 @@
-export type OrionRealtimeVoiceControl = "mute_output" | "unmute_output" | null;
+export type OrionRealtimeVoiceControl = "mute_output" | "unmute_output" | "disable_voice" | null;
 
 function normalizeVoiceControl(input: string) {
   return input
@@ -12,6 +12,14 @@ function normalizeVoiceControl(input: string) {
 
 export function detectRealtimeVoiceControl(input: string): OrionRealtimeVoiceControl {
   const normalized = normalizeVoiceControl(input);
+  const disablePhrases = new Set([
+    "disable",
+    "disable orion",
+    "turn orion off",
+    "turn off orion",
+    "shut orion off",
+    "shut off orion",
+  ]);
   const mutePhrases = new Set([
     "disable voice",
     "mute voice",
@@ -29,6 +37,7 @@ export function detectRealtimeVoiceControl(input: string): OrionRealtimeVoiceCon
     "turn your voice on",
   ]);
 
+  if (disablePhrases.has(normalized)) return "disable_voice";
   if (mutePhrases.has(normalized)) return "mute_output";
   if (unmutePhrases.has(normalized)) return "unmute_output";
   return null;
