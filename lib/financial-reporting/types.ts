@@ -13,6 +13,7 @@ export type FinancialMetricSource =
   | "purchase_orders"
   | "purchase_order_line_items"
   | "project_material_allocations"
+  | "project_receipts"
   | "trade_partner_assignments"
   | "tasks.actual_hours"
   | "equipment"
