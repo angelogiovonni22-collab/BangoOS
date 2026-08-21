@@ -100,7 +100,10 @@ export function ProjectReceiptsWorkspace({ projectId, onApprovedSpendChange }: P
     }
   }, [applyPayload, projectId]);
 
-  useEffect(() => { void loadReceipts(); }, [loadReceipts]);
+  useEffect(() => {
+    const loadTimer = window.setTimeout(() => { void loadReceipts(); }, 0);
+    return () => window.clearTimeout(loadTimer);
+  }, [loadReceipts]);
 
   const approvedReceipts = useMemo(() => payload?.receipts.filter((receipt) => receipt.status === "approved") ?? [], [payload]);
   const pendingReceipts = useMemo(() => payload?.receipts.filter((receipt) => receipt.status === "needs_review") ?? [], [payload]);
