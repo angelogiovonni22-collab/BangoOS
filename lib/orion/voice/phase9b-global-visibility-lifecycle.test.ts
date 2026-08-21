@@ -39,9 +39,13 @@ function main() {
     assert(!provider.includes("if (document.visibilityState === \"visible\") {\n        voice.stop"), "provider does not stop on visible state");
   });
 
-  test("2. actual hidden document pauses voice", () => {
+  test("2. actual hidden document hard-pauses voice and suppresses late output", () => {
     assert(provider.includes("hiddenPauseRef.current = true;"), "provider marks hidden-pause flag");
-    assert(provider.includes("voiceStopRef.current();"), "provider requests recognition stop when hidden");
+    assert(provider.includes("voiceStopRef.current();") && provider.includes("voiceCancelRef.current();"), "provider stops and cancels recognition when hidden");
+    assert(provider.includes("speechAdapterRef.current.cancel();"), "provider cancels speech output when hidden");
+    assert(provider.includes("inFlightIntentRef.current?.abort();") && provider.includes("inFlightExecuteRef.current?.abort();"), "provider aborts in-flight Orion work when hidden");
+    assert(provider.includes("provider.processTranscript.skip.inactive_bos_tab"), "late transcript processing is blocked while BOS is not the active tab");
+    assert(provider.includes("reason: \"inactive_bos_tab\""), "speech output is blocked while BOS is not the active tab");
     assert(provider.includes("setPhase(\"stopping\")"), "provider enters stopping while hidden");
   });
 
@@ -99,9 +103,13 @@ function main() {
     assert(provider.includes("[company.companyId, company.userId]"), "company/user switch effect remains active");
   });
 
-  test("13. explicit disable still stops voice", () => {
-    assert(provider.includes("const disableGlobalVoice = useCallback"), "disable callback exists");
-    assert(provider.includes("stopAllListening();"), "disable path still stops all listening");
+  test("13. explicit disable persists off state until manual re-enable", () => {
+    assert(provider.includes("const disableGlobalVoice = useCallback"), "manual disable callback exists");
+    assert(provider.includes("stopAllListening();"), "manual disable path still stops all listening");
+    assert(provider.includes("\"disable_global_voice\""), "spoken disable has a dedicated local control phrase");
+    assert(provider.includes("\"disable\",") && provider.includes("\"turn off orion\""), "spoken disable accepts the requested phrase and natural variants");
+    assert(provider.includes("provider.processTranscript.control_phrase_disable"), "spoken disable is handled before normal intent routing");
+    assert(provider.includes("const next = { ...settingsRef.current, enabled: false };"), "spoken disable persists the global enabled flag as false");
     assert(provider.includes("setStatusMessage(\"Global Orion Voice is disabled.\")"), "disable path keeps disabled status message");
   });
 
