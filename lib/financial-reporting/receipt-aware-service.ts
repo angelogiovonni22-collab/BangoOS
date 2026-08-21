@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { buildProjectFinancialReport as buildBaseProjectFinancialReport } from "./service";
-import type { JobCostCategoryRow, ProjectFinancialReport } from "./types";
+import type { FinancialMetricSource, JobCostCategoryRow, ProjectFinancialReport } from "./types";
 
 type ReceiptCostRow = {
   total_amount: number | string | null;
@@ -21,6 +21,10 @@ function deriveVarianceStatus(variancePercent: number | null): "on_track" | "at_
   if (variancePercent < 0) return "over_budget";
   if (variancePercent <= 10) return "at_risk";
   return "on_track";
+}
+
+function uniqueSources(values: FinancialMetricSource[]): FinancialMetricSource[] {
+  return Array.from(new Set(values));
 }
 
 function applyReceiptCostToMaterials(row: JobCostCategoryRow, receiptCost: number): JobCostCategoryRow {
@@ -96,14 +100,14 @@ export async function buildProjectFinancialReport(params: {
       grossMarginPercent,
       metricSources: {
         ...base.summary.metricSources,
-        actualCost: Array.from(new Set([...(base.summary.metricSources.actualCost || []), "project_receipts", "derived"])),
+        actualCost: uniqueSources([...(base.summary.metricSources.actualCost || []), "project_receipts", "derived"]),
       },
     },
     jobCostByCategory: base.jobCostByCategory.map((row) => row.category === "materials" ? applyReceiptCostToMaterials(row, receiptCost) : row),
     materials: {
       ...base.materials,
       actualMaterialCost: toMoney(base.materials.actualMaterialCost + receiptCost),
-      source: Array.from(new Set([...base.materials.source, "project_receipts"])),
+      source: uniqueSources([...base.materials.source, "project_receipts"]),
     },
     availability: [
       ...base.availability.filter((item) => item.key !== "project_receipts"),
