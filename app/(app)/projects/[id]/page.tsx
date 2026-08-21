@@ -843,8 +843,8 @@ export default function ProjectWorkspacePage() {
               )
             ) : activeTab === "subcontractors" ? (
               <div className="space-y-4">
-                <ProjectTradePartnersWorkspace projectId={project.id} />
                 <ProjectTradePartnerMessages projectId={project.id} canManage={hasBosPermission(workspace.workspaceContext.role, "communications.manage")} />
+                <ProjectTradePartnersWorkspace projectId={project.id} />
               </div>
             ) : (
               <ProjectCommandCenterTabPlaceholder tabLabel={getWorkspaceTabLabel(activeTab, t)} />
