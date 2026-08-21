@@ -24,7 +24,9 @@ async function main() {
     const source = readFileSync(join(process.cwd(), "app", "(app)", "app-shell.tsx"), "utf8");
 
     assert(source.includes("<div className=\"mt-7 flex min-h-0 flex-1 flex-col overflow-hidden\">"), "sidebar content column creates bounded flex chain for scrolling");
-    assert(source.includes("<nav className=\"h-full min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden\">"), "nav is the dedicated touch-safe overflow container with hidden scrollbar and iOS momentum scrolling");
+    assert(source.includes("className=\"h-full min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden\""), "nav is the dedicated touch-safe overflow container with hidden scrollbar and iOS momentum scrolling");
+    assert(source.includes('data-orion-scroll-region="sidebar"'), "sidebar exposes a stable semantic Orion scroll region");
+    assert(source.includes('data-orion-scroll-label="Sidebar navigation"'), "sidebar semantic region has a human-readable Orion label");
     assert(!source.includes("common.projectPulse"), "removed Project Health card does not return to the sidebar");
     assert(!source.includes("common.projectPulseDescription"), "removed Project Health description does not return to the sidebar");
     assert(!source.includes("<nav className=\"mt-7 space-y-3\">"), "legacy non-scroll nav container is removed");
@@ -65,15 +67,12 @@ async function main() {
 
     assert(source.includes("import { useBodyScrollLock } from \"@/components/ui/use-body-scroll-lock\";"), "app shell imports the shared body scroll lock");
     assert(source.includes("useBodyScrollLock(mobileOpen);"), "mobile nav participates in the shared reference-counted scroll lock");
-    assert(!source.includes("document.body.style.overflow = \"hidden\";"), "mobile nav no longer mutates body overflow directly");
-    assert(!source.includes("document.body.style.removeProperty(\"overflow\");"), "mobile nav no longer clears another overlay's scroll lock");
+    assert(!source.includes('document.body.style.overflow = "hidden"'), "mobile nav no longer mutates body overflow directly");
+    assert(!source.includes('document.body.style.overflow = ""'), "mobile nav no longer clears another overlay's scroll lock");
   });
 
   console.log(`\nApp shell mobile nav scroll results: ${passed} passed, ${failed} failed`);
-
-  if (failed > 0) {
-    process.exitCode = 1;
-  }
+  if (failed > 0) process.exit(1);
 }
 
 void main();
