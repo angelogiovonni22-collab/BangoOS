@@ -138,6 +138,21 @@ function describeElement(element: InteractiveElement, index: number) {
   };
 }
 
+function scrollRegions() {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-orion-scroll-region]"))
+    .filter((element) => visible(element))
+    .map((element) => ({
+      ref: `region:${element.dataset.orionScrollRegion || ""}`,
+      label: normalizeText(element.dataset.orionScrollLabel || element.getAttribute("aria-label") || element.dataset.orionScrollRegion || "Scrollable region"),
+      scrollTop: element.scrollTop,
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+      canScrollUp: element.scrollTop > 0,
+      canScrollDown: element.scrollTop + element.clientHeight < element.scrollHeight - 1,
+    }))
+    .filter((region) => region.ref !== "region:");
+}
+
 function observe() {
   observationRequiredAfterScroll = false;
   const controls = interactiveElements().map(describeElement);
@@ -159,6 +174,7 @@ function observe() {
     headings,
     alerts,
     controls,
+    scrollRegions: scrollRegions(),
   });
 }
 
@@ -175,6 +191,13 @@ function resolveRef(ref: string): InteractiveElement | null {
     return Number.isInteger(index) ? interactiveElements()[index] || null : null;
   }
   return null;
+}
+
+function resolveScrollRegion(ref: string): HTMLElement | null {
+  if (!ref.startsWith("region:")) return null;
+  const region = ref.slice(7);
+  if (!region) return null;
+  return document.querySelector<HTMLElement>(`[data-orion-scroll-region="${CSS.escape(region)}"]`);
 }
 
 function isSettableElement(element: InteractiveElement): element is SettableElement {
@@ -217,9 +240,7 @@ function setControl(ref: string, value: string) {
   if (observationRequiredAfterScroll) return fail("The BOS screen changed after scrolling. Observe the visible screen again before editing.", { reobserveRequired: true });
   const element = resolveRef(ref);
   if (!element) return fail("That visible BOS control is no longer available. Observe the screen again before continuing.", { ref });
-  if (!isSettableElement(element)) {
-    return fail("That control cannot accept a value.", { ref, label: associatedLabel(element) });
-  }
+  if (!isSettableElement(element)) return fail("That control cannot accept a value.", { ref, label: associatedLabel(element) });
   if (!visible(element) || !inViewport(element) || element.hasAttribute("disabled")) return fail("That control is outside the active viewport. Scroll it into view, then observe again.", { ref, scrollRequired: true });
   if (element.dataset.orionConfirmation === "required") return fail("That status-sensitive control requires Orion's confirmed canonical BOS action.", { ref, requiresCanonicalConfirmation: true });
   const didSet = nativeSetValue(element, value);
@@ -241,9 +262,7 @@ function prepareBatchChange(change: BatchChange, index: number): PreparedChange 
   if (!isSettableElement(element)) return fail("A batch target cannot accept a value.", { index, ref, label: associatedLabel(element) });
   if (!visible(element) || element.hasAttribute("disabled")) return fail("A batch target is no longer active on the mounted BOS form. Observe again before continuing.", { index, ref, reobserveRequired: true });
   if (element.dataset.orionConfirmation === "required") return fail("A batch target requires Orion's confirmed canonical BOS action.", { index, ref, requiresCanonicalConfirmation: true });
-  if (element instanceof HTMLSelectElement && !canSelectValue(element, value)) {
-    return fail("A batch value does not match an available option. Observe the screen and use one of the returned options.", { index, ref, value });
-  }
+  if (element instanceof HTMLSelectElement && !canSelectValue(element, value)) return fail("A batch value does not match an available option. Observe the screen and use one of the returned options.", { index, ref, value });
   return { ref, value, element, label: associatedLabel(element) };
 }
 
@@ -267,10 +286,7 @@ function batchSetControls(changesValue: unknown) {
     prepared.push(next);
   }
 
-  for (const change of prepared) {
-    nativeSetValue(change.element, change.value, false);
-  }
-
+  for (const change of prepared) nativeSetValue(change.element, change.value, false);
   const last = prepared.at(-1);
   if (last) last.element.focus({ preventScroll: true });
 
@@ -292,9 +308,7 @@ function operatorStatuses() {
 async function waitForVerifiedUiOutcome(pathname: string, statuses: string[]) {
   const deadline = performance.now() + 6_000;
   while (performance.now() < deadline) {
-    if (window.location.pathname !== pathname) {
-      return ok("Visible BOS action completed and navigation was verified.", { pathname: window.location.pathname, verified: true });
-    }
+    if (window.location.pathname !== pathname) return ok("Visible BOS action completed and navigation was verified.", { pathname: window.location.pathname, verified: true });
     const nextStatuses = operatorStatuses();
     const changedStatus = nextStatuses.find((status) => !statuses.includes(status));
     if (changedStatus) {
@@ -315,9 +329,7 @@ async function clickControl(ref: string) {
   if (!(element instanceof HTMLButtonElement || element instanceof HTMLAnchorElement)) return fail("That control is not clickable.", { ref });
   if (!visible(element) || !inViewport(element) || element.hasAttribute("disabled")) return fail("That control is outside the active viewport. Scroll it into view, then observe again.", { ref, scrollRequired: true });
   const label = associatedLabel(element);
-  if (DESTRUCTIVE_TEXT.test(label)) {
-    return fail("Destructive actions must use Orion's confirmed BOS action tools instead of direct UI control.", { ref, label, requiresCanonicalConfirmation: true });
-  }
+  if (DESTRUCTIVE_TEXT.test(label)) return fail("Destructive actions must use Orion's confirmed BOS action tools instead of direct UI control.", { ref, label, requiresCanonicalConfirmation: true });
   const pathname = window.location.pathname;
   const statuses = operatorStatuses();
   const requiresVerification = element.dataset.orionVerify === "navigation-or-status";
@@ -347,14 +359,19 @@ function scrollScreen(direction: string, ref: string) {
   }
 
   if (!["up", "down", "top", "bottom"].includes(direction)) return fail("Choose scroll direction up, down, top, bottom, or control.");
+
+  const semanticRegion = resolveScrollRegion(ref);
   const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const target = scrollableAncestor(focused) || document.scrollingElement;
+  const target = semanticRegion || scrollableAncestor(focused) || document.scrollingElement;
   if (!target) return fail("The active BOS content region cannot be scrolled.");
+
   if (direction === "top") target.scrollTo({ top: 0, behavior: "auto" });
   else if (direction === "bottom") target.scrollTo({ top: target.scrollHeight, behavior: "auto" });
   else target.scrollBy({ top: (direction === "down" ? 1 : -1) * Math.max(1, target.clientHeight) * 0.8, behavior: "auto" });
+
   observationRequiredAfterScroll = true;
-  return ok(`The active BOS content region scrolled ${direction}. Observe the screen again before interacting.`, { direction, reobserveRequired: true });
+  const regionLabel = semanticRegion?.dataset.orionScrollLabel || semanticRegion?.dataset.orionScrollRegion || "active BOS content region";
+  return ok(`${regionLabel} scrolled ${direction}. Observe the screen again before interacting.`, { direction, ref: semanticRegion ? ref : null, reobserveRequired: true });
 }
 
 function internalHref(value: unknown) {
@@ -376,9 +393,7 @@ export async function executeOrionUiOperator(params: OperatorParams): Promise<Or
     if (!ref) return fail("A visible control reference is required. Observe the screen first.");
     return setControl(ref, value);
   }
-  if (action === "batch_set") {
-    return batchSetControls(params.changes);
-  }
+  if (action === "batch_set") return batchSetControls(params.changes);
   if (action === "click") {
     const ref = typeof params.ref === "string" ? params.ref : "";
     if (!ref) return fail("A visible control reference is required. Observe the screen first.");
