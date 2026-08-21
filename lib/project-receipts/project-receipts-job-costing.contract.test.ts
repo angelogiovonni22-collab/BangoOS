@@ -21,10 +21,10 @@ assert.match(migration, /project-receipts/i, "Receipts must use a private projec
 assert.match(migration, /enable row level security/i, "Receipt tables must be protected with RLS.");
 assert.match(approvalGuard, /enforce_project_receipt_approval_role/i, "Financial posting must have a database-level approval guard.");
 assert.match(approvalGuard, /can_manage_project_receipt_cost/i, "Receipt financial mutations must use a shared privileged-role predicate.");
-assert.match(approvalGuard, /owner.*administrator.*operations_manager.*project_manager.*office_manager.*accountant/is, "Only managerial/accounting roles may approve receipt costs.");
+assert.match(approvalGuard, /owner[\s\S]*administrator[\s\S]*operations_manager[\s\S]*project_manager[\s\S]*office_manager[\s\S]*accountant/i, "Only managerial/accounting roles may approve receipt costs.");
 assert.match(approvalGuard, /old\.status = 'approved' or new\.status = 'approved'/i, "Any mutation touching an approved receipt must be permission guarded.");
-assert.match(approvalGuard, /project_receipt_items_update.*r\.status <> 'approved'/is, "Approved receipt line items must be protected from field-user edits.");
-assert.match(approvalGuard, /project_receipt_items_delete.*r\.status <> 'approved'/is, "Approved receipt line items must be protected from field-user deletion.");
+assert.match(approvalGuard, /project_receipt_items_update[\s\S]*r\.status <> 'approved'/i, "Approved receipt line items must be protected from field-user edits.");
+assert.match(approvalGuard, /project_receipt_items_delete[\s\S]*r\.status <> 'approved'/i, "Approved receipt line items must be protected from field-user deletion.");
 
 assert.match(route, /OPENAI_API_KEY/i, "Receipt image extraction must use the existing server-side OpenAI credential.");
 assert.match(route, /image_url/i, "Receipt extraction must be vision based.");
