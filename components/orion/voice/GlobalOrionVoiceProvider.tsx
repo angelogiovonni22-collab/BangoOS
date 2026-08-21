@@ -46,6 +46,7 @@ type GlobalWakePhrase = "hey_orion" | "okay_orion" | "orion";
 type GlobalVoiceControlPhrase =
   | "activate_voice_command"
   | "end_voice_command"
+  | "disable_global_voice"
   | null;
 
 type GlobalVoiceInactivityTimeout = "30s" | "1m" | "5m" | "never";
@@ -233,12 +234,29 @@ function detectControlPhrase(input: string): GlobalVoiceControlPhrase {
     "orion exit voice mode",
   ];
 
+  const disablePhrases = [
+    "disable",
+    "orion disable",
+    "disable orion",
+    "hey orion disable",
+    "okay orion disable",
+    "turn orion off",
+    "orion turn off",
+    "turn off orion",
+    "disable orion voice",
+    "orion disable voice",
+  ];
+
   if (startPhrases.includes(normalized)) {
     return "activate_voice_command";
   }
 
   if (endPhrases.includes(normalized)) {
     return "end_voice_command";
+  }
+
+  if (disablePhrases.includes(normalized)) {
+    return "disable_global_voice";
   }
 
   return null;
@@ -596,6 +614,13 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       return false;
     }
 
+    if (document.hidden || document.visibilityState !== "visible") {
+      logOrionSpeech("response.skipped", {
+        reason: "inactive_bos_tab",
+      });
+      return false;
+    }
+
     if ((!settings.spokenResponsesEnabled && !options?.force) || !voice.support.synthesisSupported) {
       logOrionSpeech("response.skipped", {
         reason: !settings.spokenResponsesEnabled && !options?.force
@@ -916,6 +941,14 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       return;
     }
 
+    if (typeof document !== "undefined" && (document.hidden || document.visibilityState !== "visible")) {
+      logVoiceTrace("provider.processTranscript.skip.inactive_bos_tab", {
+        token,
+        visibilityState: document.visibilityState,
+      });
+      return;
+    }
+
     if (!voiceAutomationEnabled) {
       clearWakeContinuation("voice_automation_disabled");
       setWakeListening(false);
@@ -957,6 +990,32 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     lastProcessedTranscriptRef.current = { token, transcript: trimmed };
 
     const controlPhrase = detectControlPhrase(trimmed);
+    if (controlPhrase === "disable_global_voice") {
+      clearWakeContinuation("explicit_disable");
+      logVoiceTrace("provider.processTranscript.control_phrase_disable", {
+        token,
+        transcript: trimmed,
+      });
+      const next = { ...settingsRef.current, enabled: false };
+      persistSettings(next);
+      transcriptTokenRef.current += 1;
+      lastProcessedTranscriptRef.current = null;
+      setWakeListening(false);
+      setCommandSessionActive(false);
+      setPendingConfirmation(null);
+      setIntentResult(null);
+      setErrorCategory(null);
+      setReactivationRequired(false);
+      setStatusMessage("Global Orion Voice is disabled.");
+      setResultMessage("Global Orion Voice is disabled.");
+      inFlightIntentRef.current?.abort();
+      inFlightExecuteRef.current?.abort();
+      speechAdapterRef.current.cancel();
+      voice.cancel();
+      setPhase("disabled");
+      return;
+    }
+
     if (controlPhrase === "activate_voice_command") {
       logVoiceTrace("provider.processTranscript.skip.control_phrase_activate", {
         token,
@@ -1277,7 +1336,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       setErrorCategory("network_error");
       setStatusMessage("Network error while resolving voice intent.");
     }
-  }, [catalog, clearWakeContinuation, commandSessionActive, executeCommand, fetchCatalog, pendingConfirmation, requestSpokenResponse, routeContext, searchParams, settings.enabled, settings.mode, settings.shortWakePhraseAllowed, settings.spokenResponsesEnabled, settings.wakeAcknowledge, speak, startWakeContinuation, voice, voiceAutomationEnabled]);
+  }, [catalog, clearWakeContinuation, commandSessionActive, executeCommand, fetchCatalog, pendingConfirmation, persistSettings, requestSpokenResponse, routeContext, searchParams, settings.enabled, settings.mode, settings.shortWakePhraseAllowed, settings.spokenResponsesEnabled, settings.wakeAcknowledge, speak, startWakeContinuation, voice, voiceAutomationEnabled]);
 
   const stopAllListening = useCallback(() => {
     clearWakeContinuation("stop_all_listening");
@@ -1755,10 +1814,17 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
       if (hidden) {
         hiddenPauseRef.current = true;
         visibleResumeAttemptRef.current = false;
+        clearWakeContinuation("tab_hidden");
+        transcriptTokenRef.current += 1;
+        lastProcessedTranscriptRef.current = null;
         setWakeListening(false);
         setPhase("stopping");
         setStatusMessage("Voice paused while tab is hidden.");
+        speechAdapterRef.current.cancel();
+        inFlightIntentRef.current?.abort();
+        inFlightExecuteRef.current?.abort();
         voiceStopRef.current();
+        voiceCancelRef.current();
         logGlobalVisibility("hidden pause requested");
         return;
       }
@@ -1802,7 +1868,7 @@ export function GlobalOrionVoiceProvider({ children }: { children: ReactNode }) 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [requestVoiceStart, voiceAutomationEnabled]);
+  }, [clearWakeContinuation, requestVoiceStart, voiceAutomationEnabled]);
 
   useEffect(() => {
     if (!settings.enabled || !commandSessionActive || !voiceAutomationEnabled) {
