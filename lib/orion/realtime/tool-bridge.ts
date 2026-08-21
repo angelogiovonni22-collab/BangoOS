@@ -106,7 +106,14 @@ export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall, 
   if (call.toolName === ORION_REALTIME_RESOLVE_ENTITY_TOOL) return executeEntityResolution(call);
   if (call.toolName === ORION_UI_OPERATOR_TOOL) {
     ensureOrionMediaSemantics();
-    return executeOrionUiOperator(call.params);
+    const result = await executeOrionUiOperator(call.params);
+    if (call.params.action === "observe" && result.ok) {
+      return {
+        ...result,
+        userMessage: "Current BOS screen observed. Photo, image, document, plan, blueprint, PDF, attachment, preview, and download controls include semanticRole metadata; use the exact matching ref with action=click to open the requested item.",
+      };
+    }
+    return result;
   }
   if (call.toolName === ORION_TASK_AGENT_TOOL) return executeOrionTaskAgent(call.params);
   if (call.toolName === ORION_PERSONAL_ASSISTANT_TOOL) return executeOrionPersonalAssistant(call.params);
