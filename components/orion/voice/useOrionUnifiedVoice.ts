@@ -457,7 +457,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         setRealtimePhase("error");
         setRealtimeStatus(message);
       } finally {
-        if (connectPromiseRef.current === connectPromise) {
+        if (startRequestId === startRequestIdRef.current) {
           connectPromiseRef.current = null;
         }
       }
@@ -497,7 +497,6 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     setRealtimePhase("disabled");
     setRealtimeStatus("Orion voice is disabled.");
   }, [disconnectRealtime, shutDownLegacyVoice]);
-
   const setSpokenResponsesEnabled = useCallback((spokenEnabled: boolean) => {
     spokenResponsesEnabledRef.current = spokenEnabled;
     setSpokenResponsesEnabledState(spokenEnabled);
