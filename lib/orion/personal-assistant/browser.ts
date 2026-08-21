@@ -270,16 +270,27 @@ function readZoom() {
   return Number.isFinite(raw) && raw >= MIN_ZOOM && raw <= MAX_ZOOM ? raw : 1;
 }
 
+function applyZoomToDocument(zoom: number) {
+  if (typeof document === "undefined") return;
+  // Never use CSS zoom on the document root. Chromium can create a detached
+  // visual viewport/fixed-position layer that looks like a permanent white page.
+  // Root font-size scaling preserves the BOS layout model while still scaling the
+  // rem-based application chrome, typography, spacing, and controls.
+  document.documentElement.style.removeProperty("zoom");
+  document.body?.style.removeProperty("zoom");
+  document.documentElement.style.fontSize = `${Math.round(zoom * 100)}%`;
+  document.documentElement.dataset.orionZoom = String(zoom);
+}
+
 export function applySavedOrionZoom() {
   if (typeof document === "undefined") return;
-  const zoom = readZoom();
-  document.documentElement.style.zoom = String(zoom);
+  applyZoomToDocument(readZoom());
 }
 
 function writeZoom(zoom: number) {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   window.localStorage.setItem(ZOOM_STORAGE_KEY, String(zoom));
-  document.documentElement.style.zoom = String(zoom);
+  applyZoomToDocument(zoom);
 }
 
 export async function executeOrionViewportControl(params: ViewportParams): Promise<OrionRealtimeToolExecutionResult> {
