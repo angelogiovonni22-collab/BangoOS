@@ -43,7 +43,11 @@ function main() {
   assert(unified.includes("const disableVoice") && unified.includes("await disconnectRealtime()") && unified.includes("const enableVoice") && unified.includes("void start()"), "full Realtime voice Off disconnects the live session and On explicitly restarts it");
   assert(unified.includes("const setSpokenResponsesEnabled") && unified.includes("setOutputMuted(!spokenEnabled)"), "spoken-output mute preserves the live listener needed for voice reactivation");
   assert(unified.includes("shutDownLegacyVoice"), "legacy browser voice is explicitly shut down before Realtime owns the microphone");
-  assert(unified.includes("stopAllListening()") && unified.includes("disableGlobalVoice()"), "legacy recognition cannot remain active beside Orion v2");
+  assert(unified.includes("cancelSpeech()") && unified.includes("stopAllListening()") && unified.includes("disableGlobalVoice()"), "legacy speech output and recognition cannot remain active beside Orion v2");
+  assert(unified.includes("startRequestIdRef") && unified.includes("startRequestId !== startRequestIdRef.current"), "concurrent Orion start requests are generation-guarded so only the latest start can own audio");
+  assert(unified.includes("manualStopRef.current || startRequestId !== startRequestIdRef.current"), "disable/stop during startup prevents a delayed Orion start from resurrecting the microphone");
+  assert(realtimeClient.includes("lifecycleGeneration") && realtimeClient.includes("generation !== this.lifecycleGeneration"), "Realtime WebRTC acquisition is generation-guarded against stale startup completion");
+  assert(realtimeClient.includes("track.stop()") && realtimeClient.includes("return false"), "a microphone stream obtained after cancellation is immediately stopped instead of becoming active");
   assert(!unified.includes("fallbackToBrowser"), "Realtime failures cannot fall through to the legacy deterministic browser engine");
   assert(!unified.includes("startCurrentBrowserCapture"), "Orion v2 never resumes legacy browser command capture");
   assert(unified.includes('engine: "realtime" as const'), "the public unified controller exposes Realtime as the single execution engine");
