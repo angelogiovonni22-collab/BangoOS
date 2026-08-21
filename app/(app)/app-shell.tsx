@@ -146,7 +146,12 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
             </div>
 
             <div className="mt-7 flex min-h-0 flex-1 flex-col overflow-hidden">
-              <nav className="h-full min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+              <nav
+                data-orion-scroll-region="sidebar"
+                data-orion-scroll-label="Sidebar navigation"
+                tabIndex={-1}
+                className="h-full min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden"
+              >
                 {visibleNavigationGroups.map((group) => {
                   const isCollapsed = collapsedGroups[group.key] ?? false;
                   return (
