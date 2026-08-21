@@ -28,6 +28,7 @@ function main() {
   const persistent = read("components/orion/persistent/PersistentOrion.tsx");
   const panel = read("components/orion/persistent/PersistentOrionPanel.tsx");
   const realtimeClient = read("lib/orion/realtime/client.ts");
+  const realtimeControls = read("lib/orion/voice/realtime-voice-controls.ts");
   const realtimeSession = read("app/api/orion/realtime/session/route.ts");
   const modelConfig = read("lib/orion/intelligence/model-config.ts");
 
@@ -40,7 +41,7 @@ function main() {
   assert(unified.includes("ORION_REALTIME_OWNER_CHANNEL") && unified.includes("claimRealtimeOwnership") && unified.includes("yieldToOwner"), "BOS tabs coordinate exclusive Orion microphone and audio ownership");
   assert(unified.includes("ownershipBlockedRef.current") && unified.includes("Orion is active in another BOS tab"), "a displaced tab cannot automatically restart a competing Realtime session");
   assert(settingsPanel.includes("useOrionUnifiedVoice") && settingsPanel.includes("availableRealtimeVoices") && !settingsPanel.includes("GlobalOrionVoiceProvider"), "voice settings control the active Realtime controller and its real voice catalog");
-  assert(unified.includes("const disableVoice") && unified.includes("await disconnectRealtime()") && unified.includes("const enableVoice") && unified.includes("void start()"), "full Realtime voice Off disconnects the live session and On explicitly restarts it");
+  assert(unified.includes("const disableVoice") && unified.includes("await disableRealtimeVoice()") && unified.includes("const enableVoice") && unified.includes("void start()"), "full Realtime voice Off disconnects the live session and On explicitly restarts it");
   assert(unified.includes("const setSpokenResponsesEnabled") && unified.includes("setOutputMuted(!spokenEnabled)"), "spoken-output mute preserves the live listener needed for voice reactivation");
   assert(unified.includes("shutDownLegacyVoice"), "legacy browser voice is explicitly shut down before Realtime owns the microphone");
   assert(unified.includes("cancelSpeech()") && unified.includes("stopAllListening()") && unified.includes("disableGlobalVoice()"), "legacy speech output and recognition cannot remain active beside Orion v2");
@@ -58,6 +59,19 @@ function main() {
   assert(unified.includes('conversation.item.input_audio_transcription.completed'), "Realtime user transcripts are projected into Orion state");
   assert(unified.includes("waitForMountedRoute") && unified.includes("await waitForMountedRoute(safeHref)"), "operator navigation waits for the canonical visible BOS route before returning to Realtime");
   assert(unified.includes("isOrionVoiceAutomationEnabled") && unified.includes("ORION_VOICE_FREEZE_MESSAGE"), "Orion v2 preserves the emergency voice gate");
+
+  assert(unified.includes("function isBosTabActive()") && unified.includes('document.visibilityState === "visible"'), "Realtime Orion has an explicit active-BOS-tab gate");
+  assert(unified.includes('document.addEventListener("visibilitychange", onVisibility)') && unified.includes('document.removeEventListener("visibilitychange", onVisibility)'), "Realtime Orion owns one visibility lifecycle listener with matching cleanup");
+  assert(unified.includes('setRealtimePhase("paused")') && unified.includes("Orion is paused while the B.O.S. tab is not active."), "hiding the BOS tab visibly projects a paused Realtime state");
+  assert(unified.includes("clientRef.current?.setOutputMuted(true)") && unified.includes("void disconnectRealtime().then"), "hidden BOS tab mutes output immediately and tears down Realtime WebRTC");
+  assert(unified.includes("!isBosTabActive()") && unified.includes("startRequestId !== startRequestIdRef.current"), "late Realtime callbacks cannot process or speak after the BOS tab becomes inactive");
+  assert(unified.includes("hiddenPauseRef.current") && unified.includes("queueMicrotask(() => {\n        void start();"), "returning to the BOS tab can resume only an enabled visibility-paused session");
+
+  assert(realtimeControls.includes('"disable_voice"') && realtimeControls.includes('"disable"') && realtimeControls.includes('"disable orion"'), "Realtime voice controls recognize spoken full-disable phrases");
+  assert(unified.includes('voiceControl === "disable_voice"') && unified.includes("void disableRealtimeVoice();"), "spoken disable is intercepted locally before Realtime can continue answering");
+  assert(unified.includes("storeBoolean(ORION_V2_ENABLED_STORAGE_KEY, false)") && unified.includes("manualStopRef.current = true"), "spoken disable persists Orion off and prevents automatic restart");
+  assert(unified.includes("Turn Orion back on manually when you need it."), "disabled Realtime status makes manual re-enable behavior explicit");
+
   assert(realtimeSession.includes("isOrionVoiceAutomationEnabled") && realtimeSession.includes('statusCategory: "voice_automation_paused"'), "Realtime session API independently enforces the emergency voice gate");
   assert(realtimeSession.includes("understand and speak English only") && realtimeSession.includes("Never switch languages"), "Realtime output remains English unless the user explicitly requests another language");
   assert(persistent.includes("const voice = useOrionUnifiedVoice()"), "persistent Orion root owns the single unified controller");

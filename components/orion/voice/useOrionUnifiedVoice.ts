@@ -129,6 +129,11 @@ function releaseRealtimeOwnership(ownerId: string) {
   }
 }
 
+function isBosTabActive() {
+  if (typeof document === "undefined") return true;
+  return !document.hidden && document.visibilityState === "visible";
+}
+
 function eventTranscript(event: OrionRealtimeServerEvent) {
   if (event.type === "conversation.item.input_audio_transcription.completed") {
     return typeof event.transcript === "string" ? event.transcript.trim() : "";
@@ -169,6 +174,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   const startRequestIdRef = useRef(0);
   const autoStartAttemptedRef = useRef(false);
   const manualStopRef = useRef(false);
+  const hiddenPauseRef = useRef(false);
   const voiceAutomationEnabled = isOrionVoiceAutomationEnabled();
 
   const [enabled, setEnabled] = useState(() => readStoredBoolean(ORION_V2_ENABLED_STORAGE_KEY));
@@ -270,12 +276,34 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     setRealtimeState("closed");
   }, []);
 
+  const disableRealtimeVoice = useCallback(async () => {
+    manualStopRef.current = true;
+    hiddenPauseRef.current = false;
+    autoStartAttemptedRef.current = true;
+    setEnabled(false);
+    storeBoolean(ORION_V2_ENABLED_STORAGE_KEY, false);
+    clientRef.current?.setOutputMuted(true);
+    await disconnectRealtime();
+    shutDownLegacyVoice();
+    setRealtimeSpeaking(false);
+    setRealtimePhase("disabled");
+    setRealtimeStatus("Orion voice is disabled. Turn Orion back on manually when you need it.");
+  }, [disconnectRealtime, shutDownLegacyVoice]);
+
   const start = useCallback(async () => {
     if (!voiceAutomationEnabled) {
       shutDownLegacyVoice();
       setRealtimeState("closed");
       setRealtimePhase("disabled");
       setRealtimeStatus(ORION_VOICE_FREEZE_MESSAGE);
+      return;
+    }
+
+    if (!isBosTabActive()) {
+      hiddenPauseRef.current = true;
+      setRealtimeState("closed");
+      setRealtimePhase("paused");
+      setRealtimeStatus("Orion is paused while the B.O.S. tab is not active.");
       return;
     }
 
@@ -289,11 +317,12 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
 
     const startRequestId = ++startRequestIdRef.current;
     manualStopRef.current = false;
+    hiddenPauseRef.current = false;
     ownershipBlockedRef.current = false;
     claimRealtimeOwnership(ownerIdRef.current, ownerChannelRef.current);
     await new Promise<void>((resolve) => window.setTimeout(resolve, 75));
 
-    if (manualStopRef.current || startRequestId !== startRequestIdRef.current) {
+    if (manualStopRef.current || startRequestId !== startRequestIdRef.current || !isBosTabActive()) {
       releaseRealtimeOwnership(ownerIdRef.current);
       return;
     }
@@ -320,14 +349,14 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
       if (clientRef.current === previousClient) clientRef.current = null;
     }
 
-    if (manualStopRef.current || startRequestId !== startRequestIdRef.current) {
+    if (manualStopRef.current || startRequestId !== startRequestIdRef.current || !isBosTabActive()) {
       releaseRealtimeOwnership(ownerIdRef.current);
       return;
     }
 
     const client = new OrionRealtimeClient({
       onStateChange: (state) => {
-        if (startRequestId !== startRequestIdRef.current || manualStopRef.current) return;
+        if (startRequestId !== startRequestIdRef.current || manualStopRef.current || !isBosTabActive()) return;
         setRealtimeState(state);
         if (state === "requesting_microphone") {
           setRealtimePhase("starting");
@@ -343,12 +372,17 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         }
       },
       onEvent: (event) => {
-        if (startRequestId !== startRequestIdRef.current || manualStopRef.current) return;
+        if (startRequestId !== startRequestIdRef.current || manualStopRef.current || !isBosTabActive()) return;
         const userTranscript = eventTranscript(event);
         if (userTranscript) {
           setRealtimeFinalTranscript(userTranscript);
           const voiceControl = detectRealtimeVoiceControl(userTranscript);
           const profileCommand = detectRealtimeVoiceProfileCommand(userTranscript);
+          if (voiceControl === "disable_voice") {
+            client.setOutputMuted(true);
+            void disableRealtimeVoice();
+            return;
+          }
           if (voiceControl === "mute_output") {
             client.setOutputMuted(true);
             spokenResponsesEnabledRef.current = false;
@@ -406,7 +440,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         }
       },
       onToolResult: async (result) => {
-        if (startRequestId !== startRequestIdRef.current || manualStopRef.current) return;
+        if (startRequestId !== startRequestIdRef.current || manualStopRef.current || !isBosTabActive()) return;
         setRealtimePhase(result.confirmationRequired ? "confirmation_required" : result.ok ? "success" : "error");
         setRealtimeStatus(result.userMessage);
         const safeHref = result.href ? resolveKnownOrionOperatorHref(result.href) : null;
@@ -421,7 +455,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
         }
       },
       onError: (error) => {
-        if (startRequestId !== startRequestIdRef.current || manualStopRef.current) return;
+        if (startRequestId !== startRequestIdRef.current || manualStopRef.current || !isBosTabActive()) return;
         // Orion v2 deliberately does not hand a failed Realtime turn to the old
         // deterministic browser engine. That prevents duplicate processing and
         // unrelated legacy navigation such as accidental Customers routing.
@@ -438,7 +472,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
     const connectPromise = (async () => {
       try {
         const connected = await client.connect({ voice: realtimeVoice, voiceStyle, isolationMode: DEFAULT_ORION_VOICE_ISOLATION_MODE });
-        if (!connected || manualStopRef.current || startRequestId !== startRequestIdRef.current) {
+        if (!connected || manualStopRef.current || startRequestId !== startRequestIdRef.current || !isBosTabActive()) {
           if (clientRef.current === client) clientRef.current = null;
           if (browserWindow.__bangoOrionRealtimeClient === client) {
             delete browserWindow.__bangoOrionRealtimeClient;
@@ -446,7 +480,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
           await client.disconnect();
         }
       } catch (error) {
-        if (manualStopRef.current || startRequestId !== startRequestIdRef.current) {
+        if (manualStopRef.current || startRequestId !== startRequestIdRef.current || !isBosTabActive()) {
           return;
         }
         if (clientRef.current === client) {
@@ -465,10 +499,11 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
 
     connectPromiseRef.current = connectPromise;
     return connectPromise;
-  }, [realtimeState, realtimeVoice, router, shutDownLegacyVoice, spokenResponsesEnabled, voiceAutomationEnabled, voiceStyle]);
+  }, [disableRealtimeVoice, realtimeState, realtimeVoice, router, shutDownLegacyVoice, spokenResponsesEnabled, voiceAutomationEnabled, voiceStyle]);
 
   const stop = useCallback(async () => {
     manualStopRef.current = true;
+    hiddenPauseRef.current = false;
     await disconnectRealtime();
     setRealtimePhase("idle");
     setRealtimeStatus("Realtime conversation ended. Tap Start to talk again.");
@@ -476,6 +511,7 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
 
   const retry = useCallback(async () => {
     manualStopRef.current = false;
+    hiddenPauseRef.current = false;
     await disconnectRealtime();
     setRealtimeState("idle");
     await start();
@@ -483,20 +519,17 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
 
   const enableVoice = useCallback(() => {
     manualStopRef.current = false;
+    hiddenPauseRef.current = false;
+    autoStartAttemptedRef.current = false;
     setEnabled(true);
     storeBoolean(ORION_V2_ENABLED_STORAGE_KEY, true);
     void start();
   }, [start]);
 
   const disableVoice = useCallback(async () => {
-    manualStopRef.current = true;
-    setEnabled(false);
-    storeBoolean(ORION_V2_ENABLED_STORAGE_KEY, false);
-    await disconnectRealtime();
-    shutDownLegacyVoice();
-    setRealtimePhase("disabled");
-    setRealtimeStatus("Orion voice is disabled.");
-  }, [disconnectRealtime, shutDownLegacyVoice]);
+    await disableRealtimeVoice();
+  }, [disableRealtimeVoice]);
+
   const setSpokenResponsesEnabled = useCallback((spokenEnabled: boolean) => {
     spokenResponsesEnabledRef.current = spokenEnabled;
     setSpokenResponsesEnabledState(spokenEnabled);
@@ -520,12 +553,46 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
   // React state synchronously inside the effect body.
   useEffect(() => {
     if (!voiceAutomationEnabled || !enabled || manualStopRef.current || ownershipBlockedRef.current || autoStartAttemptedRef.current) return;
+    if (!isBosTabActive()) return;
     if (realtimeState !== "idle" && realtimeState !== "closed") return;
     autoStartAttemptedRef.current = true;
     queueMicrotask(() => {
       void start();
     });
   }, [enabled, realtimeState, start, voiceAutomationEnabled]);
+
+  // Realtime Orion is allowed to listen and speak only while the B.O.S. document
+  // is the active browser tab. Hiding the tab tears down WebRTC immediately, while
+  // returning to the same B.O.S. tab resumes only if the user has not disabled it.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (!isBosTabActive()) {
+        if (!enabled || manualStopRef.current) return;
+        hiddenPauseRef.current = true;
+        autoStartAttemptedRef.current = false;
+        clientRef.current?.setOutputMuted(true);
+        void disconnectRealtime().then(() => {
+          if (!hiddenPauseRef.current || !enabled || manualStopRef.current) return;
+          setRealtimePhase("paused");
+          setRealtimeStatus("Orion is paused while the B.O.S. tab is not active.");
+        });
+        return;
+      }
+
+      if (!hiddenPauseRef.current) return;
+      hiddenPauseRef.current = false;
+      autoStartAttemptedRef.current = false;
+      if (!voiceAutomationEnabled || !enabled || manualStopRef.current) return;
+      queueMicrotask(() => {
+        void start();
+      });
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [disconnectRealtime, enabled, start, voiceAutomationEnabled]);
 
   // The emergency kill switch tears down external microphone/WebRTC resources but
   // does not erase the user's saved v2 preference. State projection below already
@@ -569,8 +636,8 @@ function useOrionUnifiedVoiceController(): OrionUnifiedVoiceController {
       phase: voiceAutomationEnabled ? realtimePhase : "disabled",
       statusMessage: voiceAutomationEnabled ? realtimeStatus : ORION_VOICE_FREEZE_MESSAGE,
       supportMessage: "Orion v2 uses one persistent OpenAI Realtime conversation with controlled BOS tools. Legacy browser intent routing is disabled.",
-      micActive: voiceAutomationEnabled && realtimeState === "connected",
-      speaking: voiceAutomationEnabled && realtimeSpeaking,
+      micActive: voiceAutomationEnabled && realtimeState === "connected" && isBosTabActive(),
+      speaking: voiceAutomationEnabled && realtimeSpeaking && isBosTabActive(),
       interimTranscript: realtimeInterimTranscript,
       finalTranscript: realtimeFinalTranscript,
       voiceLevel: 0,
