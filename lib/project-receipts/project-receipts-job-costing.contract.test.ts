@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 const root = process.cwd();
 const migration = readFileSync(join(root, "supabase/migrations/20260821011500_project_receipts_job_costing.sql"), "utf8");
+const approvalGuard = readFileSync(join(root, "supabase/migrations/20260821012000_project_receipt_approval_guard.sql"), "utf8");
 const route = readFileSync(join(root, "app/api/projects/[id]/receipts/route.ts"), "utf8");
 const workspace = readFileSync(join(root, "components/projects/workspace/project-receipts-workspace.tsx"), "utf8");
 const financials = readFileSync(join(root, "components/projects/workspace/project-financial-reporting.tsx"), "utf8");
@@ -16,6 +17,9 @@ assert.match(migration, /status in \('processing','needs_review','approved','rej
 assert.match(migration, /finalize_project_receipt/i, "Receipt approval and item posting must be atomic.");
 assert.match(migration, /project-receipts/i, "Receipts must use a private project-scoped storage bucket.");
 assert.match(migration, /enable row level security/i, "Receipt tables must be protected with RLS.");
+assert.match(approvalGuard, /enforce_project_receipt_approval_role/i, "Financial posting must have a database-level approval guard.");
+assert.match(approvalGuard, /owner.*administrator.*operations_manager.*project_manager.*office_manager.*accountant/is, "Only managerial/accounting roles may approve receipt costs.");
+assert.match(approvalGuard, /old\.status = 'approved'.*new\.status <> 'approved'/is, "Reversing an approved receipt must also be permission guarded.");
 
 assert.match(route, /OPENAI_API_KEY/i, "Receipt image extraction must use the existing server-side OpenAI credential.");
 assert.match(route, /image_url/i, "Receipt extraction must be vision based.");
