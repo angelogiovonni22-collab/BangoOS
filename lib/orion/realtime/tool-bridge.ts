@@ -3,6 +3,7 @@
 import "@/lib/orion/personal-assistant/runtime";
 import { executeOrionTaskAgent, ORION_TASK_AGENT_TOOL } from "@/lib/orion/task-agent/browser";
 import { executeOrionUiOperator, ORION_UI_OPERATOR_TOOL } from "@/lib/orion/operator/browser";
+import { ensureOrionMediaSemantics } from "@/lib/orion/operator/media-semantics";
 import {
   executeOrionPersonalAssistant,
   executeOrionViewportControl,
@@ -103,7 +104,17 @@ export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall, 
   if (call.toolName === ORION_REALTIME_CONTEXT_TOOL) return currentBosContext();
   if (call.toolName === ORION_REALTIME_RESEARCH_TOOL) return executeRealtimeResearch(call);
   if (call.toolName === ORION_REALTIME_RESOLVE_ENTITY_TOOL) return executeEntityResolution(call);
-  if (call.toolName === ORION_UI_OPERATOR_TOOL) return executeOrionUiOperator(call.params);
+  if (call.toolName === ORION_UI_OPERATOR_TOOL) {
+    ensureOrionMediaSemantics();
+    const result = await executeOrionUiOperator(call.params);
+    if (call.params.action === "observe" && result.ok) {
+      return {
+        ...result,
+        userMessage: "Current BOS screen observed. Photo, image, document, plan, blueprint, PDF, attachment, preview, and download controls include semanticRole metadata; use the exact matching ref with action=click to open the requested item.",
+      };
+    }
+    return result;
+  }
   if (call.toolName === ORION_TASK_AGENT_TOOL) return executeOrionTaskAgent(call.params);
   if (call.toolName === ORION_PERSONAL_ASSISTANT_TOOL) return executeOrionPersonalAssistant(call.params);
   if (call.toolName === ORION_VIEWPORT_CONTROL_TOOL) return executeOrionViewportControl(call.params);

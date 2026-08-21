@@ -132,6 +132,9 @@ jobs:
       - name: Run Orion semantic UI operator regression
         run: npx -y tsx lib/orion/operator/orion-ui-operator.contract.test.ts
 
+      - name: Run Orion media and document opening regression
+        run: npx -y tsx lib/orion/operator/orion-media-open.contract.test.ts
+
       - name: Run BOS global search regression
         run: npx -y tsx components/search/global-search.contract.test.ts
 
