@@ -9,6 +9,10 @@ const migration = fs.readFileSync(path.join(root, "supabase/migrations/202608201
 
 assert.match(projectPage, /ProjectTradePartnerMessages/);
 assert.match(projectPage, /communications\.manage/);
+assert.ok(
+  projectPage.indexOf("<ProjectTradePartnerMessages") < projectPage.indexOf("<ProjectTradePartnersWorkspace"),
+  "project messaging renders before subcontractor management so it is visible when the tab opens",
+);
 assert.match(messaging, /get_trade_partner_message_threads/);
 assert.match(messaging, /get_trade_partner_messages_for_assignment/);
 assert.match(messaging, /send_trade_partner_message_for_assignment/);
