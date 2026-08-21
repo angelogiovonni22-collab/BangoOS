@@ -17,6 +17,7 @@ import {
   ProjectExecutionWorkspace,
   ProjectTabs,
   ProjectTradePartnersWorkspace,
+  ProjectTradePartnerMessages,
   ProjectWorkspaceHeader,
   type ProjectWorkspaceTabKey,
   type WorkspaceActivityItem,
@@ -37,6 +38,7 @@ import {
 import { useI18n } from "@/lib/i18n/provider";
 import { PROJECT_WORKSPACE_ASSIGNED_EQUIPMENT_STATUSES, PROJECT_WORKSPACE_EQUIPMENT_CONFLICT_OR_FILTER } from "@/lib/equipment";
 import { createClient } from "@/lib/supabase/client";
+import { hasBosPermission } from "@/lib/access-control/permissions";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 
@@ -840,7 +842,10 @@ export default function ProjectWorkspacePage() {
                 <ProjectCommandCenterTabPlaceholder tabLabel="Financials data unavailable" />
               )
             ) : activeTab === "subcontractors" ? (
-              <ProjectTradePartnersWorkspace projectId={project.id} />
+              <div className="space-y-4">
+                <ProjectTradePartnersWorkspace projectId={project.id} />
+                <ProjectTradePartnerMessages projectId={project.id} canManage={hasBosPermission(workspace.workspaceContext.role, "communications.manage")} />
+              </div>
             ) : (
               <ProjectCommandCenterTabPlaceholder tabLabel={getWorkspaceTabLabel(activeTab, t)} />
             )}

@@ -21,6 +21,7 @@ export { ProjectSummaryCards } from "./project-summary-cards";
 export { ProjectSuperintendentBriefingPanel } from "./project-superintendent-briefing";
 export { ProjectTabs } from "./project-tabs";
 export { ProjectTradePartnersWorkspace } from "./project-trade-partners-workspace";
+export { ProjectTradePartnerMessages } from "./project-trade-partner-messages";
 export { ProjectWorkWorkspace } from "./project-work-workspace";
 export { calculateProjectHealth } from "./project-health-calculator";
 export { ProjectWorkspaceModuleCard } from "./project-workspace-module-card";
