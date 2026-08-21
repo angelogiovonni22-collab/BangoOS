@@ -120,6 +120,8 @@ export function WorkspaceTabs({
               key={tab.key}
               type="button"
               onClick={() => onChange(tab.key)}
+              data-orion-action={`workspace-tab-${tab.key}`}
+              data-orion-role={`workspace tab: ${tab.label}`}
               className={`group whitespace-nowrap rounded-[12px] border px-3.5 py-2.5 text-[0.82rem] font-semibold tracking-[0.01em] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] ${
                 active
                   ? "border-[var(--workspace-tab-active-border)] [background:var(--workspace-tab-active-surface)] text-white shadow-[0_8px_16px_-12px_rgba(30,120,255,0.7)]"
