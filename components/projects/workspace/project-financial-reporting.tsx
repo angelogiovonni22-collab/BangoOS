@@ -1,15 +1,57 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import type { ProjectFinancialReport } from "@/lib/financial-reporting";
+import { ProjectReceiptsWorkspace } from "./project-receipts-workspace";
 
 type ProjectFinancialReportingProps = {
   report: ProjectFinancialReport;
 };
 
 export function ProjectFinancialReporting({ report }: ProjectFinancialReportingProps) {
-  const summary = report.summary;
+  const [approvedReceiptSpend, setApprovedReceiptSpend] = useState(0);
+  const summary = useMemo(() => {
+    const actualCost = toMoney(report.summary.actualCost + approvedReceiptSpend);
+    const remainingCostToComplete = toMoney(Math.max(report.summary.revisedBudget - actualCost, 0));
+    const forecastFinalCost = toMoney(Math.max(actualCost + report.summary.committedCost, report.summary.revisedBudget));
+    const grossProfit = toMoney(report.summary.revisedContractValue - forecastFinalCost);
+    const grossMarginPercent = report.summary.revisedContractValue > 0
+      ? toMoney((grossProfit / report.summary.revisedContractValue) * 100)
+      : null;
+
+    return {
+      ...report.summary,
+      actualCost,
+      remainingCostToComplete,
+      forecastFinalCost,
+      grossProfit,
+      grossMarginPercent,
+    };
+  }, [approvedReceiptSpend, report.summary]);
+
+  const jobCostByCategory = useMemo(() => report.jobCostByCategory.map((row) => {
+    if (row.category !== "materials") return row;
+    const actual = toMoney(row.actual + approvedReceiptSpend);
+    const forecast = toMoney(row.committed + actual);
+    const varianceAmount = toMoney(row.budget - forecast);
+    const variancePercent = row.budget > 0 ? toMoney((varianceAmount / row.budget) * 100) : null;
+    return {
+      ...row,
+      actual,
+      forecast,
+      varianceAmount,
+      variancePercent,
+      status: row.dataStatus === "unavailable" ? "unavailable" as const : deriveStatus(variancePercent),
+      dataStatus: "measured" as const,
+      note: null,
+    };
+  }), [approvedReceiptSpend, report.jobCostByCategory]);
 
   return (
     <div className="space-y-5">
+      <ProjectReceiptsWorkspace projectId={summary.projectId} onApprovedSpendChange={setApprovedReceiptSpend} />
+
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Revised Contract Value" value={formatMoney(summary.revisedContractValue)} context="Original estimate + approved change orders" />
         <MetricCard label="Forecast Final Cost" value={formatMoney(summary.forecastFinalCost)} context="Actual + committed baseline" />
@@ -62,7 +104,7 @@ export function ProjectFinancialReporting({ report }: ProjectFinancialReportingP
               </tr>
             </thead>
             <tbody>
-              {report.jobCostByCategory.map((row) => (
+              {jobCostByCategory.map((row) => (
                 <tr key={row.category} className="border-b border-[var(--bos-border-light)] text-[var(--bos-text-strong-on-light)]">
                   <td className="px-3 py-2.5 font-semibold">{toTitleCase(row.category)}</td>
                   <td className="px-3 py-2.5">{formatMoney(row.budget)}</td>
@@ -160,6 +202,13 @@ export function ProjectFinancialReporting({ report }: ProjectFinancialReportingP
               <p className="mt-1 text-xs text-[var(--bos-text-medium-on-light)]">{item.detail}</p>
             </div>
           ))}
+          <div className="rounded-[10px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] px-3 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-[var(--bos-text-strong-on-light)]">Field Receipt Costs</p>
+              <span className="inline-flex rounded-full bg-[var(--color-success-100)] px-2 py-1 text-xs font-semibold text-[var(--color-success-700)]">Available</span>
+            </div>
+            <p className="mt-1 text-xs text-[var(--bos-text-medium-on-light)]">Approved project receipts are included in the live Actual Cost, material cost, forecast, and gross-profit calculations shown above.</p>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -183,6 +232,17 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <p className="text-sm font-bold text-[var(--bos-text-strong-on-light)]">{value}</p>
     </div>
   );
+}
+
+function toMoney(value: number) {
+  return Number.isFinite(value) ? Math.round((value + Number.EPSILON) * 100) / 100 : 0;
+}
+
+function deriveStatus(variancePercent: number | null): "on_track" | "at_risk" | "over_budget" {
+  if (variancePercent === null) return "on_track";
+  if (variancePercent < 0) return "over_budget";
+  if (variancePercent <= 10) return "at_risk";
+  return "on_track";
 }
 
 function formatMoney(value: number) {
