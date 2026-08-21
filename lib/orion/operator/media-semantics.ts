@@ -1,6 +1,6 @@
 "use client";
 
-const MEDIA_TEXT = /\b(photo|image|document|file|plan|blueprint|pdf|attachment|preview|view|open|download)\b/i;
+const MEDIA_TEXT = /\b(photo|image|document|file|plan|blueprint|pdf|attachment|download)\b/i;
 const DOCUMENT_HREF = /\.(pdf|docx?|xlsx?|csv|txt|rtf)(?:[?#]|$)/i;
 const IMAGE_HREF = /\.(png|jpe?g|webp|gif|heic|heif)(?:[?#]|$)/i;
 
