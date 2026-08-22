@@ -29,6 +29,7 @@ assert(semantics.includes("ensureOrionMediaSemantics"), "media semantics decorat
 assert(semantics.includes("button, a[href]"), "decorator scans visible-style clickable controls instead of inventing file actions");
 assert(semantics.includes("DOCUMENT_HREF") && semantics.includes("IMAGE_HREF"), "document and image file links are recognized");
 assert(semantics.includes("querySelector<HTMLImageElement>(\"img\")"), "photo-card image controls are recognized even when the button text is generic");
+assert(semantics.includes("choose|upload|take"), "upload and camera controls are excluded from open-file candidates");
 assert(semantics.includes("data-orion-role") && semantics.includes("data-orion-action"), "media controls expose descriptive semantic roles and exact click refs");
 assert(semantics.includes("openBestMatchingOrionMedia"), "typed Orion can open the best matching visible project media control");
 assert(semantics.includes("article, tr, li, [role='row']"), "generic preview/open buttons inherit nearby record context for disambiguation");
