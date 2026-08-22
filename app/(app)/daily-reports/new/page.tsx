@@ -21,6 +21,8 @@ function NewDailyReportPageContent() {
   const searchParams = useSearchParams();
   const { t } = useI18n();
   const selectedDate = useMemo(() => searchParams.get("date") || undefined, [searchParams]);
+  const selectedProjectId = useMemo(() => searchParams.get("projectId") || undefined, [searchParams]);
+  const selectedProjectName = useMemo(() => searchParams.get("projectName") || undefined, [searchParams]);
   const { projectOptions, superintendentOptions } = useDailyReports();
   const {
     draft,
@@ -30,7 +32,7 @@ function NewDailyReportPageContent() {
     validationErrors,
     setDraft,
     save,
-  } = useDailyReport({ initialDate: selectedDate });
+  } = useDailyReport({ initialDate: selectedDate, initialProjectId: selectedProjectId, initialProjectName: selectedProjectName });
 
   if (errorMessage) {
     return <ErrorState title={t("dailyReports.error.title")} description={t(errorMessage)} />;

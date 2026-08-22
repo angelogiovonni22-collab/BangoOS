@@ -94,7 +94,7 @@ export function ProjectWorkOperationsTimeline({
         userName: createdBy,
         phaseName,
         taskName: task.title,
-        href: `/projects/${projectId}?tab=work`,
+        href: `/projects/${projectId}?tab=tasks`,
         thumbnailUrl: null,
       });
 
@@ -113,7 +113,7 @@ export function ProjectWorkOperationsTimeline({
           userName: task.assigned_profile_id ? profiles[task.assigned_profile_id] || t("projects.notAssigned") : createdBy,
           phaseName,
           taskName: task.title,
-          href: `/projects/${projectId}?tab=work`,
+          href: `/projects/${projectId}?tab=tasks`,
           thumbnailUrl: null,
         });
       }
@@ -129,7 +129,7 @@ export function ProjectWorkOperationsTimeline({
           userName: task.assigned_profile_id ? profiles[task.assigned_profile_id] || t("projects.notAssigned") : createdBy,
           phaseName,
           taskName: task.title,
-          href: `/projects/${projectId}?tab=work`,
+          href: `/projects/${projectId}?tab=tasks`,
           thumbnailUrl: null,
         });
       }
@@ -430,7 +430,7 @@ async function loadPhotoEvents(
     userName: photo.uploaded_by ? profiles[photo.uploaded_by] || t("projects.sitecamUnknownUploader") : t("projects.notAssigned"),
     phaseName: null,
     taskName: null,
-    href: `/projects/${projectId}?tab=work`,
+    href: `/projects/${projectId}?tab=tasks`,
     thumbnailUrl: signedUrlByPath[photo.storage_path] || null,
   }));
 
