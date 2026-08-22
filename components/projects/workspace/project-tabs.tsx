@@ -40,7 +40,6 @@ const PRIMARY_TABS: ProjectNavKey[] = [
   "blueprints",
   "documents",
   RECEIPTS_TAB_KEY,
-  "financials",
 ];
 
 export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
