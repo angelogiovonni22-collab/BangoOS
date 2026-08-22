@@ -303,8 +303,10 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
 
   const handleCreateTask = async () => {
     const title = newTaskTitle.trim();
-    if (!selectedPhaseId || !title || isSavingTask) {
+    const client = supabase;
+    if (!selectedPhaseId || !title || isSavingTask || !client) {
       if (!selectedPhaseId) setValidationMessage(t("projects.workTaskDetailsNoPhaseDescription"));
+      if (!client) setValidationMessage(t("projects.workTaskDetailsErrorSave"));
       return;
     }
 
@@ -312,7 +314,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     setValidationMessage(null);
     setSaveFeedback(null);
 
-    const latestTaskResponse = await supabase
+    const latestTaskResponse = await client
       .from("tasks")
       .select("task_number, sort_order")
       .eq("company_id", companyId)
@@ -329,7 +331,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
 
     const nextTaskNumber = (latestTaskResponse.data?.task_number || 0) + 1;
     const nextSortOrder = (latestTaskResponse.data?.sort_order || 0) + 1;
-    const insertResponse = await supabase
+    const insertResponse = await client
       .from("tasks")
       .insert({
         company_id: companyId,
