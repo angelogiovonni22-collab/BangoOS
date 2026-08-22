@@ -30,6 +30,8 @@ function mediaKind(element: HTMLButtonElement | HTMLAnchorElement) {
   const image = element.querySelector<HTMLImageElement>("img");
   const combined = `${aria} ${text} ${href}`;
 
+  if (/\b(choose|upload|take)\b/i.test(combined) || element.closest("label")?.querySelector("input[type='file']")) return null;
+
   if (image || IMAGE_HREF.test(href) || /\b(photo|image)\b/i.test(combined)) return "photo" as const;
   if (DOCUMENT_HREF.test(href) || element instanceof HTMLAnchorElement && element.hasAttribute("download") || /\b(document|file|plan|blueprint|pdf|attachment)\b/i.test(combined)) return "document" as const;
   if (MEDIA_TEXT.test(combined)) return "media" as const;
