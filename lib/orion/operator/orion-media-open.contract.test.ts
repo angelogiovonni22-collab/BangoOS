@@ -30,6 +30,7 @@ assert(semantics.includes("button, a[href]"), "decorator scans visible-style cli
 assert(semantics.includes("DOCUMENT_HREF") && semantics.includes("IMAGE_HREF"), "document and image file links are recognized");
 assert(semantics.includes("querySelector<HTMLImageElement>(\"img\")"), "photo-card image controls are recognized even when the button text is generic");
 assert(semantics.includes("data-orion-role") && semantics.includes("data-orion-action"), "media controls expose descriptive semantic roles and exact click refs");
+assert(semantics.includes("openBestMatchingOrionMedia"), "typed Orion can open the best matching visible project media control");
 assert(semantics.includes("article, tr, li, [role='row']"), "generic preview/open buttons inherit nearby record context for disambiguation");
 assert(bridge.includes("ensureOrionMediaSemantics();"), "Realtime UI operator decorates media before every visible operation");
 assert(bridge.includes("semanticRole metadata") && bridge.includes("action=click"), "Realtime observation explicitly tells Orion how to open matched media");
@@ -38,6 +39,10 @@ assert(operator.includes("if (ref.startsWith(\"action:\"))"), "UI click resolver
 assert(
   commandCenter.match(/void handleExecute\(topRankedAction\);/g)?.length === 2,
   "Enter and Run deterministically execute the top visible ranked action instead of stale selection state",
+);
+assert(
+  commandCenter.match(/openBestMatchingOrionMedia\(query\)/g)?.length === 2,
+  "Enter and Run prefer an exact visible media match before generic catalog navigation",
 );
 
 console.log(`\nOrion media/document opening results: ${passed} passed, ${failed} failed`);
