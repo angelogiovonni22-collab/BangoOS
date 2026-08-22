@@ -12,10 +12,17 @@ const toolRouter = fs.readFileSync(path.join(root, "lib/orion/intelligence/orion
 assert.match(workspaceNavigation, /data-orion-action={`workspace-tab-\$\{tab\.key\}`}/);
 assert.match(workspaceNavigation, /data-orion-role={`workspace tab: \$\{tab\.label\}`}/);
 assert.match(projectTabs, /RECEIPTS_TAB_KEY = "receipts"/);
+assert.match(projectTabs, /PRIMARY_TABS/);
+assert.match(projectTabs, /"overview"/);
+assert.match(projectTabs, /"photos"/);
+assert.match(projectTabs, /"documents"/);
+assert.match(projectTabs, /PROJECT_WORKSPACE_TABS\.flatMap/);
+assert.match(projectTabs, /secondaryItems = items\.filter/);
+assert.match(projectTabs, /data-orion-action={`workspace-tab-\$\{item\.key\}`}/);
+assert.match(projectTabs, /data-orion-action="workspace-tab-more"/);
 assert.match(projectTabs, /key: RECEIPTS_TAB_KEY, label: "Receipts"/);
 assert.match(projectTabs, /nextParams\.set\("tab", "documents"\)/);
 assert.match(projectTabs, /nextParams\.set\("section", RECEIPTS_TAB_KEY\)/);
-assert.match(projectTabs, /activeKey=\{receiptsSelected \? RECEIPTS_TAB_KEY : activeTab\}/);
 assert.match(toolRouter, /request to open, show, or select a project workspace tab such as Photos, Documents, Blueprints/i);
 assert.match(toolRouter, /use the Orion UI Operator to observe the current screen and click the exact returned workspace-tab semantic action/i);
 assert.match(toolRouter, /action:workspace-tab-<tab_key>/i);

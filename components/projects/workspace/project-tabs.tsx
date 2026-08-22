@@ -1,11 +1,27 @@
 "use client";
 
-import { Activity, Briefcase, Camera, CircleDollarSign, ClipboardList, Files, FileText, LayoutGrid, ReceiptText, Ruler, ShieldCheck, Truck, Users, Wrench } from "lucide-react";
+import {
+  Activity,
+  Briefcase,
+  Camera,
+  ChevronDown,
+  CircleDollarSign,
+  ClipboardList,
+  Files,
+  FileText,
+  LayoutGrid,
+  MoreHorizontal,
+  ReceiptText,
+  Ruler,
+  ShieldCheck,
+  Truck,
+  Users,
+  Wrench,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { PROJECT_WORKSPACE_TABS } from "./project-workspace-tabs";
 import type { ProjectWorkspaceTabKey } from "./types";
-import { WorkspaceTabs } from "@/components/workspace";
 
 type ProjectTabsProps = {
   activeTab: ProjectWorkspaceTabKey;
@@ -13,13 +29,26 @@ type ProjectTabsProps = {
   t: (key: string) => string;
 };
 
+type ProjectNavKey = ProjectWorkspaceTabKey | "receipts";
+type ProjectNavItem = { key: ProjectNavKey; label: string; icon: ReactNode };
+
 const RECEIPTS_TAB_KEY = "receipts";
+const PRIMARY_TABS: ProjectNavKey[] = [
+  "overview",
+  "tasks",
+  "photos",
+  "blueprints",
+  "documents",
+  RECEIPTS_TAB_KEY,
+];
 
 export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [moreOpen, setMoreOpen] = useState(false);
   const receiptsSelected = activeTab === "documents" && searchParams.get("section") === RECEIPTS_TAB_KEY;
+  const activeKey: ProjectNavKey = receiptsSelected ? RECEIPTS_TAB_KEY : activeTab;
 
   const tabIcon: Record<ProjectWorkspaceTabKey, ReactNode> = {
     overview: <LayoutGrid size={16} aria-hidden="true" />,
@@ -38,16 +67,19 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
     activity: <Activity size={16} aria-hidden="true" />,
   };
 
-  const items = PROJECT_WORKSPACE_TABS.flatMap((tab) => {
-    const item = { key: tab.key, label: t(tab.labelKey), icon: tabIcon[tab.key] };
+  const items: ProjectNavItem[] = PROJECT_WORKSPACE_TABS.flatMap((tab) => {
+    const item: ProjectNavItem = { key: tab.key, label: t(tab.labelKey), icon: tabIcon[tab.key] };
     if (tab.key !== "documents") return [item];
-    return [
-      item,
-      { key: RECEIPTS_TAB_KEY, label: "Receipts", icon: <ReceiptText size={16} aria-hidden="true" /> },
-    ];
+    return [item, { key: RECEIPTS_TAB_KEY, label: "Receipts", icon: <ReceiptText size={16} aria-hidden="true" /> }];
   });
 
-  const handleChange = (key: string) => {
+  const primaryItems = PRIMARY_TABS.map((key) => items.find((item) => item.key === key)).filter(Boolean) as ProjectNavItem[];
+  const secondaryItems = items.filter((item) => !PRIMARY_TABS.includes(item.key));
+  const secondaryActiveItem = secondaryItems.find((item) => item.key === activeKey) || null;
+
+  const handleChange = (key: ProjectNavKey) => {
+    setMoreOpen(false);
+
     if (key === RECEIPTS_TAB_KEY) {
       const nextParams = new URLSearchParams(searchParams.toString());
       nextParams.set("tab", "documents");
@@ -70,11 +102,78 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
   };
 
   return (
-    <WorkspaceTabs
-      activeKey={receiptsSelected ? RECEIPTS_TAB_KEY : activeTab}
-      items={items}
-      onChange={handleChange}
-      ariaLabel={t("projects.workspaceNavigationLabel")}
-    />
+    <section
+      data-bos-surface="dark"
+      className="relative min-w-0 max-w-full rounded-[18px] border border-[var(--workspace-tabs-border)] [background:var(--workspace-tabs-surface)] p-2 shadow-[0_14px_28px_-22px_rgba(3,7,18,0.72)]"
+    >
+      <nav className="flex min-w-0 items-center gap-1.5 overflow-x-auto" aria-label={t("projects.workspaceNavigationLabel")}>
+        {primaryItems.map((item) => {
+          const active = item.key === activeKey;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => handleChange(item.key)}
+              data-orion-action={`workspace-tab-${item.key}`}
+              data-orion-role={`workspace tab: ${item.label}`}
+              className={`group inline-flex shrink-0 items-center gap-2 rounded-[11px] border px-3 py-2 text-[0.8rem] font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] ${
+                active
+                  ? "border-[var(--workspace-tab-active-border)] [background:var(--workspace-tab-active-surface)] text-white shadow-[0_7px_14px_-11px_rgba(30,120,255,0.72)]"
+                  : "border-transparent text-[var(--workspace-tab-idle-text)] hover:border-[var(--workspace-tab-idle-border-hover)] hover:bg-[var(--workspace-tab-idle-bg-hover)] hover:text-white"
+              }`}
+              aria-selected={active}
+              role="tab"
+            >
+              <span className={active ? "text-white" : "text-[var(--workspace-tab-idle-icon-text)] group-hover:text-white"}>{item.icon}</span>
+              {item.label}
+            </button>
+          );
+        })}
+
+        <div className="relative ml-auto shrink-0">
+          <button
+            type="button"
+            onClick={() => setMoreOpen((value) => !value)}
+            data-orion-action="workspace-tab-more"
+            data-orion-role="workspace tab menu: More"
+            aria-expanded={moreOpen}
+            className={`inline-flex items-center gap-2 rounded-[11px] border px-3 py-2 text-[0.8rem] font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] ${
+              secondaryActiveItem
+                ? "border-[var(--workspace-tab-active-border)] [background:var(--workspace-tab-active-surface)] text-white"
+                : "border-transparent text-[var(--workspace-tab-idle-text)] hover:border-[var(--workspace-tab-idle-border-hover)] hover:bg-[var(--workspace-tab-idle-bg-hover)] hover:text-white"
+            }`}
+          >
+            {secondaryActiveItem ? secondaryActiveItem.icon : <MoreHorizontal size={16} aria-hidden="true" />}
+            <span>{secondaryActiveItem?.label || "More"}</span>
+            <ChevronDown size={14} aria-hidden="true" className={moreOpen ? "rotate-180 transition" : "transition"} />
+          </button>
+
+          {moreOpen ? (
+            <div className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-56 overflow-hidden rounded-[14px] border border-[var(--bos-border-light)] bg-white p-1.5 shadow-xl">
+              {secondaryItems.map((item) => {
+                const active = item.key === activeKey;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => handleChange(item.key)}
+                    data-orion-action={`workspace-tab-${item.key}`}
+                    data-orion-role={`workspace tab: ${item.label}`}
+                    className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-left text-sm font-semibold transition ${
+                      active
+                        ? "bg-[var(--color-primary-50)] text-[var(--color-primary-700)]"
+                        : "text-[var(--bos-text-strong-on-light)] hover:bg-[var(--color-neutral-50)]"
+                    }`}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      </nav>
+    </section>
   );
 }

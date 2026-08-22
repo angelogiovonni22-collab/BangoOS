@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, CalendarDays, Camera, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, Gauge, MapPin, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { Activity, CalendarDays, Camera, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, Gauge, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import { LocationForecastCard } from "@/components/location-intelligence";
 import { Badge, Button } from "@/components/ui";
 
@@ -29,12 +29,22 @@ export function ProjectCommandCenterFoundation(props: Props) {
   const projectHref = "/projects/" + props.projectId;
 
   return (
-    <div className="space-y-4" data-project-overview="scope-first">
+    <div className="space-y-4" data-project-overview="jobsite-first-clean">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project overview metrics">
         <Metric icon={<Gauge size={20} />} label="Progress" value={progress + "%"} detail={completed.length + " of " + props.tasks.length + " tasks complete"} progress={progress} />
         <Metric icon={<CircleDollarSign size={20} />} label="Budget" value={props.budgetLabel} detail={"Spent " + props.spentLabel} />
         <Metric icon={<CalendarDays size={20} />} label="Schedule" value={daysRemainingLabel(props.targetDate)} detail={"Target " + props.targetDate} />
         <Metric icon={<Users size={20} />} label="Crew" value={props.crewCount ? props.crewCount + " assigned" : "Not assigned"} detail={active.length + " active tasks"} />
+      </section>
+
+      <section data-project-jobsite-intelligence="primary" className="min-w-0">
+        <LocationForecastCard
+          projectId={props.projectId}
+          fallbackDirectionsAddress={props.projectAddress}
+          title="Jobsite Weather & Map"
+          showMap
+          compact
+        />
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
@@ -120,18 +130,17 @@ export function ProjectCommandCenterFoundation(props: Props) {
         <Shortcut href={projectHref + "?tab=photos"} icon={<Camera size={20} />} label="Photos" value={props.photosCount} />
       </section>
 
-      <Collapsible title="Financials" subtitle="Budget, costs, commitments and change orders">
-        <div className="grid gap-3 sm:grid-cols-3"><Info label="Budget" value={props.budgetLabel} /><Info label="Spent" value={props.spentLabel} /><Info label="Remaining" value={props.remainingLabel} /></div>
-      </Collapsible>
-      <Collapsible title="Documents & Activity" subtitle="Reports, records, communication and recent changes">
-        <div className="grid gap-3 lg:grid-cols-2">
-          <Info label="Project records" value={props.dailyReportsCount + " reports · " + props.invoicesCount + " invoices · " + props.estimatesCount + " estimates"} />
-          <Info label="Latest activity" value={props.activityItems[0]?.title || props.timelineEntries[0]?.title || "No activity recorded"} />
-        </div>
-      </Collapsible>
-      <Collapsible title="Jobsite Intelligence" subtitle="Weather, map and directions" icon={<MapPin size={17} />}>
-        <LocationForecastCard projectId={props.projectId} fallbackDirectionsAddress={props.projectAddress} title="Jobsite Weather and Directions" showMap />
-      </Collapsible>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Collapsible title="Financials" subtitle="Budget, costs, commitments and change orders">
+          <div className="grid gap-3 sm:grid-cols-3"><Info label="Budget" value={props.budgetLabel} /><Info label="Spent" value={props.spentLabel} /><Info label="Remaining" value={props.remainingLabel} /></div>
+        </Collapsible>
+        <Collapsible title="Documents & Activity" subtitle="Reports, records, communication and recent changes">
+          <div className="grid gap-3">
+            <Info label="Project records" value={props.dailyReportsCount + " reports · " + props.invoicesCount + " invoices · " + props.estimatesCount + " estimates"} />
+            <Info label="Latest activity" value={props.activityItems[0]?.title || props.timelineEntries[0]?.title || "No activity recorded"} />
+          </div>
+        </Collapsible>
+      </div>
     </div>
   );
 }
@@ -152,8 +161,8 @@ function Shortcut({ href, icon, label, value, tone }: { href: string; icon: Reac
   const color = tone === "danger" ? "bg-[var(--color-danger-100)] text-[var(--color-danger-700)]" : tone === "warning" ? "bg-[var(--color-warning-100)] text-[var(--color-warning-700)]" : "bg-[var(--color-primary-100)] text-[var(--color-primary-700)]";
   return <Link href={href} className="group flex items-center gap-3 rounded-[15px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-3.5 shadow-[var(--shadow-small)] transition hover:-translate-y-0.5"><span className={"inline-flex h-10 w-10 items-center justify-center rounded-full " + color}>{icon}</span><div><p className="text-xs font-bold text-[var(--bos-text-medium-on-light)]">{label}</p><p className="text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">{value}</p></div><ChevronDown size={16} className="ml-auto -rotate-90 text-[var(--bos-text-medium-on-light)]" /></Link>;
 }
-function Collapsible({ title, subtitle, icon, children }: { title: string; subtitle: string; icon?: React.ReactNode; children: React.ReactNode }) {
-  return <details className="group rounded-[15px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] shadow-[var(--shadow-small)]"><summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5"><span className="text-[var(--orion-blue)]">{icon || <FileText size={17} />}</span><p className="font-extrabold text-[var(--bos-text-strong-on-light)]">{title}</p><p className="hidden text-sm font-medium text-[var(--bos-text-medium-on-light)] sm:block">{subtitle}</p><ChevronDown size={17} className="ml-auto text-[var(--bos-text-medium-on-light)] transition group-open:rotate-180" /></summary><div className="border-t border-[var(--bos-border-light)] p-4">{children}</div></details>;
+function Collapsible({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return <details className="group rounded-[15px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] shadow-[var(--shadow-small)]"><summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5"><span className="text-[var(--orion-blue)]"><FileText size={17} /></span><div className="min-w-0"><p className="font-extrabold text-[var(--bos-text-strong-on-light)]">{title}</p><p className="truncate text-xs font-medium text-[var(--bos-text-medium-on-light)]">{subtitle}</p></div><ChevronDown size={17} className="ml-auto shrink-0 text-[var(--bos-text-medium-on-light)] transition group-open:rotate-180" /></summary><div className="border-t border-[var(--bos-border-light)] p-4">{children}</div></details>;
 }
 function Empty({ label }: { label: string }) { return <p className="py-4 text-sm font-medium text-[var(--bos-text-medium-on-light)]">{label}</p>; }
 function status(value: string) { return value.trim().toLowerCase().replaceAll(" ", "_"); }
