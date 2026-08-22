@@ -76,18 +76,6 @@ const RETURN_TO_WAKE_STORAGE_KEY = "bangoos:orion:return-to-wake:v1";
 const MAX_RECENT_IDS = 8;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
-function isProjectMediaWorkspaceAction(action: OrionCommandCenterAction | null) {
-  return action?.id === "route-project-photos" || action?.id === "route-project-documents";
-}
-
-function shouldPreferSelectedAction(query: string, action: OrionCommandCenterAction | null) {
-  if (!action) return false;
-  if (isProjectMediaWorkspaceAction(action)) return true;
-
-  const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  return normalize(query) === normalize(action.label);
-}
-
 function nowMs() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
 }
@@ -1531,17 +1519,6 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                     if (event.key === "Enter") {
                       event.preventDefault();
 
-                      if (
-                        query.trim()
-                        && intentResult
-                        && intentResult.suggestedCommand
-                        && !intentResult.requiresClarification
-                        && !shouldPreferSelectedAction(query, selectedAction)
-                      ) {
-                        void executeResolvedCommand(intentResult.suggestedCommand.commandId, intentResult.suggestedCommand.params);
-                        return;
-                      }
-
                       if (selectedAction) {
                         void handleExecute(selectedAction);
                       }
@@ -1551,17 +1528,6 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                 <Button
                   type="button"
                   onClick={() => {
-                    if (
-                      query.trim()
-                      && intentResult
-                      && intentResult.suggestedCommand
-                      && !intentResult.requiresClarification
-                      && !shouldPreferSelectedAction(query, selectedAction)
-                    ) {
-                      void executeResolvedCommand(intentResult.suggestedCommand.commandId, intentResult.suggestedCommand.params);
-                      return;
-                    }
-
                     if (selectedAction) {
                       void handleExecute(selectedAction);
                     }

@@ -35,11 +35,9 @@ assert(bridge.includes("ensureOrionMediaSemantics();"), "Realtime UI operator de
 assert(bridge.includes("semanticRole metadata") && bridge.includes("action=click"), "Realtime observation explicitly tells Orion how to open matched media");
 assert(operator.includes("semanticRole: element.getAttribute(\"data-orion-role\")"), "UI observation returns media semanticRole metadata to Orion");
 assert(operator.includes("if (ref.startsWith(\"action:\"))"), "UI click resolver supports generated media action refs");
-assert(commandCenter.includes("isProjectMediaWorkspaceAction"), "exact current-project media actions are recognized in the command center");
-assert(commandCenter.includes("shouldPreferSelectedAction"), "an exact visible command label takes priority over a lower-confidence background intent");
 assert(
-  commandCenter.match(/!shouldPreferSelectedAction\(query, selectedAction\)/g)?.length === 2,
-  "typed and clicked project media actions take priority over a generic background intent guess",
+  commandCenter.match(/void handleExecute\(selectedAction\);/g)?.length === 2,
+  "Enter and Run execute the visible selected action instead of a hidden background intent guess",
 );
 
 console.log(`\nOrion media/document opening results: ${passed} passed, ${failed} failed`);
