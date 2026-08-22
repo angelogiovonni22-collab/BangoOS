@@ -65,8 +65,12 @@ assert.ok(weatherScene.includes("rainNear"));
 assert.ok(weatherScene.includes('grid-template-columns:repeat(6'));
 assert.ok(card.includes("formatWeatherTime"));
 assert.ok(dashboard.includes("<LocationForecastCard"));
-assert.ok(projectOverview.includes("<LocationForecastCard projectId={props.projectId}"));
-assert.ok(projectOverview.includes('<Collapsible title="Jobsite Intelligence"'));
+assert.ok(/<LocationForecastCard\s+[\s\S]*?projectId=\{props\.projectId\}/.test(projectOverview));
+assert.ok(projectOverview.includes('data-project-jobsite-intelligence="primary"'));
+assert.ok(projectOverview.includes('title="Jobsite Weather & Map"'));
+assert.ok(projectOverview.includes("showMap"));
+assert.ok(projectOverview.includes("compact"));
+assert.ok(!projectOverview.includes('<Collapsible title="Jobsite Intelligence"'));
 assert.ok(!read("app/(app)/projects/[id]/page.tsx").includes("<ProjectWorkspaceHero"));
 
 console.log("+ location intelligence is company-scoped, shared, cached, and provides seven-day weather, maps, and directions");
