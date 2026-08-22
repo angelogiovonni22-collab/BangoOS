@@ -14,7 +14,7 @@ import {
   ProjectExecutionIssue,
   ProjectExecutionNote,
   ProjectExecutionTask,
-  ProjectExecutionWorkspace,
+  ProjectWorkWorkspace,
   ProjectTabs,
   ProjectTradePartnersWorkspace,
   ProjectTradePartnerMessages,
@@ -39,6 +39,8 @@ import { useI18n } from "@/lib/i18n/provider";
 import { PROJECT_WORKSPACE_ASSIGNED_EQUIPMENT_STATUSES, PROJECT_WORKSPACE_EQUIPMENT_CONFLICT_OR_FILTER } from "@/lib/equipment";
 import { createClient } from "@/lib/supabase/client";
 import { hasBosPermission } from "@/lib/access-control/permissions";
+import { calculateProjectIntelligence } from "@/lib/project-intelligence/calculate-project-intelligence";
+import { generateProjectBriefing } from "@/lib/project-intelligence/briefing";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 
@@ -740,6 +742,23 @@ export default function ProjectWorkspacePage() {
   const upcomingMilestonesCount = executionTasks.filter((task) => task.kind === "milestone" && task.status !== "completed").length;
   const inspectionPendingCount = workspace.counts.pendingInspections;
   const blockedCount = executionTasks.filter((task) => task.status === "blocked").length;
+  void [executionIssues, executionNotes, executionActivity, executionCalendarEvents, inspectionMilestones, completionPercent, progressLabel, openTasksCount, upcomingMilestonesCount, inspectionPendingCount, blockedCount];
+  const projectIntelligence = calculateProjectIntelligence({
+    project,
+    tasks: workspace.tasks,
+    invoices: workspace.invoices,
+    counts: {
+      estimates: workspace.counts.estimates,
+      changeOrders: workspace.counts.changeOrders,
+      photos: workspace.counts.photos,
+    },
+  });
+  const superintendentBriefing = generateProjectBriefing({
+    intelligence: projectIntelligence,
+    projectId: project.id,
+    projectName,
+    localeTag,
+  });
 
   return (
     <MotionProvider>
@@ -794,22 +813,19 @@ export default function ProjectWorkspacePage() {
                 timelineEntries={timeline}
               />
             ) : activeTab === "tasks" ? (
-              <ProjectExecutionWorkspace
+              <ProjectWorkWorkspace
+                companyId={workspace.workspaceContext.companyId}
                 projectId={project.id}
                 projectName={projectName}
-                tasks={executionTasks}
-                issues={executionIssues}
-                notes={executionNotes}
-                activity={executionActivity}
-                calendarEvents={executionCalendarEvents}
-                inspectionMilestones={inspectionMilestones}
-                crewAssignmentCount={workspace.assignments.length}
-                completionPercent={completionPercent}
-                progressLabel={progressLabel}
-                openTasksCount={openTasksCount}
-                upcomingMilestonesCount={upcomingMilestonesCount}
-                inspectionPendingCount={inspectionPendingCount}
-                blockedCount={blockedCount}
+                projectStatus={project.status || ""}
+                customerId={project.customer_id}
+                userId={workspace.workspaceContext.userId}
+                locale={locale}
+                tasks={workspace.tasks}
+                profiles={workspace.profilesById}
+                briefing={superintendentBriefing}
+                formatCurrency={(amount) => formatProjectCurrency(amount, localeTag, "$0")}
+                t={t}
               />
             ) : activeTab === "photos" ? (
               <SiteCamWorkspace

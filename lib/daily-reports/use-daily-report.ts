@@ -8,10 +8,12 @@ import { validateDailyReportInput } from "./validation";
 type UseDailyReportParams = {
   reportId?: string;
   initialDate?: string;
+  initialProjectId?: string;
+  initialProjectName?: string;
   service?: DailyReportsService;
 };
 
-export function useDailyReport({ reportId, initialDate, service }: UseDailyReportParams = {}) {
+export function useDailyReport({ reportId, initialDate, initialProjectId, initialProjectName, service }: UseDailyReportParams = {}) {
   const serviceRef = useRef<DailyReportsService>(service ?? createDailyReportsService());
   const activeRequestRef = useRef(0);
   const unmountedRef = useRef(false);
@@ -73,7 +75,14 @@ export function useDailyReport({ reportId, initialDate, service }: UseDailyRepor
           return;
         }
 
-        setDraft(seeded);
+        setDraft(initialProjectId ? {
+          ...seeded,
+          header: {
+            ...seeded.header,
+            projectId: initialProjectId,
+            projectName: initialProjectName || seeded.header.projectName,
+          },
+        } : seeded);
         setStatus("draft");
       }
     } catch {
@@ -89,7 +98,7 @@ export function useDailyReport({ reportId, initialDate, service }: UseDailyRepor
 
       setIsLoading(false);
     }
-  }, [initialDate, reportId]);
+  }, [initialDate, initialProjectId, initialProjectName, reportId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

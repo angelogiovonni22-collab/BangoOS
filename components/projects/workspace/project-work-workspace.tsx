@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { CalendarDays, ClipboardCheck, FilePlus2, ListChecks, Plus, X } from "lucide-react";
 import { TaskDetailsPanel } from "@/app/(app)/projects/[id]/components/task-details-panel";
 import type { TaskFormValues } from "@/app/(app)/projects/[id]/components/workspace-types";
 import { FadeIn, SlidePanel, StaggerGroup, StatusPulse } from "@/components/motion";
@@ -57,6 +59,9 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
   const [isSavingTask, setIsSavingTask] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDueDate, setNewTaskDueDate] = useState("");
   const [taskDraftById, setTaskDraftById] = useState<Record<string, TaskDetailsDraft>>({});
   const [phaseNameById, setPhaseNameById] = useState<Record<string, string>>({});
   const [dependencySummary, setDependencySummary] = useState<DependencySummary | null>(null);
@@ -72,15 +77,15 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     sort: "due_date",
   });
 
-  const handleSelectedPhaseChange = (phaseId: string | null) => {
+  const handleSelectedPhaseChange = useCallback((phaseId: string | null) => {
     setSelectedPhaseId(phaseId);
     setSelectedTaskId(null);
     setIsMobileDetailsOpen(false);
     setSaveFeedback(null);
     setValidationMessage(null);
-  };
+  }, []);
 
-  const handleSelectedTaskChange = (taskId: string | null) => {
+  const handleSelectedTaskChange = useCallback((taskId: string | null) => {
     setSelectedTaskId(taskId);
     setSaveFeedback(null);
     setValidationMessage(null);
@@ -88,7 +93,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     if (taskId) {
       setIsMobileDetailsOpen(true);
     }
-  };
+  }, []);
 
   const selectedTask = selectedTaskId ? workspaceTasks.find((task) => task.id === selectedTaskId) ?? null : null;
   const selectedTaskBaseDraft = selectedTask ? mapTaskToDraft(selectedTask) : EMPTY_TASK_DRAFT;
@@ -296,8 +301,102 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     setSaveFeedback(t("projects.workTaskDetailsSaveSuccess"));
   };
 
+  const handleCreateTask = async () => {
+    const title = newTaskTitle.trim();
+    if (!selectedPhaseId || !title || isSavingTask) {
+      if (!selectedPhaseId) setValidationMessage(t("projects.workTaskDetailsNoPhaseDescription"));
+      return;
+    }
+
+    setIsSavingTask(true);
+    setValidationMessage(null);
+    setSaveFeedback(null);
+
+    const latestTaskResponse = await supabase
+      .from("tasks")
+      .select("task_number, sort_order")
+      .eq("company_id", companyId)
+      .eq("project_id", projectId)
+      .order("task_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestTaskResponse.error) {
+      setValidationMessage(t("projects.workTaskDetailsErrorSave"));
+      setIsSavingTask(false);
+      return;
+    }
+
+    const nextTaskNumber = (latestTaskResponse.data?.task_number || 0) + 1;
+    const nextSortOrder = (latestTaskResponse.data?.sort_order || 0) + 1;
+    const insertResponse = await supabase
+      .from("tasks")
+      .insert({
+        company_id: companyId,
+        project_id: projectId,
+        phase_id: selectedPhaseId,
+        task_number: nextTaskNumber,
+        sort_order: nextSortOrder,
+        title,
+        planned_finish: newTaskDueDate || null,
+        priority: "medium",
+        status: "not_started",
+        completion_percentage: 0,
+        created_by: userId,
+      })
+      .select("id, title, phase_id, description, notes, status, priority, assigned_profile_id, completion_percentage, planned_start, planned_finish, actual_start, actual_finish, estimated_hours, actual_hours, created_at, created_by, updated_at")
+      .single();
+
+    setIsSavingTask(false);
+
+    if (insertResponse.error || !insertResponse.data) {
+      setValidationMessage(t("projects.workTaskDetailsErrorSave"));
+      return;
+    }
+
+    const createdTask = insertResponse.data as WorkTaskSummary;
+    setWorkspaceTasks((previous) => [...previous, createdTask]);
+    setSelectedTaskId(createdTask.id);
+    setIsMobileDetailsOpen(true);
+    setNewTaskTitle("");
+    setNewTaskDueDate("");
+    setIsCreateTaskOpen(false);
+    setSaveFeedback(t("projects.workTaskDetailsSaveSuccess"));
+  };
+
   return (
     <div className="space-y-6">
+      <FadeIn delayMs={120} distancePx={5}>
+        <section className="rounded-[16px] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.09em] text-[var(--color-text-muted)]">{t("projects.workspaceTabTasks")}</p>
+              <h2 className="mt-1 text-lg font-bold text-[var(--color-navy-900)]">{projectName}</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setIsCreateTaskOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-[10px] bg-[var(--color-brand-700)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-brand-800)]">
+                {isCreateTaskOpen ? <X size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
+                {isCreateTaskOpen ? t("projects.workTaskDetailsClose") : t("projects.workCreateTask")}
+              </button>
+              <WorkspaceLink href={`/schedule?projectId=${projectId}`} icon={<CalendarDays size={15} aria-hidden="true" />} label={t("projects.workOpenSchedule")} />
+              <WorkspaceLink href={`/daily-reports/new?projectId=${projectId}&projectName=${encodeURIComponent(projectName)}`} icon={<FilePlus2 size={15} aria-hidden="true" />} label={t("projects.workCreateDailyReport")} />
+              <WorkspaceLink href={`/projects/${projectId}?tab=inspections`} icon={<ClipboardCheck size={15} aria-hidden="true" />} label={t("projects.workspaceTabInspections")} />
+              <WorkspaceLink href={`/projects/${projectId}?tab=inspections#punch-list`} icon={<ListChecks size={15} aria-hidden="true" />} label={t("projects.workOpenPunchList")} />
+            </div>
+          </div>
+
+          {isCreateTaskOpen ? (
+            <div className="mt-4 grid gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
+              <input value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={t("projects.workCreateTaskPlaceholder")} aria-label={t("projects.workTaskDetailsFieldTitle")} className="h-10 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)] focus:ring-2 focus:ring-[var(--focus-ring-primary)]" />
+              <input type="date" value={newTaskDueDate} onChange={(event) => setNewTaskDueDate(event.target.value)} aria-label={t("projects.workTaskDetailsFieldPlannedFinish")} className="h-10 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)]" />
+              <button type="button" disabled={!selectedPhaseId || !newTaskTitle.trim() || isSavingTask} onClick={() => void handleCreateTask()} className="h-10 rounded-[10px] bg-[var(--color-brand-700)] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55">
+                {isSavingTask ? t("projects.workTaskDetailsSaving") : t("projects.workTaskDetailsSave")}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      </FadeIn>
+
       <FadeIn delayMs={170} distancePx={6}>
         <ProjectSuperintendentBriefingPanel
           briefing={briefing}
@@ -441,6 +540,15 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
         />
       </BottomSheet>
     </div>
+  );
+}
+
+function WorkspaceLink({ href, icon, label }: { href: string; icon: ReactNode; label: string }) {
+  return (
+    <Link href={href} className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">
+      {icon}
+      {label}
+    </Link>
   );
 }
 
