@@ -33,6 +33,7 @@ assert(semantics.includes("choose|upload|take"), "upload and camera controls are
 assert(semantics.includes("data-orion-role") && semantics.includes("data-orion-action"), "media controls expose descriptive semantic roles and exact click refs");
 assert(semantics.includes("openBestMatchingOrionMedia"), "typed Orion can open the best matching visible project media control");
 assert(semantics.includes("window.open(signedDocumentLink.href"), "typed document opens preserve the Run-button user gesture for signed links");
+assert(semantics.includes("href*='/storage/v1/object/sign/'"), "image-format blueprints remain eligible as signed project documents");
 assert(semantics.includes("article, tr, li, [role='row']"), "generic preview/open buttons inherit nearby record context for disambiguation");
 assert(bridge.includes("ensureOrionMediaSemantics();"), "Realtime UI operator decorates media before every visible operation");
 assert(bridge.includes("semanticRole metadata") && bridge.includes("action=click"), "Realtime observation explicitly tells Orion how to open matched media");
