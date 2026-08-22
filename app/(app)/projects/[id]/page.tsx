@@ -931,6 +931,7 @@ function resolveWorkspaceTab(tabParam: string | null): WorkspaceTab {
     "financials",
     "change_orders",
     "rfis",
+    "submittals",
     "inspections",
     "activity",
   ];
