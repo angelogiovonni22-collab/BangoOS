@@ -13,6 +13,7 @@ import { rankActionsWithWorkspaceContext } from "@/lib/orion/command-center";
 import { createOrionExecutionEnvelope } from "@/lib/orion/commands/execution-envelope";
 import type { OrionIntentResult } from "@/lib/orion/intent-engine";
 import { applyOrionCommandNavigationResult } from "@/lib/orion/navigation";
+import { openBestMatchingOrionMedia } from "@/lib/orion/operator/media-semantics";
 import { buildVoiceConfirmationSummary, detectWakeWord, isCancelPhrase, isWakeWordSupported, parseVoiceConfirmationPhrase, resolveSpokenCandidate } from "@/lib/orion/voice";
 import type { OrionVoiceCaptureMode, OrionVoiceErrorCategory, OrionVoiceState } from "@/lib/orion/voice";
 import type {
@@ -1519,6 +1520,12 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                     if (event.key === "Enter") {
                       event.preventDefault();
 
+                      if (openBestMatchingOrionMedia(query)) {
+                        setResultMessage("Opened the matching project file.");
+                        handleClose();
+                        return;
+                      }
+
                       const topRankedAction = rankedActions[0];
                       if (topRankedAction) {
                         void handleExecute(topRankedAction);
@@ -1529,6 +1536,12 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                 <Button
                   type="button"
                   onClick={() => {
+                    if (openBestMatchingOrionMedia(query)) {
+                      setResultMessage("Opened the matching project file.");
+                      handleClose();
+                      return;
+                    }
+
                     const topRankedAction = rankedActions[0];
                     if (topRankedAction) {
                       void handleExecute(topRankedAction);

@@ -72,3 +72,39 @@ export function ensureOrionMediaSemantics() {
     }
   }
 }
+
+function searchableTokens(value: string) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((token) => token.length > 2 && !["open", "show", "view", "the", "this", "that", "please"].includes(token));
+}
+
+/** Opens the best visible photo/document match for a typed Orion request. */
+export function openBestMatchingOrionMedia(query: string) {
+  if (typeof document === "undefined" || !/\b(open|show|view)\b/i.test(query)) return false;
+
+  ensureOrionMediaSemantics();
+  const requestedTokens = searchableTokens(query);
+  const candidates = Array.from(document.querySelectorAll<HTMLElement>("[data-orion-role]"))
+    .map((control) => {
+      const role = normalizeText(control.getAttribute("data-orion-role")).toLowerCase();
+      const matchedTokens = requestedTokens.filter((token) => role.includes(token));
+      const requestedKind = /\b(photo|image)\b/i.test(query)
+        ? "photo"
+        : /\b(document|file|plan|blueprint|pdf|attachment)\b/i.test(query)
+          ? "document"
+          : null;
+      const kindMatch = requestedKind ? role.startsWith(`${requestedKind}:`) : true;
+      return { control, score: (kindMatch ? 10 : 0) + matchedTokens.length };
+    })
+    .filter((candidate) => candidate.score >= 10)
+    .sort((left, right) => right.score - left.score);
+
+  if (candidates.length === 0) return false;
+  if (requestedTokens.length > 0 && candidates[0].score === 10 && candidates.length > 1) return false;
+
+  candidates[0].control.click();
+  return true;
+}
