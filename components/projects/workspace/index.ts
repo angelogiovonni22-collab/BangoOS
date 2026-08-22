@@ -12,6 +12,7 @@ export { ProjectEmptyTab } from "./project-empty-tab";
 export { ProjectFinancialReporting } from "./project-financial-reporting";
 export { ProjectHealth } from "./project-health";
 export { ProjectHealthHero } from "./project-health-hero";
+export { ProjectIntelligenceWorkspace } from "./project-intelligence-workspace";
 export { ProjectKpiGrid } from "./project-kpi-grid";
 export { ProjectMilestones } from "./project-milestones";
 export { ProjectOverview } from "./project-overview";
