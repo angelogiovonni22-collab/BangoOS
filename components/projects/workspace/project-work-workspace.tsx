@@ -405,7 +405,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
           projectId={projectId}
           locale={locale}
           projectName={projectName}
-          t={t}
+          t={(key, params) => t(`projects.${key}`, params)}
           formatCurrency={formatCurrency}
         />
       </FadeIn>
