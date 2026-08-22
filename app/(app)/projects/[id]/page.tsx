@@ -9,7 +9,11 @@ import {
   ProjectCommandCenterFoundation,
   ProjectComplianceWorkflow,
   ProjectCommandCenterTabPlaceholder,
+  ProjectActivityWorkspace,
+  ProjectCustomerSnapshotBridge,
+  ProjectDocumentsWorkspace,
   ProjectFinancialReporting,
+  ProjectLinkedModuleWorkspace,
   ProjectExecutionCalendarEvent,
   ProjectExecutionIssue,
   ProjectExecutionNote,
@@ -861,6 +865,28 @@ export default function ProjectWorkspacePage() {
               <div className="space-y-4">
                 <ProjectTradePartnerMessages projectId={project.id} canManage={hasBosPermission(workspace.workspaceContext.role, "communications.manage")} />
                 <ProjectTradePartnersWorkspace projectId={project.id} />
+              </div>
+            ) : activeTab === "documents" ? (
+              <div className="space-y-4">
+                <ProjectCustomerSnapshotBridge projectId={project.id} />
+                <ProjectDocumentsWorkspace projectId={project.id} localeTag={localeTag} />
+              </div>
+            ) : activeTab === "activity" ? (
+              <ProjectActivityWorkspace
+                projectId={project.id}
+                localeTag={localeTag}
+                currentUserId={workspace.workspaceContext.userId}
+                currentUserName={workspace.profilesById[workspace.workspaceContext.userId] || "BangoOS User"}
+              />
+            ) : ["daily_logs", "crew", "change_orders", "rfis", "submittals"].includes(activeTab) ? (
+              <div className="space-y-4">
+                <ProjectCustomerSnapshotBridge projectId={project.id} />
+                <ProjectLinkedModuleWorkspace
+                  projectId={project.id}
+                  projectName={projectName}
+                  tab={activeTab as "daily_logs" | "crew" | "change_orders" | "rfis" | "submittals"}
+                  localeTag={localeTag}
+                />
               </div>
             ) : (
               <ProjectCommandCenterTabPlaceholder tabLabel={getWorkspaceTabLabel(activeTab, t)} />

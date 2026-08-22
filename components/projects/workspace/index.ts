@@ -1,5 +1,8 @@
 export { ProjectActivity } from "./project-activity";
 export { ProjectActivityWorkspace } from "./project-activity-workspace";
+export { ProjectCustomerSnapshotBridge } from "./project-customer-snapshot-bridge";
+export { ProjectDocumentsWorkspace } from "./project-documents-workspace";
+export { ProjectLinkedModuleWorkspace } from "./project-linked-module-workspace";
 export { ProjectBudget } from "./project-budget";
 export { ProjectCommandCenterOverviewPlaceholder } from "./project-command-center-overview-placeholder";
 export { ProjectCommandCenterFoundation } from "./project-command-center-foundation";
