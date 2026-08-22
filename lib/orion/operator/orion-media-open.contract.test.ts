@@ -36,8 +36,9 @@ assert(bridge.includes("semanticRole metadata") && bridge.includes("action=click
 assert(operator.includes("semanticRole: element.getAttribute(\"data-orion-role\")"), "UI observation returns media semanticRole metadata to Orion");
 assert(operator.includes("if (ref.startsWith(\"action:\"))"), "UI click resolver supports generated media action refs");
 assert(commandCenter.includes("isProjectMediaWorkspaceAction"), "exact current-project media actions are recognized in the command center");
+assert(commandCenter.includes("shouldPreferSelectedAction"), "an exact visible command label takes priority over a lower-confidence background intent");
 assert(
-  commandCenter.match(/!isProjectMediaWorkspaceAction\(selectedAction\)/g)?.length === 2,
+  commandCenter.match(/!shouldPreferSelectedAction\(query, selectedAction\)/g)?.length === 2,
   "typed and clicked project media actions take priority over a generic background intent guess",
 );
 

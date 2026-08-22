@@ -80,6 +80,14 @@ function isProjectMediaWorkspaceAction(action: OrionCommandCenterAction | null) 
   return action?.id === "route-project-photos" || action?.id === "route-project-documents";
 }
 
+function shouldPreferSelectedAction(query: string, action: OrionCommandCenterAction | null) {
+  if (!action) return false;
+  if (isProjectMediaWorkspaceAction(action)) return true;
+
+  const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return normalize(query) === normalize(action.label);
+}
+
 function nowMs() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
 }
@@ -1528,7 +1536,7 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                         && intentResult
                         && intentResult.suggestedCommand
                         && !intentResult.requiresClarification
-                        && !isProjectMediaWorkspaceAction(selectedAction)
+                        && !shouldPreferSelectedAction(query, selectedAction)
                       ) {
                         void executeResolvedCommand(intentResult.suggestedCommand.commandId, intentResult.suggestedCommand.params);
                         return;
@@ -1548,7 +1556,7 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                       && intentResult
                       && intentResult.suggestedCommand
                       && !intentResult.requiresClarification
-                      && !isProjectMediaWorkspaceAction(selectedAction)
+                      && !shouldPreferSelectedAction(query, selectedAction)
                     ) {
                       void executeResolvedCommand(intentResult.suggestedCommand.commandId, intentResult.suggestedCommand.params);
                       return;
