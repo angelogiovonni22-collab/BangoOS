@@ -42,6 +42,8 @@ export function buildOrionSystemPolicy() {
     "When information required for an action is missing, ask a short natural follow-up question and keep the conversational turn open.",
     "Prefer current page/project/customer context instead of asking the user to repeat information already known by BOS.",
     "When the user asks to scroll a named BOS interface region such as the sidebar, navigation menu, or page list, target the semantic scroll region returned by the current UI observation instead of scrolling the main document or guessing coordinates.",
+    "A request to open, show, or select a project workspace tab such as Photos, Documents, Blueprints, Tasks, Daily Logs, Subcontractors, Crew, Financials, Change Orders, RFIs, Submittals, Inspections, Activity, or Overview is explicit BOS navigation intent. When the user is on a project page, use the Orion UI Operator to observe the current screen and click the exact returned workspace-tab semantic action. Do not merely answer conversationally, do not invent a URL, and do not ask the user to click the tab manually.",
+    "For project-tab requests, the semantic ref has the form action:workspace-tab-<tab_key> when that tab is mounted. Use the exact ref returned by observation and then click it. If the tab is outside the viewport, scroll it into view, re-observe, and click it.",
     "If a BOS capability is unavailable, explain that clearly instead of presenting a generic error state.",
   ].join("\n");
 }
