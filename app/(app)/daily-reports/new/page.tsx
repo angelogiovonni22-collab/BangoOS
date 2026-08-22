@@ -24,6 +24,13 @@ function NewDailyReportPageContent() {
   const selectedProjectId = useMemo(() => searchParams.get("projectId") || undefined, [searchParams]);
   const selectedProjectName = useMemo(() => searchParams.get("projectName") || undefined, [searchParams]);
   const { projectOptions, superintendentOptions } = useDailyReports();
+  const scopedProjectOptions = useMemo(() => {
+    if (!selectedProjectId || projectOptions.some((project) => project.id === selectedProjectId)) {
+      return projectOptions;
+    }
+
+    return [{ id: selectedProjectId, name: selectedProjectName || selectedProjectId }, ...projectOptions];
+  }, [projectOptions, selectedProjectId, selectedProjectName]);
   const {
     draft,
     isLoading,
@@ -49,7 +56,7 @@ function NewDailyReportPageContent() {
 
       <DailyReportForm
         value={draft}
-        projectOptions={projectOptions}
+        projectOptions={scopedProjectOptions}
         superintendentOptions={superintendentOptions}
         validationErrors={validationErrors}
         isSaving={isSaving}

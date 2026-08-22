@@ -75,6 +75,7 @@ export function useDailyReport({ reportId, initialDate, initialProjectId, initia
           return;
         }
 
+        const scheduleMatchesProject = !initialProjectId || seeded.header.projectId === initialProjectId;
         setDraft(initialProjectId ? {
           ...seeded,
           header: {
@@ -82,6 +83,8 @@ export function useDailyReport({ reportId, initialDate, initialProjectId, initia
             projectId: initialProjectId,
             projectName: initialProjectName || seeded.header.projectName,
           },
+          schedulingPreload: scheduleMatchesProject ? seeded.schedulingPreload : null,
+          labor: scheduleMatchesProject ? seeded.labor : [],
         } : seeded);
         setStatus("draft");
       }
