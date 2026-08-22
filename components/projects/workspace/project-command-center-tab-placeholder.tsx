@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { ProjectActivityWorkspace } from "./project-activity-workspace";
 import { ProjectCustomerSnapshotBridge } from "./project-customer-snapshot-bridge";
+import { ProjectDocumentsWorkspace } from "./project-documents-workspace";
 import { ProjectLinkedModuleWorkspace, type ProjectLinkedModuleTab } from "./project-linked-module-workspace";
 
 type ProjectCommandCenterTabPlaceholderProps = {
@@ -88,14 +89,20 @@ export function ProjectCommandCenterTabPlaceholder({ tabLabel }: ProjectCommandC
   }, [isActivityTab, projectId, supabase]);
 
   if (projectId && linkedTab) {
+    const localeTag = locale === "es" ? "es-ES" : "en-US";
+
     return (
       <div className="space-y-4">
         <ProjectCustomerSnapshotBridge projectId={projectId} />
-        <ProjectLinkedModuleWorkspace
-          projectId={projectId}
-          tab={linkedTab}
-          localeTag={locale === "es" ? "es-ES" : "en-US"}
-        />
+        {linkedTab === "documents" ? (
+          <ProjectDocumentsWorkspace projectId={projectId} localeTag={localeTag} />
+        ) : (
+          <ProjectLinkedModuleWorkspace
+            projectId={projectId}
+            tab={linkedTab}
+            localeTag={localeTag}
+          />
+        )}
       </div>
     );
   }
