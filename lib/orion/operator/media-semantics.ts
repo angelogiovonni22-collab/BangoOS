@@ -107,6 +107,18 @@ export function openBestMatchingOrionMedia(query: string) {
   if (candidates.length === 0) return false;
   if (requestedTokens.length > 0 && candidates[0].score === 10 && candidates.length > 1) return false;
 
-  candidates[0].control.click();
+  const selected = candidates[0].control;
+  const selectedRole = normalizeText(selected.getAttribute("data-orion-role")).toLowerCase();
+  if (selectedRole.startsWith("document:") && !(selected instanceof HTMLAnchorElement)) {
+    const signedDocumentLink = candidates
+      .map((candidate) => candidate.control)
+      .find((control): control is HTMLAnchorElement => control instanceof HTMLAnchorElement && Boolean(control.href));
+    if (signedDocumentLink) {
+      window.open(signedDocumentLink.href, "_blank", "noopener,noreferrer");
+      return true;
+    }
+  }
+
+  selected.click();
   return true;
 }
