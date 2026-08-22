@@ -90,7 +90,9 @@ export function ProjectWorkActivePhasesPanel({
         const nextSelected = selectedStillExists ? selectedPhaseId : defaultPhase?.id ?? loadedPhases[0].id;
         const selectedPhase = loadedPhases.find((phase) => phase.id === nextSelected) ?? loadedPhases[0];
 
-        onSelectedPhaseChange(nextSelected);
+        if (nextSelected !== selectedPhaseId) {
+          onSelectedPhaseChange(nextSelected);
+        }
         setPhaseNameInput(selectedPhase.name);
         setPhaseColorInput(selectedPhase.color || "#2563eb");
       }

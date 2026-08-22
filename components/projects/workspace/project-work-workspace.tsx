@@ -182,7 +182,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     return () => {
       isSubscribed = false;
     };
-  }, [companyId, projectId, supabase]);
+  }, [companyId, projectId, selectedPhaseId, supabase]);
 
   useEffect(() => {
     let isSubscribed = true;
