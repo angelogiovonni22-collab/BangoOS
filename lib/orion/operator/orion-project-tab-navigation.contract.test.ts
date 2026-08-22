@@ -11,14 +11,17 @@ const toolRouter = fs.readFileSync(path.join(root, "lib/orion/intelligence/orion
 
 assert.match(workspaceNavigation, /data-orion-action={`workspace-tab-\$\{tab\.key\}`}/);
 assert.match(workspaceNavigation, /data-orion-role={`workspace tab: \$\{tab\.label\}`}/);
-assert.match(projectTabs, /key: tab\.key/);
-assert.match(projectTabs, /label: t\(tab\.labelKey\)/);
+assert.match(projectTabs, /RECEIPTS_TAB_KEY = "receipts"/);
+assert.match(projectTabs, /key: RECEIPTS_TAB_KEY, label: "Receipts"/);
+assert.match(projectTabs, /nextParams\.set\("tab", "documents"\)/);
+assert.match(projectTabs, /nextParams\.set\("section", RECEIPTS_TAB_KEY\)/);
+assert.match(projectTabs, /activeKey=\{receiptsSelected \? RECEIPTS_TAB_KEY : activeTab\}/);
 assert.match(toolRouter, /request to open, show, or select a project workspace tab such as Photos, Documents, Blueprints/i);
 assert.match(toolRouter, /use the Orion UI Operator to observe the current screen and click the exact returned workspace-tab semantic action/i);
 assert.match(toolRouter, /action:workspace-tab-<tab_key>/i);
-assert.match(documentsWorkspace, /label: "Receipts"/);
-assert.match(documentsWorkspace, /data-orion-action={`project-documents-tab-\$\{section\.key\}`}/);
+assert.match(documentsWorkspace, /searchParams\.get\("section"\) === "receipts"/);
 assert.match(documentsWorkspace, /<ProjectReceiptsWorkspace projectId=\{projectId\} \/>/);
+assert.doesNotMatch(documentsWorkspace, /role="tablist"/);
 assert.match(projectPlaceholder, /linkedTab === "documents"/);
 assert.match(projectPlaceholder, /<ProjectDocumentsWorkspace projectId=\{projectId\} localeTag=\{localeTag\} \/>/);
 
