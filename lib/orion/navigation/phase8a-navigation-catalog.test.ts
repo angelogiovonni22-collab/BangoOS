@@ -114,6 +114,24 @@ function main() {
     }
 
     assert(resolveCanonicalOrionNavigationHref({ entityId: "invented", deepLink: "/invented-tab" }) === null, "invented menu routes are blocked");
+
+    const projectId = "19e8d839-6d6b-4b43-9008-abecbd03fd30";
+    assert(
+      resolveCanonicalOrionNavigationHref({ entityId: projectId, deepLink: `/projects/${projectId}?tab=photos` }) === `/projects/${projectId}?tab=photos`,
+      "project photo workspace routes are allowed for the matching project",
+    );
+    assert(
+      resolveCanonicalOrionNavigationHref({ entityId: projectId, deepLink: `/projects/${projectId}?tab=documents` }) === `/projects/${projectId}?tab=documents`,
+      "project document workspace routes are allowed for the matching project",
+    );
+    assert(
+      resolveCanonicalOrionNavigationHref({ entityId: projectId, deepLink: `/projects/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?tab=photos` }) === null,
+      "project workspace routes cannot cross project boundaries",
+    );
+    assert(
+      resolveCanonicalOrionNavigationHref({ entityId: projectId, deepLink: `/projects/${projectId}?tab=financials` }) === null,
+      "unapproved project workspace tabs remain blocked",
+    );
     assert(resolveKnownOrionOperatorHref("/Dashboard") === "/dashboard", "final runtime guard canonicalizes dashboard casing");
     assert(resolveKnownOrionOperatorHref("/PROJECTS/?view=active") === "/projects?view=active", "final runtime guard preserves safe menu query parameters");
     assert(resolveKnownOrionOperatorHref("/invented-tab") === null, "final runtime guard blocks an invented route");

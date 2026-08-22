@@ -677,7 +677,29 @@ function normalizeStaticPath(value: string) {
   return (pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname).toLowerCase();
 }
 
+const ORION_PROJECT_WORKSPACE_TABS = new Set(["photos", "documents"]);
+
+function resolveProjectWorkspaceHref(input: { entityId: string; deepLink?: string | null }) {
+  if (!input.deepLink || !/^[0-9a-f-]{36}$/i.test(input.entityId)) return null;
+
+  const requestedPath = normalizeStaticPath(input.deepLink);
+  const projectPath = `/projects/${input.entityId.toLowerCase()}`;
+  if (requestedPath !== projectPath) return null;
+
+  const queryString = input.deepLink.split("?", 2)[1]?.split("#", 1)[0] || "";
+  const searchParams = new URLSearchParams(queryString);
+  const tab = searchParams.get("tab")?.toLowerCase() || "";
+  if (!ORION_PROJECT_WORKSPACE_TABS.has(tab) || [...searchParams.keys()].some((key) => key !== "tab")) {
+    return null;
+  }
+
+  return `${projectPath}?tab=${tab}`;
+}
+
 export function resolveCanonicalOrionNavigationHref(input: { entityId: string; deepLink?: string | null }) {
+  const projectWorkspaceHref = resolveProjectWorkspaceHref(input);
+  if (projectWorkspaceHref) return projectWorkspaceHref;
+
   const requestedPath = input.deepLink ? normalizeStaticPath(input.deepLink) : null;
   const requestedRoute = requestedPath
     ? ORION_NAVIGATION_ROUTES.find((route) => normalizeStaticPath(route.href) === requestedPath)
