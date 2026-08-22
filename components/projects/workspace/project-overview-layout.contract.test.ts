@@ -6,18 +6,22 @@ const read = (file: string) => fs.readFileSync(path.resolve(process.cwd(), file)
 const page = read("app/(app)/projects/[id]/page.tsx");
 const overview = read("components/projects/workspace/project-command-center-foundation.tsx");
 const header = read("components/projects/workspace/project-workspace-header.tsx");
+const headerWeather = read("components/projects/workspace/project-header-weather-strip.tsx");
 
 assert.ok(!page.includes("<ProjectWorkspaceHero"), "the oversized photo/weather hero stays out of the project landing view");
 assert.ok(!page.includes("<ProjectKpiGrid"), "the duplicate KPI strip stays out of the project landing view");
-assert.ok(overview.includes('data-project-overview="jobsite-first-clean"'), "the overview declares its cleaned jobsite-first hierarchy");
-assert.ok(overview.indexOf("Jobsite Weather & Map") < overview.indexOf("Scope of Work"), "weather and map appear near the top before the detailed scope");
-assert.ok(overview.includes('data-project-jobsite-intelligence="primary"'), "jobsite intelligence is a primary visible section");
+assert.ok(overview.includes('data-project-overview="header-jobsite-clean"'), "the overview declares its cleaned header-jobsite hierarchy");
+assert.ok(overview.includes("Scope of Work"));
 assert.ok(overview.includes("Today's Priorities"));
 assert.ok(overview.includes("Project Health"));
 assert.ok(overview.includes("Next 7 Days"));
-assert.ok(!overview.includes("<Collapsible title=\"Jobsite Intelligence\""), "jobsite intelligence is no longer hidden in a bottom accordion");
-assert.ok(overview.includes("<LocationForecastCard"), "live weather, map, and directions remain available");
-assert.ok(overview.includes("showMap"), "the project landing view keeps the map visible");
-assert.ok(header.includes("<WorkspaceHeader\n      compact"), "the project header uses the compact layout");
+assert.ok(!overview.includes("<LocationForecastCard"), "the full-width weather/map card no longer consumes the project overview");
+assert.ok(!overview.includes('data-project-jobsite-intelligence="primary"'));
+assert.ok(header.includes("<WorkspaceHeader\n        compact"), "the project header uses the compact layout");
+assert.ok(header.includes("<ProjectHeaderWeatherStrip />"), "weather and map sit directly with the project header");
+assert.ok(header.includes('data-project-header-with-jobsite-intelligence="true"'));
+assert.ok(headerWeather.includes('data-project-header-jobsite-intelligence="true"'));
+assert.ok(headerWeather.includes("lg:grid-cols-[1.05fr_1fr_0.9fr]"), "desktop jobsite intelligence uses a compact horizontal strip");
+assert.ok(headerWeather.includes("min-h-[112px]"), "weather and map stay short instead of stretching vertically");
 
-console.log("+ project overview is compact, jobsite-first, live-data driven, and keeps weather/maps visible");
+console.log("+ project overview is compact and moves live weather/maps into the project header");

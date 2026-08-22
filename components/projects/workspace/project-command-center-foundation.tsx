@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Activity, CalendarDays, Camera, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, Gauge, ShieldCheck, TriangleAlert, Users } from "lucide-react";
-import { LocationForecastCard } from "@/components/location-intelligence";
 import { Badge, Button } from "@/components/ui";
 
 type TaskSummary = { id: string; title: string; status: string; planned_finish: string | null };
@@ -29,22 +28,12 @@ export function ProjectCommandCenterFoundation(props: Props) {
   const projectHref = "/projects/" + props.projectId;
 
   return (
-    <div className="space-y-4" data-project-overview="jobsite-first-clean">
+    <div className="space-y-4" data-project-overview="header-jobsite-clean">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project overview metrics">
         <Metric icon={<Gauge size={20} />} label="Progress" value={progress + "%"} detail={completed.length + " of " + props.tasks.length + " tasks complete"} progress={progress} />
         <Metric icon={<CircleDollarSign size={20} />} label="Budget" value={props.budgetLabel} detail={"Spent " + props.spentLabel} />
         <Metric icon={<CalendarDays size={20} />} label="Schedule" value={daysRemainingLabel(props.targetDate)} detail={"Target " + props.targetDate} />
         <Metric icon={<Users size={20} />} label="Crew" value={props.crewCount ? props.crewCount + " assigned" : "Not assigned"} detail={active.length + " active tasks"} />
-      </section>
-
-      <section data-project-jobsite-intelligence="primary" className="min-w-0">
-        <LocationForecastCard
-          projectId={props.projectId}
-          fallbackDirectionsAddress={props.projectAddress}
-          title="Jobsite Weather & Map"
-          showMap
-          compact
-        />
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">

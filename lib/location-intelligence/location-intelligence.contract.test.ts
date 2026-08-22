@@ -20,6 +20,8 @@ const card = read("components/location-intelligence/location-forecast-card.tsx")
 const weatherScene = read("components/location-intelligence/location-weather-scene.module.css");
 const dashboard = read("components/dashboard/WeatherWidget.tsx");
 const projectOverview = read("components/projects/workspace/project-command-center-foundation.tsx");
+const projectHeader = read("components/projects/workspace/project-workspace-header.tsx");
+const headerWeather = read("components/projects/workspace/project-header-weather-strip.tsx");
 
 assert.ok(route.includes("resolveWorkspaceContext"));
 assert.ok(route.includes('.eq("company_id", workspace.context.companyId)'));
@@ -65,12 +67,14 @@ assert.ok(weatherScene.includes("rainNear"));
 assert.ok(weatherScene.includes('grid-template-columns:repeat(6'));
 assert.ok(card.includes("formatWeatherTime"));
 assert.ok(dashboard.includes("<LocationForecastCard"));
-assert.ok(/<LocationForecastCard\s+[\s\S]*?projectId=\{props\.projectId\}/.test(projectOverview));
-assert.ok(projectOverview.includes('data-project-jobsite-intelligence="primary"'));
-assert.ok(projectOverview.includes('title="Jobsite Weather & Map"'));
-assert.ok(projectOverview.includes("showMap"));
-assert.ok(projectOverview.includes("compact"));
+assert.ok(projectHeader.includes("<ProjectHeaderWeatherStrip />"));
+assert.ok(headerWeather.includes('/api/location-intelligence/weather?projectId='));
+assert.ok(headerWeather.includes("www.google.com/maps/dir/?api=1"));
+assert.ok(headerWeather.includes("www.google.com/maps?q="));
+assert.ok(headerWeather.includes('data-project-header-jobsite-intelligence="true"'));
+assert.ok(!projectOverview.includes("<LocationForecastCard"));
+assert.ok(!projectOverview.includes('data-project-jobsite-intelligence="primary"'));
 assert.ok(!projectOverview.includes('<Collapsible title="Jobsite Intelligence"'));
 assert.ok(!read("app/(app)/projects/[id]/page.tsx").includes("<ProjectWorkspaceHero"));
 
-console.log("+ location intelligence is company-scoped, shared, cached, and provides seven-day weather, maps, and directions");
+console.log("+ location intelligence is company-scoped, shared, cached, and surfaces compact weather/maps in the project header");
