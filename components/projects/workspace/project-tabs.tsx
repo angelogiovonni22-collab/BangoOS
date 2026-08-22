@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  BrainCircuit,
   Briefcase,
   Camera,
   ChevronDown,
@@ -57,6 +58,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
     photos: <Camera size={16} aria-hidden="true" />,
     blueprints: <Ruler size={16} aria-hidden="true" />,
     documents: <Files size={16} aria-hidden="true" />,
+    intelligence: <BrainCircuit size={16} aria-hidden="true" />,
     subcontractors: <Truck size={16} aria-hidden="true" />,
     crew: <Users size={16} aria-hidden="true" />,
     financials: <CircleDollarSign size={16} aria-hidden="true" />,
