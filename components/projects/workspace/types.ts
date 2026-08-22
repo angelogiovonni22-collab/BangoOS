@@ -7,6 +7,7 @@ export type ProjectWorkspaceTabKey =
   | "photos"
   | "blueprints"
   | "documents"
+  | "intelligence"
   | "subcontractors"
   | "crew"
   | "financials"
