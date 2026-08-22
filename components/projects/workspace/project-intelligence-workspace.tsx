@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, BrainCircuit, FileImage, FileText, RefreshCw, ScanSearch, ShieldCheck, Sparkles } from "lucide-react";
 import { Button, EmptyState, ErrorState } from "@/components/ui";
 
+type SourceType = "photo" | "attachment" | "blueprint";
 type IntelligenceSource = {
-  sourceType: "photo" | "attachment" | "blueprint";
+  sourceType: SourceType;
   sourceId: string;
   sourceKey: string;
   label: string;
@@ -13,10 +14,9 @@ type IntelligenceSource = {
   note: string | null;
   createdAt: string | null;
 };
-
 type IntelligenceAnalysis = {
   id: string;
-  source_type: "project" | "photo" | "attachment" | "blueprint";
+  source_type: "project" | SourceType;
   source_id: string | null;
   source_key: string;
   source_label: string;
@@ -30,7 +30,6 @@ type IntelligenceAnalysis = {
   confidence: number | string | null;
   analyzed_at: string;
 };
-
 type IntelligencePayload = {
   project: { id: string; name: string | null; project_number: string | null };
   counts: { sources: number; photos: number; attachments: number; blueprints: number; analyses: number };
@@ -38,20 +37,19 @@ type IntelligencePayload = {
   analyses: IntelligenceAnalysis[];
   error?: string;
 };
+type Props = { projectId: string; projectName: string; localeTag: string };
 
-type ProjectIntelligenceWorkspaceProps = {
-  projectId: string;
-  projectName: string;
-  localeTag: string;
-};
-
-export function ProjectIntelligenceWorkspace({ projectId, projectName, localeTag }: ProjectIntelligenceWorkspaceProps) {
+export function ProjectIntelligenceWorkspace({ projectId, projectName, localeTag }: Props) {
   const [payload, setPayload] = useState<IntelligencePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [runningKey, setRunningKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const analysisBySource = useMemo(() => new Map((payload?.analyses ?? []).map((analysis) => [analysis.source_key, analysis])), [payload?.analyses]);
+
+  const analysisBySource = useMemo(
+    () => new Map((payload?.analyses ?? []).map((analysis) => [analysis.source_key, analysis])),
+    [payload?.analyses],
+  );
   const projectAnalysis = analysisBySource.get("project") || null;
 
   const load = useCallback(async () => {
@@ -69,9 +67,12 @@ export function ProjectIntelligenceWorkspace({ projectId, projectName, localeTag
     }
   }, [projectId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
-  const analyze = async (sourceType: "project" | "photo" | "attachment" | "blueprint", sourceId?: string) => {
+  const analyze = async (sourceType: "project" | SourceType, sourceId?: string) => {
     const key = sourceType === "project" ? "project" : `${sourceType}:${sourceId}`;
     setRunningKey(key);
     setNotice(null);
@@ -128,7 +129,9 @@ export function ProjectIntelligenceWorkspace({ projectId, projectName, localeTag
         <Metric label="Saved analyses" value={payload?.counts.analyses ?? 0} />
       </div>
 
-      {projectAnalysis ? <AnalysisCard analysis={projectAnalysis} localeTag={localeTag} heading="Project briefing" icon={<Sparkles size={18} aria-hidden="true" />} /> : (
+      {projectAnalysis ? (
+        <AnalysisCard analysis={projectAnalysis} localeTag={localeTag} heading="Project briefing" icon={<Sparkles size={18} aria-hidden="true" />} />
+      ) : (
         <div className="rounded-[18px] border border-dashed border-[var(--bos-border-light-strong)] bg-white p-5">
           <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 shrink-0 text-[var(--color-primary-700)]" size={19} /><div><p className="font-bold text-[var(--bos-text-strong-on-light)]">Evidence-first briefing</p><p className="mt-1 text-sm leading-6 text-[var(--bos-text-medium-on-light)]">Analyze project evidence first, then build the briefing. Orion preserves uncertainty and does not claim it created operational records unless an authorized B.O.S. action actually succeeds.</p></div></div>
         </div>
@@ -136,7 +139,9 @@ export function ProjectIntelligenceWorkspace({ projectId, projectName, localeTag
 
       <div className="rounded-[18px] border border-[var(--bos-border-light)] bg-white p-5 shadow-[var(--bos-shadow-workspace-card)]">
         <div className="flex items-center gap-3"><ScanSearch size={19} className="text-[var(--color-primary-700)]" aria-hidden="true" /><div><p className="text-lg font-bold text-[var(--bos-text-strong-on-light)]">Project evidence</p><p className="text-sm text-[var(--bos-text-medium-on-light)]">Photos and project images use vision; text-readable blueprint PDFs use extracted document text. Every result stays tied to its source.</p></div></div>
-        {!payload?.sources.length ? <div className="mt-4"><EmptyState title="No project evidence yet" description="Add project photos, project attachments, or blueprints and Orion will surface them here." /></div> : (
+        {!payload?.sources.length ? (
+          <div className="mt-4"><EmptyState title="No project evidence yet" description="Add project photos, project attachments, or blueprints and Orion will surface them here." /></div>
+        ) : (
           <div className="mt-4 grid gap-3">
             {payload.sources.map((source) => {
               const sourceAnalysis = analysisBySource.get(source.sourceKey) || null;
@@ -145,7 +150,7 @@ export function ProjectIntelligenceWorkspace({ projectId, projectName, localeTag
                 <article key={source.sourceKey} className="rounded-[16px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-4" data-orion-role={`project intelligence source: ${source.label}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-0 gap-3">
-                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--bos-border-light-strong)] bg-white text-[var(--bos-text-medium-on-light)]">{source.sourceType === "photo" ? <FileImage size={17} /> : <FileText size={17} />}</span>
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--bos-border-light-strong)] bg-white text-[var(--bos-text-medium-on-light)]">{source.sourceType === "photo" ? <FileImage size={17} aria-hidden="true" /> : <FileText size={17} aria-hidden="true" />}</span>
                       <div className="min-w-0"><p className="break-words text-sm font-bold text-[var(--bos-text-strong-on-light)]">{source.label}</p><p className="mt-1 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--bos-text-medium-on-light)]">{source.sourceType} · {source.mimeType || "unknown type"}{sourceAnalysis ? " · analyzed" : " · not analyzed"}</p>{source.note ? <p className="mt-1 text-sm text-[var(--bos-text-medium-on-light)]">{source.note}</p> : null}</div>
                     </div>
                     <Button size="sm" variant={sourceAnalysis ? "outline" : "default"} data-orion-action={`analyze-${source.sourceKey}`} data-orion-role={`project intelligence action: analyze ${source.label}`} disabled={runningKey !== null} onClick={() => void analyze(source.sourceType, source.sourceId)}>{analyzing ? "Analyzing…" : sourceAnalysis ? "Reanalyze" : "Analyze"}</Button>
@@ -165,7 +170,7 @@ function Metric({ label, value }: { label: string; value: number }) {
   return <div className="rounded-[15px] border border-[var(--bos-border-light)] bg-white p-4 shadow-[var(--bos-shadow-workspace-card)]"><p className="text-2xl font-bold text-[var(--bos-text-strong-on-light)]">{value}</p><p className="mt-1 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--bos-text-medium-on-light)]">{label}</p></div>;
 }
 
-function AnalysisCard({ analysis, localeTag, heading, icon, compact = false }: { analysis: IntelligenceAnalysis; localeTag: string; heading: string; icon: React.ReactNode; compact?: boolean }) {
+function AnalysisCard({ analysis, localeTag, heading, icon, compact = false }: { analysis: IntelligenceAnalysis; localeTag: string; heading: string; icon: ReactNode; compact?: boolean }) {
   const observations = stringArray(analysis.observations);
   const risks = stringArray(analysis.risks);
   const recommendations = stringArray(analysis.recommendations);
