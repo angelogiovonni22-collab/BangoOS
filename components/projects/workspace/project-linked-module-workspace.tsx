@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, FileText, HardHat, MessageSquareText, RefreshCw } from "lucide-react";
+import { ClipboardList, FileText, HardHat, MessageSquareText, Plus, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -11,6 +11,7 @@ export type ProjectLinkedModuleTab = "daily_logs" | "documents" | "crew" | "chan
 
 type ProjectLinkedModuleWorkspaceProps = {
   projectId: string;
+  projectName?: string;
   tab: ProjectLinkedModuleTab;
   localeTag: string;
 };
@@ -62,11 +63,67 @@ const moduleMeta: Record<ProjectLinkedModuleTab, { title: string; description: s
   submittals: { title: "Submittals", description: "Project submittal register with review status and due dates.", empty: "No submittals have been recorded for this project yet." },
 };
 
-export function ProjectLinkedModuleWorkspace({ projectId, tab, localeTag }: ProjectLinkedModuleWorkspaceProps) {
+export function ProjectLinkedModuleWorkspace({ projectId, projectName, tab, localeTag }: ProjectLinkedModuleWorkspaceProps) {
   const supabase = useMemo(() => createClient(), []);
   const [reloadToken, setReloadToken] = useState(0);
   const [state, setState] = useState<ModuleState>(INITIAL_STATE);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newDiscipline, setNewDiscipline] = useState("General");
+  const [newDueDate, setNewDueDate] = useState("");
   const meta = moduleMeta[tab];
+
+  const canCreateRegisterRecord = tab === "rfis" || tab === "submittals";
+
+  const handleCreateRegisterRecord = async () => {
+    const title = newTitle.trim();
+    if (!title || isCreating || !supabase || !canCreateRegisterRecord) return;
+
+    setIsCreating(true);
+    setCreateError(null);
+    const workspace = await resolveWorkspaceContext(supabase);
+
+    if (!workspace.context) {
+      setCreateError(workspace.errorMessage || "Unable to create this project record.");
+      setIsCreating(false);
+      return;
+    }
+
+    const db = supabase as unknown as {
+      rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message?: string } | null }>;
+    };
+    const response = tab === "rfis"
+      ? await db.rpc("create_project_rfi", {
+          p_company_id: workspace.context.companyId,
+          p_project_id: projectId,
+          p_title: title,
+          p_message: newDescription.trim() || title,
+        })
+      : await db.rpc("create_project_submittal", {
+          p_company_id: workspace.context.companyId,
+          p_project_id: projectId,
+          p_title: title,
+          p_description: newDescription.trim() || null,
+          p_discipline: newDiscipline.trim() || "General",
+          p_due_date: newDueDate || null,
+        });
+
+    setIsCreating(false);
+    if (response.error) {
+      setCreateError(response.error.message || "Unable to create this project record.");
+      return;
+    }
+
+    setNewTitle("");
+    setNewDescription("");
+    setNewDiscipline("General");
+    setNewDueDate("");
+    setIsCreateOpen(false);
+    setReloadToken((value) => value + 1);
+  };
 
   useEffect(() => {
     let subscribed = true;
@@ -244,7 +301,7 @@ export function ProjectLinkedModuleWorkspace({ projectId, tab, localeTag }: Proj
   }, [localeTag, meta.title, projectId, reloadToken, supabase, tab]);
 
   const primaryHref = tab === "daily_logs"
-    ? `/daily-reports/new?projectId=${encodeURIComponent(projectId)}`
+    ? `/daily-reports/new?projectId=${encodeURIComponent(projectId)}${projectName ? `&projectName=${encodeURIComponent(projectName)}` : ""}`
     : tab === "change_orders"
       ? `/change-orders/new?projectId=${encodeURIComponent(projectId)}`
       : tab === "crew"
@@ -267,8 +324,35 @@ export function ProjectLinkedModuleWorkspace({ projectId, tab, localeTag }: Proj
           {primaryHref && primaryLabel ? (
             <Link href={primaryHref}><Button size="sm">{primaryLabel}</Button></Link>
           ) : null}
+          {canCreateRegisterRecord ? (
+            <Button size="sm" onClick={() => setIsCreateOpen((value) => !value)}>
+              {isCreateOpen ? <X size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
+              {isCreateOpen ? "Close" : tab === "rfis" ? "Create RFI" : "Create Submittal"}
+            </Button>
+          ) : null}
         </div>
       </div>
+
+      {isCreateOpen && canCreateRegisterRecord ? (
+        <div className="grid gap-3 rounded-[16px] border border-[var(--bos-border-light)] bg-white p-4 shadow-[var(--bos-shadow-workspace-card)] md:grid-cols-2">
+          <label className="space-y-1.5 text-sm font-semibold text-[var(--bos-text-strong-on-light)]">
+            <span>Title</span>
+            <input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} className={registerInputClass} placeholder={tab === "rfis" ? "Clarification needed" : "Product data submittal"} />
+          </label>
+          {tab === "submittals" ? (
+            <>
+              <label className="space-y-1.5 text-sm font-semibold text-[var(--bos-text-strong-on-light)]"><span>Discipline</span><input value={newDiscipline} onChange={(event) => setNewDiscipline(event.target.value)} className={registerInputClass} /></label>
+              <label className="space-y-1.5 text-sm font-semibold text-[var(--bos-text-strong-on-light)]"><span>Due date</span><input type="date" value={newDueDate} onChange={(event) => setNewDueDate(event.target.value)} className={registerInputClass} /></label>
+            </>
+          ) : null}
+          <label className="space-y-1.5 text-sm font-semibold text-[var(--bos-text-strong-on-light)] md:col-span-2">
+            <span>{tab === "rfis" ? "Question / context" : "Description"}</span>
+            <textarea value={newDescription} onChange={(event) => setNewDescription(event.target.value)} className={`${registerInputClass} min-h-24 py-2.5`} />
+          </label>
+          {createError ? <p className="text-sm font-semibold text-[var(--color-danger-700)] md:col-span-2">{createError}</p> : null}
+          <div className="flex justify-end md:col-span-2"><Button disabled={!newTitle.trim() || isCreating} onClick={() => void handleCreateRegisterRecord()}>{isCreating ? "Creating..." : tab === "rfis" ? "Create RFI" : "Create Submittal"}</Button></div>
+        </div>
+      ) : null}
 
       {state.loading ? <LoadingState /> : state.error ? <ErrorState message={state.error} /> : tab === "documents" ? (
         <DocumentIndex counts={state.counts ?? []} />
@@ -280,6 +364,8 @@ export function ProjectLinkedModuleWorkspace({ projectId, tab, localeTag }: Proj
     </section>
   );
 }
+
+const registerInputClass = "h-10 w-full rounded-[10px] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 text-sm font-medium text-[var(--bos-text-primary)] outline-none focus:border-[var(--orion-blue)] focus:ring-4 focus:ring-[var(--focus-ring-primary)]";
 
 function RecordList({ records, localeTag, tab }: { records: ModuleRecord[]; localeTag: string; tab: ProjectLinkedModuleTab }) {
   const icon = tab === "daily_logs" ? <ClipboardList size={17} /> : tab === "crew" ? <HardHat size={17} /> : tab === "rfis" ? <MessageSquareText size={17} /> : <FileText size={17} />;
