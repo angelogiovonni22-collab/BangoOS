@@ -110,9 +110,14 @@ export function openBestMatchingOrionMedia(query: string) {
   const selected = candidates[0].control;
   const selectedRole = normalizeText(selected.getAttribute("data-orion-role")).toLowerCase();
   if (selectedRole.startsWith("document:") && !(selected instanceof HTMLAnchorElement)) {
-    const signedDocumentLink = candidates
-      .map((candidate) => candidate.control)
-      .find((control): control is HTMLAnchorElement => control instanceof HTMLAnchorElement && Boolean(control.href));
+    const signedDocumentLink = Array.from(document.querySelectorAll<HTMLAnchorElement>(
+      "a[data-orion-role][href*='/storage/v1/object/sign/'], a[data-orion-role][download]",
+    ))
+      .map((control) => ({
+        control,
+        score: requestedTokens.filter((token) => normalizeText(control.getAttribute("data-orion-role")).toLowerCase().includes(token)).length,
+      }))
+      .sort((left, right) => right.score - left.score)[0]?.control;
     if (signedDocumentLink) {
       window.open(signedDocumentLink.href, "_blank", "noopener,noreferrer");
       return true;
