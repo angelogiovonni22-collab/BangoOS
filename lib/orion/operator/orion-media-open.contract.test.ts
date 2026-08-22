@@ -36,8 +36,8 @@ assert(bridge.includes("semanticRole metadata") && bridge.includes("action=click
 assert(operator.includes("semanticRole: element.getAttribute(\"data-orion-role\")"), "UI observation returns media semanticRole metadata to Orion");
 assert(operator.includes("if (ref.startsWith(\"action:\"))"), "UI click resolver supports generated media action refs");
 assert(
-  commandCenter.match(/void handleExecute\(selectedAction\);/g)?.length === 2,
-  "Enter and Run execute the visible selected action instead of a hidden background intent guess",
+  commandCenter.match(/void handleExecute\(topRankedAction\);/g)?.length === 2,
+  "Enter and Run deterministically execute the top visible ranked action instead of stale selection state",
 );
 
 console.log(`\nOrion media/document opening results: ${passed} passed, ${failed} failed`);

@@ -1519,8 +1519,9 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                     if (event.key === "Enter") {
                       event.preventDefault();
 
-                      if (selectedAction) {
-                        void handleExecute(selectedAction);
+                      const topRankedAction = rankedActions[0];
+                      if (topRankedAction) {
+                        void handleExecute(topRankedAction);
                       }
                     }
                   }}
@@ -1528,11 +1529,12 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                 <Button
                   type="button"
                   onClick={() => {
-                    if (selectedAction) {
-                      void handleExecute(selectedAction);
+                    const topRankedAction = rankedActions[0];
+                    if (topRankedAction) {
+                      void handleExecute(topRankedAction);
                     }
                   }}
-                  disabled={!selectedAction || isRunning}
+                  disabled={rankedActions.length === 0 || isRunning}
                   className="h-11 bg-blue-500 text-white hover:bg-blue-400 disabled:bg-slate-700"
                 >
                   {isRunning ? "Running" : "Run"}
