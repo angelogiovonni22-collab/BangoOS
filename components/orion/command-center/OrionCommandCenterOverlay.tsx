@@ -76,6 +76,10 @@ const RETURN_TO_WAKE_STORAGE_KEY = "bangoos:orion:return-to-wake:v1";
 const MAX_RECENT_IDS = 8;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
+function isProjectMediaWorkspaceAction(action: OrionCommandCenterAction | null) {
+  return action?.id === "route-project-photos" || action?.id === "route-project-documents";
+}
+
 function nowMs() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
 }
@@ -1524,6 +1528,7 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                         && intentResult
                         && intentResult.suggestedCommand
                         && !intentResult.requiresClarification
+                        && !isProjectMediaWorkspaceAction(selectedAction)
                       ) {
                         void executeResolvedCommand(intentResult.suggestedCommand.commandId, intentResult.suggestedCommand.params);
                         return;
@@ -1543,6 +1548,7 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                       && intentResult
                       && intentResult.suggestedCommand
                       && !intentResult.requiresClarification
+                      && !isProjectMediaWorkspaceAction(selectedAction)
                     ) {
                       void executeResolvedCommand(intentResult.suggestedCommand.commandId, intentResult.suggestedCommand.params);
                       return;

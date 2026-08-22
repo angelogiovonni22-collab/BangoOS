@@ -21,6 +21,7 @@ function read(relativePath: string) {
 const semantics = read("lib/orion/operator/media-semantics.ts");
 const bridge = read("lib/orion/realtime/tool-bridge.ts");
 const operator = read("lib/orion/operator/browser.ts");
+const commandCenter = read("components/orion/command-center/OrionCommandCenterOverlay.tsx");
 
 console.log("\nOrion media/document opening contract");
 
@@ -34,6 +35,11 @@ assert(bridge.includes("ensureOrionMediaSemantics();"), "Realtime UI operator de
 assert(bridge.includes("semanticRole metadata") && bridge.includes("action=click"), "Realtime observation explicitly tells Orion how to open matched media");
 assert(operator.includes("semanticRole: element.getAttribute(\"data-orion-role\")"), "UI observation returns media semanticRole metadata to Orion");
 assert(operator.includes("if (ref.startsWith(\"action:\"))"), "UI click resolver supports generated media action refs");
+assert(commandCenter.includes("isProjectMediaWorkspaceAction"), "exact current-project media actions are recognized in the command center");
+assert(
+  commandCenter.match(/!isProjectMediaWorkspaceAction\(selectedAction\)/g)?.length === 2,
+  "typed and clicked project media actions take priority over a generic background intent guess",
+);
 
 console.log(`\nOrion media/document opening results: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exitCode = 1;
