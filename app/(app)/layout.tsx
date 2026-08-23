@@ -55,6 +55,12 @@ export default async function DashboardLayout({
   }
 
   const orionEnabled = canUseOrion(workspace.context.role, permissionOverrides);
+  const { data: platformAdministrator } = await supabase
+    .from("bos_platform_admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .eq("active", true)
+    .maybeSingle();
 
   return (
     <CompanyProvider workspace={workspace.context}>
@@ -64,6 +70,7 @@ export default async function DashboardLayout({
         companyName={workspace.context.companyName}
         role={workspace.context.role}
         orionEnabled={orionEnabled}
+        platformAdmin={Boolean(platformAdministrator)}
       >
         {children}
       </AppShell>
