@@ -18,6 +18,12 @@ export type PlatformTenant = {
   supportTier: string;
   trialEndsAt: string | null;
   internalNotes: string | null;
+  subscriptionStatus: string | null;
+  billingInterval: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  hasStripeCustomer: boolean;
+  hasStripeSubscription: boolean;
   createdAt: string;
   updatedAt: string;
 };

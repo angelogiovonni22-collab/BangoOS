@@ -24,7 +24,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       ...(payload.seatLimit !== undefined ? { seat_limit: payload.seatLimit } : {}), ...(payload.orionTextAllowance !== undefined ? { orion_text_allowance: payload.orionTextAllowance } : {}),
       ...(payload.orionVoiceMinutes !== undefined ? { orion_voice_minutes: payload.orionVoiceMinutes } : {}), ...(payload.internalNotes !== undefined ? { internal_notes: payload.internalNotes?.trim() || null } : {}), updated_at: new Date().toISOString(),
     };
-    const { data: account, error } = await supabase.from("bos_tenant_accounts").update(update).eq("company_id", companyId).select("company_id, plan_key, lifecycle_status, seat_limit, orion_text_allowance, orion_voice_minutes, support_tier, trial_ends_at, internal_notes, created_at, updated_at").single();
+    const { data: account, error } = await supabase.from("bos_tenant_accounts").update(update).eq("company_id", companyId).select("company_id, plan_key, lifecycle_status, seat_limit, orion_text_allowance, orion_voice_minutes, support_tier, trial_ends_at, internal_notes, subscription_status, billing_interval, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id, created_at, updated_at").single();
     if (error) throw error;
     const [{ data: company }, { count: memberCount }, { count: projectCount }] = await Promise.all([
       supabase.from("companies").select("id, name, slug, created_at").eq("id", companyId).single(),
@@ -34,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!company) throw new Error("Company not found.");
     const audit = await supabase.from("bos_platform_audit_log").insert({ actor_user_id: user.id, company_id: companyId, action: "tenant_account.updated", changes: update });
     if (audit.error) throw audit.error;
-    return NextResponse.json({ ok: true, tenant: { companyId, companyName: company.name, slug: company.slug, planKey: account.plan_key, lifecycleStatus: account.lifecycle_status, seatLimit: account.seat_limit, memberCount: memberCount || 0, projectCount: projectCount || 0, orionTextAllowance: account.orion_text_allowance, orionVoiceMinutes: account.orion_voice_minutes, supportTier: account.support_tier, trialEndsAt: account.trial_ends_at, internalNotes: account.internal_notes, createdAt: account.created_at, updatedAt: account.updated_at } });
+    return NextResponse.json({ ok: true, tenant: { companyId, companyName: company.name, slug: company.slug, planKey: account.plan_key, lifecycleStatus: account.lifecycle_status, seatLimit: account.seat_limit, memberCount: memberCount || 0, projectCount: projectCount || 0, orionTextAllowance: account.orion_text_allowance, orionVoiceMinutes: account.orion_voice_minutes, supportTier: account.support_tier, trialEndsAt: account.trial_ends_at, internalNotes: account.internal_notes, subscriptionStatus: account.subscription_status, billingInterval: account.billing_interval, currentPeriodEnd: account.current_period_end, cancelAtPeriodEnd: account.cancel_at_period_end, hasStripeCustomer: Boolean(account.stripe_customer_id), hasStripeSubscription: Boolean(account.stripe_subscription_id), createdAt: account.created_at, updatedAt: account.updated_at } });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Unable to update this company." }, { status: 500 });
   }

@@ -14,7 +14,7 @@ export default async function PlatformAdminPage() {
 
   const [companies, accounts, memberships, projects] = await Promise.all([
     supabase.from("companies").select("id, name, slug, created_at").order("created_at", { ascending: false }),
-    supabase.from("bos_tenant_accounts").select("company_id, plan_key, lifecycle_status, seat_limit, orion_text_allowance, orion_voice_minutes, support_tier, trial_ends_at, internal_notes, created_at, updated_at"),
+    supabase.from("bos_tenant_accounts").select("company_id, plan_key, lifecycle_status, seat_limit, orion_text_allowance, orion_voice_minutes, support_tier, trial_ends_at, internal_notes, subscription_status, billing_interval, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id, created_at, updated_at"),
     supabase.from("company_memberships").select("company_id").eq("status", "active"),
     supabase.from("projects").select("company_id"),
   ]);
@@ -34,6 +34,8 @@ export default async function PlatformAdminPage() {
       seatLimit: account?.seat_limit || 2, memberCount: memberCounts.get(company.id) || 0, projectCount: projectCounts.get(company.id) || 0,
       orionTextAllowance: account?.orion_text_allowance || 0, orionVoiceMinutes: account?.orion_voice_minutes || 0,
       supportTier: account?.support_tier || "standard", trialEndsAt: account?.trial_ends_at || null, internalNotes: account?.internal_notes || null,
+      subscriptionStatus: account?.subscription_status || null, billingInterval: account?.billing_interval || null, currentPeriodEnd: account?.current_period_end || null,
+      cancelAtPeriodEnd: account?.cancel_at_period_end || false, hasStripeCustomer: Boolean(account?.stripe_customer_id), hasStripeSubscription: Boolean(account?.stripe_subscription_id),
       createdAt: account?.created_at || company.created_at, updatedAt: account?.updated_at || company.created_at,
     };
   });

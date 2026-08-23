@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const { t } = useI18n();
   const { role } = useCompany();
   const canManageAccess = hasBosPermission(role, "access_control.manage");
+  const canManageBilling = role === "owner" || role === "administrator";
 
   return (
     <div className="container-narrow space-y-[var(--space-section)]">
@@ -22,6 +23,14 @@ export default function SettingsPage() {
           <p className="text-sm text-[var(--color-text-secondary)]">Control which B.O.S. areas each employee, manager, subcontractor, or customer can access. Sensitive financial information is protected at both the interface and database layers.</p>
         </CardHeader>
         <CardContent className="p-5"><Link href="/settings/access-control" className="inline-flex items-center rounded-[10px] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105">Open Access Control</Link></CardContent>
+      </Card> : null}
+
+      {canManageBilling ? <Card as="section" variant="elevated">
+        <CardHeader className="bg-[var(--color-surface-subtle)]">
+          <CardTitle>Subscription & Billing</CardTitle>
+          <p className="text-sm text-[var(--color-text-secondary)]">Review your B.O.S. plan, company seats, Orion capacity, invoices, payment method, and renewal settings.</p>
+        </CardHeader>
+        <CardContent className="p-5"><Link href="/settings/billing" className="inline-flex items-center rounded-[10px] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105">Open Subscription & Billing</Link></CardContent>
       </Card> : null}
 
       <Card as="section" variant="elevated">
