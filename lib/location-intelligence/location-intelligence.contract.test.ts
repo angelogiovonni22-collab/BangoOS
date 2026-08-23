@@ -36,9 +36,11 @@ assert.ok(read("supabase/migrations/20260811110000_project_location_intelligence
 assert.ok(provider.includes("geocoding-api.open-meteo.com"));
 assert.ok(provider.includes("for (const candidate of candidates)"));
 assert.ok(provider.includes("api.open-meteo.com/v1/forecast"));
-assert.ok(provider.includes("revalidate: 900"));
+assert.ok(provider.includes("revalidate: 300"));
 assert.ok(provider.includes('forecastUrl.searchParams.set("forecast_days", "7")'));
 assert.ok(provider.includes('forecastUrl.searchParams.set("hourly"'));
+assert.ok(provider.includes("is_day"));
+assert.ok(provider.includes("isDay: weather.current.is_day === 1"));
 assert.ok(provider.includes("hours: weather.hourly.time.slice"));
 assert.ok(card.includes("www.google.com/maps/dir/?api=1"));
 assert.ok(card.includes("fallbackDirectionsAddress"));
@@ -72,6 +74,8 @@ assert.ok(headerWeather.includes('/api/location-intelligence/weather?projectId='
 assert.ok(headerWeather.includes("www.google.com/maps/dir/?api=1"));
 assert.ok(headerWeather.includes("www.google.com/maps?q="));
 assert.ok(headerWeather.includes('data-project-header-jobsite-intelligence="true"'));
+assert.ok(headerWeather.includes("data-is-day={payload.forecast.current.isDay}"));
+assert.ok(weatherScene.includes('[data-is-day="false"]'));
 assert.ok(!projectOverview.includes("<LocationForecastCard"));
 assert.ok(!projectOverview.includes('data-project-jobsite-intelligence="primary"'));
 assert.ok(!projectOverview.includes('<Collapsible title="Jobsite Intelligence"'));

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { CloudSun, MapPin, Navigation } from "lucide-react";
+import { CloudMoon, CloudSun, MapPin, Navigation } from "lucide-react";
 import weatherSceneStyles from "@/components/location-intelligence/location-weather-scene.module.css";
 
 type HeaderWeatherPayload = {
@@ -12,6 +12,7 @@ type HeaderWeatherPayload = {
   forecast: {
     location: string;
     current: {
+      isDay: boolean;
       temperatureF: number;
       apparentTemperatureF: number;
       condition: string;
@@ -96,12 +97,13 @@ export function ProjectHeaderWeatherStrip() {
           <div
             data-live-weather
             data-kind={weatherSceneKind(payload.forecast.current.weatherCode)}
+            data-is-day={payload.forecast.current.isDay}
             data-paused={!pageVisible}
             className={`${weatherSceneStyles.headerScene} flex items-center gap-4 px-5 py-4`}
           >
             <WeatherAtmosphere />
             <span className="relative z-[1] inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#ffffff4d] bg-[#16385f]/70 text-[#f2f8ff] backdrop-blur-sm">
-              <CloudSun size={22} aria-hidden="true" />
+              {payload.forecast.current.isDay ? <CloudSun size={22} aria-hidden="true" /> : <CloudMoon size={22} aria-hidden="true" />}
             </span>
             <div className="relative z-[1] min-w-0">
               <div className="flex items-end gap-3">
@@ -154,6 +156,8 @@ function WeatherAtmosphere() {
     <div className={weatherSceneStyles.atmosphere} aria-hidden="true">
       <span className={weatherSceneStyles.skyGlow} />
       <span className={weatherSceneStyles.sun} />
+      <span className={weatherSceneStyles.stars} />
+      <span className={weatherSceneStyles.moon} />
       <span className={weatherSceneStyles.cloudBack} />
       <span className={weatherSceneStyles.cloudMiddle} />
       <span className={weatherSceneStyles.cloudFront} />

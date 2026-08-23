@@ -118,7 +118,7 @@ export function LocationForecastCard({ projectId, fallbackDirectionsAddress, tit
         {!loading && payload ? (
           <>
             <div className="grid gap-3">
-              <section data-live-weather data-kind={weatherSceneKind(payload.forecast.current.weatherCode)} data-paused={!pageVisible} data-compact={compact} className={weatherSceneStyles.panel}>
+              <section data-live-weather data-kind={weatherSceneKind(payload.forecast.current.weatherCode)} data-is-day={payload.forecast.current.isDay} data-paused={!pageVisible} data-compact={compact} className={weatherSceneStyles.panel}>
                 <WeatherAtmosphere />
                 <div className={weatherSceneStyles.weatherContent}>
                   <div className={weatherSceneStyles.currentConditions}>
@@ -218,6 +218,8 @@ function WeatherAtmosphere() {
     <div className={weatherSceneStyles.atmosphere} aria-hidden="true">
       <span className={weatherSceneStyles.skyGlow} />
       <span className={weatherSceneStyles.sun} />
+      <span className={weatherSceneStyles.stars} />
+      <span className={weatherSceneStyles.moon} />
       <span className={weatherSceneStyles.cloudBack} />
       <span className={weatherSceneStyles.cloudMiddle} />
       <span className={weatherSceneStyles.cloudFront} />

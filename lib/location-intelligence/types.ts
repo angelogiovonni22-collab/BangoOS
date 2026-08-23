@@ -26,6 +26,7 @@ export type LocationForecast = {
   timezone: string;
   observedAt: string;
   current: {
+    isDay: boolean;
     temperatureF: number;
     apparentTemperatureF: number;
     weatherCode: number;
