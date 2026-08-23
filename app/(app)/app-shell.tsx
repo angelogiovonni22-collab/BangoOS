@@ -25,9 +25,10 @@ type AppShellProps = {
   companyName: string | null;
   role: string | null;
   orionEnabled: boolean;
+  platformAdmin: boolean;
 };
 
-export function AppShell({ children, userName, userEmail, companyName, role, orionEnabled }: AppShellProps) {
+export function AppShell({ children, userName, userEmail, companyName, role, orionEnabled, platformAdmin }: AppShellProps) {
   const frame = (
     <AppShellFrame
       userName={userName}
@@ -35,6 +36,7 @@ export function AppShell({ children, userName, userEmail, companyName, role, ori
       companyName={companyName}
       role={role}
       orionEnabled={orionEnabled}
+      platformAdmin={platformAdmin}
     >
       {children}
     </AppShellFrame>
@@ -51,7 +53,7 @@ export function AppShell({ children, userName, userEmail, companyName, role, ori
   );
 }
 
-function AppShellFrame({ children, userName, userEmail, companyName, role, orionEnabled }: AppShellProps) {
+function AppShellFrame({ children, userName, userEmail, companyName, role, orionEnabled, platformAdmin }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -89,8 +91,8 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
       ];
     }
 
-    return groups;
-  }, [normalizedRole]);
+    return platformAdmin ? [...groups, { key: "platform", label: "B.O.S. Platform", items: [{ key: "platformAdmin", href: "/platform-admin", icon: "◆" }] }] : groups;
+  }, [normalizedRole, platformAdmin]);
 
   useEffect(() => {
     if (!pathname || canAccessPath(normalizedRole, pathname)) return;
@@ -248,6 +250,7 @@ function getNavigationLabel(key: string, t: (key: string) => string) {
   if (key === "partnerHome") return "My Projects";
   if (key === "customerPortal") return "My Project";
   if (key === "tradePartnerMessages") return "Trade Partner Messages";
+  if (key === "platformAdmin") return "Customer Administration";
   return t(`navigation.${key}`);
 }
 

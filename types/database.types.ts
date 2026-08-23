@@ -592,6 +592,27 @@ export type Database = {
           },
         ]
       }
+      bos_platform_admins: {
+        Row: { active: boolean; created_at: string; role: string; updated_at: string; user_id: string }
+        Insert: { active?: boolean; created_at?: string; role?: string; updated_at?: string; user_id: string }
+        Update: { active?: boolean; created_at?: string; role?: string; updated_at?: string; user_id?: string }
+        Relationships: [{ foreignKeyName: "bos_platform_admins_user_id_fkey"; columns: ["user_id"]; isOneToOne: true; referencedRelation: "profiles"; referencedColumns: ["id"] }]
+      }
+      bos_platform_audit_log: {
+        Row: { action: string; actor_user_id: string; changes: Json; company_id: string | null; created_at: string; id: string }
+        Insert: { action: string; actor_user_id: string; changes?: Json; company_id?: string | null; created_at?: string; id?: string }
+        Update: { action?: string; actor_user_id?: string; changes?: Json; company_id?: string | null; created_at?: string; id?: string }
+        Relationships: [
+          { foreignKeyName: "bos_platform_audit_log_actor_user_id_fkey"; columns: ["actor_user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "bos_platform_audit_log_company_id_fkey"; columns: ["company_id"]; isOneToOne: false; referencedRelation: "companies"; referencedColumns: ["id"] },
+        ]
+      }
+      bos_tenant_accounts: {
+        Row: { billing_customer_ref: string | null; company_id: string; created_at: string; internal_notes: string | null; lifecycle_status: string; onboarding_state: Json; orion_text_allowance: number; orion_voice_minutes: number; plan_key: string; seat_limit: number; subscription_ref: string | null; support_tier: string; trial_ends_at: string | null; updated_at: string }
+        Insert: { billing_customer_ref?: string | null; company_id: string; created_at?: string; internal_notes?: string | null; lifecycle_status?: string; onboarding_state?: Json; orion_text_allowance?: number; orion_voice_minutes?: number; plan_key?: string; seat_limit?: number; subscription_ref?: string | null; support_tier?: string; trial_ends_at?: string | null; updated_at?: string }
+        Update: { billing_customer_ref?: string | null; company_id?: string; created_at?: string; internal_notes?: string | null; lifecycle_status?: string; onboarding_state?: Json; orion_text_allowance?: number; orion_voice_minutes?: number; plan_key?: string; seat_limit?: number; subscription_ref?: string | null; support_tier?: string; trial_ends_at?: string | null; updated_at?: string }
+        Relationships: [{ foreignKeyName: "bos_tenant_accounts_company_id_fkey"; columns: ["company_id"]; isOneToOne: true; referencedRelation: "companies"; referencedColumns: ["id"] }]
+      }
       companies: {
         Row: {
           address_line_1: string | null
