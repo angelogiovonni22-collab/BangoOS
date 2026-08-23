@@ -6,6 +6,7 @@ type ScheduleWeekViewProps = {
   baseDate: string;
   assignments: ScheduleAssignment[];
   groupBy: ScheduleGroup;
+  locale: "en" | "es";
   onDropAssignment: (assignmentId: string, targetDate: string) => void;
   onDragStart: (event: DragEvent<HTMLElement>, assignmentId: string) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -49,6 +50,7 @@ export function ScheduleWeekView({
   baseDate,
   assignments,
   groupBy,
+  locale,
   onDropAssignment,
   onDragStart,
   t,
@@ -73,7 +75,7 @@ export function ScheduleWeekView({
             </th>
             {days.map((day) => (
               <th key={day} className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
-                {new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" }).format(new Date(`${day}T00:00:00Z`))}
+                {new Intl.DateTimeFormat(locale === "es" ? "es-US" : "en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`))}
               </th>
             ))}
           </tr>
