@@ -104,7 +104,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
   return (
     <section
       data-bos-surface="dark"
-      className="relative min-w-0 max-w-full rounded-[18px] border border-[var(--workspace-tabs-border)] [background:var(--workspace-tabs-surface)] p-2 shadow-[0_14px_28px_-22px_rgba(3,7,18,0.72)]"
+      className={`relative min-w-0 max-w-full rounded-[18px] border border-[var(--workspace-tabs-border)] [background:var(--workspace-tabs-surface)] p-2 shadow-[0_14px_28px_-22px_rgba(3,7,18,0.72)] ${moreOpen ? "z-[100]" : "z-auto"}`}
     >
       <nav className="flex min-w-0 items-center gap-1.5 overflow-visible" aria-label={t("projects.workspaceNavigationLabel")}>
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
