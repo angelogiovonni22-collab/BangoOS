@@ -3,7 +3,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Badge,
   Button,
@@ -96,7 +96,7 @@ const EMPTY_PO_FORM: PurchaseOrderFormState = {
   lines: [{ ...EMPTY_PO_LINE }],
 };
 
-export function ProcurementWorkflowClient() {
+export function ProcurementWorkflowClient({ initialProjectId }: { initialProjectId?: string }) {
   const service = useMemo(() => createProcurementService(), []);
   const { companyName } = useCompany();
 
@@ -104,11 +104,12 @@ export function ProcurementWorkflowClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [selectedPoId, setSelectedPoId] = useState<string>("");
   const [selectedLineId, setSelectedLineId] = useState<string>("");
 
-  const [requestForm, setRequestForm] = useState<RequestFormState>(EMPTY_REQUEST_FORM);
-  const [poForm, setPoForm] = useState<PurchaseOrderFormState>(EMPTY_PO_FORM);
+  const [requestForm, setRequestForm] = useState<RequestFormState>(() => ({ ...EMPTY_REQUEST_FORM, projectId: initialProjectId || "" }));
+  const [poForm, setPoForm] = useState<PurchaseOrderFormState>(() => ({ ...EMPTY_PO_FORM, projectId: initialProjectId || "" }));
 
   const [receiveQuantity, setReceiveQuantity] = useState("0");
   const [receiveDamaged, setReceiveDamaged] = useState("0");
@@ -120,7 +121,7 @@ export function ProcurementWorkflowClient() {
   const [allocateCostCodeId, setAllocateCostCodeId] = useState("");
   const [allocateNotes, setAllocateNotes] = useState("");
 
-  const loadOverview = async () => {
+  const loadOverview = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -128,19 +129,17 @@ export function ProcurementWorkflowClient() {
       const nextPayload = await service.loadOverview();
       setPayload(nextPayload);
 
-      if (!selectedPoId && nextPayload.purchaseOrders.length > 0) {
-        setSelectedPoId(nextPayload.purchaseOrders[0]?.id || "");
-      }
+      setSelectedPoId((current) => current || nextPayload.purchaseOrders[0]?.id || "");
     } catch (error) {
       setErrorMessage(toMessage(error));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [service]);
 
   useEffect(() => {
     void loadOverview();
-  }, []);
+  }, [loadOverview]);
 
   const selectedPurchaseOrder = useMemo(() => {
     if (!payload || !selectedPoId) {
@@ -206,7 +205,8 @@ export function ProcurementWorkflowClient() {
         notes: requestForm.notes.trim() || null,
       });
       setPayload(nextPayload);
-      setRequestForm(EMPTY_REQUEST_FORM);
+      setRequestForm({ ...EMPTY_REQUEST_FORM, projectId: initialProjectId || "" });
+      setActionMessage("Material request submitted.");
     } catch (error) {
       setErrorMessage(toMessage(error));
     } finally {
@@ -221,6 +221,7 @@ export function ProcurementWorkflowClient() {
     try {
       const nextPayload = await service.updateMaterialRequestStatus(requestId, status);
       setPayload(nextPayload);
+      setActionMessage(`Material request ${status.replaceAll("_", " ")}.`);
     } catch (error) {
       setErrorMessage(toMessage(error));
     } finally {
@@ -270,7 +271,8 @@ export function ProcurementWorkflowClient() {
       const firstPoId = nextPayload.purchaseOrders[0]?.id || "";
       setSelectedPoId(firstPoId);
       setSelectedLineId("");
-      setPoForm(EMPTY_PO_FORM);
+      setPoForm({ ...EMPTY_PO_FORM, projectId: initialProjectId || "" });
+      setActionMessage("Draft purchase order created and totals verified.");
     } catch (error) {
       setErrorMessage(toMessage(error));
     } finally {
@@ -294,6 +296,7 @@ export function ProcurementWorkflowClient() {
       }
 
       setPayload(nextPayload);
+      setActionMessage(`Purchase order ${action === "cancel" ? "cancelled" : `${action}d`}.`);
     } catch (error) {
       setErrorMessage(toMessage(error));
     } finally {
@@ -325,6 +328,7 @@ export function ProcurementWorkflowClient() {
       setReceiveDamaged("0");
       setReceiveBackordered("0");
       setReceiveNotes("");
+      setActionMessage("Receipt recorded and purchase order progress updated.");
     } catch (error) {
       setErrorMessage(toMessage(error));
     } finally {
@@ -356,6 +360,7 @@ export function ProcurementWorkflowClient() {
       setPayload(nextPayload);
       setAllocateQuantity("0");
       setAllocateNotes("");
+      setActionMessage("Material allocated to the project.");
     } catch (error) {
       setErrorMessage(toMessage(error));
     } finally {
@@ -395,6 +400,7 @@ export function ProcurementWorkflowClient() {
       />
 
       {errorMessage ? <ErrorState compact title="Unable to complete action" description={errorMessage} /> : null}
+      {actionMessage ? <p role="status" className="rounded-[var(--radius-lg)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-4 py-3 text-sm text-[var(--color-success-700)]">{actionMessage}</p> : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={<span>R</span>} label="Open Requests" value={String(summary.requestCount)} context="Submitted or approved" tone="warning" />
