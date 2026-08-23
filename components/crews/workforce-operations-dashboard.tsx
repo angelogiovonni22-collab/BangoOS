@@ -342,6 +342,7 @@ function CrewCalendarWorkspace() {
         groupBy="crew"
         date={scheduling.periodDate}
         assignments={scheduling.filteredAssignments}
+        locale="en"
         onMoveAssignment={(assignmentId, targetDate) => {
           void scheduling.moveAssignmentCard(assignmentId, { date: targetDate });
         }}
