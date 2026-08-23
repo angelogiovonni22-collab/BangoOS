@@ -23,6 +23,19 @@ export function GlobalSearch({ placeholder }: { placeholder: string }) {
   const open = query.trim().length >= 2;
 
   useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTyping = target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName || "");
+      if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey && !isTyping) {
+        event.preventDefault();
+        rootRef.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
+      }
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
 
     const controller = new AbortController();
@@ -75,13 +88,14 @@ export function GlobalSearch({ placeholder }: { placeholder: string }) {
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative w-full md:w-auto">
       <SearchBar
         value={query}
         placeholder={placeholder}
         aria-label="Search BOS"
         aria-expanded={open}
         aria-controls="bos-global-search-results"
+        aria-autocomplete="list"
         aria-activedescendant={results[activeIndex] ? `bos-search-${results[activeIndex].type}-${results[activeIndex].id}` : undefined}
         onChange={(event) => updateQuery(event.currentTarget.value)}
         onKeyDown={(event) => {
@@ -101,8 +115,8 @@ export function GlobalSearch({ placeholder }: { placeholder: string }) {
       />
 
       {open ? (
-        <div id="bos-global-search-results" role="listbox" className="absolute right-0 top-[calc(100%+0.5rem)] z-[var(--z-popover)] max-h-[min(28rem,70vh)] w-[min(34rem,calc(100vw-2rem))] overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] p-2 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)]">
-          {loading ? <p className="px-3 py-4 text-sm text-[var(--bos-text-secondary)]">Searching BOS…</p> : null}
+        <div id="bos-global-search-results" role="listbox" aria-busy={loading} className="fixed left-4 right-4 top-[7.5rem] z-[var(--z-popover)] max-h-[min(28rem,65vh)] overflow-y-auto rounded-[var(--radius-xl)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] p-2 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)] md:absolute md:left-auto md:right-0 md:top-[calc(100%+0.5rem)] md:w-[min(34rem,calc(100vw-2rem))]">
+          {loading ? <p role="status" className="px-3 py-4 text-sm text-[var(--bos-text-secondary)]">Searching BOS…</p> : null}
           {!loading && error ? <p className="px-3 py-4 text-sm text-red-300">{error}</p> : null}
           {!loading && !error && results.length === 0 ? <p className="px-3 py-4 text-sm text-[var(--bos-text-secondary)]">No matching BOS records or workspaces.</p> : null}
           {!loading && !error ? results.map((result, index) => (
@@ -116,7 +130,10 @@ export function GlobalSearch({ placeholder }: { placeholder: string }) {
               onMouseEnter={() => setActiveIndex(index)}
               onClick={() => navigate(result)}
             >
-              <span className="block truncate text-sm font-semibold text-[var(--bos-text-primary)]">{result.label}</span>
+              <span className="flex items-center gap-2">
+                <span className="truncate text-sm font-semibold text-[var(--bos-text-primary)]">{result.label}</span>
+                <span className="ml-auto shrink-0 rounded-full border border-[var(--bos-border-subtle)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--bos-text-muted)]">{result.type}</span>
+              </span>
               <span className="mt-0.5 block truncate text-xs text-[var(--bos-text-secondary)]">{result.description}</span>
             </button>
           )) : null}

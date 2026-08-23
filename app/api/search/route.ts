@@ -37,6 +37,10 @@ function score(result: SearchResult, query: string) {
   return words.reduce((total, word) => total + (text.includes(word) ? 10 : 0), 0);
 }
 
+function searchPattern(query: string) {
+  return `%${query.split(" ").filter(Boolean).join("%")}%`;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const query = normalize(new URL(req.url).searchParams.get("q") || "");
@@ -50,14 +54,15 @@ export async function GET(req: NextRequest) {
     }
 
     const companyId = workspace.context.companyId;
+    const pattern = searchPattern(query);
     const [customers, projects, estimates, invoices, employees, crews, vendors] = await Promise.all([
-      supabase.from("customers").select("id, company_name, first_name, last_name, email, phone, city, state, status").eq("company_id", companyId).limit(100),
-      supabase.from("projects").select("id, name, project_number, job_site_name, address_line_1, city, state, postal_code, status").eq("company_id", companyId).limit(100),
-      supabase.from("estimates").select("id, title, estimate_number, status").eq("company_id", companyId).limit(100),
-      supabase.from("invoices").select("id, title, invoice_number, status").eq("company_id", companyId).limit(100),
-      supabase.from("employees").select("id, employee_number, position_title, trade, employment_status").eq("company_id", companyId).limit(100),
-      supabase.from("crews").select("id, name, crew_code, status").eq("company_id", companyId).limit(100),
-      supabase.from("vendors").select("id, display_name, company_name, vendor_code, email, phone, city, state, status").eq("company_id", companyId).limit(100),
+      supabase.from("customers").select("id, company_name, first_name, last_name, email, phone, city, state, status").eq("company_id", companyId).or(`company_name.ilike.${pattern},first_name.ilike.${pattern},last_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},city.ilike.${pattern},state.ilike.${pattern}`).limit(20),
+      supabase.from("projects").select("id, name, project_number, job_site_name, address_line_1, city, state, postal_code, status").eq("company_id", companyId).or(`name.ilike.${pattern},project_number.ilike.${pattern},job_site_name.ilike.${pattern},address_line_1.ilike.${pattern},city.ilike.${pattern},state.ilike.${pattern},postal_code.ilike.${pattern}`).limit(20),
+      supabase.from("estimates").select("id, title, estimate_number, status").eq("company_id", companyId).or(`title.ilike.${pattern},estimate_number.ilike.${pattern},status.ilike.${pattern}`).limit(20),
+      supabase.from("invoices").select("id, title, invoice_number, status").eq("company_id", companyId).or(`title.ilike.${pattern},invoice_number.ilike.${pattern},status.ilike.${pattern}`).limit(20),
+      supabase.from("employees").select("id, employee_number, position_title, trade, employment_status").eq("company_id", companyId).or(`employee_number.ilike.${pattern},position_title.ilike.${pattern},trade.ilike.${pattern},employment_status.ilike.${pattern}`).limit(20),
+      supabase.from("crews").select("id, name, crew_code, status").eq("company_id", companyId).or(`name.ilike.${pattern},crew_code.ilike.${pattern},status.ilike.${pattern}`).limit(20),
+      supabase.from("vendors").select("id, display_name, company_name, vendor_code, email, phone, city, state, status").eq("company_id", companyId).or(`display_name.ilike.${pattern},company_name.ilike.${pattern},vendor_code.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},city.ilike.${pattern},state.ilike.${pattern}`).limit(20),
     ]);
 
     const failed = [customers, projects, estimates, invoices, employees, crews, vendors].find((result) => result.error);

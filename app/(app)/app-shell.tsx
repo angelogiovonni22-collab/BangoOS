@@ -193,8 +193,8 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                     {!['subcontractor', 'customer'].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
                   </div>
                 </div>
-                <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:gap-3">
-                  {!['subcontractor', 'customer'].includes(normalizedRole) ? <div className="hidden min-w-[220px] md:block"><GlobalSearch placeholder={t("common.search")} /></div> : null}
+                <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap sm:gap-3">
+                  {!['subcontractor', 'customer'].includes(normalizedRole) ? <div className="order-last w-full min-w-0 sm:order-none sm:min-w-[220px] sm:flex-1 md:flex-initial"><GlobalSearch placeholder={t("common.search")} /></div> : null}
                   <NotificationCenter />
                   <LanguageSelector />
                   <ProfileMenu userName={userName} userEmail={userEmail} companyName={companyName} showSettingsAction={canAccessPath(normalizedRole, "/settings")} />

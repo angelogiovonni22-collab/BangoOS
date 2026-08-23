@@ -15,6 +15,9 @@ for (const table of ["customers", "projects", "estimates", "invoices", "employee
 assert.ok(route.includes("getOrionNavigationRoutesForRole"), "search includes permission-filtered BOS workspaces");
 assert.ok(component.includes("AbortController") && component.includes("window.setTimeout"), "search requests are debounced and cancellable");
 assert.ok(component.includes('event.key === "ArrowDown"') && component.includes('event.key === "Enter"'), "search supports keyboard result navigation");
+assert.ok(component.includes('event.key === "/"') && component.includes("isTyping"), "search supports a non-conflicting slash shortcut outside text fields");
+assert.ok(component.includes('className="fixed left-4 right-4') && shell.includes('order-last w-full'), "search is available with a viewport-safe result panel on mobile");
+assert.ok(route.includes('.or(`') && route.includes(".limit(20)"), "record search filters at the database instead of truncating an arbitrary first page");
 assert.ok(component.includes("router.push(result.href)"), "selecting a result navigates to its canonical record route");
 
 console.log("BOS global search contract: all assertions passed");
