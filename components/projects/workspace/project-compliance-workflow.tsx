@@ -737,14 +737,14 @@ async function loadProjectSafetyEvidence(supabase: ReturnType<typeof createClien
   for (const row of response.data || []) if (!latestByReport.has(row.reference_id)) latestByReport.set(row.reference_id, row);
 
   return Array.from(latestByReport.values()).flatMap((row) => {
-    const report = row.payload?.report as { header?: { projectId?: string; reportDate?: string }; safety?: Array<{ id?: string; type?: string; description?: string; status?: string }> } | undefined;
+    const report = row.payload?.report as { header?: { projectId?: string; date?: string; reportDate?: string }; safety?: Array<{ id?: string; type?: string; notes?: string; description?: string; status?: string }> } | undefined;
     if (report?.header?.projectId !== projectId) return [];
     return (report.safety || []).map((item, index) => ({
       id: item.id || `${row.id}-${index}`,
       type: item.type || "observation",
-      description: item.description || "Safety observation",
+      description: item.notes || item.description || "Safety observation",
       status: item.status || "open",
-      reportDate: report.header?.reportDate || row.occurred_at,
+      reportDate: report.header?.date || report.header?.reportDate || row.occurred_at,
     }));
   });
 }
