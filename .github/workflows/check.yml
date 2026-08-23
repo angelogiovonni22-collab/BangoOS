@@ -147,6 +147,9 @@ jobs:
       - name: Run location intelligence regression
         run: npx -y tsx lib/location-intelligence/location-intelligence.contract.test.ts
 
+      - name: Run centralized notifications regression
+        run: npx -y tsx lib/notifications/notifications-foundation.contract.test.ts
+
       - name: Run project overview layout regression
         run: npx -y tsx components/projects/workspace/project-overview-layout.contract.test.ts
 
