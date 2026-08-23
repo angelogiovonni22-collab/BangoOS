@@ -1,7 +1,6 @@
-"use client";
-
 import { SchedulingDashboard } from "@/components/scheduling";
 
-export default function SchedulePage() {
-  return <SchedulingDashboard initialSection="calendar" workspace="schedule" />;
+export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ projectId?: string }> }) {
+  const { projectId } = await searchParams;
+  return <SchedulingDashboard initialSection="calendar" workspace="schedule" initialProjectId={projectId} />;
 }

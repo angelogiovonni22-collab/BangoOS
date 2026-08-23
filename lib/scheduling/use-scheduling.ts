@@ -14,6 +14,7 @@ import type {
 
 type UseSchedulingParams = {
   service?: SchedulingService;
+  initialProjectId?: string;
 };
 
 const initialFilters: ScheduleFilterState = {
@@ -26,13 +27,16 @@ const initialFilters: ScheduleFilterState = {
   groupBy: "project",
 };
 
-export function useScheduling({ service }: UseSchedulingParams = {}) {
+export function useScheduling({ service, initialProjectId }: UseSchedulingParams = {}) {
   const schedulingService = useMemo(() => service ?? createSchedulingService(), [service]);
   const [payload, setPayload] = useState<SchedulingPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [view, setView] = useState<ScheduleView>("week");
-  const [filters, setFilters] = useState<ScheduleFilterState>(initialFilters);
+  const [filters, setFilters] = useState<ScheduleFilterState>(() => ({
+    ...initialFilters,
+    project: initialProjectId || "all",
+  }));
   const [periodDate, setPeriodDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [lastActionMessage, setLastActionMessage] = useState<string | null>(null);
 
@@ -79,14 +83,27 @@ export function useScheduling({ service }: UseSchedulingParams = {}) {
       const next = await schedulingService.createAssignment(draft);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.assignmentCreated");
+      return true;
     } catch {
       setErrorMessage("scheduling.errorSaveAssignment");
+      return false;
     } finally {
       if (!hadPayload) {
         setIsLoading(false);
       }
     }
   }, [payload, schedulingService]);
+
+  const dismissOpenShift = useCallback(async (openShiftId: string) => {
+    setErrorMessage(null);
+    try {
+      const next = await schedulingService.dismissOpenShift(openShiftId);
+      setPayload(next);
+      setLastActionMessage("scheduling.feedback.openShiftDismissed");
+    } catch {
+      setErrorMessage("scheduling.errorOpenShift");
+    }
+  }, [schedulingService]);
 
   const moveDispatch = useCallback(async (dispatchId: string, status: DispatchStatus, delayReason: string | null = null) => {
     setIsLoading(true);
@@ -170,8 +187,10 @@ export function useScheduling({ service }: UseSchedulingParams = {}) {
       const next = await schedulingService.moveAssignment(assignmentId, changes);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.assignmentMoved");
+      return true;
     } catch {
       setErrorMessage("scheduling.errorAssignmentMove");
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -218,6 +237,7 @@ export function useScheduling({ service }: UseSchedulingParams = {}) {
     createNewAssignment,
     moveDispatch,
     fillOpenShift,
+    dismissOpenShift,
     resolveConflict,
     acceptInsight,
     dismissInsight,

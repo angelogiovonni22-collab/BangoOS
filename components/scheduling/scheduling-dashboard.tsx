@@ -16,6 +16,7 @@ import { OpenShiftsPanel } from "./open-shifts-panel";
 import { ScheduleCalendar } from "./schedule-calendar";
 import { ScheduleHealthCard } from "./schedule-health-card";
 import { SchedulingAnalytics } from "./scheduling-analytics";
+import { SchedulingAiAssistant } from "./scheduling-ai-assistant";
 import { SchedulingEmptyState } from "./scheduling-empty-state";
 import { SchedulingHeader } from "./scheduling-header";
 import { SchedulingKpiGrid } from "./scheduling-kpi-grid";
@@ -24,11 +25,12 @@ import { SchedulingLoadingState } from "./scheduling-loading-state";
 type SchedulingDashboardProps = {
   initialSection?: "overview" | "dispatch" | "calendar" | "forecast";
   workspace?: "schedule" | "dispatch";
+  initialProjectId?: string;
 };
 
-export function SchedulingDashboard({ initialSection = "overview", workspace = "dispatch" }: SchedulingDashboardProps) {
+export function SchedulingDashboard({ initialSection = "overview", workspace = "dispatch", initialProjectId }: SchedulingDashboardProps) {
   const { t } = useI18n();
-  const scheduling = useScheduling();
+  const scheduling = useScheduling({ initialProjectId });
   const [activeSection, setActiveSection] = useState(initialSection);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [undoSnapshot, setUndoSnapshot] = useState<{ assignmentId: string; previousDate: string } | null>(null);
@@ -49,7 +51,9 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
     }
 
     setUndoSnapshot({ assignmentId, previousDate: current.date });
-    void scheduling.moveAssignmentCard(assignmentId, { date: targetDate });
+    void scheduling.moveAssignmentCard(assignmentId, { date: targetDate }).then((moved) => {
+      if (!moved) setUndoSnapshot(null);
+    });
   };
 
   const onQuickMoveShift = (assignmentId: string, shift: "day" | "swing" | "night") => {
@@ -149,6 +153,12 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         </div>
       ) : null}
 
+      {scheduling.lastActionMessage && !scheduling.errorMessage ? (
+        <div role="status" className="rounded-[var(--radius-lg)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-4 py-3 text-sm text-[var(--color-success-700)]">
+          {t(scheduling.lastActionMessage)}
+        </div>
+      ) : null}
+
       {undoSnapshot ? (
         <div className="flex items-center justify-between rounded-[var(--radius-lg)] border border-[var(--color-info-200)] bg-[var(--color-info-50)] px-4 py-3 text-sm text-[var(--color-info-700)]">
           <p>{t("scheduling.feedback.assignmentMoved")}</p>
@@ -211,12 +221,13 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
 
       <div className="grid gap-5 2xl:grid-cols-2">
         <OpenShiftsPanel
-          items={payload.openShifts}
+          items={payload.openShifts.filter((item) => !item.dismissed)}
           employeeOptions={payload.employeeOptions}
           crewOptions={payload.crewOptions}
           onAssign={(openShiftId, employeeId, crewId) => {
             void scheduling.fillOpenShift(openShiftId, employeeId, crewId);
           }}
+          onDismiss={(openShiftId) => void scheduling.dismissOpenShift(openShiftId)}
           t={t}
         />
         <AvailableResourcesPanel
@@ -238,6 +249,15 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
 
       <SchedulingAnalytics analytics={payload.analytics} t={t} />
 
+      {payload.insights.length > 0 ? (
+        <SchedulingAiAssistant
+          insights={payload.insights}
+          onAccept={(insightId) => void scheduling.acceptInsight(insightId)}
+          onDismiss={(insightId) => void scheduling.dismissInsight(insightId)}
+          t={t}
+        />
+      ) : null}
+
       <Dialog
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
@@ -258,8 +278,9 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
           employeeOptions={payload.employeeOptions}
           tradeOptions={payload.tradeOptions}
           onSubmit={async (draft) => {
-            await scheduling.createNewAssignment(draft);
-            setIsCreateOpen(false);
+            const created = await scheduling.createNewAssignment(draft);
+            if (created) setIsCreateOpen(false);
+            return created;
           }}
           onCancel={() => setIsCreateOpen(false)}
           t={t}
