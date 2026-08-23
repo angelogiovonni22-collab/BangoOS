@@ -19,7 +19,8 @@ import {
   Wrench,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PROJECT_WORKSPACE_TABS } from "./project-workspace-tabs";
 import type { ProjectWorkspaceTabKey } from "./types";
 
@@ -47,6 +48,8 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ left: number; top: number } | null>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const receiptsSelected = activeTab === "documents" && searchParams.get("section") === RECEIPTS_TAB_KEY;
   const activeKey: ProjectNavKey = receiptsSelected ? RECEIPTS_TAB_KEY : activeTab;
 
@@ -77,6 +80,44 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
   const secondaryItems = items.filter((item) => !PRIMARY_TABS.includes(item.key));
   const secondaryActiveItem = secondaryItems.find((item) => item.key === activeKey) || null;
 
+  useEffect(() => {
+    if (!moreOpen) return;
+
+    const closeMenu = (event?: Event) => {
+      const target = event?.target;
+      if (target instanceof Node && (moreButtonRef.current?.contains(target) || (target instanceof Element && target.closest("[data-project-more-menu]")))) return;
+      setMoreOpen(false);
+      setMenuPosition(null);
+    };
+    const closeOnViewportChange = () => closeMenu();
+
+    document.addEventListener("pointerdown", closeMenu);
+    window.addEventListener("resize", closeOnViewportChange);
+    window.addEventListener("scroll", closeOnViewportChange, true);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenu);
+      window.removeEventListener("resize", closeOnViewportChange);
+      window.removeEventListener("scroll", closeOnViewportChange, true);
+    };
+  }, [moreOpen]);
+
+  const toggleMoreMenu = () => {
+    if (moreOpen) {
+      setMoreOpen(false);
+      setMenuPosition(null);
+      return;
+    }
+
+    const rect = moreButtonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const menuWidth = 224;
+    setMenuPosition({
+      left: Math.min(window.innerWidth - menuWidth - 16, Math.max(16, rect.right - menuWidth)),
+      top: rect.bottom + 8,
+    });
+    setMoreOpen(true);
+  };
+
   const handleChange = (key: ProjectNavKey) => {
     setMoreOpen(false);
 
@@ -104,7 +145,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
   return (
     <section
       data-bos-surface="dark"
-      className={`relative min-w-0 max-w-full rounded-[18px] border border-[var(--workspace-tabs-border)] [background:var(--workspace-tabs-surface)] p-2 shadow-[0_14px_28px_-22px_rgba(3,7,18,0.72)] ${moreOpen ? "z-[100]" : "z-auto"}`}
+      className="relative min-w-0 max-w-full rounded-[18px] border border-[var(--workspace-tabs-border)] [background:var(--workspace-tabs-surface)] p-2 shadow-[0_14px_28px_-22px_rgba(3,7,18,0.72)]"
     >
       <nav className="flex min-w-0 items-center gap-1.5 overflow-visible" aria-label={t("projects.workspaceNavigationLabel")}>
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
@@ -134,8 +175,9 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
 
         <div className="relative ml-auto shrink-0">
           <button
+            ref={moreButtonRef}
             type="button"
-            onClick={() => setMoreOpen((value) => !value)}
+            onClick={toggleMoreMenu}
             data-orion-action="workspace-tab-more"
             data-orion-role="workspace tab menu: More"
             aria-expanded={moreOpen}
@@ -150,32 +192,37 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
             <ChevronDown size={14} aria-hidden="true" className={moreOpen ? "rotate-180 transition" : "transition"} />
           </button>
 
-          {moreOpen ? (
-            <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[var(--z-overlay)] w-56 overflow-hidden rounded-[14px] border border-[var(--bos-border-light)] bg-white p-1.5 shadow-xl">
-              {secondaryItems.map((item) => {
-                const active = item.key === activeKey;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => handleChange(item.key)}
-                    data-orion-action={`workspace-tab-${item.key}`}
-                    data-orion-role={`workspace tab: ${item.label}`}
-                    className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-left text-sm font-semibold transition ${
-                      active
-                        ? "bg-[var(--color-primary-50)] text-[var(--color-primary-700)]"
-                        : "text-[var(--bos-text-strong-on-light)] hover:bg-[var(--color-neutral-50)]"
-                    }`}
-                  >
-                    {item.icon}
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
         </div>
       </nav>
+      {moreOpen && menuPosition ? createPortal(
+        <div
+          data-project-more-menu="true"
+          className="fixed z-[1000] w-56 overflow-hidden rounded-[14px] border border-[var(--bos-border-light)] bg-white p-1.5 shadow-[0_22px_42px_-16px_rgba(2,6,17,0.55)]"
+          style={{ left: menuPosition.left, top: menuPosition.top }}
+        >
+          {secondaryItems.map((item) => {
+            const active = item.key === activeKey;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => handleChange(item.key)}
+                data-orion-action={`workspace-tab-${item.key}`}
+                data-orion-role={`workspace tab: ${item.label}`}
+                className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-left text-sm font-semibold transition ${
+                  active
+                    ? "bg-[var(--color-primary-50)] text-[var(--color-primary-700)]"
+                    : "text-[var(--bos-text-strong-on-light)] hover:bg-[var(--color-neutral-50)]"
+                }`}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            );
+          })}
+        </div>,
+        document.body,
+      ) : null}
     </section>
   );
 }

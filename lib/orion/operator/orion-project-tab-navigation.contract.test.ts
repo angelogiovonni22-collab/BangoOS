@@ -22,8 +22,9 @@ assert.match(projectTabs, /data-orion-action={`workspace-tab-\$\{item\.key\}`}/)
 assert.match(projectTabs, /data-orion-action="workspace-tab-more"/);
 assert.match(projectTabs, /overflow-visible/);
 assert.match(projectTabs, /flex min-w-0 flex-1 items-center gap-1\.5 overflow-x-auto/);
-assert.match(projectTabs, /z-\[var\(--z-overlay\)\]/);
-assert.match(projectTabs, /moreOpen \? "z-\[100\]" : "z-auto"/);
+assert.match(projectTabs, /createPortal/);
+assert.match(projectTabs, /data-project-more-menu="true"/);
+assert.match(projectTabs, /fixed z-\[1000\]/);
 assert.match(projectTabs, /key: RECEIPTS_TAB_KEY, label: "Receipts"/);
 assert.match(projectTabs, /nextParams\.set\("tab", "documents"\)/);
 assert.match(projectTabs, /nextParams\.set\("section", RECEIPTS_TAB_KEY\)/);
