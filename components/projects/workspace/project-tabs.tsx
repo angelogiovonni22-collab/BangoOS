@@ -106,11 +106,12 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
       data-bos-surface="dark"
       className="relative min-w-0 max-w-full rounded-[18px] border border-[var(--workspace-tabs-border)] [background:var(--workspace-tabs-surface)] p-2 shadow-[0_14px_28px_-22px_rgba(3,7,18,0.72)]"
     >
-      <nav className="flex min-w-0 items-center gap-1.5 overflow-x-auto" aria-label={t("projects.workspaceNavigationLabel")}>
-        {primaryItems.map((item) => {
-          const active = item.key === activeKey;
-          return (
-            <button
+      <nav className="flex min-w-0 items-center gap-1.5 overflow-visible" aria-label={t("projects.workspaceNavigationLabel")}>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+          {primaryItems.map((item) => {
+            const active = item.key === activeKey;
+            return (
+              <button
               key={item.key}
               type="button"
               onClick={() => handleChange(item.key)}
@@ -126,9 +127,10 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
             >
               <span className={active ? "text-white" : "text-[var(--workspace-tab-idle-icon-text)] group-hover:text-white"}>{item.icon}</span>
               {item.label}
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
 
         <div className="relative ml-auto shrink-0">
           <button
@@ -149,7 +151,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
           </button>
 
           {moreOpen ? (
-            <div className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-56 overflow-hidden rounded-[14px] border border-[var(--bos-border-light)] bg-white p-1.5 shadow-xl">
+            <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[var(--z-overlay)] w-56 overflow-hidden rounded-[14px] border border-[var(--bos-border-light)] bg-white p-1.5 shadow-xl">
               {secondaryItems.map((item) => {
                 const active = item.key === activeKey;
                 return (
