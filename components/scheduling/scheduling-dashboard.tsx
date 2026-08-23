@@ -29,7 +29,7 @@ type SchedulingDashboardProps = {
 };
 
 export function SchedulingDashboard({ initialSection = "overview", workspace = "dispatch", initialProjectId }: SchedulingDashboardProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const scheduling = useScheduling({ initialProjectId });
   const [activeSection, setActiveSection] = useState(initialSection);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -181,6 +181,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
           groupBy={scheduling.filters.groupBy}
           date={scheduling.periodDate}
           assignments={assignments}
+          locale={locale}
           onMoveAssignment={onMoveAssignment}
           onQuickMoveShift={onQuickMoveShift}
           t={t}

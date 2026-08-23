@@ -12,6 +12,7 @@ type ScheduleCalendarProps = {
   groupBy: ScheduleGroup;
   date: string;
   assignments: ScheduleAssignment[];
+  locale: "en" | "es";
   onMoveAssignment: (assignmentId: string, targetDate: string) => void;
   onQuickMoveShift: (assignmentId: string, shift: "day" | "swing" | "night") => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -22,6 +23,7 @@ export function ScheduleCalendar({
   groupBy,
   date,
   assignments,
+  locale,
   onMoveAssignment,
   onQuickMoveShift,
   t,
@@ -66,6 +68,7 @@ export function ScheduleCalendar({
           baseDate={date}
           assignments={visible}
           groupBy={groupBy}
+          locale={locale}
           onDropAssignment={(assignmentId, targetDate) => {
             setDraggingId(null);
             onMoveAssignment(assignmentId, targetDate);
@@ -79,7 +82,7 @@ export function ScheduleCalendar({
       ) : null}
 
       {view === "month" ? (
-        <ScheduleMonthView baseDate={date} assignments={visible} t={t} />
+        <ScheduleMonthView baseDate={date} assignments={visible} locale={locale} t={t} />
       ) : null}
     </section>
   );

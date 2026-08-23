@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui";
 type ScheduleMonthViewProps = {
   baseDate: string;
   assignments: ScheduleAssignment[];
+  locale: "en" | "es";
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
@@ -24,20 +25,16 @@ function getMonthMatrix(baseDate: string) {
   });
 }
 
-export function ScheduleMonthView({ baseDate, assignments, t }: ScheduleMonthViewProps) {
+export function ScheduleMonthView({ baseDate, assignments, locale, t }: ScheduleMonthViewProps) {
   const days = getMonthMatrix(baseDate);
   const month = new Date(`${baseDate}T00:00:00Z`).getUTCMonth();
+  const formatter = new Intl.DateTimeFormat(locale === "es" ? "es-US" : "en-US", { weekday: "short", timeZone: "UTC" });
+  const weekdayLabels = days.slice(0, 7).map((day) => formatter.format(new Date(`${day}T00:00:00Z`)));
 
   return (
     <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-card)]">
       <div className="grid grid-cols-7 gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
-        <p>Mon</p>
-        <p>Tue</p>
-        <p>Wed</p>
-        <p>Thu</p>
-        <p>Fri</p>
-        <p>Sat</p>
-        <p>Sun</p>
+        {weekdayLabels.map((label, index) => <p key={`${label}-${index}`}>{label}</p>)}
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
@@ -48,7 +45,7 @@ export function ScheduleMonthView({ baseDate, assignments, t }: ScheduleMonthVie
           return (
             <article key={day} className={`min-h-[104px] rounded-[var(--radius-md)] border p-2 ${isOtherMonth ? "border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] opacity-70" : "border-[var(--color-border-subtle)] bg-[var(--color-surface-card)]"}`}>
               <p className="text-xs font-semibold text-[var(--color-text-secondary)]">
-                {new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" }).format(new Date(`${day}T00:00:00Z`))}
+                {new Intl.DateTimeFormat(locale === "es" ? "es-US" : "en-US", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`))}
               </p>
 
               <div className="mt-2 space-y-1">
