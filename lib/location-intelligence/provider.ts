@@ -27,6 +27,7 @@ type ForecastResponse = {
   timezone: string;
   current: {
     time: string;
+    is_day: number;
     temperature_2m: number;
     apparent_temperature: number;
     weather_code: number;
@@ -91,7 +92,7 @@ export async function getLocationForecast(search: string | string[], hint: Locat
     : "https://api.open-meteo.com/v1/forecast");
   forecastUrl.searchParams.set("latitude", String(place.latitude));
   forecastUrl.searchParams.set("longitude", String(place.longitude));
-  forecastUrl.searchParams.set("current", "temperature_2m,apparent_temperature,weather_code,wind_speed_10m");
+  forecastUrl.searchParams.set("current", "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day");
   forecastUrl.searchParams.set("hourly", "temperature_2m,weather_code,precipitation_probability,wind_speed_10m");
   forecastUrl.searchParams.set("daily", "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max");
   forecastUrl.searchParams.set("temperature_unit", "fahrenheit");
@@ -100,7 +101,7 @@ export async function getLocationForecast(search: string | string[], hint: Locat
   forecastUrl.searchParams.set("forecast_days", "7");
   if (apiKey) forecastUrl.searchParams.set("apikey", apiKey);
 
-  const weatherResponse = await fetch(forecastUrl, { next: { revalidate: 900 } });
+  const weatherResponse = await fetch(forecastUrl, { next: { revalidate: 300 } });
   if (!weatherResponse.ok) throw new Error("Live weather is temporarily unavailable for this jobsite.");
   const weather = await weatherResponse.json() as ForecastResponse;
   const currentHour = weather.current.time.slice(0, 13);
@@ -115,6 +116,7 @@ export async function getLocationForecast(search: string | string[], hint: Locat
     timezone: weather.timezone || place.timezone || "auto",
     observedAt: weather.current.time,
     current: {
+      isDay: weather.current.is_day === 1,
       temperatureF: Math.round(weather.current.temperature_2m),
       apparentTemperatureF: Math.round(weather.current.apparent_temperature),
       weatherCode: weather.current.weather_code,
