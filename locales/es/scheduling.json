@@ -254,9 +254,13 @@
 
   "validation.required": "Completa los campos requeridos.",
   "validation.timeOrder": "La hora de fin debe ser posterior a la de inicio.",
+  "validation.assigneeRequired": "Selecciona una cuadrilla o un empleado asignado.",
+  "validation.crewRequired": "Selecciona una cuadrilla para la movilizacion.",
+  "validation.employeeRequired": "Selecciona un empleado para este tipo de asignacion.",
 
   "feedback.assignmentCreated": "Asignacion creada con exito.",
   "feedback.assignmentMoved": "Asignacion movida con actualizacion optimista.",
+  "feedback.openShiftDismissed": "Turno abierto descartado.",
   "feedback.dispatchUpdated": "Estado de despacho actualizado.",
   "feedback.openShiftFilled": "Turno abierto cubierto.",
   "feedback.conflictUpdated": "Estado de conflicto actualizado.",

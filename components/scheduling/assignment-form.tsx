@@ -9,7 +9,7 @@ type AssignmentFormProps = {
   crewOptions: Array<{ id: string; name: string }>;
   employeeOptions: Array<{ id: string; name: string; trade: string }>;
   tradeOptions: string[];
-  onSubmit: (draft: AssignmentDraft) => Promise<void>;
+  onSubmit: (draft: AssignmentDraft) => Promise<boolean>;
   onCancel: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
@@ -64,18 +64,18 @@ export function AssignmentForm({
 
     if (form.type === "project_work") {
       if (form.assignedCrewIds.length === 0 && form.assignedEmployeeIds.length === 0) {
-        setError("Select an assigned crew or employee.");
+        setError(t("scheduling.validation.assigneeRequired"));
         return;
       }
     }
 
     if (form.type === "crew_mobilization" && form.assignedCrewIds.length === 0) {
-      setError("A crew assignment is required for crew mobilization.");
+      setError(t("scheduling.validation.crewRequired"));
       return;
     }
 
     if ((form.type === "inspection" || form.type === "training" || form.type === "meeting") && form.assignedEmployeeIds.length === 0) {
-      setError("An assigned employee is required for this assignment type.");
+      setError(t("scheduling.validation.employeeRequired"));
       return;
     }
 
@@ -86,7 +86,8 @@ export function AssignmentForm({
 
     setIsSaving(true);
     try {
-      await onSubmit(form);
+      const created = await onSubmit(form);
+      if (!created) setError(t("scheduling.errorSaveAssignment"));
     } catch {
       setError(t("scheduling.errorSaveAssignment"));
     } finally {
@@ -151,6 +152,7 @@ export function AssignmentForm({
 
         <Field label={t("scheduling.form.requiredTrade")}>
           <Select value={form.requiredTrade} onChange={(event) => update("requiredTrade", event.target.value)}>
+            {tradeOptions.length === 0 ? <option value="General Labor">General Labor</option> : null}
             {tradeOptions.map((trade) => (
               <option key={trade} value={trade}>{trade}</option>
             ))}
@@ -197,8 +199,6 @@ export function AssignmentForm({
 
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>{t("scheduling.actions.cancel")}</Button>
-        <Button type="button" variant="outline" disabled>{t("scheduling.actions.saveDraft")}</Button>
-        <Button type="button" variant="outline" disabled>{t("scheduling.actions.duplicate")}</Button>
         <Button type="submit" disabled={isSaving}>{isSaving ? t("scheduling.actions.saving") : t("scheduling.actions.publish")}</Button>
       </div>
     </form>

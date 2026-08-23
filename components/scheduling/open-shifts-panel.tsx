@@ -6,10 +6,11 @@ type OpenShiftsPanelProps = {
   employeeOptions: Array<{ id: string; name: string; trade: string }>;
   crewOptions: Array<{ id: string; name: string }>;
   onAssign: (openShiftId: string, employeeId: string | null, crewId: string | null) => void;
+  onDismiss: (openShiftId: string) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function OpenShiftsPanel({ items, employeeOptions, crewOptions, onAssign, t }: OpenShiftsPanelProps) {
+export function OpenShiftsPanel({ items, employeeOptions, crewOptions, onAssign, onDismiss, t }: OpenShiftsPanelProps) {
   return (
     <Card as="section">
       <CardHeader>
@@ -76,9 +77,7 @@ export function OpenShiftsPanel({ items, employeeOptions, crewOptions, onAssign,
                 </p>
 
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm">{t("scheduling.openShifts.dismiss")}</Button>
-                  <Button variant="outline" size="sm">{t("scheduling.openShifts.splitShift")}</Button>
-                  <Button variant="outline" size="sm">{t("scheduling.openShifts.edit")}</Button>
+                  <Button variant="outline" size="sm" onClick={() => onDismiss(item.id)}>{t("scheduling.openShifts.dismiss")}</Button>
                 </div>
               </article>
             );

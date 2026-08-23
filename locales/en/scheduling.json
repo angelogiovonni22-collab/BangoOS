@@ -254,9 +254,13 @@
 
   "validation.required": "Please complete the required fields.",
   "validation.timeOrder": "End time must be later than start time.",
+  "validation.assigneeRequired": "Select an assigned crew or employee.",
+  "validation.crewRequired": "Select a crew for crew mobilization.",
+  "validation.employeeRequired": "Select an employee for this assignment type.",
 
   "feedback.assignmentCreated": "Assignment created successfully.",
   "feedback.assignmentMoved": "Assignment moved with optimistic update.",
+  "feedback.openShiftDismissed": "Open shift dismissed.",
   "feedback.dispatchUpdated": "Dispatch status updated.",
   "feedback.openShiftFilled": "Open shift filled.",
   "feedback.conflictUpdated": "Conflict status updated.",

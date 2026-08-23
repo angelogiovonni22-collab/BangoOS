@@ -22,13 +22,15 @@ const tests: Test[] = [
     },
   },
   {
-    name: "2. unsupported scheduling methods throw explicit production errors",
+    name: "2. scheduling mutations persist to production tables",
     run: () => {
       const source = read("lib/scheduling/supabase-service.ts");
-      assert.ok(source.includes("Persistent dispatch state is not implemented in the current production schema."));
-      assert.ok(source.includes("Persistent open shift state is not implemented in the current production schema."));
-      assert.ok(source.includes("Persistent conflict resolution state is not implemented in the current production schema."));
-      assert.ok(source.includes("Persistent insight status is not implemented in the current production schema."));
+      assert.ok(source.includes('.from("workforce_assignments")'));
+      assert.ok(source.includes('.from("workforce_events")'));
+      assert.ok(source.includes('event_type: "workforce.dispatch.status.updated"'));
+      assert.ok(source.includes('event_type: "workforce.scheduling.open_shift.updated"'));
+      assert.ok(source.includes('event_type: "workforce.scheduling.conflict.resolution.updated"'));
+      assert.ok(source.includes('event_type: "workforce.scheduling.insight.status.updated"'));
     },
   },
   {

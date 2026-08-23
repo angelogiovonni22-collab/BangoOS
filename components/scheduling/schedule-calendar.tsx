@@ -28,7 +28,7 @@ export function ScheduleCalendar({
 }: ScheduleCalendarProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  const visible = useMemo(() => assignments.sort((a, b) => a.startTime.localeCompare(b.startTime)), [assignments]);
+  const visible = useMemo(() => [...assignments].sort((a, b) => a.startTime.localeCompare(b.startTime)), [assignments]);
 
   const moveToShift = (assignmentId: string, shift: "day" | "swing" | "night") => {
     onQuickMoveShift(assignmentId, shift);

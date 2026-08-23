@@ -79,6 +79,27 @@ function combineDateAndTime(date: string, time: string) {
   return `${date}T${time}:00Z`;
 }
 
+const shiftStartTimes = { day: "07:00", swing: "15:00", night: "23:00" } as const;
+
+function moveWindow(params: { startsAt: string; endsAt: string; date?: string; startTime?: string; endTime?: string; shift?: "day" | "swing" | "night" }) {
+  const durationMs = Math.max(0, new Date(params.endsAt).getTime() - new Date(params.startsAt).getTime());
+  const date = params.date ?? toIsoDate(params.startsAt);
+  const startTime = params.startTime ?? (params.shift ? shiftStartTimes[params.shift] : toTime(params.startsAt));
+  const startsAt = combineDateAndTime(date, startTime);
+
+  if (params.endTime) {
+    let endsAt = combineDateAndTime(date, params.endTime);
+    if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+      const nextDay = new Date(`${date}T00:00:00Z`);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      endsAt = combineDateAndTime(nextDay.toISOString().slice(0, 10), params.endTime);
+    }
+    return { startsAt, endsAt };
+  }
+
+  return { startsAt, endsAt: new Date(new Date(startsAt).getTime() + durationMs).toISOString() };
+}
+
 function durationHours(startIso: string, endIso: string) {
   const start = new Date(startIso).getTime();
   const end = new Date(endIso).getTime();
@@ -856,7 +877,7 @@ function buildPayloadFromRows(rows: LoadedRows): SchedulingPayload {
   const openShifts = buildOpenShifts(assignments, availability, events);
   const baseConflicts = detectSchedulingConflicts({
     assignments,
-    openShifts,
+    openShifts: openShifts.filter((shift) => !shift.dismissed),
     availability,
     timeOff,
   });
@@ -998,13 +1019,9 @@ function assignmentUpdateFromChanges(
   base: WorkforceAssignmentRow,
   changes: Partial<Pick<ScheduleAssignment, "date" | "shift" | "assignedCrewIds" | "assignedEmployeeIds" | "startTime" | "endTime">>,
 ): Partial<WorkforceAssignmentRow> {
-  const nextStartsAt = changes.date || changes.startTime
-    ? combineDateAndTime(changes.date ?? toIsoDate(base.starts_at), changes.startTime ?? toTime(base.starts_at))
-    : base.starts_at;
-
-  const nextEndsAt = changes.date || changes.endTime
-    ? combineDateAndTime(changes.date ?? toIsoDate(base.ends_at), changes.endTime ?? toTime(base.ends_at))
-    : base.ends_at;
+  const movedWindow = moveWindow({ startsAt: base.starts_at, endsAt: base.ends_at, date: changes.date, startTime: changes.startTime, endTime: changes.endTime, shift: changes.shift });
+  const nextStartsAt = movedWindow.startsAt;
+  const nextEndsAt = movedWindow.endsAt;
 
   const requestedCrewId = changes.assignedCrewIds ? (changes.assignedCrewIds[0] ?? null) : base.crew_id;
   const requestedEmployeeId = changes.assignedEmployeeIds ? (changes.assignedEmployeeIds[0] ?? null) : base.employee_id;
@@ -1310,6 +1327,23 @@ export function createSupabaseSchedulingService(): SchedulingService {
         throw eventError;
       }
 
+      const { payload } = await loadLivePayload();
+      return payload;
+    },
+
+    async dismissOpenShift(openShiftId) {
+      const { companyId, userId, supabase } = await loadLivePayload();
+      const assignmentId = openShiftId.startsWith("open-") ? openShiftId.slice(5) : openShiftId;
+      const { error } = await supabase.from("workforce_events").insert({
+        company_id: companyId,
+        event_type: "workforce.scheduling.open_shift.updated",
+        entity_type: "assignment",
+        entity_id: assignmentId,
+        action: "update",
+        actor_profile_id: userId,
+        payload: { open_shift_id: openShiftId, assignment_id: assignmentId, dismissed: true },
+      });
+      if (error) throw error;
       const { payload } = await loadLivePayload();
       return payload;
     },

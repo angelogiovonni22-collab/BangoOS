@@ -11,6 +11,7 @@ export type SchedulingService = {
   createAssignment: (draft: AssignmentDraft) => Promise<SchedulingPayload>;
   moveDispatchResource: (dispatchId: string, status: DispatchStatus, delayReason: string | null) => Promise<SchedulingPayload>;
   assignOpenShift: (openShiftId: string, employeeId: string | null, crewId: string | null) => Promise<SchedulingPayload>;
+  dismissOpenShift: (openShiftId: string) => Promise<SchedulingPayload>;
   resolveConflict: (conflictId: string, status: "acknowledged" | "dismissed" | "resolved") => Promise<SchedulingPayload>;
   acceptInsight: (insightId: string) => Promise<SchedulingPayload>;
   dismissInsight: (insightId: string) => Promise<SchedulingPayload>;
