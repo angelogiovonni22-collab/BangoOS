@@ -89,7 +89,7 @@ export function MobileHomeClient({ role, userName, companyName, dashboardData, t
           <p className="bos-mobile-date">{currentDate}</p>
         </div>
         <div className="bos-mobile-header-actions">
-          <button type="button" className="bos-mobile-icon-button" aria-label="Notifications"><Bell size={18} /></button>
+          <Link href="/notifications" className="bos-mobile-icon-button" aria-label="Notifications"><Bell size={18} /></Link>
           <div className="bos-mobile-avatar" aria-label={`${userName} profile`}>{getInitials(userName)}</div>
         </div>
       </header>
