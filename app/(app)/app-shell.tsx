@@ -85,10 +85,11 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
     }
 
     if (hasBosPermission(normalizedRole, "communications.view")) {
-      return [
+      const companyGroups = [
         ...groups,
         { key: "communications", label: "Communications", items: [{ key: "tradePartnerMessages", href: "/trade-partner-messages", icon: "✉" }] },
       ];
+      return platformAdmin ? [...companyGroups, { key: "platform", label: "B.O.S. Platform", items: [{ key: "platformAdmin", href: "/platform-admin", icon: "◆" }] }] : companyGroups;
     }
 
     return platformAdmin ? [...groups, { key: "platform", label: "B.O.S. Platform", items: [{ key: "platformAdmin", href: "/platform-admin", icon: "◆" }] }] : groups;
