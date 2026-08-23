@@ -49,6 +49,8 @@ type CloseoutBundle = {
 };
 
 type ExecutionService = ReturnType<typeof createProjectExecutionService>;
+type SafetyEvidence = { id: string; type: string; description: string; status: string; reportDate: string };
+type SafetyEventRow = { id: string; reference_id: string; occurred_at: string; payload: Record<string, unknown> };
 
 const OPEN_PUNCH_STATUSES = new Set(["open", "assigned", "in_progress", "reopened"]);
 
@@ -69,6 +71,7 @@ export function ProjectComplianceWorkflow({ projectId, workspaceContext }: Proje
   const [summary, setSummary] = useState<ExecutionSummary | null>(null);
   const [permits, setPermits] = useState<ProjectPermitRow[]>([]);
   const [inspections, setInspections] = useState<ProjectInspectionRow[]>([]);
+  const [safetyEvidence, setSafetyEvidence] = useState<SafetyEvidence[]>([]);
   const [closeoutBundle, setCloseoutBundle] = useState<CloseoutBundle>({
     closeout: null,
     checklist: [],
@@ -104,16 +107,18 @@ export function ProjectComplianceWorkflow({ projectId, workspaceContext }: Proje
     setErrorMessage(null);
 
     try {
-      const [permitRows, inspectionRows, closeoutRows, summaryRows] = await Promise.all([
+      const [permitRows, inspectionRows, closeoutRows, summaryRows, safetyRows] = await Promise.all([
         activeService.listPermits({ ...actorContext, projectId }),
         activeService.listInspections({ ...actorContext, projectId }),
         activeService.listCloseout({ ...actorContext, projectId }),
         activeService.projectExecutionSummary({ ...actorContext, projectId }),
+        loadProjectSafetyEvidence(supabase, workspaceContext.companyId, projectId),
       ]);
 
       setPermits((permitRows || []) as ProjectPermitRow[]);
       setInspections((inspectionRows || []) as ProjectInspectionRow[]);
       setSummary(summaryRows as ExecutionSummary);
+      setSafetyEvidence(safetyRows);
 
       const normalizedCloseout = closeoutRows as CloseoutBundle;
       setCloseoutBundle({
@@ -128,7 +133,7 @@ export function ProjectComplianceWorkflow({ projectId, workspaceContext }: Proje
     } finally {
       setIsLoading(false);
     }
-  }, [actorContext, projectId, service]);
+  }, [actorContext, projectId, service, supabase, workspaceContext.companyId]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -161,7 +166,9 @@ export function ProjectComplianceWorkflow({ projectId, workspaceContext }: Proje
 
   const openPunchItems = closeoutBundle.punchItems.filter((item) => OPEN_PUNCH_STATUSES.has(item.status));
   const overduePermits = permits.filter((permit) => permit.status === "expired" || permit.status === "rejected");
-  const safetyAlerts = (summary?.inspectionsFailed || 0) + overduePermits.length;
+  const openSafetyItems = safetyEvidence.filter((item) => item.status !== "resolved");
+  const safetyIncidents = safetyEvidence.filter((item) => item.type === "incident" || item.type === "near_miss");
+  const safetyAlerts = (summary?.inspectionsFailed || 0) + overduePermits.length + openSafetyItems.length;
   const warrantyStatus = closeoutBundle.warranties[0]?.status || "inactive";
   const closeoutReadiness = summary?.closeoutStatus || closeoutBundle.closeout?.status || "draft";
   const checklistCompleted = closeoutBundle.checklist.filter((item) => item.completed).length;
@@ -524,6 +531,30 @@ export function ProjectComplianceWorkflow({ projectId, workspaceContext }: Proje
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base font-bold text-[var(--bos-text-strong-on-light)]">Safety Execution Evidence</CardTitle>
+          <CardDescription>Project-scoped safety observations from submitted Daily Reports. Daily Reports remain the system of record.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricCard icon={<ShieldCheck size={15} aria-hidden="true" />} label="Safety Records" value={String(safetyEvidence.length)} detail="Reported field observations" tone="info" />
+            <MetricCard icon={<AlertTriangle size={15} aria-hidden="true" />} label="Open Actions" value={String(openSafetyItems.length)} detail="Needs follow-up" tone={openSafetyItems.length ? "warning" : "success"} />
+            <MetricCard icon={<AlertTriangle size={15} aria-hidden="true" />} label="Incidents / Near Misses" value={String(safetyIncidents.length)} detail="Recorded in Daily Reports" tone={safetyIncidents.length ? "danger" : "success"} />
+          </div>
+          <div className="space-y-2">
+            {openSafetyItems.slice(0, 8).map((item) => (
+              <article key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-control)] px-3 py-2.5">
+                <div><p className="text-sm font-semibold text-[var(--bos-text-strong-on-light)]">{item.description}</p><p className="text-xs font-medium text-[var(--bos-text-medium-on-light)]">{item.type.replaceAll("_", " ")} • {formatDate(item.reportDate)}</p></div>
+                <Badge tone="warning">{item.status.replaceAll("_", " ")}</Badge>
+              </article>
+            ))}
+            {openSafetyItems.length === 0 ? <p className="text-sm text-[var(--bos-text-medium-on-light)]">No open safety actions in submitted Daily Reports.</p> : null}
+          </div>
+          <Link href={`/projects/${projectId}?tab=daily_logs`}><Button size="sm" variant="outline">Open Daily Safety Reports</Button></Link>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base font-bold text-[var(--bos-text-strong-on-light)]">Punch, Closeout, and Warranty</CardTitle>
           <CardDescription>Complete field punch and handover readiness before project completion.</CardDescription>
         </CardHeader>
@@ -692,4 +723,28 @@ function getServiceOrThrow(service: ExecutionService | null) {
   }
 
   return service;
+}
+
+async function loadProjectSafetyEvidence(supabase: ReturnType<typeof createClient>, companyId: string, projectId: string): Promise<SafetyEvidence[]> {
+  if (!supabase) return [];
+  const db = supabase as unknown as { from: (table: string) => { select: (columns: string) => { eq: (column: string, value: string) => unknown } } };
+  const response = await (db.from("workflow_events").select("id, reference_id, occurred_at, payload") as unknown as {
+    eq: (column: string, value: string) => { eq: (column: string, value: string) => { order: (column: string, options: { ascending: boolean }) => Promise<{ data: Array<{ id: string; reference_id: string; occurred_at: string; payload: Record<string, unknown> }> | null; error: { message: string } | null }> } };
+  }).eq("company_id", companyId).eq("reference_entity", "daily_report").order("occurred_at", { ascending: false });
+  if (response.error) throw new Error(response.error.message);
+
+  const latestByReport = new Map<string, SafetyEventRow>();
+  for (const row of response.data || []) if (!latestByReport.has(row.reference_id)) latestByReport.set(row.reference_id, row);
+
+  return Array.from(latestByReport.values()).flatMap((row) => {
+    const report = row.payload?.report as { header?: { projectId?: string; reportDate?: string }; safety?: Array<{ id?: string; type?: string; description?: string; status?: string }> } | undefined;
+    if (report?.header?.projectId !== projectId) return [];
+    return (report.safety || []).map((item, index) => ({
+      id: item.id || `${row.id}-${index}`,
+      type: item.type || "observation",
+      description: item.description || "Safety observation",
+      status: item.status || "open",
+      reportDate: report.header?.reportDate || row.occurred_at,
+    }));
+  });
 }
