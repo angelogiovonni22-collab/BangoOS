@@ -13,6 +13,7 @@ for (const component of ["ProjectDocumentsWorkspace", "ProjectActivityWorkspace"
 for (const tab of ["daily_logs", "crew", "change_orders", "rfis", "submittals"]) {
   assert.match(page, new RegExp(`"${tab}"`), `${tab} must be part of the live project workspace`);
 }
+assert.match(page, /const validTabs:[\s\S]*?"submittals"[\s\S]*?"inspections"/);
 
 assert.match(linkedWorkspace, /\.eq\("project_id", projectId\)/);
 assert.match(linkedWorkspace, /create_project_rfi/);
