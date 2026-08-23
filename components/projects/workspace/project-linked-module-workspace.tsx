@@ -444,7 +444,7 @@ function numberValue(value: unknown) {
 }
 
 function formatDate(value: string, localeTag: string) {
-  const date = new Date(value);
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(localeTag, { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 

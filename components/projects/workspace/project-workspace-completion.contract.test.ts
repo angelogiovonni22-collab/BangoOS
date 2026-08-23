@@ -19,6 +19,7 @@ assert.match(linkedWorkspace, /\.eq\("project_id", projectId\)/);
 assert.match(linkedWorkspace, /create_project_rfi/);
 assert.match(linkedWorkspace, /create_project_submittal/);
 assert.match(linkedWorkspace, /projectName=\$\{encodeURIComponent\(projectName\)\}/);
+assert.match(linkedWorkspace, /T12:00:00/);
 assert.match(documentsWorkspace, /ProjectReceiptsWorkspace/);
 assert.match(migration, /pg_advisory_xact_lock\(hashtext\('project-rfi:'/);
 assert.match(migration, /pg_advisory_xact_lock\(hashtext\('project-submittal:'/);
