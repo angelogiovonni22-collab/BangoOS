@@ -17,5 +17,5 @@ assert.doesNotMatch(migration, /grant .* to anon/);
 assert.match(page, /redirect\("\/dashboard"\)/);
 assert.match(route, /Platform administrator access is required/);
 assert.match(route, /bos_platform_audit_log/);
-assert.match(shell, /platformAdmin \? \[\.\.\.groups/);
+assert.match(shell, /platformAdmin \? \[\.\.\.companyGroups/);
 console.log("B.O.S. platform administration contract: all assertions passed");
