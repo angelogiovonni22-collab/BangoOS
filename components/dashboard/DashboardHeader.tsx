@@ -22,6 +22,11 @@ export function DashboardHeader({
   t,
   action,
 }: DashboardHeaderProps) {
+  const translatedLoadingLabel = t?.("dashboard.loadingMetrics");
+  const loadingLabel = translatedLoadingLabel && translatedLoadingLabel !== "dashboard.loadingMetrics"
+    ? translatedLoadingLabel
+    : "Loading live metrics";
+
   return (
     <section className="flex flex-col gap-5 border-b border-[var(--color-border-subtle)] pb-5 lg:flex-row lg:items-end lg:justify-between">
       <div className="max-w-3xl">
@@ -42,7 +47,7 @@ export function DashboardHeader({
           ) : null}
           <IntelligenceActivity
             active={!isReady}
-            label={t ? t("dashboard.loadingMetrics") : "Loading dashboard"}
+            label={loadingLabel}
             className="w-fit"
           />
           {isReady ? (
