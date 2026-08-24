@@ -15,7 +15,7 @@ export function WorkforceBoard({ items, availability }: WorkforceBoardProps) {
       </CardHeader>
       <CardContent className="space-y-4 p-5">
         {availability === "partial" ? (
-          <PartialDataNotice message="Showing live task ownership and estimated hours. Crew assignments, conflicts, and time-entry coverage are not fully available from a live service yet." />
+          <PartialDataNotice message="Showing live task ownership and estimated hours. Some crew-assignment, conflict, and time-entry details may be incomplete for the current records." />
         ) : null}
 
         {items.length === 0 ? (
