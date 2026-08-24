@@ -1,3 +1,4 @@
+import { createSchedulingCompletionService } from "./completion-service";
 import { createSupabaseSchedulingService } from "./supabase-service";
 import type {
   AssignmentDraft,
@@ -21,5 +22,7 @@ export type SchedulingService = {
 };
 
 export function createSchedulingService(): SchedulingService {
-  return createSupabaseSchedulingService();
+  const base = createSupabaseSchedulingService();
+  const completion = createSchedulingCompletionService(base.getScheduling);
+  return { ...base, ...completion };
 }
