@@ -34,6 +34,32 @@
   }
 }
 
+/* Between the mobile and full desktop shells, keep navigation context and utilities on
+   separate rows. The previous sm:flex-row layout squeezed breadcrumbs, department
+   controls, search, notifications, language and profile into one crowded line. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  [data-bos-topbar="true"] .bos-top-command-utility {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+
+  [data-bos-topbar="true"] .bos-top-command-utility > div:first-child,
+  [data-bos-topbar="true"] .bos-top-command-utility > div:last-child {
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  [data-bos-topbar="true"] .bos-top-command-utility > div:last-child {
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+  }
+
+  [data-bos-topbar="true"] .bos-top-command-utility > div:last-child > div:last-of-type {
+    min-width: 0;
+  }
+}
+
 @media (min-width: 1024px) {
   html[data-layout="top-command"] #bangoos-sidebar { display: none; }
 

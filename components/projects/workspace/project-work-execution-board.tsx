@@ -199,9 +199,9 @@ export function ProjectWorkExecutionBoard({
   }
 
   return (
-    <CardContent className="space-y-4 p-5">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
-        <label className="space-y-1">
+    <CardContent className="min-w-0 space-y-4 p-4 sm:p-5">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+        <label className="min-w-0 space-y-1 sm:col-span-2">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{t("projects.workExecutionSearchLabel")}</span>
           <Input
             value={filters.search}
@@ -211,12 +211,12 @@ export function ProjectWorkExecutionBoard({
           />
         </label>
 
-        <label className="space-y-1">
+        <label className="min-w-0 space-y-1">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{t("projects.workExecutionFilterStatus")}</span>
           <select
             value={filters.status}
             onChange={(event) => onFiltersChange({ ...filters, status: event.target.value as ExecutionBoardFilters["status"] })}
-            className="h-10 w-full rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)] focus:ring-2 focus:ring-[var(--focus-ring-primary)]"
+            className="h-10 w-full min-w-0 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)] focus:ring-2 focus:ring-[var(--focus-ring-primary)]"
             aria-label={t("projects.workExecutionFilterStatus")}
           >
             <option value="all">{t("projects.workExecutionFilterAll")}</option>
@@ -227,12 +227,12 @@ export function ProjectWorkExecutionBoard({
           </select>
         </label>
 
-        <label className="space-y-1">
+        <label className="min-w-0 space-y-1">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{t("projects.workExecutionFilterAssignee")}</span>
           <select
             value={filters.assignee}
             onChange={(event) => onFiltersChange({ ...filters, assignee: event.target.value })}
-            className="h-10 w-full rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)] focus:ring-2 focus:ring-[var(--focus-ring-primary)]"
+            className="h-10 w-full min-w-0 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)] focus:ring-2 focus:ring-[var(--focus-ring-primary)]"
             aria-label={t("projects.workExecutionFilterAssignee")}
           >
             <option value="all">{t("projects.workExecutionFilterAll")}</option>
@@ -243,12 +243,12 @@ export function ProjectWorkExecutionBoard({
         </label>
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)]/65 px-4 py-2.5">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
+      <div className="flex min-w-0 flex-col gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)]/65 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="min-w-0 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
           <Filter size={13} className="mr-1 inline-block" aria-hidden="true" />
           {t("projects.workExecutionResultsLabel", { count: filteredTasks.length })}
         </p>
-        <label className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
+        <label className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
           <span>{t("projects.workExecutionSortLabel")}</span>
           <select
             value={filters.sort}
@@ -293,36 +293,38 @@ export function ProjectWorkExecutionBoard({
         })}
       </div>
 
-      <div className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-4">
-        {STATUS_BUCKET_ORDER.map((bucket, index) => {
-          const bucketTasks = groupedTasks[bucket];
-          return (
-            <FadeIn key={bucket} delayMs={index * 35}>
-              <section className="flex min-h-[400px] flex-col rounded-[12px] border border-[var(--color-border-subtle)] bg-white">
-                <header className="flex items-center justify-between border-b border-[var(--color-border-subtle)] px-3 py-2.5">
-                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{statusBucketLabel(bucket, t)}</h3>
-                  <span className="rounded-full bg-[var(--color-surface-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-secondary)]">{bucketTasks.length}</span>
-                </header>
-                <div className="flex-1 space-y-3 overflow-y-auto p-3">
-                  {bucketTasks.length === 0 ? (
-                    <EmptyState compact icon="-" title={t("projects.workExecutionEmptyBucketTitle")} description={t("projects.workExecutionEmptyBucketDescription")} />
-                  ) : (
-                    bucketTasks.map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        selected={selectedTaskId === task.id}
-                        shifted={Boolean(recentlyShiftedTaskIds[task.id])}
-                        onSelect={onSelectedTaskChange}
-                        t={t}
-                      />
-                    ))
-                  )}
-                </div>
-              </section>
-            </FadeIn>
-          );
-        })}
+      <div className="hidden min-w-0 overflow-x-auto pb-2 md:block" data-testid="execution-board-scroll-region">
+        <div className="grid min-w-[1040px] grid-cols-4 gap-4">
+          {STATUS_BUCKET_ORDER.map((bucket, index) => {
+            const bucketTasks = groupedTasks[bucket];
+            return (
+              <FadeIn key={bucket} delayMs={index * 35}>
+                <section className="flex min-h-[400px] min-w-0 flex-col rounded-[12px] border border-[var(--color-border-subtle)] bg-white">
+                  <header className="flex items-center justify-between border-b border-[var(--color-border-subtle)] px-3 py-2.5">
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{statusBucketLabel(bucket, t)}</h3>
+                    <span className="rounded-full bg-[var(--color-surface-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-secondary)]">{bucketTasks.length}</span>
+                  </header>
+                  <div className="flex-1 space-y-3 overflow-y-auto p-3">
+                    {bucketTasks.length === 0 ? (
+                      <EmptyState compact icon="-" title={t("projects.workExecutionEmptyBucketTitle")} description={t("projects.workExecutionEmptyBucketDescription")} />
+                    ) : (
+                      bucketTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          selected={selectedTaskId === task.id}
+                          shifted={Boolean(recentlyShiftedTaskIds[task.id])}
+                          onSelect={onSelectedTaskChange}
+                          t={t}
+                        />
+                      ))
+                    )}
+                  </div>
+                </section>
+              </FadeIn>
+            );
+          })}
+        </div>
       </div>
     </CardContent>
   );
