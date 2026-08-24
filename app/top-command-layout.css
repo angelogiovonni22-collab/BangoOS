@@ -60,13 +60,19 @@
   }
 }
 
-/* The Tasks workspace is rendered through StaggerGroup, which adds one animation wrapper
-   around every direct grid child. At laptop/desktop widths that wrapper—not the nested
-   supporting-panel grid—becomes the CSS-grid item. Keep the third wrapper spanning both
-   Tasks columns so SiteCam and Operations Timeline receive the full row instead of being
-   squeezed into the 240px Active Phases rail. Wide command-center layouts intentionally
-   return to three independent columns at 1800px. */
-@media (min-width: 1280px) and (max-width: 1799px) {
+/* The Tasks workspace is rendered through StaggerGroup, which adds an animation wrapper
+   around every direct grid child. The wrapper itself is the CSS-grid item, so nested
+   column-span utilities cannot reliably place the supporting panels. Keep desktop Tasks
+   on a stable two-column architecture at every practical desktop width: Active Phases in
+   the secondary rail, Execution Board in the dominant column, and the supporting panels
+   on a full-width row below. This avoids viewport-breakpoint assumptions about usable
+   content width after the application shell and prevents SiteCam/Timeline from collapsing
+   into an unreadable rail. */
+@media (min-width: 1280px) {
+  .grid:has(> :nth-child(2) [data-testid="execution-board-scroll-region"]) {
+    grid-template-columns: 260px minmax(0, 1fr) !important;
+  }
+
   .grid:has(> :nth-child(2) [data-testid="execution-board-scroll-region"]) > :nth-child(3) {
     grid-column: 1 / -1;
     min-width: 0;
