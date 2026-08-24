@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { calculateProjectComplianceReadiness } from "./project-compliance-readiness";
+import { calculateProjectExecutionReadiness } from "./project-execution-readiness";
 
 const root = process.cwd();
 const migration = readFileSync(resolve(root, "supabase/migrations/20260824050000_estimate_approved_project_workspace_bootstrap.sql"), "utf8");
@@ -25,7 +26,12 @@ assert.match(panel, /Budget Variance/);
 assert.match(panel, /Workflow Coverage/);
 assert.match(panel, /Orion Recommended Actions/);
 assert.match(panel, /Compliance Readiness/);
+assert.match(panel, /Execution Readiness/);
+assert.match(panel, /Next operating action/);
+assert.match(panel, /data-testid="project-execution-readiness"/);
 assert.equal(calculateProjectComplianceReadiness({ permitsTotal: 1, openPermits: 0, inspectionsTotal: 1, pendingInspections: 0, documentsTotal: 1 }).status, "Ready");
 assert.equal(calculateProjectComplianceReadiness({ permitsTotal: 0, openPermits: 0, inspectionsTotal: 0, pendingInspections: 0, documentsTotal: 0 }).status, "Setup required");
+assert.equal(calculateProjectExecutionReadiness({ complianceScore: 100, overdueTasks: 0, blockedTasks: 0, activeTasks: 1, documentationPresent: true }).status, "Ready");
+assert.equal(calculateProjectExecutionReadiness({ complianceScore: 10, overdueTasks: 0, blockedTasks: 0, activeTasks: 0, documentationPresent: false }).nextAction, "compliance");
 
 console.log("project workspace bootstrap contract passed");
