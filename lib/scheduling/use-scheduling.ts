@@ -99,6 +99,9 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
     setErrorMessage(null);
 
     try {
+      if (!schedulingService.updateAssignment) {
+        throw new Error("Scheduling assignment editing is unavailable.");
+      }
       const next = await schedulingService.updateAssignment(assignmentId, draft);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.assignmentMoved");
@@ -116,6 +119,9 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
     setErrorMessage(null);
 
     try {
+      if (!schedulingService.cancelAssignment) {
+        throw new Error("Scheduling assignment cancellation is unavailable.");
+      }
       const next = await schedulingService.cancelAssignment(assignmentId);
       setPayload(next);
       setLastActionMessage("scheduling.feedback.assignmentMoved");
