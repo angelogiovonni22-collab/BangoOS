@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { PROJECT_WORKSPACE_TABS } from "./project-workspace-tabs";
 import type { ProjectWorkspaceTabKey } from "./types";
 
@@ -50,6 +50,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ left: number; top: number } | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const moreMenuId = useId();
   const receiptsSelected = activeTab === "documents" && searchParams.get("section") === RECEIPTS_TAB_KEY;
   const activeKey: ProjectNavKey = receiptsSelected ? RECEIPTS_TAB_KEY : activeTab;
 
@@ -92,10 +93,18 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
     const closeOnViewportChange = () => closeMenu();
 
     document.addEventListener("pointerdown", closeMenu);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMoreOpen(false);
+      setMenuPosition(null);
+      moreButtonRef.current?.focus();
+    };
+    document.addEventListener("keydown", closeOnEscape);
     window.addEventListener("resize", closeOnViewportChange);
     window.addEventListener("scroll", closeOnViewportChange, true);
     return () => {
       document.removeEventListener("pointerdown", closeMenu);
+      document.removeEventListener("keydown", closeOnEscape);
       window.removeEventListener("resize", closeOnViewportChange);
       window.removeEventListener("scroll", closeOnViewportChange, true);
     };
@@ -181,6 +190,8 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
             data-orion-action="workspace-tab-more"
             data-orion-role="workspace tab menu: More"
             aria-expanded={moreOpen}
+            aria-controls={moreMenuId}
+            aria-haspopup="menu"
             className={`inline-flex items-center gap-2 rounded-[11px] border px-3 py-2 text-[0.8rem] font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] ${
               secondaryActiveItem
                 ? "border-[var(--workspace-tab-active-border)] [background:var(--workspace-tab-active-surface)] text-white"
@@ -197,7 +208,9 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
       {moreOpen && menuPosition ? createPortal(
         <div
           data-project-more-menu="true"
-          className="fixed z-[1000] w-56 overflow-hidden rounded-[14px] border border-[var(--bos-border-light)] bg-white p-1.5 shadow-[0_22px_42px_-16px_rgba(2,6,17,0.55)]"
+          id={moreMenuId}
+          role="menu"
+          className="fixed z-[2147483647] w-56 overflow-hidden rounded-[14px] border border-[var(--bos-border-light)] bg-white p-1.5 shadow-[0_22px_42px_-16px_rgba(2,6,17,0.55)]"
           style={{ left: menuPosition.left, top: menuPosition.top }}
         >
           {secondaryItems.map((item) => {
@@ -209,6 +222,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
                 onClick={() => handleChange(item.key)}
                 data-orion-action={`workspace-tab-${item.key}`}
                 data-orion-role={`workspace tab: ${item.label}`}
+                role="menuitem"
                 className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-left text-sm font-semibold transition ${
                   active
                     ? "bg-[var(--color-primary-50)] text-[var(--color-primary-700)]"
