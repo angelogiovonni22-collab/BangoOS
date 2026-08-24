@@ -42,13 +42,13 @@ export function DashboardHeader({
           ) : null}
           <IntelligenceActivity
             active={!isReady}
-            label={t ? t("dashboard.loadingMetrics") : "Loading dashboard"}
+            label={t ? t("dashboard.loadingMetrics") : "Loading dashboard metrics"}
             className="w-fit"
           />
           {isReady ? (
             <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-success-100)] bg-[var(--color-success-50)] px-2.5 py-1 text-xs font-semibold text-[var(--color-success-700)]">
               <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
-              System ready
+              {t ? t("dashboard.systemReady") : "System ready"}
             </span>
           ) : null}
         </div>
@@ -56,9 +56,11 @@ export function DashboardHeader({
 
       <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
         {action}
-        <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] shadow-[var(--shadow-small)]">
-          {currentDate}
-        </div>
+        {currentDate ? (
+          <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] shadow-[var(--shadow-small)]">
+            {currentDate}
+          </div>
+        ) : null}
       </div>
     </section>
   );
