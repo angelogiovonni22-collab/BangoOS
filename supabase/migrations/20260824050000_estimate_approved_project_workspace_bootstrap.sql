@@ -58,7 +58,7 @@ begin
     from ranked_sections rs
     where rs.duplicate_rank = 1
     order by rs.sort_order, lower(rs.name)
-    on conflict (project_id, name) do nothing;
+    on conflict on constraint project_phases_project_name_unique do nothing;
 
     get diagnostics v_seeded_count = row_count;
 
@@ -68,7 +68,7 @@ begin
         (p_company_id, v_project_id, 'Pre-Construction', 100),
         (p_company_id, v_project_id, 'Execution', 200),
         (p_company_id, v_project_id, 'Closeout', 300)
-      on conflict (project_id, name) do nothing;
+      on conflict on constraint project_phases_project_name_unique do nothing;
 
       get diagnostics v_seeded_count = row_count;
     end if;
