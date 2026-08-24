@@ -14,6 +14,14 @@ type UpdateBody = {
   permissionOverrides?: PermissionOverrides;
 };
 
+type VendorRow = {
+  id: string;
+  display_name: string | null;
+  company_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+};
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -32,9 +40,9 @@ export async function GET() {
         .eq("company_id", membership.company_id),
       supabase
         .from("vendors")
-        .select("id,name")
+        .select("id,display_name,company_name,first_name,last_name")
         .eq("company_id", membership.company_id)
-        .order("name"),
+        .order("display_name", { ascending: true, nullsFirst: false }),
       supabase
         .from("customers")
         .select("id,first_name,last_name,company_name,customer_type")
@@ -45,10 +53,18 @@ export async function GET() {
     const error = membersResponse.error || profilesResponse.error || vendorsResponse.error || customersResponse.error;
     if (error) throw new Error(error.message);
 
+    const vendors = ((vendorsResponse.data ?? []) as VendorRow[]).map((vendor) => ({
+      id: vendor.id,
+      name: vendor.display_name
+        || vendor.company_name
+        || [vendor.first_name, vendor.last_name].filter(Boolean).join(" ")
+        || "Unnamed Vendor",
+    }));
+
     return NextResponse.json({
       memberships: membersResponse.data ?? [],
       profiles: profilesResponse.data ?? [],
-      vendors: vendorsResponse.data ?? [],
+      vendors,
       customers: customersResponse.data ?? [],
     });
   } catch (error) {
