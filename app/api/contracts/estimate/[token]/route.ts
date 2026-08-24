@@ -35,12 +35,6 @@ async function context(token: string, request: Request) {
   return { admin, workflow, validated: { ...validated, companyId: validated.companyId as string, estimateId: validated.estimateId as string } };
 }
 
-function conservativeOhioHoldUntil(deadlineDate: string) {
-  const nextDay = new Date(`${deadlineDate}T12:00:00Z`);
-  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-  return `${nextDay.toISOString().slice(0, 10)}T05:00:00Z`;
-}
-
 async function loadProspect(admin: ReturnType<typeof createAdminClient>, companyId: string, estimateId: string) {
   const db = admin as unknown as ProspectDb;
   const result = await db.from("estimate_prospects")
@@ -105,11 +99,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     if (!body.typedName?.trim() || body.consentAccepted !== true) return NextResponse.json({ error: "Your legal name and consent are required." }, { status: 400 });
     const { admin, workflow, validated } = await context(token, request);
     const [{ data: estimate }, prospect] = await Promise.all([
-      admin.from("estimates").select("version_number, status, customer_id, customers(email,customer_type,state)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
+      admin.from("estimates").select("version_number, status, customer_id, project_id, approved_at, customers(email,customer_type,state)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
       loadProspect(admin, validated.companyId, validated.estimateId),
     ]);
     if (!estimate) throw new Error("Estimate not found.");
-    if (estimate.status === "approved") return NextResponse.json({ error: "This agreement has already been signed." }, { status: 409 });
     if (estimate.status === "void") return NextResponse.json({ error: "This transaction has been cancelled." }, { status: 409 });
 
     const linkedCustomer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
@@ -117,6 +110,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     if (!customer?.email) throw new Error("Customer or prospect contact information is missing.");
 
     const isOhioResidential = customer.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
+
+    if (estimate.status === "approved") {
+      let cancellationDeadlineDate: string | null = null;
+      if (isOhioResidential) {
+        const existingCompliance = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
+        if (existingCompliance.evaluation.applicable === true) {
+          if (!existingCompliance.profile.transactionSignedAt) {
+            const recoveredCompliance = await recordHomeSolicitationSignature(admin, validated.companyId, validated.estimateId, estimate.approved_at || new Date().toISOString());
+            cancellationDeadlineDate = recoveredCompliance.cancellationDeadlineDate;
+          } else {
+            cancellationDeadlineDate = existingCompliance.profile.cancellationDeadlineDate || null;
+          }
+        }
+      }
+
+      const { error: syncError } = await admin.rpc("sync_estimate_project_contract_compliance_hold" as never, { p_company_id: validated.companyId, p_estimate_id: validated.estimateId } as never);
+      if (syncError) throw new Error(syncError.message || "Unable to reconcile the signed agreement.");
+      return NextResponse.json({ signed: true, finalized: true, alreadySigned: true, projectId: estimate.project_id || null, cancellationDeadlineDate, workStartHoldActive: Boolean(cancellationDeadlineDate) });
+    }
+
     let homeSolicitationResult = null;
     if (isOhioResidential) {
       homeSolicitationResult = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
@@ -183,8 +196,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
     const projectId = conversion?.[0]?.project_id || null;
     if (projectId && cancellationDeadlineDate) {
-      const { error: holdError } = await admin.from("projects").update({ contract_compliance_hold_active: true, contract_compliance_hold_until: conservativeOhioHoldUntil(cancellationDeadlineDate), contract_compliance_hold_reason: "Ohio home-solicitation cancellation period" } as never).eq("company_id", validated.companyId).eq("id", projectId);
-      if (holdError) throw new Error(holdError.message || "Unable to apply the project compliance hold.");
+      const { error: syncError } = await admin.rpc("sync_estimate_project_contract_compliance_hold" as never, { p_company_id: validated.companyId, p_estimate_id: validated.estimateId } as never);
+      if (syncError) throw new Error(syncError.message || "Unable to apply the project compliance hold.");
+      const { data: heldProject, error: holdError } = await admin.from("projects").select("contract_compliance_hold_active,contract_compliance_hold_until").eq("company_id", validated.companyId).eq("id", projectId).single();
+      const projectHold = heldProject as unknown as { contract_compliance_hold_active: boolean; contract_compliance_hold_until: string | null } | null;
+      if (holdError || !projectHold?.contract_compliance_hold_active || !projectHold.contract_compliance_hold_until) throw new Error(holdError?.message || "The project compliance hold could not be verified.");
     }
 
     return NextResponse.json({
