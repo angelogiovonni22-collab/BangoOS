@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Activity, CalendarDays, Camera, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, Gauge, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 import { calculateProjectCloseoutReadiness, type ProjectCloseoutNextAction } from "@/lib/projects/project-closeout-readiness";
+import styles from "./project-command-center-foundation.module.css";
 
 type TaskSummary = { id: string; title: string; status: string; planned_finish: string | null };
 export type CommandCenterTimelineEntry = { id: string; title: string; detail: string; occurredAt: string; tone: "neutral" | "info" | "warning" | "success" };
@@ -39,7 +40,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
   const closeoutAction = getCloseoutAction(projectHref, closeoutReadiness.nextAction);
 
   return (
-    <div className="space-y-4" data-project-overview="header-jobsite-clean">
+    <div className={`space-y-4 ${styles.detailsFirst}`} data-project-overview="header-jobsite-clean">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project overview metrics">
         <Metric icon={<Gauge size={20} />} label="Progress" value={progress + "%"} detail={completed.length + " of " + props.tasks.length + " tasks complete"} progress={progress} />
         <Metric icon={<CircleDollarSign size={20} />} label="Budget" value={props.budgetLabel} detail={"Spent " + props.spentLabel} />
@@ -114,11 +115,10 @@ export function ProjectCommandCenterFoundation(props: Props) {
           </div>
         </Card>
         <Card title="Project Team" icon={<Users size={18} />} action={<Link href={projectHref + "?tab=crew"} className="text-xs font-bold text-[var(--orion-blue)]">View team</Link>}>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             <Info label="Customer" value={props.customerName} />
             <Info label="Assigned crew" value={props.crewCount ? props.crewCount + " members" : "Not assigned"} />
             <Info label="Project status" value={props.statusLabel} />
-            <Info label="Job site" value={props.projectAddress} />
           </div>
         </Card>
       </div>
