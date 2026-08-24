@@ -366,16 +366,36 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     setSaveFeedback(t("projects.workTaskDetailsSaveSuccess"));
   };
 
+  const taskDetailsPanel = (
+    <TaskDetailsPanel
+      mode={selectedTaskMode}
+      phaseName={selectedPhaseLabel}
+      taskTitle={selectedTask?.title || null}
+      isOverdue={selectedTaskIsOverdue}
+      formValues={selectedTaskDraft}
+      assigneeOptions={assigneeOptions}
+      dependencySummary={selectedTaskMode === "task" ? dependencySummary : null}
+      isSaving={isSavingTask}
+      isDirty={isTaskDirty}
+      validationMessage={validationMessage}
+      feedbackMessage={saveFeedback}
+      labels={taskDetailsLabels}
+      onChange={handleTaskFieldChange}
+      onSave={handleSaveTask}
+      onClose={() => setIsMobileDetailsOpen(false)}
+    />
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <FadeIn delayMs={120} distancePx={5}>
-        <section className="rounded-[16px] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)]">
+        <section className="min-w-0 rounded-[16px] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-small)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-[0.09em] text-[var(--color-text-muted)]">{t("projects.workspaceTabTasks")}</p>
-              <h2 className="mt-1 text-lg font-bold text-[var(--color-navy-900)]">{projectName}</h2>
+              <h2 className="mt-1 truncate text-lg font-bold text-[var(--color-navy-900)]">{projectName}</h2>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex min-w-0 flex-wrap gap-2">
               <button type="button" onClick={() => setIsCreateTaskOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-[10px] bg-[var(--color-brand-700)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-brand-800)]">
                 {isCreateTaskOpen ? <X size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
                 {isCreateTaskOpen ? t("projects.workTaskDetailsClose") : t("projects.workCreateTask")}
@@ -388,9 +408,9 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
           </div>
 
           {isCreateTaskOpen ? (
-            <div className="mt-4 grid gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
-              <input value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={t("projects.workCreateTaskPlaceholder")} aria-label={t("projects.workTaskDetailsFieldTitle")} className="h-10 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)] focus:ring-2 focus:ring-[var(--focus-ring-primary)]" />
-              <input type="date" value={newTaskDueDate} onChange={(event) => setNewTaskDueDate(event.target.value)} aria-label={t("projects.workTaskDetailsFieldPlannedFinish")} className="h-10 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)]" />
+            <div className="mt-4 grid min-w-0 gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
+              <input value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={t("projects.workCreateTaskPlaceholder")} aria-label={t("projects.workTaskDetailsFieldTitle")} className="h-10 min-w-0 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)] focus:ring-2 focus:ring-[var(--focus-ring-primary)]" />
+              <input type="date" value={newTaskDueDate} onChange={(event) => setNewTaskDueDate(event.target.value)} aria-label={t("projects.workTaskDetailsFieldPlannedFinish")} className="h-10 min-w-0 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)]" />
               <button type="button" disabled={!selectedPhaseId || !newTaskTitle.trim() || isSavingTask} onClick={() => void handleCreateTask()} className="h-10 rounded-[10px] bg-[var(--color-brand-700)] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55">
                 {isSavingTask ? t("projects.workTaskDetailsSaving") : t("projects.workTaskDetailsSave")}
               </button>
@@ -422,7 +442,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
         />
       </FadeIn>
 
-      <StaggerGroup className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_340px]" startDelayMs={230} staggerMs={45} distancePx={8}>
+      <StaggerGroup className="grid min-w-0 gap-6 xl:grid-cols-[240px_minmax(0,1fr)] min-[1800px]:grid-cols-[260px_minmax(640px,1fr)_320px]" startDelayMs={230} staggerMs={45} distancePx={8}>
         <StatusPulse triggerKey={`phase-selection-${selectedPhaseId ?? "none"}`}>
           <ProjectWorkActivePhasesPanel
             companyId={companyId}
@@ -434,9 +454,9 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
           />
         </StatusPulse>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <StatusPulse triggerKey={`board-selection-${selectedPhaseId ?? "none"}`}>
-            <Card as="section" variant="elevated" className="rounded-[16px] shadow-[var(--shadow-small)]">
+            <Card as="section" variant="elevated" className="min-w-0 rounded-[16px] shadow-[var(--shadow-small)]">
               <CardHeader className="bg-[var(--color-surface-subtle)]/55">
                 <CardTitle className="text-[1.1rem] font-bold text-[var(--color-navy-900)]">Execution Board</CardTitle>
               </CardHeader>
@@ -454,8 +474,8 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
           </StatusPulse>
         </div>
 
-        <div className="space-y-6">
-          <div className="xl:hidden">
+        <div className="grid min-w-0 gap-6 md:grid-cols-2 xl:col-span-2 min-[1800px]:col-span-1 min-[1800px]:block min-[1800px]:space-y-6">
+          <div className="hidden md:block md:col-span-2 min-[1800px]:hidden">
             <button
               type="button"
               onClick={() => setIsMobileDetailsOpen((value) => !value)}
@@ -468,28 +488,18 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
             </button>
           </div>
 
+          <StatusPulse triggerKey={`task-selection-inline-${selectedTaskId ?? "none"}`}>
+            <div className={isMobileDetailsOpen ? "hidden md:block md:col-span-2 min-[1800px]:hidden" : "hidden"}>
+              {taskDetailsPanel}
+            </div>
+          </StatusPulse>
+
           <StatusPulse triggerKey={`task-selection-${selectedTaskId ?? "none"}`}>
-          <div className="hidden xl:block">
-            <SlidePanel open from="right" className="h-full">
-              <TaskDetailsPanel
-                mode={selectedTaskMode}
-                phaseName={selectedPhaseLabel}
-                taskTitle={selectedTask?.title || null}
-                isOverdue={selectedTaskIsOverdue}
-                formValues={selectedTaskDraft}
-                assigneeOptions={assigneeOptions}
-                dependencySummary={selectedTaskMode === "task" ? dependencySummary : null}
-                isSaving={isSavingTask}
-                isDirty={isTaskDirty}
-                validationMessage={validationMessage}
-                feedbackMessage={saveFeedback}
-                labels={taskDetailsLabels}
-                onChange={handleTaskFieldChange}
-                onSave={handleSaveTask}
-                onClose={() => setIsMobileDetailsOpen(false)}
-              />
-            </SlidePanel>
-          </div>
+            <div className="hidden min-[1800px]:block">
+              <SlidePanel open from="right" className="h-full">
+                {taskDetailsPanel}
+              </SlidePanel>
+            </div>
           </StatusPulse>
 
           <ProjectWorkSiteCamPanel
@@ -523,23 +533,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
         backdropLabel={taskDetailsLabels.close}
         panelClassName="shadow-[0_-24px_48px_-28px_rgba(15,23,42,0.5)]"
       >
-        <TaskDetailsPanel
-          mode={selectedTaskMode}
-          phaseName={selectedPhaseLabel}
-          taskTitle={selectedTask?.title || null}
-          isOverdue={selectedTaskIsOverdue}
-          formValues={selectedTaskDraft}
-          assigneeOptions={assigneeOptions}
-          dependencySummary={selectedTaskMode === "task" ? dependencySummary : null}
-          isSaving={isSavingTask}
-          isDirty={isTaskDirty}
-          validationMessage={validationMessage}
-          feedbackMessage={saveFeedback}
-          labels={taskDetailsLabels}
-          onChange={handleTaskFieldChange}
-          onSave={handleSaveTask}
-          onClose={() => setIsMobileDetailsOpen(false)}
-        />
+        {taskDetailsPanel}
       </BottomSheet>
     </div>
   );
@@ -547,9 +541,9 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
 
 function WorkspaceLink({ href, icon, label }: { href: string; icon: ReactNode; label: string }) {
   return (
-    <Link href={href} className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">
+    <Link href={href} className="inline-flex min-w-0 items-center gap-2 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">
       {icon}
-      {label}
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
