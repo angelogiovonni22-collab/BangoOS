@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { calculateProjectComplianceReadiness } from "./project-compliance-readiness";
 
 const root = process.cwd();
 const migration = readFileSync(resolve(root, "supabase/migrations/20260824050000_estimate_approved_project_workspace_bootstrap.sql"), "utf8");
@@ -17,10 +18,14 @@ assert.match(migration, /after insert or update of status, project_id, converted
 assert.match(migration, /revoke all on function public\.bootstrap_estimate_project_workspace\(uuid, uuid\) from public, anon, authenticated/, "workspace bootstrap must be server-only");
 assert.match(projectPage, /<ProjectOperatingSystemPanel/, "the project workspace must render the B.O.S. operating system panel");
 assert.match(projectPage, /<ProjectOperatingSystemPanel[\s\S]*?t=\{\(key, params\) => t\(`projects\.\$\{key\}`/, "Orion action copy must resolve through the projects translation namespace");
+assert.match(projectPage, /compliance=\{\{[\s\S]*permitsTotal:[\s\S]*openPermits:[\s\S]*inspectionsTotal:[\s\S]*pendingInspections:[\s\S]*documentsTotal:/, "the operating panel must receive live compliance signals");
 assert.match(panel, /Operating Score/);
 assert.match(panel, /Delivery Risk/);
 assert.match(panel, /Budget Variance/);
 assert.match(panel, /Workflow Coverage/);
 assert.match(panel, /Orion Recommended Actions/);
+assert.match(panel, /Compliance Readiness/);
+assert.equal(calculateProjectComplianceReadiness({ permitsTotal: 1, openPermits: 0, inspectionsTotal: 1, pendingInspections: 0, documentsTotal: 1 }).status, "Ready");
+assert.equal(calculateProjectComplianceReadiness({ permitsTotal: 0, openPermits: 0, inspectionsTotal: 0, pendingInspections: 0, documentsTotal: 0 }).status, "Setup required");
 
 console.log("project workspace bootstrap contract passed");
