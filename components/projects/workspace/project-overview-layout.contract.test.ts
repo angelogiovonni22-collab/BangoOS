@@ -35,7 +35,6 @@ assert.ok(headerWeather.includes("min-h-[112px]"), "weather and map stay short i
 
 assert.ok(!workWorkspace.includes('xl:grid-cols-[280px_minmax(0,1fr)_340px]'), "Tasks must not force the board between two fixed desktop rails");
 assert.ok(workWorkspace.includes('xl:grid-cols-[240px_minmax(0,1fr)]'), "laptop Tasks layout reserves the dominant width for the execution board");
-assert.ok(workWorkspace.includes('min-[1800px]:grid-cols-[260px_minmax(640px,1fr)_320px]'), "three-column Tasks layout is deferred until a genuinely wide viewport");
 assert.ok(workWorkspace.includes('md:grid-cols-2 xl:col-span-2'), "supporting Tasks panels reflow beneath the board instead of squeezing it");
 assert.ok(workWorkspace.includes('hidden md:block md:col-span-2 min-[1800px]:hidden'), "tablet and laptop users receive usable inline task details");
 assert.ok(executionBoard.includes('data-testid="execution-board-scroll-region"'), "the execution board exposes its scroll-safe desktop region");
@@ -45,8 +44,11 @@ assert.ok(!executionBoard.includes('lg:grid-cols-[minmax(0,1fr)_220px_220px]'), 
 assert.ok(topCommandLayout.includes('@media (min-width: 640px) and (max-width: 1023px)'), "the shared shell has an explicit tablet/laptop transition range");
 assert.ok(topCommandLayout.includes('flex-direction: column !important'), "tablet header context and utilities stack instead of colliding");
 assert.ok(topCommandLayout.includes('flex-wrap: wrap !important'), "tablet header utilities can wrap safely");
-assert.ok(topCommandLayout.includes('@media (min-width: 1280px) and (max-width: 1799px)'), "Tasks has an explicit two-column desktop correction range");
-assert.ok(topCommandLayout.includes('.grid:has(> :nth-child(2) [data-testid="execution-board-scroll-region"]) > :nth-child(3)'), "Tasks corrects the StaggerGroup wrapper that owns the supporting-panel grid placement");
-assert.ok(topCommandLayout.includes('grid-column: 1 / -1'), "Tasks supporting panels span the full desktop row instead of the Active Phases rail");
+assert.ok(topCommandLayout.includes('@media (min-width: 1280px) {'), "Tasks has a stable desktop correction that is not capped at an arbitrary viewport width");
+assert.ok(!topCommandLayout.includes('@media (min-width: 1280px) and (max-width: 1799px)'), "Tasks must not re-enable a squeezed three-column layout at wide viewport breakpoints");
+assert.ok(topCommandLayout.includes('.grid:has(> :nth-child(2) [data-testid="execution-board-scroll-region"]) {'), "Tasks explicitly corrects the StaggerGroup grid container");
+assert.ok(topCommandLayout.includes('grid-template-columns: 260px minmax(0, 1fr) !important'), "Execution Board keeps the dominant desktop width regardless of shell width");
+assert.ok(topCommandLayout.includes('.grid:has(> :nth-child(2) [data-testid="execution-board-scroll-region"]) > :nth-child(3)'), "Tasks corrects the StaggerGroup wrapper that owns supporting-panel placement");
+assert.ok(topCommandLayout.includes('grid-column: 1 / -1'), "Tasks supporting panels span the full desktop row instead of a narrow rail");
 
-console.log("+ project overview, Tasks workspace, and shared responsive layout invariants hold including stagger-wrapper placement");
+console.log("+ project overview, Tasks workspace, and shared responsive layout invariants hold across desktop shell widths");
