@@ -1,85 +1,76 @@
 import assert from "node:assert/strict";
 import { calculateProjectCloseoutReadiness } from "./project-closeout-readiness";
 
-const empty = {
-  finalPaymentRecorded: false,
-  customerApprovalRecorded: false,
-  requiredDocumentsCompleted: false,
-  permitClosureCompleted: false,
-  crewRemovalCompleted: false,
-  equipmentReturnCompleted: false,
-  openPunchItems: 0,
-  pendingInspections: 0,
-  openPermits: 0,
-};
-
 assert.deepEqual(
-  calculateProjectCloseoutReadiness({ closeoutStarted: false, ...empty }),
-  { score: 0, status: "Not started", checklistCompleted: 0, checklistTotal: 6, nextAction: "start_closeout" },
+  calculateProjectCloseoutReadiness({
+    closeoutStarted: false,
+    closeoutReady: false,
+    projectProgress: 40,
+    openPunchItems: 0,
+    pendingInspections: 0,
+    openPermits: 0,
+  }),
+  { score: 0, status: "Not started", nextAction: "start_closeout" },
 );
 
 assert.deepEqual(
   calculateProjectCloseoutReadiness({
     closeoutStarted: true,
-    finalPaymentRecorded: true,
-    customerApprovalRecorded: true,
-    requiredDocumentsCompleted: true,
-    permitClosureCompleted: true,
-    crewRemovalCompleted: true,
-    equipmentReturnCompleted: true,
+    closeoutReady: true,
+    projectProgress: 100,
     openPunchItems: 0,
     pendingInspections: 0,
     openPermits: 0,
   }),
-  { score: 100, status: "Ready", checklistCompleted: 6, checklistTotal: 6, nextAction: "complete" },
+  { score: 100, status: "Ready", nextAction: "complete" },
 );
 
 const blocked = calculateProjectCloseoutReadiness({
   closeoutStarted: true,
-  finalPaymentRecorded: false,
-  customerApprovalRecorded: false,
-  requiredDocumentsCompleted: false,
-  permitClosureCompleted: false,
-  crewRemovalCompleted: false,
-  equipmentReturnCompleted: false,
+  closeoutReady: false,
+  projectProgress: 85,
   openPunchItems: 2,
   pendingInspections: 1,
   openPermits: 1,
 });
 assert.equal(blocked.status, "Blocked");
 assert.equal(blocked.nextAction, "punch_items");
-assert.equal(blocked.score, 0);
+assert.equal(blocked.score, 34);
 
 assert.equal(
   calculateProjectCloseoutReadiness({
     closeoutStarted: true,
-    finalPaymentRecorded: false,
-    customerApprovalRecorded: false,
-    requiredDocumentsCompleted: true,
-    permitClosureCompleted: true,
-    crewRemovalCompleted: true,
-    equipmentReturnCompleted: true,
+    closeoutReady: false,
+    projectProgress: 100,
     openPunchItems: 0,
     pendingInspections: 0,
     openPermits: 0,
   }).nextAction,
-  "final_payment",
+  "closeout_checklist",
 );
 
 assert.equal(
   calculateProjectCloseoutReadiness({
     closeoutStarted: true,
-    finalPaymentRecorded: true,
-    customerApprovalRecorded: true,
-    requiredDocumentsCompleted: true,
-    permitClosureCompleted: true,
-    crewRemovalCompleted: true,
-    equipmentReturnCompleted: true,
+    closeoutReady: false,
+    projectProgress: 70,
+    openPunchItems: 0,
+    pendingInspections: 0,
+    openPermits: 0,
+  }).nextAction,
+  "finish_work",
+);
+
+assert.equal(
+  calculateProjectCloseoutReadiness({
+    closeoutStarted: true,
+    closeoutReady: true,
+    projectProgress: Number.POSITIVE_INFINITY,
     openPunchItems: Number.NaN,
     pendingInspections: -2,
     openPermits: Number.POSITIVE_INFINITY,
   }).status,
-  "Ready",
+  "In progress",
 );
 
 console.log("project closeout readiness tests passed");
