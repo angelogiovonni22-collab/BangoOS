@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { ProjectIntelligenceWorkspace } from "./project-intelligence-workspace";
 import { ProjectLinkedModuleWorkspace } from "./project-linked-module-workspace";
 import { ProjectReceiptsWorkspace } from "./project-receipts-workspace";
 
@@ -16,6 +17,9 @@ export function ProjectDocumentsWorkspace({ projectId, localeTag }: ProjectDocum
   return showReceipts ? (
     <ProjectReceiptsWorkspace projectId={projectId} />
   ) : (
-    <ProjectLinkedModuleWorkspace projectId={projectId} tab="documents" localeTag={localeTag} />
+    <div className="space-y-4">
+      <ProjectIntelligenceWorkspace projectId={projectId} projectName="this project" localeTag={localeTag} />
+      <ProjectLinkedModuleWorkspace projectId={projectId} tab="documents" localeTag={localeTag} />
+    </div>
   );
 }
