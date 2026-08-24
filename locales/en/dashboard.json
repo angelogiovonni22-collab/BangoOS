@@ -5,6 +5,8 @@
   "greetingAfternoon": "Good afternoon",
   "greetingEvening": "Good evening",
   "dashboardLoadError": "We could not load your dashboard",
+  "loadingMetrics": "Loading dashboard metrics",
+  "systemReady": "System ready",
   "widget": "Widget",
   "customize": "Customize dashboard",
   "customizeTitle": "Dashboard Layout",
