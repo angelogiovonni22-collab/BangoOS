@@ -204,11 +204,12 @@ export default function CustomersPage() {
     const now = new Date();
     const visibleCustomers = customers.filter((customer) => customer.statusKey !== "archived");
     const activeCustomers = customers.filter((customer) => customer.statusKey === "active").length;
+    const archivedCustomers = customers.filter((customer) => customer.statusKey === "archived").length;
     const newThisMonth = visibleCustomers.filter((customer) => {
       const created = new Date(customer.createdAt);
       return !Number.isNaN(created.getTime()) && created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
     }).length;
-    return { totalCustomers: visibleCustomers.length, activeCustomers, newThisMonth, lifetimeRevenue: "Coming Soon" };
+    return { totalCustomers: visibleCustomers.length, activeCustomers, newThisMonth, archivedCustomers };
   }, [customers]);
 
   return (
@@ -219,7 +220,7 @@ export default function CustomersPage() {
         <KpiCard label="Total Customers" value={kpis.totalCustomers.toLocaleString()} />
         <KpiCard label="Active Customers" value={kpis.activeCustomers.toLocaleString()} />
         <KpiCard label="New This Month" value={kpis.newThisMonth.toLocaleString()} />
-        <KpiCard label="Lifetime Revenue" value={kpis.lifetimeRevenue} />
+        <KpiCard label="Archived Customers" value={kpis.archivedCustomers.toLocaleString()} />
       </section>
 
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-3 shadow-[var(--shadow-small)] sm:px-4 sm:py-3.5">
