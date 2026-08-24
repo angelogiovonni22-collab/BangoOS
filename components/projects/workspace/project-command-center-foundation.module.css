@@ -1,0 +1,17 @@
+.detailsFirst {
+  order: 1;
+}
+
+:global(.min-w-0.space-y-4):has(> .detailsFirst) {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+:global(.min-w-0.space-y-4):has(> .detailsFirst) > * {
+  margin-top: 0 !important;
+}
+
+:global(.min-w-0.space-y-4):has(> .detailsFirst) > :not(.detailsFirst) {
+  order: 2;
+}
