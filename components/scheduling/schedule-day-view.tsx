@@ -7,12 +7,13 @@ type ScheduleDayViewProps = {
   items: ScheduleAssignment[];
   onDropAssignment: (assignmentId: string, targetDate: string) => void;
   onDragStart: (event: DragEvent<HTMLElement>, assignmentId: string) => void;
+  onSelectAssignment: (assignment: ScheduleAssignment) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-const hours = Array.from({ length: 14 }, (_, idx) => idx + 6);
+const hours = Array.from({ length: 18 }, (_, idx) => idx + 5);
 
-export function ScheduleDayView({ date, items, onDropAssignment, onDragStart, t }: ScheduleDayViewProps) {
+export function ScheduleDayView({ date, items, onDropAssignment, onDragStart, onSelectAssignment, t }: ScheduleDayViewProps) {
   const byHour = new Map<number, ScheduleAssignment[]>();
 
   for (const assignment of items) {
@@ -51,7 +52,7 @@ export function ScheduleDayView({ date, items, onDropAssignment, onDragStart, t 
                   </p>
                 ) : (
                   hourItems.map((assignment) => (
-                    <AssignmentCard key={assignment.id} assignment={assignment} draggable onDragStart={onDragStart} t={t} />
+                    <AssignmentCard key={assignment.id} assignment={assignment} draggable onDragStart={onDragStart} onSelect={onSelectAssignment} t={t} />
                   ))
                 )}
               </div>
