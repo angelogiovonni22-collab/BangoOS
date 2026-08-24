@@ -10,6 +10,7 @@ const header = read("components/projects/workspace/project-workspace-header.tsx"
 const headerWeather = read("components/projects/workspace/project-header-weather-strip.tsx");
 const workWorkspace = read("components/projects/workspace/project-work-workspace.tsx");
 const executionBoard = read("components/projects/workspace/project-work-execution-board.tsx");
+const topCommandLayout = read("app/top-command-layout.css");
 
 assert.ok(!page.includes("<ProjectWorkspaceHero"), "the oversized photo/weather hero stays out of the project landing view");
 assert.ok(!page.includes("<ProjectKpiGrid"), "the duplicate KPI strip stays out of the project landing view");
@@ -41,5 +42,8 @@ assert.ok(executionBoard.includes('data-testid="execution-board-scroll-region"')
 assert.ok(executionBoard.includes('min-w-[1040px] grid-cols-4'), "kanban columns retain a readable minimum width");
 assert.ok(executionBoard.includes('overflow-x-auto'), "desktop kanban overflow scrolls instead of clipping or compressing cards");
 assert.ok(!executionBoard.includes('lg:grid-cols-[minmax(0,1fr)_220px_220px]'), "filter controls must not use fixed widths inside a narrow board parent");
+assert.ok(topCommandLayout.includes('@media (min-width: 640px) and (max-width: 1023px)'), "the shared shell has an explicit tablet/laptop transition range");
+assert.ok(topCommandLayout.includes('flex-direction: column !important'), "tablet header context and utilities stack instead of colliding");
+assert.ok(topCommandLayout.includes('flex-wrap: wrap !important'), "tablet header utilities can wrap safely");
 
-console.log("+ project overview is details-first and Tasks keeps the execution board readable across viewport widths");
+console.log("+ project overview, Tasks workspace, and shared tablet header retain responsive layout invariants");
