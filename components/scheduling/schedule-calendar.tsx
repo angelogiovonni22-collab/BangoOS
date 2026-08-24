@@ -15,7 +15,7 @@ type ScheduleCalendarProps = {
   locale: "en" | "es";
   onMoveAssignment: (assignmentId: string, targetDate: string) => void;
   onQuickMoveShift: (assignmentId: string, shift: "day" | "swing" | "night") => void;
-  onSelectAssignment: (assignment: ScheduleAssignment) => void;
+  onSelectAssignment?: (assignment: ScheduleAssignment) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
@@ -31,6 +31,7 @@ export function ScheduleCalendar({
   t,
 }: ScheduleCalendarProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const selectAssignment = onSelectAssignment ?? (() => undefined);
 
   const visible = useMemo(() => [...assignments].sort((a, b) => a.startTime.localeCompare(b.startTime)), [assignments]);
 
@@ -61,7 +62,7 @@ export function ScheduleCalendar({
             event.dataTransfer.setData("text/assignment-id", assignmentId);
             setDraggingId(assignmentId);
           }}
-          onSelectAssignment={onSelectAssignment}
+          onSelectAssignment={selectAssignment}
           t={t}
         />
       ) : null}
@@ -80,13 +81,13 @@ export function ScheduleCalendar({
             event.dataTransfer.setData("text/assignment-id", assignmentId);
             setDraggingId(assignmentId);
           }}
-          onSelectAssignment={onSelectAssignment}
+          onSelectAssignment={selectAssignment}
           t={t}
         />
       ) : null}
 
       {view === "month" ? (
-        <ScheduleMonthView baseDate={date} assignments={visible} locale={locale} onSelectAssignment={onSelectAssignment} t={t} />
+        <ScheduleMonthView baseDate={date} assignments={visible} locale={locale} onSelectAssignment={selectAssignment} t={t} />
       ) : null}
     </section>
   );
