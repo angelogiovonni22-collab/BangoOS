@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { FadeIn, MotionProvider } from "@/components/motion";
 import {
   ActivityFeed,
@@ -100,14 +100,22 @@ export default function DashboardPage() {
   } = useDashboardLayout();
 
   const localeTag = locale === "es" ? "es-ES" : "en-US";
-  const now = new Date();
-  const greeting = `${t(getGreetingKey(now.getHours()))}, ${t("common.welcomeBack")}`;
-  const currentDate = new Intl.DateTimeFormat(localeTag, {
+  // Date and hour are browser-local values. Resolve them after hydration so the
+  // server and first client render are identical regardless of timezone.
+  const [localNow, setLocalNow] = useState<Date | null>(null);
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setLocalNow(new Date()));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+  const greeting = localNow
+    ? `${t(getGreetingKey(localNow.getHours()))}, ${t("common.welcomeBack")}`
+    : t("common.welcomeBack");
+  const currentDate = localNow ? new Intl.DateTimeFormat(localeTag, {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
-  }).format(now);
+  }).format(localNow) : "";
 
   const showPreviewDataBadge = shouldShowDashboardPreviewDataBadge({
     isMockData,
@@ -230,14 +238,21 @@ export default function DashboardPage() {
             const delayMs = getWidgetAnimationDelayMs(widgetId);
 
             if (isCollapsed) {
+              const widgetRegionId = `dashboard-widget-${widgetId}`;
               return (
                 <FadeIn key={widgetId} delayMs={delayMs} distancePx={5} className={widgetClassById[widgetId]}>
-                  <Card>
+                  <Card id={widgetRegionId}>
                     <CardContent className="flex items-center justify-between gap-3 p-4">
                       <p className="text-sm font-semibold text-[var(--color-text-primary)]">
                         {widgetTitleById.get(widgetId) || t("dashboard.widget")}
                       </p>
-                      <Button size="sm" variant="outline" onClick={() => toggleWidgetCollapsed(widgetId)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-expanded="false"
+                        aria-controls={widgetRegionId}
+                        onClick={() => toggleWidgetCollapsed(widgetId)}
+                      >
                         {t("dashboard.expand")}
                       </Button>
                     </CardContent>
@@ -246,19 +261,24 @@ export default function DashboardPage() {
               );
             }
 
+            const widgetRegionId = `dashboard-widget-${widgetId}`;
             return (
               <FadeIn key={widgetId} delayMs={delayMs} distancePx={5} className={`${widgetClassById[widgetId]} relative`}>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="absolute right-4 top-4 z-10"
-                  aria-label={`${t("dashboard.collapse")} ${widgetTitleById.get(widgetId) || t("dashboard.widget")}`}
-                  onClick={() => toggleWidgetCollapsed(widgetId)}
-                >
-                  {t("dashboard.collapse")}
-                </Button>
-                {widgetContentById[widgetId]}
+                <div id={widgetRegionId}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="absolute right-4 top-4 z-10"
+                    aria-label={`${t("dashboard.collapse")} ${widgetTitleById.get(widgetId) || t("dashboard.widget")}`}
+                    aria-expanded="true"
+                    aria-controls={widgetRegionId}
+                    onClick={() => toggleWidgetCollapsed(widgetId)}
+                  >
+                    {t("dashboard.collapse")}
+                  </Button>
+                  {widgetContentById[widgetId]}
+                </div>
               </FadeIn>
             );
           })}
