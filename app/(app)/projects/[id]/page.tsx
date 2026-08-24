@@ -794,7 +794,7 @@ export default function ProjectWorkspacePage() {
                   briefing={superintendentBriefing}
                   timelineCount={timeline.length}
                   formatCurrency={(amount) => formatProjectCurrency(amount, localeTag, "$0")}
-                  t={t}
+                  t={(key, params) => t(`projects.${key}`, params)}
                 />
                 <ProjectCommandCenterFoundation
                   projectId={project.id}

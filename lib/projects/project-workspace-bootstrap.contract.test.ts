@@ -16,6 +16,7 @@ assert.match(migration, /on conflict \(company_id, event_type, idempotency_key\)
 assert.match(migration, /after insert or update of status, project_id, converted_project_id/, "approved conversions must trigger workspace bootstrap automatically");
 assert.match(migration, /revoke all on function public\.bootstrap_estimate_project_workspace\(uuid, uuid\) from public, anon, authenticated/, "workspace bootstrap must be server-only");
 assert.match(projectPage, /<ProjectOperatingSystemPanel/, "the project workspace must render the B.O.S. operating system panel");
+assert.match(projectPage, /<ProjectOperatingSystemPanel[\s\S]*?t=\{\(key, params\) => t\(`projects\.\$\{key\}`/, "Orion action copy must resolve through the projects translation namespace");
 assert.match(panel, /Operating Score/);
 assert.match(panel, /Delivery Risk/);
 assert.match(panel, /Budget Variance/);
