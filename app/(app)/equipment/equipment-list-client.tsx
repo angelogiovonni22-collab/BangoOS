@@ -378,7 +378,7 @@ export function EquipmentListClient() {
 
       {workspaceError ? <ErrorState title="Unable to load equipment" description={workspaceError} /> : null}
 
-      <PartialDataNotice message="Assignment history, maintenance history, inspection history, and documents are shown with partial coverage in Phase 1 because dedicated relationship tables are not yet available." />
+      <PartialDataNotice message="Historical assignment, maintenance, inspection, and document coverage reflects the records currently available for each asset." />
 
       {isLoading ? <SkeletonLoader className="h-40 w-full" /> : null}
       {!isLoading && errorMessage ? <ErrorState title="Unable to load equipment" description={errorMessage} /> : null}

@@ -295,8 +295,8 @@ export function EquipmentDetailClient() {
         <SummaryCard icon={<span>M</span>} label="Margin %" value={formatPercent(calculations.hourlyMarginPercentage)} context={formatUsdCurrency(calculations.hourlyGrossMargin)} tone="success" />
         <SummaryCard icon={<span>W</span>} label="Warranty" value={calculations.warrantyStatus.replace(/_/g, " ")} context={equipment.warrantyExpirationDate || "Unavailable"} tone="info" />
         <SummaryCard icon={<span>I</span>} label="Inspection" value={calculations.inspectionStatus.replace(/_/g, " ")} context={equipment.inspectionExpirationDate || "Unavailable"} tone="warning" />
-        <SummaryCard icon={<span>U</span>} label="Utilization Target" value={equipment.utilizationTargetPercent !== null ? `${equipment.utilizationTargetPercent}%` : "Unavailable"} context="Phase 1" tone="neutral" />
-        <SummaryCard icon={<span>C</span>} label="Condition" value={equipment.conditionScore !== null ? `${equipment.conditionScore}/100` : "Unavailable"} context="Phase 1" tone="warning" />
+        <SummaryCard icon={<span>U</span>} label="Utilization Target" value={equipment.utilizationTargetPercent !== null ? `${equipment.utilizationTargetPercent}%` : "Unavailable"} context={equipment.utilizationTargetPercent !== null ? "Configured target" : "Not set"} tone="neutral" />
+        <SummaryCard icon={<span>C</span>} label="Condition" value={equipment.conditionScore !== null ? `${equipment.conditionScore}/100` : "Unavailable"} context={equipment.conditionScore !== null ? "Current record" : "Not recorded"} tone="warning" />
       </section>
 
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Equipment profile tabs">
@@ -319,14 +319,14 @@ export function EquipmentDetailClient() {
         ))}
       </div>
 
-      <PartialDataNotice message="Assignment, maintenance, inspection, photo, document, and utilization timelines are partially available in Phase 1 because dedicated history tables are not yet present." />
+      <PartialDataNotice message="Historical and related equipment details reflect the records currently available for this asset." />
 
       {activeTab === "overview" ? (
         <section className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader><CardTitle>Overview</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm text-[var(--color-text-secondary)]">
-              <InfoRow label="Photo" value="Not configured" />
+              <InfoRow label="Photo" value="No photo added" />
               <InfoRow label="Equipment number" value={equipment.equipmentNumber} />
               <InfoRow label="Category" value={equipment.category || equipment.equipmentType?.replace(/_/g, " ") || "Uncategorized"} />
               <InfoRow label="Status" value={equipment.status.replace(/_/g, " ")} />
@@ -365,7 +365,7 @@ export function EquipmentDetailClient() {
             <InfoRow label="Assigned employee" value={employeeName || "Unassigned"} />
             <InfoRow label="Assigned at" value={equipment.assignedAt ? new Date(equipment.assignedAt).toLocaleString() : "Unavailable"} />
             <InfoRow label="Expected return" value={equipment.expectedReturnDate || "Unavailable"} />
-            <PartialDataNotice message="Past project assignments and reason-based assignment history require a dedicated assignment-history table that is not present in Phase 1." />
+            <PartialDataNotice message="Assignment history is limited to the current assignment and the records currently available for this asset." />
           </CardContent>
         </Card>
       ) : null}
@@ -378,7 +378,7 @@ export function EquipmentDetailClient() {
             <InfoRow label="Last service" value={equipment.lastServiceDate || "Unavailable"} />
             <InfoRow label="Next service" value={equipment.nextServiceDate || "Unavailable"} />
             <InfoRow label="Service notes" value={equipment.maintenanceNotes || "Unavailable"} />
-            <PartialDataNotice message="Preventive maintenance line items (oil, hydraulics, tires, electrical, engine, transmission), provider records, cost rollups, and downtime history require maintenance-log tables not yet present." />
+            <PartialDataNotice message="Maintenance history reflects the service dates and notes currently recorded for this asset." />
           </CardContent>
         </Card>
       ) : null}
@@ -391,7 +391,7 @@ export function EquipmentDetailClient() {
             <InfoRow label="Registration expiration" value={equipment.registrationExpirationDate || "Unavailable"} />
             <InfoRow label="Insurance expiration" value={equipment.insuranceExpirationDate || "Unavailable"} />
             <InfoRow label="Certification expiration" value={equipment.certificationExpirationDate || "Unavailable"} />
-            <PartialDataNotice message="Daily/weekly/monthly/annual, DOT/OSHA inspection records, failures, corrective actions, and inspector/photo logs require dedicated inspection tables not yet present." />
+            <PartialDataNotice message="Inspection history reflects the expiration and compliance records currently attached to this asset." />
           </CardContent>
         </Card>
       ) : null}
@@ -400,7 +400,7 @@ export function EquipmentDetailClient() {
         <Card>
           <CardHeader><CardTitle>Photos</CardTitle></CardHeader>
           <CardContent>
-            <PartialDataNotice message="Equipment-specific photo timeline is not available in Phase 1 because there is no direct equipment-photo relationship table." />
+            <PartialDataNotice message="No equipment-specific photo timeline is connected to this asset." />
           </CardContent>
         </Card>
       ) : null}
@@ -409,7 +409,7 @@ export function EquipmentDetailClient() {
         <Card>
           <CardHeader><CardTitle>Documents</CardTitle></CardHeader>
           <CardContent>
-            <PartialDataNotice message="Manuals, receipts, warranty files, insurance, registration, service records, and inspection documents require an equipment-document relationship table not yet present." />
+            <PartialDataNotice message="No equipment-specific document timeline is connected to this asset. Use the asset notes and current compliance fields for the records available here." />
           </CardContent>
         </Card>
       ) : null}
@@ -433,7 +433,7 @@ export function EquipmentDetailClient() {
           <CardContent className="space-y-2 text-sm text-[var(--color-text-secondary)]">
             <InfoRow label="Created" value={new Date(equipment.createdAt).toLocaleString()} />
             <InfoRow label="Last updated" value={new Date(equipment.updatedAt).toLocaleString()} />
-            <PartialDataNotice message="Operational event history (assignment changes, maintenance events, inspection events) requires dedicated equipment-event tables not yet present." />
+            <PartialDataNotice message="This view currently shows the asset creation and last-updated history available for this record." />
           </CardContent>
         </Card>
       ) : null}
@@ -445,7 +445,7 @@ export function EquipmentDetailClient() {
             <InfoRow label="Hours used" value={`${equipment.lifetimeHours.toFixed(1)} h`} />
             <InfoRow label="Mileage" value={`${equipment.lifetimeMiles.toFixed(1)} mi`} />
             <InfoRow label="Utilization target" value={equipment.utilizationTargetPercent !== null ? `${equipment.utilizationTargetPercent}%` : "Unavailable"} />
-            <PartialDataNotice message="Days active, idle time, projects served counts, and revenue-generated metrics require time-series utilization logs and equipment-to-project assignment history not yet present." />
+            <PartialDataNotice message="Utilization currently reflects recorded lifetime hours, mileage, and target values for this asset." />
           </CardContent>
         </Card>
       ) : null}
