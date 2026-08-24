@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Activity, CalendarDays, Camera, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, Gauge, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
+import { calculateProjectCloseoutReadiness, type ProjectCloseoutNextAction } from "@/lib/projects/project-closeout-readiness";
 
 type TaskSummary = { id: string; title: string; status: string; planned_finish: string | null };
 export type CommandCenterTimelineEntry = { id: string; title: string; detail: string; occurredAt: string; tone: "neutral" | "info" | "warning" | "success" };
@@ -26,6 +27,16 @@ export function ProjectCommandCenterFoundation(props: Props) {
   const healthAtRisk = props.openPermitsCount > 0 || props.pendingInspectionsCount > 0 || blocked;
   const phases = buildScopePhases(props.tasks);
   const projectHref = "/projects/" + props.projectId;
+  const closeoutStarted = props.closeoutStatusLabel.trim().toLowerCase() !== "not started";
+  const closeoutReadiness = calculateProjectCloseoutReadiness({
+    closeoutStarted,
+    closeoutReady: props.closeoutReady,
+    projectProgress: progress,
+    openPunchItems: props.openPunchItemsCount,
+    pendingInspections: props.pendingInspectionsCount,
+    openPermits: props.openPermitsCount,
+  });
+  const closeoutAction = getCloseoutAction(projectHref, closeoutReadiness.nextAction);
 
   return (
     <div className="space-y-4" data-project-overview="header-jobsite-clean">
@@ -119,6 +130,37 @@ export function ProjectCommandCenterFoundation(props: Props) {
         <Shortcut href={projectHref + "?tab=photos"} icon={<Camera size={20} />} label="Photos" value={props.photosCount} />
       </section>
 
+      <section className="min-w-0 rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)] sm:p-5" data-testid="project-closeout-readiness">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[var(--orion-blue)]">
+              <CheckCircle2 size={18} aria-hidden="true" />
+              <h2 className="text-lg font-extrabold text-[var(--bos-text-strong-on-light)]">Closeout Readiness</h2>
+            </div>
+            <p className="mt-1 break-words text-xs font-medium text-[var(--bos-text-medium-on-light)]">Live handover readiness from project completion, punch items, inspections, permits, and the closeout workflow.</p>
+          </div>
+          <Badge tone={closeoutReadiness.status === "Ready" ? "success" : closeoutReadiness.status === "Blocked" ? "danger" : closeoutReadiness.status === "In progress" ? "warning" : "neutral"}>
+            {closeoutReadiness.score}/100 · {closeoutReadiness.status}
+          </Badge>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Health label="Project work" value={progress === 100 ? "Complete" : progress + "% complete"} warning={progress < 100} />
+          <Health label="Punch items" value={props.openPunchItemsCount ? props.openPunchItemsCount + " open" : "Clear"} warning={props.openPunchItemsCount > 0} />
+          <Health label="Inspections" value={props.pendingInspectionsCount ? props.pendingInspectionsCount + " pending" : "Clear"} warning={props.pendingInspectionsCount > 0} />
+          <Health label="Permits" value={props.openPermitsCount ? props.openPermitsCount + " open" : "Clear"} warning={props.openPermitsCount > 0} />
+        </div>
+        <div className="mt-3 flex min-w-0 flex-col gap-3 rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">Next closeout action</p>
+            <p className="mt-1 break-words text-sm font-extrabold text-[var(--bos-text-strong-on-light)]">{closeoutAction.label}</p>
+            <p className="mt-1 break-words text-xs font-medium text-[var(--bos-text-medium-on-light)]">{closeoutAction.note} Current workflow: {props.closeoutStatusLabel}.</p>
+          </div>
+          <Link href={closeoutAction.href} className="inline-flex shrink-0 items-center justify-center rounded-[10px] border border-[var(--color-primary-300)] bg-white px-3 py-2 text-xs font-extrabold text-[var(--color-primary-700)] transition hover:bg-[var(--color-primary-50)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-500)]">
+            Open closeout
+          </Link>
+        </div>
+      </section>
+
       <div className="grid gap-3 lg:grid-cols-2">
         <Collapsible title="Financials" subtitle="Budget, costs, commitments and change orders">
           <div className="grid gap-3 sm:grid-cols-3"><Info label="Budget" value={props.budgetLabel} /><Info label="Spent" value={props.spentLabel} /><Info label="Remaining" value={props.remainingLabel} /></div>
@@ -141,7 +183,7 @@ function Card({ title, icon, action, children }: { title: string; icon: React.Re
   return <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]"><div className="mb-3 flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-[var(--orion-blue)]">{icon}<h2 className="text-lg font-extrabold text-[var(--bos-text-strong-on-light)]">{title}</h2></div>{action}</div>{children}</section>;
 }
 function Health({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
-  return <div className="rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3 text-center"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className={warning ? "mt-1 text-xs font-extrabold text-[var(--color-warning-700)]" : "mt-1 text-xs font-extrabold text-[var(--color-success-700)]"}>{value}</p></div>;
+  return <div className="min-w-0 rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3 text-center"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className={warning ? "mt-1 break-words text-xs font-extrabold text-[var(--color-warning-700)]" : "mt-1 break-words text-xs font-extrabold text-[var(--color-success-700)]"}>{value}</p></div>;
 }
 function Info({ label, value }: { label: string; value: string }) {
   return <div className="min-w-0 rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="mt-1 truncate text-sm font-extrabold text-[var(--bos-text-strong-on-light)]" title={value}>{value}</p></div>;
@@ -164,3 +206,13 @@ function daysRemainingLabel(value: string) { const target = new Date(value); if 
 function buildScopePhases(tasks: TaskSummary[]) { if (!tasks.length) return [{ id: "scope", title: "Scope details not entered", state: "upcoming" }]; return [...tasks].sort((a, b) => (a.planned_finish || "9999").localeCompare(b.planned_finish || "9999")).slice(0, 5).map((task) => ({ id: task.id, title: task.title, state: status(task.status) === "completed" ? "completed" : status(task.status) === "in_progress" ? "in_progress" : "upcoming" })); }
 function phaseDotClass(state: string) { return state === "completed" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-success-100)] text-xs font-bold text-[var(--color-success-700)]" : state === "in_progress" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-info-100)] text-xs font-bold text-[var(--color-info-700)]" : "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-neutral-100)] text-xs font-bold text-[var(--bos-text-medium-on-light)]"; }
 function phaseLabel(state: string) { return state === "completed" ? "Complete" : state === "in_progress" ? "In progress" : "Upcoming"; }
+
+function getCloseoutAction(projectHref: string, nextAction: ProjectCloseoutNextAction) {
+  if (nextAction === "start_closeout") return { label: "Start project closeout", note: "Open the compliance workflow and initialize the closeout checklist.", href: projectHref + "?tab=inspections" };
+  if (nextAction === "punch_items") return { label: "Clear open punch items", note: "Resolve punch work before handover can advance.", href: projectHref + "?tab=inspections#punch-list" };
+  if (nextAction === "inspections") return { label: "Complete pending inspections", note: "Finish required inspections and record final results.", href: projectHref + "?tab=inspections" };
+  if (nextAction === "permits") return { label: "Close open permits", note: "Resolve outstanding permit lifecycle items before handover.", href: projectHref + "?tab=inspections" };
+  if (nextAction === "finish_work") return { label: "Finish project work", note: "Complete remaining project tasks before final closeout.", href: projectHref + "?tab=tasks" };
+  if (nextAction === "closeout_checklist") return { label: "Complete closeout checklist", note: "Finish payment, customer approval, documents, crew, and equipment handover requirements.", href: projectHref + "?tab=inspections" };
+  return { label: "Complete project handover", note: "Closeout signals are clear and the project is ready for final completion.", href: projectHref + "?tab=inspections" };
+}

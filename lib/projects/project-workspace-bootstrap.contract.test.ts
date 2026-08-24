@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { calculateProjectCloseoutReadiness } from "./project-closeout-readiness";
 import { calculateProjectComplianceReadiness } from "./project-compliance-readiness";
 import { calculateProjectExecutionReadiness } from "./project-execution-readiness";
 
@@ -8,6 +9,7 @@ const root = process.cwd();
 const migration = readFileSync(resolve(root, "supabase/migrations/20260824050000_estimate_approved_project_workspace_bootstrap.sql"), "utf8");
 const projectPage = readFileSync(resolve(root, "app/(app)/projects/[id]/page.tsx"), "utf8");
 const panel = readFileSync(resolve(root, "components/projects/workspace/project-operating-system-panel.tsx"), "utf8");
+const commandCenter = readFileSync(resolve(root, "components/projects/workspace/project-command-center-foundation.tsx"), "utf8");
 
 assert.match(migration, /pg_advisory_xact_lock/, "workspace bootstrap must serialize concurrent retries");
 assert.match(migration, /partition by lower\(btrim\(s\.name\)\)/, "estimate section phase names must be deduplicated deterministically");
@@ -20,6 +22,8 @@ assert.match(migration, /revoke all on function public\.bootstrap_estimate_proje
 assert.match(projectPage, /<ProjectOperatingSystemPanel/, "the project workspace must render the B.O.S. operating system panel");
 assert.match(projectPage, /<ProjectOperatingSystemPanel[\s\S]*?t=\{\(key, params\) => t\(`projects\.\$\{key\}`/, "Orion action copy must resolve through the projects translation namespace");
 assert.match(projectPage, /compliance=\{\{[\s\S]*permitsTotal:[\s\S]*openPermits:[\s\S]*inspectionsTotal:[\s\S]*pendingInspections:[\s\S]*documentsTotal:/, "the operating panel must receive live compliance signals");
+assert.match(projectPage, /closeoutStatusLabel=\{closeoutStatusLabel\}/, "the project command center must receive the live closeout workflow status");
+assert.match(projectPage, /closeoutReady=\{closeoutReady\}/, "the project command center must receive deterministic closeout readiness");
 assert.match(panel, /Operating Score/);
 assert.match(panel, /Delivery Risk/);
 assert.match(panel, /Budget Variance/);
@@ -29,9 +33,14 @@ assert.match(panel, /Compliance Readiness/);
 assert.match(panel, /Execution Readiness/);
 assert.match(panel, /Next operating action/);
 assert.match(panel, /data-testid="project-execution-readiness"/);
+assert.match(commandCenter, /Closeout Readiness/);
+assert.match(commandCenter, /Next closeout action/);
+assert.match(commandCenter, /data-testid="project-closeout-readiness"/);
 assert.equal(calculateProjectComplianceReadiness({ permitsTotal: 1, openPermits: 0, inspectionsTotal: 1, pendingInspections: 0, documentsTotal: 1 }).status, "Ready");
 assert.equal(calculateProjectComplianceReadiness({ permitsTotal: 0, openPermits: 0, inspectionsTotal: 0, pendingInspections: 0, documentsTotal: 0 }).status, "Setup required");
 assert.equal(calculateProjectExecutionReadiness({ complianceScore: 100, overdueTasks: 0, blockedTasks: 0, activeTasks: 1, documentationPresent: true }).status, "Ready");
 assert.equal(calculateProjectExecutionReadiness({ complianceScore: 10, overdueTasks: 0, blockedTasks: 0, activeTasks: 0, documentationPresent: false }).nextAction, "compliance");
+assert.equal(calculateProjectCloseoutReadiness({ closeoutStarted: false, closeoutReady: false, projectProgress: 0, openPunchItems: 0, pendingInspections: 0, openPermits: 0 }).nextAction, "start_closeout");
+assert.equal(calculateProjectCloseoutReadiness({ closeoutStarted: true, closeoutReady: true, projectProgress: 100, openPunchItems: 0, pendingInspections: 0, openPermits: 0 }).status, "Ready");
 
 console.log("project workspace bootstrap contract passed");
