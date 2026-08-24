@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button, Dialog, ErrorState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
-import { useLaborForecast, useScheduling, type LaborForecastRange, type ScheduleView } from "@/lib/scheduling";
+import { useLaborForecast, useScheduling, type AssignmentDraft, type LaborForecastRange, type ScheduleAssignment, type ScheduleView } from "@/lib/scheduling";
 import { AssignmentForm } from "./assignment-form";
 import { AvailableResourcesPanel } from "./available-resources-panel";
 import { ConflictCenter } from "./conflict-center";
@@ -28,15 +28,46 @@ type SchedulingDashboardProps = {
   initialProjectId?: string;
 };
 
+function assignmentToDraft(assignment: ScheduleAssignment): AssignmentDraft {
+  return {
+    title: assignment.title,
+    type: assignment.type,
+    projectId: assignment.scope.projectId,
+    location: assignment.scope.location,
+    date: assignment.date,
+    startTime: assignment.startTime,
+    endTime: assignment.endTime,
+    shift: assignment.shift,
+    assignedCrewIds: assignment.assignedCrewIds,
+    assignedEmployeeIds: assignment.assignedEmployeeIds,
+    requiredTrade: assignment.requiredTrade || "General Labor",
+    requiredHeadcount: Math.max(1, assignment.requiredHeadcount),
+    supervisor: assignment.scope.supervisor,
+    priority: assignment.priority,
+    status: assignment.status,
+    notes: assignment.notes,
+    travelTimeMinutes: assignment.travelTimeMinutes,
+    recurrence: assignment.recurrence,
+    equipment: assignment.equipment,
+    safetyRequirement: assignment.safetyRequirement,
+    certificationRequirement: assignment.certificationRequirement,
+  };
+}
+
 export function SchedulingDashboard({ initialSection = "overview", workspace = "dispatch", initialProjectId }: SchedulingDashboardProps) {
   const { locale, t } = useI18n();
   const scheduling = useScheduling({ initialProjectId });
   const [activeSection, setActiveSection] = useState(initialSection);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<ScheduleAssignment | null>(null);
   const [undoSnapshot, setUndoSnapshot] = useState<{ assignmentId: string; previousDate: string } | null>(null);
 
   const assignments = scheduling.filteredAssignments;
   const forecastHook = useLaborForecast(scheduling.payload?.assignments || []);
+  const editTitle = locale === "es" ? "Editar asignación" : "Edit Assignment";
+  const saveAssignmentLabel = locale === "es" ? "Guardar asignación" : "Save Assignment";
+  const cancelAssignmentLabel = locale === "es" ? "Cancelar asignación" : "Cancel Assignment";
+  const cancelConfirm = locale === "es" ? "¿Cancelar esta asignación?" : "Cancel this assignment?";
 
   const handlePeriodMove = (deltaDays: number) => {
     const base = new Date(`${scheduling.periodDate}T00:00:00Z`);
@@ -46,9 +77,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
 
   const onMoveAssignment = (assignmentId: string, targetDate: string) => {
     const current = scheduling.payload?.assignments.find((item) => item.id === assignmentId);
-    if (!current) {
-      return;
-    }
+    if (!current) return;
 
     setUndoSnapshot({ assignmentId, previousDate: current.date });
     void scheduling.moveAssignmentCard(assignmentId, { date: targetDate }).then((moved) => {
@@ -61,10 +90,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
   };
 
   const onUndo = () => {
-    if (!undoSnapshot) {
-      return;
-    }
-
+    if (!undoSnapshot) return;
     void scheduling.moveAssignmentCard(undoSnapshot.assignmentId, { date: undoSnapshot.previousDate });
     setUndoSnapshot(null);
   };
@@ -76,9 +102,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
     { key: "forecast", label: t("scheduling.sections.forecast") },
   ] as const, [t]);
 
-  if (scheduling.isLoading && !scheduling.payload) {
-    return <SchedulingLoadingState />;
-  }
+  if (scheduling.isLoading && !scheduling.payload) return <SchedulingLoadingState />;
 
   if (!scheduling.payload) {
     return <ErrorState title={t("scheduling.errorTitle")} description={t(scheduling.errorMessage || "scheduling.errorLoad")} />;
@@ -134,15 +158,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
       <SchedulingKpiGrid
         items={payload.summary.kpis}
         onDrillDown={(id) => {
-          if (id === "conflicts") {
-            setActiveSection("overview");
-          }
-          if (id === "openShifts") {
-            setActiveSection("overview");
-          }
-          if (id === "scheduleHealth") {
-            setActiveSection("overview");
-          }
+          if (id === "conflicts" || id === "openShifts" || id === "scheduleHealth") setActiveSection("overview");
         }}
         t={t}
       />
@@ -184,6 +200,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
           locale={locale}
           onMoveAssignment={onMoveAssignment}
           onQuickMoveShift={onQuickMoveShift}
+          onSelectAssignment={setSelectedAssignment}
           t={t}
         />
       ) : null}
@@ -203,12 +220,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
 
       {(activeSection === "overview" || activeSection === "forecast") ? (
         <div className="space-y-4">
-          <LaborForecastSummary
-            forecast={forecastHook.forecast}
-            range={forecastHook.range}
-            onRangeChange={(value) => forecastHook.setRange(value as LaborForecastRange)}
-            t={t}
-          />
+          <LaborForecastSummary forecast={forecastHook.forecast} range={forecastHook.range} onRangeChange={(value) => forecastHook.setRange(value as LaborForecastRange)} t={t} />
           <div className="grid gap-4 2xl:grid-cols-2">
             <LaborDemandChart title={t("scheduling.forecast.demandByTrade")} data={forecastHook.forecast.demandByTrade} t={t} />
             <LaborDemandChart title={t("scheduling.forecast.demandByProject")} data={forecastHook.forecast.demandByProject} t={t} />
@@ -225,26 +237,15 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
           items={payload.openShifts.filter((item) => !item.dismissed)}
           employeeOptions={payload.employeeOptions}
           crewOptions={payload.crewOptions}
-          onAssign={(openShiftId, employeeId, crewId) => {
-            void scheduling.fillOpenShift(openShiftId, employeeId, crewId);
-          }}
+          onAssign={(openShiftId, employeeId, crewId) => void scheduling.fillOpenShift(openShiftId, employeeId, crewId)}
           onDismiss={(openShiftId) => void scheduling.dismissOpenShift(openShiftId)}
           t={t}
         />
-        <AvailableResourcesPanel
-          items={payload.contractorVendors ?? []}
-          t={t}
-        />
+        <AvailableResourcesPanel items={payload.contractorVendors ?? []} t={t} />
       </div>
 
       <div className="grid gap-5 2xl:grid-cols-2">
-        <ConflictCenter
-          items={payload.conflicts}
-          onResolve={(conflictId, status) => {
-            void scheduling.resolveConflict(conflictId, status);
-          }}
-          t={t}
-        />
+        <ConflictCenter items={payload.conflicts} onResolve={(conflictId, status) => void scheduling.resolveConflict(conflictId, status)} t={t} />
         <ScheduleHealthCard health={payload.health} t={t} />
       </div>
 
@@ -268,9 +269,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{t("scheduling.form.titleCreate")}</h3>
-          <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>
-            {t("scheduling.actions.close")}
-          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>{t("scheduling.actions.close")}</Button>
         </div>
 
         <AssignmentForm
@@ -286,6 +285,59 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
           onCancel={() => setIsCreateOpen(false)}
           t={t}
         />
+      </Dialog>
+
+      <Dialog
+        open={Boolean(selectedAssignment)}
+        onClose={() => setSelectedAssignment(null)}
+        ariaLabel={editTitle}
+        backdropLabel={t("scheduling.actions.close")}
+        panelClassName="max-h-[92vh] max-w-4xl overflow-auto rounded-[var(--radius-2xl)] p-5"
+      >
+        {selectedAssignment ? (
+          <>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{editTitle}</h3>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{selectedAssignment.scope.projectName} · {selectedAssignment.date}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedAssignment.status !== "cancelled" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (!window.confirm(cancelConfirm)) return;
+                      const cancelled = await scheduling.cancelExistingAssignment(selectedAssignment.id);
+                      if (cancelled) setSelectedAssignment(null);
+                    }}
+                  >
+                    {cancelAssignmentLabel}
+                  </Button>
+                ) : null}
+                <Button type="button" variant="outline" size="sm" onClick={() => setSelectedAssignment(null)}>{t("scheduling.actions.close")}</Button>
+              </div>
+            </div>
+
+            <AssignmentForm
+              key={selectedAssignment.id}
+              initialDraft={assignmentToDraft(selectedAssignment)}
+              submitLabel={saveAssignmentLabel}
+              projectOptions={payload.projectOptions}
+              crewOptions={payload.crewOptions}
+              employeeOptions={payload.employeeOptions}
+              tradeOptions={payload.tradeOptions}
+              onSubmit={async (draft) => {
+                const updated = await scheduling.updateExistingAssignment(selectedAssignment.id, draft);
+                if (updated) setSelectedAssignment(null);
+                return updated;
+              }}
+              onCancel={() => setSelectedAssignment(null)}
+              t={t}
+            />
+          </>
+        ) : null}
       </Dialog>
     </div>
   );
