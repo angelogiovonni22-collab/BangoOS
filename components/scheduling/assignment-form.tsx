@@ -9,23 +9,15 @@ type AssignmentFormProps = {
   crewOptions: Array<{ id: string; name: string }>;
   employeeOptions: Array<{ id: string; name: string; trade: string }>;
   tradeOptions: string[];
+  initialDraft?: AssignmentDraft;
+  submitLabel?: string;
   onSubmit: (draft: AssignmentDraft) => Promise<boolean>;
   onCancel: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function AssignmentForm({
-  projectOptions,
-  crewOptions,
-  employeeOptions,
-  tradeOptions,
-  onSubmit,
-  onCancel,
-  t,
-}: AssignmentFormProps) {
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<AssignmentDraft>({
+function defaultDraft(projectOptions: AssignmentFormProps["projectOptions"], tradeOptions: string[]): AssignmentDraft {
+  return {
     title: "",
     type: "project_work",
     projectId: projectOptions[0]?.id || "",
@@ -47,7 +39,23 @@ export function AssignmentForm({
     equipment: { requiredEquipment: [], assignedEquipment: [], operatorRequired: false },
     safetyRequirement: "",
     certificationRequirement: "",
-  });
+  };
+}
+
+export function AssignmentForm({
+  projectOptions,
+  crewOptions,
+  employeeOptions,
+  tradeOptions,
+  initialDraft,
+  submitLabel,
+  onSubmit,
+  onCancel,
+  t,
+}: AssignmentFormProps) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<AssignmentDraft>(() => initialDraft ?? defaultDraft(projectOptions, tradeOptions));
 
   const update = <K extends keyof AssignmentDraft>(key: K, value: AssignmentDraft[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -79,15 +87,15 @@ export function AssignmentForm({
       return;
     }
 
-    if (form.endTime <= form.startTime) {
+    if (form.endTime <= form.startTime && form.shift !== "night") {
       setError(t("scheduling.validation.timeOrder"));
       return;
     }
 
     setIsSaving(true);
     try {
-      const created = await onSubmit(form);
-      if (!created) setError(t("scheduling.errorSaveAssignment"));
+      const saved = await onSubmit(form);
+      if (!saved) setError(t("scheduling.errorSaveAssignment"));
     } catch {
       setError(t("scheduling.errorSaveAssignment"));
     } finally {
@@ -199,7 +207,7 @@ export function AssignmentForm({
 
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>{t("scheduling.actions.cancel")}</Button>
-        <Button type="submit" disabled={isSaving}>{isSaving ? t("scheduling.actions.saving") : t("scheduling.actions.publish")}</Button>
+        <Button type="submit" disabled={isSaving}>{isSaving ? t("scheduling.actions.saving") : (submitLabel ?? t("scheduling.actions.publish"))}</Button>
       </div>
     </form>
   );

@@ -15,6 +15,7 @@ type ScheduleCalendarProps = {
   locale: "en" | "es";
   onMoveAssignment: (assignmentId: string, targetDate: string) => void;
   onQuickMoveShift: (assignmentId: string, shift: "day" | "swing" | "night") => void;
+  onSelectAssignment?: (assignment: ScheduleAssignment) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
@@ -26,9 +27,11 @@ export function ScheduleCalendar({
   locale,
   onMoveAssignment,
   onQuickMoveShift,
+  onSelectAssignment,
   t,
 }: ScheduleCalendarProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const selectAssignment = onSelectAssignment ?? (() => undefined);
 
   const visible = useMemo(() => [...assignments].sort((a, b) => a.startTime.localeCompare(b.startTime)), [assignments]);
 
@@ -41,9 +44,9 @@ export function ScheduleCalendar({
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-2">
         <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t("scheduling.calendar.title")}</p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => draggingId && moveToShift(draggingId, "day")}>{t("scheduling.shift.day")}</Button>
-          <Button variant="outline" size="sm" onClick={() => draggingId && moveToShift(draggingId, "swing")}>{t("scheduling.shift.swing")}</Button>
-          <Button variant="outline" size="sm" onClick={() => draggingId && moveToShift(draggingId, "night")}>{t("scheduling.shift.night")}</Button>
+          <Button variant="outline" size="sm" disabled={!draggingId} onClick={() => draggingId && moveToShift(draggingId, "day")}>{t("scheduling.shift.day")}</Button>
+          <Button variant="outline" size="sm" disabled={!draggingId} onClick={() => draggingId && moveToShift(draggingId, "swing")}>{t("scheduling.shift.swing")}</Button>
+          <Button variant="outline" size="sm" disabled={!draggingId} onClick={() => draggingId && moveToShift(draggingId, "night")}>{t("scheduling.shift.night")}</Button>
         </div>
       </div>
 
@@ -59,6 +62,7 @@ export function ScheduleCalendar({
             event.dataTransfer.setData("text/assignment-id", assignmentId);
             setDraggingId(assignmentId);
           }}
+          onSelectAssignment={selectAssignment}
           t={t}
         />
       ) : null}
@@ -77,12 +81,13 @@ export function ScheduleCalendar({
             event.dataTransfer.setData("text/assignment-id", assignmentId);
             setDraggingId(assignmentId);
           }}
+          onSelectAssignment={selectAssignment}
           t={t}
         />
       ) : null}
 
       {view === "month" ? (
-        <ScheduleMonthView baseDate={date} assignments={visible} locale={locale} t={t} />
+        <ScheduleMonthView baseDate={date} assignments={visible} locale={locale} onSelectAssignment={selectAssignment} t={t} />
       ) : null}
     </section>
   );

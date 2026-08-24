@@ -94,6 +94,46 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
     }
   }, [payload, schedulingService]);
 
+  const updateExistingAssignment = useCallback(async (assignmentId: string, draft: AssignmentDraft) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      if (!schedulingService.updateAssignment) {
+        throw new Error("Scheduling assignment editing is unavailable.");
+      }
+      const next = await schedulingService.updateAssignment(assignmentId, draft);
+      setPayload(next);
+      setLastActionMessage("scheduling.feedback.assignmentMoved");
+      return true;
+    } catch {
+      setErrorMessage("scheduling.errorSaveAssignment");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [schedulingService]);
+
+  const cancelExistingAssignment = useCallback(async (assignmentId: string) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      if (!schedulingService.cancelAssignment) {
+        throw new Error("Scheduling assignment cancellation is unavailable.");
+      }
+      const next = await schedulingService.cancelAssignment(assignmentId);
+      setPayload(next);
+      setLastActionMessage("scheduling.feedback.assignmentMoved");
+      return true;
+    } catch {
+      setErrorMessage("scheduling.errorSaveAssignment");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [schedulingService]);
+
   const dismissOpenShift = useCallback(async (openShiftId: string) => {
     setErrorMessage(null);
     try {
@@ -137,6 +177,7 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
 
   const resolveConflict = useCallback(async (conflictId: string, status: "acknowledged" | "dismissed" | "resolved") => {
     setIsLoading(true);
+    setErrorMessage(null);
 
     try {
       const next = await schedulingService.resolveConflict(conflictId, status);
@@ -151,6 +192,7 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
 
   const acceptInsight = useCallback(async (insightId: string) => {
     setIsLoading(true);
+    setErrorMessage(null);
 
     try {
       const next = await schedulingService.acceptInsight(insightId);
@@ -165,6 +207,7 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
 
   const dismissInsight = useCallback(async (insightId: string) => {
     setIsLoading(true);
+    setErrorMessage(null);
 
     try {
       const next = await schedulingService.dismissInsight(insightId);
@@ -182,6 +225,7 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
     changes: Partial<Pick<ScheduleAssignment, "date" | "shift" | "assignedCrewIds" | "assignedEmployeeIds" | "startTime" | "endTime">>,
   ) => {
     setIsLoading(true);
+    setErrorMessage(null);
 
     try {
       const next = await schedulingService.moveAssignment(assignmentId, changes);
@@ -235,6 +279,8 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
     lastActionMessage,
     refresh,
     createNewAssignment,
+    updateExistingAssignment,
+    cancelExistingAssignment,
     moveDispatch,
     fillOpenShift,
     dismissOpenShift,

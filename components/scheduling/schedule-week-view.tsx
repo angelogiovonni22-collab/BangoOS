@@ -9,6 +9,7 @@ type ScheduleWeekViewProps = {
   locale: "en" | "es";
   onDropAssignment: (assignmentId: string, targetDate: string) => void;
   onDragStart: (event: DragEvent<HTMLElement>, assignmentId: string) => void;
+  onSelectAssignment: (assignment: ScheduleAssignment) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
@@ -27,22 +28,10 @@ function getWeekDays(baseDate: string) {
 }
 
 function groupLabel(assignment: ScheduleAssignment, groupBy: ScheduleGroup) {
-  if (groupBy === "project") {
-    return assignment.scope.projectName;
-  }
-
-  if (groupBy === "crew") {
-    return assignment.assignedCrewIds.join(", ") || "Unassigned Crew";
-  }
-
-  if (groupBy === "employee") {
-    return assignment.assignedEmployeeIds.join(", ") || "Unassigned Employee";
-  }
-
-  if (groupBy === "trade") {
-    return assignment.requiredTrade;
-  }
-
+  if (groupBy === "project") return assignment.scope.projectName;
+  if (groupBy === "crew") return assignment.assignedCrewIds.join(", ") || "Unassigned Crew";
+  if (groupBy === "employee") return assignment.assignedEmployeeIds.join(", ") || "Unassigned Employee";
+  if (groupBy === "trade") return assignment.requiredTrade;
   return assignment.scope.location;
 }
 
@@ -53,6 +42,7 @@ export function ScheduleWeekView({
   locale,
   onDropAssignment,
   onDragStart,
+  onSelectAssignment,
   t,
 }: ScheduleWeekViewProps) {
   const days = getWeekDays(baseDate);
@@ -66,11 +56,11 @@ export function ScheduleWeekView({
   }
 
   return (
-    <section className="overflow-x-auto rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-card)]">
-      <table className="min-w-[980px] w-full border-separate border-spacing-0">
+    <section className="overflow-x-auto rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-3 sm:p-4 shadow-[var(--shadow-card)]">
+      <table className="w-full min-w-[980px] border-separate border-spacing-0">
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 bg-[var(--color-surface-card)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
+            <th className="sticky left-0 z-10 min-w-[150px] bg-[var(--color-surface-card)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
               {t(`scheduling.group.${groupBy}`)}
             </th>
             {days.map((day) => (
@@ -83,8 +73,8 @@ export function ScheduleWeekView({
         <tbody>
           {Array.from(grouped.entries()).map(([label, groupAssignments]) => (
             <tr key={label}>
-              <th className="sticky left-0 z-10 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-3 text-left text-sm font-semibold text-[var(--color-text-primary)]">
-                {label}
+              <th className="sticky left-0 z-10 max-w-[220px] border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-3 text-left text-sm font-semibold text-[var(--color-text-primary)]">
+                <span className="block truncate" title={label}>{label}</span>
               </th>
               {days.map((day) => {
                 const dayItems = groupAssignments.filter((item) => item.date === day);
@@ -95,9 +85,7 @@ export function ScheduleWeekView({
                     onDrop={(event) => {
                       event.preventDefault();
                       const assignmentId = event.dataTransfer.getData("text/assignment-id");
-                      if (assignmentId) {
-                        onDropAssignment(assignmentId, day);
-                      }
+                      if (assignmentId) onDropAssignment(assignmentId, day);
                     }}
                     className="min-w-[210px] border-t border-l border-[var(--color-border-subtle)] align-top"
                   >
@@ -108,7 +96,7 @@ export function ScheduleWeekView({
                         </div>
                       ) : (
                         dayItems.map((assignment) => (
-                          <AssignmentCard key={assignment.id} assignment={assignment} draggable onDragStart={onDragStart} t={t} />
+                          <AssignmentCard key={assignment.id} assignment={assignment} draggable onDragStart={onDragStart} onSelect={onSelectAssignment} t={t} />
                         ))
                       )}
                     </div>

@@ -1,3 +1,4 @@
+import { createSchedulingCompletionService } from "./completion-service";
 import { createSupabaseSchedulingService } from "./supabase-service";
 import type {
   AssignmentDraft,
@@ -9,6 +10,8 @@ import type {
 export type SchedulingService = {
   getScheduling: () => Promise<SchedulingPayload>;
   createAssignment: (draft: AssignmentDraft) => Promise<SchedulingPayload>;
+  updateAssignment?: (assignmentId: string, draft: AssignmentDraft) => Promise<SchedulingPayload>;
+  cancelAssignment?: (assignmentId: string) => Promise<SchedulingPayload>;
   moveDispatchResource: (dispatchId: string, status: DispatchStatus, delayReason: string | null) => Promise<SchedulingPayload>;
   assignOpenShift: (openShiftId: string, employeeId: string | null, crewId: string | null) => Promise<SchedulingPayload>;
   dismissOpenShift: (openShiftId: string) => Promise<SchedulingPayload>;
@@ -19,5 +22,7 @@ export type SchedulingService = {
 };
 
 export function createSchedulingService(): SchedulingService {
-  return createSupabaseSchedulingService();
+  const base = createSupabaseSchedulingService();
+  const completion = createSchedulingCompletionService(base.getScheduling);
+  return { ...base, ...completion };
 }

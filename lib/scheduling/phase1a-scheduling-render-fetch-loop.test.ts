@@ -33,7 +33,9 @@ const tests: Test[] = [
     name: "3. scheduling dashboard consumes the hook once",
     run: () => {
       const source = read("components/scheduling/scheduling-dashboard.tsx");
-      assert.ok(source.includes("const scheduling = useScheduling();"));
+      const matches = source.match(/useScheduling\(/g) ?? [];
+      assert.equal(matches.length, 1, "dashboard should consume useScheduling exactly once");
+      assert.ok(source.includes("const scheduling = useScheduling({ initialProjectId });"));
     },
   },
 ];
