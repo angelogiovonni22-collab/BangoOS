@@ -11,10 +11,13 @@ const headerWeather = read("components/projects/workspace/project-header-weather
 assert.ok(!page.includes("<ProjectWorkspaceHero"), "the oversized photo/weather hero stays out of the project landing view");
 assert.ok(!page.includes("<ProjectKpiGrid"), "the duplicate KPI strip stays out of the project landing view");
 assert.ok(overview.includes('data-project-overview="header-jobsite-clean"'), "the overview declares its cleaned header-jobsite hierarchy");
+assert.ok(overview.includes('className="bos-project-details-primary space-y-4"'), "project details are marked as the primary overview content");
+assert.ok(overview.includes('> .bos-project-details-primary {\n          order: -1;'), "project details render ahead of the Project Operating System panel");
 assert.ok(overview.includes("Scope of Work"));
 assert.ok(overview.includes("Today's Priorities"));
 assert.ok(overview.includes("Project Health"));
 assert.ok(overview.includes("Next 7 Days"));
+assert.ok(!overview.includes('<Info label="Job site"'), "job-site address is not duplicated in Project Team");
 assert.ok(!overview.includes("<LocationForecastCard"), "the full-width weather/map card no longer consumes the project overview");
 assert.ok(!overview.includes('data-project-jobsite-intelligence="primary"'));
 assert.ok(header.includes("<WorkspaceHeader\n        compact"), "the project header uses the compact layout");
@@ -24,4 +27,4 @@ assert.ok(headerWeather.includes('data-project-header-jobsite-intelligence="true
 assert.ok(headerWeather.includes("lg:grid-cols-[1.05fr_1fr_0.9fr]"), "desktop jobsite intelligence uses a compact horizontal strip");
 assert.ok(headerWeather.includes("min-h-[112px]"), "weather and map stay short instead of stretching vertically");
 
-console.log("+ project overview is compact and moves live weather/maps into the project header");
+console.log("+ project overview prioritizes project details and keeps jobsite data in the header");
