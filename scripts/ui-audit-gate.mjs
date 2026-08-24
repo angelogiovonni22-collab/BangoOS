@@ -53,11 +53,11 @@ assert(topCommandCss.includes('grid-template-columns: 260px minmax(0, 1fr) !impo
 assert(topCommandCss.includes('grid-column: 1 / -1'), "Tasks supporting panels must span a full row at ordinary desktop widths.");
 assert(!topCommandCss.includes("min-width: 1800px"), "Do not restore the Tasks three-rail viewport assumption that caused Production compression.");
 
-const overview = read("components/projects/workspace/project-overview.tsx");
-assert(overview.includes('data-testid="execution-board-scroll-region"'), "Execution Board regression marker is missing.");
-assert(/overflow-x-auto/.test(overview), "Execution Board must preserve horizontal overflow handling for readable Kanban columns.");
-assert(/min-w-\[1040px\]/.test(overview), "Execution Board must preserve readable minimum Kanban width instead of compressing cards.");
-assert(/min-w-0/.test(overview), "Project workspace must retain min-w-0 containment.");
+const executionBoard = read("components/projects/workspace/project-work-execution-board.tsx");
+assert(executionBoard.includes('data-testid="execution-board-scroll-region"'), "Execution Board regression marker is missing.");
+assert(/overflow-x-auto/.test(executionBoard), "Execution Board must preserve horizontal overflow handling for readable Kanban columns.");
+assert(/min-w-\[1040px\]/.test(executionBoard), "Execution Board must preserve readable minimum Kanban width instead of compressing cards.");
+assert(/min-w-0/.test(executionBoard), "Execution Board must retain min-w-0 containment.");
 
 // Production-facing copy should not regress to the implementation placeholders cleaned up
 // during this audit. Explicit coming-soon screens are excluded because they intentionally
