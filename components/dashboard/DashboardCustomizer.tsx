@@ -186,6 +186,8 @@ export function DashboardCustomizer({
 
                           <button
                             type="button"
+                            aria-expanded={!isCollapsed}
+                            aria-controls={`dashboard-widget-${widget.id}`}
                             className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-primary)]"
                             onClick={() => onToggleCollapsed(widget.id)}
                           >

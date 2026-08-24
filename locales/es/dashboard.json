@@ -5,6 +5,8 @@
   "greetingAfternoon": "Buenas tardes",
   "greetingEvening": "Buenas noches",
   "dashboardLoadError": "No pudimos cargar tu panel",
+  "loadingMetrics": "Cargando métricas del panel",
+  "systemReady": "Sistema listo",
   "kpiSection": "Indicadores clave",
   "metricEmpty": "Sin datos",
   "metricActiveProjects": "Proyectos activos",
