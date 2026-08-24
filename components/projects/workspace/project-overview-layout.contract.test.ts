@@ -45,5 +45,8 @@ assert.ok(!executionBoard.includes('lg:grid-cols-[minmax(0,1fr)_220px_220px]'), 
 assert.ok(topCommandLayout.includes('@media (min-width: 640px) and (max-width: 1023px)'), "the shared shell has an explicit tablet/laptop transition range");
 assert.ok(topCommandLayout.includes('flex-direction: column !important'), "tablet header context and utilities stack instead of colliding");
 assert.ok(topCommandLayout.includes('flex-wrap: wrap !important'), "tablet header utilities can wrap safely");
+assert.ok(topCommandLayout.includes('@media (min-width: 1280px) and (max-width: 1799px)'), "Tasks has an explicit two-column desktop correction range");
+assert.ok(topCommandLayout.includes('.grid:has(> :nth-child(2) [data-testid="execution-board-scroll-region"]) > :nth-child(3)'), "Tasks corrects the StaggerGroup wrapper that owns the supporting-panel grid placement");
+assert.ok(topCommandLayout.includes('grid-column: 1 / -1'), "Tasks supporting panels span the full desktop row instead of the Active Phases rail");
 
-console.log("+ project overview, Tasks workspace, and shared tablet header retain responsive layout invariants");
+console.log("+ project overview, Tasks workspace, and shared responsive layout invariants hold including stagger-wrapper placement");
