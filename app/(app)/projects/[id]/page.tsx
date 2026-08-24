@@ -18,6 +18,7 @@ import {
   ProjectExecutionIssue,
   ProjectExecutionNote,
   ProjectExecutionTask,
+  ProjectOperatingSystemPanel,
   ProjectWorkWorkspace,
   ProjectTabs,
   ProjectTradePartnersWorkspace,
@@ -787,35 +788,44 @@ export default function ProjectWorkspacePage() {
         <div className="min-w-0 rounded-[20px] border border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-surface),var(--bos-bg-workspace-surface-soft))] p-3 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)]">
           <PageTransition transitionKey={`workspace-tab-${activeTab}`} className="min-w-0 max-w-full">
             {activeTab === "overview" ? (
-              <ProjectCommandCenterFoundation
-                projectId={project.id}
-                projectName={projectName}
-                projectDescription={project.description}
-                customerName={customerName}
-                projectAddress={location}
-                statusLabel={statusLabel}
-                tasks={workspace.tasks}
-                budgetLabel={budgetValue}
-                spentLabel={spentValue}
-                remainingLabel={remainingBudgetLabel}
-                startDate={startDate}
-                targetDate={completionDate}
-                crewCount={workspace.assignments.length}
-                estimatesCount={workspace.counts.estimates}
-                changeOrdersCount={workspace.counts.changeOrders}
-                invoicesCount={workspace.invoices.length}
-                photosCount={workspace.counts.photos}
-                permitsCount={workspace.counts.permits}
-                inspectionsCount={workspace.counts.inspections}
-                dailyReportsCount={workspace.counts.dailyReports}
-                openPunchItemsCount={workspace.counts.openPunchItems}
-                openPermitsCount={workspace.counts.openPermits}
-                pendingInspectionsCount={workspace.counts.pendingInspections}
-                closeoutStatusLabel={closeoutStatusLabel}
-                closeoutReady={closeoutReady}
-                activityItems={recentActivity}
-                timelineEntries={timeline}
-              />
+              <div className="min-w-0 space-y-4">
+                <ProjectOperatingSystemPanel
+                  intelligence={projectIntelligence}
+                  briefing={superintendentBriefing}
+                  timelineCount={timeline.length}
+                  formatCurrency={(amount) => formatProjectCurrency(amount, localeTag, "$0")}
+                  t={t}
+                />
+                <ProjectCommandCenterFoundation
+                  projectId={project.id}
+                  projectName={projectName}
+                  projectDescription={project.description}
+                  customerName={customerName}
+                  projectAddress={location}
+                  statusLabel={statusLabel}
+                  tasks={workspace.tasks}
+                  budgetLabel={budgetValue}
+                  spentLabel={spentValue}
+                  remainingLabel={remainingBudgetLabel}
+                  startDate={startDate}
+                  targetDate={completionDate}
+                  crewCount={workspace.assignments.length}
+                  estimatesCount={workspace.counts.estimates}
+                  changeOrdersCount={workspace.counts.changeOrders}
+                  invoicesCount={workspace.invoices.length}
+                  photosCount={workspace.counts.photos}
+                  permitsCount={workspace.counts.permits}
+                  inspectionsCount={workspace.counts.inspections}
+                  dailyReportsCount={workspace.counts.dailyReports}
+                  openPunchItemsCount={workspace.counts.openPunchItems}
+                  openPermitsCount={workspace.counts.openPermits}
+                  pendingInspectionsCount={workspace.counts.pendingInspections}
+                  closeoutStatusLabel={closeoutStatusLabel}
+                  closeoutReady={closeoutReady}
+                  activityItems={recentActivity}
+                  timelineEntries={timeline}
+                />
+              </div>
             ) : activeTab === "tasks" ? (
               <ProjectWorkWorkspace
                 companyId={workspace.workspaceContext.companyId}
