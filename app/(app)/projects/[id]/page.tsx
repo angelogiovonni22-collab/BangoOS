@@ -792,6 +792,14 @@ export default function ProjectWorkspacePage() {
                 <ProjectOperatingSystemPanel
                   intelligence={projectIntelligence}
                   briefing={superintendentBriefing}
+                  projectId={project.id}
+                  compliance={{
+                    permitsTotal: workspace.counts.permits,
+                    openPermits: workspace.counts.openPermits,
+                    inspectionsTotal: workspace.counts.inspections,
+                    pendingInspections: workspace.counts.pendingInspections,
+                    documentsTotal: workspace.counts.communications,
+                  }}
                   timelineCount={timeline.length}
                   formatCurrency={(amount) => formatProjectCurrency(amount, localeTag, "$0")}
                   t={(key, params) => t(`projects.${key}`, params)}
