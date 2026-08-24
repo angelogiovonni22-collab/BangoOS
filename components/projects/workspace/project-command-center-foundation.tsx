@@ -39,7 +39,21 @@ export function ProjectCommandCenterFoundation(props: Props) {
   const closeoutAction = getCloseoutAction(projectHref, closeoutReadiness.nextAction);
 
   return (
-    <div className="space-y-4" data-project-overview="header-jobsite-clean">
+    <div className="bos-project-details-primary space-y-4" data-project-overview="header-jobsite-clean">
+      <style>{`
+        div:has(> .bos-project-details-primary) {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        div:has(> .bos-project-details-primary) > * {
+          margin-top: 0 !important;
+        }
+        div:has(> .bos-project-details-primary) > .bos-project-details-primary {
+          order: -1;
+        }
+      `}</style>
+
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project overview metrics">
         <Metric icon={<Gauge size={20} />} label="Progress" value={progress + "%"} detail={completed.length + " of " + props.tasks.length + " tasks complete"} progress={progress} />
         <Metric icon={<CircleDollarSign size={20} />} label="Budget" value={props.budgetLabel} detail={"Spent " + props.spentLabel} />
@@ -118,7 +132,6 @@ export function ProjectCommandCenterFoundation(props: Props) {
             <Info label="Customer" value={props.customerName} />
             <Info label="Assigned crew" value={props.crewCount ? props.crewCount + " members" : "Not assigned"} />
             <Info label="Project status" value={props.statusLabel} />
-            <Info label="Job site" value={props.projectAddress} />
           </div>
         </Card>
       </div>
