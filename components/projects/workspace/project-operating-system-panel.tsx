@@ -1,20 +1,25 @@
 import Link from "next/link";
-import { AlertTriangle, Bot, Gauge, ShieldCheck } from "lucide-react";
+import type { ReactNode } from "react";
+import { AlertTriangle, Bot, ClipboardCheck, FileCheck2, Gauge, ShieldCheck } from "lucide-react";
 import { Badge, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import type { ProjectSuperintendentBriefing } from "@/lib/project-intelligence/briefing/briefing-types";
 import type { ProjectIntelligence } from "@/lib/project-intelligence/intelligence-types";
+import { calculateProjectComplianceReadiness, type ProjectComplianceSignals } from "@/lib/projects/project-compliance-readiness";
 
 type ProjectOperatingSystemPanelProps = {
   intelligence: ProjectIntelligence;
   briefing: ProjectSuperintendentBriefing;
+  projectId: string;
+  compliance: ProjectComplianceSignals;
   timelineCount: number;
   formatCurrency: (amount: number) => string;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function ProjectOperatingSystemPanel({ intelligence, briefing, timelineCount, formatCurrency, t }: ProjectOperatingSystemPanelProps) {
+export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId, compliance, timelineCount, formatCurrency, t }: ProjectOperatingSystemPanelProps) {
   const score = calculateOperatingScore(intelligence, timelineCount);
   const scoreTone = getScoreTone(score);
+  const complianceReadiness = calculateProjectComplianceReadiness(compliance);
   const varianceLabel = intelligence.budget.budgetVariance === null
     ? "Budget baseline required"
     : formatCurrency(intelligence.budget.budgetVariance);
@@ -97,6 +102,45 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, timelineCo
           </div>
         </div>
 
+        <div className="rounded-[14px] border border-[var(--color-border-subtle)] bg-white p-4" data-testid="project-compliance-readiness">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-semibold text-[var(--color-navy-900)]">
+                <ShieldCheck size={15} aria-hidden="true" />
+                Compliance Readiness
+              </p>
+              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Live permit, inspection, and project-document coverage.</p>
+            </div>
+            <Badge tone={complianceReadiness.status === "Ready" ? "success" : complianceReadiness.status === "Watch" ? "warning" : "danger"}>
+              {complianceReadiness.score}/100 · {complianceReadiness.status}
+            </Badge>
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <ComplianceTile
+              icon={<FileCheck2 size={15} aria-hidden="true" />}
+              label="Permits"
+              value={complianceReadiness.permitState}
+              note={`${compliance.openPermits} open · ${compliance.permitsTotal} total`}
+              href={`/projects/${projectId}?tab=inspections`}
+            />
+            <ComplianceTile
+              icon={<ClipboardCheck size={15} aria-hidden="true" />}
+              label="Inspections"
+              value={complianceReadiness.inspectionState}
+              note={`${compliance.pendingInspections} pending · ${compliance.inspectionsTotal} total`}
+              href={`/projects/${projectId}?tab=inspections`}
+            />
+            <ComplianceTile
+              icon={<ShieldCheck size={15} aria-hidden="true" />}
+              label="Documents"
+              value={complianceReadiness.documentState}
+              note={`${compliance.documentsTotal} project records`}
+              href={`/projects/${projectId}?tab=documents`}
+            />
+          </div>
+        </div>
+
         {intelligence.summary.overdueTasks > 0 || intelligence.summary.blockedTasks > 0 ? (
           <div className="flex items-start gap-2 rounded-[12px] border border-[var(--color-warning-200)] bg-[var(--color-warning-50)] px-3 py-2.5 text-sm text-[var(--color-warning-800)]">
             <AlertTriangle size={15} className="mt-0.5" aria-hidden="true" />
@@ -107,6 +151,19 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, timelineCo
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function ComplianceTile({ icon, label, value, note, href }: { icon: ReactNode; label: string; value: string; note: string; href: string }) {
+  return (
+    <Link href={href} className="min-w-0 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3.5 transition hover:border-[var(--color-brand-300)] hover:bg-[var(--color-primary-50)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]">
+      <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
+        {icon}
+        {label}
+      </span>
+      <span className="mt-1 block break-words text-base font-bold text-[var(--color-text-primary)]">{value}</span>
+      <span className="mt-1 block break-words text-xs text-[var(--color-text-secondary)]">{note}</span>
+    </Link>
   );
 }
 
