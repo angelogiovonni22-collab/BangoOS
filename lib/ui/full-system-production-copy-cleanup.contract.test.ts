@@ -8,6 +8,7 @@ const customers = read("app/(app)/customers/page.tsx");
 const equipmentList = read("app/(app)/equipment/equipment-list-client.tsx");
 const equipmentDetail = read("app/(app)/equipment/[id]/equipment-detail-client.tsx");
 const workforceBoard = read("components/operations/workforce-board.tsx");
+const accessControlRoute = read("app/api/settings/access-control/route.ts");
 
 assert.ok(!customers.includes('"Coming Soon"'), "customer KPIs must not expose placeholder copy in Production");
 assert.ok(customers.includes('label="Archived Customers"'), "customer KPI strip uses a live archived-customer count instead of a placeholder metric");
@@ -21,4 +22,8 @@ assert.ok(!equipmentDetail.includes('value="Not configured"'), "equipment detail
 
 assert.ok(!workforceBoard.includes("live service yet"), "workforce partial-data notice must not expose backend-service implementation language");
 
-console.log("+ full-system Production copy cleanup invariants hold");
+assert.ok(!accessControlRoute.includes('.select("id,name")'), "access control must not query the removed vendors.name column");
+assert.ok(accessControlRoute.includes('.select("id,display_name,company_name,first_name,last_name")'), "access control reads the canonical vendor naming fields");
+assert.ok(accessControlRoute.includes("vendor.display_name"), "access control normalizes vendor display names for the permissions UI");
+
+console.log("+ full-system Production copy and access-control cleanup invariants hold");
