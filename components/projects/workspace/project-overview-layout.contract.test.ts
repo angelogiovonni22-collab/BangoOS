@@ -8,6 +8,8 @@ const overview = read("components/projects/workspace/project-command-center-foun
 const overviewLayout = read("components/projects/workspace/project-command-center-foundation.module.css");
 const header = read("components/projects/workspace/project-workspace-header.tsx");
 const headerWeather = read("components/projects/workspace/project-header-weather-strip.tsx");
+const workWorkspace = read("components/projects/workspace/project-work-workspace.tsx");
+const executionBoard = read("components/projects/workspace/project-work-execution-board.tsx");
 
 assert.ok(!page.includes("<ProjectWorkspaceHero"), "the oversized photo/weather hero stays out of the project landing view");
 assert.ok(!page.includes("<ProjectKpiGrid"), "the duplicate KPI strip stays out of the project landing view");
@@ -30,4 +32,14 @@ assert.ok(headerWeather.includes('data-project-header-jobsite-intelligence="true
 assert.ok(headerWeather.includes("lg:grid-cols-[1.05fr_1fr_0.9fr]"), "desktop jobsite intelligence uses a compact horizontal strip");
 assert.ok(headerWeather.includes("min-h-[112px]"), "weather and map stay short instead of stretching vertically");
 
-console.log("+ project overview shows project details first and keeps weather/maps in the compact header");
+assert.ok(!workWorkspace.includes('xl:grid-cols-[280px_minmax(0,1fr)_340px]'), "Tasks must not force the board between two fixed desktop rails");
+assert.ok(workWorkspace.includes('xl:grid-cols-[240px_minmax(0,1fr)]'), "laptop Tasks layout reserves the dominant width for the execution board");
+assert.ok(workWorkspace.includes('min-[1800px]:grid-cols-[260px_minmax(640px,1fr)_320px]'), "three-column Tasks layout is deferred until a genuinely wide viewport");
+assert.ok(workWorkspace.includes('md:grid-cols-2 xl:col-span-2'), "supporting Tasks panels reflow beneath the board instead of squeezing it");
+assert.ok(workWorkspace.includes('hidden md:block md:col-span-2 min-[1800px]:hidden'), "tablet and laptop users receive usable inline task details");
+assert.ok(executionBoard.includes('data-testid="execution-board-scroll-region"'), "the execution board exposes its scroll-safe desktop region");
+assert.ok(executionBoard.includes('min-w-[1040px] grid-cols-4'), "kanban columns retain a readable minimum width");
+assert.ok(executionBoard.includes('overflow-x-auto'), "desktop kanban overflow scrolls instead of clipping or compressing cards");
+assert.ok(!executionBoard.includes('lg:grid-cols-[minmax(0,1fr)_220px_220px]'), "filter controls must not use fixed widths inside a narrow board parent");
+
+console.log("+ project overview is details-first and Tasks keeps the execution board readable across viewport widths");
