@@ -27,10 +27,10 @@ assert.match(appShell, /\{orionEnabled \? <PersistentOrion onOpenCommandCenter=/
 assert.match(appShell, /if \(!orionEnabled\) return;/, "Global Orion keyboard shortcut must be disabled for unauthorized sessions.");
 assert.match(appShell, /\{orionEnabled \? <OrionCommandCenterOverlay/, "Orion Command Center must not render for unauthorized sessions.");
 
-const middleware = readFileSync("middleware.ts", "utf8");
-assert.match(middleware, /pathname\.startsWith\("\/api\/orion\/"\)/, "All Orion API routes must pass through the privileged-access middleware boundary.");
-assert.match(middleware, /canUseOrion\(membership\.role, overrides\)/, "Middleware must enforce the same canonical Orion permission model.");
-assert.match(middleware, /statusCategory: "orion_access_denied"/, "Unauthorized Orion API calls must return an explicit access-denied category.");
+const proxy = readFileSync("proxy.ts", "utf8");
+assert.match(proxy, /pathname\.startsWith\("\/api\/orion\/"\)/, "All Orion API routes must pass through the privileged-access proxy boundary.");
+assert.match(proxy, /canUseOrion\(membership\.role, overrides\)/, "Proxy must enforce the same canonical Orion permission model.");
+assert.match(proxy, /statusCategory: "orion_access_denied"/, "Unauthorized Orion API calls must return an explicit access-denied category.");
 
 const accessControlRoute = readFileSync("app/api/settings/access-control/route.ts", "utf8");
 assert.match(accessControlRoute, /if \(!isOrionConfigurableRole\(body\.role\)\)/, "Access Control API must reject persistence of Orion grants for ineligible roles.");
