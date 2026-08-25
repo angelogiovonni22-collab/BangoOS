@@ -58,6 +58,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
+  const isDashboard = pathname === "/dashboard";
   const router = useRouter();
   const { t } = useI18n();
   const normalizedRole = normalizeCompanyRole(role);
@@ -136,12 +137,12 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
             role={mobileOpen ? "dialog" : undefined}
             aria-modal={mobileOpen ? true : undefined}
             aria-label={mobileOpen ? t("common.openSidebar") : undefined}
-            className={`fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] px-5 py-6 text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+            className={`fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${isDashboard ? "px-3 py-5 lg:w-[184px]" : "px-5 py-6"} ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
           >
             <div className="shrink-0 flex items-center justify-between gap-3">
-              <Link href={homePath} className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2f5ec9] to-[#2d9ad4] text-xs font-bold text-white shadow-lg shadow-blue-500/20">B.O.S.</div>
-                <div>
+              <Link href={homePath} className={`flex items-center ${isDashboard ? "w-full justify-center gap-2" : "gap-3"}`} onClick={() => setMobileOpen(false)}>
+                <div className={`flex items-center justify-center bg-gradient-to-br from-[#2f5ec9] to-[#2d9ad4] font-bold text-white shadow-lg shadow-blue-500/20 ${isDashboard ? "h-10 w-10 rounded-xl text-[10px]" : "h-11 w-11 rounded-2xl text-xs"}`}>B.O.S.</div>
+                <div className={isDashboard ? "hidden" : ""}>
                   <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#8ec3ff]">B.O.S.</p>
                   <p className="text-sm text-[var(--bos-text-muted)]">{t("common.constructionOs")}</p>
                 </div>
@@ -166,7 +167,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                       {!isCollapsed ? (
                         <div className="space-y-1.5">
                           {group.items.map((item) => (
-                            <SidebarItem key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t)} href={item.href} icon={item.icon} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} onNavigate={() => setMobileOpen(false)} />
+                            <SidebarItem compact={isDashboard} key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t)} href={item.href} icon={item.icon} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} onNavigate={() => setMobileOpen(false)} />
                           ))}
                         </div>
                       ) : null}
@@ -186,7 +187,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
 
         <div className="flex min-h-screen min-h-0 min-w-0 flex-1 flex-col">
           <LayerManager layer="header">
-            <header data-bos-topbar="true" className="sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)]/92 px-4 py-3.5 text-[var(--bos-text-primary)] backdrop-blur-sm sm:px-6 lg:px-8">
+            <header data-bos-topbar="true" className={`sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)]/92 px-4 py-3.5 text-[var(--bos-text-primary)] backdrop-blur-sm sm:px-6 lg:px-8 ${isDashboard ? "lg:hidden" : ""}`}>
               <div className="bos-top-command-utility flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center">
                   <button type="button" aria-label={t("common.openSidebar")} aria-controls="bangoos-sidebar" aria-expanded={mobileOpen} className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] lg:hidden" onClick={() => setMobileOpen(true)}><span className="text-lg">☰</span></button>
@@ -224,7 +225,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
             </header>
           </LayerManager>
 
-          <main className="min-h-0 min-w-0 flex-1 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,0.08),transparent_26%)] p-4 sm:p-6 lg:p-7">
+          <main className={`min-h-0 min-w-0 flex-1 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,0.08),transparent_26%)] ${isDashboard ? "p-0" : "p-4 sm:p-6 lg:p-7"}`}>
             {routeAllowed ? children : <AccessRedirect role={normalizedRole} />}
           </main>
         </div>
@@ -235,10 +236,10 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   );
 }
 
-function SidebarItem({ label, href, icon, active, onNavigate }: { label: string; href: string; icon: string; active: boolean; onNavigate: () => void; }) {
+function SidebarItem({ label, href, icon, active, onNavigate, compact = false }: { label: string; href: string; icon: string; active: boolean; onNavigate: () => void; compact?: boolean; }) {
   return (
-    <Link href={href} onClick={onNavigate} className={`flex items-center gap-3 rounded-[var(--radius-lg)] px-4 py-2.5 text-sm font-semibold motion-nav transition-colors duration-200 ${active ? "bg-[linear-gradient(135deg,rgba(56,116,227,0.42),rgba(40,72,140,0.62))] text-white shadow-[0_16px_26px_-18px_rgba(37,99,235,0.55)]" : "text-[var(--bos-text-secondary)] hover:bg-[rgba(82,130,210,0.16)] hover:text-[var(--bos-text-primary)]"}`}>
-      <span className="text-base">{icon}</span><span>{label}</span>
+    <Link href={href} onClick={onNavigate} className={`flex items-center rounded-[var(--radius-lg)] font-semibold motion-nav transition-colors duration-200 ${compact ? "gap-2 px-3 py-2 text-[12px]" : "gap-3 px-4 py-2.5 text-sm"} ${active ? "bg-[linear-gradient(135deg,rgba(21,105,225,0.72),rgba(20,66,145,0.78))] text-white shadow-[0_12px_22px_-16px_rgba(37,99,235,0.7)]" : "text-[var(--bos-text-secondary)] hover:bg-[rgba(82,130,210,0.16)] hover:text-[var(--bos-text-primary)]"}`}>
+      <span className={compact ? "text-sm" : "text-base"}>{icon}</span><span className="truncate">{label}</span>
     </Link>
   );
 }
