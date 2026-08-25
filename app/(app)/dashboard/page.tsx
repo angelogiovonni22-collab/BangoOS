@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useMemo, type CSSProperties, type ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowRight,
-  BriefcaseBusiness,
   CalendarDays,
   Camera,
   CheckCircle2,
@@ -26,7 +25,11 @@ import type { DashboardMetric } from "@/lib/dashboard/types";
 function formatMetric(metric: DashboardMetric | undefined, localeTag: string) {
   if (!metric) return "—";
   if (metric.valueKind === "currency") {
-    return new Intl.NumberFormat(localeTag, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(metric.value);
+    return new Intl.NumberFormat(localeTag, {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(metric.value);
   }
   if (metric.valueKind === "score") return `${metric.value}/100`;
   return new Intl.NumberFormat(localeTag).format(metric.value);
@@ -34,7 +37,7 @@ function formatMetric(metric: DashboardMetric | undefined, localeTag: string) {
 
 function Surface({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`min-w-0 overflow-hidden rounded-[18px] border border-[#d9e1eb] bg-white shadow-[0_8px_26px_rgba(31,51,82,0.08)] ${className}`}>
+    <section className={`min-w-0 overflow-hidden rounded-[16px] border border-[#dfe5ee] bg-white shadow-[0_6px_20px_rgba(31,51,82,0.07)] ${className}`}>
       {children}
     </section>
   );
@@ -42,37 +45,31 @@ function Surface({ children, className = "" }: { children: ReactNode; className?
 
 function CardHeader({ title, action, icon }: { title: string; action?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-5 pb-3 pt-5">
-      <div className="flex min-w-0 items-center gap-2.5">
+    <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">
+      <div className="flex min-w-0 items-center gap-2">
         {icon}
-        <h2 className="truncate text-[16px] font-bold tracking-[-0.01em] text-[#111827]">{title}</h2>
+        <h2 className="truncate text-[15px] font-bold tracking-[-0.01em] text-[#111827]">{title}</h2>
       </div>
       {action}
     </div>
   );
 }
 
-function Pill({ children, tone = "blue" }: { children: ReactNode; tone?: "blue" | "green" | "amber" | "red" | "violet" }) {
-  const tones = {
+function TinyPill({ children, tone = "blue" }: { children: ReactNode; tone?: "blue" | "green" | "amber" | "red" | "violet" }) {
+  const toneClass = {
     blue: "bg-[#edf5ff] text-[#2563eb]",
     green: "bg-[#eafbf1] text-[#159447]",
     amber: "bg-[#fff5df] text-[#d97706]",
     red: "bg-[#fff0f1] text-[#dc3545]",
     violet: "bg-[#f4efff] text-[#7c3aed]",
-  };
-  return <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${tones[tone]}`}>{children}</span>;
+  }[tone];
+  return <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${toneClass}`}>{children}</span>;
 }
 
 export default function DashboardPage() {
   const { locale } = useI18n();
   const { data, companyName, isLoading, errorMessage } = useExecutiveDashboard();
   const localeTag = locale === "es" ? "es-ES" : "en-US";
-  const [now, setNow] = useState<Date | null>(null);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setNow(new Date()));
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
 
   const metricById = useMemo(() => new Map(data.metrics.map((metric) => [metric.id, metric])), [data.metrics]);
   const primaryProject = data.projectHealth.projects[0] ?? null;
@@ -89,244 +86,216 @@ export default function DashboardPage() {
   const scheduleItems = data.schedule.slice(0, 5);
   const activityItems = data.activities.slice(0, 5);
   const riskCount = data.riskSummary.critical + data.riskSummary.high + data.riskSummary.medium + data.riskSummary.low;
-  const currentDate = now
-    ? new Intl.DateTimeFormat(localeTag, { weekday: "short", month: "short", day: "numeric" }).format(now)
-    : "";
+  const completion = Math.max(0, Math.min(100, averageHealth));
+  const milestone = scheduleItems[0]?.title || scheduleItems[0]?.projectName || "No milestone scheduled";
+  const projectTitle = primaryProject?.projectName || companyName || "B.O.S. Dashboard";
+  const currentPhase = primaryProject?.currentPhase || "Pre-Construction";
 
   if (errorMessage) {
     return <ErrorState compact title="Dashboard unavailable" description={errorMessage} />;
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1540px] overflow-x-hidden px-4 pb-8 pt-5 sm:px-5 lg:px-6">
-      <header className="mb-5 flex flex-col gap-4 border-b border-[#e7ebf1] pb-5 md:flex-row md:items-center md:justify-between">
+    <div className="w-full overflow-x-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#ffffff_55%,#f8fbff_100%)] px-4 pb-7 pt-4 sm:px-5 lg:px-6">
+      <header className="mb-4 flex min-h-[72px] flex-col justify-center gap-3 border-b border-[#e7ebf1] pb-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="truncate text-[28px] font-bold tracking-[-0.025em] text-[#111827] sm:text-[31px]">
-              {primaryProject?.projectName || companyName || "B.O.S. Dashboard"}
-            </h1>
-            <Sparkles className="h-5 w-5 shrink-0 text-[#2167e8]" aria-hidden="true" />
+            <h1 className="truncate text-[27px] font-bold tracking-[-0.03em] text-[#111827]">{projectTitle}</h1>
+            <Sparkles className="h-5 w-5 shrink-0 text-[#1769e0]" aria-hidden="true" />
           </div>
-          <p className="mt-1 text-[13px] font-medium text-[#6b7280]">
-            {primaryProject ? `Active project spotlight · ${companyName || "B.O.S."}` : "Live company command dashboard"}
+          <p className="mt-1 truncate text-[12px] font-medium text-[#6b7280]">
+            {primaryProject ? `${currentPhase} · ${companyName || "B.O.S."}` : "Live company project intelligence"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-2 rounded-xl border border-[#d9e1eb] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#374151] shadow-sm">
-            <CloudSun className="h-4 w-4 text-[#f59e0b]" />
-            <span>{currentDate || "Today"}</span>
-          </div>
-          <Link href="/projects" className="rounded-xl border border-[#d9e1eb] bg-white px-4 py-2 text-[12px] font-semibold text-[#1f3b64] shadow-sm hover:bg-[#f8fbff]">
-            View Projects
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={primaryProject?.href || "/projects"} className="rounded-lg border border-[#d9e1eb] bg-white px-4 py-2 text-[11px] font-semibold text-[#1f3b64] shadow-sm hover:bg-[#f8fbff]">
+            View Project
           </Link>
-          <Link href="/operations" className="rounded-xl bg-[#1463df] px-4 py-2 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(20,99,223,0.22)] hover:bg-[#0f56c8]">
+          <Link href="/operations" className="rounded-lg bg-[#1463df] px-4 py-2 text-[11px] font-semibold text-white shadow-[0_7px_16px_rgba(20,99,223,0.22)] hover:bg-[#0f56c8]">
             + New
           </Link>
         </div>
       </header>
 
-      <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr_0.92fr]">
-        <section className="relative overflow-hidden rounded-[18px] border border-[#0d2d52] bg-[linear-gradient(145deg,#06162c_0%,#08203d_55%,#0b3155_100%)] px-5 pb-5 pt-5 text-white shadow-[0_16px_38px_rgba(3,19,40,0.24)]">
-          <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[#0aa6ff]/10 blur-3xl" />
+      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.93fr_0.92fr]">
+        <section className="relative min-h-[356px] overflow-hidden rounded-[16px] border border-[#0c2b4d] bg-[linear-gradient(145deg,#06162c_0%,#08203d_56%,#0b3155_100%)] px-5 py-4 text-white shadow-[0_14px_34px_rgba(3,19,40,0.23)]">
+          <div className="absolute -right-14 -top-20 h-52 w-52 rounded-full bg-[#0aa6ff]/10 blur-3xl" />
           <div className="relative flex items-center justify-between gap-3">
-            <h2 className="text-[16px] font-bold">Project Health</h2>
-            <Link href={primaryProject?.href || "/projects"} className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-white/10">
+            <h2 className="text-[15px] font-bold text-white">Project Health</h2>
+            <Link href={primaryProject?.href || "/projects"} className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-[10px] font-semibold text-white hover:bg-white/10">
               View Details
             </Link>
           </div>
-          <div className="relative mt-5 grid gap-5 sm:grid-cols-[150px_1fr] sm:items-center">
-            <div className="mx-auto flex h-[142px] w-[142px] items-center justify-center rounded-full bg-[conic-gradient(#20cc74_var(--score),#1b3857_0)] p-[11px]" style={{ "--score": `${Math.max(0, Math.min(100, averageHealth)) * 3.6}deg` } as React.CSSProperties}>
-              <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-[#071a31] shadow-inner">
-                <span className="text-[39px] font-bold leading-none">{averageHealth}</span>
-                <span className="mt-1 text-[12px] text-slate-300">/100</span>
+          <div className="relative mt-4 grid grid-cols-[148px_1fr] items-center gap-5">
+            <div className="mx-auto flex h-[136px] w-[136px] items-center justify-center rounded-full bg-[conic-gradient(#20cc74_var(--score),#1b3857_0)] p-[10px]" style={{ "--score": `${completion * 3.6}deg` } as CSSProperties}>
+              <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-[#071a31]">
+                <span className="text-[37px] font-bold leading-none text-white">{completion}</span>
+                <span className="mt-1 text-[11px] text-slate-300">/100</span>
               </div>
             </div>
-            <div className="grid gap-2.5">
+            <div className="grid gap-2">
               {[
                 ["Schedule", data.projectHealth.behindScheduleCount ? "Attention" : "On Track", data.projectHealth.behindScheduleCount ? "amber" : "green"],
-                ["Budget", primaryProject?.budgetStatusKey ? "Healthy" : "Live", "green"],
+                ["Budget", primaryProject?.budgetStatusKey ? "On Track" : "Healthy", "green"],
                 ["Quality", primaryProject ? "Good" : "Pending", "green"],
                 ["Safety", riskCount ? "Attention" : "Clear", riskCount ? "amber" : "green"],
               ].map(([label, value, tone]) => (
-                <div key={label} className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.055] px-3.5 py-2.5">
-                  <span className="text-[12px] font-semibold text-slate-200">{label}</span>
-                  <span className={`text-[12px] font-bold ${tone === "amber" ? "text-[#ffbf3f]" : "text-[#36dc82]"}`}>● {value}</span>
+                <div key={label} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5">
+                  <span className="text-[11px] font-semibold text-slate-200">{label}</span>
+                  <span className={`text-[11px] font-bold ${tone === "amber" ? "text-[#ffbf3f]" : "text-[#36dc82]"}`}>● {value}</span>
                 </div>
               ))}
             </div>
           </div>
-          <div className="relative mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-4 sm:grid-cols-4">
+          <div className="relative mt-4 grid grid-cols-4 gap-2 border-t border-white/10 pt-4">
             {[
-              ["Complete", `${averageHealth}%`, "text-[#38e18a]"],
+              ["Complete", `${completion}%`, "text-[#38e18a]"],
               ["Active Projects", formatMetric(activeProjects, localeTag), "text-[#63a8ff]"],
               ["Health Score", formatMetric(healthMetric, localeTag), "text-[#d2f43a]"],
               ["Active Risks", String(riskCount), "text-[#ff6b73]"],
             ].map(([label, value, color]) => (
               <div key={label} className="text-center">
-                <p className={`text-[18px] font-bold ${color}`}>{value}</p>
-                <p className="mt-1 text-[10px] font-medium text-slate-400">{label}</p>
+                <p className={`text-[17px] font-bold ${color}`}>{value}</p>
+                <p className="mt-0.5 text-[9px] font-medium text-slate-400">{label}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <Surface className="min-h-[365px]">
-          <CardHeader title="Today's Priorities" action={<Link href="/operations" className="text-[11px] font-semibold text-[#2470e8]">View All</Link>} />
-          <div className="px-5 pb-5">
-            {isLoading ? <div className="h-56 animate-pulse rounded-xl bg-[#f1f4f8]" /> : topPriorities.length ? (
+        <Surface className="min-h-[356px]">
+          <CardHeader title="Today's Priorities" action={<Link href="/operations" className="text-[10px] font-semibold text-[#2470e8]">View All</Link>} />
+          <div className="px-5 pb-4">
+            {isLoading ? <div className="h-52 animate-pulse rounded-xl bg-[#f1f4f8]" /> : topPriorities.length ? (
               <div className="divide-y divide-[#edf0f4]">
                 {topPriorities.map((item, index) => {
                   const tones = ["red", "amber", "blue", "violet", "green"] as const;
                   const tone = tones[index % tones.length];
                   const iconClass = tone === "red" ? "bg-[#fff0f1] text-[#ef3d4f]" : tone === "amber" ? "bg-[#fff5df] text-[#e59400]" : tone === "violet" ? "bg-[#f4efff] text-[#7c3aed]" : tone === "green" ? "bg-[#eafbf1] text-[#13a05a]" : "bg-[#edf5ff] text-[#2470e8]";
                   return (
-                    <Link key={item.id} href={item.actionHref || item.hrefFallback || "/operations"} className="flex items-start gap-3 py-3.5 first:pt-0">
-                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconClass}`}><AlertTriangle className="h-4 w-4" /></div>
+                    <Link key={item.id} href={item.actionHref || item.hrefFallback || "/operations"} className="flex items-start gap-3 py-2.5 first:pt-0">
+                      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${iconClass}`}><AlertTriangle className="h-3.5 w-3.5" /></div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12px] font-bold text-[#192233]">{item.title}</p>
-                        <p className="mt-0.5 line-clamp-1 text-[10.5px] text-[#7b8492]">{item.summary}</p>
+                        <p className="truncate text-[11px] font-bold text-[#192233]">{item.title}</p>
+                        <p className="mt-0.5 line-clamp-1 text-[9.5px] text-[#7b8492]">{item.summary}</p>
                       </div>
-                      <Pill tone={item.priority === "critical" ? "red" : item.priority === "high" ? "amber" : "blue"}>{item.priority}</Pill>
+                      <TinyPill tone={item.priority === "critical" ? "red" : item.priority === "high" ? "amber" : "blue"}>{item.priority}</TinyPill>
                     </Link>
                   );
                 })}
               </div>
-            ) : <div className="rounded-xl bg-[#f6f8fb] px-4 py-8 text-center text-[12px] text-[#7b8492]">No priority items need attention.</div>}
+            ) : <div className="rounded-xl bg-[#f6f8fb] px-4 py-8 text-center text-[11px] text-[#7b8492]">No priority items need attention.</div>}
           </div>
         </Surface>
 
-        <div className="grid gap-4">
+        <div className="grid min-h-[356px] grid-rows-2 gap-4">
           <Surface>
-            <CardHeader title="Jobsite Weather" icon={<CloudSun className="h-4 w-4 text-[#f59e0b]" />} action={<span className="text-[10px] font-semibold text-[#2470e8]">Hourly</span>} />
-            <div className="px-5 pb-5">
+            <CardHeader title="Jobsite Weather" icon={<CloudSun className="h-4 w-4 text-[#f59e0b]" />} action={<span className="text-[9px] font-semibold text-[#2470e8]">Hourly</span>} />
+            <div className="px-5 pb-4">
               {data.weather ? (
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[37px] font-bold leading-none text-[#111827]">{data.weather.temperatureF}°</p>
-                    <p className="mt-2 text-[12px] font-semibold text-[#4b5563]">{data.weather.location}</p>
-                    <p className="mt-0.5 text-[10.5px] text-[#7b8492]">H {data.weather.highF}° · L {data.weather.lowF}°</p>
+                    <p className="text-[34px] font-bold leading-none text-[#111827]">{data.weather.temperatureF}°</p>
+                    <p className="mt-2 text-[10px] font-semibold text-[#4b5563]">{data.weather.location}</p>
+                    <p className="mt-0.5 text-[9px] text-[#7b8492]">H {data.weather.highF}° · L {data.weather.lowF}°</p>
                   </div>
-                  <CloudSun className="h-16 w-16 text-[#f3b51b]" strokeWidth={1.25} />
+                  <CloudSun className="h-14 w-14 text-[#f3b51b]" strokeWidth={1.25} />
                 </div>
               ) : (
-                <div className="flex min-h-[105px] items-center justify-between rounded-xl bg-[linear-gradient(135deg,#f6f9ff,#eef6ff)] px-4">
+                <div className="flex min-h-[92px] items-center justify-between rounded-xl bg-[linear-gradient(135deg,#f6f9ff,#eef6ff)] px-4">
                   <div>
-                    <p className="text-[13px] font-bold text-[#1f3554]">Weather unavailable</p>
-                    <p className="mt-1 max-w-[210px] text-[10.5px] leading-4 text-[#738097]">Live jobsite weather will appear here when a project location is available.</p>
+                    <p className="text-[11px] font-bold text-[#1f3554]">Weather unavailable</p>
+                    <p className="mt-1 max-w-[200px] text-[9px] leading-4 text-[#738097]">Live jobsite weather appears here when project location data is available.</p>
                   </div>
-                  <CloudSun className="h-12 w-12 text-[#4a8ff0]" strokeWidth={1.25} />
+                  <CloudSun className="h-11 w-11 text-[#4a8ff0]" strokeWidth={1.25} />
                 </div>
               )}
             </div>
           </Surface>
           <Surface>
-            <CardHeader title="Jobsite Photo" icon={<Camera className="h-4 w-4 text-[#2470e8]" />} action={<Link href={primaryProject?.href || "/projects"} className="text-[10px] font-semibold text-[#2470e8]">View All</Link>} />
-            <div className="px-5 pb-5">
-              <div className="flex min-h-[92px] items-center justify-center rounded-xl border border-dashed border-[#cdd7e4] bg-[linear-gradient(135deg,#f8fbff,#f1f5fa)] text-center">
+            <CardHeader title="Jobsite Photo" icon={<Camera className="h-4 w-4 text-[#2470e8]" />} action={<Link href={primaryProject?.href || "/projects"} className="text-[9px] font-semibold text-[#2470e8]">View All</Link>} />
+            <div className="px-5 pb-4">
+              <Link href={primaryProject?.href || "/projects"} className="flex min-h-[84px] items-center justify-center rounded-xl border border-dashed border-[#cdd7e4] bg-[linear-gradient(135deg,#f8fbff,#f1f5fa)] text-center">
                 <div>
-                  <Camera className="mx-auto h-6 w-6 text-[#8ba0b8]" />
-                  <p className="mt-2 text-[11px] font-semibold text-[#53657b]">Latest jobsite photo</p>
-                  <p className="mt-0.5 text-[10px] text-[#8a96a7]">Open the project to view field photos</p>
+                  <Camera className="mx-auto h-5 w-5 text-[#8ba0b8]" />
+                  <p className="mt-1.5 text-[10px] font-semibold text-[#53657b]">Latest jobsite photo</p>
+                  <p className="mt-0.5 text-[8.5px] text-[#8a96a7]">Open the project to view field photos</p>
                 </div>
-              </div>
+              </Link>
             </div>
           </Surface>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1.08fr_0.92fr_0.92fr]">
-        <Surface className="min-h-[328px]">
-          <CardHeader title="Project Progress / Schedule" icon={<CalendarDays className="h-4 w-4 text-[#2470e8]" />} action={<Link href="/schedule" className="text-[10px] font-semibold text-[#2470e8]">View Schedule</Link>} />
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_0.93fr_0.92fr]">
+        <Surface className="min-h-[330px]">
+          <CardHeader title="Project Progress / Schedule" icon={<CalendarDays className="h-4 w-4 text-[#2470e8]" />} action={<Link href="/schedule" className="text-[9px] font-semibold text-[#2470e8]">View Schedule</Link>} />
           <div className="px-5 pb-5">
-            <div className="mb-5 flex items-center justify-between gap-3 text-[11px]">
-              <span className="font-semibold text-[#53657b]">Current Phase: <strong className="text-[#2470e8]">{primaryProject?.currentPhase || "Not set"}</strong></span>
-              <span className="font-bold text-[#2470e8]">{averageHealth}%</span>
-            </div>
-            <div className="h-2.5 overflow-hidden rounded-full bg-[#e9eef5]"><div className="h-full rounded-full bg-[linear-gradient(90deg,#1767e8,#3197ff)]" style={{ width: `${Math.max(4, averageHealth)}%` }} /></div>
-            <div className="mt-7 grid grid-cols-5 gap-2">
+            <div className="flex items-center justify-between text-[10px] font-medium text-[#53657b]"><span>Current Phase: <strong className="text-[#2470e8]">{currentPhase}</strong></span><strong className="text-[#2470e8]">{completion}%</strong></div>
+            <div className="mt-3 h-2 rounded-full bg-[#e8edf4]"><div className="h-2 rounded-full bg-[#2470e8]" style={{ width: `${completion}%` }} /></div>
+            <div className="mt-7 grid grid-cols-5 gap-2 text-center">
               {["Pre-Con", "Mobilize", "Execution", "Finishes", "Closeout"].map((phase, index) => {
-                const completed = index < Math.max(1, Math.round((averageHealth / 100) * 5));
-                return <div key={phase} className="text-center"><div className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${completed ? "bg-[#21bd68] text-white" : "border border-[#cbd5e1] bg-white text-[#738097]"}`}>{completed ? "✓" : index + 1}</div><p className={`mt-2 text-[9.5px] font-semibold ${completed ? "text-[#1a9a58]" : "text-[#7b8492]"}`}>{phase}</p></div>;
+                const done = index === 0 || completion >= (index + 1) * 20;
+                return <div key={phase}><div className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full border text-[10px] font-bold ${done ? "border-[#25c76f] bg-[#25c76f] text-white" : index === 1 ? "border-[#2470e8] bg-[#2470e8] text-white" : "border-[#cad4e1] bg-white text-[#42526a]"}`}>{done ? <CheckCircle2 className="h-4 w-4" /> : index + 1}</div><p className={`mt-2 text-[8.5px] font-medium ${done ? "text-[#16a357]" : "text-[#7b8492]"}`}>{phase}</p></div>;
               })}
             </div>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl bg-[#f6f8fb] p-3.5"><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#8792a2]">Next Milestone</p><p className="mt-2 text-[12px] font-bold text-[#26354a]">{scheduleItems[0]?.title || scheduleItems[0]?.titleKey || "No milestone scheduled"}</p><p className="mt-1 text-[10px] text-[#7b8492]">{scheduleItems[0]?.timeLabel || "Schedule is clear"}</p></div>
-              <div className="rounded-xl bg-[#f6f8fb] p-3.5"><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#8792a2]">Project Status</p><p className="mt-2 text-[12px] font-bold text-[#26354a]">{primaryProject ? "Active" : "No active project"}</p><p className="mt-1 text-[10px] text-[#7b8492]">{data.projectHealth.onScheduleCount} on schedule</p></div>
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-[#f6f8fb] p-4"><p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[#8492a6]">Next Milestone</p><p className="mt-2 line-clamp-2 text-[11px] font-bold text-[#172033]">{milestone}</p><p className="mt-1 text-[9px] text-[#7c8797]">{scheduleItems[0]?.timeLabel || "Schedule is clear"}</p></div>
+              <div className="rounded-xl bg-[#f6f8fb] p-4"><p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[#8492a6]">Project Status</p><p className="mt-2 text-[11px] font-bold text-[#172033]">{primaryProject ? "Active" : "No active project"}</p><p className="mt-1 text-[9px] text-[#7c8797]">{formatMetric(activeProjects, localeTag)} active projects</p></div>
             </div>
           </div>
         </Surface>
 
-        <Surface className="min-h-[328px]">
-          <CardHeader title="Financial Snapshot" icon={<CircleDollarSign className="h-4 w-4 text-[#2470e8]" />} action={<Link href="/invoices" className="text-[10px] font-semibold text-[#2470e8]">View Financials</Link>} />
+        <Surface className="min-h-[330px]">
+          <CardHeader title="Financial Snapshot" icon={<CircleDollarSign className="h-4 w-4 text-[#2470e8]" />} action={<Link href="/invoices" className="text-[9px] font-semibold text-[#2470e8]">View Financials</Link>} />
           <div className="px-5 pb-5">
-            <div className="space-y-3.5">
-              {[
-                ["Active Projects", formatMetric(activeProjects, localeTag)],
-                ["Open Estimates", formatMetric(openEstimates, localeTag)],
-                ["Open Invoices", formatMetric(openInvoices, localeTag)],
-                ["Revenue This Month", formatMetric(revenue, localeTag)],
-              ].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-4"><span className="text-[11px] font-medium text-[#697586]">{label}</span><span className="text-[12px] font-bold text-[#172033]">{value}</span></div>)}
+            <div className="space-y-3 text-[10px]">
+              {[ ["Active Projects", formatMetric(activeProjects, localeTag)], ["Open Estimates", formatMetric(openEstimates, localeTag)], ["Open Invoices", formatMetric(openInvoices, localeTag)], ["Revenue This Month", formatMetric(revenue, localeTag)] ].map(([label, value]) => <div key={label} className="flex items-center justify-between"><span className="text-[#66748a]">{label}</span><strong className="text-[#111827]">{value}</strong></div>)}
             </div>
-            <div className="my-4 border-t border-[#edf0f4]" />
-            <div className="flex items-center justify-between"><span className="text-[11px] font-semibold text-[#179653]">Company Health</span><span className="text-[14px] font-bold text-[#179653]">{formatMetric(healthMetric, localeTag)}</span></div>
-            <div className="mt-5 h-[72px] rounded-xl bg-[linear-gradient(180deg,#f3f8ff,#ffffff)] px-2 pt-2">
-              <svg viewBox="0 0 320 70" className="h-full w-full" aria-label="Financial trend visualization">
-                <path d="M8 56 C45 42 62 46 93 31 S145 46 176 27 S228 33 258 23 S292 37 312 29" fill="none" stroke="#2e7df0" strokeWidth="3" strokeLinecap="round" />
-                <path d="M8 56 C45 42 62 46 93 31 S145 46 176 27 S228 33 258 23 S292 37 312 29 L312 70 L8 70 Z" fill="url(#fill)" opacity="0.35" />
-                <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#66a9ff"/><stop offset="1" stopColor="#ffffff"/></linearGradient></defs>
-              </svg>
+            <div className="mt-4 border-t border-[#edf0f4] pt-4"><div className="flex items-center justify-between text-[11px]"><span className="font-semibold text-[#159447]">Company Health</span><strong className="text-[#159447]">{formatMetric(healthMetric, localeTag)}</strong></div></div>
+            <div className="mt-5 h-[86px] rounded-xl bg-[linear-gradient(180deg,#f4f8ff,#ffffff)] px-3 pt-4">
+              <svg viewBox="0 0 260 58" className="h-full w-full" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity="0.20"/><stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/></linearGradient></defs><path d="M0 47 C30 38 48 35 68 27 S101 35 119 24 S151 29 171 22 S207 29 227 20 S247 28 260 24 L260 58 L0 58 Z" fill="url(#chartFill)"/><path d="M0 47 C30 38 48 35 68 27 S101 35 119 24 S151 29 171 22 S207 29 227 20 S247 28 260 24" fill="none" stroke="#3b82f6" strokeWidth="2.2"/></svg>
             </div>
           </div>
         </Surface>
 
-        <Surface className="min-h-[328px]">
-          <CardHeader title="Field Activity" icon={<Users className="h-4 w-4 text-[#2470e8]" />} action={<Link href="/daily-reports" className="text-[10px] font-semibold text-[#2470e8]">View All</Link>} />
-          <div className="px-5 pb-5">
-            <div className="divide-y divide-[#edf0f4]">
-              {[
-                { icon: <Users className="h-4 w-4" />, label: "Crew On Site", value: formatMetric(employeesWorking, localeTag), tone: "bg-[#edf5ff] text-[#2470e8]" },
-                { icon: <Clock3 className="h-4 w-4" />, label: "Today's Schedule", value: String(scheduleItems.length), tone: "bg-[#edf5ff] text-[#2470e8]" },
-                { icon: <FileText className="h-4 w-4" />, label: "Recent Updates", value: String(activityItems.length), tone: "bg-[#eef8ff] text-[#2470e8]" },
-                { icon: <Camera className="h-4 w-4" />, label: "Project Photos", value: primaryProject?.lastPhotoUpload || "—", tone: "bg-[#eafbf1] text-[#159447]" },
-                { icon: <ShieldCheck className="h-4 w-4" />, label: "Active Risks", value: String(riskCount), tone: "bg-[#fff5df] text-[#d97706]" },
-                { icon: <MessageSquare className="h-4 w-4" />, label: "Priority Items", value: String(data.topPriorities.length), tone: "bg-[#f4efff] text-[#7c3aed]" },
-              ].map((row) => <div key={row.label} className="flex items-center gap-3 py-3 first:pt-0"><div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${row.tone}`}>{row.icon}</div><div className="min-w-0 flex-1"><p className="text-[11px] font-semibold text-[#26354a]">{row.label}</p></div><span className="max-w-[110px] truncate text-[11px] font-bold text-[#53657b]">{row.value}</span><ArrowRight className="h-3.5 w-3.5 text-[#a2adbb]" /></div>)}
-            </div>
+        <Surface className="min-h-[330px]">
+          <CardHeader title="Field Activity" icon={<Users className="h-4 w-4 text-[#2470e8]" />} action={<Link href="/operations" className="text-[9px] font-semibold text-[#2470e8]">View All</Link>} />
+          <div className="divide-y divide-[#edf0f4] px-5 pb-4">
+            {[
+              [<Users key="u" className="h-4 w-4" />, "Crew On Site", formatMetric(employeesWorking, localeTag), "blue"],
+              [<Clock3 key="c" className="h-4 w-4" />, "Today's Schedule", String(scheduleItems.length), "blue"],
+              [<FileText key="f" className="h-4 w-4" />, "Recent Updates", String(activityItems.length), "blue"],
+              [<Camera key="ca" className="h-4 w-4" />, "Project Photos", "—", "green"],
+              [<ShieldCheck key="s" className="h-4 w-4" />, "Active Risks", String(riskCount), "amber"],
+              [<MessageSquare key="m" className="h-4 w-4" />, "Priority Items", String(data.topPriorities.length), "violet"],
+            ].map(([icon, label, value, tone]) => {
+              const toneClass = tone === "green" ? "bg-[#eafbf1] text-[#13a05a]" : tone === "amber" ? "bg-[#fff5df] text-[#e59400]" : tone === "violet" ? "bg-[#f4efff] text-[#7c3aed]" : "bg-[#edf5ff] text-[#2470e8]";
+              return <div key={String(label)} className="flex items-center gap-3 py-3 first:pt-1"><div className={`flex h-8 w-8 items-center justify-center rounded-lg ${toneClass}`}>{icon}</div><span className="flex-1 text-[10px] font-semibold text-[#253148]">{label}</span><span className="text-[10px] font-semibold text-[#5f6b7d]">{value}</span><ArrowRight className="h-3.5 w-3.5 text-[#9aa7b7]" /></div>;
+            })}
           </div>
         </Surface>
       </div>
 
-      <section className="relative mt-4 overflow-hidden rounded-[19px] border border-[#0e2b4b] bg-[linear-gradient(135deg,#061428_0%,#071b34_48%,#092b4c_100%)] px-5 py-5 text-white shadow-[0_18px_44px_rgba(3,17,38,0.22)]">
-        <div className="absolute left-8 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-[#1b72ff]/15 blur-2xl" />
-        <div className="relative grid gap-5 lg:grid-cols-[150px_1fr] xl:grid-cols-[165px_1fr_1.15fr] xl:items-center">
-          <div className="hidden xl:flex xl:justify-center">
-            <div className="relative flex h-[118px] w-[118px] items-center justify-center rounded-full border border-[#2381ff]/40 bg-[radial-gradient(circle_at_35%_35%,#38bdf8_0%,#2147ff_28%,#6d28d9_48%,#08162d_72%)] shadow-[0_0_35px_rgba(32,110,255,0.5)]">
-              <div className="absolute inset-3 rounded-full border border-white/20" />
-              <Sparkles className="h-8 w-8 text-white/90" />
+      <section className="relative mt-4 overflow-hidden rounded-[16px] border border-[#0d2d52] bg-[linear-gradient(135deg,#06162b_0%,#071d37_55%,#09294a_100%)] px-5 py-5 text-white shadow-[0_16px_38px_rgba(3,19,40,0.22)]">
+        <div className="absolute left-14 top-6 h-28 w-28 rounded-full bg-[#2b60ff]/20 blur-3xl" />
+        <div className="relative grid items-center gap-5 lg:grid-cols-[130px_1.3fr_1fr]">
+          <div className="mx-auto flex h-[112px] w-[112px] items-center justify-center rounded-full border border-[#235dff]/40 bg-[radial-gradient(circle_at_35%_30%,#32b9ff_0%,#3b5cff_34%,#5c2fd2_60%,#07182f_100%)] shadow-[0_0_35px_rgba(67,95,255,0.35)]"><Sparkles className="h-8 w-8 text-white" /></div>
+          <div>
+            <div className="flex items-center gap-2"><h2 className="text-[15px] font-bold">Orion Project Intelligence</h2><TinyPill tone="blue">LIVE</TinyPill></div>
+            <div className="mt-3 space-y-1.5 text-[10.5px] leading-5 text-slate-200">
+              {topPriorities.length ? topPriorities.slice(0, 3).map((item) => <p key={item.id}>{item.title}.</p>) : <p>No priority issues require attention right now.</p>}
             </div>
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2"><h2 className="text-[16px] font-bold">Orion Project Intelligence</h2><Pill tone="blue">LIVE</Pill></div>
-            <p className="mt-3 max-w-[620px] text-[12px] leading-5 text-slate-300">
-              {data.morningBriefing.lines[0] || `${companyName || "B.O.S."} has ${formatMetric(activeProjects, localeTag)} active projects and ${data.topPriorities.length} priority items requiring attention.`}
-            </p>
-            <p className="mt-1.5 max-w-[620px] text-[12px] leading-5 text-slate-300">
-              {data.morningBriefing.lines[1] || (primaryProject ? `${primaryProject.projectName} is currently the primary project spotlight with a health score of ${primaryProject.healthScore}.` : "Project intelligence will strengthen as more live project activity is recorded.")}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Schedule", data.projectHealth.behindScheduleCount ? "Attention" : "On Track", "text-[#31d97c]"],
-              ["Business", formatMetric(healthMetric, localeTag), "text-[#31d97c]"],
-              ["Risks", `${riskCount} Active`, riskCount ? "text-[#ff777f]" : "text-[#31d97c]"],
-              ["Next Milestone", scheduleItems[0]?.timeLabel || "Clear", "text-[#dbeafe]"],
-            ].map(([label, value, color]) => <div key={label} className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-3"><p className="text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</p><p className={`mt-1.5 text-[11px] font-bold ${color}`}>{value}</p></div>)}
+              ["Schedule", data.projectHealth.behindScheduleCount ? "Attention" : "On Track", data.projectHealth.behindScheduleCount ? "text-[#ffbf3f]" : "text-[#38e18a]"],
+              ["Business", formatMetric(healthMetric, localeTag), "text-[#38e18a]"],
+              ["Risks", `${riskCount} Active`, "text-[#ff6b73]"],
+              ["Next Milestone", milestone, "text-white"],
+            ].map(([label, value, color]) => <div key={label} className="rounded-xl border border-white/10 bg-white/[0.045] p-3"><p className="text-[7.5px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p><p className={`mt-2 line-clamp-2 text-[10px] font-bold ${color}`}>{value}</p></div>)}
           </div>
         </div>
-        <div className="relative mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[10.5px] text-slate-400">Live intelligence from B.O.S. project, financial, scheduling, field and decision data.</p>
-          <button type="button" className="rounded-xl bg-[#1767e8] px-4 py-2.5 text-[11px] font-semibold text-white shadow-[0_8px_20px_rgba(23,103,232,0.28)]">Ask Orion Anything</button>
-        </div>
+        <div className="relative mt-4 flex items-center justify-between gap-4 border-t border-white/10 pt-3"><p className="text-[8.5px] text-slate-400">Live intelligence from B.O.S. project, financial, scheduling, field and decision data.</p><Link href="/orion" className="rounded-lg bg-[#1463df] px-4 py-2 text-[10px] font-semibold text-white hover:bg-[#0f56c8]">Ask Orion Anything</Link></div>
       </section>
     </div>
   );
