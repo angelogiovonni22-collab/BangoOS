@@ -83,6 +83,11 @@
   text-wrap: balance;
 }
 
+/* Explicit inverse text utilities must remain authoritative on dark cards. */
+.enterprise-shell main .text-white {
+  color: #ffffff !important;
+}
+
 :where(.enterprise-shell main label, .enterprise-shell main legend) {
   color: var(--color-text-primary);
   font-size: max(var(--font-size-label), 0.875rem);
