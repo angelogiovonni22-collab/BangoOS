@@ -17,7 +17,6 @@ import {
   Users,
 } from "lucide-react";
 import { DashboardLiveWeather } from "@/components/dashboard/DashboardLiveWeather";
-import { PersistentOrionMiniSphere } from "@/components/orion/persistent/PersistentOrionMiniSphere";
 import { ErrorState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import { useExecutiveDashboard } from "@/lib/dashboard/use-executive-dashboard";
@@ -98,18 +97,21 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#ffffff_55%,#f8fbff_100%)] px-4 pb-7 sm:px-5 lg:px-[22px]">
-      <header className="mb-4 flex min-h-[94px] flex-col justify-center gap-3 border-b border-[#e2e8f0] py-4 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0">
-          <h1 className="truncate text-[27px] font-bold tracking-[-0.03em] text-[#111827]">{projectTitle}</h1>
-          <p className="mt-1 truncate text-[12px] font-medium text-[#64748b]">
+      <header className="relative mb-4 min-h-[124px] overflow-hidden rounded-b-[20px] border border-t-0 border-[#164477] bg-[linear-gradient(118deg,#06172d_0%,#0a2a50_56%,#0c3d70_100%)] px-5 py-5 text-white shadow-[0_18px_38px_-26px_rgba(4,25,51,0.8)] md:flex md:items-center md:justify-between md:px-7">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_20%,rgba(28,132,255,0.34),transparent_26%),linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.035)_50%,transparent_100%)]" />
+        <div className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full border border-[#4ea7ff]/20" />
+        <div className="relative min-w-0">
+          <p className="text-[12px] font-extrabold uppercase tracking-[0.28em] text-[#65b5ff]">Bango Operating System</p>
+          <h1 className="mt-2 truncate text-[29px] font-bold tracking-[-0.03em] text-white">{projectTitle}</h1>
+          <p className="mt-1 truncate text-[11px] font-semibold text-[#b8cce2]">
             {primaryProject ? `${currentPhase} · ${companyName || "B.O.S."}` : "Live company project intelligence"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="relative mt-4 flex flex-wrap items-center gap-2 md:mt-0">
           <Link href={primaryProject?.href || "/projects"} className="rounded-lg border border-[#d9e1eb] bg-white px-4 py-2 text-[11px] font-semibold text-[#1f3b64] shadow-sm hover:bg-[#f8fbff] lg:hidden">
             View Project
           </Link>
-          <Link href="/operations" className="rounded-xl bg-[#1463df] px-5 py-3 text-[11px] font-semibold text-white shadow-[0_7px_16px_rgba(20,99,223,0.22)] hover:bg-[#0f56c8]">
+          <Link href="/operations" className="rounded-xl border border-[#60b0ff]/40 bg-[#1475ed] px-5 py-3 text-[11px] font-semibold text-white shadow-[0_10px_24px_rgba(14,99,214,0.36)] hover:bg-[#2182f4]">
             + New
           </Link>
         </div>
@@ -255,29 +257,6 @@ export default function DashboardPage() {
         </Surface>
       </div>
 
-      <section className="relative mt-4 overflow-hidden rounded-[16px] border border-[#0d2d52] bg-[linear-gradient(135deg,#06162b_0%,#071d37_55%,#09294a_100%)] px-5 py-5 text-white shadow-[0_16px_38px_rgba(3,19,40,0.22)]">
-        <div className="absolute left-14 top-6 h-28 w-28 rounded-full bg-[#2b60ff]/20 blur-3xl" />
-        <div className="relative grid items-center gap-5 lg:grid-cols-[130px_1.3fr_1fr]">
-          <div className="mx-auto flex h-[116px] w-[116px] items-center justify-center [&_.persistentOrionCanvas]:block [&_.persistentOrionCanvas]:h-full [&_.persistentOrionCanvas]:w-full" aria-label="Orion intelligence orb">
-            <PersistentOrionMiniSphere state="idle" reducedMotion={false} minimized={false} voiceLevel={0} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2"><h2 className="text-[15px] font-bold text-white">Orion Project Intelligence</h2><TinyPill tone="blue">LIVE</TinyPill></div>
-            <div className="mt-3 space-y-1.5 text-[10.5px] leading-5 text-slate-200">
-              {topPriorities.length ? topPriorities.slice(0, 3).map((item) => <p key={item.id}>{item.title}.</p>) : <p>No priority issues require attention right now.</p>}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-            {[
-              ["Schedule", data.projectHealth.behindScheduleCount ? "Attention" : "On Track", data.projectHealth.behindScheduleCount ? "text-[#ffbf3f]" : "text-[#38e18a]"],
-              ["Business", formatMetric(healthMetric, localeTag), "text-[#38e18a]"],
-              ["Risks", `${riskCount} Active`, "text-[#ff6b73]"],
-              ["Next Milestone", milestone, "text-white"],
-            ].map(([label, value, color]) => <div key={label} className="rounded-xl border border-white/10 bg-white/[0.045] p-3"><p className="text-[7.5px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p><p className={`mt-2 line-clamp-2 text-[10px] font-bold ${color}`}>{value}</p></div>)}
-          </div>
-        </div>
-        <div className="relative mt-4 flex items-center justify-between gap-4 border-t border-white/10 pt-3"><p className="text-[8.5px] text-slate-400">Live intelligence from B.O.S. project, financial, scheduling, field and decision data.</p><Link href="/orion" className="rounded-lg bg-[#1463df] px-4 py-2 text-[10px] font-semibold text-white hover:bg-[#0f56c8]">Ask Orion Anything</Link></div>
-      </section>
     </div>
   );
 }
