@@ -40,6 +40,8 @@ export default function CrewsPage() {
     setProjectId,
     assignmentStatus,
     setAssignmentStatus,
+    quickFilter,
+    setQuickFilter,
     sortBy,
     setSortBy,
     page,
@@ -68,7 +70,7 @@ export default function CrewsPage() {
         )}
       />
 
-      <CrewDashboardMetrics summary={summary} t={t} />
+      <CrewDashboardMetrics summary={summary} selected={quickFilter} onSelect={setQuickFilter} t={t} />
 
       {partialNotices.map((notice) => (
         <PartialDataNotice key={notice} message={notice} />
