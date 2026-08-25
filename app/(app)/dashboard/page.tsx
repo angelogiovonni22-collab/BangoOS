@@ -12,7 +12,9 @@ import {
   Clock3,
   CloudSun,
   FileText,
+  MapPin,
   MessageSquare,
+  MoreVertical,
   ShieldCheck,
   Sparkles,
   Users,
@@ -96,29 +98,40 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="w-full overflow-x-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#ffffff_55%,#f8fbff_100%)] px-4 pb-7 pt-4 sm:px-5 lg:px-6">
-      <header className="mb-4 flex min-h-[72px] flex-col justify-center gap-3 border-b border-[#e7ebf1] pb-4 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#ffffff_55%,#f8fbff_100%)] px-4 pb-7 sm:px-5 lg:px-[22px]">
+      <header className="mb-4 flex min-h-[94px] flex-col justify-center gap-3 border-b border-[#e2e8f0] py-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="truncate text-[27px] font-bold tracking-[-0.03em] text-[#111827]">{projectTitle}</h1>
             <Sparkles className="h-5 w-5 shrink-0 text-[#1769e0]" aria-hidden="true" />
           </div>
-          <p className="mt-1 truncate text-[12px] font-medium text-[#6b7280]">
+          <p className="mt-1 truncate text-[12px] font-medium text-[#64748b]">
             {primaryProject ? `${currentPhase} · ${companyName || "B.O.S."}` : "Live company project intelligence"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={primaryProject?.href || "/projects"} className="rounded-lg border border-[#d9e1eb] bg-white px-4 py-2 text-[11px] font-semibold text-[#1f3b64] shadow-sm hover:bg-[#f8fbff]">
+          <div className="mr-2 hidden items-center gap-2 xl:flex">
+            <CloudSun className="h-9 w-9 text-[#f4b41b]" strokeWidth={1.4} />
+            <div>
+              <p className="text-[15px] font-bold leading-none text-[#172033]">{data.weather ? `${data.weather.temperatureF}°F` : "—"}</p>
+              <p className="mt-1 text-[8px] font-medium text-[#69768a]">{data.weather?.location || "Weather unavailable"}</p>
+            </div>
+          </div>
+          <Link href={primaryProject?.href || "/projects"} className="hidden items-center gap-2 rounded-xl border border-[#d9e1eb] bg-white px-4 py-3 text-[11px] font-semibold text-[#1f3b64] shadow-sm hover:bg-[#f8fbff] lg:flex">
+            <MapPin className="h-4 w-4 text-[#1769e0]" /> View on Map
+          </Link>
+          <Link href={primaryProject?.href || "/projects"} className="rounded-lg border border-[#d9e1eb] bg-white px-4 py-2 text-[11px] font-semibold text-[#1f3b64] shadow-sm hover:bg-[#f8fbff] lg:hidden">
             View Project
           </Link>
-          <Link href="/operations" className="rounded-lg bg-[#1463df] px-4 py-2 text-[11px] font-semibold text-white shadow-[0_7px_16px_rgba(20,99,223,0.22)] hover:bg-[#0f56c8]">
+          <Link href="/operations" className="rounded-xl bg-[#1463df] px-5 py-3 text-[11px] font-semibold text-white shadow-[0_7px_16px_rgba(20,99,223,0.22)] hover:bg-[#0f56c8]">
             + New
           </Link>
+          <button type="button" aria-label="More dashboard actions" className="hidden h-10 w-10 items-center justify-center rounded-xl text-[#52647a] hover:bg-[#eef3f9] md:flex"><MoreVertical className="h-5 w-5" /></button>
         </div>
       </header>
 
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.93fr_0.92fr]">
-        <section className="relative min-h-[356px] overflow-hidden rounded-[16px] border border-[#0c2b4d] bg-[linear-gradient(145deg,#06162c_0%,#08203d_56%,#0b3155_100%)] px-5 py-4 text-white shadow-[0_14px_34px_rgba(3,19,40,0.23)]">
+        <section className="relative min-h-[362px] overflow-hidden rounded-[16px] border border-[#0c2b4d] bg-[linear-gradient(145deg,#06162c_0%,#08203d_56%,#0b3155_100%)] px-5 py-4 text-white shadow-[0_14px_34px_rgba(3,19,40,0.23)]">
           <div className="absolute -right-14 -top-20 h-52 w-52 rounded-full bg-[#0aa6ff]/10 blur-3xl" />
           <div className="relative flex items-center justify-between gap-3">
             <h2 className="text-[15px] font-bold text-white">Project Health</h2>
@@ -162,7 +175,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <Surface className="min-h-[356px]">
+        <Surface className="min-h-[362px]">
           <CardHeader title="Today's Priorities" action={<Link href="/operations" className="text-[10px] font-semibold text-[#2470e8]">View All</Link>} />
           <div className="px-5 pb-4">
             {isLoading ? <div className="h-52 animate-pulse rounded-xl bg-[#f1f4f8]" /> : topPriorities.length ? (
@@ -187,7 +200,7 @@ export default function DashboardPage() {
           </div>
         </Surface>
 
-        <div className="grid min-h-[356px] grid-rows-2 gap-4">
+        <div className="grid min-h-[362px] grid-rows-2 gap-4">
           <Surface>
             <CardHeader title="Jobsite Weather" icon={<CloudSun className="h-4 w-4 text-[#f59e0b]" />} action={<span className="text-[9px] font-semibold text-[#2470e8]">Hourly</span>} />
             <div className="px-5 pb-4">
