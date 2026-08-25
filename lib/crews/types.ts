@@ -11,6 +11,7 @@ import type {
 export type CrewStatus = WorkforceCrewStatus;
 
 export type CrewAvailabilityStatus = "available" | "assigned" | "off_shift" | "pto" | "training" | "unavailable";
+export type CrewQuickFilter = "all" | "active" | "available" | "assigned";
 
 export type CrewSortKey = CrewDirectorySortKey;
 
@@ -43,6 +44,7 @@ export type CrewFilters = {
   supervisorId: string;
   projectId: string;
   assignmentStatus: WorkforceAssignmentStatus | "none" | "all";
+  quickFilter?: CrewQuickFilter;
   sortBy: CrewSortKey;
   page: number;
   pageSize: number;
