@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { EmptyState, ErrorState, PageHeader } from "@/components/ui";
-import { CrewLoadingState, CrewProfileSections } from "@/components/crews";
+import { CrewLoadingState, CrewProfileSections, CrewProjectAssignmentPanel } from "@/components/crews";
 import { HardHat } from "@/components/crews/crew-icons";
 import { useCrewProfile } from "@/lib/crews";
 import { useI18n } from "@/lib/i18n/provider";
@@ -63,6 +63,13 @@ export default function CrewProfilePage() {
             </Link>
           </div>
         }
+      />
+
+      <CrewProjectAssignmentPanel
+        crewId={crewId}
+        crewName={crew.overview.name}
+        activeMemberCount={crew.overview.activeMemberCount}
+        supervisorName={crew.overview.supervisorName}
       />
 
       <CrewProfileSections crew={crew} locale={localeTag} t={t} />
