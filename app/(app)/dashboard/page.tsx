@@ -294,7 +294,7 @@ export default function DashboardPage() {
         <div className="relative grid items-center gap-5 lg:grid-cols-[130px_1.3fr_1fr]">
           <div className="mx-auto flex h-[112px] w-[112px] items-center justify-center rounded-full border border-[#235dff]/40 bg-[radial-gradient(circle_at_35%_30%,#32b9ff_0%,#3b5cff_34%,#5c2fd2_60%,#07182f_100%)] shadow-[0_0_35px_rgba(67,95,255,0.35)]"><Sparkles className="h-8 w-8 text-white" /></div>
           <div>
-            <div className="flex items-center gap-2"><h2 className="text-[15px] font-bold">Orion Project Intelligence</h2><TinyPill tone="blue">LIVE</TinyPill></div>
+            <div className="flex items-center gap-2"><h2 className="text-[15px] font-bold text-white">Orion Project Intelligence</h2><TinyPill tone="blue">LIVE</TinyPill></div>
             <div className="mt-3 space-y-1.5 text-[10.5px] leading-5 text-slate-200">
               {topPriorities.length ? topPriorities.slice(0, 3).map((item) => <p key={item.id}>{item.title}.</p>) : <p>No priority issues require attention right now.</p>}
             </div>
