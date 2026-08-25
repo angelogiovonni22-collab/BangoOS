@@ -4,6 +4,7 @@ export { CrewPagination } from "./crew-pagination";
 export { CrewTable } from "./crew-table";
 export { CrewStatusPill } from "./crew-status-pill";
 export { CrewProfileSections } from "./crew-profile-sections";
+export { CrewProjectAssignmentPanel } from "./crew-project-assignment-panel";
 export { CrewForm } from "./crew-form";
 export { CrewLoadingState } from "./crew-loading-state";
 export { WorkforceOperationsDashboard } from "./workforce-operations-dashboard";
