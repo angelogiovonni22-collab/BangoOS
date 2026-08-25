@@ -12,13 +12,12 @@ import {
   Clock3,
   CloudSun,
   FileText,
-  MapPin,
   MessageSquare,
-  MoreVertical,
   ShieldCheck,
-  Sparkles,
   Users,
 } from "lucide-react";
+import { DashboardLiveWeather } from "@/components/dashboard/DashboardLiveWeather";
+import { PersistentOrionMiniSphere } from "@/components/orion/persistent/PersistentOrionMiniSphere";
 import { ErrorState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import { useExecutiveDashboard } from "@/lib/dashboard/use-executive-dashboard";
@@ -101,32 +100,18 @@ export default function DashboardPage() {
     <div className="min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#ffffff_55%,#f8fbff_100%)] px-4 pb-7 sm:px-5 lg:px-[22px]">
       <header className="mb-4 flex min-h-[94px] flex-col justify-center gap-3 border-b border-[#e2e8f0] py-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="truncate text-[27px] font-bold tracking-[-0.03em] text-[#111827]">{projectTitle}</h1>
-            <Sparkles className="h-5 w-5 shrink-0 text-[#1769e0]" aria-hidden="true" />
-          </div>
+          <h1 className="truncate text-[27px] font-bold tracking-[-0.03em] text-[#111827]">{projectTitle}</h1>
           <p className="mt-1 truncate text-[12px] font-medium text-[#64748b]">
             {primaryProject ? `${currentPhase} · ${companyName || "B.O.S."}` : "Live company project intelligence"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="mr-2 hidden items-center gap-2 xl:flex">
-            <CloudSun className="h-9 w-9 text-[#f4b41b]" strokeWidth={1.4} />
-            <div>
-              <p className="text-[15px] font-bold leading-none text-[#172033]">{data.weather ? `${data.weather.temperatureF}°F` : "—"}</p>
-              <p className="mt-1 text-[8px] font-medium text-[#69768a]">{data.weather?.location || "Weather unavailable"}</p>
-            </div>
-          </div>
-          <Link href={primaryProject?.href || "/projects"} className="hidden items-center gap-2 rounded-xl border border-[#d9e1eb] bg-white px-4 py-3 text-[11px] font-semibold text-[#1f3b64] shadow-sm hover:bg-[#f8fbff] lg:flex">
-            <MapPin className="h-4 w-4 text-[#1769e0]" /> View on Map
-          </Link>
           <Link href={primaryProject?.href || "/projects"} className="rounded-lg border border-[#d9e1eb] bg-white px-4 py-2 text-[11px] font-semibold text-[#1f3b64] shadow-sm hover:bg-[#f8fbff] lg:hidden">
             View Project
           </Link>
           <Link href="/operations" className="rounded-xl bg-[#1463df] px-5 py-3 text-[11px] font-semibold text-white shadow-[0_7px_16px_rgba(20,99,223,0.22)] hover:bg-[#0f56c8]">
             + New
           </Link>
-          <button type="button" aria-label="More dashboard actions" className="hidden h-10 w-10 items-center justify-center rounded-xl text-[#52647a] hover:bg-[#eef3f9] md:flex"><MoreVertical className="h-5 w-5" /></button>
         </div>
       </header>
 
@@ -203,26 +188,7 @@ export default function DashboardPage() {
         <div className="grid min-h-[362px] grid-rows-2 gap-4">
           <Surface>
             <CardHeader title="Jobsite Weather" icon={<CloudSun className="h-4 w-4 text-[#f59e0b]" />} action={<span className="text-[9px] font-semibold text-[#2470e8]">Hourly</span>} />
-            <div className="px-5 pb-4">
-              {data.weather ? (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[34px] font-bold leading-none text-[#111827]">{data.weather.temperatureF}°</p>
-                    <p className="mt-2 text-[10px] font-semibold text-[#4b5563]">{data.weather.location}</p>
-                    <p className="mt-0.5 text-[9px] text-[#7b8492]">H {data.weather.highF}° · L {data.weather.lowF}°</p>
-                  </div>
-                  <CloudSun className="h-14 w-14 text-[#f3b51b]" strokeWidth={1.25} />
-                </div>
-              ) : (
-                <div className="flex min-h-[92px] items-center justify-between rounded-xl bg-[linear-gradient(135deg,#f6f9ff,#eef6ff)] px-4">
-                  <div>
-                    <p className="text-[11px] font-bold text-[#1f3554]">Weather unavailable</p>
-                    <p className="mt-1 max-w-[200px] text-[9px] leading-4 text-[#738097]">Live jobsite weather appears here when project location data is available.</p>
-                  </div>
-                  <CloudSun className="h-11 w-11 text-[#4a8ff0]" strokeWidth={1.25} />
-                </div>
-              )}
-            </div>
+            <DashboardLiveWeather projectId={primaryProject?.id ?? null} />
           </Surface>
           <Surface>
             <CardHeader title="Jobsite Photo" icon={<Camera className="h-4 w-4 text-[#2470e8]" />} action={<Link href={primaryProject?.href || "/projects"} className="text-[9px] font-semibold text-[#2470e8]">View All</Link>} />
@@ -292,7 +258,9 @@ export default function DashboardPage() {
       <section className="relative mt-4 overflow-hidden rounded-[16px] border border-[#0d2d52] bg-[linear-gradient(135deg,#06162b_0%,#071d37_55%,#09294a_100%)] px-5 py-5 text-white shadow-[0_16px_38px_rgba(3,19,40,0.22)]">
         <div className="absolute left-14 top-6 h-28 w-28 rounded-full bg-[#2b60ff]/20 blur-3xl" />
         <div className="relative grid items-center gap-5 lg:grid-cols-[130px_1.3fr_1fr]">
-          <div className="mx-auto flex h-[112px] w-[112px] items-center justify-center rounded-full border border-[#235dff]/40 bg-[radial-gradient(circle_at_35%_30%,#32b9ff_0%,#3b5cff_34%,#5c2fd2_60%,#07182f_100%)] shadow-[0_0_35px_rgba(67,95,255,0.35)]"><Sparkles className="h-8 w-8 text-white" /></div>
+          <div className="mx-auto flex h-[116px] w-[116px] items-center justify-center [&_.persistentOrionCanvas]:block [&_.persistentOrionCanvas]:h-full [&_.persistentOrionCanvas]:w-full" aria-label="Orion intelligence orb">
+            <PersistentOrionMiniSphere state="idle" reducedMotion={false} minimized={false} voiceLevel={0} />
+          </div>
           <div>
             <div className="flex items-center gap-2"><h2 className="text-[15px] font-bold text-white">Orion Project Intelligence</h2><TinyPill tone="blue">LIVE</TinyPill></div>
             <div className="mt-3 space-y-1.5 text-[10.5px] leading-5 text-slate-200">
