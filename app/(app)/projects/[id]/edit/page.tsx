@@ -109,10 +109,10 @@ export default function EditProjectPage() {
         await createSupabaseOrionEventPublisher(supabase).publishEvent({
         company_id: workspace.context.companyId, actor_profile_id: workspace.context.userId, event_type: "project.updated",
         aggregate_type: "project", aggregate_id: projectId, source_module: "projects",
-        payload: { project_id: projectId, name: form.name.trim(), address: [form.addressLine1, form.city, form.state, form.postalCode].filter(Boolean).join(", ") },
+        payload: { project_id: projectId, name: form.name.trim(), scope_of_work: nullable(form.description), address: [form.addressLine1, form.city, form.state, form.postalCode].filter(Boolean).join(", ") },
         metadata: { source: "visible_project_edit_form" },
         }).catch((eventError) => console.error("Project updated event publish error:", eventError));
-        setSuccess("Project changes saved and verified in BOS.");
+        setSuccess("Project changes and scope of work saved and verified in B.O.S.");
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to update project.");
@@ -126,14 +126,17 @@ export default function EditProjectPage() {
 
   return (
     <div className="space-y-6" data-orion-project-editor={projectId}>
-      <PageHeader title={`Edit ${form.name}`} description="Update the visible project record. Orion can operate these controls while you watch." secondaryActions={<Link href={`/projects/${projectId}`}><Button variant="outline">Back to Project</Button></Link>} />
+      <PageHeader title={`Edit ${form.name}`} description="Update the project record and operational scope of work. Orion can operate these controls while you watch." secondaryActions={<Link href={`/projects/${projectId}`}><Button variant="outline">Back to Project</Button></Link>} />
       <form onSubmit={save} className="space-y-5">
         <FormSection title="Project Details">
           <Field label="Project Name" id="project-name"><Input id="project-name" data-orion-control="project.name" value={form.name} onChange={(e) => update("name", e.target.value)} required /></Field>
           <Field label="Project Number" id="project-number"><Input id="project-number" value={form.projectNumber} readOnly /></Field>
           <Field label="Project Type" id="project-type"><Select id="project-type" data-orion-control="project.type" value={form.projectType} onChange={(e) => update("projectType", e.target.value)}><option value="">Select type</option>{PROJECT_TYPE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field>
           <Field label="Status" id="project-status"><Select id="project-status" data-orion-control="project.status" data-orion-confirmation="required" value={form.status} onChange={(e) => update("status", e.target.value)}>{PROJECT_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field>
-          <div className="md:col-span-2"><Field label="Description" id="project-description"><Textarea id="project-description" data-orion-control="project.description" value={form.description} onChange={(e) => update("description", e.target.value)} rows={4} /></Field></div>
+          <div id="project-scope" className="scroll-mt-24 md:col-span-2">
+            <Field label="Scope of Work" id="project-description"><Textarea id="project-description" data-orion-control="project.description" value={form.description} onChange={(e) => update("description", e.target.value)} rows={10} /></Field>
+            <p className="mt-2 text-xs font-medium leading-5 text-[var(--bos-text-medium-on-light)]">This is the live operational project scope shown throughout B.O.S. Updating it does not rewrite a customer-signed estimate or contract. Material customer-facing scope changes should be documented through a Change Order.</p>
+          </div>
         </FormSection>
 
         <FormSection title="Jobsite and Contact">

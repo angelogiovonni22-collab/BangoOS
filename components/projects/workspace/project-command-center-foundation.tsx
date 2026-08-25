@@ -75,6 +75,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
             ))}
           </div>
           <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <Link href={projectHref + "/edit#project-scope"}><Button variant="outline" size="sm">Edit Scope</Button></Link>
             <Link href={projectHref + "?tab=tasks"}><Button variant="outline" size="sm">View Full Scope</Button></Link>
             <Link href={projectHref + "?tab=tasks"}><Button size="sm">Update Progress</Button></Link>
           </div>
