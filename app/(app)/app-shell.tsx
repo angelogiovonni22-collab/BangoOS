@@ -57,6 +57,7 @@ export function AppShell({ children, userName, userEmail, companyName, role, ori
 function AppShellFrame({ children, userName, userEmail, companyName, role, orionEnabled, platformAdmin }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
+  const [orionVisible, setOrionVisible] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
   const isDashboard = pathname === "/dashboard";
@@ -130,7 +131,26 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   return (
     <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
       <AutomaticWritingEditor />
-      {orionEnabled ? <PersistentOrion onOpenCommandCenter={() => setCommandCenterOpen(true)} /> : null}
+      {orionEnabled && orionVisible ? (
+        <PersistentOrion
+          onOpenCommandCenter={() => setCommandCenterOpen(true)}
+          onHide={() => {
+            setCommandCenterOpen(false);
+            setOrionVisible(false);
+          }}
+        />
+      ) : null}
+      {orionEnabled && !orionVisible ? (
+        <button
+          type="button"
+          onClick={() => setOrionVisible(true)}
+          className="fixed bottom-4 right-4 z-[var(--z-popover)] inline-flex h-10 items-center gap-2 rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] px-4 text-xs font-bold text-[var(--bos-text-primary)] shadow-[var(--shadow-large)] transition hover:border-[var(--orion-cyan)] hover:text-[var(--orion-cyan)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
+          aria-label="Show Orion"
+        >
+          <span className="h-2 w-2 rounded-full bg-[var(--orion-cyan)] shadow-[0_0_8px_var(--orion-cyan)]" aria-hidden="true" />
+          Show Orion
+        </button>
+      ) : null}
       <div className="flex min-h-screen min-w-0">
         <LayerManager layer={mobileOpen ? "dialog" : "popover"}>
           <aside
@@ -240,7 +260,17 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
         </div>
       </div>
 
-      {orionEnabled ? <OrionCommandCenterOverlay open={commandCenterOpen} onClose={() => setCommandCenterOpen(false)} currentPath={pathname || homePath} /> : null}
+      {orionEnabled && orionVisible ? (
+        <OrionCommandCenterOverlay
+          open={commandCenterOpen}
+          onClose={() => setCommandCenterOpen(false)}
+          onHide={() => {
+            setCommandCenterOpen(false);
+            setOrionVisible(false);
+          }}
+          currentPath={pathname || homePath}
+        />
+      ) : null}
     </div>
   );
 }
