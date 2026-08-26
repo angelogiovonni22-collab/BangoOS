@@ -187,15 +187,19 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
 
         <div className="flex min-h-screen min-h-0 min-w-0 flex-1 flex-col">
           <LayerManager layer="header">
-            <header data-bos-topbar="true" className={`sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)]/92 px-4 py-3.5 text-[var(--bos-text-primary)] backdrop-blur-sm sm:px-6 lg:px-8 ${isDashboard ? "lg:hidden" : ""}`}>
+            <header data-bos-topbar="true" className={`sticky top-0 z-20 border-b px-4 py-3.5 backdrop-blur-sm sm:px-6 lg:px-8 ${isDashboard ? "border-[#24415d] bg-[#06182b]/95 text-white" : "border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)]/92 text-[var(--bos-text-primary)]"}`}>
               <div className="bos-top-command-utility flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center">
                   <button type="button" aria-label={t("common.openSidebar")} aria-controls="bangoos-sidebar" aria-expanded={mobileOpen} className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] lg:hidden" onClick={() => setMobileOpen(true)}><span className="text-lg">☰</span></button>
-                  <div className="min-w-0 space-y-1.5">
-                    <p className="truncate text-sm font-medium text-[var(--bos-text-secondary)]">{companyName || t("common.operationsWorkspace")}</p>
-                    <NavigationBreadcrumb />
-                    {!['subcontractor', 'customer'].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
-                  </div>
+                  {isDashboard ? (
+                    <p className="truncate text-sm font-medium uppercase tracking-[0.28em] text-white sm:text-base">Bango Operating System</p>
+                  ) : (
+                    <div className="min-w-0 space-y-1.5">
+                      <p className="truncate text-sm font-medium text-[var(--bos-text-secondary)]">{companyName || t("common.operationsWorkspace")}</p>
+                      <NavigationBreadcrumb />
+                      {!['subcontractor', 'customer'].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
+                    </div>
+                  )}
                 </div>
                 <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap sm:gap-3">
                   {!['subcontractor', 'customer'].includes(normalizedRole) ? <div className="order-last w-full min-w-0 sm:order-none sm:min-w-[220px] sm:flex-1 md:flex-initial"><GlobalSearch placeholder={t("common.search")} /></div> : null}
@@ -205,7 +209,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                 </div>
               </div>
 
-              {topNavigationItems.length > 0 ? (
+              {!isDashboard && topNavigationItems.length > 0 ? (
                 <nav className="bos-top-command-nav" aria-label="Top Command navigation">
                   <Link href={homePath} className="bos-top-command-brand" aria-label="B.O.S. Home">
                     <span className="bos-top-command-brand-mark">B</span>
