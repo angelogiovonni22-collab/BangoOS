@@ -64,7 +64,7 @@ export default function DashboardPage() {
       "--color-analytics-700": "color-mix(in srgb, var(--color-analytics-500) 70%, var(--color-text-primary))",
     } as CSSProperties}
   >
-    <section className="mb-3 grid gap-3 xl:grid-cols-[minmax(300px,1fr)_132px_132px_132px_minmax(310px,1.12fr)]">
+    <section className="mb-3 grid gap-3 xl:grid-cols-[minmax(280px,1fr)_154px_154px_154px_minmax(290px,1.12fr)]">
       <div className="flex min-h-[58px] flex-col justify-center px-3"><h1 className="text-[20px] font-semibold tracking-[-0.02em] text-[var(--color-text-primary)]">Company Overview</h1><p className="mt-1 text-[10px] text-[var(--color-text-muted)]">Everything happening across your company, projects, and teams.</p></div>
       <SummaryLink href="/trade-partner-messages" icon={<MessageCircle />} label="Messages" value={messageCount} caption="Unread" tone="blue" />
       <SummaryLink href="/operations" icon={<AlertTriangle />} label="Alerts" value={alertCount} caption="Active" tone="red" />
@@ -88,7 +88,7 @@ export default function DashboardPage() {
 
 function SummaryLink({ href, icon, label, value, caption, tone }: { href: string; icon: ReactNode; label: string; value: number; caption: string; tone: "blue" | "red" | "green" }) {
   const style = toneStyles[tone];
-  return <Link href={href} className={`${panel} flex min-h-[58px] items-center gap-3 border-l-[3px] ${style.edge} px-3 transition hover:shadow-[var(--shadow-small)]`}><span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-small)] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:stroke-[2.5] ${style.solid}`}>{icon}</span><span><span className="flex items-center gap-2 text-[10px] font-medium text-[var(--color-text-primary)]">{label}<strong className={`rounded-full px-1.5 py-0.5 ${style.tint} ${style.text}`}>{value}</strong></span><span className="block text-[9px] text-[var(--color-text-muted)]">{caption}</span></span></Link>;
+  return <Link href={href} className={`${panel} flex min-w-0 min-h-[58px] items-center gap-3 border-l-[3px] ${style.edge} px-3 transition hover:shadow-[var(--shadow-small)]`}><span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-small)] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:stroke-[2.5] ${style.solid}`}>{icon}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-1.5 text-[10px] font-medium text-[var(--color-text-primary)]"><span className="truncate">{label}</span><strong className={`shrink-0 rounded-full px-1.5 py-0.5 ${style.tint} ${style.text}`}>{value}</strong></span><span className="block truncate text-[9px] text-[var(--color-text-muted)]">{caption}</span></span></Link>;
 }
 
 function ProjectProgress({ project, projects, selectedProjectId, onSelect, completion, milestone, scheduleStatus }: { project: ProjectHealthRow | null; projects: ProjectHealthRow[]; selectedProjectId: string; onSelect: (id: string) => void; completion: number; milestone: ScheduleEvent | null; scheduleStatus: string | null }) {
