@@ -22,6 +22,7 @@ type PersistentOrionPanelProps = {
   minimized: boolean;
   voice: OrionUnifiedVoiceController;
   onClose: () => void;
+  onHide: () => void;
   onOpenCommandCenter: () => void;
   onToggleMinimized: () => void;
   panelRef: RefObject<HTMLDivElement | null>;
@@ -61,6 +62,7 @@ export function PersistentOrionPanel({
   minimized,
   voice,
   onClose,
+  onHide,
   onOpenCommandCenter,
   onToggleMinimized,
   panelRef,
@@ -276,6 +278,9 @@ export function PersistentOrionPanel({
       <footer className="persistentOrionPanelFooter">
         <button type="button" className="persistentOrionLinkAction" onClick={onOpenCommandCenter}>
           Open Advanced Orion
+        </button>
+        <button type="button" className="persistentOrionMinimize" onClick={onHide}>
+          Hide Orion
         </button>
         <button type="button" className="persistentOrionMinimize" onClick={onToggleMinimized}>
           {minimized ? "Restore Orion" : "Minimize Orion"}
