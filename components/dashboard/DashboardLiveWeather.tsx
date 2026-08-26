@@ -55,12 +55,12 @@ export function DashboardLiveWeather({ projectId }: { projectId: string | null }
     };
   }, [projectId]);
 
-  if (loading) return <div className="mx-5 mb-4 h-[104px] animate-pulse rounded-xl bg-[#edf3fa]" />;
+  if (loading) return <div className="mx-5 mb-4 h-[104px] animate-pulse rounded-xl bg-[var(--color-surface-muted)]" />;
 
   if (!payload) {
     return (
-      <div className="mx-5 mb-4 flex min-h-[104px] items-center justify-center rounded-xl border border-dashed border-[#cbd6e4] bg-[#f7f9fc] px-4 text-center">
-        <p className="max-w-[230px] text-[10px] font-medium leading-4 text-[#718096]">Add a valid jobsite address to this project to load live weather.</p>
+      <div className="mx-5 mb-4 flex min-h-[104px] items-center justify-center rounded-xl border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-4 text-center">
+        <p className="max-w-[230px] text-[10px] font-medium leading-4 text-[var(--color-text-muted)]">Add a valid jobsite address to this project to load live weather.</p>
       </div>
     );
   }
