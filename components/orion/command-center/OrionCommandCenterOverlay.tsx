@@ -26,6 +26,7 @@ import type {
 type OrionCommandCenterOverlayProps = {
   open: boolean;
   onClose: () => void;
+  onHide: () => void;
   currentPath: string;
 };
 
@@ -234,7 +235,7 @@ function buildCurrentUrl(pathname: string, search: string) {
   return `${origin}${pathname}${search ? `?${search}` : ""}`;
 }
 
-export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionCommandCenterOverlayProps) {
+export function OrionCommandCenterOverlay({ open, onClose, onHide, currentPath }: OrionCommandCenterOverlayProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -1486,6 +1487,9 @@ export function OrionCommandCenterOverlay({ open, onClose, currentPath }: OrionC
                 <div className="flex items-center gap-2">
                   <span className="rounded border border-white/25 bg-white/10 px-2 py-1 text-xs text-slate-200">Ctrl+K</span>
                   <span className="rounded border border-white/25 bg-white/10 px-2 py-1 text-xs text-slate-200">Cmd+K</span>
+                  <Button type="button" variant="ghost" onClick={onHide} className="text-slate-100 hover:bg-white/10 hover:text-white">
+                    Hide Orion
+                  </Button>
                   <Button type="button" variant="ghost" onClick={handleClose} className="text-slate-100 hover:bg-white/10 hover:text-white">
                     Close
                   </Button>
