@@ -164,15 +164,19 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
               <button type="button" aria-label={t("common.closeSidebar")} className="absolute right-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white/10 lg:hidden" onClick={() => setMobileOpen(false)}>×</button>
             </div>
 
-            {orionEnabled && !orionVisible ? (
+            {orionEnabled ? (
               <button
                 type="button"
-                onClick={() => setOrionVisible(true)}
-                className="mb-1 inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-[var(--radius-lg)] border border-[var(--orion-cyan)]/50 bg-[color-mix(in_srgb,var(--orion-cyan)_12%,transparent)] px-3 text-xs font-bold text-[var(--orion-cyan)] shadow-[var(--shadow-small)] transition hover:border-[var(--orion-cyan)] hover:bg-[color-mix(in_srgb,var(--orion-cyan)_20%,transparent)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
-                aria-label="Activate Orion"
+                onClick={() => {
+                  if (orionVisible) setCommandCenterOpen(false);
+                  setOrionVisible((current) => !current);
+                }}
+                className={`mb-1 inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-[var(--radius-lg)] border px-3 text-xs font-bold shadow-[var(--shadow-small)] transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] ${orionVisible ? "border-white/15 bg-white/5 text-[var(--bos-text-secondary)] hover:border-[var(--orion-cyan)]/60 hover:text-[var(--orion-cyan)]" : "border-[var(--orion-cyan)]/50 bg-[color-mix(in_srgb,var(--orion-cyan)_12%,transparent)] text-[var(--orion-cyan)] hover:border-[var(--orion-cyan)] hover:bg-[color-mix(in_srgb,var(--orion-cyan)_20%,transparent)]"}`}
+                aria-label={orionVisible ? "Hide Orion" : "Activate Orion"}
+                aria-pressed={orionVisible}
               >
-                <span className="h-2 w-2 rounded-full bg-[var(--orion-cyan)] shadow-[0_0_8px_var(--orion-cyan)]" aria-hidden="true" />
-                Activate Orion
+                <span className={`h-2 w-2 rounded-full ${orionVisible ? "bg-[var(--color-success-500)] shadow-[0_0_8px_var(--color-success-500)]" : "bg-[var(--orion-cyan)] shadow-[0_0_8px_var(--orion-cyan)]"}`} aria-hidden="true" />
+                {orionVisible ? "Hide Orion" : "Activate Orion"}
               </button>
             ) : null}
 
