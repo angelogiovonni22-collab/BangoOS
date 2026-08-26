@@ -191,9 +191,11 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                   const isCollapsed = collapsedGroups[group.key] ?? false;
                   return (
                     <section key={group.key} className="space-y-2">
-                      <button type="button" className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--bos-text-muted)] transition hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)]" onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))} aria-expanded={!isCollapsed}>
-                        <span>{group.label}</span><span>{isCollapsed ? "+" : "-"}</span>
-                      </button>
+                      {group.key !== "dashboard" ? (
+                        <button type="button" className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--bos-text-muted)] transition hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)]" onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))} aria-expanded={!isCollapsed}>
+                          <span>{group.label}</span><span>{isCollapsed ? "+" : "-"}</span>
+                        </button>
+                      ) : null}
                       {!isCollapsed ? (
                         <div className="space-y-1.5">
                           {group.items.map((item) => (
