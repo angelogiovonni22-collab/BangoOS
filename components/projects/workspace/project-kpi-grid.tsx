@@ -119,7 +119,7 @@ function ProgressCard({
           </p>
           <p className="mt-1.5 text-[0.84rem] font-medium text-[#365274]">{completedTaskCount} of {taskCount} tasks completed</p>
         </div>
-        <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#9fbce3] bg-[#d8e7fb] text-[#17447f] transition duration-200 group-hover:scale-[1.02]">
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--color-info-500)] bg-[var(--color-info-500)] text-white shadow-[var(--shadow-small)] transition duration-200 group-hover:scale-[1.02]">
           <Gauge size={18} aria-hidden="true" />
         </span>
       </div>
@@ -159,19 +159,19 @@ function toneClasses(tone: "status" | "financial" | "dates") {
   if (tone === "status") {
     return {
       card: "border-[#bccfe8] bg-[linear-gradient(180deg,#f9fcff,#f2f7ff)]",
-      icon: "border-[#9ebce1] bg-[#d7e6fb] text-[#1c4a86]",
+      icon: "border-[var(--color-success-500)] bg-[var(--color-success-500)] text-white shadow-[var(--shadow-small)]",
     };
   }
 
   if (tone === "dates") {
     return {
       card: "border-[#bfd8ea] bg-[linear-gradient(180deg,#f8fcff,#f2f8fd)]",
-      icon: "border-[#a8cfe6] bg-[#d4e9f8] text-[#0f5681]",
+      icon: "border-[var(--color-warning-500)] bg-[var(--color-warning-500)] text-white shadow-[var(--shadow-small)]",
     };
   }
 
   return {
     card: "border-[#bfdcc9] bg-[linear-gradient(180deg,#f7fff9,#f1fcf6)]",
-    icon: "border-[#a9dbc0] bg-[#d7f2e4] text-[#14603f]",
+    icon: "border-[var(--color-info-500)] bg-[var(--color-info-500)] text-white shadow-[var(--shadow-small)]",
   };
 }
