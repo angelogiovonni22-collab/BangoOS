@@ -140,17 +140,6 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
           }}
         />
       ) : null}
-      {orionEnabled && !orionVisible ? (
-        <button
-          type="button"
-          onClick={() => setOrionVisible(true)}
-          className="fixed bottom-4 right-4 z-[var(--z-popover)] inline-flex h-10 items-center gap-2 rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] px-4 text-xs font-bold text-[var(--bos-text-primary)] shadow-[var(--shadow-large)] transition hover:border-[var(--orion-cyan)] hover:text-[var(--orion-cyan)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
-          aria-label="Show Orion"
-        >
-          <span className="h-2 w-2 rounded-full bg-[var(--orion-cyan)] shadow-[0_0_8px_var(--orion-cyan)]" aria-hidden="true" />
-          Show Orion
-        </button>
-      ) : null}
       <div className="flex min-h-screen min-w-0">
         <LayerManager layer={mobileOpen ? "dialog" : "popover"}>
           <aside
@@ -174,6 +163,18 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
               </Link>
               <button type="button" aria-label={t("common.closeSidebar")} className="absolute right-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white/10 lg:hidden" onClick={() => setMobileOpen(false)}>×</button>
             </div>
+
+            {orionEnabled && !orionVisible ? (
+              <button
+                type="button"
+                onClick={() => setOrionVisible(true)}
+                className="mb-1 inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-[var(--radius-lg)] border border-[var(--orion-cyan)]/50 bg-[color-mix(in_srgb,var(--orion-cyan)_12%,transparent)] px-3 text-xs font-bold text-[var(--orion-cyan)] shadow-[var(--shadow-small)] transition hover:border-[var(--orion-cyan)] hover:bg-[color-mix(in_srgb,var(--orion-cyan)_20%,transparent)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
+                aria-label="Activate Orion"
+              >
+                <span className="h-2 w-2 rounded-full bg-[var(--orion-cyan)] shadow-[0_0_8px_var(--orion-cyan)]" aria-hidden="true" />
+                Activate Orion
+              </button>
+            ) : null}
 
             <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden">
               <nav
