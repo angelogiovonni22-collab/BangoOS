@@ -1,9 +1,11 @@
 import { Button, Input, Select } from "@/components/ui";
 import { ESTIMATE_CATEGORY_OPTIONS, ESTIMATE_UNIT_OPTIONS } from "@/lib/estimates/constants";
 import { lineItemMoney } from "@/lib/estimates/calculations";
-import type { EstimateLineItemDraft } from "@/lib/estimates/types";
+import type { EstimateLineItemDraft, EstimateSupplierPriceOption, EstimateUnit } from "@/lib/estimates/types";
 
-export function EstimateLineItemRow({ index, item, localeTag, onChange, onMoveUp, onMoveDown, onRemove }: { index: number; item: EstimateLineItemDraft; localeTag: string; onChange: (index: number, next: EstimateLineItemDraft) => void; onMoveUp: (index: number) => void; onMoveDown: (index: number) => void; onRemove: (index: number) => void; }) {
+const ESTIMATE_UNITS = new Set<EstimateUnit>(["each", "hour", "day", "week", "square_foot", "linear_foot", "cubic_yard", "lump_sum"]);
+
+export function EstimateLineItemRow({ index, item, supplierPrices, localeTag, onChange, onMoveUp, onMoveDown, onRemove }: { index: number; item: EstimateLineItemDraft; supplierPrices: EstimateSupplierPriceOption[]; localeTag: string; onChange: (index: number, next: EstimateLineItemDraft) => void; onMoveUp: (index: number) => void; onMoveDown: (index: number) => void; onRemove: (index: number) => void; }) {
   const money = lineItemMoney(item);
   const currency = new Intl.NumberFormat(localeTag, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -11,10 +13,18 @@ export function EstimateLineItemRow({ index, item, localeTag, onChange, onMoveUp
     <tr data-orion-line-item-row={index}>
       <td className="px-3 py-2 min-w-[140px]"><Input className="min-w-[116px]" data-orion-line-item-field="itemCode" value={item.itemCode} onChange={(event) => onChange(index, { ...item, itemCode: event.target.value })} placeholder="CC-001" /></td>
       <td className="px-3 py-2 min-w-[170px]"><Select className="min-w-[146px]" data-orion-line-item-field="category" value={item.category} onChange={(event) => onChange(index, { ...item, category: event.target.value as EstimateLineItemDraft["category"] })}>{ESTIMATE_CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></td>
+      <td className="px-3 py-2 min-w-[300px]">
+        {item.category === "materials" ? <div className="space-y-1"><Select className="min-w-[276px]" value={item.supplierPriceEntryId || ""} onChange={(event) => {
+          const price = supplierPrices.find((option) => option.id === event.target.value);
+          if (!price) { onChange(index, { ...item, supplierPriceEntryId: "", supplierVendorId: "", supplierName: "", costSource: "", costVerifiedOn: "", supplierUnitCostSnapshot: "", costOverride: false }); return; }
+          const normalizedUnit = price.unitOfMeasure.toLowerCase().replace(/[ -]+/g, "_") as EstimateUnit;
+          onChange(index, { ...item, itemCode: price.supplierSku, description: price.description, unit: ESTIMATE_UNITS.has(normalizedUnit) ? normalizedUnit : "each", unitCost: String(price.effectiveUnitCost), materialId: price.materialId || "", supplierPriceEntryId: price.id, supplierVendorId: price.vendorId, supplierName: price.vendorName, costSource: price.sourceFilename, costVerifiedOn: price.verifiedOn, supplierUnitCostSnapshot: String(price.effectiveUnitCost), costOverride: false });
+        }}><option value="">Manual material cost</option>{supplierPrices.map((price) => <option key={price.id} value={price.id}>{price.description} · {price.vendorName} · {currency.format(price.effectiveUnitCost)}</option>)}</Select>{item.supplierPriceEntryId ? <p className="text-xs text-slate-500">Verified {item.costVerifiedOn}{item.costOverride ? " · Manual override" : " · Supplier price"}</p> : null}</div> : <span className="text-sm text-slate-400">Not applicable</span>}
+      </td>
       <td className="px-3 py-2 min-w-[360px]"><Input className="min-w-[336px]" data-orion-line-item-field="description" value={item.description} onChange={(event) => onChange(index, { ...item, description: event.target.value })} placeholder="Describe scope and materials" /></td>
       <td className="px-3 py-2 min-w-[130px]"><Input className="min-w-[106px] tabular-nums" data-orion-line-item-field="quantity" type="number" min={0} step="0.01" value={item.quantity} onChange={(event) => onChange(index, { ...item, quantity: event.target.value })} /></td>
       <td className="px-3 py-2 min-w-[170px]"><Select className="min-w-[146px]" data-orion-line-item-field="unit" value={item.unit} onChange={(event) => onChange(index, { ...item, unit: event.target.value as EstimateLineItemDraft["unit"] })}>{ESTIMATE_UNIT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></td>
-      <td className="px-3 py-2 min-w-[150px]"><Input className="min-w-[126px] tabular-nums" data-orion-line-item-field="unitCost" type="number" min={0} step="0.01" value={item.unitCost} onChange={(event) => onChange(index, { ...item, unitCost: event.target.value })} /></td>
+      <td className="px-3 py-2 min-w-[150px]"><Input className="min-w-[126px] tabular-nums" data-orion-line-item-field="unitCost" type="number" min={0} step="0.01" value={item.unitCost} onChange={(event) => onChange(index, { ...item, unitCost: event.target.value, costOverride: Boolean(item.supplierPriceEntryId) })} /></td>
       <td className="px-3 py-2 min-w-[150px]"><Input className="min-w-[126px] tabular-nums" data-orion-line-item-field="markupPercent" type="number" min={0} step="0.01" value={item.markupPercent} onChange={(event) => onChange(index, { ...item, markupPercent: event.target.value })} /></td>
       <td className="px-3 py-2 min-w-[130px] whitespace-nowrap text-sm tabular-nums text-[var(--color-text-secondary)]">{currency.format(money.unitPrice)}</td>
       <td className="px-3 py-2 min-w-[130px] whitespace-nowrap text-sm font-semibold tabular-nums text-[var(--color-text-primary)]">{currency.format(money.lineTotal)}</td>

@@ -240,6 +240,13 @@ function mapLineItemsForInsert(params: {
         unit_price: money.unitPrice,
         line_total: money.lineTotal,
         notes: item.notes.trim() || null,
+        material_id: item.materialId || null,
+        supplier_price_entry_id: item.supplierPriceEntryId || null,
+        supplier_vendor_id: item.supplierVendorId || null,
+        cost_source: item.costSource || null,
+        cost_verified_on: item.costVerifiedOn || null,
+        supplier_unit_cost_snapshot: item.supplierUnitCostSnapshot ? Number(item.supplierUnitCostSnapshot) : null,
+        cost_override: Boolean(item.costOverride),
       };
 
       return lineItemRecord;
