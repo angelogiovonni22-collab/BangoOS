@@ -39,7 +39,7 @@ export function OperationsKpiGrid({ items }: OperationsKpiGridProps) {
           className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-medium)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-large)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
         >
           <div className="flex items-center justify-between gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-[var(--radius-lg)] ${tone(item.status)}`}>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-full shadow-[var(--shadow-small)] [&>svg]:stroke-[2.5] ${tone(item.status)}`}>
               {iconMap[item.id]}
             </div>
             <p className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-text-secondary)]">
@@ -58,16 +58,16 @@ export function OperationsKpiGrid({ items }: OperationsKpiGridProps) {
 
 function tone(status: OperationsKpi["status"]) {
   if (status === "good") {
-    return "bg-[var(--color-success-50)] text-[var(--color-success-700)]";
+    return "bg-[var(--color-success-500)] text-white";
   }
 
   if (status === "watch") {
-    return "bg-[var(--color-warning-50)] text-[var(--color-warning-700)]";
+    return "bg-[var(--color-warning-500)] text-white";
   }
 
   if (status === "critical") {
-    return "bg-[var(--color-danger-50)] text-[var(--color-danger-700)]";
+    return "bg-[var(--color-danger-500)] text-white";
   }
 
-  return "bg-[var(--color-brand-50)] text-[var(--color-brand-700)]";
+  return "bg-[var(--color-primary-600)] text-white";
 }
