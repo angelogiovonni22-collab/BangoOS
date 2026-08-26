@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -139,14 +140,22 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
             aria-label={mobileOpen ? t("common.openSidebar") : undefined}
             className={`fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] px-3 py-5 text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:w-[184px] lg:[height:100dvh] lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
           >
-            <div className="relative flex shrink-0 items-center justify-center">
-              <Link href={homePath} className="flex w-full items-center justify-center gap-2" onClick={() => setMobileOpen(false)}>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2f5ec9] to-[#2d9ad4] text-[10px] font-bold text-white shadow-lg shadow-blue-500/20">B.O.S.</div>
+            <div className="relative flex h-[132px] shrink-0 items-center justify-center">
+              <Link href={homePath} className="flex h-full w-full items-center justify-center" onClick={() => setMobileOpen(false)} aria-label="B.O.S. home">
+                <Image
+                  src="/branding/bos-operating-system-logo.png"
+                  alt="B.O.S. — Bango Operating System"
+                  width={720}
+                  height={672}
+                  priority
+                  sizes="(min-width: 1024px) 168px, 240px"
+                  className="h-full w-full object-contain"
+                />
               </Link>
               <button type="button" aria-label={t("common.closeSidebar")} className="absolute right-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white/10 lg:hidden" onClick={() => setMobileOpen(false)}>×</button>
             </div>
 
-            <div className="mt-7 flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden">
               <nav
                 data-orion-scroll-region="sidebar"
                 data-orion-scroll-label="Sidebar navigation"
