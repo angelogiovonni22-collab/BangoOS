@@ -1,12 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useRef, useState, type PointerEvent } from "react";
 import { Camera, Check, Crosshair, RotateCcw, Ruler, Save, Trash2 } from "lucide-react";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@/components/ui";
 
 type Point = { x: number; y: number };
 type Measurement = { id: string; a: Point; b: Point; value: number; unit: "in" | "cm"; label: string; createdAt: string };
 type Props = { projectId: string; projectName: string };
+
+function readMeasurementHistory(projectId: string): Measurement[] {
+  if (typeof window === "undefined") return [];
+  const raw = window.localStorage.getItem(`bos:measure:${projectId}`);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed as Measurement[] : [];
+  } catch {
+    return [];
+  }
+}
 
 export function ProjectMeasureWorkspace({ projectId, projectName }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -18,20 +30,13 @@ export function ProjectMeasureWorkspace({ projectId, projectName }: Props) {
   const [value, setValue] = useState("");
   const [unit, setUnit] = useState<"in" | "cm">("in");
   const [label, setLabel] = useState("");
-  const [history, setHistory] = useState<Measurement[]>([]);
-
-  useEffect(() => {
-    const raw = window.localStorage.getItem(`bos:measure:${projectId}`);
-    if (!raw) return;
-    try { setHistory(JSON.parse(raw) as Measurement[]); } catch { /* invalid local cache */ }
-  }, [projectId]);
+  const [history, setHistory] = useState<Measurement[]>(() => readMeasurementHistory(projectId));
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     setCameraReady(false);
   }, []);
-  useEffect(() => stopCamera, [stopCamera]);
 
   const startCamera = async () => {
     setCameraError(null);
