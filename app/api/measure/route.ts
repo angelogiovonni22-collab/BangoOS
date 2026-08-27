@@ -4,6 +4,13 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 const BUCKET = "bos-measurements";
 
+type UntypedSupabase = {
+  from: (table: string) => {
+    select: (columns: string) => unknown;
+    insert: (payload: unknown) => unknown;
+  };
+};
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ ok:false, error:"Workspace unavailable." }, { status:503 });
@@ -21,8 +28,9 @@ export async function GET(req: NextRequest) {
   }
   const column = targetType === "project" ? "project_id" : "estimate_id";
   // Generated Supabase types are refreshed after the Production migration lands.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).from("measurements").select("id,label,measurement_type,value_inches,method,confidence,photo_path,notes,created_at").eq("company_id", workspace.context.companyId).eq(column, targetId).order("created_at", { ascending:false });
+  const measureDb = supabase as unknown as UntypedSupabase;
+  const query = measureDb.from("measurements").select("id,label,measurement_type,value_inches,method,confidence,photo_path,notes,created_at") as ReturnType<typeof supabase.from>;
+  const { data, error } = await query.eq("company_id", workspace.context.companyId).eq(column, targetId).order("created_at", { ascending:false });
   if (error) return NextResponse.json({ ok:false, error:error.message }, { status:500 });
   return NextResponse.json({ ok:true, measurements:data || [] });
 }
@@ -76,8 +84,9 @@ export async function POST(req: NextRequest) {
     created_by: user.id,
   };
   // Generated Supabase types are refreshed after the Production migration lands.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).from("measurements").insert(payload).select("id").single();
+  const measureDb = supabase as unknown as UntypedSupabase;
+  const insertQuery = measureDb.from("measurements").insert(payload) as ReturnType<typeof supabase.from>;
+  const { data, error } = await insertQuery.select("id").single();
   if (error) {
     if (photoPath) await supabase.storage.from(BUCKET).remove([photoPath]);
     return NextResponse.json({ ok:false, error:error.message }, { status:500 });
