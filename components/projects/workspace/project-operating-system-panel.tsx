@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Activity, AlertTriangle, Bot, ClipboardCheck, FileCheck2, Gauge, ShieldCheck } from "lucide-react";
+import { Activity, AlertTriangle, Bot, Boxes, ClipboardCheck, FileCheck2, Gauge, ShieldCheck } from "lucide-react";
 import { Badge, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import type { ProjectSuperintendentBriefing } from "@/lib/project-intelligence/briefing/briefing-types";
 import type { ProjectIntelligence } from "@/lib/project-intelligence/intelligence-types";
@@ -48,6 +48,10 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
       </CardHeader>
 
       <CardContent className="space-y-5 p-5">
+        <Link href={`/projects/${projectId}/materials`} className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--color-brand-200)] bg-[var(--color-primary-50)] px-4 py-3 transition hover:border-[var(--color-brand-400)] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]">
+          <span className="flex items-center gap-3"><span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary-600)] text-white"><Boxes size={18} aria-hidden="true" /></span><span><span className="block text-sm font-semibold text-[var(--color-navy-900)]">Materials & Procurement</span><span className="block text-xs text-[var(--color-text-secondary)]">Review estimate materials, inventory, current costs, and purchasing status.</span></span></span>
+          <span className="text-xs font-semibold text-[var(--color-brand-700)]">Open plan</span>
+        </Link>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile label="Operating Score" value={`${score}/100`} note={scoreSummary(score)} />
           <MetricTile
