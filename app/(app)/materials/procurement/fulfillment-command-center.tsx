@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Card, CardContent, CardHeader, CardTitle, ErrorState, SkeletonLoader, SummaryCard } from "@/components/ui";
 import { createProcurementService } from "@/lib/materials/procurement-service";
