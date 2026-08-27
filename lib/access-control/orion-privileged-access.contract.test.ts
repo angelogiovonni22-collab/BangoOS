@@ -23,9 +23,9 @@ assert.match(layout, /canUseOrion\(workspace\.context\.role, permissionOverrides
 
 const appShell = readFileSync("app/(app)/app-shell.tsx", "utf8");
 assert.match(appShell, /orionEnabled \? \(\s*<GlobalOrionVoiceProvider>/, "Orion voice providers must mount only for authorized sessions.");
-assert.match(appShell, /\{orionEnabled \? <PersistentOrion onOpenCommandCenter=/, "Persistent Orion must not render for unauthorized sessions.");
+assert.match(appShell, /\{orionEnabled && orionVisible \? \(\s*<PersistentOrion/, "Persistent Orion must not render for unauthorized sessions and must respect the user's visibility state.");
 assert.match(appShell, /if \(!orionEnabled\) return;/, "Global Orion keyboard shortcut must be disabled for unauthorized sessions.");
-assert.match(appShell, /\{orionEnabled \? <OrionCommandCenterOverlay/, "Orion Command Center must not render for unauthorized sessions.");
+assert.match(appShell, /\{orionEnabled && orionVisible \? \(\s*<OrionCommandCenterOverlay/, "Orion Command Center must not render for unauthorized sessions and must respect the user's visibility state.");
 
 const proxy = readFileSync("proxy.ts", "utf8");
 assert.match(proxy, /pathname\.startsWith\("\/api\/orion\/"\)/, "All Orion API routes must pass through the privileged-access proxy boundary.");

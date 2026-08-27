@@ -1,262 +1,125 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, type CSSProperties, type ReactNode } from "react";
-import {
-  AlertTriangle,
-  ArrowRight,
-  CalendarDays,
-  Camera,
-  CheckCircle2,
-  CircleDollarSign,
-  Clock3,
-  CloudSun,
-  FileText,
-  MessageSquare,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { AlertTriangle, BellRing, CalendarDays, Camera, Check, CheckCircle2, CircleDollarSign, Clock3, CloudSun, ImageIcon, MessageCircle, Search, ShieldCheck, Users } from "lucide-react";
 import { DashboardLiveWeather } from "@/components/dashboard/DashboardLiveWeather";
 import { ErrorState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import { useExecutiveDashboard } from "@/lib/dashboard/use-executive-dashboard";
-import type { DashboardMetric } from "@/lib/dashboard/types";
+import type { DashboardActivityItem, DashboardDecisionItem, DashboardMetric, ProjectHealthRow, ScheduleEvent } from "@/lib/dashboard/types";
 
-function formatMetric(metric: DashboardMetric | undefined, localeTag: string) {
+const panel = "min-w-0 overflow-hidden rounded-[9px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)]";
+type DashboardTone = "blue" | "cyan" | "green" | "amber" | "red" | "violet";
+
+const toneStyles: Record<DashboardTone, { accent: string; edge: string; icon: string; text: string; tint: string; solid: string }> = {
+  blue: { accent: "border-t-[var(--color-info-500)]", edge: "border-l-[var(--color-info-500)]", icon: "text-[var(--color-info-500)]", text: "text-[color-mix(in_srgb,var(--color-info-500)_70%,var(--color-text-primary))]", tint: "bg-[color-mix(in_srgb,var(--color-info-500)_12%,var(--color-surface-card))]", solid: "bg-[var(--color-info-500)] text-white" },
+  cyan: { accent: "border-t-[var(--bos-theme-accent-secondary)]", edge: "border-l-[var(--bos-theme-accent-secondary)]", icon: "text-[var(--bos-theme-accent-secondary)]", text: "text-[var(--bos-theme-accent-secondary)]", tint: "bg-[color-mix(in_srgb,var(--bos-theme-accent-secondary)_12%,var(--color-surface-card))]", solid: "bg-[var(--bos-theme-accent-secondary)] text-white" },
+  green: { accent: "border-t-[var(--color-success-500)]", edge: "border-l-[var(--color-success-500)]", icon: "text-[var(--color-success-500)]", text: "text-[color-mix(in_srgb,var(--color-success-500)_70%,var(--color-text-primary))]", tint: "bg-[color-mix(in_srgb,var(--color-success-500)_12%,var(--color-surface-card))]", solid: "bg-[var(--color-success-500)] text-white" },
+  amber: { accent: "border-t-[var(--color-warning-500)]", edge: "border-l-[var(--color-warning-500)]", icon: "text-[var(--color-warning-500)]", text: "text-[color-mix(in_srgb,var(--color-warning-500)_70%,var(--color-text-primary))]", tint: "bg-[color-mix(in_srgb,var(--color-warning-500)_12%,var(--color-surface-card))]", solid: "bg-[var(--color-warning-500)] text-white" },
+  red: { accent: "border-t-[var(--color-danger-500)]", edge: "border-l-[var(--color-danger-500)]", icon: "text-[var(--color-danger-500)]", text: "text-[color-mix(in_srgb,var(--color-danger-500)_70%,var(--color-text-primary))]", tint: "bg-[color-mix(in_srgb,var(--color-danger-500)_12%,var(--color-surface-card))]", solid: "bg-[var(--color-danger-500)] text-white" },
+  violet: { accent: "border-t-[var(--color-analytics-500)]", edge: "border-l-[var(--color-analytics-500)]", icon: "text-[var(--color-analytics-500)]", text: "text-[color-mix(in_srgb,var(--color-analytics-500)_70%,var(--color-text-primary))]", tint: "bg-[color-mix(in_srgb,var(--color-analytics-500)_12%,var(--color-surface-card))]", solid: "bg-[var(--color-analytics-500)] text-white" },
+};
+
+function metricValue(metric: DashboardMetric | undefined, locale: string) {
   if (!metric) return "—";
-  if (metric.valueKind === "currency") {
-    return new Intl.NumberFormat(localeTag, {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(metric.value);
-  }
+  if (metric.valueKind === "currency") return new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(metric.value);
   if (metric.valueKind === "score") return `${metric.value}/100`;
-  return new Intl.NumberFormat(localeTag).format(metric.value);
+  return new Intl.NumberFormat(locale).format(metric.value);
 }
 
-function Surface({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <section className={`min-w-0 overflow-hidden rounded-[16px] border border-[#dfe5ee] bg-white shadow-[0_6px_20px_rgba(31,51,82,0.07)] ${className}`}>
-      {children}
-    </section>
-  );
-}
-
-function CardHeader({ title, action, icon }: { title: string; action?: ReactNode; icon?: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">
-      <div className="flex min-w-0 items-center gap-2">
-        {icon}
-        <h2 className="truncate text-[15px] font-bold tracking-[-0.01em] text-[#111827]">{title}</h2>
-      </div>
-      {action}
-    </div>
-  );
-}
-
-function TinyPill({ children, tone = "blue" }: { children: ReactNode; tone?: "blue" | "green" | "amber" | "red" | "violet" }) {
-  const toneClass = {
-    blue: "bg-[#edf5ff] text-[#2563eb]",
-    green: "bg-[#eafbf1] text-[#159447]",
-    amber: "bg-[#fff5df] text-[#d97706]",
-    red: "bg-[#fff0f1] text-[#dc3545]",
-    violet: "bg-[#f4efff] text-[#7c3aed]",
-  }[tone];
-  return <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${toneClass}`}>{children}</span>;
+function SectionHeader({ title, icon, action, tone }: { title: string; icon?: ReactNode; action?: ReactNode; tone?: DashboardTone }) {
+  const style = tone ? toneStyles[tone] : null;
+  return <div className={`flex h-10 items-center justify-between gap-3 border-b border-[var(--color-border-subtle)] px-4 ${style ? `border-t-2 ${style.accent}` : ""}`}><div className="flex min-w-0 items-center gap-2">{icon ? <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full shadow-[var(--shadow-small)] [&>svg]:h-4 [&>svg]:w-4 [&>svg]:stroke-[2.5] ${style ? style.solid : "bg-[var(--color-text-secondary)] text-white"}`}>{icon}</span> : null}<h2 className="truncate text-[13px] font-bold text-[var(--color-text-primary)]">{title}</h2></div>{action}</div>;
 }
 
 export default function DashboardPage() {
-  const { locale } = useI18n();
-  const { data, companyName, isLoading, errorMessage } = useExecutiveDashboard();
+  const { locale, t } = useI18n();
+  const { data, isLoading, errorMessage } = useExecutiveDashboard();
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const localeTag = locale === "es" ? "es-ES" : "en-US";
+  const metricById = useMemo(() => new Map(data.metrics.map((item) => [item.id, item])), [data.metrics]);
+  const projects = data.projectHealth.projects;
+  const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
+  const completion = selectedProject?.healthScore ?? 0;
+  const selectedSchedule = data.schedule.filter((item) => !selectedProject || item.href.endsWith(selectedProject.id));
+  const milestone = selectedProject ? selectedSchedule[0] ?? null : data.schedule[0] ?? null;
+  const activities = data.activities.slice(0, 4);
+  const riskCount = Object.values(data.riskSummary).reduce((sum, value) => sum + value, 0);
+  const alertCount = data.criticalAlerts.length || data.topPriorities.filter((item) => item.priority === "critical" || item.priority === "high").length;
+  const approvalCount = data.todaysDecisions.filter((item) => item.confirmationLevel !== "NONE").length + data.pendingFollowups.length;
+  const messageCount = data.activities.filter((item) => item.category === "customer" || item.category === "team").length;
+  const priorities = (data.criticalAlerts.length ? data.criticalAlerts : data.topPriorities).slice(0, 5);
 
-  const metricById = useMemo(() => new Map(data.metrics.map((metric) => [metric.id, metric])), [data.metrics]);
-  const primaryProject = data.projectHealth.projects[0] ?? null;
-  const averageHealth = data.projectHealth.projects.length
-    ? Math.round(data.projectHealth.projects.reduce((sum, project) => sum + project.healthScore, 0) / data.projectHealth.projects.length)
-    : 0;
-  const activeProjects = metricById.get("active-projects");
-  const employeesWorking = metricById.get("employees-working");
-  const openEstimates = metricById.get("open-estimates");
-  const openInvoices = metricById.get("open-invoices");
-  const revenue = metricById.get("revenue-this-month");
-  const healthMetric = metricById.get("health-score");
-  const topPriorities = data.topPriorities.slice(0, 5);
-  const scheduleItems = data.schedule.slice(0, 5);
-  const activityItems = data.activities.slice(0, 5);
-  const riskCount = data.riskSummary.critical + data.riskSummary.high + data.riskSummary.medium + data.riskSummary.low;
-  const completion = Math.max(0, Math.min(100, averageHealth));
-  const milestone = scheduleItems[0]?.title || scheduleItems[0]?.projectName || "No milestone scheduled";
-  const projectTitle = primaryProject?.projectName || companyName || "B.O.S. Dashboard";
-  const currentPhase = primaryProject?.currentPhase || "Pre-Construction";
+  if (errorMessage) return <ErrorState compact title="Dashboard unavailable" description={errorMessage} />;
 
-  if (errorMessage) {
-    return <ErrorState compact title="Dashboard unavailable" description={errorMessage} />;
-  }
-
-  return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#f8fbff_0%,#ffffff_55%,#f8fbff_100%)] px-4 pb-7 sm:px-5 lg:px-[22px]">
-      <header className="relative mb-4 min-h-[124px] overflow-hidden rounded-b-[20px] border border-t-0 border-[#164477] bg-[linear-gradient(118deg,#06172d_0%,#0a2a50_56%,#0c3d70_100%)] px-5 py-5 text-white shadow-[0_18px_38px_-26px_rgba(4,25,51,0.8)] md:flex md:items-center md:justify-between md:px-7">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_20%,rgba(28,132,255,0.34),transparent_26%),linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.035)_50%,transparent_100%)]" />
-        <div className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full border border-[#4ea7ff]/20" />
-        <div className="relative min-w-0">
-          <p className="text-[12px] font-extrabold uppercase tracking-[0.28em] text-[#65b5ff]">Bango Operating System</p>
-          <h1 className="mt-2 truncate text-[29px] font-bold tracking-[-0.03em] text-white">{projectTitle}</h1>
-          <p className="mt-1 truncate text-[11px] font-semibold text-[#b8cce2]">
-            {primaryProject ? `${currentPhase} · ${companyName || "B.O.S."}` : "Live company project intelligence"}
-          </p>
-        </div>
-        <div className="relative mt-4 flex flex-wrap items-center gap-2 md:mt-0">
-          <Link href={primaryProject?.href || "/projects"} className="rounded-lg border border-[#d9e1eb] bg-white px-4 py-2 text-[11px] font-semibold text-[#1f3b64] shadow-sm hover:bg-[#f8fbff] lg:hidden">
-            View Project
-          </Link>
-          <Link href="/operations" className="rounded-xl border border-[#60b0ff]/40 bg-[#1475ed] px-5 py-3 text-[11px] font-semibold text-white shadow-[0_10px_24px_rgba(14,99,214,0.36)] hover:bg-[#2182f4]">
-            + New
-          </Link>
-        </div>
-      </header>
-
-      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.93fr_0.92fr]">
-        <section className="relative min-h-[362px] overflow-hidden rounded-[16px] border border-[#0c2b4d] bg-[linear-gradient(145deg,#06162c_0%,#08203d_56%,#0b3155_100%)] px-5 py-4 text-white shadow-[0_14px_34px_rgba(3,19,40,0.23)]">
-          <div className="absolute -right-14 -top-20 h-52 w-52 rounded-full bg-[#0aa6ff]/10 blur-3xl" />
-          <div className="relative flex items-center justify-between gap-3">
-            <h2 className="text-[15px] font-bold text-white">Project Health</h2>
-            <Link href={primaryProject?.href || "/projects"} className="rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-[10px] font-semibold text-white hover:bg-white/10">
-              View Details
-            </Link>
-          </div>
-          <div className="relative mt-4 grid grid-cols-[148px_1fr] items-center gap-5">
-            <div className="mx-auto flex h-[136px] w-[136px] items-center justify-center rounded-full bg-[conic-gradient(#20cc74_var(--score),#1b3857_0)] p-[10px]" style={{ "--score": `${completion * 3.6}deg` } as CSSProperties}>
-              <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-[#071a31]">
-                <span className="text-[37px] font-bold leading-none text-white">{completion}</span>
-                <span className="mt-1 text-[11px] text-slate-300">/100</span>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              {[
-                ["Schedule", data.projectHealth.behindScheduleCount ? "Attention" : "On Track", data.projectHealth.behindScheduleCount ? "amber" : "green"],
-                ["Budget", primaryProject?.budgetStatusKey ? "On Track" : "Healthy", "green"],
-                ["Quality", primaryProject ? "Good" : "Pending", "green"],
-                ["Safety", riskCount ? "Attention" : "Clear", riskCount ? "amber" : "green"],
-              ].map(([label, value, tone]) => (
-                <div key={label} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5">
-                  <span className="text-[11px] font-semibold text-slate-200">{label}</span>
-                  <span className={`text-[11px] font-bold ${tone === "amber" ? "text-[#ffbf3f]" : "text-[#36dc82]"}`}>● {value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="relative mt-4 grid grid-cols-4 gap-2 border-t border-white/10 pt-4">
-            {[
-              ["Complete", `${completion}%`, "text-[#38e18a]"],
-              ["Active Projects", formatMetric(activeProjects, localeTag), "text-[#63a8ff]"],
-              ["Health Score", formatMetric(healthMetric, localeTag), "text-[#d2f43a]"],
-              ["Active Risks", String(riskCount), "text-[#ff6b73]"],
-            ].map(([label, value, color]) => (
-              <div key={label} className="text-center">
-                <p className={`text-[17px] font-bold ${color}`}>{value}</p>
-                <p className="mt-0.5 text-[9px] font-medium text-slate-400">{label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <Surface className="min-h-[362px]">
-          <CardHeader title="Today's Priorities" action={<Link href="/operations" className="text-[10px] font-semibold text-[#2470e8]">View All</Link>} />
-          <div className="px-5 pb-4">
-            {isLoading ? <div className="h-52 animate-pulse rounded-xl bg-[#f1f4f8]" /> : topPriorities.length ? (
-              <div className="divide-y divide-[#edf0f4]">
-                {topPriorities.map((item, index) => {
-                  const tones = ["red", "amber", "blue", "violet", "green"] as const;
-                  const tone = tones[index % tones.length];
-                  const iconClass = tone === "red" ? "bg-[#fff0f1] text-[#ef3d4f]" : tone === "amber" ? "bg-[#fff5df] text-[#e59400]" : tone === "violet" ? "bg-[#f4efff] text-[#7c3aed]" : tone === "green" ? "bg-[#eafbf1] text-[#13a05a]" : "bg-[#edf5ff] text-[#2470e8]";
-                  return (
-                    <Link key={item.id} href={item.actionHref || item.hrefFallback || "/operations"} className="flex items-start gap-3 py-2.5 first:pt-0">
-                      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${iconClass}`}><AlertTriangle className="h-3.5 w-3.5" /></div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[11px] font-bold text-[#192233]">{item.title}</p>
-                        <p className="mt-0.5 line-clamp-1 text-[9.5px] text-[#7b8492]">{item.summary}</p>
-                      </div>
-                      <TinyPill tone={item.priority === "critical" ? "red" : item.priority === "high" ? "amber" : "blue"}>{item.priority}</TinyPill>
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : <div className="rounded-xl bg-[#f6f8fb] px-4 py-8 text-center text-[11px] text-[#7b8492]">No priority items need attention.</div>}
-          </div>
-        </Surface>
-
-        <div className="grid min-h-[362px] grid-rows-2 gap-4">
-          <Surface>
-            <CardHeader title="Jobsite Weather" icon={<CloudSun className="h-4 w-4 text-[#f59e0b]" />} action={<span className="text-[9px] font-semibold text-[#2470e8]">Hourly</span>} />
-            <DashboardLiveWeather projectId={primaryProject?.id ?? null} />
-          </Surface>
-          <Surface>
-            <CardHeader title="Jobsite Photo" icon={<Camera className="h-4 w-4 text-[#2470e8]" />} action={<Link href={primaryProject?.href || "/projects"} className="text-[9px] font-semibold text-[#2470e8]">View All</Link>} />
-            <div className="px-5 pb-4">
-              <Link href={primaryProject?.href || "/projects"} className="flex min-h-[84px] items-center justify-center rounded-xl border border-dashed border-[#cdd7e4] bg-[linear-gradient(135deg,#f8fbff,#f1f5fa)] text-center">
-                <div>
-                  <Camera className="mx-auto h-5 w-5 text-[#8ba0b8]" />
-                  <p className="mt-1.5 text-[10px] font-semibold text-[#53657b]">Latest jobsite photo</p>
-                  <p className="mt-0.5 text-[8.5px] text-[#8a96a7]">Open the project to view field photos</p>
-                </div>
-              </Link>
-            </div>
-          </Surface>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1.15fr_0.93fr_0.92fr]">
-        <Surface className="min-h-[330px]">
-          <CardHeader title="Project Progress / Schedule" icon={<CalendarDays className="h-4 w-4 text-[#2470e8]" />} action={<Link href="/schedule" className="text-[9px] font-semibold text-[#2470e8]">View Schedule</Link>} />
-          <div className="px-5 pb-5">
-            <div className="flex items-center justify-between text-[10px] font-medium text-[#53657b]"><span>Current Phase: <strong className="text-[#2470e8]">{currentPhase}</strong></span><strong className="text-[#2470e8]">{completion}%</strong></div>
-            <div className="mt-3 h-2 rounded-full bg-[#e8edf4]"><div className="h-2 rounded-full bg-[#2470e8]" style={{ width: `${completion}%` }} /></div>
-            <div className="mt-7 grid grid-cols-5 gap-2 text-center">
-              {["Pre-Con", "Mobilize", "Execution", "Finishes", "Closeout"].map((phase, index) => {
-                const done = index === 0 || completion >= (index + 1) * 20;
-                return <div key={phase}><div className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full border text-[10px] font-bold ${done ? "border-[#25c76f] bg-[#25c76f] text-white" : index === 1 ? "border-[#2470e8] bg-[#2470e8] text-white" : "border-[#cad4e1] bg-white text-[#42526a]"}`}>{done ? <CheckCircle2 className="h-4 w-4" /> : index + 1}</div><p className={`mt-2 text-[8.5px] font-medium ${done ? "text-[#16a357]" : "text-[#7b8492]"}`}>{phase}</p></div>;
-              })}
-            </div>
-            <div className="mt-7 grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-[#f6f8fb] p-4"><p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[#8492a6]">Next Milestone</p><p className="mt-2 line-clamp-2 text-[11px] font-bold text-[#172033]">{milestone}</p><p className="mt-1 text-[9px] text-[#7c8797]">{scheduleItems[0]?.timeLabel || "Schedule is clear"}</p></div>
-              <div className="rounded-xl bg-[#f6f8fb] p-4"><p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[#8492a6]">Project Status</p><p className="mt-2 text-[11px] font-bold text-[#172033]">{primaryProject ? "Active" : "No active project"}</p><p className="mt-1 text-[9px] text-[#7c8797]">{formatMetric(activeProjects, localeTag)} active projects</p></div>
-            </div>
-          </div>
-        </Surface>
-
-        <Surface className="min-h-[330px]">
-          <CardHeader title="Financial Snapshot" icon={<CircleDollarSign className="h-4 w-4 text-[#2470e8]" />} action={<Link href="/invoices" className="text-[9px] font-semibold text-[#2470e8]">View Financials</Link>} />
-          <div className="px-5 pb-5">
-            <div className="space-y-3 text-[10px]">
-              {[ ["Active Projects", formatMetric(activeProjects, localeTag)], ["Open Estimates", formatMetric(openEstimates, localeTag)], ["Open Invoices", formatMetric(openInvoices, localeTag)], ["Revenue This Month", formatMetric(revenue, localeTag)] ].map(([label, value]) => <div key={label} className="flex items-center justify-between"><span className="text-[#66748a]">{label}</span><strong className="text-[#111827]">{value}</strong></div>)}
-            </div>
-            <div className="mt-4 border-t border-[#edf0f4] pt-4"><div className="flex items-center justify-between text-[11px]"><span className="font-semibold text-[#159447]">Company Health</span><strong className="text-[#159447]">{formatMetric(healthMetric, localeTag)}</strong></div></div>
-            <div className="mt-5 h-[86px] rounded-xl bg-[linear-gradient(180deg,#f4f8ff,#ffffff)] px-3 pt-4">
-              <svg viewBox="0 0 260 58" className="h-full w-full" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity="0.20"/><stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/></linearGradient></defs><path d="M0 47 C30 38 48 35 68 27 S101 35 119 24 S151 29 171 22 S207 29 227 20 S247 28 260 24 L260 58 L0 58 Z" fill="url(#chartFill)"/><path d="M0 47 C30 38 48 35 68 27 S101 35 119 24 S151 29 171 22 S207 29 227 20 S247 28 260 24" fill="none" stroke="#3b82f6" strokeWidth="2.2"/></svg>
-            </div>
-          </div>
-        </Surface>
-
-        <Surface className="min-h-[330px]">
-          <CardHeader title="Field Activity" icon={<Users className="h-4 w-4 text-[#2470e8]" />} action={<Link href="/operations" className="text-[9px] font-semibold text-[#2470e8]">View All</Link>} />
-          <div className="divide-y divide-[#edf0f4] px-5 pb-4">
-            {[
-              [<Users key="u" className="h-4 w-4" />, "Crew On Site", formatMetric(employeesWorking, localeTag), "blue"],
-              [<Clock3 key="c" className="h-4 w-4" />, "Today's Schedule", String(scheduleItems.length), "blue"],
-              [<FileText key="f" className="h-4 w-4" />, "Recent Updates", String(activityItems.length), "blue"],
-              [<Camera key="ca" className="h-4 w-4" />, "Project Photos", "—", "green"],
-              [<ShieldCheck key="s" className="h-4 w-4" />, "Active Risks", String(riskCount), "amber"],
-              [<MessageSquare key="m" className="h-4 w-4" />, "Priority Items", String(data.topPriorities.length), "violet"],
-            ].map(([icon, label, value, tone]) => {
-              const toneClass = tone === "green" ? "bg-[#eafbf1] text-[#13a05a]" : tone === "amber" ? "bg-[#fff5df] text-[#e59400]" : tone === "violet" ? "bg-[#f4efff] text-[#7c3aed]" : "bg-[#edf5ff] text-[#2470e8]";
-              return <div key={String(label)} className="flex items-center gap-3 py-3 first:pt-1"><div className={`flex h-8 w-8 items-center justify-center rounded-lg ${toneClass}`}>{icon}</div><span className="flex-1 text-[10px] font-semibold text-[#253148]">{label}</span><span className="text-[10px] font-semibold text-[#5f6b7d]">{value}</span><ArrowRight className="h-3.5 w-3.5 text-[#9aa7b7]" /></div>;
-            })}
-          </div>
-        </Surface>
-      </div>
-
+  return <div
+    className="min-h-screen bg-[var(--color-background-workspace)] px-3 pb-4 pt-3 text-[var(--color-text-primary)] sm:px-4 lg:px-3"
+    style={{
+      "--color-info-700": "color-mix(in srgb, var(--color-info-500) 70%, var(--color-text-primary))",
+      "--color-success-700": "color-mix(in srgb, var(--color-success-500) 70%, var(--color-text-primary))",
+      "--color-warning-700": "color-mix(in srgb, var(--color-warning-500) 70%, var(--color-text-primary))",
+      "--color-danger-700": "color-mix(in srgb, var(--color-danger-500) 70%, var(--color-text-primary))",
+      "--color-analytics-700": "color-mix(in srgb, var(--color-analytics-500) 70%, var(--color-text-primary))",
+    } as CSSProperties}
+  >
+    <section className="mb-3 grid gap-3 xl:grid-cols-[minmax(280px,1fr)_154px_154px_154px_minmax(290px,1.12fr)]">
+      <div className="flex min-h-[58px] flex-col justify-center px-3"><h1 className="text-[20px] font-semibold tracking-[-0.02em] text-[var(--color-text-primary)]">Company Overview</h1><p className="mt-1 text-[10px] text-[var(--color-text-muted)]">Everything happening across your company, projects, and teams.</p></div>
+      <SummaryLink href="/trade-partner-messages" icon={<MessageCircle />} label="Messages" value={messageCount} caption="Unread" tone="blue" />
+      <SummaryLink href="/operations" icon={<AlertTriangle />} label="Alerts" value={alertCount} caption="Active" tone="red" />
+      <SummaryLink href="/operations" icon={<CheckCircle2 />} label="Approvals" value={approvalCount} caption="Pending" tone="green" />
+      <Link href="/orion" className={`${panel} relative flex min-h-[58px] items-center overflow-hidden border-t-2 border-t-[var(--bos-theme-accent-secondary)] bg-[color-mix(in_srgb,var(--bos-theme-accent-secondary)_5%,var(--color-surface-card))] px-4 transition hover:border-[var(--bos-theme-accent-secondary)]`}><div className="min-w-0"><p className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--color-text-primary)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--bos-theme-accent-secondary)] shadow-[0_0_8px_var(--bos-theme-accent-secondary)]" /> Orion Insight</p><p className="mt-1 line-clamp-1 text-[10px] font-medium text-[var(--color-text-primary)]">{data.morningBriefing.lines[0] || "Live company intelligence is ready."}</p><p className="line-clamp-1 text-[9px] text-[var(--color-text-muted)]">Review priorities across projects and teams.</p></div></Link>
+    </section>
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,2.05fr)_minmax(340px,1fr)]">
+      <ProjectProgress project={selectedProject} projects={projects} selectedProjectId={selectedProject?.id ?? ""} onSelect={setSelectedProjectId} completion={completion} milestone={milestone} scheduleStatus={milestone && selectedProject?.scheduleStatusKey ? t(selectedProject.scheduleStatusKey) : null} />
+      <div className="grid gap-3 xl:grid-rows-[1fr_1.08fr]"><AlertsPanel priorities={priorities} loading={isLoading} /><section className={panel}><SectionHeader title="Live Jobsite Weather" icon={<CloudSun />} tone="amber" /><DashboardLiveWeather projectId={selectedProject?.id ?? null} /></section></div>
     </div>
-  );
+    <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.08fr_1fr_1fr_1.45fr]">
+      <FinancialPanel metricById={metricById} locale={localeTag} />
+      <FieldPanel metricById={metricById} scheduleCount={data.schedule.length} activityCount={data.activities.length} />
+      <RiskPanel risks={data.riskSummary} />
+      <PhotosPanel activities={data.activities.filter((item) => item.category === "sitecam").slice(0, 4)} project={selectedProject} />
+    </div>
+    <ActivityPanel activities={activities} loading={isLoading} />
+    <span className="sr-only">{riskCount} active risks</span>
+  </div>;
 }
+
+function SummaryLink({ href, icon, label, value, caption, tone }: { href: string; icon: ReactNode; label: string; value: number; caption: string; tone: "blue" | "red" | "green" }) {
+  const style = toneStyles[tone];
+  return <Link href={href} className={`${panel} flex min-w-0 min-h-[58px] items-center gap-3 border-l-[3px] ${style.edge} px-3 transition hover:shadow-[var(--shadow-small)]`}><span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-[var(--shadow-small)] [&>svg]:h-5 [&>svg]:w-5 [&>svg]:stroke-[2.5] ${style.solid}`}>{icon}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-1.5 text-[10px] font-medium text-[var(--color-text-primary)]"><span className="truncate">{label}</span><strong className={`shrink-0 rounded-full px-1.5 py-0.5 ${style.tint} ${style.text}`}>{value}</strong></span><span className="block truncate text-[9px] text-[var(--color-text-muted)]">{caption}</span></span></Link>;
+}
+
+function ProjectProgress({ project, projects, selectedProjectId, onSelect, completion, milestone, scheduleStatus }: { project: ProjectHealthRow | null; projects: ProjectHealthRow[]; selectedProjectId: string; onSelect: (id: string) => void; completion: number; milestone: ScheduleEvent | null; scheduleStatus: string | null }) {
+  const phases = ["Pre-Con", "Mobilize", "Rough-In", project?.currentPhase || "Buildout", "Finishes", "Closeout"];
+  const activeIndex = Math.max(0, Math.min(5, Math.floor(completion / 20)));
+  return <section className={`${panel} min-h-[484px] border-t-2 border-t-[var(--color-info-500)]`}>
+    <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border-subtle)] bg-[color-mix(in_srgb,var(--color-info-500)_5%,var(--color-surface-card))] px-4 py-2"><h2 className="text-[15px] font-bold text-[var(--color-text-primary)]">Project Portfolio Progress</h2><label className="flex items-center gap-2 text-[10px] text-[var(--color-text-secondary)]">Select Project<select aria-label="Select project" value={selectedProjectId} onChange={(event) => onSelect(event.target.value)} className="h-8 min-w-[190px] rounded-md border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] px-3 text-[10px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-action-primary)]">{projects.length ? projects.map((item) => <option key={item.id} value={item.id}>{item.projectName}</option>) : <option value="">No active projects</option>}</select></label></div>
+    <div className="p-4">
+      <div className="grid items-center gap-6 lg:grid-cols-[160px_1.1fr_0.8fr_1fr]">
+        <div className="mx-auto flex h-[128px] w-[128px] items-center justify-center rounded-full bg-[conic-gradient(var(--color-action-primary)_var(--progress),var(--color-surface-muted)_0)] p-[8px]" style={{ "--progress": `${completion * 3.6}deg` } as CSSProperties}><div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-[var(--color-surface-subtle)]"><strong className="text-[33px] text-[var(--color-text-primary)]">{completion}%</strong><span className="text-[10px] text-[var(--color-text-secondary)]">Complete</span></div></div>
+        <div><p className="text-[18px] font-semibold text-[var(--color-text-primary)]">{project?.projectName || "No active project"}</p><p className="mt-2 text-[10px] text-[var(--color-text-secondary)]">Priority: <span className={project?.riskIndicator === "high" ? toneStyles.red.text : toneStyles.green.text}>{project?.riskIndicator ?? "—"}</span></p></div>
+        <div><p className={`text-[18px] font-semibold ${scheduleStatus ? toneStyles.green.text : "text-[var(--color-text-secondary)]"}`}>{scheduleStatus || "Not scheduled"}</p><p className="mt-2 text-[10px] text-[var(--color-text-secondary)]">{scheduleStatus ? "Live schedule status" : "Add project schedule data"}</p></div>
+        <div className="flex gap-3"><CalendarDays className="mt-1 h-6 w-6 text-[var(--color-text-secondary)]"/><div><p className="text-[10px] text-[var(--color-text-secondary)]">Scheduled Completion</p><p className="mt-1 text-[13px] font-semibold text-[var(--color-text-primary)]">{milestone?.timeLabel || "Not scheduled"}</p><p className="text-[9px] text-[var(--color-text-muted)]">{milestone?.title || milestone?.projectName || "No milestone available"}</p></div></div>
+      </div>
+      <div className="relative mt-4 grid grid-cols-6 gap-1 before:absolute before:left-[8%] before:right-[8%] before:top-4 before:h-px before:bg-[linear-gradient(90deg,var(--color-success-500),var(--color-info-500),var(--color-border-strong))]">{phases.map((phase, index) => { const done = index < activeIndex; const active = index === activeIndex; return <div key={`${phase}-${index}`} className="relative text-center"><div className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full border text-[10px] font-bold ${done ? "border-[var(--color-success-500)] bg-[var(--color-success-500)] text-white" : active ? `border-[var(--color-info-500)] bg-[color-mix(in_srgb,var(--color-info-500)_12%,var(--color-surface-card))] ${toneStyles.blue.text} shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-info-500)_15%,transparent)]` : "border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] text-[var(--color-text-muted)]"}`}>{done ? <Check className="h-4 w-4"/> : index + 1}</div><p className="mt-2 text-[9px] text-[var(--color-text-secondary)]">{phase}</p><p className={`mt-1 text-[9px] ${done ? toneStyles.green.text : active ? toneStyles.blue.text : "text-[var(--color-text-muted)]"}`}>{done ? "100%" : active ? `${completion}%` : "0%"}</p></div>; })}</div>
+      <div className="mt-5 grid gap-3 lg:grid-cols-[0.72fr_0.78fr_1.55fr]">
+        <InfoCard label="Current Phase" title={project?.currentPhase || "Not assigned"} body="Live phase data from the selected project." href={project?.href || "/projects"} action="View Phase Plan" />
+        <InfoCard label="Next Milestone" title={milestone?.title || "No milestone scheduled"} body={milestone?.timeLabel || "Schedule is clear"} href={project?.href || "/schedule"} action="View Milestone" />
+        <div className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3"><div className="flex items-center justify-between"><p className="text-[10px] font-semibold text-[var(--color-text-primary)]">Planned vs. Actual Progress</p><span className="text-[8px] text-[var(--color-text-secondary)]">-- Planned &nbsp; <b className="text-[var(--color-info-700)]">— Actual</b></span></div><svg viewBox="0 0 360 110" className="mt-2 h-[106px] w-full" preserveAspectRatio="none" aria-hidden="true"><path d="M0 98 C45 90 55 74 85 69 S125 48 155 43 S200 30 235 25 S300 11 360 5" fill="none" stroke="var(--color-text-secondary)" strokeDasharray="4 4"/><path d={`M0 98 C55 88 75 76 105 65 S150 52 190 ${Math.max(28, 78 - completion / 2)} S240 ${Math.max(20, 68 - completion / 2)} 270 ${Math.max(16, 62 - completion / 2)}`} fill="none" stroke="var(--color-info-500)" strokeWidth="3"/><line x1="0" y1="100" x2="360" y2="100" stroke="var(--color-border-strong)"/></svg></div>
+      </div>
+    </div>
+  </section>;
+}
+
+function InfoCard({ label, title, body, href, action }: { label: string; title: string; body: string; href: string; action: string }) { return <div className="flex min-h-[148px] flex-col rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3"><p className="text-[10px] text-[var(--color-text-secondary)]">{label}</p><p className="mt-3 line-clamp-2 text-[12px] font-semibold text-[var(--color-text-primary)]">{title}</p><p className="mt-2 line-clamp-2 text-[9px] leading-4 text-[var(--color-text-muted)]">{body}</p><Link href={href} className="mt-auto w-fit rounded-md border border-[var(--color-border-strong)] px-3 py-2 text-[9px] font-medium text-[var(--color-text-primary)] hover:border-[var(--color-action-primary)]">{action}</Link></div>; }
+function AlertsPanel({ priorities, loading }: { priorities: DashboardDecisionItem[]; loading: boolean }) { return <section className={panel}><SectionHeader title="Alerts & Decisions" icon={<AlertTriangle />} tone="red" action={<Link href="/operations" className="text-[9px] text-[var(--color-info-700)]">View All ({priorities.length})</Link>} />{loading ? <div className="m-4 h-32 animate-pulse rounded bg-[var(--color-surface-muted)]"/> : priorities.length ? <div className="divide-y divide-[var(--color-border-subtle)] px-4">{priorities.map((item) => { const critical = item.priority === "critical"; return <Link key={item.id} href={item.actionHref || item.hrefFallback} className="flex items-center gap-3 py-2 transition hover:bg-[color-mix(in_srgb,var(--color-warning-500)_5%,transparent)]"><span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${critical ? toneStyles.red.tint : toneStyles.amber.tint}`}><AlertTriangle className={`h-4 w-4 ${critical ? toneStyles.red.icon : toneStyles.amber.icon}`}/></span><span className="min-w-0 flex-1"><span className="block truncate text-[10px] font-semibold text-[var(--color-text-primary)]">{item.title}</span><span className="block truncate text-[8.5px] text-[var(--color-text-muted)]">{item.summary}</span></span><span className={`rounded-full border px-2 py-1 text-[8px] font-semibold capitalize ${critical ? `border-[var(--color-danger-200)] ${toneStyles.red.tint} ${toneStyles.red.text}` : `border-[var(--color-warning-200)] ${toneStyles.amber.tint} ${toneStyles.amber.text}`}`}>{item.priority}</span></Link>; })}</div> : <div className="p-6 text-center"><CheckCircle2 className="mx-auto h-6 w-6 text-[var(--color-success-500)]"/><p className="mt-2 text-[10px] text-[var(--color-text-muted)]">No alerts or decisions require attention.</p></div>}</section>; }
+function FinancialPanel({ metricById, locale }: { metricById: Map<string, DashboardMetric>; locale: string }) { const revenue = metricById.get("revenue-this-month"); const health = metricById.get("health-score"); return <section className={panel}><SectionHeader title="Financial Performance" icon={<CircleDollarSign/>} tone="blue" action={<Link href="/invoices" className="text-[8px] text-[var(--color-info-700)]">View Details</Link>}/><div className="p-4"><p className="text-[9px] text-[var(--color-text-muted)]">Revenue this month</p><p className="mt-1 text-[18px] font-semibold text-[var(--color-info-700)]">{metricValue(revenue, locale)}</p><div className="mt-3 h-1.5 rounded-full bg-[var(--color-surface-muted)]"><div className="h-full w-[64%] rounded-full bg-[linear-gradient(90deg,var(--color-info-500),var(--bos-theme-accent-secondary))]"/></div><div className="mt-4 flex justify-between border-t border-[var(--color-border-subtle)] pt-3 text-[9px]"><span className="text-[var(--color-text-muted)]">Company Health</span><strong className="text-[var(--color-success-700)]">{metricValue(health, locale)}</strong></div></div></section>; }
+function FieldPanel({ metricById, scheduleCount, activityCount }: { metricById: Map<string, DashboardMetric>; scheduleCount: number; activityCount: number }) { const employees = metricById.get("assigned-active-work"); return <section className={panel}><SectionHeader title="Field Activity" icon={<Users/>} tone="cyan" action={<Link href="/operations" className="text-[8px] text-[var(--color-info-700)]">View All</Link>}/><MetricRow icon={<Users/>} label="Crew On Site" value={employees ? String(employees.value) : "—"} tone="cyan"/><MetricRow icon={<CalendarDays/>} label="Today's Schedule" value={`${scheduleCount} Tasks`} tone="blue"/><MetricRow icon={<BellRing/>} label="Recent Updates" value={String(activityCount)} tone="amber"/><MetricRow icon={<Users/>} label="Trade Partners" value="—" tone="cyan" last/></section>; }
+function MetricRow({ icon, label, value, tone = "blue", last = false }: { icon: ReactNode; label: string; value: string; tone?: DashboardTone; last?: boolean }) { const style = toneStyles[tone]; return <div className={`mx-4 flex items-center gap-3 py-3 ${last ? "" : "border-b border-[var(--color-border-subtle)]"}`}><span className={`inline-flex h-7 w-7 items-center justify-center rounded-full shadow-[var(--shadow-small)] [&>svg]:h-4 [&>svg]:w-4 [&>svg]:stroke-[2.5] ${style.solid}`}>{icon}</span><span className="flex-1 text-[10px] text-[var(--color-text-secondary)]">{label}</span><strong className={`text-[10px] ${style.text}`}>{value}</strong></div>; }
+function RiskPanel({ risks }: { risks: { critical: number; high: number; medium: number; low: number } }) { return <section className={panel}><SectionHeader title="Risks & Inspections" icon={<ShieldCheck/>} tone="red" action={<Link href="/operations" className="text-[8px] text-[var(--color-info-700)]">View All</Link>}/><MetricRow icon={<AlertTriangle/>} label="Active Risks" value={String(risks.critical + risks.high + risks.medium + risks.low)} tone="red"/><MetricRow icon={<Search/>} label="Critical" value={String(risks.critical)} tone="red"/><MetricRow icon={<Clock3/>} label="High Priority" value={String(risks.high)} tone="amber"/><MetricRow icon={<ShieldCheck/>} label="Low Priority" value={String(risks.low)} tone="green" last/></section>; }
+function PhotosPanel({ activities, project }: { activities: DashboardActivityItem[]; project: ProjectHealthRow | null }) { return <section className={panel}><SectionHeader title="Recent Photos" icon={<Camera/>} tone="violet" action={<Link href={project?.href || "/projects"} className="text-[8px] text-[var(--color-info-700)]">View All</Link>}/><div className="grid grid-cols-2 gap-1.5 p-3">{activities.length ? activities.map((item) => <Link href={item.href || "/projects"} key={item.id} className="flex min-h-[74px] flex-col items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--color-analytics-500)_25%,var(--color-border-subtle))] bg-[color-mix(in_srgb,var(--color-analytics-500)_7%,var(--color-surface-subtle))] p-2 text-center transition hover:border-[var(--color-analytics-500)]"><ImageIcon className="h-5 w-5 text-[var(--color-analytics-500)]"/><span className="mt-1 line-clamp-1 text-[8px] text-[var(--color-text-primary)]">{item.projectName || "Project photo"}</span><span className="text-[7px] text-[var(--color-text-muted)]">{relativeTime(item.timestampMinutesAgo)}</span></Link>) : [0,1,2,3].map((key) => <div key={key} className="flex min-h-[74px] items-center justify-center rounded-md border border-dashed border-[color-mix(in_srgb,var(--color-analytics-500)_25%,var(--color-border-subtle))] bg-[color-mix(in_srgb,var(--color-analytics-500)_7%,var(--color-surface-subtle))]"><Camera className="h-5 w-5 text-[var(--color-analytics-500)]"/></div>)}</div></section>; }
+function ActivityPanel({ activities, loading }: { activities: DashboardActivityItem[]; loading: boolean }) { return <section className={`${panel} mt-3`}><SectionHeader title="Latest Company Activity" icon={<BellRing/>} tone="violet" action={<Link href="/operations" className="text-[8px] text-[var(--color-info-700)]">View All Activity</Link>}/>{loading ? <div className="m-4 h-16 animate-pulse rounded bg-[var(--color-surface-muted)]"/> : activities.length ? <div className="grid divide-y divide-[var(--color-border-subtle)] md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-4">{activities.map((item) => { const style = toneStyles[activityTone(item)]; return <Link key={item.id} href={item.href || "/operations"} className="flex min-h-[82px] gap-3 px-4 py-3 transition hover:bg-[var(--color-surface-muted)]"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${style.tint} ${style.text}`}>{item.avatarLabel}</span><span className="min-w-0"><span className="block truncate text-[10px] font-semibold text-[var(--color-text-primary)]">{activityLabel(item)}</span><span className="mt-1 block truncate text-[8.5px] text-[var(--color-text-muted)]">{item.user}{item.projectName ? ` · ${item.projectName}` : ""}</span><span className={`mt-1 block text-[8px] ${style.text}`}>{relativeTime(item.timestampMinutesAgo)}</span></span></Link>; })}</div> : <div className="p-5 text-center"><p className="text-[10px] text-[var(--color-text-muted)]">No recent company activity.</p></div>}</section>; }
+function activityTone(item: DashboardActivityItem): DashboardTone { if (item.category === "sitecam") return "violet"; if (item.category === "invoice") return "green"; if (item.category === "customer") return "blue"; if (item.category === "team") return "cyan"; return "amber"; }
+function activityLabel(item: DashboardActivityItem) { if (item.actionLabel) return item.actionLabel; if (item.category === "sitecam") return "Field Photos Uploaded"; if (item.category === "invoice") return "Financial Update"; if (item.category === "customer") return "Client Update"; if (item.category === "team") return "Team Update"; return "Project Update"; }
+function relativeTime(minutes: number) { if (minutes < 1) return "Just now"; if (minutes < 60) return `${minutes}m ago`; if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`; return `${Math.floor(minutes / 1440)}d ago`; }

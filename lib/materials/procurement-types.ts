@@ -66,6 +66,7 @@ export type ProcurementPurchaseOrderLine = {
   lineSubtotal: number;
   projectId: string;
   costCodeId: string | null;
+  projectMaterialPlanItemId: string | null;
 };
 
 export type ProcurementProjectSummary = {
@@ -111,6 +112,7 @@ export type CreatePurchaseOrderInput = {
   requestId: string | null;
   attachments: Array<{ name: string; url: string }>;
   lines: Array<{
+    projectMaterialPlanItemId?: string | null;
     materialId: string | null;
     description: string;
     quantityOrdered: number;

@@ -21,7 +21,7 @@ export function EmployeeDashboardMetrics({ summary, t }: EmployeeDashboardMetric
       value: String(summary.totalEmployees),
       insight: t("employees.dashboardInsight.totalEmployees", { count: summary.totalEmployees }),
       icon: <UsersIcon className="h-5 w-5" />,
-      iconTone: "bg-[var(--color-brand-50)] text-[var(--color-brand-700)]",
+      iconTone: "bg-[var(--color-primary-600)] text-white",
     },
     {
       key: "active",
@@ -29,7 +29,7 @@ export function EmployeeDashboardMetrics({ summary, t }: EmployeeDashboardMetric
       value: String(summary.activeToday),
       insight: t("employees.dashboardInsight.activeToday", { count: summary.activeToday }),
       icon: <UserCheckIcon className="h-5 w-5" />,
-      iconTone: "bg-[var(--color-success-50)] text-[var(--color-success-700)]",
+      iconTone: "bg-[var(--color-success-500)] text-white",
     },
     {
       key: "available",
@@ -37,7 +37,7 @@ export function EmployeeDashboardMetrics({ summary, t }: EmployeeDashboardMetric
       value: String(summary.available),
       insight: t("employees.dashboardInsight.available", { count: summary.available }),
       icon: <CircleCheckIcon className="h-5 w-5" />,
-      iconTone: "bg-[var(--color-info-50)] text-[var(--color-info-700)]",
+      iconTone: "bg-[var(--color-info-500)] text-white",
     },
     {
       key: "assigned",
@@ -45,7 +45,7 @@ export function EmployeeDashboardMetrics({ summary, t }: EmployeeDashboardMetric
       value: String(summary.assignedToProjects),
       insight: t("employees.dashboardInsight.assigned", { count: summary.assignedToProjects }),
       icon: <BriefcaseIcon className="h-5 w-5" />,
-      iconTone: "bg-[var(--color-warning-50)] text-[var(--color-warning-700)]",
+      iconTone: "bg-[var(--color-warning-500)] text-white",
     },
     {
       key: "leave",
@@ -53,7 +53,7 @@ export function EmployeeDashboardMetrics({ summary, t }: EmployeeDashboardMetric
       value: String(summary.onLeave),
       insight: t("employees.dashboardInsight.onLeave", { count: summary.onLeave }),
       icon: <BedDoubleIcon className="h-5 w-5" />,
-      iconTone: "bg-[var(--color-danger-50)] text-[var(--color-danger-700)]",
+      iconTone: "bg-[var(--color-danger-500)] text-white",
     },
   ];
 
@@ -63,7 +63,7 @@ export function EmployeeDashboardMetrics({ summary, t }: EmployeeDashboardMetric
         <Card key={item.key} variant="kpi" className="h-full !bg-[var(--color-surface-card)]">
           <CardContent className="flex h-full min-h-[172px] flex-col justify-between p-6">
             <div className="flex items-start justify-between gap-4">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-[var(--radius-lg)] ${item.iconTone}`}>
+              <div className={`flex h-11 w-11 items-center justify-center rounded-full shadow-[var(--shadow-small)] [&>svg]:stroke-[2.5] ${item.iconTone}`}>
                 {item.icon}
               </div>
             </div>

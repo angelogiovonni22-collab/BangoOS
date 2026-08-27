@@ -1941,6 +1941,9 @@ export type Database = {
         Row: {
           category: string
           company_id: string
+          cost_override: boolean
+          cost_source: string | null
+          cost_verified_on: string | null
           created_at: string
           description: string
           estimate_id: string
@@ -1948,9 +1951,13 @@ export type Database = {
           item_code: string | null
           line_total: number
           markup_percent: number
+          material_id: string | null
           notes: string | null
           quantity: number
           sort_order: number
+          supplier_price_entry_id: string | null
+          supplier_unit_cost_snapshot: number | null
+          supplier_vendor_id: string | null
           unit: string
           unit_cost: number
           unit_price: number
@@ -1959,6 +1966,9 @@ export type Database = {
         Insert: {
           category?: string
           company_id: string
+          cost_override?: boolean
+          cost_source?: string | null
+          cost_verified_on?: string | null
           created_at?: string
           description: string
           estimate_id: string
@@ -1966,9 +1976,13 @@ export type Database = {
           item_code?: string | null
           line_total?: number
           markup_percent?: number
+          material_id?: string | null
           notes?: string | null
           quantity?: number
           sort_order?: number
+          supplier_price_entry_id?: string | null
+          supplier_unit_cost_snapshot?: number | null
+          supplier_vendor_id?: string | null
           unit?: string
           unit_cost?: number
           unit_price?: number
@@ -1977,6 +1991,9 @@ export type Database = {
         Update: {
           category?: string
           company_id?: string
+          cost_override?: boolean
+          cost_source?: string | null
+          cost_verified_on?: string | null
           created_at?: string
           description?: string
           estimate_id?: string
@@ -1984,9 +2001,13 @@ export type Database = {
           item_code?: string | null
           line_total?: number
           markup_percent?: number
+          material_id?: string | null
           notes?: string | null
           quantity?: number
           sort_order?: number
+          supplier_price_entry_id?: string | null
+          supplier_unit_cost_snapshot?: number | null
+          supplier_vendor_id?: string | null
           unit?: string
           unit_cost?: number
           unit_price?: number
@@ -2005,6 +2026,27 @@ export type Database = {
             columns: ["estimate_id", "company_id"]
             isOneToOne: false
             referencedRelation: "estimates"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "estimate_line_items_material_company_fkey"
+            columns: ["material_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "estimate_line_items_supplier_entry_company_fkey"
+            columns: ["supplier_price_entry_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_price_entries"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "estimate_line_items_supplier_vendor_company_fkey"
+            columns: ["supplier_vendor_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
             referencedColumns: ["id", "company_id"]
           },
         ]
@@ -4722,6 +4764,153 @@ export type Database = {
           },
         ]
       }
+      supplier_price_entries: {
+        Row: {
+          availability: string | null
+          company_id: string
+          contractor_price: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          manufacturer: string | null
+          match_confidence: number | null
+          match_status: string
+          material_id: string | null
+          model_number: string | null
+          package_quantity: number
+          price_list_id: string
+          product_description: string
+          source_row: Json
+          supplier_sku: string
+          unit_of_measure: string
+          unit_price: number
+          vendor_id: string
+        }
+        Insert: {
+          availability?: string | null
+          company_id: string
+          contractor_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          manufacturer?: string | null
+          match_confidence?: number | null
+          match_status?: string
+          material_id?: string | null
+          model_number?: string | null
+          package_quantity?: number
+          price_list_id: string
+          product_description: string
+          source_row?: Json
+          supplier_sku: string
+          unit_of_measure?: string
+          unit_price: number
+          vendor_id: string
+        }
+        Update: {
+          availability?: string | null
+          company_id?: string
+          contractor_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          manufacturer?: string | null
+          match_confidence?: number | null
+          match_status?: string
+          material_id?: string | null
+          model_number?: string | null
+          package_quantity?: number
+          price_list_id?: string
+          product_description?: string
+          source_row?: Json
+          supplier_sku?: string
+          unit_of_measure?: string
+          unit_price?: number
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_price_entries_list_company_fkey"
+            columns: ["price_list_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_price_lists"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "supplier_price_entries_material_company_fkey"
+            columns: ["material_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id", "company_id"]
+          },
+          {
+            foreignKeyName: "supplier_price_entries_vendor_company_fkey"
+            columns: ["vendor_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
+      supplier_price_lists: {
+        Row: {
+          branch_name: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          effective_on: string
+          expires_on: string | null
+          id: string
+          list_name: string
+          matched_count: number
+          row_count: number
+          source_filename: string
+          status: string
+          vendor_id: string
+          verified_on: string
+        }
+        Insert: {
+          branch_name?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          effective_on: string
+          expires_on?: string | null
+          id?: string
+          list_name: string
+          matched_count?: number
+          row_count?: number
+          source_filename: string
+          status?: string
+          vendor_id: string
+          verified_on?: string
+        }
+        Update: {
+          branch_name?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          effective_on?: string
+          expires_on?: string | null
+          id?: string
+          list_name?: string
+          matched_count?: number
+          row_count?: number
+          source_filename?: string
+          status?: string
+          vendor_id?: string
+          verified_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_price_lists_vendor_company_fkey"
+            columns: ["vendor_id", "company_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id", "company_id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           company_id: string | null
@@ -5238,6 +5427,20 @@ export type Database = {
       is_company_member: {
         Args: { p_company_id: string; p_user_id?: string }
         Returns: boolean
+      }
+      import_supplier_price_list: {
+        Args: {
+          p_branch_name: string
+          p_company_id: string
+          p_effective_on: string
+          p_expires_on: string | null
+          p_list_name: string
+          p_rows: Json
+          p_source_filename: string
+          p_vendor_id: string
+          p_verified_on: string
+        }
+        Returns: string
       }
       normalize_company_slug: { Args: { input_value: string }; Returns: string }
       recalc_change_order_totals: {

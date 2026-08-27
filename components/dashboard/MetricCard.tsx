@@ -35,7 +35,7 @@ export function MetricCard({
       <Card variant="kpi" className="h-full">
         <CardContent className="space-y-4 p-4">
           <div className="flex items-center justify-between gap-3">
-            <SkeletonLoader className="h-10 w-10 rounded-[var(--radius-lg)]" />
+            <SkeletonLoader className="h-10 w-10 rounded-full" />
             <SkeletonLoader className="h-5 w-24 rounded-full" />
           </div>
           <SkeletonLoader className="h-5 w-28" />
@@ -60,7 +60,7 @@ export function MetricCard({
         >
           <CardContent className="flex h-full min-h-[156px] flex-col justify-between p-4">
             <div className="flex items-start justify-between gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-primary-50)] text-sm font-bold text-[var(--color-brand-700)] shadow-[var(--shadow-small)]">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-primary-600)] text-sm font-bold text-white shadow-[var(--shadow-small)]">
                 {metric.icon}
               </span>
               {trendLabel || typeof metric.trendPercent === "number" ? (

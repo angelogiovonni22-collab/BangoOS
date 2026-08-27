@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { FileSpreadsheet, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { MaterialsFilters, MaterialsTable } from "@/components/materials";
 import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard } from "@/components/ui";
@@ -265,6 +265,9 @@ export function MaterialsListClient() {
         description={`Manage material catalog, costs, and inventory for ${companyName || "your company"}.`}
         primaryAction={
           <div className="flex flex-wrap gap-2">
+            <Link href="/materials/price-lists">
+              <Button variant="outline"><FileSpreadsheet size={16} />Supplier Price Lists</Button>
+            </Link>
             <Link href="/materials/procurement">
               <Button variant="outline">Procurement Workflow</Button>
             </Link>

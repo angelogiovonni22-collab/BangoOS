@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -56,6 +57,7 @@ export function AppShell({ children, userName, userEmail, companyName, role, ori
 function AppShellFrame({ children, userName, userEmail, companyName, role, orionEnabled, platformAdmin }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
+  const [orionVisible, setOrionVisible] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
   const isDashboard = pathname === "/dashboard";
@@ -129,7 +131,15 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   return (
     <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
       <AutomaticWritingEditor />
-      {orionEnabled ? <PersistentOrion onOpenCommandCenter={() => setCommandCenterOpen(true)} /> : null}
+      {orionEnabled && orionVisible ? (
+        <PersistentOrion
+          onOpenCommandCenter={() => setCommandCenterOpen(true)}
+          onHide={() => {
+            setCommandCenterOpen(false);
+            setOrionVisible(false);
+          }}
+        />
+      ) : null}
       <div className="flex min-h-screen min-w-0">
         <LayerManager layer={mobileOpen ? "dialog" : "popover"}>
           <aside
@@ -137,20 +147,40 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
             role={mobileOpen ? "dialog" : undefined}
             aria-modal={mobileOpen ? true : undefined}
             aria-label={mobileOpen ? t("common.openSidebar") : undefined}
-            className={`fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh] lg:translate-x-0 ${isDashboard ? "px-3 py-5 lg:w-[184px]" : "px-5 py-6"} ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+            className={`fixed inset-y-0 left-0 z-[var(--z-popover)] flex min-h-0 w-72 flex-col overflow-hidden border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] px-3 py-5 text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)] transition-transform duration-300 [height:100dvh] lg:sticky lg:top-0 lg:h-screen lg:w-[184px] lg:[height:100dvh] lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
           >
-            <div className="shrink-0 flex items-center justify-between gap-3">
-              <Link href={homePath} className={`flex items-center ${isDashboard ? "w-full justify-center gap-2" : "gap-3"}`} onClick={() => setMobileOpen(false)}>
-                <div className={`flex items-center justify-center bg-gradient-to-br from-[#2f5ec9] to-[#2d9ad4] font-bold text-white shadow-lg shadow-blue-500/20 ${isDashboard ? "h-10 w-10 rounded-xl text-[10px]" : "h-11 w-11 rounded-2xl text-xs"}`}>B.O.S.</div>
-                <div className={isDashboard ? "hidden" : ""}>
-                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#8ec3ff]">B.O.S.</p>
-                  <p className="text-sm text-[var(--bos-text-muted)]">{t("common.constructionOs")}</p>
-                </div>
+            <div className="relative flex h-[132px] shrink-0 items-center justify-center">
+              <Link href={homePath} className="flex h-full w-full items-center justify-center" onClick={() => setMobileOpen(false)} aria-label="B.O.S. home">
+                <Image
+                  src="/branding/bos-operating-system-logo.png"
+                  alt="B.O.S. — Bango Operating System"
+                  width={720}
+                  height={672}
+                  priority
+                  sizes="(min-width: 1024px) 168px, 240px"
+                  className="h-full w-full object-contain"
+                />
               </Link>
-              <button type="button" aria-label={t("common.closeSidebar")} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white/10 lg:hidden" onClick={() => setMobileOpen(false)}>×</button>
+              <button type="button" aria-label={t("common.closeSidebar")} className="absolute right-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white/10 lg:hidden" onClick={() => setMobileOpen(false)}>×</button>
             </div>
 
-            <div className="mt-7 flex min-h-0 flex-1 flex-col overflow-hidden">
+            {orionEnabled ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (orionVisible) setCommandCenterOpen(false);
+                  setOrionVisible((current) => !current);
+                }}
+                className={`mb-1 inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-[var(--radius-lg)] border px-3 text-xs font-bold shadow-[var(--shadow-small)] transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] ${orionVisible ? "border-white/15 bg-white/5 text-[var(--bos-text-secondary)] hover:border-[var(--orion-cyan)]/60 hover:text-[var(--orion-cyan)]" : "border-[var(--orion-cyan)]/50 bg-[color-mix(in_srgb,var(--orion-cyan)_12%,transparent)] text-[var(--orion-cyan)] hover:border-[var(--orion-cyan)] hover:bg-[color-mix(in_srgb,var(--orion-cyan)_20%,transparent)]"}`}
+                aria-label={orionVisible ? "Hide Orion" : "Activate Orion"}
+                aria-pressed={orionVisible}
+              >
+                <span className={`h-2 w-2 rounded-full ${orionVisible ? "bg-[var(--color-success-500)] shadow-[0_0_8px_var(--color-success-500)]" : "bg-[var(--orion-cyan)] shadow-[0_0_8px_var(--orion-cyan)]"}`} aria-hidden="true" />
+                {orionVisible ? "Hide Orion" : "Activate Orion"}
+              </button>
+            ) : null}
+
+            <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden">
               <nav
                 data-orion-scroll-region="sidebar"
                 data-orion-scroll-label="Sidebar navigation"
@@ -161,13 +191,15 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                   const isCollapsed = collapsedGroups[group.key] ?? false;
                   return (
                     <section key={group.key} className="space-y-2">
-                      <button type="button" className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--bos-text-muted)] transition hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)]" onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))} aria-expanded={!isCollapsed}>
-                        <span>{group.label}</span><span>{isCollapsed ? "+" : "-"}</span>
-                      </button>
+                      {group.key !== "dashboard" ? (
+                        <button type="button" className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--bos-text-muted)] transition hover:bg-[var(--bos-bg-hover)] hover:text-[var(--bos-text-primary)]" onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))} aria-expanded={!isCollapsed}>
+                          <span>{group.label}</span><span>{isCollapsed ? "+" : "-"}</span>
+                        </button>
+                      ) : null}
                       {!isCollapsed ? (
                         <div className="space-y-1.5">
                           {group.items.map((item) => (
-                            <SidebarItem compact={isDashboard} key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t)} href={item.href} icon={item.icon} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} onNavigate={() => setMobileOpen(false)} />
+                            <SidebarItem compact key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t)} href={item.href} icon={item.icon} active={pathname === item.href || pathname.startsWith(`${item.href}/`)} onNavigate={() => setMobileOpen(false)} />
                           ))}
                         </div>
                       ) : null}
@@ -187,15 +219,19 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
 
         <div className="flex min-h-screen min-h-0 min-w-0 flex-1 flex-col">
           <LayerManager layer="header">
-            <header data-bos-topbar="true" className={`sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)]/92 px-4 py-3.5 text-[var(--bos-text-primary)] backdrop-blur-sm sm:px-6 lg:px-8 ${isDashboard ? "lg:hidden" : ""}`}>
+            <header data-bos-topbar="true" className="sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)]/92 px-4 py-3.5 text-[var(--bos-text-primary)] backdrop-blur-sm sm:px-6 lg:px-8">
               <div className="bos-top-command-utility flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center">
                   <button type="button" aria-label={t("common.openSidebar")} aria-controls="bangoos-sidebar" aria-expanded={mobileOpen} className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] lg:hidden" onClick={() => setMobileOpen(true)}><span className="text-lg">☰</span></button>
-                  <div className="min-w-0 space-y-1.5">
-                    <p className="truncate text-sm font-medium text-[var(--bos-text-secondary)]">{companyName || t("common.operationsWorkspace")}</p>
-                    <NavigationBreadcrumb />
-                    {!['subcontractor', 'customer'].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
-                  </div>
+                  {isDashboard ? (
+                    <p className="truncate text-sm font-medium uppercase tracking-[0.28em] text-[var(--bos-text-primary)] sm:text-base">Bango Operating System</p>
+                  ) : (
+                    <div className="min-w-0 space-y-1.5">
+                      <p className="truncate text-sm font-medium text-[var(--bos-text-secondary)]">{companyName || t("common.operationsWorkspace")}</p>
+                      <NavigationBreadcrumb />
+                      {!['subcontractor', 'customer'].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
+                    </div>
+                  )}
                 </div>
                 <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap sm:gap-3">
                   {!['subcontractor', 'customer'].includes(normalizedRole) ? <div className="order-last w-full min-w-0 sm:order-none sm:min-w-[220px] sm:flex-1 md:flex-initial"><GlobalSearch placeholder={t("common.search")} /></div> : null}
@@ -205,7 +241,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                 </div>
               </div>
 
-              {topNavigationItems.length > 0 ? (
+              {!isDashboard && topNavigationItems.length > 0 ? (
                 <nav className="bos-top-command-nav" aria-label="Top Command navigation">
                   <Link href={homePath} className="bos-top-command-brand" aria-label="B.O.S. Home">
                     <span className="bos-top-command-brand-mark">B</span>
@@ -231,7 +267,17 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
         </div>
       </div>
 
-      {orionEnabled ? <OrionCommandCenterOverlay open={commandCenterOpen} onClose={() => setCommandCenterOpen(false)} currentPath={pathname || homePath} /> : null}
+      {orionEnabled && orionVisible ? (
+        <OrionCommandCenterOverlay
+          open={commandCenterOpen}
+          onClose={() => setCommandCenterOpen(false)}
+          onHide={() => {
+            setCommandCenterOpen(false);
+            setOrionVisible(false);
+          }}
+          currentPath={pathname || homePath}
+        />
+      ) : null}
     </div>
   );
 }

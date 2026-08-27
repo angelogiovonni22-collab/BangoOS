@@ -53,6 +53,28 @@ export type EstimateLineItemDraft = {
   unitCost: string;
   markupPercent: string;
   notes: string;
+  materialId?: string;
+  supplierPriceEntryId?: string;
+  supplierVendorId?: string;
+  supplierName?: string;
+  costSource?: string;
+  costVerifiedOn?: string;
+  supplierUnitCostSnapshot?: string;
+  costOverride?: boolean;
+};
+
+export type EstimateSupplierPriceOption = {
+  id: string;
+  materialId: string | null;
+  vendorId: string;
+  vendorName: string;
+  supplierSku: string;
+  description: string;
+  unitOfMeasure: string;
+  effectiveUnitCost: number;
+  verifiedOn: string;
+  sourceFilename: string;
+  availability: string | null;
 };
 
 export type EstimateTotals = {

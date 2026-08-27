@@ -13,7 +13,7 @@ import { getNextEstimateNumber } from "@/lib/estimates/numbering";
 import { getCustomerDisplayName, getProfileDisplayName, getProjectDisplayName, loadEstimateById, loadEstimateFormOptions, saveEstimate } from "@/lib/estimates/service";
 import { EMPTY_ESTIMATE_PROSPECT, loadEstimateProspect, removeEstimateProspect, saveEstimateProspect, validateEstimateProspect, type EstimateProspectErrors, type EstimateProspectValues } from "@/lib/estimates/prospect-service";
 import type { EstimateFormMode } from "@/components/estimates/types";
-import type { EstimateFormErrors, EstimateFormValues, EstimateLineItemDraft } from "@/lib/estimates/types";
+import type { EstimateFormErrors, EstimateFormValues, EstimateLineItemDraft, EstimateSupplierPriceOption } from "@/lib/estimates/types";
 import { validateEstimateForm } from "@/lib/estimates/validation";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -84,6 +84,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
   const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string; email: string | null; phone: string | null; billingAddress: string }>>([]);
   const [projectOptions, setProjectOptions] = useState<Array<{ id: string; label: string; customerId: string | null }>>([]);
   const [preparedByOptions, setPreparedByOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [supplierPrices, setSupplierPrices] = useState<EstimateSupplierPriceOption[]>([]);
 
   const totals = useMemo(
     () => calculateEstimateTotals({
@@ -157,10 +158,48 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         label: getProfileDisplayName(profile),
       }));
 
+      const { data: priceEntries } = await supabase
+        .from("supplier_price_entries")
+        .select("id, material_id, vendor_id, price_list_id, supplier_sku, product_description, unit_of_measure, unit_price, contractor_price, availability, created_at")
+        .eq("company_id", workspace.context.companyId)
+        .order("created_at", { ascending: false });
+      const priceListIds = [...new Set((priceEntries ?? []).map((entry) => entry.price_list_id))];
+      const priceVendorIds = [...new Set((priceEntries ?? []).map((entry) => entry.vendor_id))];
+      const [{ data: priceLists }, { data: priceVendors }] = await Promise.all([
+        priceListIds.length ? supabase.from("supplier_price_lists").select("id, effective_on, verified_on, source_filename, status").eq("company_id", workspace.context.companyId).in("id", priceListIds).eq("status", "active") : Promise.resolve({ data: [] }),
+        priceVendorIds.length ? supabase.from("vendors").select("id, display_name").eq("company_id", workspace.context.companyId).in("id", priceVendorIds) : Promise.resolve({ data: [] }),
+      ]);
+      const listMap = Object.fromEntries((priceLists ?? []).map((list) => [list.id, list]));
+      const priceVendorMap = Object.fromEntries((priceVendors ?? []).map((vendor) => [vendor.id, vendor.display_name]));
+      const latestKeys = new Set<string>();
+      const nextSupplierPrices = (priceEntries ?? [])
+        .filter((entry) => Boolean(listMap[entry.price_list_id]))
+        .sort((left, right) => listMap[right.price_list_id].effective_on.localeCompare(listMap[left.price_list_id].effective_on))
+        .filter((entry) => {
+          const key = `${entry.vendor_id}:${entry.supplier_sku.toLowerCase()}`;
+          if (latestKeys.has(key)) return false;
+          latestKeys.add(key);
+          return true;
+        })
+        .map((entry): EstimateSupplierPriceOption => ({
+          id: entry.id,
+          materialId: entry.material_id,
+          vendorId: entry.vendor_id,
+          vendorName: priceVendorMap[entry.vendor_id] || "Supplier",
+          supplierSku: entry.supplier_sku,
+          description: entry.product_description,
+          unitOfMeasure: entry.unit_of_measure,
+          effectiveUnitCost: entry.contractor_price ?? entry.unit_price,
+          verifiedOn: listMap[entry.price_list_id].verified_on,
+          sourceFilename: listMap[entry.price_list_id].source_filename,
+          availability: entry.availability,
+        }));
+
       if (isSubscribed) {
         setCustomerOptions(nextCustomerOptions);
         setProjectOptions(nextProjectOptions);
         setPreparedByOptions(nextPreparedByOptions);
+        setSupplierPrices(nextSupplierPrices);
       }
 
       if (mode === "create") {
@@ -238,6 +277,13 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
                 unitCost: String(lineItem.unit_cost),
                 markupPercent: String(lineItem.markup_percent),
                 notes: lineItem.notes || "",
+                materialId: lineItem.material_id || "",
+                supplierPriceEntryId: lineItem.supplier_price_entry_id || "",
+                supplierVendorId: lineItem.supplier_vendor_id || "",
+                costSource: lineItem.cost_source || "",
+                costVerifiedOn: lineItem.cost_verified_on || "",
+                supplierUnitCostSnapshot: lineItem.supplier_unit_cost_snapshot === null ? "" : String(lineItem.supplier_unit_cost_snapshot),
+                costOverride: lineItem.cost_override,
               }))
             : DEFAULT_LINE_ITEMS,
         );
@@ -403,6 +449,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
 
         <EstimateLineItemsSection
           lineItems={lineItems}
+          supplierPrices={supplierPrices}
           localeTag={localeTag}
           error={errors["lineItems.0"] || errors["lineItems.1"] || errors["lineItems.2"]}
           onChange={(nextLineItems) => {

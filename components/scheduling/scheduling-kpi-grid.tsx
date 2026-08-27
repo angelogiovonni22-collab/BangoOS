@@ -43,7 +43,7 @@ export function SchedulingKpiGrid({ items, onDrillDown, t }: SchedulingKpiGridPr
           <Card variant="kpi" className="h-full">
             <CardContent className="flex min-h-[176px] flex-col justify-between p-5">
               <div className="flex items-start justify-between gap-2">
-                <span className={`flex h-10 w-10 items-center justify-center rounded-[var(--radius-lg)] ${tone(item.status)}`}>
+                <span className={`flex h-11 w-11 items-center justify-center rounded-full shadow-[var(--shadow-small)] [&>svg]:stroke-[2.5] ${tone(item.status)}`}>
                   {iconMap[item.id]}
                 </span>
                 <Badge tone={item.status === "risk" ? "danger" : item.status === "watch" ? "warning" : "success"}>
@@ -67,12 +67,12 @@ export function SchedulingKpiGrid({ items, onDrillDown, t }: SchedulingKpiGridPr
 
 function tone(status: "good" | "watch" | "risk") {
   if (status === "good") {
-    return "bg-[var(--color-success-50)] text-[var(--color-success-700)]";
+    return "bg-[var(--color-success-500)] text-white";
   }
 
   if (status === "watch") {
-    return "bg-[var(--color-warning-50)] text-[var(--color-warning-700)]";
+    return "bg-[var(--color-warning-500)] text-white";
   }
 
-  return "bg-[var(--color-danger-50)] text-[var(--color-danger-700)]";
+  return "bg-[var(--color-danger-500)] text-white";
 }

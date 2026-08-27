@@ -63,6 +63,7 @@ type PurchaseOrderLineRow = {
   line_subtotal: number;
   project_id: string;
   cost_code_id: string | null;
+  project_material_plan_item_id: string | null;
 };
 
 type ProjectRow = { id: string; name: string };
@@ -254,6 +255,7 @@ async function recalculatePurchaseOrderStatus(supabase: QueryableSupabase, compa
     normalizedLines.map((row) => ({
       id: row.id,
       purchase_order_id: purchaseOrderId,
+      project_material_plan_item_id: null,
       material_id: null,
       description: "",
       quantity_ordered: row.quantity_ordered,
@@ -315,7 +317,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
         .limit(120),
       supabase
         .from("purchase_order_line_items")
-        .select("id, purchase_order_id, material_id, description, quantity_ordered, quantity_received, quantity_damaged, quantity_backordered, unit_cost, line_subtotal, project_id, cost_code_id")
+        .select("id, purchase_order_id, material_id, description, quantity_ordered, quantity_received, quantity_damaged, quantity_backordered, unit_cost, line_subtotal, project_id, cost_code_id, project_material_plan_item_id")
         .eq("company_id", context.companyId)
         .order("created_at", { ascending: false })
         .limit(600),
@@ -422,6 +424,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
         lineSubtotal: Number(line.line_subtotal ?? 0),
         projectId: line.project_id,
         costCodeId: line.cost_code_id,
+        projectMaterialPlanItemId: line.project_material_plan_item_id,
       })),
       vendors: vendors.map((vendor) => ({ id: vendor.id, name: vendor.display_name || vendor.company_name })),
       projects: projects.map((project) => ({ id: project.id, name: project.name })),
@@ -558,6 +561,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
         line_subtotal: toNumber(line.quantityOrdered * line.unitCost),
         project_id: line.projectId,
         cost_code_id: line.costCodeId,
+        project_material_plan_item_id: line.projectMaterialPlanItemId || null,
         created_by: context.userId,
         updated_by: context.userId,
       }));

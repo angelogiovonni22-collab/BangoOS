@@ -6,7 +6,7 @@ type SummaryCardProps = {
   label: string;
   value: string;
   context?: string;
-  tone?: "brand" | "success" | "warning" | "danger" | "info" | "neutral" | "analytics";
+  tone?: "brand" | "success" | "successLight" | "successDark" | "warning" | "sent" | "danger" | "info" | "neutral" | "analytics";
   trend?: ReactNode;
   compact?: boolean;
 };
@@ -15,7 +15,10 @@ export function SummaryCard({ icon, label, value, context, tone = "brand", trend
   const toneClass: Record<NonNullable<SummaryCardProps["tone"]>, string> = {
     brand: "bg-[var(--color-primary-600)] text-white ring-[rgb(255_255_255/0.14)]",
     success: "bg-[var(--color-success-500)] text-white ring-[rgb(255_255_255/0.14)]",
+    successLight: "bg-[var(--color-success-100)] text-[var(--color-success-700)] ring-[var(--color-success-500)]/25",
+    successDark: "bg-[var(--color-success-700)] text-white ring-[rgb(255_255_255/0.14)]",
     warning: "bg-[var(--color-warning-500)] text-white ring-[rgb(255_255_255/0.14)]",
+    sent: "bg-[#f5b700] text-[#382700] ring-[rgb(255_255_255/0.24)]",
     danger: "bg-[var(--color-danger-500)] text-white ring-[rgb(255_255_255/0.14)]",
     info: "bg-[var(--color-info-500)] text-white ring-[rgb(255_255_255/0.14)]",
     neutral: "bg-[var(--color-neutral-700)] text-white ring-[rgb(255_255_255/0.14)]",
@@ -25,7 +28,10 @@ export function SummaryCard({ icon, label, value, context, tone = "brand", trend
   const glowClass: Record<NonNullable<SummaryCardProps["tone"]>, string> = {
     brand: "bg-[var(--color-primary-500)]",
     success: "bg-[var(--color-success-500)]",
+    successLight: "bg-[var(--color-success-500)]",
+    successDark: "bg-[var(--color-success-700)]",
     warning: "bg-[var(--color-warning-500)]",
+    sent: "bg-[#f5b700]",
     danger: "bg-[var(--color-danger-500)]",
     info: "bg-[var(--color-info-500)]",
     neutral: "bg-[var(--color-neutral-500)]",

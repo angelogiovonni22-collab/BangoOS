@@ -211,12 +211,12 @@ export function EstimatesDirectory({
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard icon={<span className="text-sm font-bold">#</span>} label="Total Estimates" value={String(summary.totalEstimates)} />
-        <SummaryCard icon={<span className="text-sm font-bold">D</span>} label="Draft" value={String(summary.draft)} />
-        <SummaryCard icon={<span className="text-sm font-bold">S</span>} label="Sent" value={String(summary.sent)} />
-        <SummaryCard icon={<span className="text-sm font-bold">A</span>} label="Approved" value={String(summary.approved)} />
-        <SummaryCard icon={<span className="text-sm font-bold">$</span>} label="Total Estimated Value" value={summary.totalValue} />
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <SummaryCard icon={<span className="text-sm font-bold">#</span>} label="Total Estimates" value={String(summary.totalEstimates)} tone="brand" compact />
+        <SummaryCard icon={<span className="text-sm font-bold">D</span>} label="Draft" value={String(summary.draft)} tone="analytics" compact />
+        <SummaryCard icon={<span className="text-sm font-bold">S</span>} label="Sent" value={String(summary.sent)} tone="sent" compact />
+        <SummaryCard icon={<span className="text-sm font-bold">A</span>} label="Approved" value={String(summary.approved)} tone="successLight" compact />
+        <SummaryCard icon={<span className="text-sm font-bold">$</span>} label="Total Estimated Value" value={summary.totalValue} tone="successDark" compact />
       </section>
 
       <EstimatesFilters
