@@ -1,51 +1,108 @@
-# B.O.S. Measure — Native iOS Foundation
+# B.O.S. Measure — Adaptive Spatial Foundation
 
-This directory is the native spatial-measurement engine for B.O.S. The existing `/measure` web workspace remains the fallback and persistence surface while this native engine is developed and validated on physical Apple hardware.
+B.O.S. Measure is an independently implemented, cross-platform field measurement system. The existing `/measure` web workspace remains the universal fallback and persistence surface while native spatial providers are added.
+
+## Product rule
+
+The user never chooses ARKit, ARCore, LiDAR, Depth API, or fallback mode. B.O.S. detects device capabilities at runtime and selects the strongest safe provider available.
+
+## Capability ladder
+
+1. **Enhanced spatial** — hardware depth/LiDAR + native world tracking where available.
+2. **Standard spatial** — supported AR world tracking, raycasting and planes without dedicated depth hardware.
+3. **Camera calibrated** — existing B.O.S. calibrated-photo measurement.
+4. **Manual verified** — user-entered verified field measurement.
+
+Every saved measurement carries provenance, capability tier, verification state and confidence metadata so lower-quality inference is never silently presented as surveyed truth.
+
+## Shared B.O.S. Measure Core
+
+Platform-neutral concepts and behavior:
+
+- point-to-point distance
+- draggable/editable endpoints
+- height and ruler modes
+- area and perimeter
+- continuous/chain measurements
+- snap/anchor behavior
+- level and angle
+- imperial/metric formatting
+- measurement history and evidence
+- 2D floor-plan geometry
+- 3D room/scan model contract
+- confidence and verification rules
+- B.O.S. project/estimate persistence contract
+
+## Spatial provider adapters
+
+### Apple
+
+- ARKit: tracking, planes, raycasting, anchors and spatial coordinates
+- RealityKit: spatial rendering/overlays
+- RoomPlan: supported room capture and structured geometry
+- LiDAR/scene depth when supported
+- Core Motion: level/orientation
+- AVFoundation: camera capture
+
+### Android
+
+- ARCore: tracking, planes, hit tests/anchors
+- ARCore Depth API when supported
+- hardware depth/ToF where exposed through supported platform APIs
+- Android sensors for level/orientation
+- camera capture
+
+### Universal fallback
+
+The current B.O.S. web camera calibration/manual verification workflow remains available when native spatial capability is absent or unavailable.
+
+## Runtime capability contract
+
+Each native provider must report capabilities before a measurement session begins. Feature availability is derived from capabilities, not device brand/model assumptions.
+
+```text
+SpatialCapabilities
+  worldTracking
+  planeDetection
+  raycast
+  depth
+  hardwareDepth
+  roomCapture
+  meshReconstruction
+  motionSensors
+  camera
+```
+
+B.O.S. selects the provider/tier automatically and may degrade during a session if tracking quality becomes insufficient.
 
 ## Foundation target
 
-Independent B.O.S. implementation of the core field-measurement capabilities expected from a modern iPhone measuring application:
-
-- AR point-to-point distance measurement
-- draggable/editable spatial endpoints
-- height measurement
-- ruler mode
-- bubble and surface level / angle
-- area and perimeter measurement
-- continuous / chain measurement
-- snap and anchor behavior
-- imperial and metric display
-- measurement screenshots and history
-- 2D room / floor-plan capture
-- LiDAR-enhanced room capture and 3D floor plans on supported hardware
-- textured 3D room scanning
-- graceful non-LiDAR fallbacks where Apple frameworks support them
-
-## Apple framework architecture
-
-- Swift + SwiftUI for the native B.O.S. field interface
-- ARKit for world tracking, raycasting, planes, anchors and spatial coordinates
-- RealityKit for spatial rendering and measurement overlays
-- RoomPlan for supported LiDAR room capture and structured room geometry
-- Core Motion for level / orientation tools
-- AVFoundation for camera capture where needed
-- Existing B.O.S. Supabase services for authenticated persistence
-
-## Measurement safety boundary
-
-Camera/AR-derived measurements are estimates until explicitly verified for critical estimating, ordering, fabrication, structural, code, or safety decisions. B.O.S. must retain measurement provenance and hardware capability metadata rather than silently presenting inferred dimensions as surveyed dimensions.
+- Quick Measure (live point-to-point)
+- Grab/drag endpoint correction
+- Height
+- Ruler
+- Bubble/surface level and angle
+- Area/perimeter
+- Snap & chain
+- Imperial/metric
+- screenshots/photos/history
+- 2D room/floor plans
+- 3D floor plans
+- depth-enhanced room scanning
+- textured 3D scans where device capability permits
 
 ## Delivery order
 
-1. Native app target + signing + physical-device launch
-2. AR session + plane detection + point-to-point Quick Measure
-3. editable endpoints + imperial/metric formatter
-4. height, ruler, level, area, perimeter, chain and snap modes
-5. photo/screenshot + B.O.S. measurement persistence
-6. RoomPlan 2D/3D room capture
-7. LiDAR/depth-enhanced scan pipeline
-8. full physical-device regression and accuracy validation
+1. Shared capability/provenance contracts
+2. Apple provider + physical-device Quick Measure
+3. Android provider + physical-device Quick Measure
+4. editable endpoints + unit formatter
+5. height/ruler/level/area/perimeter/chain/snap
+6. evidence + B.O.S. persistence
+7. room capture + 2D plan
+8. depth/LiDAR-enhanced 3D pipeline
+9. cross-device accuracy/regression matrix
 
-## Required Apple-side setup
+## Build constraint
 
-The repository foundation can be maintained from GitHub, but compiling and signing the native target requires macOS/Xcode. ARKit/RoomPlan acceptance testing requires a supported physical iPhone/iPad; LiDAR-specific functionality requires LiDAR-capable hardware. Do not treat simulator/web validation as physical spatial-measurement validation.
+The shared architecture and source remain in GitHub. Native iOS compilation/signing still requires Apple's iOS build toolchain; Android compilation requires the Android toolchain. Physical spatial accuracy must be validated on representative real devices. Web/simulator checks are not substitutes for physical-device validation.
