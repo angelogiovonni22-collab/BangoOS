@@ -1,5 +1,3 @@
-import type { SupplierPriceComparison } from "./supplier-price-comparison";
-
 export type ProjectMaterialPlanStatus =
   | "planned"
   | "ready_to_order"
@@ -31,8 +29,6 @@ export type ProjectMaterialPlanItem = {
   costVariance: number;
   selectedVendorId: string | null;
   selectedVendorName: string | null;
-  selectedSupplierPriceEntryId: string | null;
-  supplierPriceComparison: SupplierPriceComparison;
   requiredOn: string | null;
   status: ProjectMaterialPlanStatus;
   orderStatus: "not_ordered" | "draft" | "approved" | "issued" | "partially_received" | "received";
@@ -49,5 +45,4 @@ export type UpdateProjectMaterialPlanInput = {
   inventoryQuantity: number;
   requiredOn: string | null;
   selectedVendorId: string | null;
-  selectedSupplierPriceEntryId?: string | null;
 };
