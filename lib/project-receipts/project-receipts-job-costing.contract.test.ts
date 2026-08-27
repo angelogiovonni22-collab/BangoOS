@@ -9,6 +9,7 @@ const route = readFileSync(join(root, "app/api/projects/[id]/receipts/route.ts")
 const workspace = readFileSync(join(root, "components/projects/workspace/project-receipts-workspace.tsx"), "utf8");
 const financials = readFileSync(join(root, "components/projects/workspace/project-financial-reporting.tsx"), "utf8");
 const receiptAwareFinancials = readFileSync(join(root, "lib/financial-reporting/receipt-aware-service.ts"), "utf8");
+const apAwareFinancials = readFileSync(join(root, "lib/financial-reporting/ap-aware-service.ts"), "utf8");
 const financialIndex = readFileSync(join(root, "lib/financial-reporting/index.ts"), "utf8");
 
 assert.match(migration, /create table if not exists public\.project_receipts/i, "Receipt financial records must have a dedicated table.");
@@ -48,7 +49,8 @@ assert.match(receiptAwareFinancials, /\.eq\("status", "approved"\)/i, "Only appr
 assert.match(receiptAwareFinancials, /actualCost = toMoney\(base\.summary\.actualCost \+ receiptCost\)/i, "Approved receipt spend must increase canonical Actual Cost.");
 assert.match(receiptAwareFinancials, /revisedContractValue - forecastFinalCost/i, "Projected gross profit must react to receipt-driven costs without changing contract value.");
 assert.match(receiptAwareFinancials, /row\.category === "materials"/i, "Approved receipts must roll into the material job-cost category.");
-assert.match(financialIndex, /buildProjectFinancialReport.*receipt-aware-service/i, "All standard project financial report consumers must receive the receipt-aware report.");
+assert.match(apAwareFinancials, /buildReceiptAwareProjectFinancialReport/i, "AP-aware reporting must preserve receipt-aware financial calculations.");
+assert.match(financialIndex, /buildProjectFinancialReport.*ap-aware-service/i, "All standard project financial report consumers must receive the AP + receipt-aware report.");
 
 assert.match(financials, /receiptDelta/i, "Financials must apply only receipt changes made after the page baseline was loaded.");
 assert.match(financials, /report\.summary\.actualCost \+ receiptDelta/i, "Live receipt approval must update Actual Cost without double counting the server baseline.");
