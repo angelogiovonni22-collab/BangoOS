@@ -17,4 +17,11 @@ assert.equal(execution.drafts.length, 1);
 assert.equal(execution.drafts[0]?.input.lines[0]?.projectMaterialPlanItemId, "i1");
 assert.equal(execution.drafts[0]?.input.lines[0]?.quantityOrdered, 10);
 assert.equal(execution.drafts[0]?.input.lines[0]?.unitCost, 3.5);
+
+const blockedPlan: EstimateToOrderPlan = { lines:[{ ...plan.lines[0]!, vendorId:null, vendorName:null, supplierPriceEntryId:null, readiness:"needs_supplier_price" }], groups:[], totals:{ ...plan.totals, readyLines:0, blockedLines:1 } };
+const blocked = buildPurchasingExecutionPlan("p1", blockedPlan, [material]);
+assert.equal(blocked.readyToPrepare, false);
+assert.equal(blocked.drafts.length, 0);
+assert.deepEqual(blocked.blockedItemIds, ["i1"]);
+assert.equal(blocked.supplierSubmissionAllowed, false);
 console.log("purchasing execution contract: ok");
