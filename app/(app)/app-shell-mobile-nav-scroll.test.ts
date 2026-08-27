@@ -23,14 +23,14 @@ async function main() {
   await test("1. app shell mobile nav uses bounded dedicated scroll region", () => {
     const source = readFileSync(join(process.cwd(), "app", "(app)", "app-shell.tsx"), "utf8");
 
-    assert(source.includes("<div className=\"mt-7 flex min-h-0 flex-1 flex-col overflow-hidden\">"), "sidebar content column creates bounded flex chain for scrolling");
+    assert(source.includes("<div className=\"mt-2 flex min-h-0 flex-1 flex-col overflow-hidden\">"), "sidebar content column creates bounded flex chain for scrolling");
     assert(source.includes("className=\"h-full min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain touch-pan-y pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden\""), "nav is the dedicated touch-safe overflow container with hidden scrollbar and iOS momentum scrolling");
     assert(source.includes('data-orion-scroll-region="sidebar"'), "sidebar exposes a stable semantic Orion scroll region");
     assert(source.includes('data-orion-scroll-label="Sidebar navigation"'), "sidebar semantic region has a human-readable Orion label");
     assert(!source.includes("common.projectPulse"), "removed Project Health card does not return to the sidebar");
     assert(!source.includes("common.projectPulseDescription"), "removed Project Health description does not return to the sidebar");
     assert(!source.includes("<nav className=\"mt-7 space-y-3\">"), "legacy non-scroll nav container is removed");
-    assert(source.includes("lg:sticky lg:top-0 lg:h-screen lg:[height:100dvh]"), "desktop sidebar keeps a constrained full-height sticky scroll container");
+    assert(source.includes("lg:sticky lg:top-0 lg:h-screen lg:w-[184px] lg:[height:100dvh]"), "desktop sidebar keeps a constrained full-height sticky scroll container");
     assert(!source.includes("lg:h-auto"), "desktop sidebar no longer switches to unconstrained auto height");
     assert(source.includes("<LayerManager layer={mobileOpen ? \"dialog\" : \"popover\"}>"), "mobile sidebar moves above the backdrop while desktop keeps popover depth");
     assert(source.includes("<LayerManager layer=\"backdrop\">"), "mobile backdrop is rendered in dedicated backdrop layer");
@@ -47,8 +47,8 @@ async function main() {
     const source = readFileSync(join(process.cwd(), "app", "(app)", "app-shell.tsx"), "utf8");
 
     assert(source.includes("<div className=\"min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell\">"), "enterprise shell background and text color classes remain unchanged");
-    assert(source.includes("border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)]"), "sidebar visual color and shadow classes remain unchanged");
-    assert(source.includes('isDashboard ? "px-3 py-5 lg:w-[184px]" : "px-5 py-6"'), "approved dashboard shell uses compact desktop navigation while other routes keep standard spacing");
+    assert(source.includes("border-r border-[var(--bos-border-default)] bg-[var(--bos-bg-sidebar)] px-3 py-5 text-[var(--bos-text-primary)] shadow-[0_24px_50px_-24px_rgba(4,10,22,0.92)]"), "sidebar visual color, spacing, and shadow classes remain unchanged");
+    assert(source.includes("lg:w-[184px]"), "approved dashboard-era shell keeps compact desktop navigation width");
   });
 
   await test("3. persistent Orion mounts once without shell duplication", () => {
@@ -58,7 +58,7 @@ async function main() {
 
     const mountMatches = source.match(/<PersistentOrion\s/g) ?? [];
     assert(mountMatches.length === 1, "persistent Orion is mounted exactly once");
-    assert(source.includes("<PersistentOrion onOpenCommandCenter="), "persistent Orion owns the visible command-center entry point");
+    assert(source.includes("onOpenCommandCenter={() => setCommandCenterOpen(true)}"), "persistent Orion owns the visible command-center entry point");
 
     const sidebarMatches = source.match(/id=\"bangoos-sidebar\"/g) ?? [];
     assert(sidebarMatches.length === 1, "sidebar remains singular and is not duplicated");
