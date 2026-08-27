@@ -1,0 +1,46 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { loadAccountsReceivable, type AccountsReceivableInvoice, type AccountsReceivableSummary } from "@/lib/accounts-receivable/service";
+import { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+
+const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+export default function AccountsReceivablePage() {
+  const supabase = useMemo(() => createClient(), []);
+  const [summary, setSummary] = useState<AccountsReceivableSummary | null>(null);
+  const [invoices, setInvoices] = useState<AccountsReceivableInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!supabase) { setError("Unable to connect to B.O.S."); setLoading(false); return; }
+    const workspace = await resolveWorkspaceContext(supabase);
+    if (!workspace.context) { setError(workspace.errorMessage || "Unable to resolve workspace."); setLoading(false); return; }
+    const result = await loadAccountsReceivable(supabase, workspace.context.companyId);
+    if (!result.data) { setError(result.error || "Unable to load accounts receivable."); setLoading(false); return; }
+    setSummary(result.data.summary); setInvoices(result.data.invoices); setError(null); setLoading(false);
+  }, [supabase]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  if (loading) return <div className="container-content space-y-5"><SkeletonLoader className="h-16 w-full" /><SkeletonLoader className="h-36 w-full" /><SkeletonLoader className="h-80 w-full" /></div>;
+  if (error || !summary) return <ErrorState title="Unable to load Accounts Receivable" description={error || "No data available."} />;
+
+  const metrics = [
+    ["Total Receivable", money.format(summary.totalReceivable), `${summary.openInvoiceCount} open invoices`],
+    ["Overdue", money.format(summary.overdueReceivable), `${summary.overdueCount} overdue invoices`],
+    ["Current", money.format(summary.currentReceivable), "Not yet overdue"],
+    ["Collected This Month", money.format(summary.collectedThisMonth), "Recorded customer payments"],
+  ];
+
+  return <div className="container-content space-y-[var(--space-section)]">
+    <PageHeader compact eyebrow="FINANCIAL OPERATIONS" title="Accounts Receivable" description="Control customer balances, collections, aging, and invoice payment activity from one workspace." />
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label, value, detail]) => <Card key={label} variant="elevated"><CardContent className="p-5"><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{label}</p><p className="mt-2 text-2xl font-bold">{value}</p><p className="mt-1 text-sm text-[var(--bos-text-secondary)]">{detail}</p></CardContent></Card>)}</div>
+    <Card variant="elevated"><CardHeader><CardTitle>Receivables Aging</CardTitle></CardHeader><CardContent><div className="grid gap-3 sm:grid-cols-5">{(["current", "1-30", "31-60", "61-90", "90+"] as const).map((bucket) => <div key={bucket} className="rounded-xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-4"><p className="text-xs font-semibold uppercase text-[var(--bos-text-muted)]">{bucket === "current" ? "Current" : `${bucket} days`}</p><p className="mt-2 text-lg font-bold">{money.format(summary.aging[bucket])}</p></div>)}</div></CardContent></Card>
+    <Card variant="elevated"><CardHeader><CardTitle>Open Customer Balances</CardTitle></CardHeader><CardContent className="overflow-x-auto">{invoices.length === 0 ? <p className="py-8 text-center text-sm text-[var(--bos-text-secondary)]">No outstanding customer receivables.</p> : <table className="min-w-[900px] w-full"><thead><tr className="text-left text-xs uppercase tracking-[0.06em] text-[var(--bos-text-muted)]"><th className="px-3 py-2">Invoice</th><th className="px-3 py-2">Customer</th><th className="px-3 py-2">Project</th><th className="px-3 py-2">Due</th><th className="px-3 py-2">Aging</th><th className="px-3 py-2 text-right">Invoice</th><th className="px-3 py-2 text-right">Paid</th><th className="px-3 py-2 text-right">Balance</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id} className="border-t border-[var(--bos-border-default)]"><td className="px-3 py-3"><Link className="font-semibold text-blue-400 hover:underline" href={`/invoices/${invoice.id}`}>{invoice.invoiceNumber}</Link><p className="text-xs text-[var(--bos-text-secondary)]">{invoice.title}</p></td><td className="px-3 py-3 text-sm">{invoice.customerName}</td><td className="px-3 py-3 text-sm">{invoice.projectName}</td><td className="px-3 py-3 text-sm">{invoice.dueDate || "Not set"}</td><td className="px-3 py-3 text-sm font-semibold">{invoice.agingBucket === "current" ? "Current" : `${invoice.agingBucket} days`}</td><td className="px-3 py-3 text-right text-sm">{money.format(invoice.totalAmount)}</td><td className="px-3 py-3 text-right text-sm">{money.format(invoice.amountPaid)}</td><td className="px-3 py-3 text-right text-sm font-bold">{money.format(invoice.balanceDue)}</td></tr>)}</tbody></table>}</CardContent></Card>
+  </div>;
+}
