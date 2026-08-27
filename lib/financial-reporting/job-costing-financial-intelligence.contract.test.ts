@@ -7,7 +7,7 @@ const service = readFileSync(join(root, "lib/financial-reporting/ap-aware-servic
 const types = readFileSync(join(root, "lib/financial-reporting/types.ts"), "utf8");
 const index = readFileSync(join(root, "lib/financial-reporting/index.ts"), "utf8");
 
-assert.match(service, /ACTUAL_BILL_STATUSES.*approved.*partially_paid.*paid/s, "Only financially approved AP lifecycle states may become actual job cost.");
+assert.match(service, /ACTUAL_BILL_STATUSES[\s\S]*approved[\s\S]*partially_paid[\s\S]*paid/, "Only financially approved AP lifecycle states may become actual job cost.");
 assert.match(service, /\.from\("vendor_bills"\)/, "Project job costing must load project-scoped vendor bills.");
 assert.match(service, /\.from\("vendor_bill_line_items"\)/, "Project job costing must classify AP line items.");
 assert.match(service, /if \(line\.purchase_order_line_item_id\) continue;/, "PO-linked AP lines must not double-count procurement/inventory actual cost.");
