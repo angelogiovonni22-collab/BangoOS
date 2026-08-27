@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok:true, projects:projects.data || [], estimates:estimates.data || [] });
   }
   const column = targetType === "project" ? "project_id" : "estimate_id";
+  // Generated Supabase types are refreshed after the Production migration lands.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any).from("measurements").select("id,label,measurement_type,value_inches,method,confidence,photo_path,notes,created_at").eq("company_id", workspace.context.companyId).eq(column, targetId).order("created_at", { ascending:false });
   if (error) return NextResponse.json({ ok:false, error:error.message }, { status:500 });
   return NextResponse.json({ ok:true, measurements:data || [] });
@@ -73,6 +75,8 @@ export async function POST(req: NextRequest) {
     notes,
     created_by: user.id,
   };
+  // Generated Supabase types are refreshed after the Production migration lands.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any).from("measurements").insert(payload).select("id").single();
   if (error) {
     if (photoPath) await supabase.storage.from(BUCKET).remove([photoPath]);
