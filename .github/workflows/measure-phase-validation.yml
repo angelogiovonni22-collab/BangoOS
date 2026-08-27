@@ -27,6 +27,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test -- --runInBand components/projects/workspace/project-measure-workspace.test.tsx components/projects/workspace/project-measure-navigation.test.ts components/projects/workspace/project-measure-route.test.ts
+      - run: npx tsc --noEmit
+      - run: npx -y tsx components/projects/workspace/project-measure-workspace.test.tsx
+      - run: npx -y tsx components/projects/workspace/project-measure-navigation.test.ts
+      - run: npx -y tsx components/projects/workspace/project-measure-route.test.ts
       - run: npm run build
