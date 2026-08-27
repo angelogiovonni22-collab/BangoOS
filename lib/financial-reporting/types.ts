@@ -14,6 +14,8 @@ export type FinancialMetricSource =
   | "purchase_order_line_items"
   | "project_material_allocations"
   | "project_receipts"
+  | "vendor_bills"
+  | "vendor_bill_line_items"
   | "trade_partner_assignments"
   | "tasks.actual_hours"
   | "equipment"
@@ -125,6 +127,16 @@ export type BillingSnapshot = {
   source: FinancialMetricSource[];
 };
 
+export type AccountsPayableJobCostSnapshot = {
+  approvedBillCost: number;
+  paidBillCost: number;
+  outstandingApprovedCost: number;
+  billCount: number;
+  matchedBillCount: number;
+  needsReviewBillCount: number;
+  source: FinancialMetricSource[];
+};
+
 export type ProjectFinancialReport = {
   summary: ProjectFinancialSummary;
   jobCostByCategory: JobCostCategoryRow[];
@@ -134,6 +146,7 @@ export type ProjectFinancialReport = {
   equipment: EquipmentCostSnapshot;
   vendors: VendorCostSnapshot;
   billing: BillingSnapshot;
+  accountsPayable?: AccountsPayableJobCostSnapshot;
   availability: DataAvailability[];
 };
 
