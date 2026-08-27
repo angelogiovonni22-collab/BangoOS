@@ -86,12 +86,14 @@ export function createProjectMaterialPlanService(deps: ServiceDependencies = {})
 
     const items = ((planResponse.data ?? []) as PlanRow[]).map((row): ProjectMaterialPlanItem => {
       const linkedLines = orderLines.filter((line) => line.project_material_plan_item_id === row.id && orderStatus.get(line.purchase_order_id) !== "cancelled");
-      const quantityOrdered = linkedLines.reduce((sum, line) => sum + Number(line.quantity_ordered), 0);
-      const quantityReceived = linkedLines.reduce((sum, line) => sum + Number(line.quantity_received), 0);
+      const committedLines = linkedLines.filter((line) => orderStatus.get(line.purchase_order_id) !== "draft");
+      const quantityReserved = linkedLines.reduce((sum, line) => sum + Number(line.quantity_ordered), 0);
+      const quantityOrdered = committedLines.reduce((sum, line) => sum + Number(line.quantity_ordered), 0);
+      const quantityReceived = committedLines.reduce((sum, line) => sum + Number(line.quantity_received), 0);
       const inventoryAvailable = row.material_id ? stock.get(row.material_id) ?? 0 : 0;
       const inventoryQuantity = Math.min(Number(row.inventory_quantity), Number(row.estimated_quantity));
       const quantityToPurchase = Math.max(0, Number(row.estimated_quantity) - inventoryQuantity);
-      const quantityRemaining = Math.max(0, quantityToPurchase - quantityOrdered);
+      const quantityRemaining = Math.max(0, quantityToPurchase - quantityReserved);
       const originalUnitCost = Number(row.original_unit_cost);
       const currentUnitCost = Number(row.current_unit_cost ?? row.original_unit_cost);
       const statuses = linkedLines.map((line) => orderStatus.get(line.purchase_order_id) || "draft");
@@ -99,7 +101,7 @@ export function createProjectMaterialPlanService(deps: ServiceDependencies = {})
         ? "received"
         : quantityReceived > 0
           ? "partially_received"
-          : statuses.includes("issued")
+          : statuses.includes("issued") || statuses.includes("partially_received")
             ? "issued"
             : statuses.includes("approved")
               ? "approved"
@@ -145,6 +147,13 @@ export function createProjectMaterialPlanService(deps: ServiceDependencies = {})
   async function update(projectId: string, input: UpdateProjectMaterialPlanInput) {
     const context = await workspace();
     if (!Number.isFinite(input.inventoryQuantity) || input.inventoryQuantity < 0) throw new ProjectMaterialPlanError("Inventory quantity must be zero or greater.");
+
+    const currentPayload = await load(projectId);
+    const currentItem = currentPayload.items.find((item) => item.id === input.itemId);
+    if (!currentItem) throw new ProjectMaterialPlanError("Project material plan item not found.");
+    if (input.inventoryQuantity > currentItem.estimatedQuantity) throw new ProjectMaterialPlanError("Inventory allocation cannot exceed the approved material requirement.");
+    if (input.inventoryQuantity > currentItem.inventoryAvailable) throw new ProjectMaterialPlanError("Inventory allocation cannot exceed available stock.");
+
     const { error } = await supabase.from("project_material_plan_items").update({
       inventory_quantity: input.inventoryQuantity,
       required_on: input.requiredOn,
