@@ -1,0 +1,32 @@
+name: Measure Phase Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/(app)/projects/[id]/measure/**"
+      - "components/projects/workspace/project-measure-*"
+      - "components/projects/workspace/project-tabs.tsx"
+      - "components/projects/workspace/project-workspace-tabs.ts"
+      - "components/projects/workspace/types.ts"
+      - ".github/workflows/measure-phase-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --runInBand components/projects/workspace/project-measure-workspace.test.tsx components/projects/workspace/project-measure-navigation.test.ts components/projects/workspace/project-measure-route.test.ts
+      - run: npm run build
