@@ -5,6 +5,7 @@ export const PROJECT_WORKSPACE_TABS: Array<{ key: ProjectWorkspaceTabKey; labelK
   { key: "tasks", labelKey: "projects.workspaceTabTasks" },
   { key: "daily_logs", labelKey: "projects.workspaceTabDailyLogs" },
   { key: "photos", labelKey: "projects.workspaceTabPhotos" },
+  { key: "measure", labelKey: "projects.workspaceTabMeasure" },
   { key: "blueprints", labelKey: "projects.workspaceTabBlueprints" },
   { key: "documents", labelKey: "projects.workspaceTabDocuments" },
   { key: "subcontractors", labelKey: "projects.workspaceTabSubcontractors" },
