@@ -22,12 +22,12 @@ export function EstimateInformationSection({
         <CardTitle>Estimate Information</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-5 md:grid-cols-2">
-        <Field label="Estimate Name" htmlFor="estimate-title" error={errors.title} required>
-          <Input id="estimate-title" value={values.title} onChange={(event) => onFieldChange("title", event.target.value)} />
+        <Field label="Estimate Name" htmlFor="bos-estimate-title" error={errors.title} required>
+          <Input id="bos-estimate-title" name="bos_estimate_title_new" autoComplete="off" autoCorrect="off" spellCheck={false} value={values.title} onChange={(event) => onFieldChange("title", event.target.value)} />
         </Field>
 
-        <Field label="Estimate Number" htmlFor="estimate-number">
-          <Input id="estimate-number" value={values.estimateNumber} onChange={(event) => onFieldChange("estimateNumber", event.target.value)} placeholder="EST-2026-0001" />
+        <Field label="Estimate Number" htmlFor="bos-estimate-number">
+          <Input id="bos-estimate-number" name="bos_estimate_number_new" autoComplete="off" value={values.estimateNumber} onChange={(event) => onFieldChange("estimateNumber", event.target.value)} placeholder="EST-2026-0001" />
         </Field>
 
         <Field label="Estimate Date" htmlFor="estimate-date" error={errors.issueDate} required>
@@ -55,9 +55,13 @@ export function EstimateInformationSection({
           </Select>
         </Field>
 
-        <Field label="Scope Summary" htmlFor="estimate-description" className="md:col-span-2">
+        <Field label="Scope Summary" htmlFor="bos-estimate-description" className="md:col-span-2">
           <textarea
-            id="estimate-description"
+            id="bos-estimate-description"
+            name="bos_estimate_scope_new"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             value={values.description}
             onChange={(event) => onFieldChange("description", event.target.value)}
             rows={4}
