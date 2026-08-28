@@ -37,7 +37,7 @@ export function MeasureClient(){
   useEffect(()=>()=>{ streamRef.current?.getTracks().forEach(track=>track.stop()); if(objectUrlRef.current)URL.revokeObjectURL(objectUrlRef.current); },[]);
 
   const calculated=useMemo(()=>{ if(points.length<4||reference<=0)return 0; const refPx=distance(points[0],points[1]); return refPx ? reference*distance(points[2],points[3])/refPx : 0; },[points,reference]);
-  const calibrationQuality=useMemo(()=>{ if(points.length<2||!canvasRef.current)return null; const px=distance(points[0],points[1]); const ratio=px/Math.max(canvasRef.current.width,1); return ratio>=0.2?"Good":ratio>=0.1?"Fair":"Low"; },[points]);
+  const calibrationQuality=useMemo(()=>{ if(points.length<2)return null; const px=distance(points[0],points[1]); return px>=240?"Good":px>=120?"Fair":"Low"; },[points]);
 
   const redraw=useCallback(()=>{ const canvas=canvasRef.current,img=imageRef.current;if(!canvas||!img)return; const max=1200,scale=Math.min(1,max/img.naturalWidth); canvas.width=Math.round(img.naturalWidth*scale);canvas.height=Math.round(img.naturalHeight*scale); const ctx=canvas.getContext("2d");if(!ctx)return;ctx.drawImage(img,0,0,canvas.width,canvas.height); points.forEach((p,i)=>{ctx.beginPath();ctx.arc(p.x,p.y,9,0,Math.PI*2);ctx.fillStyle=i<2?"#f59e0b":"#22c55e";ctx.fill();ctx.lineWidth=3;ctx.strokeStyle="#fff";ctx.stroke();}); if(points.length>=2){ctx.strokeStyle="#f59e0b";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);ctx.lineTo(points[1].x,points[1].y);ctx.stroke();} if(points.length>=4){ctx.strokeStyle="#22c55e";ctx.beginPath();ctx.moveTo(points[2].x,points[2].y);ctx.lineTo(points[3].x,points[3].y);ctx.stroke();} },[points]);
   useEffect(()=>{redraw();},[redraw]);
