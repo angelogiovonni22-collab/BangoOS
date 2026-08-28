@@ -16,6 +16,9 @@ type ProjectSummary = {
   customerId: string | null;
 };
 
+const prospectControlClassName =
+  "h-11 w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-default)] px-3 text-sm text-[var(--color-text-primary)] shadow-sm outline-none transition-colors placeholder:text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-500)]/20 disabled:cursor-not-allowed disabled:opacity-60";
+
 export function EstimateCustomerProjectSection({
   values,
   errors,
@@ -100,20 +103,20 @@ export function EstimateCustomerProjectSection({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <ProspectSelect label="Customer Type" value={prospect.customerType} onChange={(value) => onProspectChange("customerType", value as EstimateProspectValues["customerType"])}>
+              <ProspectSelect label="Customer Type" fieldName="customer-type" value={prospect.customerType} onChange={(value) => onProspectChange("customerType", value as EstimateProspectValues["customerType"])}>
                 <option value="residential">Residential</option>
                 <option value="commercial">Commercial</option>
               </ProspectSelect>
-              <ProspectInput label="Company Name (Optional)" value={prospect.companyName} onChange={(value) => onProspectChange("companyName", value)} />
-              <ProspectInput label="First Name" value={prospect.firstName} error={prospectErrors.firstName} required onChange={(value) => onProspectChange("firstName", value)} />
-              <ProspectInput label="Last Name" value={prospect.lastName} error={prospectErrors.lastName} required onChange={(value) => onProspectChange("lastName", value)} />
-              <ProspectInput label="Email" type="email" value={prospect.email} error={prospectErrors.email} required onChange={(value) => onProspectChange("email", value)} />
-              <ProspectInput label="Phone" type="tel" value={prospect.phone} error={prospectErrors.phone} required onChange={(value) => onProspectChange("phone", value)} />
-              <div className="md:col-span-2"><ProspectInput label="Address" value={prospect.addressLine1} error={prospectErrors.addressLine1} required onChange={(value) => onProspectChange("addressLine1", value)} /></div>
-              <div className="md:col-span-2"><ProspectInput label="Address Line 2 (Optional)" value={prospect.addressLine2} onChange={(value) => onProspectChange("addressLine2", value)} /></div>
-              <ProspectInput label="City" value={prospect.city} error={prospectErrors.city} required onChange={(value) => onProspectChange("city", value)} />
-              <ProspectInput label="State" value={prospect.state} error={prospectErrors.state} required onChange={(value) => onProspectChange("state", value)} />
-              <ProspectInput label="ZIP / Postal Code" value={prospect.postalCode} error={prospectErrors.postalCode} required onChange={(value) => onProspectChange("postalCode", value)} />
+              <ProspectInput label="Company Name (Optional)" fieldName="company-name" value={prospect.companyName} onChange={(value) => onProspectChange("companyName", value)} />
+              <ProspectInput label="First Name" fieldName="first-name" value={prospect.firstName} error={prospectErrors.firstName} required onChange={(value) => onProspectChange("firstName", value)} />
+              <ProspectInput label="Last Name" fieldName="last-name" value={prospect.lastName} error={prospectErrors.lastName} required onChange={(value) => onProspectChange("lastName", value)} />
+              <ProspectInput label="Email" fieldName="email" type="email" value={prospect.email} error={prospectErrors.email} required onChange={(value) => onProspectChange("email", value)} />
+              <ProspectInput label="Phone" fieldName="phone" type="tel" value={prospect.phone} error={prospectErrors.phone} required onChange={(value) => onProspectChange("phone", value)} />
+              <div className="md:col-span-2"><ProspectInput label="Address" fieldName="address-line-1" value={prospect.addressLine1} error={prospectErrors.addressLine1} required onChange={(value) => onProspectChange("addressLine1", value)} /></div>
+              <div className="md:col-span-2"><ProspectInput label="Address Line 2 (Optional)" fieldName="address-line-2" value={prospect.addressLine2} onChange={(value) => onProspectChange("addressLine2", value)} /></div>
+              <ProspectInput label="City" fieldName="city" value={prospect.city} error={prospectErrors.city} required onChange={(value) => onProspectChange("city", value)} />
+              <ProspectInput label="State" fieldName="state" value={prospect.state} error={prospectErrors.state} required onChange={(value) => onProspectChange("state", value)} />
+              <ProspectInput label="ZIP / Postal Code" fieldName="postal-code" value={prospect.postalCode} error={prospectErrors.postalCode} required onChange={(value) => onProspectChange("postalCode", value)} />
             </div>
           </div>
         )}
@@ -122,21 +125,48 @@ export function EstimateCustomerProjectSection({
   );
 }
 
-function ProspectInput({ label, value, error, required = false, type = "text", onChange }: { label: string; value: string; error?: string; required?: boolean; type?: string; onChange: (value: string) => void }) {
+function ProspectInput({ label, fieldName, value, error, required = false, type = "text", onChange }: { label: string; fieldName: string; value: string; error?: string; required?: boolean; type?: string; onChange: (value: string) => void }) {
+  const id = `estimate-prospect-${fieldName}`;
   return (
-    <label className="space-y-2">
+    <label htmlFor={id} className="block space-y-2">
       <span className="block text-xs font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{label}{required ? <span className="text-[var(--color-danger-700)]"> *</span> : null}</span>
-      <input type={type} className="bos-input" value={value} onChange={(event) => onChange(event.target.value)} />
+      <input
+        id={id}
+        name={`bos-new-prospect-${fieldName}`}
+        type={type}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        data-lpignore="true"
+        data-1p-ignore="true"
+        aria-invalid={Boolean(error)}
+        className={prospectControlClassName}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
       {error ? <span className="text-xs text-[var(--color-danger-700)]">{error}</span> : null}
     </label>
   );
 }
 
-function ProspectSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+function ProspectSelect({ label, fieldName, value, onChange, children }: { label: string; fieldName: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+  const id = `estimate-prospect-${fieldName}`;
   return (
-    <label className="space-y-2">
+    <label htmlFor={id} className="block space-y-2">
       <span className="block text-xs font-semibold uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{label}</span>
-      <select className="bos-input" value={value} onChange={(event) => onChange(event.target.value)}>{children}</select>
+      <select
+        id={id}
+        name={`bos-new-prospect-${fieldName}`}
+        autoComplete="off"
+        data-lpignore="true"
+        data-1p-ignore="true"
+        className={`${prospectControlClassName} appearance-auto pr-9`}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {children}
+      </select>
     </label>
   );
 }
