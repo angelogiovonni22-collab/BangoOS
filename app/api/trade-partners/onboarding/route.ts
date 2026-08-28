@@ -4,6 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 
 const BUCKET = "subcontractor-compliance";
 
+type TradePartnerMembership = {
+  company_id: string;
+  vendor_id: string | null;
+  role: string;
+  status: string;
+};
+
 async function getPartnerContext() {
   const supabase = await createClient();
   if (!supabase) throw new Error("B.O.S. authentication is unavailable.");
@@ -11,8 +18,8 @@ async function getPartnerContext() {
   if (!user) throw new Error("Sign in to continue.");
 
   const admin = createAdminClient();
-  const { data: membership, error: membershipError } = await admin
-    .from("company_memberships")
+  const { data: membershipRow, error: membershipError } = await admin
+    .from("company_memberships" as never)
     .select("company_id,vendor_id,role,status")
     .eq("user_id", user.id)
     .eq("status", "active")
@@ -23,6 +30,7 @@ async function getPartnerContext() {
     .maybeSingle();
 
   if (membershipError) throw new Error(membershipError.message);
+  const membership = membershipRow as unknown as TradePartnerMembership | null;
   if (!membership?.vendor_id) throw new Error("This Trade Partner login is not linked to a company profile yet.");
   return { admin, user, companyId: membership.company_id, vendorId: membership.vendor_id };
 }
