@@ -32,14 +32,17 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const { id: projectId, assignmentId } = await params;
     const { db, workspace, assignment } = await context(projectId, assignmentId);
     await db.rpc("ensure_subcontractor_closeout_requirements", { p_assignment_id: assignmentId });
-    const [changeOrdersResult, paymentAppsResult, closeoutResult] = await Promise.all([
+    const [changeOrdersResult, paymentAppsResult, closeoutResult, retainageReleaseResult] = await Promise.all([
       db.from("subcontractor_change_orders").select("id,change_order_number,title,description,amount_delta,schedule_impact_days,status,submitted_at,approved_at,rejected_at,review_notes,created_at").eq("company_id", workspace.companyId).eq("assignment_id", assignmentId).order("created_at", { ascending: false }),
       db.from("subcontractor_payment_applications").select("id,request_number,period_through,description,amount_requested,retainage_amount,net_requested,status,vendor_bill_id,submitted_at,reviewed_at,review_notes,created_at").eq("company_id", workspace.companyId).eq("assignment_id", assignmentId).order("created_at", { ascending: false }),
       db.from("subcontractor_closeout_requirements").select("id,requirement_type,required,status,evidence,verified_at,created_at").eq("company_id", workspace.companyId).eq("assignment_id", assignmentId).order("created_at", { ascending: true }),
+      db.from("subcontractor_retainage_releases").select("id,amount,vendor_bill_id,created_at").eq("company_id", workspace.companyId).eq("assignment_id", assignmentId).maybeSingle(),
     ]);
-    for (const result of [changeOrdersResult, paymentAppsResult, closeoutResult]) if (result.error) throw new Error(result.error.message);
+    for (const result of [changeOrdersResult, paymentAppsResult, closeoutResult, retainageReleaseResult]) if (result.error) throw new Error(result.error.message);
     const paymentApps = (paymentAppsResult.data || []) as Array<Record<string, unknown>>;
+    const retainageRelease = retainageReleaseResult.data as Record<string, unknown> | null;
     const billIds = paymentApps.map((row) => row.vendor_bill_id).filter((value): value is string => typeof value === "string");
+    if (typeof retainageRelease?.vendor_bill_id === "string") billIds.push(retainageRelease.vendor_bill_id);
     let bills: Array<Record<string, unknown>> = [];
     if (billIds.length) {
       const billResult = await db.from("vendor_bills").select("id,bill_number,status,total_amount,amount_paid,balance_due,retainage_amount,due_date").eq("company_id", workspace.companyId).in("id", billIds);
@@ -55,6 +58,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const convertedBills = paymentApps.map((row) => typeof row.vendor_bill_id === "string" ? billById.get(row.vendor_bill_id) : null).filter(Boolean) as Array<Record<string, unknown>>;
     const paid = convertedBills.reduce((sum, bill) => sum + Number(bill.amount_paid || 0), 0);
     const outstanding = convertedBills.reduce((sum, bill) => sum + Number(bill.balance_due || 0), 0);
+    const heldRetainage = paymentApps.filter((row) => row.status === "converted").reduce((sum, row) => sum + Number(row.retainage_amount || 0), 0);
+    const releaseBill = typeof retainageRelease?.vendor_bill_id === "string" ? billById.get(retainageRelease.vendor_bill_id) || null : null;
+    const retainageResolved = heldRetainage <= 0 || Boolean(releaseBill && ["paid", "voided"].includes(String(releaseBill.status)) && Number(releaseBill.balance_due || 0) <= 0);
 
     return NextResponse.json({
       assignment,
@@ -63,7 +69,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       paymentApplications: paymentApps.map((row) => ({ ...row, bill: typeof row.vendor_bill_id === "string" ? billById.get(row.vendor_bill_id) || null : null })),
       closeoutRequirements: closeout,
       billing: { paid, outstanding, convertedBills: convertedBills.length },
-      closeoutReady: requiredOpen === 0 && !paymentApps.some((row) => ["submitted", "approved"].includes(String(row.status))) && outstanding <= 0,
+      retainage: { held: heldRetainage, release: retainageRelease ? { ...retainageRelease, bill: releaseBill } : null, resolved: retainageResolved },
+      retainageReleaseReady: heldRetainage > 0 && !retainageRelease && requiredOpen === 0 && !paymentApps.some((row) => ["submitted", "approved"].includes(String(row.status))) && outstanding <= 0,
+      closeoutReady: requiredOpen === 0 && !paymentApps.some((row) => ["submitted", "approved"].includes(String(row.status))) && outstanding <= 0 && retainageResolved,
       requiredCloseoutOpen: requiredOpen,
     });
   } catch (error) {
@@ -92,6 +100,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       result = await db.rpc("review_subcontractor_payment_application", { p_application_id: String(body.applicationId || ""), p_action: String(body.reviewAction || ""), p_review_notes: body.notes ? String(body.notes) : null });
     } else if (action === "update_closeout") {
       result = await db.rpc("update_subcontractor_closeout_requirement", { p_requirement_id: String(body.requirementId || ""), p_status: String(body.status || ""), p_evidence: body.evidence && typeof body.evidence === "object" ? body.evidence : {} });
+    } else if (action === "release_retainage") {
+      result = await db.rpc("release_subcontractor_retainage", { p_assignment_id: assignmentId });
     } else if (action === "close_assignment") {
       result = await db.rpc("close_subcontractor_assignment", { p_assignment_id: assignmentId });
     } else {
