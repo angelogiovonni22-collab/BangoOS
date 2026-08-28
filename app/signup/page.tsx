@@ -5,6 +5,32 @@ import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 
+function normalizeSignupError(error: unknown, fallback: string, accountAlreadyExists: string) {
+  let message = "";
+
+  if (typeof error === "string") {
+    message = error.trim();
+  } else if (error && typeof error === "object" && "message" in error) {
+    const rawMessage = (error as { message?: unknown }).message;
+    message = typeof rawMessage === "string" ? rawMessage.trim() : "";
+  }
+
+  if (!message || message === "{}" || message === "[object Object]") {
+    return fallback;
+  }
+
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("already registered")
+    || normalized.includes("user already exists")
+    || normalized.includes("already been registered")
+  ) {
+    return accountAlreadyExists;
+  }
+
+  return message;
+}
+
 export default function SignupPage() {
   const { t } = useI18n();
   const [email, setEmail] = useState("");
@@ -29,25 +55,36 @@ export default function SignupPage() {
 
     const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth/confirm` : undefined;
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
-    });
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
+      });
 
-    if (signUpError) {
-      setError(signUpError.message || t("auth.defaultSignupError"));
+      if (signUpError) {
+        setError(normalizeSignupError(
+          signUpError,
+          t("auth.defaultSignupError"),
+          t("auth.accountAlreadyExists"),
+        ));
+        return;
+      }
+
+      if (data.user && !data.session) {
+        setMessage(t("auth.checkInbox"));
+      } else {
+        setMessage(t("auth.accountCreated"));
+      }
+    } catch (signUpError) {
+      setError(normalizeSignupError(
+        signUpError,
+        t("auth.defaultSignupError"),
+        t("auth.accountAlreadyExists"),
+      ));
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (data.user && !data.session) {
-      setMessage(t("auth.checkInbox"));
-    } else {
-      setMessage(t("auth.accountCreated"));
-    }
-
-    setLoading(false);
   };
 
   return (
@@ -81,13 +118,13 @@ export default function SignupPage() {
               </label>
 
               {error ? (
-                <div className="rounded-[var(--radius-lg)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">
+                <div className="rounded-[var(--radius-lg)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]" role="alert">
                   {error}
                 </div>
               ) : null}
 
               {message ? (
-                <div className="rounded-[var(--radius-lg)] border border-[var(--color-success-50)] bg-[var(--color-success-50)] px-4 py-3 text-sm text-[var(--color-success-700)]">
+                <div className="rounded-[var(--radius-lg)] border border-[var(--color-success-50)] bg-[var(--color-success-50)] px-4 py-3 text-sm text-[var(--color-success-700)]" role="status">
                   {message}
                 </div>
               ) : null}
