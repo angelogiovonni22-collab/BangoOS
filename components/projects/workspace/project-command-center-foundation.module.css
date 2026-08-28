@@ -15,3 +15,7 @@
 :global(.min-w-0.space-y-4):has(> .detailsFirst) > :not(.detailsFirst) {
   order: 2;
 }
+
+:global(.min-w-0.space-y-4):has(> .detailsFirst) > :global(#project-commitments) {
+  display: none;
+}

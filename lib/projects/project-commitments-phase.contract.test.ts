@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const commandCenter = read("components/projects/workspace/project-command-center-foundation.tsx");
+const controlDetails = read("components/projects/workspace/project-control-card-details.tsx");
 const crewAssignment = read("components/crews/crew-project-assignment-panel.tsx");
 const crewWorkspace = read("components/projects/workspace/project-crew-compensation-workspace.tsx");
 const subcontractors = read("components/projects/workspace/project-trade-partners-workspace.tsx");
@@ -12,9 +13,18 @@ const migration = read("supabase/migrations/20260828020000_project_commitments_c
 const payroll = read("app/(app)/invoices/payroll/page.tsx");
 
 assert.match(commandCenter, /label="Budget"[\s\S]*label="Crew"[\s\S]*label="Schedule"[\s\S]*label="Progress"/);
+assert.match(commandCenter, /activeControl/);
+assert.match(commandCenter, /data-project-control-expanded/);
+assert.match(commandCenter, /aria-expanded=/);
+assert.match(commandCenter, /ProjectBudgetControlDetails/);
+assert.match(commandCenter, /ProjectCrewControlDetails/);
+assert.match(commandCenter, /Open Full Schedule/);
+assert.match(commandCenter, /View Full Progress/);
 assert.match(commandCenter, /\?tab=financials/);
 assert.match(commandCenter, /\/crew-costs/);
 assert.match(commandCenter, /\/schedule\?project=/);
+assert.match(controlDetails, /ProjectCommitmentsControl/);
+assert.match(controlDetails, /ProjectCrewCompensationWorkspace/);
 
 for (const method of ["payroll_rate", "hourly", "day_rate", "piece_rate", "lump_sum", "prevailing_wage"]) {
   assert.ok(crewAssignment.includes(method), `crew assignment must support ${method}`);
