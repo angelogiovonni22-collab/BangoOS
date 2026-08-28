@@ -26,7 +26,7 @@ test("subcontract change orders preserve executed base terms and become separate
 
 test("trade partners can submit bounded payment applications without authorizing payment",()=>{
   const sql=read("supabase/migrations/20260828153000_subcontractor_operations_completion.sql");
-  const portal=read("app\/(app)\/partner\/[projectId]\/operations\/page.tsx");
+  const portal=read("app/(app)/partner/[projectId]/operations/page.tsx");
   assert.match(sql,/submit_my_subcontractor_payment_application/);
   assert.match(sql,/Payment application exceeds remaining subcontract commitment/);
   assert.match(sql,/status='draft'/);
@@ -56,8 +56,8 @@ test("signed subcontractors cannot be archived around closeout controls",()=>{
 });
 
 test("trade partner portal exposes operations alongside field channels",()=>{
-  const portal=read("app\/(app)\/partner\/page.tsx");
-  const operations=read("app\/(app)\/partner\/[projectId]\/operations\/page.tsx");
+  const portal=read("app/(app)/partner/page.tsx");
+  const operations=read("app/(app)/partner/[projectId]/operations/page.tsx");
   assert.match(portal,/Operations/);
   assert.match(operations,/Trade Partner Operations/);
   assert.match(operations,/Applications & AP Status/);
