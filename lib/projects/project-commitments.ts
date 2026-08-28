@@ -41,7 +41,7 @@ export function summarizeProjectCommitments(input: {
   const laborActual = money(input.labor.reduce((sum, item) => sum + calculateLaborCost(item, true), 0));
   const subcontractCommitted = money(input.signedSubcontracts
     .filter((item) => ["signed", "closed"].includes(item.status))
-    .reduce((sum, item) => sum + Math.max(0, item.amount || 0), 0));
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0));
   const totalCommitted = money(laborProjected + subcontractCommitted);
   return {
     laborProjected,
