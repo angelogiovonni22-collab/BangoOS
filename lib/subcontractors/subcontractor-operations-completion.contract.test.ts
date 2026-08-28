@@ -48,6 +48,21 @@ test("subcontract retainage is held out of the current AP payable",()=>{
   assert.match(retainageHardening,/v_app\.net_requested,v_app\.net_requested,'subcontractor'/);
 });
 
+test("held retainage requires closeout evidence, a separate final AP bill, and resolution before archive",()=>{
+  const retainageRelease=read("supabase/migrations/20260828153400_subcontractor_retainage_release.sql");
+  const component=read("components/projects/workspace/subcontractor-operations-actions.tsx");
+  const route=read("app/api/projects/[id]/subcontractors/[assignmentId]/operations/route.ts");
+  assert.match(retainageRelease,/subcontractor_retainage_releases/);
+  assert.match(retainageRelease,/release_subcontractor_retainage/);
+  assert.match(retainageRelease,/Required subcontractor closeout items must be completed before retainage release/);
+  assert.match(retainageRelease,/Progress-payment AP bills must be fully paid or voided before retainage release/);
+  assert.match(retainageRelease,/Held retainage must be released to AP before subcontract closeout/);
+  assert.match(retainageRelease,/Retainage AP bill must be fully paid or voided before subcontract closeout/);
+  assert.match(component,/Release Retainage to AP Draft/);
+  assert.match(route,/release_retainage/);
+  assert.match(route,/retainageReleaseReady/);
+});
+
 test("internal subcontractor operations expose review, AP status, and closeout gating",()=>{
   const component=read("components/projects/workspace/subcontractor-operations-actions.tsx");
   const route=read("app/api/projects/[id]/subcontractors/[assignmentId]/operations/route.ts");
