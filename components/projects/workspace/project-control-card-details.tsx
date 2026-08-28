@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { ProjectCommitmentsControl } from "./project-commitments-control";
 import { ProjectCrewCompensationWorkspace } from "./project-crew-compensation-workspace";
+
+const subscribeToBrowserLocale = () => () => {};
+const getBrowserLocale = () => (typeof navigator !== "undefined" && navigator.language ? navigator.language : "en-US");
 
 export function ProjectBudgetControlDetails({ projectId }: { projectId: string }) {
   const client = useMemo(() => createClient(), []);
@@ -61,9 +64,6 @@ export function ProjectBudgetControlDetails({ projectId }: { projectId: string }
 }
 
 export function ProjectCrewControlDetails({ projectId }: { projectId: string }) {
-  const [localeTag, setLocaleTag] = useState("en-US");
-  useEffect(() => {
-    if (typeof navigator !== "undefined" && navigator.language) setLocaleTag(navigator.language);
-  }, []);
+  const localeTag = useSyncExternalStore(subscribeToBrowserLocale, getBrowserLocale, () => "en-US");
   return <ProjectCrewCompensationWorkspace projectId={projectId} localeTag={localeTag} />;
 }
