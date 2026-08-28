@@ -39,7 +39,7 @@ export default async function TradePartnerPortalPage() {
       <section className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)]">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8ec3ff]">B.O.S. Trade Partner</p>
         <h1 className="mt-2 text-2xl font-semibold text-[var(--bos-text-primary)]">My Projects</h1>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--bos-text-secondary)]">View your assigned projects, access project information, share field updates, and stay connected with the project team.</p>
+        <p className="mt-2 max-w-3xl text-sm text-[var(--bos-text-secondary)]">View assigned projects, field information, messages, approved plans, payment applications, subcontract changes, and closeout status.</p>
       </section>
 
       {error ? (
@@ -65,10 +65,11 @@ export default async function TradePartnerPortalPage() {
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">Scope of Work</p>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--bos-text-primary)]">{job.scope_of_work || "Scope has not been published yet."}</p>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs font-semibold">
+              <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs font-semibold sm:grid-cols-4">
                 <Link href={`/partner/${job.project_id}#photos`} className="rounded-lg border border-[var(--bos-border-subtle)] p-3 transition hover:bg-[var(--bos-bg-hover)]">Photos</Link>
                 <Link href={`/partner/${job.project_id}#plans`} className="rounded-lg border border-[var(--bos-border-subtle)] p-3 transition hover:bg-[var(--bos-bg-hover)]">Plans</Link>
                 <Link href={`/partner/${job.project_id}#messages`} className="rounded-lg border border-[var(--bos-border-subtle)] p-3 transition hover:bg-[var(--bos-bg-hover)]">Messages</Link>
+                <Link href={`/partner/${job.project_id}/operations`} className="rounded-lg border border-[var(--bos-border-subtle)] p-3 transition hover:bg-[var(--bos-bg-hover)]">Operations</Link>
               </div>
               <Link href={`/partner/${job.project_id}`} className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-500">Open Project Workspace</Link>
             </article>
