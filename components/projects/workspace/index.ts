@@ -5,7 +5,7 @@ export { ProjectDocumentsWorkspace } from "./project-documents-workspace";
 export { ProjectLinkedModuleWorkspace } from "./project-linked-module-workspace";
 export { ProjectBudget } from "./project-budget";
 export { ProjectCommandCenterOverviewPlaceholder } from "./project-command-center-overview-placeholder";
-export { ProjectCommandCenterFoundation } from "./project-command-center-foundation";
+export { ProjectCommandCenterFoundation } from "./project-command-center-interactive";
 export { ProjectCommitmentsControl } from "./project-commitments-control";
 export { ProjectCrewCompensationWorkspace } from "./project-crew-compensation-workspace";
 export { ProjectCommandCenterTabPlaceholder } from "./project-command-center-tab-placeholder";
