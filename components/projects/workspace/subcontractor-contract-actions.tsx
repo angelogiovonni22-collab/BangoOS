@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { Badge, Button } from "@/components/ui";
+import { SubcontractorOperationsActions } from "./subcontractor-operations-actions";
 
 type Requirement = { requirement_type: string; required: boolean; status: string; verified_at: string | null; expires_at: string | null };
 type ComplianceDocument = { id: string; requirementType: string; originalFilename: string; fileSizeBytes: number; expiresAt: string | null; viewUrl: string | null };
@@ -108,5 +109,6 @@ export function SubcontractorContractActions({ projectId, assignmentId, email }:
       return <div key={requirement.requirement_type} className="rounded-lg border border-[var(--bos-border-light)] bg-white px-2.5 py-2"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-bold text-slate-900">{label(requirement.requirement_type)}</p><p className="text-[11px] font-semibold text-slate-500">{label(requirement.status)}</p>{doc ? <p className="mt-1 max-w-[220px] truncate text-[11px] text-slate-600">{doc.viewUrl ? <a className="underline" href={doc.viewUrl} target="_blank" rel="noreferrer">{doc.originalFilename}</a> : doc.originalFilename}</p> : null}</div>{uploadable.has(requirement.requirement_type) ? <div className="flex flex-wrap gap-1"><label className="cursor-pointer rounded-md border px-2 py-1 text-[11px] font-bold"><input className="sr-only" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" disabled={busy === `upload:${requirement.requirement_type}`} onChange={(event) => void uploadDocument(requirement.requirement_type, event)} />{busy === `upload:${requirement.requirement_type}` ? "Uploading…" : doc ? "Replace" : "Upload"}</label><button type="button" disabled={busy === requirement.requirement_type || !doc} onClick={() => void updateRequirement(requirement.requirement_type, "verified")} className="rounded-md border px-2 py-1 text-[11px] font-bold disabled:opacity-40">Verify</button><button type="button" disabled={busy === requirement.requirement_type} onClick={() => void updateRequirement(requirement.requirement_type, "waived")} className="rounded-md border px-2 py-1 text-[11px] font-bold">Waive</button></div> : null}</div></div>;
     })}</div></details> : null}
     {message ? <p className="text-xs font-semibold text-[var(--bos-text-medium-on-light)]">{message}</p> : null}
+    <SubcontractorOperationsActions projectId={projectId} assignmentId={assignmentId} />
   </div>;
 }

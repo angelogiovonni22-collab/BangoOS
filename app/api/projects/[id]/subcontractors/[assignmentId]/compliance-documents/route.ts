@@ -7,6 +7,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 const BUCKET = "subcontractor-compliance";
 const MAX_BYTES = 20 * 1024 * 1024;
+const INTERNAL_ROLES = new Set(["owner", "administrator", "office_manager", "project_manager"]);
 const ALLOWED_REQUIREMENTS = new Set(["w9", "coi", "workers_comp", "licenses", "safety_acknowledgement"]);
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
@@ -26,6 +27,9 @@ async function context(projectId: string, assignmentId: string) {
   if (!supabase) throw new Error("B.O.S. database is unavailable.");
   const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
   if (!workspace.context) throw new Error(workspace.errorMessage || "Unauthorized.");
+  if (!INTERNAL_ROLES.has((workspace.context.role || "").toLowerCase())) {
+    throw new Error("You are not authorized to manage subcontractor compliance documents.");
+  }
   const admin = createAdminClient();
   const { data: assignment } = await admin
     .from("trade_partner_assignments")

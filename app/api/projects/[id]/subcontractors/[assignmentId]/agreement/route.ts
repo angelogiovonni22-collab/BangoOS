@@ -17,6 +17,7 @@ import {
 type MasterRecord = { id: string; status: string; agreement_hash: string };
 type AuthorizationRecord = { id: string; status: string; authorization_hash: string };
 
+const INTERNAL_ROLES = new Set(["owner", "administrator", "office_manager", "project_manager"]);
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 const asText = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
 const asNumber = (value: unknown) => typeof value === "number" ? value : value == null ? null : Number(value);
@@ -34,6 +35,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
     const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
     if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+    if (!INTERNAL_ROLES.has((workspace.context.role || "").toLowerCase())) {
+      return NextResponse.json({ error: "You are not authorized to send subcontract agreements." }, { status: 403 });
+    }
     const companyId = workspace.context.companyId;
     const admin = createAdminClient();
 

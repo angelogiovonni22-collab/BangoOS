@@ -22,4 +22,16 @@ assert.deepEqual(summarizeProjectCommitments({
   budgetRemainingAfterCommitments: 70000,
 });
 
+assert.deepEqual(summarizeProjectCommitments({
+  budget: 100000,
+  labor: [],
+  signedSubcontracts: [{ amount: 25000, status: "signed" }, { amount: -2500, status: "signed" }],
+}), {
+  laborProjected: 0,
+  laborActual: 0,
+  subcontractCommitted: 22500,
+  totalCommitted: 22500,
+  budgetRemainingAfterCommitments: 77500,
+});
+
 console.log("project commitments calculations: ok");
