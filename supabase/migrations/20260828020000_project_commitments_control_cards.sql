@@ -153,6 +153,29 @@ begin
 end $$;
 grant execute on function public.save_project_labor_commitment(uuid,uuid,uuid,uuid,text,numeric,numeric,numeric,numeric,numeric,jsonb,text) to authenticated;
 
+create or replace function public.protect_executed_subcontract_terms()
+returns trigger language plpgsql set search_path=public as $$
+begin
+  if old.contract_status in ('signed','closed') and (
+    new.vendor_id is distinct from old.vendor_id or
+    new.trade_name is distinct from old.trade_name or
+    new.scope_of_work is distinct from old.scope_of_work or
+    new.contract_amount is distinct from old.contract_amount or
+    new.payment_terms is distinct from old.payment_terms or
+    new.retainage_percent is distinct from old.retainage_percent or
+    new.start_date is distinct from old.start_date or
+    new.target_completion_date is distinct from old.target_completion_date
+  ) then
+    raise exception 'Executed subcontract terms are locked. Use a subcontract change order or new work authorization for commercial changes.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists trade_partner_assignment_terms_lock on public.trade_partner_assignments;
+create trigger trade_partner_assignment_terms_lock
+before update of vendor_id, trade_name, scope_of_work, contract_amount, payment_terms, retainage_percent, start_date, target_completion_date
+on public.trade_partner_assignments
+for each row execute function public.protect_executed_subcontract_terms();
+
 create or replace function public.activate_cleared_subcontractor_assignment()
 returns trigger language plpgsql set search_path=public as $$
 begin
