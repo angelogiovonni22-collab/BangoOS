@@ -40,7 +40,18 @@ export function SubcontractorOperationsActions({ projectId, assignmentId }: { pr
       setData(body);setError(null);
     }catch(caught){setError(caught instanceof Error?caught.message:"Unable to load subcontractor operations.");}
   },[endpoint]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{
+    let cancelled=false;
+    void fetch(endpoint,{cache:"no-store"})
+      .then(async(response)=>{
+        const body=await response.json() as OperationsPayload&{error?:string};
+        if(!response.ok)throw new Error(body.error||"Unable to load subcontractor operations.");
+        return body;
+      })
+      .then((body)=>{if(cancelled)return;setData(body);setError(null);})
+      .catch((caught)=>{if(cancelled)return;setError(caught instanceof Error?caught.message:"Unable to load subcontractor operations.");});
+    return ()=>{cancelled=true;};
+  },[endpoint]);
 
   async function act(action:string,payload:Record<string,unknown>={}){
     setBusy(action+String(payload.changeOrderId||payload.applicationId||payload.requirementId||""));setError(null);
