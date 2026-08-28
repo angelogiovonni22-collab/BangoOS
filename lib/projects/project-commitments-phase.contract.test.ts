@@ -34,6 +34,8 @@ assert.doesNotMatch(subcontractors, /TRADE_PARTNER_CONTRACT_STATUSES/);
 
 assert.match(migration, /create table if not exists public\.project_labor_commitments/);
 assert.match(migration, /save_project_labor_commitment/);
+assert.match(migration, /protect_executed_subcontract_terms/);
+assert.match(migration, /Executed subcontract terms are locked/);
 assert.match(migration, /activate_cleared_subcontractor_assignment/);
 assert.match(migration, /contract_status = 'signed' and new\.mobilization_status = 'cleared'/);
 assert.doesNotMatch(migration, /alter table public\.payroll_employee_settings/);
