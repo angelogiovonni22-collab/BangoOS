@@ -41,11 +41,11 @@ export function ProjectCommandCenterFoundation(props: Props) {
 
   return (
     <div className={`space-y-4 ${styles.detailsFirst}`} data-project-overview="header-jobsite-clean">
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project overview metrics">
-        <Metric icon={<Gauge size={20} />} label="Progress" value={progress + "%"} detail={completed.length + " of " + props.tasks.length + " tasks complete"} progress={progress} />
-        <Metric icon={<CircleDollarSign size={20} />} label="Budget" value={props.budgetLabel} detail={"Spent " + props.spentLabel} />
-        <Metric icon={<CalendarDays size={20} />} label="Schedule" value={daysRemainingLabel(props.targetDate)} detail={"Target " + props.targetDate} />
-        <Metric icon={<Users size={20} />} label="Crew" value={props.crewCount ? props.crewCount + " assigned" : "Not assigned"} detail={active.length + " active tasks"} />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project controls: Budget, Crew, Schedule, Progress">
+        <Metric href={projectHref + "#project-commitments"} icon={<CircleDollarSign size={20} />} label="Budget" value={props.budgetLabel} detail={"Spent " + props.spentLabel} />
+        <Metric href={projectHref + "?tab=crew"} icon={<Users size={20} />} label="Crew" value={props.crewCount ? props.crewCount + " assigned" : "Not assigned"} detail={active.length + " active tasks"} />
+        <Metric href={projectHref + "?tab=tasks#schedule"} icon={<CalendarDays size={20} />} label="Schedule" value={daysRemainingLabel(props.targetDate)} detail={"Target " + props.targetDate} />
+        <Metric href={projectHref + "?tab=tasks"} icon={<Gauge size={20} />} label="Progress" value={progress + "%"} detail={completed.length + " of " + props.tasks.length + " tasks complete"} progress={progress} />
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
@@ -177,8 +177,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
   );
 }
 
-function Metric({ icon, label, value, detail, progress }: { icon: React.ReactNode; label: string; value: string; detail: string; progress?: number }) {
-  return <article className="rounded-[16px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]"><div className="flex items-center gap-3"><span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary-100)] text-[var(--color-primary-700)]">{icon}</span><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.1em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="truncate text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">{value}</p></div></div><p className="mt-2 truncate text-xs font-semibold text-[var(--bos-text-medium-on-light)]">{detail}</p>{typeof progress === "number" ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-neutral-200)]"><div className="h-full bg-[var(--color-primary-600)]" style={{ width: progress + "%" }} /></div> : null}</article>;
+function Metric({ href, icon, label, value, detail, progress }: { href: string; icon: React.ReactNode; label: string; value: string; detail: string; progress?: number }) {
+  return <Link href={href} className="group rounded-[16px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary-300)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-500)]"><div className="flex items-center gap-3"><span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary-100)] text-[var(--color-primary-700)]">{icon}</span><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.1em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="truncate text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">{value}</p></div><ChevronDown size={16} className="ml-auto -rotate-90 text-[var(--bos-text-medium-on-light)] transition group-hover:translate-x-0.5" /></div><p className="mt-2 truncate text-xs font-semibold text-[var(--bos-text-medium-on-light)]">{detail}</p>{typeof progress === "number" ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-neutral-200)]"><div className="h-full bg-[var(--color-primary-600)]" style={{ width: progress + "%" }} /></div> : null}</Link>;
 }
 function Card({ title, icon, action, children }: { title: string; icon: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) {
   return <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]"><div className="mb-3 flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-[var(--orion-blue)]">{icon}<h2 className="text-lg font-extrabold text-[var(--bos-text-strong-on-light)]">{title}</h2></div>{action}</div>{children}</section>;
