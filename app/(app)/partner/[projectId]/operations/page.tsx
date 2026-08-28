@@ -40,7 +40,7 @@ export default async function TradePartnerOperationsPage({params,searchParams}:P
     const client=await createClient();if(!client)redirect("/login");
     const context=await resolveWorkspaceContext(client);if(!context.context||(context.context.role||"").toLowerCase()!=="subcontractor")redirect("/app-entry");
     const amount=Number(formData.get("amount")||0);const retainage=Number(formData.get("retainage")||0);const description=String(formData.get("description")||"").trim();const through=String(formData.get("periodThrough")||"").trim();
-    const result=await (client as unknown as Db).rpc("submit_my_subcontractor_payment_application",{p_project_id:projectId,p_amount_requested:amount,p_retainage_amount:retainage,p_description:description,p_period_through:through||new Date().toISOString().slice(0,10)});
+    const result=await (client as unknown as Db).rpc("submit_my_subcontractor_payment_application",{p_project_id:projectId,p_amount_requested:amount,p_retainage_amount:retainage,p_description:description,p_period_through:through||new Date().toISOString().slice(0,10),p_assignment_id:job.assignment_id});
     if(result.error)redirect(`/partner/${projectId}/operations?error=${encodeURIComponent(result.error.message)}`);
     revalidatePath(`/partner/${projectId}/operations`);redirect(`/partner/${projectId}/operations?notice=${encodeURIComponent("Payment application submitted for review.")}`);
   }
