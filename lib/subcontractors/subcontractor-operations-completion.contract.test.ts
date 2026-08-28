@@ -36,7 +36,8 @@ test("trade partners can submit assignment-specific bounded payment applications
   assert.match(sql,/vendor_bills[\s\S]*'draft'/);
   assert.match(portal,/Submitting does not authorize payment/);
   assert.match(portal,/Submit Payment Application/);
-  assert.match(portal,/p_assignment_id:job\.assignment_id/);
+  assert.match(portal,/const assignmentId=job\.assignment_id/);
+  assert.match(portal,/p_assignment_id:assignmentId/);
 });
 
 test("internal subcontractor operations expose review, AP status, and closeout gating",()=>{
