@@ -7,6 +7,7 @@ import { FadeIn, MotionProvider, PageTransition } from "@/components/motion";
 import {
   CommandCenterTimelineEntry,
   ProjectCommandCenterFoundation,
+  ProjectCommitmentsControl,
   ProjectComplianceWorkflow,
   ProjectCommandCenterTabPlaceholder,
   ProjectActivityWorkspace,
@@ -832,6 +833,11 @@ export default function ProjectWorkspacePage() {
                   closeoutReady={closeoutReady}
                   activityItems={recentActivity}
                   timelineEntries={timeline}
+                />
+                <ProjectCommitmentsControl
+                  projectId={project.id}
+                  companyId={workspace.workspaceContext.companyId}
+                  budget={budgetValueRaw}
                 />
               </div>
             ) : activeTab === "tasks" ? (
