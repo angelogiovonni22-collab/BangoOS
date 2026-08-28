@@ -23,11 +23,11 @@ export function EstimateInformationSection({
       </CardHeader>
       <CardContent className="grid gap-5 md:grid-cols-2">
         <Field label="Estimate Name" htmlFor="estimate-title" error={errors.title} required>
-          <Input id="estimate-title" value={values.title} onChange={(event) => onFieldChange("title", event.target.value)} />
+          <Input id="estimate-title" name="bos_estimate_title_new" autoComplete="off" autoCorrect="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" value={values.title} onChange={(event) => onFieldChange("title", event.target.value)} />
         </Field>
 
         <Field label="Estimate Number" htmlFor="estimate-number">
-          <Input id="estimate-number" value={values.estimateNumber} onChange={(event) => onFieldChange("estimateNumber", event.target.value)} placeholder="EST-2026-0001" />
+          <Input id="estimate-number" name="bos_estimate_number_new" autoComplete="off" data-lpignore="true" data-1p-ignore="true" value={values.estimateNumber} onChange={(event) => onFieldChange("estimateNumber", event.target.value)} placeholder="EST-2026-0001" />
         </Field>
 
         <Field label="Estimate Date" htmlFor="estimate-date" error={errors.issueDate} required>
@@ -58,6 +58,12 @@ export function EstimateInformationSection({
         <Field label="Scope Summary" htmlFor="estimate-description" className="md:col-span-2">
           <textarea
             id="estimate-description"
+            name="bos_estimate_scope_new"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            data-lpignore="true"
+            data-1p-ignore="true"
             value={values.description}
             onChange={(event) => onFieldChange("description", event.target.value)}
             rows={4}
