@@ -14,6 +14,11 @@ const ALLOWED_MIME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
+type TradePartnerMembership = {
+  company_id: string;
+  vendor_id: string | null;
+};
+
 function safeFilename(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "document";
 }
@@ -24,8 +29,9 @@ async function getPartnerContext() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Sign in to continue.");
   const admin = createAdminClient();
-  const { data: membership, error } = await admin.from("company_memberships").select("company_id,vendor_id").eq("user_id", user.id).eq("status", "active").eq("role", "subcontractor").not("vendor_id", "is", null).order("is_primary", { ascending: false }).limit(1).maybeSingle();
+  const { data: membershipRow, error } = await admin.from("company_memberships" as never).select("company_id,vendor_id").eq("user_id", user.id).eq("status", "active").eq("role", "subcontractor").not("vendor_id", "is", null).order("is_primary", { ascending: false }).limit(1).maybeSingle();
   if (error) throw new Error(error.message);
+  const membership = membershipRow as unknown as TradePartnerMembership | null;
   if (!membership?.vendor_id) throw new Error("This Trade Partner login is not linked to a company profile yet.");
   return { admin, user, companyId: membership.company_id, vendorId: membership.vendor_id };
 }
