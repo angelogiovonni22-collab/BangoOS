@@ -1,0 +1,7 @@
+.base :global([aria-label="Project controls: Budget, Crew, Schedule, Progress"]) {
+  display: none !important;
+}
+
+.base :global([data-project-control-expanded]) {
+  display: none !important;
+}
