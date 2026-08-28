@@ -168,4 +168,60 @@ begin
 end $$;
 grant execute on function public.close_subcontractor_assignment(uuid) to authenticated;
 
+-- Keep completed subcontract records available to the linked trade partner as
+-- read-only history after internal closeout archives the assignment.
+create or replace function public.get_my_trade_partner_jobs()
+returns table(
+  assignment_id uuid,
+  project_id uuid,
+  project_name text,
+  project_status text,
+  address_line_1 text,
+  city text,
+  state text,
+  postal_code text,
+  trade_name text,
+  scope_of_work text,
+  start_date date,
+  target_completion_date date,
+  assignment_status text,
+  contract_status text
+)
+language sql
+stable
+security definer
+set search_path=public,pg_temp
+as $$
+  select
+    tpa.id,
+    p.id,
+    p.name,
+    p.status,
+    p.address_line_1,
+    p.city,
+    p.state,
+    p.postal_code,
+    tpa.trade_name,
+    tpa.scope_of_work,
+    tpa.start_date,
+    tpa.target_completion_date,
+    tpa.assignment_status,
+    tpa.contract_status
+  from public.company_memberships cm
+  join public.trade_partner_assignments tpa
+    on tpa.company_id=cm.company_id
+   and tpa.vendor_id=cm.vendor_id
+   and (tpa.assignment_status='active' or tpa.contract_status='closed')
+  join public.projects p
+    on p.id=tpa.project_id
+   and p.company_id=tpa.company_id
+  where cm.user_id=auth.uid()
+    and cm.status='active'
+    and lower(cm.role)='subcontractor'
+    and cm.vendor_id is not null
+  order by case when tpa.assignment_status='active' then 0 else 1 end,
+           coalesce(tpa.start_date,current_date),p.name;
+$$;
+grant execute on function public.get_my_trade_partner_jobs() to authenticated;
+
 commit;
