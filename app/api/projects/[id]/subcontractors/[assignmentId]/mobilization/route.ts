@@ -8,11 +8,16 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 type MobilizationRefreshRow = { mobilization_status: string; blockers: unknown };
 type MobilizationRefreshResult = { data: MobilizationRefreshRow[] | null; error: { message?: string } | null };
 
+const INTERNAL_ROLES = new Set(["owner", "administrator", "office_manager", "project_manager"]);
+
 async function workspaceContext(projectId: string, assignmentId: string) {
   const supabase = await createClient();
   if (!supabase) throw new Error("B.O.S. database is unavailable.");
   const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
   if (!workspace.context) throw new Error(workspace.errorMessage || "Unauthorized.");
+  if (!INTERNAL_ROLES.has((workspace.context.role || "").toLowerCase())) {
+    throw new Error("You are not authorized to manage subcontractor mobilization.");
+  }
   const admin = createAdminClient();
   const { data: assignment } = await admin.from("trade_partner_assignments").select("id,company_id,project_id,vendor_id,contract_status").eq("company_id", workspace.context.companyId).eq("project_id", projectId).eq("id", assignmentId).single();
   if (!assignment) throw new Error("Subcontractor assignment not found.");
