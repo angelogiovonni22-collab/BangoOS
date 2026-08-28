@@ -16,23 +16,27 @@ test("subcontractor operations persist change orders, pay applications, and clos
 
 test("subcontract change orders preserve executed base terms and become separate commitments",()=>{
   const sql=read("supabase/migrations/20260828153000_subcontractor_operations_completion.sql");
+  const hardening=read("supabase/migrations/20260828153200_subcontractor_operations_hardening.sql");
   const commitments=read("components/projects/workspace/project-commitments-control.tsx");
   assert.match(sql,/create_subcontractor_change_order/);
   assert.match(sql,/review_subcontractor_change_order/);
   assert.match(sql,/contract_status not in \('signed','closed'\)/);
+  assert.match(hardening,/cannot reduce commitment below existing payment applications/);
   assert.match(commitments,/subcontractor_change_orders/);
   assert.match(commitments,/approvedSubcontractChangeTotal/);
 });
 
-test("trade partners can submit bounded payment applications without authorizing payment",()=>{
+test("trade partners can submit assignment-specific bounded payment applications without authorizing payment",()=>{
   const sql=read("supabase/migrations/20260828153000_subcontractor_operations_completion.sql");
+  const hardening=read("supabase/migrations/20260828153200_subcontractor_operations_hardening.sql");
   const portal=read("app/(app)/partner/[projectId]/operations/page.tsx");
   assert.match(sql,/submit_my_subcontractor_payment_application/);
-  assert.match(sql,/Payment application exceeds remaining subcontract commitment/);
-  assert.match(sql,/status='draft'/);
-  assert.match(sql,/vendor_bills/);
+  assert.match(hardening,/p_assignment_id uuid default null/);
+  assert.match(hardening,/Payment application exceeds remaining subcontract commitment/);
+  assert.match(sql,/vendor_bills[\s\S]*'draft'/);
   assert.match(portal,/Submitting does not authorize payment/);
   assert.match(portal,/Submit Payment Application/);
+  assert.match(portal,/p_assignment_id:job\.assignment_id/);
 });
 
 test("internal subcontractor operations expose review, AP status, and closeout gating",()=>{
@@ -49,10 +53,12 @@ test("internal subcontractor operations expose review, AP status, and closeout g
 
 test("signed subcontractors cannot be archived around closeout controls",()=>{
   const sql=read("supabase/migrations/20260828153000_subcontractor_operations_completion.sql");
+  const hardening=read("supabase/migrations/20260828153200_subcontractor_operations_hardening.sql");
   assert.match(sql,/protect_signed_subcontract_archive/);
   assert.match(sql,/Signed subcontractors must complete closeout before archiving/);
-  assert.match(sql,/Required subcontractor closeout items are still open/);
-  assert.match(sql,/Approved subcontractor bills must be fully paid or resolved before closeout/);
+  assert.match(hardening,/Required subcontractor closeout items are still open/);
+  assert.match(hardening,/Subcontractor AP bills must be fully paid or voided before closeout/);
+  assert.match(hardening,/b\.status not in \('paid','voided'\)/);
 });
 
 test("trade partner portal exposes operations alongside field channels",()=>{
