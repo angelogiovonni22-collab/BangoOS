@@ -23,11 +23,12 @@ export default async function TradePartnerOperationsPage({params,searchParams}:P
   const db=supabase as unknown as Db;
   const jobsResult=await db.rpc("get_my_trade_partner_jobs");
   const jobs=(jobsResult.data||[]) as Job[];const job=jobs.find((item)=>item.project_id===projectId);if(!job)redirect("/partner");
-  await db.rpc("ensure_subcontractor_closeout_requirements",{p_assignment_id:job.assignment_id});
+  const assignmentId=job.assignment_id;
+  await db.rpc("ensure_subcontractor_closeout_requirements",{p_assignment_id:assignmentId});
   const [changeResult,paymentResult,closeoutResult]=await Promise.all([
-    db.from("subcontractor_change_orders").select("id,change_order_number,title,description,amount_delta,schedule_impact_days,status").eq("assignment_id",job.assignment_id).order("created_at",{ascending:false}),
-    db.from("subcontractor_payment_applications").select("id,request_number,period_through,description,amount_requested,retainage_amount,net_requested,status,vendor_bill_id,review_notes").eq("assignment_id",job.assignment_id).order("created_at",{ascending:false}),
-    db.from("subcontractor_closeout_requirements").select("id,requirement_type,required,status").eq("assignment_id",job.assignment_id).order("created_at",{ascending:true}),
+    db.from("subcontractor_change_orders").select("id,change_order_number,title,description,amount_delta,schedule_impact_days,status").eq("assignment_id",assignmentId).order("created_at",{ascending:false}),
+    db.from("subcontractor_payment_applications").select("id,request_number,period_through,description,amount_requested,retainage_amount,net_requested,status,vendor_bill_id,review_notes").eq("assignment_id",assignmentId).order("created_at",{ascending:false}),
+    db.from("subcontractor_closeout_requirements").select("id,requirement_type,required,status").eq("assignment_id",assignmentId).order("created_at",{ascending:true}),
   ]);
   const changeOrders=(changeResult.data||[]) as ChangeOrder[];const payments=(paymentResult.data||[]) as PaymentApplication[];const closeout=(closeoutResult.data||[]) as CloseoutRequirement[];
   const billIds=payments.map((item)=>item.vendor_bill_id).filter((value):value is string=>Boolean(value));let bills:Bill[]=[];
@@ -40,7 +41,7 @@ export default async function TradePartnerOperationsPage({params,searchParams}:P
     const client=await createClient();if(!client)redirect("/login");
     const context=await resolveWorkspaceContext(client);if(!context.context||(context.context.role||"").toLowerCase()!=="subcontractor")redirect("/app-entry");
     const amount=Number(formData.get("amount")||0);const retainage=Number(formData.get("retainage")||0);const description=String(formData.get("description")||"").trim();const through=String(formData.get("periodThrough")||"").trim();
-    const result=await (client as unknown as Db).rpc("submit_my_subcontractor_payment_application",{p_project_id:projectId,p_amount_requested:amount,p_retainage_amount:retainage,p_description:description,p_period_through:through||new Date().toISOString().slice(0,10),p_assignment_id:job.assignment_id});
+    const result=await (client as unknown as Db).rpc("submit_my_subcontractor_payment_application",{p_project_id:projectId,p_amount_requested:amount,p_retainage_amount:retainage,p_description:description,p_period_through:through||new Date().toISOString().slice(0,10),p_assignment_id:assignmentId});
     if(result.error)redirect(`/partner/${projectId}/operations?error=${encodeURIComponent(result.error.message)}`);
     revalidatePath(`/partner/${projectId}/operations`);redirect(`/partner/${projectId}/operations?notice=${encodeURIComponent("Payment application submitted for review.")}`);
   }
