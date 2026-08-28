@@ -40,6 +40,14 @@ test("trade partners can submit assignment-specific bounded payment applications
   assert.match(portal,/p_assignment_id:assignmentId/);
 });
 
+test("subcontract retainage is held out of the current AP payable",()=>{
+  const retainageHardening=read("supabase/migrations/20260828153300_subcontractor_retainage_hardening.sql");
+  assert.match(retainageHardening,/v_app\.net_requested,0,v_app\.retainage_amount,v_app\.net_requested/);
+  assert.match(retainageHardening,/Gross requested:/);
+  assert.match(retainageHardening,/Retainage held:/);
+  assert.match(retainageHardening,/v_app\.net_requested,v_app\.net_requested,'subcontractor'/);
+});
+
 test("internal subcontractor operations expose review, AP status, and closeout gating",()=>{
   const component=read("components/projects/workspace/subcontractor-operations-actions.tsx");
   const route=read("app/api/projects/[id]/subcontractors/[assignmentId]/operations/route.ts");
