@@ -61,6 +61,20 @@ test("signed subcontractors cannot be archived around closeout controls",()=>{
   assert.match(hardening,/b\.status not in \('paid','voided'\)/);
 });
 
+test("privileged subcontract administration routes enforce internal project roles before admin-client mutations",()=>{
+  const agreement=read("app/api/projects/[id]/subcontractors/[assignmentId]/agreement/route.ts");
+  const mobilization=read("app/api/projects/[id]/subcontractors/[assignmentId]/mobilization/route.ts");
+  const compliance=read("app/api/projects/[id]/subcontractors/[assignmentId]/compliance-documents/route.ts");
+  for(const source of [agreement,mobilization,compliance]){
+    assert.match(source,/INTERNAL_ROLES/);
+    assert.match(source,/owner/);
+    assert.match(source,/administrator/);
+    assert.match(source,/office_manager/);
+    assert.match(source,/project_manager/);
+    assert.match(source,/workspace\.context\.role/);
+  }
+});
+
 test("trade partner portal exposes operations alongside field channels",()=>{
   const portal=read("app/(app)/partner/page.tsx");
   const operations=read("app/(app)/partner/[projectId]/operations/page.tsx");
