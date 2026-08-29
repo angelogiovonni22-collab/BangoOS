@@ -113,7 +113,7 @@ const ROLE_PERMISSIONS: Record<CompanyRole, readonly BosPermission[]> = {
     "workforce.view", "equipment.view",
   ],
   subcontractor: [
-    "subcontractor_portal.view", "scope.view", "schedule.view", "blueprints.view",
+    "subcontractor_portal.view", "scope.view", "blueprints.view",
     "photos.view", "photos.manage", "communications.view", "communications.manage",
   ],
   customer: ["customer_portal.view", "scope.view", "schedule.view", "photos.view", "communications.view"],
