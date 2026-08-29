@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ArrowLeft,
+  CheckCircle2,
   ChevronDown,
   ExternalLink,
   Pencil,
@@ -33,8 +35,15 @@ export function ProjectWorkspaceHeader({
   customerHref,
   editProjectHref,
 }: ProjectWorkspaceHeaderProps) {
+  const pathname = usePathname();
   const [shareState, setShareState] = useState<"idle" | "copied">("idle");
+  const [completeBusy, setCompleteBusy] = useState(false);
+  const [completeMessage, setCompleteMessage] = useState<string | null>(null);
   const statusTone = useMemo(() => statusToneClass(statusKey), [statusKey]);
+  const projectId = useMemo(() => {
+    const match = pathname.match(/^\/projects\/([^/?#]+)/);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  }, [pathname]);
 
   useEffect(() => {
     if (shareState !== "copied") return;
@@ -63,6 +72,28 @@ export function ProjectWorkspaceHeader({
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(window.location.href);
       setShareState("copied");
+    }
+  };
+
+  const handleCompleteProject = async () => {
+    if (!projectId || statusKey === "completed") return;
+    const confirmed = window.confirm(
+      `Mark ${projectName} complete? B.O.S. will automatically remove this project from active Trade Partner portals and preserve all contractor history.`,
+    );
+    if (!confirmed) return;
+
+    setCompleteBusy(true);
+    setCompleteMessage(null);
+    try {
+      const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/complete`, { method: "POST" });
+      const body = await response.json() as { error?: string; message?: string };
+      if (!response.ok) throw new Error(body.error || "Unable to complete project.");
+      setCompleteMessage(body.message || "Project completed.");
+      window.setTimeout(() => window.location.reload(), 500);
+    } catch (error) {
+      setCompleteMessage(error instanceof Error ? error.message : "Unable to complete project.");
+    } finally {
+      setCompleteBusy(false);
     }
   };
 
@@ -105,7 +136,18 @@ export function ProjectWorkspaceHeader({
                   <ChevronDown size={14} aria-hidden="true" />
                 </Button>
               </summary>
-              <div className="absolute right-0 z-[var(--z-overlay)] mt-2 w-max min-w-[220px] max-w-[min(20rem,calc(100vw-2rem))] rounded-[12px] border border-[#4c6ea1] bg-[#102748] p-1.5 shadow-[0_18px_32px_-18px_rgba(2,6,17,0.95)]">
+              <div className="absolute right-0 z-[var(--z-overlay)] mt-2 w-max min-w-[240px] max-w-[min(22rem,calc(100vw-2rem))] rounded-[12px] border border-[#4c6ea1] bg-[#102748] p-1.5 shadow-[0_18px_32px_-18px_rgba(2,6,17,0.95)]">
+                {statusKey !== "completed" && statusKey !== "cancelled" ? (
+                  <button
+                    type="button"
+                    disabled={completeBusy || !projectId}
+                    onClick={() => void handleCompleteProject()}
+                    className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm font-semibold text-emerald-200 transition hover:bg-[#1a3968] disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={15} aria-hidden="true" />
+                    {completeBusy ? "Completing Project…" : "Project Complete"}
+                  </button>
+                ) : null}
                 {customerHref ? (
                   <Link
                     href={customerHref}
@@ -137,6 +179,7 @@ export function ProjectWorkspaceHeader({
           </>
         }
       />
+      {completeMessage ? <div className="mx-4 mt-2 rounded-lg border border-emerald-300/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100">{completeMessage}</div> : null}
       <ProjectHeaderWeatherStrip />
     </div>
   );
