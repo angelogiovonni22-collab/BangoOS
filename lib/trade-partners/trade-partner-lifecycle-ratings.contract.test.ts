@@ -49,7 +49,7 @@ assert.match(lifecycleMigration, /rehire_status/);
 assert.match(lifecycleMigration, /projects_close_trade_partner_access/);
 assert.match(lifecycleMigration, /tpa\.lifecycle_status='active'/);
 assert.match(lifecycleMigration, /p\.status <> 'completed'/);
-assert.match(replacementMigration, /same trade, scope/i);
+assert.match(replacementMigration, /v_assignment\.trade_name, v_assignment\.scope_of_work/);
 assert.match(replacementMigration, /replace_trade_partner_assignment_with_vendor/);
 assert.match(deleteGuardMigration, /trade_partner_messages/);
 assert.match(deleteGuardMigration, /project_id=v_assignment\.project_id/);
