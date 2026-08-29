@@ -74,6 +74,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ ok: true, result: result.data ?? null });
     }
 
+    if (action === "replace_vendor") {
+      const replacementVendorId = String(body.replacementVendorId || "").trim();
+      const reason = String(body.reason || "").trim();
+      if (!replacementVendorId) return NextResponse.json({ error: "Select a replacement Trade Partner." }, { status: 400 });
+      if (!reason) return NextResponse.json({ error: "Enter a reason for the replacement." }, { status: 400 });
+      const result = await db.rpc("replace_trade_partner_assignment_with_vendor", {
+        p_assignment_id: assignmentId,
+        p_replacement_vendor_id: replacementVendorId,
+        p_reason: reason,
+      });
+      if (result.error) throw new Error(result.error.message);
+      return NextResponse.json({ ok: true, replacementAssignmentId: result.data ?? null });
+    }
+
     if (action === "rate") {
       const scores = ["quality", "scheduleReliability", "communication", "safetyCompliance", "professionalism"]
         .map((key) => Number(body[key]));
