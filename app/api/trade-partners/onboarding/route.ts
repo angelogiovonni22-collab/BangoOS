@@ -11,6 +11,15 @@ type TradePartnerMembership = {
   status: string;
 };
 
+type CompletedVendor = {
+  id: string;
+  vendor_code: string | null;
+  display_name: string | null;
+  company_name: string | null;
+  status: string;
+  onboarding_completed_at: string | null;
+};
+
 async function getPartnerContext() {
   const supabase = await createClient();
   if (!supabase) throw new Error("B.O.S. authentication is unavailable.");
@@ -74,16 +83,17 @@ async function completeInvitationAndNotify(input: {
   const sourceKey = `trade-partner-onboarding-complete:${input.vendorId}`;
 
   for (const recipient of recipients) {
-    const { data: existing } = await input.admin
-      .from("bos_notifications")
+    const { data: existingRow } = await input.admin
+      .from("bos_notifications" as never)
       .select("id")
       .eq("company_id", input.companyId)
       .eq("recipient_user_id", recipient.user_id)
       .eq("source_key", sourceKey)
       .maybeSingle();
+    const existing = existingRow as unknown as { id: string } | null;
     if (existing?.id) continue;
 
-    await input.admin.from("bos_notifications").insert({
+    await input.admin.from("bos_notifications" as never).insert({
       company_id: input.companyId,
       recipient_user_id: recipient.user_id,
       actor_user_id: input.actorUserId,
@@ -102,7 +112,7 @@ async function completeInvitationAndNotify(input: {
       push_status: "not_requested",
       email_status: "not_requested",
       delivery_metadata: { event: "trade_partner_onboarding_completed" },
-    });
+    } as never);
   }
 }
 
@@ -110,7 +120,7 @@ export async function GET() {
   try {
     const { admin, companyId, vendorId } = await getPartnerContext();
     const [{ data: vendor, error: vendorError }, { data: documents, error: documentError }] = await Promise.all([
-      admin.from("vendors").select("id,vendor_code,company_name,display_name,email,phone,mobile,website,billing_address,city,state,postal_code,first_name,last_name,primary_trade,market_type,years_in_business,crew_size,service_area,contractor_license,insurance_provider,insurance_expires_at,onboarding_completed_at,status").eq("company_id", companyId).eq("id", vendorId).single(),
+      admin.from("vendors" as never).select("id,vendor_code,company_name,display_name,email,phone,mobile,website,billing_address,city,state,postal_code,first_name,last_name,primary_trade,market_type,years_in_business,crew_size,service_area,contractor_license,insurance_provider,insurance_expires_at,onboarding_completed_at,status").eq("company_id", companyId).eq("id", vendorId).single(),
       admin.from("trade_partner_onboarding_documents" as never).select("id,requirement_type,original_filename,mime_type,file_size_bytes,expires_at,status,storage_path,created_at").eq("company_id", companyId).eq("vendor_id", vendorId).eq("status", "active").order("created_at", { ascending: false }),
     ]);
     if (vendorError || !vendor) throw new Error(vendorError?.message || "Trade Partner profile not found.");
@@ -183,13 +193,14 @@ export async function PATCH(request: Request) {
       updated_at: new Date().toISOString(),
     };
 
-    const { data: vendor, error } = await admin
-      .from("vendors")
+    const { data: vendorRow, error } = await admin
+      .from("vendors" as never)
       .update(payload as never)
       .eq("company_id", companyId)
       .eq("id", vendorId)
       .select("id,vendor_code,display_name,company_name,status,onboarding_completed_at")
       .single();
+    const vendor = vendorRow as unknown as CompletedVendor | null;
     if (error || !vendor) throw new Error(error?.message || "Unable to update Trade Partner profile.");
 
     const display = [firstName, lastName].filter(Boolean).join(" ") || null;
