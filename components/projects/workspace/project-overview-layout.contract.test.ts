@@ -23,12 +23,14 @@ assert.ok(overview.includes("styles.detailsFirst"), "project details opt into th
 assert.ok(overviewLayout.includes("flex-direction: column"), "the overview parent becomes an ordered vertical stack");
 assert.ok(overviewLayout.includes(":not(.detailsFirst)"), "the operating-system panel is ordered after the project details");
 assert.ok(!overview.includes('label="Job site"'), "job-site address is not duplicated inside Project Team");
-assert.ok(overview.includes('sm:grid-cols-3'), "Project Team uses three compact detail cards after job-site removal");
+assert.ok(!overview.includes('title="Project Team"'), "duplicate Project Team summary stays out of Overview");
 assert.ok(!overview.includes("<LocationForecastCard"), "the full-width weather/map card no longer consumes the project overview");
 assert.ok(!overview.includes('data-project-jobsite-intelligence="primary"'));
 assert.ok(header.includes("<WorkspaceHeader\n        compact"), "the project header uses the compact layout");
 assert.ok(header.includes("<ProjectHeaderWeatherStrip />"), "weather and map sit directly with the project header");
 assert.ok(header.includes('data-project-header-with-jobsite-intelligence="true"'));
+assert.ok(!header.includes('aria-label="More actions"'), "the project header must not expose an inert More menu");
+assert.ok(header.includes("Project Complete"), "the useful completion action remains directly available");
 assert.ok(headerWeather.includes('data-project-header-jobsite-intelligence="true"'));
 assert.ok(headerWeather.includes("lg:grid-cols-[1.05fr_1fr_0.9fr]"), "desktop jobsite intelligence uses a compact horizontal strip");
 assert.ok(headerWeather.includes("min-h-[112px]"), "weather and map stay short instead of stretching vertically");

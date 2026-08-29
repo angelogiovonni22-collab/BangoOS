@@ -3,12 +3,9 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync("components/projects/workspace/project-tabs.tsx", "utf8");
 
-assert.match(source, /createPortal\([\s\S]*document\.body/, "More menu must escape project stacking contexts");
-assert.match(source, /z-\[2147483647\]/, "More menu must render above workspace cards");
-assert.match(source, /aria-haspopup="menu"/, "More trigger must expose menu semantics");
-assert.match(source, /aria-controls=\{moreMenuId\}/, "More trigger must identify the controlled menu");
-assert.match(source, /role="menu"/, "More popup must expose menu role");
-assert.match(source, /role="menuitem"/, "More actions must expose menuitem role");
-assert.match(source, /event\.key !== "Escape"/, "More menu must close with Escape");
+assert.match(source, /items\.map\(\(item\)/, "every project tab must render in the visible navigation");
+assert.match(source, /overflow-x-auto/, "the full tab row must remain usable at narrow widths");
+assert.doesNotMatch(source, /workspace-tab-more/, "project navigation must not hide tabs behind More");
+assert.doesNotMatch(source, /createPortal/, "project navigation no longer needs a popup layer");
 
-console.log("Project tabs layering contract passed.");
+console.log("Project tabs visible-navigation contract passed.");
