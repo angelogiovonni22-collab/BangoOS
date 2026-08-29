@@ -9,7 +9,7 @@ export default function ProjectCrewCostsPage(){
   const params=useParams<{id:string}>();
   const projectId=String(params?.id||"");
   return <div className="container-content space-y-5">
-    <PageHeader compact eyebrow="PROJECT · WORKFORCE" title="Crew & Trade Partner Costs" description="See who is assigned to this project, how each employee, crew, or subcontractor is being paid, projected commitments, and approved-time actual labor." primaryAction={<Link href={`/projects/${projectId}`}><Button variant="outline">Back to Project</Button></Link>}/>
+    <PageHeader compact eyebrow="PROJECT · WORKFORCE" title="Project Workforce & Agreements" description="Review employee and crew assignments, labor totals, and subcontractor compensation agreements." primaryAction={<Link href={`/projects/${projectId}`}><Button variant="outline">Back to Project</Button></Link>}/>
     <ProjectCrewCompensationWorkspace projectId={projectId} localeTag="en-US"/>
   </div>;
 }

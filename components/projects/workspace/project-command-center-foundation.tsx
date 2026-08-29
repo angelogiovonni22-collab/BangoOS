@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Activity, CalendarDays, Camera, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, Gauge, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { Activity, CalendarDays, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, Gauge, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 import { calculateProjectCloseoutReadiness, type ProjectCloseoutNextAction } from "@/lib/projects/project-closeout-readiness";
 import { ProjectBudgetControlDetails, ProjectCrewControlDetails } from "./project-control-card-details";
@@ -88,7 +88,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
               <ProjectCrewControlDetails projectId={props.projectId} />
               <div className="flex flex-wrap justify-end gap-2">
                 <Link href="/crews"><Button variant="outline" size="sm">Open CrewOS</Button></Link>
-                <Link href={crewCostHref}><Button size="sm">View Full Crew Costs</Button></Link>
+                <Link href={crewCostHref}><Button size="sm">Open Workforce Details</Button></Link>
               </div>
             </div>
           ) : null}
@@ -221,7 +221,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
             )) : <Empty label="No tasks are scheduled in the next seven days." />}
           </div>
         </Card>
-        <Card title="Project Team" icon={<Users size={18} />} action={<button type="button" onClick={() => toggleControl("crew")} className="text-xs font-bold text-[var(--orion-blue)]">View team</button>}>
+        <Card title="Project Team" icon={<Users size={18} />}>
           <div className="grid gap-2 sm:grid-cols-3">
             <Info label="Customer" value={props.customerName} />
             <Info label="Assigned crew" value={props.crewCount ? props.crewCount + " members" : "Not assigned"} />
@@ -230,11 +230,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
         </Card>
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:max-w-md">
         <Shortcut href={projectHref + "?tab=tasks"} icon={<TriangleAlert size={20} />} label="Open Issues" value={props.openPunchItemsCount} tone="danger" />
-        <Shortcut href={projectHref + "?tab=change_orders"} icon={<FileText size={20} />} label="Change Orders" value={props.changeOrdersCount} tone="warning" />
-        <Shortcut href={projectHref + "?tab=documents"} icon={<FileText size={20} />} label="Documents" value={props.dailyReportsCount + props.permitsCount + props.inspectionsCount} />
-        <Shortcut href={projectHref + "?tab=photos"} icon={<Camera size={20} />} label="Photos" value={props.photosCount} />
       </section>
 
       <section className="min-w-0 rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)] sm:p-5" data-testid="project-closeout-readiness">
@@ -291,6 +288,6 @@ function daysRemainingLabel(value: string) { const target = new Date(value); if 
 function buildScopePhases(tasks: TaskSummary[]) { if (!tasks.length) return [{ id: "scope", title: "Scope details not entered", state: "upcoming" }]; return [...tasks].sort((a, b) => (a.planned_finish || "9999").localeCompare(b.planned_finish || "9999")).slice(0, 5).map((task) => ({ id: task.id, title: task.title, state: status(task.status) === "completed" ? "completed" : status(task.status) === "in_progress" ? "in_progress" : "upcoming" })); }
 function phaseDotClass(state: string) { return state === "completed" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-success-100)] text-xs font-bold text-[var(--color-success-700)]" : state === "in_progress" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-info-100)] text-xs font-bold text-[var(--color-info-700)]" : "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-neutral-100)] text-xs font-bold text-[var(--bos-text-medium-on-light)]"; }
 function phaseLabel(state: string) { return state === "completed" ? "Complete" : state === "in_progress" ? "In progress" : "Upcoming"; }
-function controlTitle(control: ControlKey) { if (control === "budget") return "Budget & Commitments"; if (control === "crew") return "Crew & Trade Partner Costs"; if (control === "schedule") return "Project Schedule"; return "Project Progress"; }
-function controlDescription(control: ControlKey) { if (control === "budget") return "Live budget, actual spend, labor commitments, signed subcontract obligations, and remaining dollars."; if (control === "crew") return "Assigned crews and subcontractors, how they are paid, projected labor, actual approved-time cost, and authorization status."; if (control === "schedule") return "Project dates, assigned workforce, upcoming work, and the next seven days at a glance."; return "Overall completion, active and blocked work, phases, and the tasks driving project progress."; }
+function controlTitle(control: ControlKey) { if (control === "budget") return "Budget & Commitments"; if (control === "crew") return "Project Workforce"; if (control === "schedule") return "Project Schedule"; return "Project Progress"; }
+function controlDescription(control: ControlKey) { if (control === "budget") return "Live budget, actual spend, labor commitments, signed subcontract obligations, and remaining dollars."; if (control === "crew") return "Employees and crews first, followed by labor totals and subcontractor compensation agreements."; if (control === "schedule") return "Project dates, assigned workforce, upcoming work, and the next seven days at a glance."; return "Overall completion, active and blocked work, phases, and the tasks driving project progress."; }
 function getCloseoutAction(projectHref: string, nextAction: ProjectCloseoutNextAction) { if (nextAction === "start_closeout") return { label: "Start project closeout", note: "Open the compliance workflow and initialize the closeout checklist.", href: projectHref + "?tab=inspections" }; if (nextAction === "punch_items") return { label: "Clear open punch items", note: "Resolve punch work before handover can advance.", href: projectHref + "?tab=inspections#punch-list" }; if (nextAction === "inspections") return { label: "Complete pending inspections", note: "Finish required inspections and record final results.", href: projectHref + "?tab=inspections" }; if (nextAction === "permits") return { label: "Close open permits", note: "Resolve outstanding permit lifecycle items before handover.", href: projectHref + "?tab=inspections" }; if (nextAction === "finish_work") return { label: "Finish project work", note: "Complete remaining project tasks before final closeout.", href: projectHref + "?tab=tasks" }; if (nextAction === "closeout_checklist") return { label: "Complete closeout checklist", note: "Finish payment, customer approval, documents, crew, and equipment handover requirements.", href: projectHref + "?tab=inspections" }; return { label: "Complete project handover", note: "Closeout signals are clear and the project is ready for final completion.", href: projectHref + "?tab=inspections" }; }

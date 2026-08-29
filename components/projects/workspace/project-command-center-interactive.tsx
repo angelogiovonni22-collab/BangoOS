@@ -66,7 +66,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
               <ProjectCrewControlDetails projectId={props.projectId} />
               <div className="flex flex-wrap justify-end gap-2">
                 <Link href="/crews"><Button variant="outline" size="sm">Open CrewOS</Button></Link>
-                <Link href={crewCostHref}><Button size="sm">View Full Crew Costs</Button></Link>
+                <Link href={crewCostHref}><Button size="sm">Open Workforce Details</Button></Link>
               </div>
             </div>
           ) : null}
@@ -169,6 +169,6 @@ function daysRemainingLabel(value: string) { const target = new Date(value); if 
 function buildScopePhases(tasks: TaskSummary[]) { if (!tasks.length) return [{ id: "scope", title: "Scope details not entered", state: "upcoming" }]; return [...tasks].sort((a, b) => (a.planned_finish || "9999").localeCompare(b.planned_finish || "9999")).slice(0, 5).map((task) => ({ id: task.id, title: task.title, state: status(task.status) === "completed" ? "completed" : status(task.status) === "in_progress" ? "in_progress" : "upcoming" })); }
 function phaseDotClass(state: string) { return state === "completed" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-success-100)] text-xs font-bold text-[var(--color-success-700)]" : state === "in_progress" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-info-100)] text-xs font-bold text-[var(--color-info-700)]" : "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-neutral-100)] text-xs font-bold text-[var(--bos-text-medium-on-light)]"; }
 function phaseLabel(state: string) { return state === "completed" ? "Complete" : state === "in_progress" ? "In progress" : "Upcoming"; }
-function controlTitle(control: ControlKey) { if (control === "budget") return "Budget & Commitments"; if (control === "crew") return "Crew & Trade Partner Costs"; if (control === "schedule") return "Project Schedule"; return "Project Progress"; }
-function controlDescription(control: ControlKey) { if (control === "budget") return "Live budget, actual spend, labor commitments, signed subcontract obligations, and remaining dollars."; if (control === "crew") return "Assigned crews and subcontractors, how they are paid, projected labor, actual approved-time cost, and authorization status."; if (control === "schedule") return "Project dates, assigned workforce, upcoming work, and the next seven days at a glance."; return "Overall completion, active and blocked work, phases, and the tasks driving project progress."; }
+function controlTitle(control: ControlKey) { if (control === "budget") return "Budget & Commitments"; if (control === "crew") return "Project Workforce"; if (control === "schedule") return "Project Schedule"; return "Project Progress"; }
+function controlDescription(control: ControlKey) { if (control === "budget") return "Live budget, actual spend, labor commitments, signed subcontract obligations, and remaining dollars."; if (control === "crew") return "Employees and crews first, followed by labor totals and subcontractor compensation agreements."; if (control === "schedule") return "Project dates, assigned workforce, upcoming work, and the next seven days at a glance."; return "Overall completion, active and blocked work, phases, and the tasks driving project progress."; }
 function parseControlKey(value: string | null): ControlKey | null { return value === "budget" || value === "crew" || value === "schedule" || value === "progress" ? value : null; }
