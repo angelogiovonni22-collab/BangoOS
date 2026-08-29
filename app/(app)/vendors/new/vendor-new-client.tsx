@@ -68,7 +68,7 @@ export function NewVendorClient() {
         tax_id: form.tax_id.trim() || null,
         account_number: form.account_number.trim() || null,
         payment_terms: form.payment_terms.trim() || null,
-        credit_limit: form.credit_limit.trim() ? Number(form.credit_limit) : null,
+        credit_limit: null,
         billing_address: form.billing_address.trim() || null,
         shipping_address: form.shipping_address.trim() || null,
         city: form.city.trim() || null,
@@ -122,7 +122,7 @@ export function NewVendorClient() {
       />
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <VendorForm value={form} onChange={updateField} disabled={isSaving} />
+        <VendorForm value={form} onChange={updateField} disabled={isSaving} showCreditLimit={false} />
 
         {errorMessage ? <ErrorState compact title="Unable to save vendor" description={errorMessage} /> : null}
 

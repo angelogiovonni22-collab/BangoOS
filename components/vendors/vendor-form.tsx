@@ -5,9 +5,10 @@ type VendorFormProps = {
   value: VendorFormInput;
   onChange: <K extends keyof VendorFormInput>(key: K, nextValue: VendorFormInput[K]) => void;
   disabled?: boolean;
+  showCreditLimit?: boolean;
 };
 
-export function VendorForm({ value, onChange, disabled = false }: VendorFormProps) {
+export function VendorForm({ value, onChange, disabled = false, showCreditLimit = true }: VendorFormProps) {
   return (
     <div className="space-y-6">
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-small)] sm:p-6">
@@ -67,9 +68,11 @@ export function VendorForm({ value, onChange, disabled = false }: VendorFormProp
               <option value="net_60">Net 60</option>
             </Select>
           </Field>
-          <Field label="Credit limit">
-            <Input type="number" min="0" step="0.01" value={value.credit_limit} onChange={(event) => onChange("credit_limit", event.target.value)} disabled={disabled} />
-          </Field>
+          {showCreditLimit ? (
+            <Field label="Credit limit">
+              <Input type="number" min="0" step="0.01" value={value.credit_limit} onChange={(event) => onChange("credit_limit", event.target.value)} disabled={disabled} />
+            </Field>
+          ) : null}
         </div>
       </section>
 
