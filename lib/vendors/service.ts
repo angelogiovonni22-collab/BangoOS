@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 
-type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
+type VendorRow = Database["public"]["Tables"]["vendors"]["Row"] & {
+  performance_rating?: number | null;
+  performance_review_count?: number | null;
+  rehire_status?: string | null;
+};
 
 type VendorsServiceDeps = {
   supabaseClient?: ReturnType<typeof createClient>;
@@ -18,6 +22,9 @@ export type VendorOption = {
   mobile: string | null;
   email: string | null;
   paymentTerms: string | null;
+  performanceRating: number | null;
+  performanceReviewCount: number;
+  rehireStatus: "approved" | "review_before_assignment" | "do_not_rehire";
 };
 
 export class VendorsServiceError extends Error {
@@ -37,6 +44,7 @@ export type VendorsService = {
 function toVendorOption(row: VendorRow): VendorOption {
   const firstName = row.first_name?.trim() || "";
   const lastName = row.last_name?.trim() || "";
+  const rehire = row.rehire_status || "approved";
   return {
     id: row.id,
     companyName: row.company_name,
@@ -46,6 +54,9 @@ function toVendorOption(row: VendorRow): VendorOption {
     mobile: row.mobile,
     email: row.email,
     paymentTerms: row.payment_terms,
+    performanceRating: row.performance_rating == null ? null : Number(row.performance_rating),
+    performanceReviewCount: Number(row.performance_review_count || 0),
+    rehireStatus: (["approved", "review_before_assignment", "do_not_rehire"].includes(rehire) ? rehire : "approved") as VendorOption["rehireStatus"],
   };
 }
 
