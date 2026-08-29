@@ -32,7 +32,7 @@ for (const method of ["payroll_rate", "hourly", "day_rate", "piece_rate", "lump_
 assert.match(crewAssignment, /save_project_labor_commitment/);
 assert.match(crewAssignment, /Budget after assignment/);
 assert.match(crewWorkspace, /Actual approved-time labor/);
-assert.match(crewWorkspace, /How paid/);
+assert.match(crewWorkspace, /Compensation & payment terms/);
 assert.match(crewWorkspace, /Authorized to start/);
 
 assert.match(subcontractors, /assignmentStatus\s*:\s*"inactive"/);

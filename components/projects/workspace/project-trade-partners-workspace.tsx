@@ -241,9 +241,12 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
         </div>
       </section>
     ) : <>
-      <div className="flex items-center justify-end"><Button type="button" onClick={openCreateDialog}>Assign Trade Partner</Button></div>
-      <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(300px,3fr)] xl:items-start">
-        <div className="grid min-w-0 gap-4 md:grid-cols-2">
+      <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">Project Subcontractors</h2><p className="mt-1 text-sm font-medium text-[var(--bos-text-medium-on-light)]">Manage assignments, agreements, mobilization, project costs, and closeout from one workspace.</p></div><Button type="button" onClick={openCreateDialog}>Assign Trade Partner</Button></div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><SummaryRow label="Selected" value={String(summary.totalAssigned)} /><SummaryRow label="Authorized / Active" value={String(summary.active)} /><SummaryRow label="Awaiting Contract" value={String(summary.pending)} /><SummaryRow label="Total Contract Value" value={formatMoney(summary.totalContractValue, "Not Provided")} /></div>
+      </section>
+      <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(260px,1fr)] xl:items-start">
+        <div className="grid min-w-0 gap-4">
           {assignments.map((assignment) => {
             const vendor = vendorById.get(assignment.vendorId);
             const companyName = vendor?.displayName || vendor?.companyName || "Not Assigned";
@@ -268,7 +271,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
                 <DetailRow label="Contract Status" value={contractStatusLabel} icon={<ClipboardCheck size={14} />} />
                 <div><Badge tone={CONTRACT_TONE[assignment.contractStatus] || "neutral"}>{contractStatusLabel}</Badge></div>
                 <DetailRow label="Committed Amount" value={formatMoney(assignment.contractAmount)} />
-                <DetailRow label="How Paid" value={assignment.paymentTerms || "Not Provided"} />
+                <DetailRow label="Compensation & Payment Terms" value={assignment.paymentTerms || "Not Provided"} />
                 <DetailRow label="Retainage" value={assignment.retainagePercent == null ? "Not specified" : `${assignment.retainagePercent}%`} />
                 <DetailRow label="Crew Size" value={assignment.crewSize !== null ? String(assignment.crewSize) : "Not Provided"} />
                 <DetailRow label="Schedule" value={[assignment.startDate, assignment.targetCompletionDate].filter(Boolean).join(" → ") || "Not Scheduled"} />
@@ -283,13 +286,9 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
           })}
         </div>
         <Card className="h-fit border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-card),var(--color-neutral-50))] shadow-[var(--bos-shadow-workspace-card)]">
-          <CardHeader><CardTitle className="text-section-title font-bold">Project Trade Partner Summary</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-section-title font-bold">Additional Project Details</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            <SummaryRow label="Selected" value={String(summary.totalAssigned)} />
-            <SummaryRow label="Authorized / Active" value={String(summary.active)} />
-            <SummaryRow label="Awaiting Contract" value={String(summary.pending)} />
             <SummaryRow label="Historical / Closed" value={String(summary.archived)} />
-            <SummaryRow label="Total Contract Value" value={formatMoney(summary.totalContractValue, "Not Provided")} />
             <SummaryRow label="Total Crew Members" value={summary.totalCrewMembers === null ? "Not Provided" : String(summary.totalCrewMembers)} />
             <SummaryRow label="Next Scheduled Start" value={summary.nextScheduledStart || "Not Scheduled"} />
           </CardContent>
