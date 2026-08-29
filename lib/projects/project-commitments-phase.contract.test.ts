@@ -35,8 +35,8 @@ assert.match(crewWorkspace, /Actual approved-time labor/);
 assert.match(crewWorkspace, /How paid/);
 assert.match(crewWorkspace, /Authorized to start/);
 
-assert.match(subcontractors, /assignmentStatus:"inactive"/);
-assert.match(subcontractors, /contractStatus:"draft"/);
+assert.match(subcontractors, /assignmentStatus\s*:\s*"inactive"/);
+assert.match(subcontractors, /contractStatus\s*:\s*"draft"/);
 assert.match(subcontractors, /Assign & Send Agreement/);
 assert.match(subcontractors, /\/agreement/);
 assert.match(subcontractors, /Prevailing wage project/);
