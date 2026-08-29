@@ -43,7 +43,8 @@ export async function enableOrionBackgroundPush() {
   const config = await configResponse.json() as { ok?: boolean; publicKey?: string; error?: string };
   if (!configResponse.ok || !config.ok || !config.publicKey) throw new Error(config.error || "Orion push is not configured yet.");
 
-  const registration = await navigator.serviceWorker.register("/orion-sw.js", { scope: "/" });
+  const registration = await navigator.serviceWorker.register("/orion-sw.js", { scope: "/", updateViaCache: "none" });
+  await registration.update();
   await navigator.serviceWorker.ready;
   const existing = await registration.pushManager.getSubscription();
   const subscription = existing || await registration.pushManager.subscribe({
