@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader, StatusBadge } from "@/components/ui";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader, StatusBadge } from "@/components/ui";
 import { createProcurementService } from "@/lib/materials/procurement-service";
 import type { ProcurementVendorSummary } from "@/lib/materials/procurement-types";
 import { createClient } from "@/lib/supabase/client";
@@ -22,6 +22,9 @@ export function VendorDetailClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -113,6 +116,47 @@ export function VendorDetailClient() {
     };
   }, [procurementService, supabase, vendorId]);
 
+  const sendTradePartnerInvite = async () => {
+    if (!vendor?.email?.trim()) {
+      setInviteError("Add an email address to this vendor before sending B.O.S. access.");
+      return;
+    }
+
+    setInviteLoading(true);
+    setInviteError(null);
+    setInviteMessage(null);
+
+    try {
+      const response = await fetch("/api/trade-partners/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId: vendor.id,
+          email: vendor.email.trim(),
+          firstName: vendor.first_name || undefined,
+          lastName: vendor.last_name || undefined,
+        }),
+      });
+      const payload = await response.json().catch(() => null) as { error?: string; invited?: boolean; linked?: boolean } | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to send Trade Partner invitation.");
+      }
+
+      if (payload?.invited) {
+        setInviteMessage(`Invitation sent to ${vendor.email.trim()}. They can activate B.O.S. and continue directly to Trade Partner onboarding.`);
+      } else if (payload?.linked) {
+        setInviteMessage(`${vendor.email.trim()} already has a B.O.S. account. Trade Partner access is now linked to this vendor profile.`);
+      } else {
+        setInviteMessage("Trade Partner access is ready for this vendor.");
+      }
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : "Unable to send Trade Partner invitation.");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -144,7 +188,7 @@ export function VendorDetailClient() {
       <PageHeader
         eyebrow="COMPANY WORKSPACE"
         title={vendor.display_name}
-        description="Review vendor profile, commercial terms, and procurement performance in one workspace."
+        description="Review vendor profile, commercial terms, procurement performance, and B.O.S. Trade Partner access in one workspace."
         secondaryActions={(
           <Link
             href="/vendors"
@@ -203,6 +247,32 @@ export function VendorDetailClient() {
             <InfoRow label="Email" value={vendor.email} />
             <InfoRow label="Phone" value={vendor.phone} />
             <InfoRow label="Mobile" value={vendor.mobile} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Trade Partner Access</CardTitle></CardHeader>
+          <CardContent className="space-y-4 text-sm text-[var(--color-text-secondary)]">
+            <p>
+              Send this company a secure B.O.S. setup link. Their account will be linked to this vendor profile and routed directly into Trade Partner onboarding.
+            </p>
+            <InfoRow label="Invitation email" value={vendor.email} />
+            {inviteError ? (
+              <div role="alert" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-3 py-2 text-[var(--color-danger-700)]">
+                {inviteError}
+              </div>
+            ) : null}
+            {inviteMessage ? (
+              <div role="status" className="rounded-[var(--radius-md)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-3 py-2 text-[var(--color-success-700)]">
+                {inviteMessage}
+              </div>
+            ) : null}
+            <Button type="button" onClick={() => void sendTradePartnerInvite()} disabled={inviteLoading || !vendor.email?.trim()}>
+              {inviteLoading ? "Sending invitation…" : "Send B.O.S. Trade Partner Invite"}
+            </Button>
+            {!vendor.email?.trim() ? (
+              <p className="text-xs text-[var(--color-text-muted)]">Add the Trade Partner email in Edit Vendor before sending access.</p>
+            ) : null}
           </CardContent>
         </Card>
 
