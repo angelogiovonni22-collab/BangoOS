@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Activity, CalendarDays, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, Gauge, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { Activity, CalendarDays, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, Gauge, ShieldCheck, Users } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 import { calculateProjectCloseoutReadiness, type ProjectCloseoutNextAction } from "@/lib/projects/project-closeout-readiness";
 import { ProjectBudgetControlDetails, ProjectCrewControlDetails } from "./project-control-card-details";
@@ -154,7 +154,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
         </section>
       ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
+      <div className="grid gap-4">
         <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)] sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -221,18 +221,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
             )) : <Empty label="No tasks are scheduled in the next seven days." />}
           </div>
         </Card>
-        <Card title="Project Team" icon={<Users size={18} />}>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <Info label="Customer" value={props.customerName} />
-            <Info label="Assigned crew" value={props.crewCount ? props.crewCount + " members" : "Not assigned"} />
-            <Info label="Project status" value={props.statusLabel} />
-          </div>
-        </Card>
       </div>
-
-      <section className="grid gap-3 sm:max-w-md">
-        <Shortcut href={projectHref + "?tab=tasks"} icon={<TriangleAlert size={20} />} label="Open Issues" value={props.openPunchItemsCount} tone="danger" />
-      </section>
 
       <section className="min-w-0 rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)] sm:p-5" data-testid="project-closeout-readiness">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -263,10 +252,6 @@ export function ProjectCommandCenterFoundation(props: Props) {
         </div>
       </section>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Collapsible title="Financials" subtitle="Budget, costs, commitments and change orders"><div className="grid gap-3 sm:grid-cols-3"><Info label="Budget" value={props.budgetLabel} /><Info label="Spent" value={props.spentLabel} /><Info label="Remaining" value={props.remainingLabel} /></div></Collapsible>
-        <Collapsible title="Documents & Activity" subtitle="Reports, records, communication and recent changes"><div className="grid gap-3"><Info label="Project records" value={props.dailyReportsCount + " reports · " + props.invoicesCount + " invoices · " + props.estimatesCount + " estimates"} /><Info label="Latest activity" value={props.activityItems[0]?.title || props.timelineEntries[0]?.title || "No activity recorded"} /></div></Collapsible>
-      </div>
     </div>
   );
 }
@@ -275,8 +260,6 @@ function Metric({ control, onClick, active, icon, label, value, detail, progress
 function Card({ title, icon, action, children }: { title: string; icon: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) { return <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]"><div className="mb-3 flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-[var(--orion-blue)]">{icon}<h2 className="text-lg font-extrabold text-[var(--bos-text-strong-on-light)]">{title}</h2></div>{action}</div>{children}</section>; }
 function Health({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) { return <div className="min-w-0 rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3 text-center"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className={warning ? "mt-1 break-words text-xs font-extrabold text-[var(--color-warning-700)]" : "mt-1 break-words text-xs font-extrabold text-[var(--color-success-700)]"}>{value}</p></div>; }
 function Info({ label, value }: { label: string; value: string }) { return <div className="min-w-0 rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="mt-1 truncate text-sm font-extrabold text-[var(--bos-text-strong-on-light)]" title={value}>{value}</p></div>; }
-function Shortcut({ href, icon, label, value, tone }: { href: string; icon: React.ReactNode; label: string; value: number; tone?: "danger" | "warning" }) { const color = tone === "danger" ? "bg-[var(--color-danger-100)] text-[var(--color-danger-700)]" : tone === "warning" ? "bg-[var(--color-warning-100)] text-[var(--color-warning-700)]" : "bg-[var(--color-primary-100)] text-[var(--color-primary-700)]"; return <Link href={href} className="group flex items-center gap-3 rounded-[15px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-3.5 shadow-[var(--shadow-small)] transition hover:-translate-y-0.5"><span className={"inline-flex h-10 w-10 items-center justify-center rounded-full " + color}>{icon}</span><div><p className="text-xs font-bold text-[var(--bos-text-medium-on-light)]">{label}</p><p className="text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">{value}</p></div><ChevronDown size={16} className="ml-auto -rotate-90 text-[var(--bos-text-medium-on-light)]" /></Link>; }
-function Collapsible({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) { return <details className="group rounded-[15px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] shadow-[var(--shadow-small)]"><summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5"><span className="text-[var(--orion-blue)]"><FileText size={17} /></span><div className="min-w-0"><p className="font-extrabold text-[var(--bos-text-strong-on-light)]">{title}</p><p className="truncate text-xs font-medium text-[var(--bos-text-medium-on-light)]">{subtitle}</p></div><ChevronDown size={17} className="ml-auto shrink-0 text-[var(--bos-text-medium-on-light)] transition group-open:rotate-180" /></summary><div className="border-t border-[var(--bos-border-light)] p-4">{children}</div></details>; }
 function Empty({ label }: { label: string }) { return <p className="py-4 text-sm font-medium text-[var(--bos-text-medium-on-light)]">{label}</p>; }
 function status(value: string) { return value.trim().toLowerCase().replaceAll(" ", "_"); }
 function pretty(value: string) { return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
