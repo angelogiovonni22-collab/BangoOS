@@ -12,6 +12,7 @@ const projectCompleteApi = read("app/api/projects/[id]/complete/route.ts");
 const lifecycleMigration = read("supabase/migrations/20260829043000_trade_partner_lifecycle_ratings.sql");
 const replacementMigration = read("supabase/migrations/20260829043100_trade_partner_replacement_helper.sql");
 const deleteGuardMigration = read("supabase/migrations/20260829043200_trade_partner_delete_guard_fix.sql");
+const archiveGuardAlignment = read("supabase/migrations/20260829051500_trade_partner_lifecycle_archive_guard_alignment.sql");
 
 assert.match(lifecycleUi, /End Assignment/);
 assert.match(lifecycleUi, /Remove from Project/);
@@ -54,4 +55,10 @@ assert.match(replacementMigration, /replace_trade_partner_assignment_with_vendor
 assert.match(deleteGuardMigration, /trade_partner_messages/);
 assert.match(deleteGuardMigration, /project_id=v_assignment\.project_id/);
 
-console.log("Trade Partner lifecycle, replacement, project completion, and ratings contract passed.");
+assert.match(archiveGuardAlignment, /when contract_status = 'signed' then 'closed'/i);
+assert.match(archiveGuardAlignment, /when contract_status in \('draft','pending_signature'\) then 'cancelled'/i);
+assert.match(archiveGuardAlignment, /replace_trade_partner_assignment_with_vendor/);
+assert.match(archiveGuardAlignment, /close_trade_partner_access_when_project_completed/);
+assert.match(archiveGuardAlignment, /assignment_status = 'archived'/);
+
+console.log("Trade Partner lifecycle, replacement, project completion, ratings, and signed archive guard contract passed.");
