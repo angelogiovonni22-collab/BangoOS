@@ -19,10 +19,11 @@ type InvitePayload = {
 };
 
 export function TradePartnerInviteClient({ token }: { token: string }) {
-  const [loading, setLoading] = useState(true);
+  const missingTokenMessage = "This Trade Partner invitation link is missing its secure token.";
+  const [loading, setLoading] = useState(Boolean(token));
   const [submitting, setSubmitting] = useState(false);
   const [complete, setComplete] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(token ? "" : missingTokenMessage);
   const [message, setMessage] = useState("");
   const [warning, setWarning] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -33,13 +34,9 @@ export function TradePartnerInviteClient({ token }: { token: string }) {
   const [vendorCode, setVendorCode] = useState("");
 
   useEffect(() => {
-    let active = true;
-    if (!token) {
-      setError("This Trade Partner invitation link is missing its secure token.");
-      setLoading(false);
-      return;
-    }
+    if (!token) return;
 
+    let active = true;
     void fetch(`/api/trade-partners/invite/claim?token=${encodeURIComponent(token)}`, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json() as InvitePayload;
