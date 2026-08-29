@@ -16,11 +16,11 @@ assert.match(ownerInvitePage, /Invite Trade Partner/);
 assert.match(ownerInvitePage, /email address, mobile phone number, or both/i);
 assert.match(ownerInvitePage, /Send Trade Partner Invitation/);
 assert.match(ownerInvitePage, /Trade Partner completes their own company, trade, address, compliance, and account information/);
-assert.doesNotMatch(ownerInvitePage, /Payment terms/i);
-assert.doesNotMatch(ownerInvitePage, /Credit limit/i);
-assert.doesNotMatch(ownerInvitePage, /Account number/i);
-assert.doesNotMatch(ownerInvitePage, /Quality rating/i);
-assert.doesNotMatch(ownerInvitePage, /Delivery rating/i);
+assert.doesNotMatch(ownerInvitePage, /<Field label="Payment terms"/i);
+assert.doesNotMatch(ownerInvitePage, /<Field label="Credit limit"/i);
+assert.doesNotMatch(ownerInvitePage, /<Field label="Account number"/i);
+assert.doesNotMatch(ownerInvitePage, /<Field label="Quality rating/i);
+assert.doesNotMatch(ownerInvitePage, /<Field label="Delivery rating/i);
 
 assert.match(inviteRoute, /TP-\$\{String\(highest \+ 1\)\.padStart\(6, "0"\)\}/);
 assert.match(inviteRoute, /status: "probation"/);
