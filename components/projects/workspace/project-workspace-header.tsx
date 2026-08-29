@@ -3,12 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ArrowLeft,
   CheckCircle2,
-  ChevronDown,
-  ExternalLink,
   Pencil,
-  MoreHorizontal,
   Share2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -34,7 +30,6 @@ export function ProjectWorkspaceHeader({
   customerProjectsHref,
   statusLabel,
   statusKey,
-  customerHref,
   editProjectHref,
 }: ProjectWorkspaceHeaderProps) {
   const pathname = usePathname();
@@ -125,49 +120,19 @@ export function ProjectWorkspaceHeader({
               {shareState === "copied" ? "Copied" : "Share"}
             </Button>
 
-            <details className="group relative shrink-0">
-              <summary className="list-none">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  className="rounded-[11px] border border-[#6a97cf] bg-[linear-gradient(180deg,#295891,#1d4478)] px-3.5 py-2 text-[0.8rem] font-semibold text-white shadow-[0_10px_20px_-14px_rgba(30,120,255,0.82)] hover:brightness-110"
-                  aria-label="More actions"
-                >
-                  <MoreHorizontal size={16} aria-hidden="true" />
-                  More
-                  <ChevronDown size={14} aria-hidden="true" />
-                </Button>
-              </summary>
-              <div className="absolute right-0 z-[var(--z-overlay)] mt-2 w-max min-w-[240px] max-w-[min(22rem,calc(100vw-2rem))] rounded-[12px] border border-[#4c6ea1] bg-[#102748] p-1.5 shadow-[0_18px_32px_-18px_rgba(2,6,17,0.95)]">
-                {statusKey !== "completed" && statusKey !== "cancelled" ? (
-                  <button
-                    type="button"
-                    disabled={completeBusy || !projectId}
-                    onClick={() => void handleCompleteProject()}
-                    className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm font-semibold text-emerald-200 transition hover:bg-[#1a3968] disabled:opacity-50"
-                  >
-                    <CheckCircle2 size={15} aria-hidden="true" />
-                    {completeBusy ? "Completing Project…" : "Project Complete"}
-                  </button>
-                ) : null}
-                {customerHref ? (
-                  <Link
-                    href={customerHref}
-                    className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-semibold text-[#edf4ff] transition hover:bg-[#1a3968]"
-                  >
-                    <ExternalLink size={15} aria-hidden="true" />
-                    Open Customer
-                  </Link>
-                ) : null}
-                <Link
-                  href={customerProjectsHref}
-                  className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-semibold text-[#edf4ff] transition hover:bg-[#1a3968]"
-                >
-                  <ArrowLeft size={15} aria-hidden="true" />
-                  Back to Customer Projects
-                </Link>
-              </div>
-            </details>
+            {statusKey !== "completed" && statusKey !== "cancelled" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={completeBusy || !projectId}
+                onClick={() => void handleCompleteProject()}
+                className="rounded-[11px] border-emerald-500/60 bg-emerald-500/10 px-3.5 py-2 text-[0.8rem] font-semibold text-emerald-200 hover:bg-emerald-500/20"
+              >
+                <CheckCircle2 size={15} aria-hidden="true" />
+                {completeBusy ? "Completing Project…" : "Project Complete"}
+              </Button>
+            ) : null}
 
             {editProjectHref ? (
               <Link
