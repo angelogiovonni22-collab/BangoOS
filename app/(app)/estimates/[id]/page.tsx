@@ -5,12 +5,12 @@ import { HomeSolicitationSellerSignature } from "@/components/estimates/home-sol
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ sendIssue?: string }>;
+  searchParams: Promise<{ sendIssue?: string; createdForReview?: string }>;
 };
 
 export default async function EstimateDetailsPage({ params, searchParams }: PageProps) {
   const { id: estimateId } = await params;
-  const { sendIssue } = await searchParams;
+  const { sendIssue, createdForReview } = await searchParams;
 
   if (!estimateId) {
     return null;
@@ -18,7 +18,7 @@ export default async function EstimateDetailsPage({ params, searchParams }: Page
 
   return (
     <div className="space-y-6">
-      <EstimateDetail estimateId={estimateId} sendIssue={sendIssue} />
+      <EstimateDetail estimateId={estimateId} sendIssue={sendIssue} createdForReview={createdForReview === "1"} />
       <EstimateComplianceSection estimateId={estimateId} />
       <HomeSolicitationCompliancePanel estimateId={estimateId} />
       <HomeSolicitationSellerSignature estimateId={estimateId} />
