@@ -81,7 +81,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
   const [isDirty, setIsDirty] = useState(false);
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
 
-  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string; email: string | null; phone: string | null; billingAddress: string }>>([]);
+  const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string; email: string | null; phone: string | null; billingAddress: string; customerType: string | null; state: string | null }>>([]);
   const [projectOptions, setProjectOptions] = useState<Array<{ id: string; label: string; customerId: string | null }>>([]);
   const [preparedByOptions, setPreparedByOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [supplierPrices, setSupplierPrices] = useState<EstimateSupplierPriceOption[]>([]);
@@ -96,6 +96,11 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
     }),
     [lineItems, values.discountType, values.discountValue, values.taxRatePercent, values.additionalFee],
   );
+
+  const selectedCustomer = customerOptions.find((customer) => customer.id === values.customerId) || null;
+  const residentialState = selectedCustomer?.state || prospect.state;
+  const isOhioResidential = (selectedCustomer?.customerType || prospect.customerType) === "residential"
+    && ["OH", "OHIO"].includes(residentialState.trim().toUpperCase());
 
   useEffect(() => {
     let isSubscribed = true;
@@ -140,6 +145,8 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         label: getCustomerDisplayName(customer),
         email: customer.email,
         phone: customer.phone,
+        customerType: customer.customer_type,
+        state: customer.state,
         billingAddress: [
           customer.address_line_1 || "",
           customer.address_line_2 || "",
@@ -366,6 +373,11 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
       setIsDirty(false);
 
       if (action === "send") {
+        if (isOhioResidential) {
+          router.push(`/estimates/${result.estimateId}?createdForReview=1#home-solicitation-review`);
+          router.refresh();
+          return;
+        }
         try {
           const response = await fetch(`/api/estimates/${result.estimateId}/contract`, { method: "POST" });
           const body = await response.json().catch(() => ({})) as { error?: string };
@@ -478,7 +490,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
               <Button data-orion-action="save-estimate-and-continue" data-orion-verify="navigation-or-status" type="button" variant="secondary" size="lg" isLoading={isSaving && saveMode === "continue"} onClick={() => void submit("continue")}>Save and Continue Editing</Button>
             </>
           ) : null}
-          <Button data-orion-action={mode === "create" ? "estimate.save-and-send" : "save-estimate-and-continue"} data-orion-verify="navigation-or-status" type="submit" size="lg" isLoading={isSaving && (saveMode === "send" || saveMode === "changes")}>{mode === "create" ? "Send Estimate" : "Save Changes"}</Button>
+          <Button data-orion-action={mode === "create" ? (isOhioResidential ? "estimate.create-and-review" : "estimate.save-and-send") : "save-estimate-and-continue"} data-orion-verify="navigation-or-status" type="submit" size="lg" isLoading={isSaving && (saveMode === "send" || saveMode === "changes")}>{mode === "create" ? (isOhioResidential ? "Create Estimate & Review" : "Send Estimate") : "Save Changes"}</Button>
         </div>
       </form>
     </div>
