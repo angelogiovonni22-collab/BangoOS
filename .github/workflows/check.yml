@@ -162,6 +162,9 @@ jobs:
       - name: Run estimate contract lifecycle regression
         run: npx -y tsx lib/estimates/estimate-contract-lifecycle.contract.test.ts
 
+      - name: Run commercial launch observability regression
+        run: npx -y tsx lib/operations/commercial-launch-observability.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
