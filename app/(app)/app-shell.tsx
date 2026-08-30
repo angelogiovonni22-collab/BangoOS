@@ -110,10 +110,10 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                 {visibleNavigationGroups.map((group) => {
                   const isCollapsed = collapsedGroups[group.key] ?? false;
                   return <section key={group.key} className="space-y-2">
-                    {group.key !== "dashboard" ? <button type="button" className="group flex w-full items-center justify-between rounded-[12px] border border-[rgba(83,151,255,0.16)] bg-[linear-gradient(90deg,rgba(32,88,160,0.22),rgba(12,34,68,0.10))] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.18em] text-[rgba(205,224,255,0.88)] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition hover:border-[rgba(83,151,255,0.30)] hover:bg-[linear-gradient(90deg,rgba(38,103,188,0.28),rgba(12,34,68,0.14))] hover:text-white" onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))} aria-expanded={!isCollapsed}>
+                    {group.key !== "dashboard" ? <button type="button" className="group flex min-h-11 w-full items-center justify-between rounded-[12px] border border-[rgba(83,151,255,0.16)] bg-[linear-gradient(90deg,rgba(32,88,160,0.22),rgba(12,34,68,0.10))] px-3 py-3 text-left text-xs font-bold uppercase tracking-[0.18em] text-[rgba(205,224,255,0.88)] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition hover:border-[rgba(83,151,255,0.30)] hover:bg-[linear-gradient(90deg,rgba(38,103,188,0.28),rgba(12,34,68,0.14))] hover:text-white" onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))} aria-expanded={!isCollapsed}>
                       <span>{group.label}</span><span className="text-[rgba(132,181,255,0.78)] transition group-hover:text-white">{isCollapsed ? "+" : "−"}</span>
                     </button> : null}
-                    {!isCollapsed ? <div className="space-y-1.5">{group.items.map((item) => <SidebarItem compact key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t)} href={item.href} icon={item.icon} active={item.href === activeNavigationHref} onNavigate={() => setMobileOpen(false)} />)}</div> : null}
+                    {!isCollapsed ? <div className="space-y-1.5">{group.items.map((item) => <SidebarItem key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t)} href={item.href} active={item.href === activeNavigationHref} onNavigate={() => setMobileOpen(false)} />)}</div> : null}
                   </section>;
                 })}
               </nav>
@@ -156,8 +156,8 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   );
 }
 
-function SidebarItem({ label, href, icon, active, onNavigate, compact = false }: { label: string; href: string; icon: string; active: boolean; onNavigate: () => void; compact?: boolean; }) {
-  return <Link href={href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={`relative flex items-center rounded-[var(--radius-lg)] font-semibold motion-nav transition-colors duration-200 ${compact ? "gap-2 px-3 py-2 text-[12px]" : "gap-3 px-4 py-2.5 text-sm"} ${active ? "text-white before:absolute before:left-0 before:top-1/2 before:h-5 before:w-[2px] before:-translate-y-1/2 before:rounded-full before:bg-[var(--orion-cyan)] before:shadow-[0_0_8px_rgba(52,183,255,0.55)]" : "text-[var(--bos-text-secondary)] hover:bg-[rgba(82,130,210,0.10)] hover:text-[var(--bos-text-primary)]"}`}><span className={compact ? "text-sm" : "text-base"}>{icon}</span><span className="truncate">{label}</span></Link>;
+function SidebarItem({ label, href, active, onNavigate }: { label: string; href: string; active: boolean; onNavigate: () => void; }) {
+  return <Link href={href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={`relative flex min-h-11 items-center rounded-[var(--radius-lg)] px-4 py-3 text-[15px] font-semibold leading-5 motion-nav transition-colors duration-200 ${active ? "bg-[rgba(82,130,210,0.12)] text-white before:absolute before:left-0 before:top-1/2 before:h-6 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-[var(--orion-cyan)] before:shadow-[0_0_8px_rgba(52,183,255,0.55)]" : "text-[var(--bos-text-secondary)] hover:bg-[rgba(82,130,210,0.10)] hover:text-[var(--bos-text-primary)]"}`}><span className="truncate">{label}</span></Link>;
 }
 
 function AccessRedirect({ role }: { role: string }) {
