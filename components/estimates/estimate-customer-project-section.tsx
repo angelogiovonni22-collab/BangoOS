@@ -8,6 +8,8 @@ type CustomerSummary = {
   email: string | null;
   phone: string | null;
   billingAddress: string;
+  customerType: string | null;
+  state: string | null;
 };
 
 type ProjectSummary = {
