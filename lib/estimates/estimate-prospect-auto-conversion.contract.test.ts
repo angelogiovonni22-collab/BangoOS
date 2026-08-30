@@ -24,7 +24,7 @@ assert.match(sendRoute, /linkedCustomer\?\.email \? linkedCustomer : prospect/, 
 assert.match(signRoute, /linkedCustomer \|\| prospect/, "public signing must resolve customer identity from the prospect when needed");
 assert.match(form, /action: \"draft\" \| \"continue\" \| \"changes\" \| \"send\"/, "estimate form must expose an explicit create-and-send action");
 assert.match(form, /fetch\(`\/api\/estimates\/\$\{result\.estimateId\}\/contract`, \{ method: \"POST\" \}\)/, "create-and-send must save the estimate before calling the canonical send route");
-assert.match(form, /mode === "create" \? "Send Estimate" : "Save Changes"/, "new estimate screen must expose Send Estimate directly while edit mode remains Save Changes");
+assert.match(form, /isOhioResidential \? "Create Estimate & Review" : "Send Estimate"/, "Ohio residential estimates must enter compliance review before send while other estimates can still send directly");
 assert.match(form, /\?sendIssue=\$\{encodeURIComponent\(sendIssue\)\}/, "create-and-send failures must survive navigation to the saved estimate");
 
 const detail = read("components/estimates/estimate-detail.tsx");
