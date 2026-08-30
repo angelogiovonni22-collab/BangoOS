@@ -16,7 +16,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { SendContractButton } from "@/components/estimates/send-contract-button";
 import { BlueprintSourceLink } from "@/components/plans/blueprint-source-link";
 
-export function EstimateDetail({ estimateId, sendIssue }: { estimateId: string; sendIssue?: string }) {
+export function EstimateDetail({ estimateId, sendIssue, createdForReview = false }: { estimateId: string; sendIssue?: string; createdForReview?: boolean }) {
   const { locale } = useI18n();
   const localeTag = locale === "es" ? "es-ES" : "en-US";
   const router = useRouter();
@@ -145,6 +145,11 @@ export function EstimateDetail({ estimateId, sendIssue }: { estimateId: string; 
 
   return (
     <div className="space-y-6">
+      {createdForReview ? (
+        <div role="status" data-orion-status="estimate-created-for-review" className="rounded-[var(--radius-md)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-4 py-3 text-sm text-[var(--color-success-700)]">
+          <span className="font-semibold">Estimate created.</span> Complete the Ohio home-solicitation review below, then send the estimate.
+        </div>
+      ) : null}
       {sendIssue ? (
         <div role="alert" data-orion-status="estimate-send-error" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-4 py-3 text-sm text-[var(--color-danger-700)]">
           <span className="font-semibold">Estimate saved, but not sent.</span> {sendIssue}

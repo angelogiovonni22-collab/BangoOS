@@ -73,7 +73,7 @@ export function HomeSolicitationCompliancePanel({ estimateId }: { estimateId: st
   const status = evaluation?.status || "REVIEW_REQUIRED";
   const attention = evaluation?.checks.filter((check) => check.status === "FAIL" || check.status === "REVIEW") || [];
 
-  return <Card as="section" variant="elevated">
+  return <div id="home-solicitation-review" className="scroll-mt-24"><Card as="section" variant="elevated">
     <CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>Home Solicitation Review</CardTitle><p className="mt-1 text-sm text-[var(--color-text-secondary)]">Determines whether Ohio&apos;s three-business-day cancellation workflow applies to this customer transaction.</p></div><StatusBadge status={status} applicable={evaluation?.applicable ?? null} /></div></CardHeader>
     <CardContent className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -109,7 +109,7 @@ export function HomeSolicitationCompliancePanel({ estimateId }: { estimateId: st
       {attention.length ? <div className="rounded-[var(--radius-control)] border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"><p className="font-semibold">Items requiring attention</p><ul className="mt-2 list-disc space-y-1 pl-5">{attention.map((check) => <li key={check.id}>{check.reason || check.label}</li>)}</ul></div> : evaluation ? <div className="rounded-[var(--radius-control)] border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">No unresolved automated home-solicitation checks.</div> : null}
       <div className="flex flex-wrap items-center gap-3"><Button type="button" size="md" isLoading={busy} onClick={() => void save()}>Save &amp; Review</Button>{message ? <span className="text-sm text-[var(--color-text-secondary)]" role="status">{message}</span> : null}</div>
     </CardContent>
-  </Card>;
+  </Card></div>;
 }
 
 const inputClass = "mt-1 w-full rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)]";
