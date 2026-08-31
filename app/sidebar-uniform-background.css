@@ -3,3 +3,32 @@
   background: var(--bos-bg-sidebar) !important;
   background-image: none !important;
 }
+
+/* Desktop command-bar placement for Orion controls. */
+@media (min-width: 1024px) {
+  #bangoos-sidebar > button[aria-label="Hide Orion"],
+  #bangoos-sidebar > button[aria-label="Activate Orion"] {
+    position: fixed !important;
+    top: 18px !important;
+    right: 708px !important;
+    z-index: 34 !important;
+    width: 120px !important;
+    height: 44px !important;
+    margin: 0 !important;
+    border-color: var(--bos-border-default) !important;
+    background: var(--bos-bg-panel) !important;
+    color: var(--bos-text-primary) !important;
+    box-shadow: var(--shadow-small) !important;
+  }
+
+  [aria-label="Persistent Orion surface"] {
+    position: fixed !important;
+    top: 8px !important;
+    right: 836px !important;
+    left: auto !important;
+    bottom: auto !important;
+    z-index: 35 !important;
+    transform: scale(0.46) !important;
+    transform-origin: top right !important;
+  }
+}
