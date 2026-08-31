@@ -29,21 +29,29 @@
     z-index: 45 !important;
     visibility: visible !important;
     opacity: 1 !important;
+    transform: none !important;
+  }
+
+  [aria-label="Persistent Orion surface"] .persistentOrionButton {
     transform: translate(-42px, -40px) !important;
+  }
+
+  [aria-label="Persistent Orion surface"] .persistentOrionButton:hover {
+    transform: translate(-42px, -41px) !important;
   }
 
   [aria-label="Persistent Orion surface"] .persistentOrionBackdrop {
     display: none !important;
   }
 
-  /* Restore the original left-side Orion workspace location shown in B.O.S. */
+  /* Restore the compact original Orion workspace beside the B.O.S. sidebar. */
   [aria-label="Persistent Orion surface"] .persistentOrionPanel {
     position: fixed !important;
     top: 88px !important;
-    left: 196px !important;
+    left: 246px !important;
     right: auto !important;
     bottom: auto !important;
-    width: min(35rem, calc(100vw - 228px)) !important;
+    width: min(35rem, calc(100vw - 278px)) !important;
     max-height: calc(100vh - 108px) !important;
     z-index: 60 !important;
     transform: none !important;
