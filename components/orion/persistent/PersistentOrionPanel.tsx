@@ -4,10 +4,12 @@ import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 
 import {
   AudioLines,
   Bell,
+  Binoculars,
   BrainCircuit,
   Check,
   CircleUserRound,
   Mic,
+  Target,
   X,
 } from "lucide-react";
 import { useFocusTrap } from "@/components/motion";
@@ -73,11 +75,7 @@ export function PersistentOrionPanel({
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMessage, setPushMessage] = useState<string | null>(null);
 
-  useFocusTrap({
-    active: open,
-    containerRef: panelRef,
-    onEscape: onClose,
-  });
+  useFocusTrap({ active: open, containerRef: panelRef, onEscape: onClose });
 
   useEffect(() => {
     if (!open) return;
@@ -85,14 +83,10 @@ export function PersistentOrionPanel({
     void getOrionPushStatus().then((status) => {
       if (!cancelled) setPushStatus(status);
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [open]);
 
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
   const realtimeSessionActive = voice.realtimeState !== "closed" && voice.realtimeState !== "idle" && voice.realtimeState !== "error";
   const stateLabel = formatVoicePhase(voice.phase);
@@ -111,9 +105,7 @@ export function PersistentOrionPanel({
       <header className="persistentOrionPanelHeader">
         <div className="persistentOrionTitleBlock">
           <div className="persistentOrionIdentity">
-            <div className="persistentOrionIdentityMark" aria-hidden="true">
-              <BrainCircuit size={24} />
-            </div>
+            <div className="persistentOrionIdentityMark" aria-hidden="true"><BrainCircuit size={24} /></div>
             <div>
               <p className="persistentOrionPanelTitle">ORION</p>
               <h3>{fixture.workspace}</h3>
@@ -125,17 +117,32 @@ export function PersistentOrionPanel({
             <strong>{stateLabel}</strong>
           </p>
         </div>
-        <button
-          ref={closeButtonRef}
-          type="button"
-          className="persistentOrionClose"
-          onClick={onClose}
-          aria-label="Close Orion panel"
-        >
+        <button ref={closeButtonRef} type="button" className="persistentOrionClose" onClick={onClose} aria-label="Close Orion panel">
           <X size={24} aria-hidden="true" />
           <span>Close</span>
         </button>
       </header>
+
+      <div className="persistentOrionFixtureTags" aria-label="Orion data status">
+        <span>Prototype Intelligence</span>
+        <span>Fixture Data</span>
+      </div>
+
+      <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Orion observation">
+        <div className="persistentOrionSectionHeading">
+          <Binoculars size={21} aria-hidden="true" />
+          <p className="persistentOrionEyebrow">Observation</p>
+        </div>
+        <p className="persistentOrionSectionCopy">{fixture.observation}</p>
+      </section>
+
+      <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Why it matters">
+        <div className="persistentOrionSectionHeading">
+          <Target size={21} aria-hidden="true" />
+          <p className="persistentOrionEyebrow">Why it matters</p>
+        </div>
+        <p className="persistentOrionSectionCopy">{fixture.whyItMatters}</p>
+      </section>
 
       <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Orion voice controls">
         <div className="persistentOrionSectionHeading">
@@ -143,30 +150,11 @@ export function PersistentOrionPanel({
           <p className="persistentOrionEyebrow">Voice</p>
         </div>
         <div className="persistentOrionVoiceActions">
-          <OrionVoiceButton
-            state={voice.micActive ? "listening" : "idle"}
-            mode="tap_to_listen"
-            onStart={() => void voice.start()}
-            onStop={() => void voice.stop()}
-          />
-          <button
-            type="button"
-            className="persistentOrionVoicePrimary"
-            onClick={() => voice.setSpokenResponsesEnabled(!voice.settings.spokenResponsesEnabled)}
-          >
+          <OrionVoiceButton state={voice.micActive ? "listening" : "idle"} mode="tap_to_listen" onStart={() => void voice.start()} onStop={() => void voice.stop()} />
+          <button type="button" className="persistentOrionVoicePrimary" onClick={() => voice.setSpokenResponsesEnabled(!voice.settings.spokenResponsesEnabled)}>
             {voice.settings.spokenResponsesEnabled ? "Mute Voice" : "Unmute Voice"}
           </button>
-          <button
-            type="button"
-            className="persistentOrionVoiceSecondary"
-            onClick={() => {
-              if (voice.settings.enabled) {
-                void voice.disableVoice();
-              } else {
-                voice.enableVoice();
-              }
-            }}
-          >
+          <button type="button" className="persistentOrionVoiceSecondary" onClick={() => { if (voice.settings.enabled) void voice.disableVoice(); else voice.enableVoice(); }}>
             {voice.settings.enabled ? "Disable Voice" : "Enable Voice"}
           </button>
         </div>
@@ -208,83 +196,34 @@ export function PersistentOrionPanel({
           <AudioLines size={21} aria-hidden="true" />
           <p className="persistentOrionEyebrow">Realtime Voice</p>
         </div>
-
         <label className="persistentOrionVoiceSelectWrap" htmlFor="orion-realtime-voice-select">
           <CircleUserRound size={24} aria-hidden="true" />
           <span className="persistentOrionVoiceSelectText">
             <strong>{voiceLabel(voice.realtimeVoice)}</strong>
             <span>Realtime voice</span>
           </span>
-          <select
-            id="orion-realtime-voice-select"
-            className="persistentOrionVoiceSelect"
-            value={voice.realtimeVoice}
-            disabled={realtimeSessionActive}
-            onChange={(event) => voice.setRealtimeVoice(event.target.value as OrionRealtimeVoice)}
-            aria-label="Realtime voice"
-          >
-            {voice.availableRealtimeVoices.map((option) => (
-              <option key={option} value={option}>{voiceLabel(option)}</option>
-            ))}
+          <select id="orion-realtime-voice-select" className="persistentOrionVoiceSelect" value={voice.realtimeVoice} disabled={realtimeSessionActive} onChange={(event) => voice.setRealtimeVoice(event.target.value as OrionRealtimeVoice)} aria-label="Realtime voice">
+            {voice.availableRealtimeVoices.map((option) => <option key={option} value={option}>{voiceLabel(option)}</option>)}
           </select>
         </label>
-
-        <p className="persistentOrionVoiceNote">
-          {realtimeSessionActive ? "End the current Realtime conversation to change voices." : "Your Realtime voice choice is saved on this device."}
-        </p>
-        <p className="persistentOrionVoiceNote persistentOrionIsolationNote" role="status">
-          Focused voice isolation is active: background noise is reduced.
-          <Check size={17} aria-hidden="true" />
-        </p>
-
-        <div className="persistentOrionVoiceStatusWrap">
-          <OrionVoiceStatus
-            state={voice.phase}
-            message={sanitizeOrionStatusMessage(voice.statusMessage || voice.supportMessage)}
-            showNotice
-          />
-        </div>
-        <div className="persistentOrionVoiceTranscriptWrap">
-          <OrionVoiceTranscript
-            interimTranscript={voice.interimTranscript}
-            finalTranscript={voice.finalTranscript}
-            onStop={() => void voice.stop()}
-            onCancel={() => void voice.stop()}
-            onRestart={() => void voice.start()}
-            onRetry={() => void voice.retry()}
-          />
-        </div>
+        <p className="persistentOrionVoiceNote">{realtimeSessionActive ? "End the current Realtime conversation to change voices." : "Your Realtime voice choice is saved on this device."}</p>
+        <p className="persistentOrionVoiceNote persistentOrionIsolationNote" role="status">Focused voice isolation is active: background noise is reduced.<Check size={17} aria-hidden="true" /></p>
+        <div className="persistentOrionVoiceStatusWrap"><OrionVoiceStatus state={voice.phase} message={sanitizeOrionStatusMessage(voice.statusMessage || voice.supportMessage)} showNotice /></div>
+        <div className="persistentOrionVoiceTranscriptWrap"><OrionVoiceTranscript interimTranscript={voice.interimTranscript} finalTranscript={voice.finalTranscript} onStop={() => void voice.stop()} onCancel={() => void voice.stop()} onRestart={() => void voice.start()} onRetry={() => void voice.retry()} /></div>
       </section>
 
       <dl className="persistentOrionFacts">
-        <div>
-          <dt>Workspace</dt>
-          <dd>{fixture.workspace}</dd>
-        </div>
-        <div>
-          <dt>Voice status</dt>
-          <dd>{stateLabel}</dd>
-        </div>
-        <div>
-          <dt>Microphone</dt>
-          <dd>{voice.micActive ? "Active" : "Off"}</dd>
-        </div>
-        <div>
-          <dt>Session</dt>
-          <dd>{realtimeSessionActive ? "Connected" : "Idle"}</dd>
-        </div>
+        <div><dt>Evidence status</dt><dd>{fixture.evidenceStatus}</dd></div>
+        <div><dt>Data freshness</dt><dd>{fixture.dataFreshness}</dd></div>
+        <div><dt>Recommended next review</dt><dd>{fixture.recommendedNextReview}</dd></div>
+        <div><dt>Approval boundary</dt><dd>{fixture.approvalBoundary}</dd></div>
+        <div><dt>Limitations</dt><dd>{fixture.limitations}</dd></div>
       </dl>
 
       <footer className="persistentOrionPanelFooter">
-        <button type="button" className="persistentOrionLinkAction" onClick={onOpenCommandCenter}>
-          Open Advanced Orion
-        </button>
-        <button type="button" className="persistentOrionMinimize" onClick={onHide}>
-          Hide Orion
-        </button>
-        <button type="button" className="persistentOrionMinimize" onClick={onToggleMinimized}>
-          {minimized ? "Restore Orion" : "Minimize Orion"}
-        </button>
+        <button type="button" className="persistentOrionLinkAction" onClick={onOpenCommandCenter}>View full Orion Core workspace</button>
+        <button type="button" className="persistentOrionMinimize" onClick={onHide}>Hide Orion</button>
+        <button type="button" className="persistentOrionMinimize" onClick={onToggleMinimized}>{minimized ? "Restore Orion" : "Minimize Orion"}</button>
       </footer>
     </section>
   );
