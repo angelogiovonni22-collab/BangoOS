@@ -130,9 +130,9 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
           </div>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <ComplianceTile icon={<FileCheck2 size={15} aria-hidden="true" />} label="Permits" value={complianceReadiness.permitState} note={`${compliance.openPermits} open · ${compliance.permitsTotal} total`} href={`/projects/${projectId}?tab=inspections`} />
-            <ComplianceTile icon={<ClipboardCheck size={15} aria-hidden="true" />} label="Inspections" value={complianceReadiness.inspectionState} note={`${compliance.pendingInspections} pending · ${compliance.inspectionsTotal} total`} href={`/projects/${projectId}?tab=inspections`} />
-            <ComplianceTile icon={<ShieldCheck size={15} aria-hidden="true" />} label="Documents" value={complianceReadiness.documentState} note={`${compliance.documentsTotal} project records`} href={`/projects/${projectId}?tab=documents`} />
+            <ComplianceTile icon={<FileCheck2 size={15} aria-hidden="true" />} label="Permits" value={complianceReadiness.permitState} note={`${compliance.openPermits} open · ${compliance.permitsTotal} total`} />
+            <ComplianceTile icon={<ClipboardCheck size={15} aria-hidden="true" />} label="Inspections" value={complianceReadiness.inspectionState} note={`${compliance.pendingInspections} pending · ${compliance.inspectionsTotal} total`} />
+            <ComplianceTile icon={<ShieldCheck size={15} aria-hidden="true" />} label="Documents" value={complianceReadiness.documentState} note={`${compliance.documentsTotal} project records`} />
           </div>
         </div>
 
@@ -172,13 +172,13 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
   );
 }
 
-function ComplianceTile({ icon, label, value, note, href }: { icon: ReactNode; label: string; value: string; note: string; href: string }) {
+function ComplianceTile({ icon, label, value, note }: { icon: ReactNode; label: string; value: string; note: string }) {
   return (
-    <Link href={href} className="min-w-0 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3.5 transition hover:border-[var(--color-brand-300)] hover:bg-[var(--color-primary-50)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]">
+    <div className="min-w-0 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3.5">
       <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{icon}{label}</span>
       <span className="mt-1 block break-words text-base font-bold text-[var(--color-text-primary)]">{value}</span>
       <span className="mt-1 block break-words text-xs text-[var(--color-text-secondary)]">{note}</span>
-    </Link>
+    </div>
   );
 }
 
