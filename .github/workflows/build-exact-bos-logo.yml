@@ -1,6 +1,9 @@
 name: Build exact B.O.S. logo asset
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - codex/exact-transparent-bos-logo
@@ -10,11 +13,11 @@ permissions:
 
 jobs:
   build-logo:
-    if: ${{ !contains(github.event.head_commit.message, '[logo-built]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -33,16 +36,16 @@ jobs:
             base64 += match[1];
           }
           const bytes = Buffer.from(base64, 'base64');
-          if (bytes.length < 20000) throw new Error(`Unexpected logo size: ${bytes.length}`);
+          if (bytes.length !== 25691) throw new Error(`Unexpected logo size: ${bytes.length}`);
           if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error('Reconstructed asset is not a PNG');
           fs.mkdirSync('public/branding', { recursive: true });
           fs.writeFileSync('public/branding/bos-operating-system-logo.png', bytes);
           console.log(`Wrote ${bytes.length} bytes`);
           NODE
-      - name: Commit reconstructed asset
+      - name: Commit reconstructed asset when needed
         shell: bash
         run: |
-          if git diff --quiet -- public/branding/bos-operating-system-logo.png; then
+          if [ -z "$(git status --porcelain -- public/branding/bos-operating-system-logo.png)" ]; then
             echo 'Logo asset already matches.'
             exit 0
           fi
