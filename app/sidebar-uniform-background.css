@@ -6,9 +6,8 @@
 
 /*
  * Desktop Orion uses the canonical persistent Orion component so the original
- * animated particle sphere and original settings panel stay intact. The newer
- * placeholder top-bar orb remains in flow only as an anchor for the real Orion
- * control and is visually suppressed.
+ * animated particle sphere and original click-open panel remain intact. The
+ * temporary top-bar orb remains in flow only as an anchor and is hidden.
  */
 @media (min-width: 1024px) {
   button[aria-label="Open Orion"] {
@@ -33,25 +32,19 @@
     transform: translate(-42px, -40px) !important;
   }
 
-  /*
-   * The floating Orion component normally computes its panel around a draggable
-   * bottom-corner orb. Once the same canonical component is docked in the top
-   * command bar, keep its original settings panel in a stable desktop location
-   * directly below the header instead of letting the floating geometry collapse
-   * into the header area.
-   */
   [aria-label="Persistent Orion surface"] .persistentOrionBackdrop {
     display: none !important;
   }
 
+  /* Restore the original left-side Orion workspace location shown in B.O.S. */
   [aria-label="Persistent Orion surface"] .persistentOrionPanel {
     position: fixed !important;
-    top: 84px !important;
-    right: 18px !important;
-    left: auto !important;
+    top: 88px !important;
+    left: 196px !important;
+    right: auto !important;
     bottom: auto !important;
-    width: min(35rem, calc(100vw - 36px)) !important;
-    max-height: calc(100vh - 104px) !important;
+    width: min(35rem, calc(100vw - 228px)) !important;
+    max-height: calc(100vh - 108px) !important;
     z-index: 60 !important;
     transform: none !important;
   }
