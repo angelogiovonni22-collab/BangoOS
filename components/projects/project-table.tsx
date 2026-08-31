@@ -38,13 +38,15 @@ export type ProjectTableItem = {
 type ProjectTableProps = {
   items: ProjectTableItem[];
   t: (key: string, params?: Record<string, string | number>) => string;
+  canManageProjects: boolean;
+  showFinancials: boolean;
 };
 
 type DeletedProjectResponse = {
   projects?: Array<{ projectId: string }>;
 };
 
-export function ProjectTable({ items, t }: ProjectTableProps) {
+export function ProjectTable({ items, t, canManageProjects, showFinancials }: ProjectTableProps) {
   const router = useRouter();
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
@@ -72,9 +74,9 @@ export function ProjectTable({ items, t }: ProjectTableProps) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2" aria-label="Project lifecycle views">
         <Button type="button" size="sm" variant="primary" disabled>Projects</Button>
-        <Link href="/projects/deleted">
+        {canManageProjects ? <Link href="/projects/deleted">
           <Button type="button" size="sm" variant="outline">Previously Deleted</Button>
-        </Link>
+        </Link> : null}
       </div>
 
       <TableContainer
@@ -88,13 +90,13 @@ export function ProjectTable({ items, t }: ProjectTableProps) {
               <EnterpriseTableHeading>{t("projects.tableCustomer")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableStatus")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableProgress")}</EnterpriseTableHeading>
-              <EnterpriseTableHeading>{t("projects.tableBudget")}</EnterpriseTableHeading>
-              <EnterpriseTableHeading>Spent</EnterpriseTableHeading>
-              <EnterpriseTableHeading>Profit Margin</EnterpriseTableHeading>
+              {showFinancials ? <EnterpriseTableHeading>{t("projects.tableBudget")}</EnterpriseTableHeading> : null}
+              {showFinancials ? <EnterpriseTableHeading>Spent</EnterpriseTableHeading> : null}
+              {showFinancials ? <EnterpriseTableHeading>Profit Margin</EnterpriseTableHeading> : null}
               <EnterpriseTableHeading>Superintendent</EnterpriseTableHeading>
               <EnterpriseTableHeading>Due Date</EnterpriseTableHeading>
               <EnterpriseTableHeading>Health</EnterpriseTableHeading>
-              <EnterpriseTableHeading align="right">{t("projects.tableActions")}</EnterpriseTableHeading>
+              {canManageProjects ? <EnterpriseTableHeading align="right">{t("projects.tableActions")}</EnterpriseTableHeading> : null}
             </tr>
           </EnterpriseTableHead>
 
@@ -146,22 +148,22 @@ export function ProjectTable({ items, t }: ProjectTableProps) {
                 <EnterpriseTableCell>
                   <ProjectProgress value={project.progress} />
                 </EnterpriseTableCell>
-                <EnterpriseTableCell className="font-semibold">{project.budgetLabel}</EnterpriseTableCell>
-                <EnterpriseTableCell>{project.spentLabel}</EnterpriseTableCell>
-                <EnterpriseTableCell className="font-semibold">{project.profitMarginLabel}</EnterpriseTableCell>
+                {showFinancials ? <EnterpriseTableCell className="font-semibold">{project.budgetLabel}</EnterpriseTableCell> : null}
+                {showFinancials ? <EnterpriseTableCell>{project.spentLabel}</EnterpriseTableCell> : null}
+                {showFinancials ? <EnterpriseTableCell className="font-semibold">{project.profitMarginLabel}</EnterpriseTableCell> : null}
                 <EnterpriseTableCell>{project.superintendentName}</EnterpriseTableCell>
                 <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.dueDateLabel}</EnterpriseTableCell>
                 <EnterpriseTableCell>
                   <Badge tone={getHealthTone(project.healthKey)}>{project.healthLabel}</Badge>
                 </EnterpriseTableCell>
-                <EnterpriseTableCell align="right">
+                {canManageProjects ? <EnterpriseTableCell align="right">
                   <ProjectActions
                     projectId={project.id}
                     projectName={project.projectName}
                     viewLabel={t("projects.viewWorkspace")}
                     moreLabel={t("projects.actionsMore")}
                   />
-                </EnterpriseTableCell>
+                </EnterpriseTableCell> : null}
               </EnterpriseTableRow>
             ))}
           </EnterpriseTableBody>
