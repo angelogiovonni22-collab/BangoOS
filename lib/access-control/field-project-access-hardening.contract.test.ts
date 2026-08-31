@@ -10,6 +10,9 @@ const migration = read("supabase/migrations/20260831014748_field_project_access_
 assert.equal(canAccessPath("employee", "/crews/field"), true, "employees retain their field workspace");
 assert.equal(canAccessPath("employee", "/crews"), false, "employees cannot browse the company crew directory");
 assert.equal(canAccessPath("employee", "/employees"), false, "employees cannot browse workforce records");
+assert.equal(canAccessPath("employee", "/projects/new"), false, "employees cannot open the project creation route");
+assert.equal(canAccessPath("employee", "/projects/deleted"), false, "employees cannot open deleted projects");
+assert.equal(canAccessPath("project_manager", "/projects/new"), true, "project managers retain project creation access");
 assert.equal(hasBosPermission("employee", "project_financials.view"), false, "employees cannot view project financials");
 assert.equal(hasBosPermission("employee", "projects.manage"), false, "employees cannot create or manage projects");
 
