@@ -8,6 +8,7 @@ const approvalGuard = readFileSync(join(root, "supabase/migrations/2026082101200
 const route = readFileSync(join(root, "app/api/projects/[id]/receipts/route.ts"), "utf8");
 const workspace = readFileSync(join(root, "components/projects/workspace/project-receipts-workspace.tsx"), "utf8");
 const financials = readFileSync(join(root, "components/projects/workspace/project-financial-reporting.tsx"), "utf8");
+const projectTabs = readFileSync(join(root, "components/projects/workspace/project-tabs.tsx"), "utf8");
 const receiptAwareFinancials = readFileSync(join(root, "lib/financial-reporting/receipt-aware-service.ts"), "utf8");
 const apAwareFinancials = readFileSync(join(root, "lib/financial-reporting/ap-aware-service.ts"), "utf8");
 const financialIndex = readFileSync(join(root, "lib/financial-reporting/index.ts"), "utf8");
@@ -52,9 +53,9 @@ assert.match(receiptAwareFinancials, /row\.category === "materials"/i, "Approved
 assert.match(apAwareFinancials, /buildReceiptAwareProjectFinancialReport/i, "AP-aware reporting must preserve receipt-aware financial calculations.");
 assert.match(financialIndex, /buildProjectFinancialReport.*ap-aware-service/i, "All standard project financial report consumers must receive the AP + receipt-aware report.");
 
-assert.match(financials, /receiptDelta/i, "Financials must apply only receipt changes made after the page baseline was loaded.");
-assert.match(financials, /report\.summary\.actualCost \+ receiptDelta/i, "Live receipt approval must update Actual Cost without double counting the server baseline.");
-assert.match(financials, /revisedContractValue - forecastFinalCost/i, "Live projected gross profit must react to receipt-driven costs.");
-assert.match(financials, /row\.category !== "materials"/i, "Live receipt deltas must roll into the material job-cost category.");
+assert.match(projectTabs, /RECEIPTS_TAB_KEY/i, "Receipt capture must have a dedicated project-workspace tab.");
+assert.doesNotMatch(financials, /ProjectReceiptsWorkspace/i, "Financials must not duplicate the dedicated receipt-capture workspace.");
+assert.match(financials, /const summary = report\.summary/i, "Financials must consume the canonical receipt-aware server report.");
+assert.match(financials, /const jobCostByCategory = report\.jobCostByCategory/i, "Receipt-aware category totals must come from the canonical report.");
 
 console.log("Project receipts + real-time job costing contract passed.");
