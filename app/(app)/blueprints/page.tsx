@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Building2, FileStack, Layers3, Ruler, ScanLine } from "lucide-react";
 import { Button, EmptyState, ErrorState, PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
@@ -36,11 +37,14 @@ const workspaceOptions: WorkspaceOption[] = [
 
 export default function BlueprintsPage() {
   const supabase = useMemo(() => createClient(), []);
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<BlueprintProject[]>([]);
   const [latestVersionByProject, setLatestVersionByProject] = useState<Record<string, string>>({});
-  const [activeWorkspace, setActiveWorkspace] = useState<BlueprintWorkspaceMode>("plan-room");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const activeWorkspace = resolveWorkspaceMode(searchParams.get("workspace"));
 
   useEffect(() => {
     let subscribed = true;
@@ -102,6 +106,14 @@ export default function BlueprintsPage() {
     return () => { subscribed = false; };
   }, [supabase]);
 
+  const selectWorkspace = (workspace: BlueprintWorkspaceMode) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (workspace === "plan-room") nextParams.delete("workspace");
+    else nextParams.set("workspace", workspace);
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  };
+
   const activeWorkspaceOption = workspaceOptions.find((option) => option.id === activeWorkspace) ?? workspaceOptions[0];
 
   return (
@@ -121,7 +133,7 @@ export default function BlueprintsPage() {
             detail={option.detail}
             tone={option.tone}
             active={activeWorkspace === option.id}
-            onClick={() => setActiveWorkspace(option.id)}
+            onClick={() => selectWorkspace(option.id)}
           />
         ))}
       </section>
@@ -208,6 +220,10 @@ function Capability({ icon, title, detail, tone, active, onClick }: { icon: Reac
       <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{detail}</p>
     </button>
   );
+}
+
+function resolveWorkspaceMode(value: string | null): BlueprintWorkspaceMode {
+  return workspaceOptions.some((option) => option.id === value) ? value as BlueprintWorkspaceMode : "plan-room";
 }
 
 function formatStatus(status: string | null) {
