@@ -4,9 +4,29 @@
   background-image: none !important;
 }
 
-/* Desktop Orion now lives in the top command bar; keep the draggable persistent orb for mobile only. */
+/*
+ * Desktop Orion uses the canonical persistent Orion component so the original
+ * animated particle sphere and original settings panel stay intact. The newer
+ * placeholder top-bar orb remains in the layout only as a spacing anchor and is
+ * visually suppressed underneath the real Orion control.
+ */
 @media (min-width: 1024px) {
+  button[aria-label="Open Orion"] {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
   [aria-label="Persistent Orion surface"] {
-    display: none !important;
+    display: block !important;
+    position: fixed !important;
+    top: 7px !important;
+    left: calc(100vw - 940px) !important;
+    right: auto !important;
+    bottom: auto !important;
+    z-index: 45 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: scale(0.46) !important;
+    transform-origin: top left !important;
   }
 }
