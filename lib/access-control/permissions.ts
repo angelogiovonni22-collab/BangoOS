@@ -198,6 +198,8 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/dispatch", permission: "operations.view" },
   { prefix: "/timeline", permission: "operations.view" },
   { prefix: "/operations", permission: "operations.view" },
+  { prefix: "/projects/new", permission: "projects.manage" },
+  { prefix: "/projects/deleted", permission: "projects.manage" },
   { prefix: "/projects", permission: "projects.view" },
   { prefix: "/dashboard", permission: "dashboard.view" },
   { prefix: "/partner", permission: "subcontractor_portal.view" },
