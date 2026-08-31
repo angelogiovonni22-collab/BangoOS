@@ -30,6 +30,6 @@
     z-index: 45 !important;
     visibility: visible !important;
     opacity: 1 !important;
-    transform: none !important;
+    transform: translate(-42px, -40px) !important;
   }
 }
