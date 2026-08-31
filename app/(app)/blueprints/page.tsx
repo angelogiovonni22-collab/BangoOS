@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { ArrowRight, Building2, FileStack, Layers3, Ruler, ScanLine } from "lucide-react";
 import { Button, EmptyState, ErrorState, PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
@@ -79,7 +80,8 @@ export default function BlueprintsPage() {
       setProjects(projectRows);
 
       if (projectRows.length) {
-        const versionResponse = await supabase
+        const db = supabase as unknown as { from: (table: string) => ReturnType<SupabaseClient["from"]> };
+        const versionResponse = await db
           .from("blueprint_versions")
           .select("id, project_id, created_at")
           .eq("company_id", workspace.context.companyId)
