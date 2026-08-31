@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button, ErrorState, SkeletonLoader, SummaryCard, TableContainer } from "@/components/ui";
 import { InvoiceDirectoryEmptyState, InvoiceDirectoryFilteredEmptyState } from "@/components/invoices/invoice-empty-state";
@@ -193,11 +192,6 @@ export function InvoicesDirectory({
       <TableContainer
         title="Invoice Directory"
         description="Search, filter, and manage invoice records."
-        controls={(
-          <Link href="/invoices/new">
-            <Button size="sm">New Invoice</Button>
-          </Link>
-        )}
       >
         {isLoading ? (
           <div className="p-6 space-y-3">
