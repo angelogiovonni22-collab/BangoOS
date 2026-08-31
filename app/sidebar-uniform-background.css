@@ -7,22 +7,24 @@
 /*
  * Desktop Orion uses the canonical persistent Orion component so the original
  * animated particle sphere and original settings panel stay intact. The newer
- * placeholder top-bar orb remains in the layout only as a spacing anchor and is
- * visually suppressed underneath the real Orion control.
+ * placeholder top-bar orb remains in flow only as an anchor for the real Orion
+ * control and is visually suppressed.
  */
 @media (min-width: 1024px) {
   button[aria-label="Open Orion"] {
-    visibility: hidden !important;
+    anchor-name: --orion-topbar-anchor;
+    opacity: 0 !important;
     pointer-events: none !important;
   }
 
   [aria-label="Persistent Orion surface"] {
-    --po-full-size: 54px;
-    --po-min-size: 54px;
+    --po-full-size: 36px;
+    --po-min-size: 36px;
     display: block !important;
     position: fixed !important;
-    top: 14px !important;
-    left: calc(100vw - 946px) !important;
+    position-anchor: --orion-topbar-anchor;
+    top: anchor(top) !important;
+    left: anchor(left) !important;
     right: auto !important;
     bottom: auto !important;
     z-index: 45 !important;
