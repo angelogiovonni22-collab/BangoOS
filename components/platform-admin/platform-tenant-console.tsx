@@ -8,6 +8,23 @@ function title(value: string) {
   return value.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
 
+const platformDateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+const platformDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "UTC",
+  timeZoneName: "short",
+});
+
 export function PlatformTenantConsole({ initialTenants }: { initialTenants: PlatformTenant[] }) {
   const router = useRouter();
   const [tenants, setTenants] = useState(initialTenants);
@@ -69,7 +86,7 @@ function TenantCard({ tenant, saving, onSave }: { tenant: PlatformTenant; saving
         <div className="flex flex-wrap gap-2 text-xs font-bold"><span className="rounded-full bg-blue-100 px-3 py-1 text-blue-800">{title(tenant.planKey)}</span><span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">{title(tenant.lifecycleStatus)}</span><span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">{tenant.hasStripeSubscription ? `Stripe ${title(tenant.subscriptionStatus || "connected")}` : tenant.hasStripeCustomer ? "Stripe customer" : "Manual billing"}</span></div>
       </div>
       <div className="grid min-w-0 gap-4 p-5 lg:grid-cols-3">
-        <div className="grid min-w-0 grid-cols-2 gap-3 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] p-4 text-sm"><Metric label="Members" value={`${tenant.memberCount}/${tenant.seatLimit}`} /><Metric label="Projects" value={String(tenant.projectCount)} /><Metric label="Text allowance" value={tenant.orionTextAllowance.toLocaleString()} /><Metric label="Voice minutes" value={tenant.orionVoiceMinutes.toLocaleString()} />{tenant.currentPeriodEnd ? <Metric label={tenant.cancelAtPeriodEnd ? "Access ends" : "Renews"} value={new Date(tenant.currentPeriodEnd).toLocaleDateString()} /> : null}<Metric label="Billing" value={tenant.billingInterval ? title(tenant.billingInterval) : "Manual"} /></div>
+        <div className="grid min-w-0 grid-cols-2 gap-3 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] p-4 text-sm"><Metric label="Members" value={`${tenant.memberCount}/${tenant.seatLimit}`} /><Metric label="Projects" value={String(tenant.projectCount)} /><Metric label="Text allowance" value={tenant.orionTextAllowance.toLocaleString("en-US")} /><Metric label="Voice minutes" value={tenant.orionVoiceMinutes.toLocaleString("en-US")} />{tenant.currentPeriodEnd ? <Metric label={tenant.cancelAtPeriodEnd ? "Access ends" : "Renews"} value={platformDateFormatter.format(new Date(tenant.currentPeriodEnd))} /> : null}<Metric label="Billing" value={tenant.billingInterval ? title(tenant.billingInterval) : "Manual"} /></div>
         <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:col-span-2">
           <Field label="Plan"><select value={planKey} onChange={(event) => setPlanKey(event.target.value as PlatformPlan)}>{PLATFORM_PLAN_OPTIONS.map((option) => <option key={option} value={option}>{title(option)}</option>)}</select></Field>
           <Field label="Account status"><select value={lifecycleStatus} onChange={(event) => setLifecycleStatus(event.target.value as PlatformTenantStatus)}>{PLATFORM_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{title(option)}</option>)}</select></Field>
@@ -79,7 +96,7 @@ function TenantCard({ tenant, saving, onSave }: { tenant: PlatformTenant; saving
           <Field label="Internal support notes"><input value={internalNotes} onChange={(event) => setInternalNotes(event.target.value)} placeholder="Visible only to B.O.S. platform staff" /></Field>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border-subtle)] px-5 py-4"><p className="text-xs text-[var(--color-text-secondary)]">Updated {new Date(tenant.updatedAt).toLocaleString()}</p><button type="button" disabled={saving} onClick={() => onSave(tenant.companyId, { planKey, lifecycleStatus, seatLimit, orionTextAllowance, orionVoiceMinutes, internalNotes })} className="rounded-[var(--radius-control)] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Saving…" : "Save company"}</button></div>
+      <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border-subtle)] px-5 py-4"><p className="text-xs text-[var(--color-text-secondary)]">Updated {platformDateTimeFormatter.format(new Date(tenant.updatedAt))}</p><button type="button" disabled={saving} onClick={() => onSave(tenant.companyId, { planKey, lifecycleStatus, seatLimit, orionTextAllowance, orionVoiceMinutes, internalNotes })} className="rounded-[var(--radius-control)] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Saving…" : "Save company"}</button></div>
     </article>
   );
 }
