@@ -1,1 +1,0 @@
-Uniform sidebar background removes ambient top-lighting gradients so the logo area and navigation share the same navy surface.
