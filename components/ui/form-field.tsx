@@ -1,4 +1,4 @@
-import { Children, isValidElement, type LabelHTMLAttributes, type ReactNode } from "react";
+import { Children, cloneElement, isValidElement, useId, type LabelHTMLAttributes, type ReactElement, type ReactNode } from "react";
 
 type FormLabelProps = LabelHTMLAttributes<HTMLLabelElement> & { required?: boolean; disabled?: boolean };
 
@@ -21,13 +21,26 @@ function inferDisabledFromChildren(children: ReactNode) {
 }
 
 export function FormField({ label, htmlFor, required = false, disabled, className, labelClassName, error, children }: FormFieldProps) {
+  const generatedId = useId();
   const isDisabled = disabled ?? inferDisabledFromChildren(children);
   const composedClassName = ["space-y-[var(--space-form-gap)]", className || ""].filter(Boolean).join(" ");
+  const onlyChild = Children.count(children) === 1 && isValidElement(children) ? children as ReactElement<Record<string, unknown>> : null;
+  const childType = onlyChild?.type;
+  const canAssociate = Boolean(onlyChild && childType !== "label" && childType !== "fieldset");
+  const controlId = htmlFor || (typeof onlyChild?.props.id === "string" ? onlyChild.props.id : canAssociate ? generatedId : undefined);
+  const errorId = error && controlId ? `${controlId}-error` : undefined;
+  const describedBy = onlyChild && typeof onlyChild.props["aria-describedby"] === "string" ? onlyChild.props["aria-describedby"] : undefined;
+  const associatedChildren = canAssociate && onlyChild && controlId
+    ? cloneElement(onlyChild, {
+        id: controlId,
+        ...(error ? { "aria-invalid": true, "aria-describedby": [describedBy, errorId].filter(Boolean).join(" ") } : {}),
+      })
+    : children;
   return (
     <div className={composedClassName}>
-      <FormLabel htmlFor={htmlFor} required={required} disabled={isDisabled} className={labelClassName}>{label}</FormLabel>
-      {children}
-      {error ? <p className="text-metadata text-[var(--color-danger-700)]">{error}</p> : null}
+      <FormLabel htmlFor={controlId} required={required} disabled={isDisabled} className={labelClassName}>{label}</FormLabel>
+      {associatedChildren}
+      {error ? <p id={errorId} className="text-metadata text-[var(--color-danger-700)]">{error}</p> : null}
     </div>
   );
 }
