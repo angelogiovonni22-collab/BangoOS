@@ -110,8 +110,8 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                 {visibleNavigationGroups.map((group) => {
                   const isCollapsed = collapsedGroups[group.key] ?? false;
                   return <section key={group.key} className="space-y-2">
-                    {group.key !== "dashboard" ? <button type="button" data-sidebar-section-finish="chrome" className="group flex min-h-11 w-full items-center justify-between rounded-[12px] border border-[#dbe4ef] bg-[linear-gradient(180deg,#f8fafc_0%,#aeb7c3_24%,#eef2f7_49%,#8d97a5_73%,#dce3eb_100%)] px-3 py-3 text-left text-xs font-extrabold uppercase tracking-[0.18em] text-[#101827] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(15,23,42,0.35),0_5px_12px_-8px_rgba(0,0,0,0.9)] transition hover:border-white hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#dbeafe] focus-visible:ring-offset-2 focus-visible:ring-offset-[#071528]" onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))} aria-expanded={!isCollapsed}>
-                      <span className="drop-shadow-[0_1px_0_rgba(255,255,255,0.72)]">{group.label}</span><span className="text-[#26364b] transition group-hover:text-black">{isCollapsed ? "+" : "−"}</span>
+                    {group.key !== "dashboard" ? <button type="button" data-sidebar-section-finish="blue-chrome" className="group flex min-h-11 w-full items-center justify-between rounded-[14px] border px-3 py-3 text-left text-xs font-extrabold uppercase tracking-[0.18em] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7dd3fc] focus-visible:ring-offset-2 focus-visible:ring-offset-[#071528]" onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))} aria-expanded={!isCollapsed}>
+                      <span>{group.label}</span><span className="transition group-hover:text-white">{isCollapsed ? "+" : "−"}</span>
                     </button> : null}
                     {!isCollapsed ? <div className="space-y-1.5">{group.items.map((item) => <SidebarItem key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t)} href={item.href} active={item.href === activeNavigationHref} onNavigate={() => setMobileOpen(false)} />)}</div> : null}
                   </section>;
@@ -157,7 +157,8 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
 }
 
 function SidebarItem({ label, href, active, onNavigate }: { label: string; href: string; active: boolean; onNavigate: () => void; }) {
-  return <Link href={href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={`relative flex min-h-11 items-center rounded-[var(--radius-lg)] px-4 py-3 text-[15px] font-semibold leading-5 motion-nav transition-colors duration-200 ${active ? "bg-[rgba(82,130,210,0.12)] text-white before:absolute before:left-0 before:top-1/2 before:h-6 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-[var(--orion-cyan)] before:shadow-[0_0_8px_rgba(52,183,255,0.55)]" : "text-[var(--bos-text-secondary)] hover:bg-[rgba(82,130,210,0.10)] hover:text-[var(--bos-text-primary)]"}`}><span className="truncate">{label}</span></Link>;
+  const blueChromeDashboard = active && href === "/dashboard";
+  return <Link href={href} onClick={onNavigate} aria-current={active ? "page" : undefined} data-sidebar-active-finish={blueChromeDashboard ? "blue-chrome" : undefined} className={`relative flex min-h-11 items-center rounded-[var(--radius-lg)] px-4 py-3 text-[15px] font-semibold leading-5 motion-nav transition-colors duration-200 ${active ? "bg-[rgba(82,130,210,0.12)] text-white before:absolute before:left-0 before:top-1/2 before:h-6 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-[var(--orion-cyan)] before:shadow-[0_0_8px_rgba(52,183,255,0.55)]" : "text-[var(--bos-text-secondary)] hover:bg-[rgba(82,130,210,0.10)] hover:text-[var(--bos-text-primary)]"}`}><span className="truncate">{label}</span></Link>;
 }
 
 function AccessRedirect({ role }: { role: string }) {
