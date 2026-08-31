@@ -17,16 +17,17 @@
   }
 
   [aria-label="Persistent Orion surface"] {
+    --po-full-size: 54px;
+    --po-min-size: 54px;
     display: block !important;
     position: fixed !important;
-    top: 7px !important;
-    left: calc(100vw - 940px) !important;
+    top: 14px !important;
+    left: calc(100vw - 946px) !important;
     right: auto !important;
     bottom: auto !important;
     z-index: 45 !important;
     visibility: visible !important;
     opacity: 1 !important;
-    transform: scale(0.46) !important;
-    transform-origin: top left !important;
+    transform: none !important;
   }
 }
