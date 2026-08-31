@@ -12,6 +12,7 @@ import "./future-2030.css";
 import "./future-2030-hardening.css";
 import "./sidebar-blue-chrome.css";
 import "./visual-consistency.css";
+import "./digital-command-hardening.css";
 import "./top-command-layout.css";
 import "./mobile-reference.css";
 import "./mobile-login.css";

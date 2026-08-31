@@ -1,0 +1,216 @@
+/*
+ * Digital Command readability hardening.
+ *
+ * Digital Command is a dark workspace, so legacy light-only modules and
+ * body-level portals must inherit one dark semantic palette. This layer loads
+ * after the shared visual consistency rules and intentionally changes color
+ * only; component geometry and business behavior remain owned by each module.
+ */
+
+[data-theme="digital-command"] {
+  --color-neutral-50: #071426;
+  --color-neutral-100: #0c2340;
+  --color-neutral-200: #173454;
+  --color-neutral-500: #9bb9d6;
+  --color-neutral-700: #d9e9f8;
+  --color-disabled-text: #9bb0c8;
+  --bos-text-strong-on-light: #f4f9ff;
+  --bos-text-medium-on-light: #c7ddf2;
+  --bos-bg-workspace-surface: #030b16;
+  --bos-bg-workspace-surface-soft: #061526;
+  --bos-bg-workspace-card: #071426;
+  --bos-border-light: rgb(83 162 247 / 0.34);
+  --bos-border-light-strong: rgb(86 189 255 / 0.55);
+  --bos-shadow-workspace-card: 0 20px 42px -26px rgb(0 0 0 / 0.82), 0 2px 12px rgb(0 54 112 / 0.3);
+}
+
+/* Portals mount under body rather than inside main. Give every overlay the
+ * same semantic context as the authenticated workspace. */
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"], [data-bf-layer="tooltip"]) {
+  --color-text-primary: #f1f8ff;
+  --color-text-secondary: #c7ddf2;
+  --color-text-muted: #9bb9d6;
+  --color-text-inverse: #020711;
+  --color-disabled-text: #9bb0c8;
+  --color-border-subtle: rgb(64 142 230 / 0.32);
+  --color-border-strong: rgb(86 189 255 / 0.58);
+  --color-surface-card: #071426;
+  --color-surface-subtle: #0c2340;
+  --color-surface-muted: #113153;
+  --color-surface-elevated: #0b1d35;
+  --bos-text-primary: #f1f8ff;
+  --bos-text-secondary: #c7ddf2;
+  --bos-text-muted: #9bb9d6;
+  --bos-bg-panel: #071426;
+  --bos-bg-panel-elevated: #0b1d35;
+  --bos-bg-control: #0c2340;
+  --bos-bg-hover: #113153;
+  --bos-border-subtle: rgb(64 142 230 / 0.32);
+  --bos-border-default: rgb(83 162 247 / 0.46);
+  --bos-border-strong: rgb(0 212 255 / 0.64);
+  --bos-bg-workspace-card: #071426;
+  --bos-border-light: rgb(83 162 247 / 0.34);
+  --bos-text-strong-on-light: #f4f9ff;
+  --bos-text-medium-on-light: #c7ddf2;
+  color: var(--bos-text-primary);
+}
+
+/* A component may declare a light ownership context for the standard theme.
+ * In Digital Command it becomes a fully owned dark context instead of pairing
+ * a white panel with inherited pale text. */
+[data-theme="digital-command"] .enterprise-shell main [data-bos-surface="light"] {
+  color: #f1f8ff;
+  --color-text-primary: #f1f8ff;
+  --color-text-secondary: #c7ddf2;
+  --color-text-muted: #9bb9d6;
+  --color-text-inverse: #020711;
+  --color-disabled-text: #9bb0c8;
+  --color-border-subtle: rgb(64 142 230 / 0.32);
+  --color-border-strong: rgb(86 189 255 / 0.58);
+  --color-surface-card: #071426;
+  --color-surface-subtle: #0c2340;
+  --color-surface-muted: #113153;
+  --color-surface-elevated: #0b1d35;
+}
+
+/* Normalize legacy white and pale utility surfaces in pages, dialogs, drawers,
+ * listboxes, and menus. Semantic success/warning/danger fills are untouched. */
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"]) :is(
+  .bg-white,
+  [class*="bg-white/"],
+  [class*="color-neutral-50"],
+  [class*="color-neutral-100"],
+  [class*="f8fbff"],
+  [class*="f3f7fd"],
+  [class*="f4f7fb"],
+  [class*="f6f9fd"],
+  [class*="f8fafc"],
+  [class*="f1f5f9"]
+) {
+  background-color: var(--bos-bg-panel) !important;
+  background-image: none !important;
+  border-color: var(--bos-border-default) !important;
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"]) :is(
+  [class*="color-neutral-200"],
+  [class*="bg-slate-50"],
+  [class*="bg-slate-100"],
+  [class*="bg-gray-50"],
+  [class*="bg-gray-100"]
+) {
+  background-color: var(--bos-bg-control) !important;
+  background-image: none !important;
+  border-color: var(--bos-border-default) !important;
+  color: var(--bos-text-primary) !important;
+}
+
+/* Shared overlays, plus older page-owned dialogs that bypass the shared Dialog
+ * primitive, receive an explicit elevated dark material. */
+[data-theme="digital-command"] [data-bf-layer="dialog"] [role="dialog"],
+[data-theme="digital-command"] .enterprise-shell [role="dialog"][aria-modal="true"] {
+  background-color: var(--bos-bg-panel-elevated) !important;
+  background-image: linear-gradient(180deg, rgb(15 40 70 / 0.98), rgb(7 20 38 / 0.99)) !important;
+  border-color: var(--bos-border-strong) !important;
+  color: var(--bos-text-primary) !important;
+  box-shadow: 0 28px 70px -30px rgb(0 0 0 / 0.92), 0 0 0 1px rgb(0 212 255 / 0.12) !important;
+}
+
+[data-theme="digital-command"] :is([data-bf-layer="dialog"], .enterprise-shell [role="dialog"]) :is(h1, h2, h3, h4, h5, h6, label, legend) {
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="digital-command"] :is([data-bf-layer="dialog"], .enterprise-shell [role="dialog"]) :is(p, small, dt, dd) {
+  color: var(--bos-text-secondary);
+}
+
+/* Forms and native dropdown menus must remain readable in every state. */
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"]) :is(input, textarea, select) {
+  background-color: var(--bos-bg-control) !important;
+  color: var(--bos-text-primary) !important;
+  border-color: var(--bos-border-default) !important;
+  caret-color: #8ee7ff;
+  opacity: 1;
+}
+
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"]) :is(input, textarea)::placeholder {
+  color: #a9c3dc !important;
+  opacity: 1;
+}
+
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"]) select option {
+  background: #071426;
+  color: #f1f8ff;
+}
+
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"]) :is(input, textarea, select, button):disabled {
+  color: var(--color-disabled-text) !important;
+  border-color: var(--bos-border-subtle) !important;
+  opacity: 1;
+}
+
+/* Remap hard-coded neutral copy that was authored for white cards. Deliberate
+ * semantic button/badge colors are not included in this compatibility map. */
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"]) :is(
+  [class*="text-[#10243f]"],
+  [class*="text-[#0f2342]"],
+  [class*="text-slate-950"],
+  [class*="text-slate-900"],
+  [class*="text-slate-800"],
+  [class*="text-gray-950"],
+  [class*="text-gray-900"],
+  [class*="text-gray-800"],
+  [class*="text-black"]
+) {
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"]) :is(
+  [class*="text-[#385574]"],
+  [class*="text-[#3b587c]"],
+  [class*="text-slate-700"],
+  [class*="text-slate-600"],
+  [class*="text-slate-500"],
+  [class*="text-gray-700"],
+  [class*="text-gray-600"],
+  [class*="text-gray-500"]
+) {
+  color: var(--bos-text-secondary) !important;
+}
+
+/* Tabs, menus, listboxes, tables, and disclosure rows share the same contrast
+ * hierarchy without changing their selected/expanded behavior. */
+[data-theme="digital-command"] .enterprise-shell main :is([role="tablist"], [role="menu"], [role="listbox"]) {
+  border-color: var(--bos-border-default);
+}
+
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="popover"]) :is([role="menu"], [role="listbox"]) {
+  background: var(--bos-bg-panel-elevated) !important;
+  color: var(--bos-text-primary) !important;
+  border-color: var(--bos-border-default) !important;
+}
+
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="popover"]) :is([role="menuitem"], [role="option"]):hover {
+  background: var(--bos-bg-hover) !important;
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="digital-command"] .enterprise-shell main table :is(thead, th) {
+  background: var(--bos-bg-control);
+  color: var(--bos-text-secondary);
+  border-color: var(--bos-border-default);
+}
+
+[data-theme="digital-command"] .enterprise-shell main table :is(td, tr) {
+  border-color: var(--bos-border-subtle);
+}
+
+[data-theme="digital-command"] .enterprise-shell main table tbody tr:hover {
+  background: var(--bos-bg-hover);
+}
+
+[data-theme="digital-command"] :is(.enterprise-shell, [data-bf-layer="dialog"], [data-bf-layer="popover"]) :is(button, a, input, textarea, select, [role="tab"], [role="option"]):focus-visible {
+  outline: 2px solid #8ee7ff !important;
+  outline-offset: 2px;
+}
