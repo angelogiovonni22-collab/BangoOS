@@ -18,6 +18,7 @@ export type CompanyRole = (typeof COMPANY_ROLES)[number];
 export type BosPermission =
   | "dashboard.view"
   | "operations.view"
+  | "field_operations.view"
   | "projects.view"
   | "projects.manage"
   | "project_financials.view"
@@ -58,7 +59,7 @@ export type BosPermission =
   | "customer_portal.view";
 
 const ALL_PERMISSIONS: BosPermission[] = [
-  "dashboard.view", "operations.view", "projects.view", "projects.manage", "project_financials.view",
+  "dashboard.view", "operations.view", "field_operations.view", "projects.view", "projects.manage", "project_financials.view",
   "schedule.view", "schedule.manage", "daily_reports.view", "daily_reports.manage",
   "blueprints.view", "blueprints.manage", "photos.view", "photos.manage",
   "communications.view", "communications.manage", "scope.view", "customers.view", "customers.manage",
@@ -87,7 +88,7 @@ const ROLE_PERMISSIONS: Record<CompanyRole, readonly BosPermission[]> = {
     "estimates.view", "estimates.manage", "blueprints.view", "scope.view", "materials.view", "vendors.view",
   ],
   superintendent: [
-    "operations.view", "projects.view", "schedule.view", "schedule.manage", "daily_reports.view", "daily_reports.manage",
+    "operations.view", "field_operations.view", "projects.view", "schedule.view", "schedule.manage", "daily_reports.view", "daily_reports.manage",
     "blueprints.view", "blueprints.manage", "photos.view", "photos.manage", "communications.view", "communications.manage",
     "scope.view", "workforce.view", "workforce.manage", "equipment.view", "equipment.manage", "materials.view", "vendors.view",
   ],
@@ -103,14 +104,14 @@ const ROLE_PERMISSIONS: Record<CompanyRole, readonly BosPermission[]> = {
     "vendors.view",
   ],
   foreman: [
-    "operations.view", "projects.view", "schedule.view", "daily_reports.view", "daily_reports.manage",
+    "operations.view", "field_operations.view", "projects.view", "schedule.view", "daily_reports.view", "daily_reports.manage",
     "blueprints.view", "photos.view", "photos.manage", "communications.view", "communications.manage",
     "scope.view", "workforce.view", "equipment.view", "materials.view",
   ],
   employee: [
-    "projects.view", "schedule.view", "daily_reports.view", "daily_reports.manage", "blueprints.view",
+    "field_operations.view", "projects.view", "schedule.view", "daily_reports.view", "daily_reports.manage", "blueprints.view",
     "photos.view", "photos.manage", "communications.view", "communications.manage", "scope.view",
-    "workforce.view", "equipment.view",
+    "equipment.view",
   ],
   subcontractor: [
     "subcontractor_portal.view", "scope.view", "blueprints.view",
@@ -185,6 +186,7 @@ const ROUTE_RULES: RouteRule[] = [
   { prefix: "/customers", permission: "customers.view" },
   { prefix: "/employees", permission: "workforce.view" },
   { prefix: "/team", permission: "workforce.view" },
+  { prefix: "/crews/field", permission: "field_operations.view" },
   { prefix: "/crews", permission: "workforce.view" },
   { prefix: "/equipment", permission: "equipment.view" },
   { prefix: "/materials", permission: "materials.view" },

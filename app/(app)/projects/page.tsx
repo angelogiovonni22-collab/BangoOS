@@ -26,6 +26,8 @@ import {
 } from "@/lib/projects";
 import { PROJECT_STATUSES } from "@/lib/projects/statuses";
 import { createClient } from "@/lib/supabase/client";
+import { hasBosPermission } from "@/lib/access-control/permissions";
+import { useCompany } from "@/lib/company";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 
@@ -62,6 +64,7 @@ type ProjectsErrorKind = "auth" | "company" | "database" | "network" | "unknown"
 
 export default function ProjectsPage() {
   const { t, locale } = useI18n();
+  const company = useCompany();
   const supabase = useMemo(() => createClient(), []);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -111,6 +114,9 @@ export default function ProjectsPage() {
       }
 
       const client = supabase;
+      const canViewFinancials = hasBosPermission(workspace.context.role, "project_financials.view");
+      const canViewCustomers = hasBosPermission(workspace.context.role, "customers.view");
+      const canViewWorkforce = hasBosPermission(workspace.context.role, "workforce.view");
 
       if (!client) {
         if (isSubscribed) {
@@ -123,39 +129,45 @@ export default function ProjectsPage() {
       }
 
       try {
-        const [projectsResponse, customersResponse, tasksResponse, profilesResponse, invoicesResponse] = await Promise.all([
-          client
-            .from("projects")
-            .select("id, customer_id, name, status, estimated_end_date, contract_amount, estimated_cost, project_type, created_by, actual_end_date, updated_at, created_at")
-            .eq("company_id", workspace.context.companyId)
-            .order("created_at", { ascending: false }),
-          client
-            .from("customers")
-            .select("id, first_name, last_name, company_name, customer_type")
-            .eq("company_id", workspace.context.companyId)
-            .order("created_at", { ascending: false }),
-          client
-            .from("tasks")
-            .select("project_id, status, completion_percentage")
-            .eq("company_id", workspace.context.companyId),
-          client
-            .from("profiles")
-            .select("id, first_name, last_name")
-            .eq("company_id", workspace.context.companyId),
-          client
-            .from("invoices")
-            .select("project_id, amount_paid")
-            .eq("company_id", workspace.context.companyId),
-        ]);
+        const projectsResponse = await (canViewFinancials ? client
+          .from("projects")
+          .select("id, customer_id, name, status, estimated_end_date, contract_amount, estimated_cost, project_type, created_by, actual_end_date, updated_at, created_at")
+          .eq("company_id", workspace.context.companyId)
+          .order("created_at", { ascending: false }) : client
+          .from("projects")
+          .select("id, customer_id, name, status, estimated_end_date, project_type, created_by, actual_end_date, updated_at, created_at")
+          .eq("company_id", workspace.context.companyId)
+          .order("created_at", { ascending: false }));
 
         if (projectsResponse.error) {
           if (isSubscribed) {
             setErrorKind("database");
             setErrorMessage(t("projects.errorLoadProjectsDetailed", { message: projectsResponse.error.message }));
           }
-
           return;
         }
+
+        const projectIds = (projectsResponse.data ?? []).map((project) => project.id);
+        const [customersResponse, tasksResponse, profilesResponse, invoicesResponse] = await Promise.all([
+          canViewCustomers ? client
+            .from("customers")
+            .select("id, first_name, last_name, company_name, customer_type")
+            .eq("company_id", workspace.context.companyId)
+            .order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
+          projectIds.length > 0 ? client
+            .from("tasks")
+            .select("project_id, status, completion_percentage")
+            .eq("company_id", workspace.context.companyId)
+            .in("project_id", projectIds) : Promise.resolve({ data: [], error: null }),
+          canViewWorkforce ? client
+            .from("profiles")
+            .select("id, first_name, last_name")
+            .eq("company_id", workspace.context.companyId) : Promise.resolve({ data: [], error: null }),
+          canViewFinancials ? client
+            .from("invoices")
+            .select("project_id, amount_paid")
+            .eq("company_id", workspace.context.companyId) : Promise.resolve({ data: [], error: null }),
+        ]);
 
         if (customersResponse.error) {
           if (isSubscribed) {
@@ -207,7 +219,7 @@ export default function ProjectsPage() {
         const spentByProjectId = buildInvoiceSpentMap(invoiceRows);
 
         const mappedProjects = (projectsResponse.data ?? []).map((row) => {
-          const project = row as Pick<
+          const project = { contract_amount: null, estimated_cost: null, ...row } as Pick<
             ProjectRow,
             | "id"
             | "customer_id"
@@ -373,6 +385,9 @@ export default function ProjectsPage() {
     ];
   }, [t]);
 
+  const canManageProjects = hasBosPermission(company.role, "projects.manage");
+  const showFinancials = hasBosPermission(company.role, "project_financials.view");
+
   return (
     <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
@@ -380,14 +395,14 @@ export default function ProjectsPage() {
         eyebrow={t("projects.headerEyebrow")}
         title={t("projects.pageTitle")}
         description={t("projects.pageDescription")}
-        primaryAction={(
+        primaryAction={canManageProjects ? (
           <Link href="/projects/new">
             <Button size="md">
               <Plus size={16} aria-hidden="true" />
               {t("projects.newProject")}
             </Button>
           </Link>
-        )}
+        ) : undefined}
       />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project performance summary">
@@ -429,17 +444,17 @@ export default function ProjectsPage() {
       ) : errorMessage ? (
         <ErrorState title={getProjectsErrorTitle(errorKind, t)} description={errorMessage} compact />
       ) : filteredProjects.length > 0 ? (
-        <ProjectTable items={filteredProjects} t={t} />
+        <ProjectTable items={filteredProjects} t={t} canManageProjects={canManageProjects} showFinancials={showFinancials} />
       ) : projects.length === 0 ? (
         <EmptyState
           icon="P"
           title="No projects yet"
           description="Create your first project to start scheduling work, tracking spend, and monitoring profitability."
-          action={
+          action={canManageProjects ?
             <Link href="/projects/new">
               <Button>{t("projects.newProject")}</Button>
             </Link>
-          }
+          : undefined}
         />
       ) : (
         <EmptyState
