@@ -1,1 +1,0 @@
-Restore the exact historical sidebar logo blob from commit 0ea73986ec4d13dab695b22f2cfa90a4a0b361b8 and remove temporary rewrite assets.
