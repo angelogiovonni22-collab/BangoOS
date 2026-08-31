@@ -4,34 +4,9 @@
   background-image: none !important;
 }
 
-/* Desktop command-bar placement for Orion controls. */
+/* Desktop Orion now lives in the top command bar; keep the draggable persistent orb for mobile only. */
 @media (min-width: 1024px) {
-  #bangoos-sidebar > button[aria-label="Hide Orion"],
-  #bangoos-sidebar > button[aria-label="Activate Orion"] {
-    position: fixed !important;
-    top: 18px !important;
-    left: calc(100vw - 832px) !important;
-    right: auto !important;
-    z-index: 34 !important;
-    width: 120px !important;
-    height: 44px !important;
-    margin: 0 !important;
-    border-color: var(--bos-border-default) !important;
-    background: var(--bos-bg-panel) !important;
-    color: var(--bos-text-primary) !important;
-    box-shadow: var(--shadow-small) !important;
-  }
-
   [aria-label="Persistent Orion surface"] {
-    position: fixed !important;
-    top: 8px !important;
-    left: calc(100vw - 900px) !important;
-    right: auto !important;
-    bottom: auto !important;
-    z-index: 35 !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    transform: scale(0.46) !important;
-    transform-origin: top left !important;
+    display: none !important;
   }
 }
