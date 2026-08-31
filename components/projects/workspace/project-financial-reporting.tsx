@@ -1,75 +1,18 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import type { ProjectFinancialReport } from "@/lib/financial-reporting";
-import { ProjectReceiptsWorkspace } from "./project-receipts-workspace";
 
 type ProjectFinancialReportingProps = {
   report: ProjectFinancialReport;
 };
 
-type ReceiptSpendSnapshot = {
-  baseline: number | null;
-  current: number;
-};
-
 export function ProjectFinancialReporting({ report }: ProjectFinancialReportingProps) {
-  const [receiptSpend, setReceiptSpend] = useState<ReceiptSpendSnapshot>({ baseline: null, current: 0 });
-
-  const handleApprovedSpendChange = useCallback((amount: number) => {
-    const normalized = Number.isFinite(amount) && amount >= 0 ? toMoney(amount) : 0;
-    setReceiptSpend((previous) => ({
-      baseline: previous.baseline === null ? normalized : previous.baseline,
-      current: normalized,
-    }));
-  }, []);
-
-  // The server report already includes all receipts approved when the page loaded.
-  // Apply only receipt changes made during this mounted session so live approval updates are immediate without double counting.
-  const receiptDelta = receiptSpend.baseline === null ? 0 : toMoney(receiptSpend.current - receiptSpend.baseline);
-
-  const summary = useMemo(() => {
-    const actualCost = toMoney(report.summary.actualCost + receiptDelta);
-    const remainingCostToComplete = toMoney(Math.max(report.summary.revisedBudget - actualCost, 0));
-    const forecastFinalCost = toMoney(Math.max(actualCost + report.summary.committedCost, report.summary.revisedBudget));
-    const grossProfit = toMoney(report.summary.revisedContractValue - forecastFinalCost);
-    const grossMarginPercent = report.summary.revisedContractValue > 0
-      ? toMoney((grossProfit / report.summary.revisedContractValue) * 100)
-      : null;
-
-    return {
-      ...report.summary,
-      actualCost,
-      remainingCostToComplete,
-      forecastFinalCost,
-      grossProfit,
-      grossMarginPercent,
-    };
-  }, [receiptDelta, report.summary]);
-
-  const jobCostByCategory = useMemo(() => report.jobCostByCategory.map((row) => {
-    if (row.category !== "materials" || receiptDelta === 0) return row;
-    const actual = toMoney(row.actual + receiptDelta);
-    const forecast = toMoney(row.committed + actual);
-    const varianceAmount = toMoney(row.budget - forecast);
-    const variancePercent = row.budget > 0 ? toMoney((varianceAmount / row.budget) * 100) : null;
-    return {
-      ...row,
-      actual,
-      forecast,
-      varianceAmount,
-      variancePercent,
-      status: row.dataStatus === "unavailable" ? "unavailable" as const : deriveStatus(variancePercent),
-      dataStatus: "measured" as const,
-      note: null,
-    };
-  }), [receiptDelta, report.jobCostByCategory]);
+  const summary = report.summary;
+  const jobCostByCategory = report.jobCostByCategory;
 
   return (
     <div className="space-y-5">
-      <ProjectReceiptsWorkspace projectId={summary.projectId} onApprovedSpendChange={handleApprovedSpendChange} />
-
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Revised Contract Value" value={formatMoney(summary.revisedContractValue)} context="Original estimate + approved change orders" />
         <MetricCard label="Forecast Final Cost" value={formatMoney(summary.forecastFinalCost)} context="Actual + committed baseline" />
@@ -191,8 +134,6 @@ function MetricCard({ label, value, context }: { label: string; value: string; c
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return <div className="flex items-center justify-between gap-3 rounded-[10px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] px-3 py-2.5"><p className="text-xs font-semibold uppercase tracking-[0.07em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="text-sm font-bold text-[var(--bos-text-strong-on-light)]">{value}</p></div>;
 }
-function toMoney(value: number) { return Number.isFinite(value) ? Math.round((value + Number.EPSILON) * 100) / 100 : 0; }
-function deriveStatus(variancePercent: number | null): "on_track" | "at_risk" | "over_budget" { if (variancePercent === null) return "on_track"; if (variancePercent < 0) return "over_budget"; if (variancePercent <= 10) return "at_risk"; return "on_track"; }
 function formatMoney(value: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(Number.isFinite(value) ? value : 0); }
 function formatPercent(value: number | null) { return value === null || !Number.isFinite(value) ? "N/A" : `${value.toFixed(2)}%`; }
 function toTitleCase(value: string) { return value.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase()); }
