@@ -1,20 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
-import {
-  AudioLines,
-  Bell,
-  Binoculars,
-  BrainCircuit,
-  Check,
-  CircleUserRound,
-  Mic,
-  Target,
-  X,
-} from "lucide-react";
+import { Bell, BrainCircuit, Mic, X } from "lucide-react";
 import { useFocusTrap } from "@/components/motion";
-import { OrionVoiceButton, OrionVoiceStatus, OrionVoiceTranscript, type OrionRealtimeVoice, type OrionUnifiedVoiceController } from "@/components/orion/voice";
-import { enableOrionBackgroundPush, getOrionPushStatus, type OrionPushStatus } from "@/lib/orion/personal-assistant/push-client";
+import { OrionVoiceButton, type OrionUnifiedVoiceController } from "@/components/orion/voice";
+import { getOrionPushStatus, type OrionPushStatus } from "@/lib/orion/personal-assistant/push-client";
 import type { PersistentOrionFixture } from "./types";
 
 type PersistentOrionPanelProps = {
@@ -30,11 +20,6 @@ type PersistentOrionPanelProps = {
   panelRef: RefObject<HTMLDivElement | null>;
   panelStyle?: CSSProperties;
 };
-
-function voiceLabel(voice: OrionRealtimeVoice) {
-  const label = voice.charAt(0).toUpperCase() + voice.slice(1);
-  return voice === "marin" ? `${label} — Recommended` : label;
-}
 
 function pushStatusMessage(status: OrionPushStatus) {
   if (status === "enabled") return "Background Orion notifications are enabled on this device.";
@@ -53,14 +38,9 @@ function formatVoicePhase(phase: string) {
     .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
 
-function sanitizeOrionStatusMessage(message: string) {
-  return message.replace(/Orion v2/gi, "Orion");
-}
-
 export function PersistentOrionPanel({
   panelId,
   open,
-  fixture,
   minimized,
   voice,
   onClose,
@@ -72,8 +52,6 @@ export function PersistentOrionPanel({
 }: PersistentOrionPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const [pushStatus, setPushStatus] = useState<OrionPushStatus>("default");
-  const [pushBusy, setPushBusy] = useState(false);
-  const [pushMessage, setPushMessage] = useState<string | null>(null);
 
   useFocusTrap({ active: open, containerRef: panelRef, onEscape: onClose });
 
@@ -88,7 +66,6 @@ export function PersistentOrionPanel({
 
   if (!open) return null;
 
-  const realtimeSessionActive = voice.realtimeState !== "closed" && voice.realtimeState !== "idle" && voice.realtimeState !== "error";
   const stateLabel = formatVoicePhase(voice.phase);
 
   return (
@@ -98,7 +75,7 @@ export function PersistentOrionPanel({
       role="dialog"
       aria-modal="false"
       aria-label={`Orion panel. State ${stateLabel}.`}
-      className="persistentOrionPanel"
+      className="persistentOrionPanel persistentOrionPanelOriginal"
       style={panelStyle}
       tabIndex={-1}
     >
@@ -108,7 +85,7 @@ export function PersistentOrionPanel({
             <div className="persistentOrionIdentityMark" aria-hidden="true"><BrainCircuit size={24} /></div>
             <div>
               <p className="persistentOrionPanelTitle">ORION</p>
-              <h3>{fixture.workspace}</h3>
+              <h3>Workspace</h3>
             </div>
           </div>
           <p className="persistentOrionStateLine">
@@ -122,27 +99,6 @@ export function PersistentOrionPanel({
           <span>Close</span>
         </button>
       </header>
-
-      <div className="persistentOrionFixtureTags" aria-label="Orion data status">
-        <span>Prototype Intelligence</span>
-        <span>Fixture Data</span>
-      </div>
-
-      <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Orion observation">
-        <div className="persistentOrionSectionHeading">
-          <Binoculars size={21} aria-hidden="true" />
-          <p className="persistentOrionEyebrow">Observation</p>
-        </div>
-        <p className="persistentOrionSectionCopy">{fixture.observation}</p>
-      </section>
-
-      <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Why it matters">
-        <div className="persistentOrionSectionHeading">
-          <Target size={21} aria-hidden="true" />
-          <p className="persistentOrionEyebrow">Why it matters</p>
-        </div>
-        <p className="persistentOrionSectionCopy">{fixture.whyItMatters}</p>
-      </section>
 
       <section className="persistentOrionSection persistentOrionSectionBordered" aria-label="Orion voice controls">
         <div className="persistentOrionSectionHeading">
@@ -165,60 +121,8 @@ export function PersistentOrionPanel({
           <Bell size={21} aria-hidden="true" />
           <p className="persistentOrionEyebrow">Reminders & Alerts</p>
         </div>
-        <p className="persistentOrionSectionCopy">{pushMessage || pushStatusMessage(pushStatus)}</p>
-        <div className="persistentOrionVoiceActions">
-          <button
-            type="button"
-            className="persistentOrionVoicePrimary"
-            disabled={pushBusy || pushStatus === "enabled" || pushStatus === "unsupported" || pushStatus === "not_installed"}
-            onClick={() => {
-              setPushBusy(true);
-              setPushMessage(null);
-              void enableOrionBackgroundPush()
-                .then(() => {
-                  setPushStatus("enabled");
-                  setPushMessage("Background Orion notifications are enabled. You can now receive reminder alerts even when B.O.S. is closed.");
-                })
-                .catch((error) => {
-                  setPushMessage(error instanceof Error ? error.message : "Unable to enable Orion notifications.");
-                  void getOrionPushStatus().then(setPushStatus);
-                })
-                .finally(() => setPushBusy(false));
-            }}
-          >
-            {pushStatus === "enabled" ? "Notifications Enabled" : pushBusy ? "Enabling…" : "Enable Orion Notifications"}
-          </button>
-        </div>
+        <p className="persistentOrionSectionCopy">{pushStatusMessage(pushStatus)}</p>
       </section>
-
-      <section className="persistentOrionSection persistentOrionRealtimeSection" aria-label="Realtime voice settings">
-        <div className="persistentOrionSectionHeading">
-          <AudioLines size={21} aria-hidden="true" />
-          <p className="persistentOrionEyebrow">Realtime Voice</p>
-        </div>
-        <label className="persistentOrionVoiceSelectWrap" htmlFor="orion-realtime-voice-select">
-          <CircleUserRound size={24} aria-hidden="true" />
-          <span className="persistentOrionVoiceSelectText">
-            <strong>{voiceLabel(voice.realtimeVoice)}</strong>
-            <span>Realtime voice</span>
-          </span>
-          <select id="orion-realtime-voice-select" className="persistentOrionVoiceSelect" value={voice.realtimeVoice} disabled={realtimeSessionActive} onChange={(event) => voice.setRealtimeVoice(event.target.value as OrionRealtimeVoice)} aria-label="Realtime voice">
-            {voice.availableRealtimeVoices.map((option) => <option key={option} value={option}>{voiceLabel(option)}</option>)}
-          </select>
-        </label>
-        <p className="persistentOrionVoiceNote">{realtimeSessionActive ? "End the current Realtime conversation to change voices." : "Your Realtime voice choice is saved on this device."}</p>
-        <p className="persistentOrionVoiceNote persistentOrionIsolationNote" role="status">Focused voice isolation is active: background noise is reduced.<Check size={17} aria-hidden="true" /></p>
-        <div className="persistentOrionVoiceStatusWrap"><OrionVoiceStatus state={voice.phase} message={sanitizeOrionStatusMessage(voice.statusMessage || voice.supportMessage)} showNotice /></div>
-        <div className="persistentOrionVoiceTranscriptWrap"><OrionVoiceTranscript interimTranscript={voice.interimTranscript} finalTranscript={voice.finalTranscript} onStop={() => void voice.stop()} onCancel={() => void voice.stop()} onRestart={() => void voice.start()} onRetry={() => void voice.retry()} /></div>
-      </section>
-
-      <dl className="persistentOrionFacts">
-        <div><dt>Evidence status</dt><dd>{fixture.evidenceStatus}</dd></div>
-        <div><dt>Data freshness</dt><dd>{fixture.dataFreshness}</dd></div>
-        <div><dt>Recommended next review</dt><dd>{fixture.recommendedNextReview}</dd></div>
-        <div><dt>Approval boundary</dt><dd>{fixture.approvalBoundary}</dd></div>
-        <div><dt>Limitations</dt><dd>{fixture.limitations}</dd></div>
-      </dl>
 
       <footer className="persistentOrionPanelFooter">
         <button type="button" className="persistentOrionLinkAction" onClick={onOpenCommandCenter}>Open Advanced Orion</button>
