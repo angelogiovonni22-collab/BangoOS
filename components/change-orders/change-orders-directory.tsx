@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button, ErrorState, SkeletonLoader, SummaryCard, TableContainer } from "@/components/ui";
 import {
@@ -186,11 +185,6 @@ export function ChangeOrdersDirectory({
       <TableContainer
         title="Change Orders Directory"
         description="Track scope changes, approvals, and financial impacts."
-        controls={(
-          <Link href="/change-orders/new">
-            <Button size="sm">New Change Order</Button>
-          </Link>
-        )}
       >
         {isLoading ? (
           <div className="p-6 space-y-3">
