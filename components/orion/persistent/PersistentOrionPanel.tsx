@@ -221,7 +221,7 @@ export function PersistentOrionPanel({
       </dl>
 
       <footer className="persistentOrionPanelFooter">
-        <button type="button" className="persistentOrionLinkAction" onClick={onOpenCommandCenter}>View full Orion Core workspace</button>
+        <button type="button" className="persistentOrionLinkAction" onClick={onOpenCommandCenter}>Open Advanced Orion</button>
         <button type="button" className="persistentOrionMinimize" onClick={onHide}>Hide Orion</button>
         <button type="button" className="persistentOrionMinimize" onClick={onToggleMinimized}>{minimized ? "Restore Orion" : "Minimize Orion"}</button>
       </footer>
