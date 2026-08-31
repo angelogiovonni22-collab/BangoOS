@@ -1,0 +1,5 @@
+/* Keep the entire B.O.S. sidebar on one continuous navy surface. */
+#bangoos-sidebar {
+  background: var(--bos-bg-sidebar) !important;
+  background-image: none !important;
+}
