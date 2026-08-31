@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Button, Dialog, ErrorState } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
@@ -27,6 +28,25 @@ type SchedulingDashboardProps = {
   workspace?: "schedule" | "dispatch";
   initialProjectId?: string;
 };
+
+const scheduleKpiIds = new Set([
+  "employeesScheduled",
+  "crewsAssigned",
+  "openShifts",
+  "conflicts",
+  "overtimeRisk",
+  "understaffedProjects",
+  "overstaffedProjects",
+  "scheduleHealth",
+]);
+
+const dispatchKpiIds = new Set([
+  "availableEmployees",
+  "availableCrews",
+  "crewsAssigned",
+  "openShifts",
+  "conflicts",
+]);
 
 function assignmentToDraft(assignment: ScheduleAssignment): AssignmentDraft {
   return {
@@ -55,6 +75,7 @@ function assignmentToDraft(assignment: ScheduleAssignment): AssignmentDraft {
 }
 
 export function SchedulingDashboard({ initialSection = "overview", workspace = "dispatch", initialProjectId }: SchedulingDashboardProps) {
+  const router = useRouter();
   const { locale, t } = useI18n();
   const scheduling = useScheduling({ initialProjectId });
   const [activeSection, setActiveSection] = useState(initialSection);
@@ -95,12 +116,17 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
     setUndoSnapshot(null);
   };
 
-  const openSections = useMemo(() => [
-    { key: "overview", label: t("scheduling.sections.overview") },
-    { key: "calendar", label: t("scheduling.sections.calendar") },
-    { key: "dispatch", label: t("scheduling.sections.dispatch") },
-    { key: "forecast", label: t("scheduling.sections.forecast") },
-  ] as const, [t]);
+  const openSections = useMemo(() => {
+    if (workspace === "dispatch") {
+      return [{ key: "dispatch", label: t("scheduling.sections.dispatch") }] as const;
+    }
+
+    return [
+      { key: "calendar", label: t("scheduling.sections.calendar") },
+      { key: "overview", label: t("scheduling.sections.overview") },
+      { key: "forecast", label: t("scheduling.sections.forecast") },
+    ] as const;
+  }, [t, workspace]);
 
   if (scheduling.isLoading && !scheduling.payload) return <SchedulingLoadingState />;
 
@@ -112,6 +138,11 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
   const pageTitle = workspace === "schedule" ? t("scheduling.pageTitleSchedule") : t("scheduling.pageTitleDispatch");
   const pageSummary = workspace === "schedule" ? t("scheduling.summary.scheduleOperational") : t("scheduling.summary.dispatchOperational");
   const emptyStateHref = workspace === "schedule" ? "/schedule" : "/dispatch";
+  const kpis = payload.summary.kpis.filter((item) => (workspace === "schedule" ? scheduleKpiIds : dispatchKpiIds).has(item.id));
+  const showCalendar = workspace === "schedule" && activeSection === "calendar";
+  const showPlanningOverview = workspace === "schedule" && activeSection === "overview";
+  const showForecast = activeSection === "forecast";
+  const showDispatch = workspace === "dispatch" && (activeSection === "dispatch" || activeSection === "overview");
 
   return (
     <div className="space-y-6">
@@ -134,7 +165,13 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         onToday={() => scheduling.setPeriodDate(new Date().toISOString().slice(0, 10))}
         onRefresh={scheduling.refresh}
         onCreateAssignment={() => setIsCreateOpen(true)}
-        onOpenDispatch={() => setActiveSection("dispatch")}
+        onOpenDispatch={() => {
+          if (workspace === "schedule") {
+            router.push("/dispatch");
+            return;
+          }
+          setActiveSection("dispatch");
+        }}
         onFilterChange={scheduling.setFilter}
         t={t}
       />
@@ -150,14 +187,21 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
             {section.label}
           </button>
         ))}
-        <Link href="/dispatch" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.dispatch")}</Link>
-        <Link href="/schedule" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.calendar")}</Link>
+        {workspace === "schedule" ? (
+          <Link href="/dispatch" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.dispatch")}</Link>
+        ) : (
+          <Link href="/schedule" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.calendar")}</Link>
+        )}
         <Link href="/dispatch/forecast" className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">{t("scheduling.routes.forecast")}</Link>
       </nav>
 
       <SchedulingKpiGrid
-        items={payload.summary.kpis}
+        items={kpis}
         onDrillDown={(id) => {
+          if (workspace === "dispatch") {
+            setActiveSection("dispatch");
+            return;
+          }
           if (id === "conflicts" || id === "openShifts" || id === "scheduleHealth") setActiveSection("overview");
         }}
         t={t}
@@ -182,7 +226,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         </div>
       ) : null}
 
-      {assignments.length === 0 ? (
+      {assignments.length === 0 && (showCalendar || showForecast) ? (
         <SchedulingEmptyState
           title={t("scheduling.empty.filteredTitle")}
           description={t("scheduling.empty.filteredDescription")}
@@ -191,7 +235,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         />
       ) : null}
 
-      {(activeSection === "overview" || activeSection === "calendar") && assignments.length > 0 ? (
+      {showCalendar && assignments.length > 0 ? (
         <ScheduleCalendar
           view={scheduling.view}
           groupBy={scheduling.filters.groupBy}
@@ -205,20 +249,45 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         />
       ) : null}
 
-      {(activeSection === "overview" || activeSection === "dispatch") ? (
-        <DispatchBoard
-          resources={payload.dispatch}
-          projectOptions={payload.projectOptions}
-          tradeOptions={payload.tradeOptions}
-          onMove={(dispatchId, status) => {
-            const delayReason = status === "delayed" ? "Manual dispatch delay" : null;
-            void scheduling.moveDispatch(dispatchId, status, delayReason);
-          }}
-          t={t}
-        />
+      {showDispatch ? (
+        <div className="space-y-5">
+          <DispatchBoard
+            resources={payload.dispatch}
+            projectOptions={payload.projectOptions}
+            tradeOptions={payload.tradeOptions}
+            onMove={(dispatchId, status) => {
+              const delayReason = status === "delayed" ? "Manual dispatch delay" : null;
+              void scheduling.moveDispatch(dispatchId, status, delayReason);
+            }}
+            t={t}
+          />
+
+          <div className="grid gap-5 2xl:grid-cols-2">
+            <OpenShiftsPanel
+              items={payload.openShifts.filter((item) => !item.dismissed)}
+              employeeOptions={payload.employeeOptions}
+              crewOptions={payload.crewOptions}
+              onAssign={(openShiftId, employeeId, crewId) => void scheduling.fillOpenShift(openShiftId, employeeId, crewId)}
+              onDismiss={(openShiftId) => void scheduling.dismissOpenShift(openShiftId)}
+              t={t}
+            />
+            <AvailableResourcesPanel items={payload.contractorVendors ?? []} t={t} />
+          </div>
+
+          <ConflictCenter items={payload.conflicts} onResolve={(conflictId, status) => void scheduling.resolveConflict(conflictId, status)} t={t} />
+
+          {payload.insights.length > 0 ? (
+            <SchedulingAiAssistant
+              insights={payload.insights}
+              onAccept={(insightId) => void scheduling.acceptInsight(insightId)}
+              onDismiss={(insightId) => void scheduling.dismissInsight(insightId)}
+              t={t}
+            />
+          ) : null}
+        </div>
       ) : null}
 
-      {(activeSection === "overview" || activeSection === "forecast") ? (
+      {showForecast ? (
         <div className="space-y-4">
           <LaborForecastSummary forecast={forecastHook.forecast} range={forecastHook.range} onRangeChange={(value) => forecastHook.setRange(value as LaborForecastRange)} t={t} />
           <div className="grid gap-4 2xl:grid-cols-2">
@@ -232,32 +301,36 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         </div>
       ) : null}
 
-      <div className="grid gap-5 2xl:grid-cols-2">
-        <OpenShiftsPanel
-          items={payload.openShifts.filter((item) => !item.dismissed)}
-          employeeOptions={payload.employeeOptions}
-          crewOptions={payload.crewOptions}
-          onAssign={(openShiftId, employeeId, crewId) => void scheduling.fillOpenShift(openShiftId, employeeId, crewId)}
-          onDismiss={(openShiftId) => void scheduling.dismissOpenShift(openShiftId)}
-          t={t}
-        />
-        <AvailableResourcesPanel items={payload.contractorVendors ?? []} t={t} />
-      </div>
+      {showPlanningOverview ? (
+        <div className="space-y-5">
+          <div className="grid gap-5 2xl:grid-cols-2">
+            <OpenShiftsPanel
+              items={payload.openShifts.filter((item) => !item.dismissed)}
+              employeeOptions={payload.employeeOptions}
+              crewOptions={payload.crewOptions}
+              onAssign={(openShiftId, employeeId, crewId) => void scheduling.fillOpenShift(openShiftId, employeeId, crewId)}
+              onDismiss={(openShiftId) => void scheduling.dismissOpenShift(openShiftId)}
+              t={t}
+            />
+            <AvailableResourcesPanel items={payload.contractorVendors ?? []} t={t} />
+          </div>
 
-      <div className="grid gap-5 2xl:grid-cols-2">
-        <ConflictCenter items={payload.conflicts} onResolve={(conflictId, status) => void scheduling.resolveConflict(conflictId, status)} t={t} />
-        <ScheduleHealthCard health={payload.health} t={t} />
-      </div>
+          <div className="grid gap-5 2xl:grid-cols-2">
+            <ConflictCenter items={payload.conflicts} onResolve={(conflictId, status) => void scheduling.resolveConflict(conflictId, status)} t={t} />
+            <ScheduleHealthCard health={payload.health} t={t} />
+          </div>
 
-      <SchedulingAnalytics analytics={payload.analytics} t={t} />
+          <SchedulingAnalytics analytics={payload.analytics} t={t} />
 
-      {payload.insights.length > 0 ? (
-        <SchedulingAiAssistant
-          insights={payload.insights}
-          onAccept={(insightId) => void scheduling.acceptInsight(insightId)}
-          onDismiss={(insightId) => void scheduling.dismissInsight(insightId)}
-          t={t}
-        />
+          {payload.insights.length > 0 ? (
+            <SchedulingAiAssistant
+              insights={payload.insights}
+              onAccept={(insightId) => void scheduling.acceptInsight(insightId)}
+              onDismiss={(insightId) => void scheduling.dismissInsight(insightId)}
+              t={t}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       <Dialog
