@@ -165,6 +165,9 @@ jobs:
       - name: Run commercial launch observability regression
         run: npx -y tsx lib/operations/commercial-launch-observability.contract.test.ts
 
+      - name: Run operations interactivity regression
+        run: npx -y tsx components/operations/operations-interactivity.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
