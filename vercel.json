@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/branding/bos-operating-system-logo.png",
-      "destination": "/branding/bos-operating-system-logo.svg"
-    }
-  ]
-}
