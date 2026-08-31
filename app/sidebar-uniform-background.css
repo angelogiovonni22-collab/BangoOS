@@ -10,7 +10,8 @@
   #bangoos-sidebar > button[aria-label="Activate Orion"] {
     position: fixed !important;
     top: 18px !important;
-    right: 708px !important;
+    left: calc(100vw - 832px) !important;
+    right: auto !important;
     z-index: 34 !important;
     width: 120px !important;
     height: 44px !important;
@@ -24,11 +25,13 @@
   [aria-label="Persistent Orion surface"] {
     position: fixed !important;
     top: 8px !important;
-    right: 836px !important;
-    left: auto !important;
+    left: calc(100vw - 900px) !important;
+    right: auto !important;
     bottom: auto !important;
     z-index: 35 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     transform: scale(0.46) !important;
-    transform-origin: top right !important;
+    transform-origin: top left !important;
   }
 }
