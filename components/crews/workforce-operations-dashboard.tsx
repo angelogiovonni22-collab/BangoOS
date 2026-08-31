@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ArrowUpRight } from "lucide-react";
 import { AlertTriangle, HardHat, Users } from "./crew-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,8 @@ function schedulingLabel(key: string, params?: Record<string, string | number>) 
   return key;
 }
 
+const interactiveCardClass = "transition duration-150 hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
+
 function DailyAssignmentBoard({
   data,
   disabled,
@@ -68,9 +71,7 @@ function DailyAssignmentBoard({
   }, [data]);
 
   const handleDropToCrew = async (crewId: string) => {
-    if (!draggingEmployeeId || disabled) {
-      return;
-    }
+    if (!draggingEmployeeId || disabled) return;
 
     await onReassign({
       employeeId: draggingEmployeeId,
@@ -84,27 +85,35 @@ function DailyAssignmentBoard({
 
   return (
     <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-5">
-      <h3 className="text-lg font-semibold text-[var(--text-primary)]">Daily Assignment Board</h3>
-      <p className="mb-4 text-sm text-[var(--text-secondary)]">Drag employees between crew lanes to reassign workforce coverage for today.</p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)]">Daily Assignment Board</h3>
+          <p className="text-sm text-[var(--text-secondary)]">Drag employees between crew lanes to reassign workforce coverage for today.</p>
+        </div>
+        <Link href="/crews" className="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
+          Manage crews <ArrowUpRight size={14} aria-hidden="true" />
+        </Link>
+      </div>
 
       <div className="grid gap-3 xl:grid-cols-4">
         <div
           onDragOver={(event) => event.preventDefault()}
-          onDrop={() => {
-            setDraggingEmployeeId(null);
-          }}
+          onDrop={() => setDraggingEmployeeId(null)}
           className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-subtle)] bg-[var(--surface-default)] p-3"
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Employee Pool</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Employee Pool</p>
+            <Link href="/employees" className="text-xs font-semibold text-blue-500 hover:underline">Employees</Link>
+          </div>
           <div className="mt-2 space-y-2">
             {(employeesByCrew.get("unassigned") || []).map((employee) => (
               <article
                 key={employee.employeeId}
                 draggable={!disabled}
                 onDragStart={() => setDraggingEmployeeId(employee.employeeId)}
-                className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-2"
+                className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-2 transition hover:border-blue-400"
               >
-                <p className="text-sm font-medium text-[var(--text-primary)]">{employee.employeeName}</p>
+                <Link href={`/employees/${employee.employeeId}`} className="text-sm font-medium text-[var(--text-primary)] hover:underline">{employee.employeeName}</Link>
                 <p className="text-xs text-[var(--text-secondary)]">{employee.currentStatus}</p>
               </article>
             ))}
@@ -116,13 +125,11 @@ function DailyAssignmentBoard({
           <div
             key={crew.crewId}
             onDragOver={(event) => event.preventDefault()}
-            onDrop={() => {
-              void handleDropToCrew(crew.crewId);
-            }}
-            className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3"
+            onDrop={() => void handleDropToCrew(crew.crewId)}
+            className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3 transition hover:border-blue-400"
           >
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">{crew.crewName}</p>
+              <Link href={`/crews/${crew.crewId}`} className="text-sm font-semibold text-[var(--text-primary)] hover:underline">{crew.crewName}</Link>
               <Badge tone={crew.shiftStatus === "working" ? "success" : crew.shiftStatus === "traveling" ? "info" : "neutral"}>{crew.shiftStatus}</Badge>
             </div>
             <p className="text-xs text-[var(--text-secondary)]">{crew.currentProjectName || "Unassigned project"}</p>
@@ -132,9 +139,9 @@ function DailyAssignmentBoard({
                   key={employee.employeeId}
                   draggable={!disabled}
                   onDragStart={() => setDraggingEmployeeId(employee.employeeId)}
-                  className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-2"
+                  className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-2 transition hover:border-blue-400"
                 >
-                  <p className="text-sm font-medium text-[var(--text-primary)]">{employee.employeeName}</p>
+                  <Link href={`/employees/${employee.employeeId}`} className="text-sm font-medium text-[var(--text-primary)] hover:underline">{employee.employeeName}</Link>
                   <p className="text-xs text-[var(--text-secondary)]">{employee.assignedJobName || "No assignment"}</p>
                 </article>
               ))}
@@ -150,28 +157,40 @@ function DailyAssignmentBoard({
 function CrewWorkspace({ crews, assignments }: { crews: CrewStatusRow[]; assignments: WorkforceOperationsDashboardData["dailyAssignments"] }) {
   return (
     <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-5">
-      <h3 className="text-lg font-semibold text-[var(--text-primary)]">Crew Detail Workspace</h3>
-      <p className="mb-4 text-sm text-[var(--text-secondary)]">Crew members, supervisor, equipment, schedule, notes, and labor-hour context.</p>
-      <div className="grid gap-3 xl:grid-cols-2">
-        {crews.map((crew) => {
-          const todaysAssignments = assignments.filter((assignment) => assignment.crewId === crew.crewId);
-          const plannedHours = todaysAssignments.reduce((sum, assignment) => sum + Math.max(0, assignment.requiredHeadcount * 8), 0);
-
-          return (
-            <article key={crew.crewId} className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
-              <div className="flex items-center justify-between gap-2">
-                <Link href={`/crews/${crew.crewId}`} className="text-sm font-semibold text-[var(--text-primary)] hover:underline">{crew.crewName}</Link>
-                <Badge tone={crew.shiftStatus === "working" ? "success" : crew.shiftStatus === "traveling" ? "info" : "neutral"}>{crew.shiftStatus}</Badge>
-              </div>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">Supervisor: {crew.supervisorName || "Unassigned"}</p>
-              <p className="text-xs text-[var(--text-secondary)]">Equipment assigned: {crew.equipmentAssignedCount}</p>
-              <p className="text-xs text-[var(--text-secondary)]">Today&apos;s assignments: {todaysAssignments.length}</p>
-              <p className="text-xs text-[var(--text-secondary)]">Planned labor hours: {plannedHours}</p>
-              <p className="text-xs text-[var(--text-secondary)]">Schedule progress: {crew.shiftProgressPercent}%</p>
-            </article>
-          );
-        })}
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)]">Crew Detail Workspace</h3>
+          <p className="text-sm text-[var(--text-secondary)]">Crew members, supervisor, equipment, schedule, notes, and labor-hour context.</p>
+        </div>
+        <Link href="/crews" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-500 hover:underline">Open crews <ArrowUpRight size={13} aria-hidden="true" /></Link>
       </div>
+      {crews.length > 0 ? (
+        <div className="grid gap-3 xl:grid-cols-2">
+          {crews.map((crew) => {
+            const todaysAssignments = assignments.filter((assignment) => assignment.crewId === crew.crewId);
+            const plannedHours = todaysAssignments.reduce((sum, assignment) => sum + Math.max(0, assignment.requiredHeadcount * 8), 0);
+
+            return (
+              <Link key={crew.crewId} href={`/crews/${crew.crewId}`} className={`group rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3 ${interactiveCardClass}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-blue-500">{crew.crewName}</span>
+                  <span className="flex items-center gap-2">
+                    <Badge tone={crew.shiftStatus === "working" ? "success" : crew.shiftStatus === "traveling" ? "info" : "neutral"}>{crew.shiftStatus}</Badge>
+                    <ArrowUpRight size={14} className="text-[var(--text-secondary)] group-hover:text-blue-500" aria-hidden="true" />
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">Supervisor: {crew.supervisorName || "Unassigned"}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Equipment assigned: {crew.equipmentAssignedCount}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Today&apos;s assignments: {todaysAssignments.length}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Planned labor hours: {plannedHours}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Schedule progress: {crew.shiftProgressPercent}%</p>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-subtle)] p-4 text-sm text-[var(--text-secondary)]">No active crew records are available. Open Crews to create or activate a crew.</p>
+      )}
     </Card>
   );
 }
@@ -179,23 +198,35 @@ function CrewWorkspace({ crews, assignments }: { crews: CrewStatusRow[]; assignm
 function EmployeeWorkspace({ data }: { data: WorkforceOperationsDashboardData }) {
   return (
     <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-5">
-      <h3 className="text-lg font-semibold text-[var(--text-primary)]">Employee Detail Workspace</h3>
-      <p className="mb-4 text-sm text-[var(--text-secondary)]">Assignments, availability, PTO/off-day status, contact visibility, and current project context.</p>
-      <div className="grid gap-3 xl:grid-cols-2">
-        {data.employeeStatus.slice(0, 12).map((employee) => (
-          <article key={employee.employeeId} className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
-            <div className="flex items-center justify-between gap-2">
-              <Link href={`/employees/${employee.employeeId}`} className="text-sm font-semibold text-[var(--text-primary)] hover:underline">{employee.employeeName}</Link>
-              <Badge tone={employee.currentStatus === "working" ? "success" : employee.currentStatus === "available" ? "info" : "warning"}>{employee.currentStatus}</Badge>
-            </div>
-            <p className="text-xs text-[var(--text-secondary)]">Current project: {employee.assignedJobName || "Unassigned"}</p>
-            <p className="text-xs text-[var(--text-secondary)]">Crew: {employee.assignedCrewName || "None"}</p>
-            <p className="text-xs text-[var(--text-secondary)]">Hours today: {employee.timeTodayHours.toFixed(1)}</p>
-            <p className="text-xs text-[var(--text-secondary)]">PTO/off status: {employee.currentStatus === "off" ? "Off/PTO" : "Active"}</p>
-            <p className="text-xs text-[var(--text-secondary)]">Contact: {employee.contactPhone || "Available in employee profile"}</p>
-          </article>
-        ))}
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)]">Employee Detail Workspace</h3>
+          <p className="text-sm text-[var(--text-secondary)]">Assignments, availability, PTO/off-day status, contact visibility, and current project context.</p>
+        </div>
+        <Link href="/employees" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-500 hover:underline">Open employees <ArrowUpRight size={13} aria-hidden="true" /></Link>
       </div>
+      {data.employeeStatus.length > 0 ? (
+        <div className="grid gap-3 xl:grid-cols-2">
+          {data.employeeStatus.slice(0, 12).map((employee) => (
+            <Link key={employee.employeeId} href={`/employees/${employee.employeeId}`} className={`group rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3 ${interactiveCardClass}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-[var(--text-primary)] group-hover:text-blue-500">{employee.employeeName}</span>
+                <span className="flex items-center gap-2">
+                  <Badge tone={employee.currentStatus === "working" ? "success" : employee.currentStatus === "available" ? "info" : "warning"}>{employee.currentStatus}</Badge>
+                  <ArrowUpRight size={14} className="text-[var(--text-secondary)] group-hover:text-blue-500" aria-hidden="true" />
+                </span>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)]">Current project: {employee.assignedJobName || "Unassigned"}</p>
+              <p className="text-xs text-[var(--text-secondary)]">Crew: {employee.assignedCrewName || "None"}</p>
+              <p className="text-xs text-[var(--text-secondary)]">Hours today: {employee.timeTodayHours.toFixed(1)}</p>
+              <p className="text-xs text-[var(--text-secondary)]">PTO/off status: {employee.currentStatus === "off" ? "Off/PTO" : "Active"}</p>
+              <p className="text-xs text-[var(--text-secondary)]">Contact: {employee.contactPhone || "Available in employee profile"}</p>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--border-subtle)] p-4 text-sm text-[var(--text-secondary)]">No active employee records are available. Open Employees to manage workforce records.</p>
+      )}
     </Card>
   );
 }
@@ -210,64 +241,47 @@ function EquipmentAssignmentWorkspace({
   onAssignEquipment: (input: { crewId: string; equipmentIds: string[] }) => Promise<void>;
 }) {
   const [crewId, setCrewId] = useState(data.options.crewOptions[0]?.id || "");
-  const [projectId, setProjectId] = useState(data.options.assignmentOptions[0]?.projectId || "");
   const [equipmentIds, setEquipmentIds] = useState("");
-
-  const projectOptions = Array.from(
-    new Map(data.options.assignmentOptions.map((option) => [option.projectId, option.projectName])).entries(),
-  ).map(([id, label]) => ({ id, label }));
+  const hasCrewOptions = data.options.crewOptions.length > 0;
 
   return (
     <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-5">
-      <h3 className="text-lg font-semibold text-[var(--text-primary)]">Equipment Assignment</h3>
-      <p className="mb-4 text-sm text-[var(--text-secondary)]">Assign equipment to crews and map assignment context to active projects.</p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)]">Equipment Assignment</h3>
+          <p className="text-sm text-[var(--text-secondary)]">Assign equipment to a crew. Project-level equipment context remains managed in the Equipment module.</p>
+        </div>
+        <Link href="/equipment" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-500 hover:underline">Open equipment <ArrowUpRight size={13} aria-hidden="true" /></Link>
+      </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
-        <Select value={crewId} onChange={(event) => setCrewId(event.target.value)} aria-label="Equipment crew">
-          {data.options.crewOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-        </Select>
+      <div className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_minmax(260px,2fr)_auto] md:items-end">
+        <label className="grid gap-1.5 text-xs font-semibold text-[var(--text-secondary)]">
+          Crew
+          <Select value={crewId} onChange={(event) => setCrewId(event.target.value)} aria-label="Equipment crew" disabled={!hasCrewOptions || disabled}>
+            {!hasCrewOptions ? <option value="">No crews available</option> : null}
+            {data.options.crewOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </Select>
+        </label>
 
-        <Select value={projectId} onChange={(event) => setProjectId(event.target.value)} aria-label="Equipment project">
-          {projectOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-        </Select>
-
-        <Input value={equipmentIds} onChange={(event) => setEquipmentIds(event.target.value)} placeholder="Equipment IDs comma-separated" aria-label="Equipment IDs" />
+        <label className="grid gap-1.5 text-xs font-semibold text-[var(--text-secondary)]">
+          Equipment IDs
+          <Input value={equipmentIds} onChange={(event) => setEquipmentIds(event.target.value)} placeholder="Equipment IDs, comma-separated" aria-label="Equipment IDs" disabled={disabled} />
+        </label>
 
         <Button
           variant="secondary"
+          className="transition hover:-translate-y-0.5 hover:shadow-sm"
           disabled={disabled || !crewId || !equipmentIds.trim()}
           onClick={() => void onAssignEquipment({
             crewId,
             equipmentIds: equipmentIds.split(",").map((value) => value.trim()).filter(Boolean),
           })}
         >
-          Assign To Crew/Project
+          Assign to crew
         </Button>
       </div>
 
-      <p className="mt-2 text-xs text-[var(--text-secondary)]">Project context: {projectOptions.find((project) => project.id === projectId)?.label || "Not selected"}</p>
-      <p className="text-xs text-[var(--text-secondary)]">Assignment history and availability remain visible in the Equipment module and crew profile equipment sections.</p>
-    </Card>
-  );
-}
-
-function DailyReportsWorkspace({ data }: { data: WorkforceOperationsDashboardData }) {
-  return (
-    <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-5">
-      <h3 className="text-lg font-semibold text-[var(--text-primary)]">Daily Reports</h3>
-      <p className="mb-4 text-sm text-[var(--text-secondary)]">Capture manpower, completed work, delays, weather, and field notes.</p>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Manpower" value={String(data.summary.employeesClockedIn)} detail={`${data.summary.activeEmployees} active employees`} />
-        <Metric label="Completed work" value={String(data.dailyAssignments.filter((item) => item.status === "completed").length)} detail="Completed assignments today" />
-        <Metric label="Delays" value={String(data.assignmentConflicts.filter((item) => item.severity === "critical" || item.severity === "high").length)} detail="High-impact conflicts" />
-        <Metric label="Weather/notes" value={String(data.dailyOperations.filter((row) => Boolean(row.crewNotes || row.supervisorNotes || row.safetyNotes)).length)} detail="Ops notes captured" />
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Link href="/daily-reports" className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]">Open Daily Reports</Link>
-        <Link href="/daily-reports/new" className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]">Create Daily Report</Link>
-      </div>
+      <p className="mt-3 text-xs text-[var(--text-secondary)]">Assignment history and availability remain visible in Equipment and crew profiles.</p>
     </Card>
   );
 }
@@ -287,7 +301,7 @@ function SafetyWorkspace({ data }: { data: WorkforceOperationsDashboardData }) {
         <Metric label="Toolbox talks" value={String(toolboxTalks)} detail="Scheduled/recorded today" />
         <Metric label="Inspections" value={String(inspections)} detail="Inspection activities" />
         <Metric label="Incidents" value={String(incidents)} detail="Safety flags requiring action" />
-        <Metric label="Acknowledgements" value={String(acknowledgements)} detail="Workers currently active" />
+        <Metric href="/employees" label="Acknowledgements" value={String(acknowledgements)} detail="Workers currently active" />
       </div>
 
       <div className="mt-4 space-y-2">
@@ -330,10 +344,13 @@ function CrewCalendarWorkspace() {
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Crew Calendar</h3>
           <p className="text-sm text-[var(--text-secondary)]">Day, week, and month crew scheduling views.</p>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant={calendarView === "day" ? "secondary" : "ghost"} onClick={() => setCalendarView("day")}>Day</Button>
-          <Button size="sm" variant={calendarView === "week" ? "secondary" : "ghost"} onClick={() => setCalendarView("week")}>Week</Button>
-          <Button size="sm" variant={calendarView === "month" ? "secondary" : "ghost"} onClick={() => setCalendarView("month")}>Month</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/schedule" className="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
+            Full schedule <ArrowUpRight size={13} aria-hidden="true" />
+          </Link>
+          <Button aria-pressed={calendarView === "day"} size="sm" variant={calendarView === "day" ? "secondary" : "ghost"} onClick={() => setCalendarView("day")}>Day</Button>
+          <Button aria-pressed={calendarView === "week"} size="sm" variant={calendarView === "week" ? "secondary" : "ghost"} onClick={() => setCalendarView("week")}>Week</Button>
+          <Button aria-pressed={calendarView === "month"} size="sm" variant={calendarView === "month" ? "secondary" : "ghost"} onClick={() => setCalendarView("month")}>Month</Button>
         </div>
       </div>
 
@@ -343,26 +360,31 @@ function CrewCalendarWorkspace() {
         date={scheduling.periodDate}
         assignments={scheduling.filteredAssignments}
         locale="en"
-        onMoveAssignment={(assignmentId, targetDate) => {
-          void scheduling.moveAssignmentCard(assignmentId, { date: targetDate });
-        }}
-        onQuickMoveShift={(assignmentId, shift) => {
-          void scheduling.moveAssignmentCard(assignmentId, { shift });
-        }}
+        onMoveAssignment={(assignmentId, targetDate) => void scheduling.moveAssignmentCard(assignmentId, { date: targetDate })}
+        onQuickMoveShift={(assignmentId, shift) => void scheduling.moveAssignmentCard(assignmentId, { shift })}
         t={schedulingLabel}
       />
     </Card>
   );
 }
 
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">{label}</p>
+function Metric({ href, label, value, detail }: { href?: string; label: string; value: string; detail: string }) {
+  const content = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">{label}</p>
+        {href ? <ArrowUpRight size={14} className="text-[var(--text-secondary)] group-hover:text-blue-500" aria-hidden="true" /> : null}
+      </div>
       <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">{value}</p>
       <p className="mt-1 text-xs text-[var(--text-secondary)]">{detail}</p>
-    </div>
+    </>
   );
+
+  if (href) {
+    return <Link href={href} className={`group rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3 ${interactiveCardClass}`}>{content}</Link>;
+  }
+
+  return <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">{content}</div>;
 }
 
 export function WorkforceOperationsDashboard() {
@@ -409,14 +431,21 @@ export function WorkforceOperationsDashboard() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">CrewOS Supervisor Operations Workspace</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Operational tools for calendar planning, assignment control, workforce coordination, equipment, daily reporting, and safety.</p>
+          <h2 className="text-2xl font-semibold text-[var(--text-primary)]">CrewOS Supervisor Operations Workspace</h2>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Operational tools for calendar planning, assignment control, workforce coordination, equipment, and safety.</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge tone="info">Generated {new Date(data.generatedAt).toLocaleTimeString()}</Badge>
-          <Button variant="secondary" disabled={isMutating} onClick={() => void refresh()}>Refresh Data</Button>
+          <Button variant="secondary" className="transition hover:-translate-y-0.5 hover:shadow-sm" disabled={isMutating} onClick={() => void refresh()}>Refresh Data</Button>
         </div>
       </div>
+
+      <nav aria-label="Operations workspace shortcuts" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <WorkspaceShortcut href="/schedule" label="Schedule" detail="Crew and project planning" />
+        <WorkspaceShortcut href="/crews" label="Crews" detail="Crew profiles and assignments" />
+        <WorkspaceShortcut href="/employees" label="Employees" detail="Workforce records and status" />
+        <WorkspaceShortcut href="/equipment" label="Equipment" detail="Equipment availability and assignments" />
+      </nav>
 
       {actionMessage ? (
         <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-3">
@@ -431,32 +460,24 @@ export function WorkforceOperationsDashboard() {
             <p className="text-sm font-semibold">Partial Data Notices</p>
           </div>
           <ul className="space-y-1 text-sm text-[var(--text-secondary)]">
-            {data.partialNotices.map((notice) => (
-              <li key={notice}>- {notice}</li>
-            ))}
+            {data.partialNotices.map((notice) => <li key={notice}>- {notice}</li>)}
           </ul>
         </Card>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Active crews" value={String(data.summary.activeCrews)} detail="Crews currently available" />
-        <Metric label="Active employees" value={String(data.summary.activeEmployees)} detail="Workforce headcount today" />
-        <Metric label="Open assignments" value={String(data.summary.openAssignments)} detail="Needs staffing attention" />
-        <Metric label="Attendance issues" value={String(data.summary.employeesLate + data.summary.employeesAbsent)} detail="Late + absent workers" />
+        <Metric href="/crews" label="Active crews" value={String(data.summary.activeCrews)} detail="Crews currently available" />
+        <Metric href="/employees" label="Active employees" value={String(data.summary.activeEmployees)} detail="Workforce headcount today" />
+        <Metric href="/schedule" label="Open assignments" value={String(data.summary.openAssignments)} detail="Needs staffing attention" />
+        <Metric href="/employees" label="Attendance issues" value={String(data.summary.employeesLate + data.summary.employeesAbsent)} detail="Late + absent workers" />
       </div>
 
       <CrewCalendarWorkspace />
 
-      <DailyAssignmentBoard
-        data={data}
-        disabled={isMutating}
-        onReassign={reassignEmployeeToCrew}
-      />
-
+      <DailyAssignmentBoard data={data} disabled={isMutating} onReassign={reassignEmployeeToCrew} />
       <CrewWorkspace crews={data.crewStatus} assignments={data.dailyAssignments} />
       <EmployeeWorkspace data={data} />
       <EquipmentAssignmentWorkspace data={data} disabled={isMutating} onAssignEquipment={assignEquipmentToCrew} />
-      <DailyReportsWorkspace data={data} />
       <SafetyWorkspace data={data} />
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
@@ -467,5 +488,17 @@ export function WorkforceOperationsDashboard() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function WorkspaceShortcut({ href, label, detail }: { href: string; label: string; detail: string }) {
+  return (
+    <Link href={href} className={`group flex items-center justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 ${interactiveCardClass}`}>
+      <span>
+        <span className="block text-sm font-semibold text-[var(--text-primary)] group-hover:text-blue-500">{label}</span>
+        <span className="mt-0.5 block text-xs text-[var(--text-secondary)]">{detail}</span>
+      </span>
+      <ArrowUpRight size={16} className="shrink-0 text-[var(--text-secondary)] group-hover:text-blue-500" aria-hidden="true" />
+    </Link>
   );
 }
