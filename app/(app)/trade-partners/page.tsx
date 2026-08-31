@@ -121,11 +121,7 @@ export default async function TradePartnersControlCenterPage() {
                         return <div key={partner.id} className="mt-3"><p className="text-sm font-semibold">{name}</p><p className="mt-1 text-xs text-emerald-600">Active · linked to this vendor</p></div>;
                       }) : <div className="mt-3"><p className="text-sm font-semibold text-amber-700">No active partner login</p><p className="mt-1 text-xs text-[var(--bos-text-muted)]">Link a subcontractor membership to this vendor before field login testing.</p></div>}
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Link href={`/vendors/${vendor.id}`} className="rounded-lg border border-[var(--bos-border-default)] px-3 py-2 text-center text-xs font-semibold transition hover:bg-[var(--bos-bg-hover)]">Vendor Profile</Link>
-                      <Link href="/settings/access-control" className="rounded-lg border border-[var(--bos-border-default)] px-3 py-2 text-center text-xs font-semibold transition hover:bg-[var(--bos-bg-hover)]">Login Access</Link>
-                      <Link href="/trade-partner-messages" className="col-span-2 rounded-lg border border-[var(--bos-border-default)] px-3 py-2 text-center text-xs font-semibold transition hover:bg-[var(--bos-bg-hover)]">Trade Partner Messages</Link>
-                    </div>
+                    <Link href={`/vendors/${vendor.id}`} className="block rounded-lg border border-[var(--bos-border-default)] px-3 py-2 text-center text-xs font-semibold transition hover:bg-[var(--bos-bg-hover)]">Vendor Profile</Link>
                   </div>
 
                   <div>
