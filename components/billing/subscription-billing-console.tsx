@@ -15,6 +15,17 @@ type BillingAccount = {
   hasStripeSubscription: boolean;
 };
 
+const billingDateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+function formatBillingDate(value: string) {
+  return billingDateFormatter.format(new Date(value));
+}
+
 export function SubscriptionBillingConsole({ account, sandboxConfigured }: { account: BillingAccount; sandboxConfigured: boolean }) {
   const [interval, setInterval] = useState<BillingInterval>("month");
   const [working, setWorking] = useState<string | null>(null);
@@ -41,7 +52,7 @@ export function SubscriptionBillingConsole({ account, sandboxConfigured }: { acc
           <p className="text-xs font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">Current subscription</p>
           <h2 className="mt-1 text-2xl font-bold text-[var(--color-text-primary)]">{BILLING_PLANS.find((plan) => plan.key === account.planKey)?.name || "B.O.S."}</h2>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Status: {account.subscriptionStatus || account.lifecycleStatus}{account.billingInterval ? ` · billed ${account.billingInterval}ly` : ""}</p>
-          {account.currentPeriodEnd ? <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{account.cancelAtPeriodEnd ? "Access ends" : "Next renewal"}: {new Date(account.currentPeriodEnd).toLocaleDateString()}</p> : null}
+          {account.currentPeriodEnd ? <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{account.cancelAtPeriodEnd ? "Access ends" : "Next renewal"}: {formatBillingDate(account.currentPeriodEnd)}</p> : null}
         </div>
         {account.hasStripeCustomer ? <button type="button" disabled={working !== null} onClick={() => redirectFrom("/api/billing/portal")} className="rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-primary)] disabled:opacity-60">{working === "/api/billing/portal" ? "Opening…" : "Manage billing"}</button> : null}
       </div>
@@ -72,4 +83,3 @@ export function SubscriptionBillingConsole({ account, sandboxConfigured }: { acc
     </section>
   </div>;
 }
-
