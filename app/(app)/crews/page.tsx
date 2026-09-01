@@ -6,7 +6,7 @@ import {
   PageHeader,
   PartialDataNotice,
   TableContainer,
-  Button,
+  getButtonClassName,
 } from "@/components/ui";
 import {
   CrewDashboardMetrics,
@@ -63,11 +63,7 @@ export default function CrewsPage() {
       <PageHeader
         title={t("crews.pageTitle")}
         description={t("crews.pageDescription")}
-        secondaryActions={(
-          <Link href="/crews/new">
-            <Button size="md">New Crew</Button>
-          </Link>
-        )}
+        secondaryActions={<Link href="/crews/new" className={getButtonClassName({ size: "md" })}>New Crew</Link>}
       />
 
       <CrewDashboardMetrics summary={summary} selected={quickFilter} onSelect={setQuickFilter} t={t} />
@@ -108,12 +104,7 @@ export default function CrewsPage() {
         ) : errorMessage ? (
           <ErrorState title={t("crews.errorTitle")} description={t(errorMessage)} compact />
         ) : items.length === 0 ? (
-          <EmptyState
-            compact
-            icon={<HardHat className="h-7 w-7" />}
-            title={t("crews.empty.title")}
-            description={t("crews.empty.description")}
-          />
+          <EmptyState compact icon={<HardHat className="h-7 w-7" />} title={t("crews.empty.title")} description={t("crews.empty.description")} />
         ) : (
           <>
             <CrewTable items={items} t={t} />
