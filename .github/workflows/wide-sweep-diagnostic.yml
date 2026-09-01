@@ -1,0 +1,44 @@
+name: Wide Sweep Diagnostic
+
+on:
+  push:
+    branches:
+      - fix/production-wide-sweep
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: contains(github.event.head_commit.message, 'Run wide sweep diagnostic')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/production-wide-sweep
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Capture repository check output
+        shell: bash
+        run: |
+          mkdir -p .diagnostics
+          set +e
+          npm run check > .diagnostics/wide-sweep-check.txt 2>&1
+          code=$?
+          echo "EXIT_CODE=$code" >> .diagnostics/wide-sweep-check.txt
+          tail -n 250 .diagnostics/wide-sweep-check.txt > .diagnostics/wide-sweep-check-tail.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .diagnostics/wide-sweep-check-tail.txt
+          git commit -m "Capture wide sweep check diagnostic [skip ci]" || true
+          git push origin HEAD:fix/production-wide-sweep
+          exit 0
