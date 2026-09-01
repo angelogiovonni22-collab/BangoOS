@@ -63,10 +63,7 @@ export function SchedulingHeader({
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--color-brand-700)]">
-              {t("scheduling.header.badge")}
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{title}</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{title}</h1>
             <p className="mt-2 text-base font-medium text-[var(--color-text-secondary)]">{summary}</p>
 
             <div className="mt-4 flex flex-wrap gap-2 text-sm text-[var(--color-text-secondary)]">
