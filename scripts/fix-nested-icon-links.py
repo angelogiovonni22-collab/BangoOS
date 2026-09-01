@@ -13,7 +13,7 @@ UI_IMPORT = re.compile(r'import\s*\{(?P<names>[^}]*)\}\s*from\s*["\']@/component
 NEXT_LINK_IMPORT = 'import Link from "next/link";\n'
 TRADE_PARTNER_PATH = pathlib.Path("components/projects/workspace/project-trade-partners-workspace.tsx")
 TRADE_PARTNER_OLD = '<Link href={`/vendors/${assignment.vendorId}`}><Button type="button" variant="outline" className="w-full">View Trade Partner<ArrowUpRight size={14} /></Button></Link>'
-TRADE_PARTNER_NEW = '<Link href={`/vendors/${assignment.vendorId}`} className={getButtonClassName({ variant: "outline", className: "w-full" })}>View Trade Partner<ArrowUpRight size={14} /></Link>'
+TRADE_PARTNER_NEW = '<Link href={`/vendors/${assignment.vendorId}`} className={`${getButtonClassName({ variant: "outline" })} w-full`}>View Trade Partner<ArrowUpRight size={14} /></Link>'
 
 
 def update_ui_import(text: str, add: set[str] | None = None, remove: set[str] | None = None) -> str:
