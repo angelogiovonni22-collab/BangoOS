@@ -101,15 +101,12 @@ export function ScheduleWeekView({
   const days = getWeekDays(baseDate);
   const schedulingService = useMemo(() => createSchedulingService(), []);
   const [metadata, setMetadata] = useState<SchedulingPayload | null>(null);
-  const [liveAssignments, setLiveAssignments] = useState(assignments);
+  const [optimisticAssignments, setOptimisticAssignments] = useState<ScheduleAssignment[] | null>(null);
   const [quickSlot, setQuickSlot] = useState<QuickSlot | null>(null);
   const [quickForm, setQuickForm] = useState<QuickForm>(() => newQuickForm(null));
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLiveAssignments(assignments);
-  }, [assignments]);
+  const liveAssignments = optimisticAssignments ?? assignments;
 
   useEffect(() => {
     let active = true;
@@ -186,7 +183,7 @@ export function ScheduleWeekView({
     try {
       const next = await schedulingService.createAssignment(draft);
       setMetadata(next);
-      setLiveAssignments(next.assignments);
+      setOptimisticAssignments(next.assignments);
       setQuickSlot(null);
     } catch {
       setSaveError("Unable to save the assignment. Try again or use the full Schedule workspace.");
