@@ -6,7 +6,7 @@ import re
 
 ROOTS = [pathlib.Path("app"), pathlib.Path("components")]
 PATTERN = re.compile(
-    r"<Link\s+href=(?P<href>\{[^}]+\}|\"[^\"]+\")>\s*<IconButton(?P<attrs>[^>]*)/>\s*</Link>",
+    r"<Link\s+href=(?P<href>.+?)>\s*<IconButton(?P<attrs>[^>]*)/>\s*</Link>",
     re.DOTALL,
 )
 UI_IMPORT = re.compile(r'import\s*\{(?P<names>[^}]*)\}\s*from\s*["\']@/components/ui["\'];', re.DOTALL)
@@ -29,7 +29,8 @@ def transform(path: pathlib.Path) -> bool:
     original = path.read_text(encoding="utf-8")
 
     def repl(match: re.Match[str]) -> str:
-        return f'<IconLink href={match.group("href")}{match.group("attrs")}/>'
+        href = match.group("href").strip()
+        return f'<IconLink href={href}{match.group("attrs")}/>'
 
     updated = PATTERN.sub(repl, original)
     if updated == original:
