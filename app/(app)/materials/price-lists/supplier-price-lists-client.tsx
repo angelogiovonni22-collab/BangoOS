@@ -3,20 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, FileSpreadsheet, History, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  EmptyState,
-  ErrorState,
-  FormField,
-  Input,
-  PageHeader,
-  Select,
-  SkeletonLoader,
-  TableContainer,
-} from "@/components/ui";
+import { Badge, Button, Card, CardContent, EmptyState, ErrorState, FormField, Input, PageHeader, Select, SkeletonLoader, TableContainer, getButtonClassName } from "@/components/ui";
 import { parseSupplierPriceCsv, type SupplierPriceImportRow } from "@/lib/materials/supplier-price-lists";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -178,7 +165,7 @@ export function SupplierPriceListsClient() {
         eyebrow="Materials · Supplier pricing"
         title="Supplier Price Lists"
         description="Import dated supplier prices, validate every row, and preserve the source and price history before using costs in estimates."
-        primaryAction={<Link href="/materials"><Button variant="outline"><ArrowLeft size={16} />Materials catalog</Button></Link>}
+        primaryAction={<Link href="/materials" className={getButtonClassName({ variant: "outline" })}><ArrowLeft size={16} />Materials catalog</Link>}
       />
 
       <Card>

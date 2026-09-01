@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, EmptyState, EnterpriseTable, EnterpriseTableBody, EnterpriseTableCell, EnterpriseTableHead, EnterpriseTableHeading, EnterpriseTableRow, ErrorState, PageHeader, SkeletonLoader, TableContainer } from "@/components/ui";
+import { Button, EmptyState, EnterpriseTable, EnterpriseTableBody, EnterpriseTableCell, EnterpriseTableHead, EnterpriseTableHeading, EnterpriseTableRow, ErrorState, PageHeader, SkeletonLoader, TableContainer, getButtonClassName } from "@/components/ui";
 
 type DeletedProject = { historyId: string; projectId: string; projectName: string; customerName: string; previousStatus: string; deletedAt: string };
 
@@ -45,7 +45,7 @@ export default function DeletedProjectsPage() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow="Projects" title="Previously Deleted" description="Review projects removed from the active list and restore them without losing their project history." primaryAction={<Link href="/projects"><Button variant="outline">Back to Projects</Button></Link>} />
+      <PageHeader compact eyebrow="Projects" title="Previously Deleted" description="Review projects removed from the active list and restore them without losing their project history." primaryAction={<Link href="/projects" className={getButtonClassName({ variant: "outline" })}>Back to Projects</Link>} />
       <div className="flex flex-wrap items-center gap-2" aria-label="Project lifecycle views">
         <Link href="/projects" className="inline-flex min-h-9 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-brand-500)] hover:bg-[var(--color-surface-hover)]">Projects</Link>
         <span aria-current="page" className="inline-flex min-h-9 items-center rounded-[var(--radius-md)] border border-[var(--color-brand-500)] bg-[var(--color-brand-600)] px-3 py-2 text-sm font-semibold text-white shadow-[var(--shadow-small)]">Previously Deleted</span>
@@ -55,7 +55,7 @@ export default function DeletedProjectsPage() {
       ) : error ? (
         <ErrorState title="Unable to load deleted projects" description={error} compact />
       ) : projects.length === 0 ? (
-        <EmptyState icon="✓" title="No deleted projects" description="Projects you delete will appear here and can be restored later." compact action={<Link href="/projects"><Button>Back to Projects</Button></Link>} />
+        <EmptyState icon="✓" title="No deleted projects" description="Projects you delete will appear here and can be restored later." compact action={<Link href="/projects" className={getButtonClassName({})}>Back to Projects</Link>} />
       ) : (
         <TableContainer title="Deleted Project History" description={`${projects.length} ${projects.length === 1 ? "project" : "projects"} available to restore`}>
           <EnterpriseTable ariaLabel="Previously deleted projects">

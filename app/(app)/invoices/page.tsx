@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, PageHeader } from "@/components/ui";
+import { PageHeader, getButtonClassName } from "@/components/ui";
 import { InvoicesDirectory } from "@/components/invoices";
 import { loadInvoiceDirectoryData, getCustomerDisplayName, getProjectDisplayName } from "@/lib/invoices/service";
 import { normalizeInvoiceStatus } from "@/lib/invoices/statuses";
@@ -42,9 +42,9 @@ export default function InvoicesPage() {
   }, [supabase]);
 
   useEffect(() => { queueMicrotask(() => { void load(); }); }, [load]);
-  const workspaceCard = "group rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)] transition hover:bg-[var(--bos-bg-hover)]";
+  const workspaceCard = "group rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]";
   return <div className="container-content space-y-[var(--space-section)]">
-    <PageHeader compact eyebrow="COMPANY WORKSPACE" title="Invoices" description="Create, issue, and track customer invoices and payments." primaryAction={<Link href="/invoices/new"><Button size="md">New Invoice</Button></Link>} />
+    <PageHeader compact eyebrow="COMPANY WORKSPACE" title="Invoices" description="Create, issue, and track customer invoices and payments." primaryAction={<Link href="/invoices/new" className={getButtonClassName({ size: "md" })}>New Invoice</Link>} />
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       <Link href="/invoices/accounts-receivable" className={workspaceCard}><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--bos-text-muted)]">Finance</p><div className="mt-2 flex items-center justify-between gap-4"><div><h2 className="text-lg font-semibold">Accounts Receivable</h2><p className="mt-1 text-sm text-[var(--bos-text-secondary)]">Customer balances, collections, aging, and payment activity.</p></div><span className="text-xl text-blue-400 transition group-hover:translate-x-1">→</span></div></Link>
       <Link href="/invoices/accounts-payable" className={workspaceCard}><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--bos-text-muted)]">Finance</p><div className="mt-2 flex items-center justify-between gap-4"><div><h2 className="text-lg font-semibold">Accounts Payable</h2><p className="mt-1 text-sm text-[var(--bos-text-secondary)]">Vendor bills, approvals, balances, and overdue exposure.</p></div><span className="text-xl text-blue-400 transition group-hover:translate-x-1">→</span></div></Link>

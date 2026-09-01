@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { UnitFilters, UnitTable } from "@/components/units-of-measure";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   type UnitCategory,
@@ -352,21 +352,15 @@ export function UnitsListClient() {
           title="Units of Measure"
           description={`Manage system and company unit standards for ${companyName || "your company"}.`}
           primaryAction={(
-            <Link href="/units-of-measure/new">
-              <Button size="md">
-                <Plus size={16} />
-                New Unit
-              </Button>
-            </Link>
+            <Link href="/units-of-measure/new" className={getButtonClassName({ size: "md" })}><Plus size={16} />
+                New Unit</Link>
           )}
         />
         <EmptyState
           title="No units available"
           description="Create your first company unit or apply system defaults to begin."
           action={
-            <Link href="/units-of-measure/new">
-              <Button>Create Unit</Button>
-            </Link>
+            <Link href="/units-of-measure/new" className={getButtonClassName({})}>Create Unit</Link>
           }
         />
       </div>
@@ -380,12 +374,8 @@ export function UnitsListClient() {
         title="Units of Measure"
         description={`Centralized unit library for ${companyName || "your company"}.`}
         primaryAction={(
-          <Link href="/units-of-measure/new">
-            <Button size="md">
-              <Plus size={16} />
-              New Unit
-            </Button>
-          </Link>
+          <Link href="/units-of-measure/new" className={getButtonClassName({ size: "md" })}><Plus size={16} />
+              New Unit</Link>
         )}
       />
 

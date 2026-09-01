@@ -4,20 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { Archive, ChevronLeft, ChevronRight, Eye, FilePlus2, MoreHorizontal, Pencil, RotateCcw, Trash2 } from "lucide-react";
-import {
-  Badge,
-  Button,
-  EnterpriseTable,
-  EnterpriseTableBody,
-  EnterpriseTableCell,
-  EnterpriseTableFooter,
-  EnterpriseTableHead,
-  EnterpriseTableHeading,
-  EnterpriseTableRow,
-  PortalHost,
-  StatusBadge,
-  TableContainer,
-} from "@/components/ui";
+import { Badge, Button, EnterpriseTable, EnterpriseTableBody, EnterpriseTableCell, EnterpriseTableFooter, EnterpriseTableHead, EnterpriseTableHeading, EnterpriseTableRow, PortalHost, StatusBadge, TableContainer, getButtonClassName } from "@/components/ui";
 import { CustomerAvatar } from "./customer-avatar";
 
 type CustomerTableItem = {
@@ -187,8 +174,8 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
                 <EnterpriseTableCell>{formatCreatedDate(customer.createdAt)}</EnterpriseTableCell>
                 <EnterpriseTableCell align="right">
                   <div className="inline-flex items-center gap-1">
-                    <Link href={`/customers/${customer.id}`}><Button variant="ghost" size="sm" aria-label={t("customers.view")}><Eye size={15} aria-hidden="true" /></Button></Link>
-                    <Link href={`/customers/${customer.id}?edit=1`}><Button variant="ghost" size="sm" aria-label={t("customers.editCustomer")}><Pencil size={15} aria-hidden="true" /></Button></Link>
+                    <Link href={`/customers/${customer.id}`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Eye size={15} aria-hidden="true" /></Link>
+                    <Link href={`/customers/${customer.id}?edit=1`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Pencil size={15} aria-hidden="true" /></Link>
                     <Button
                       variant="ghost"
                       size="sm"

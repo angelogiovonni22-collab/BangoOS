@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FileSpreadsheet, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { MaterialsFilters, MaterialsTable } from "@/components/materials";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   type MaterialListItem,
@@ -88,47 +88,23 @@ export function MaterialsListClient() {
           );
         }
 
-        if (status !== "all") {
-          request = request.eq("status", status);
-        }
-
-        if (inventoryMode === "tracked") {
-          request = request.eq("track_inventory", true);
-        }
-
-        if (inventoryMode === "not_tracked") {
-          request = request.eq("track_inventory", false);
-        }
-
-        if (category.trim()) {
-          request = request.ilike("category", `%${category.trim()}%`);
-        }
+        if (status !== "all") request = request.eq("status", status);
+        if (inventoryMode === "tracked") request = request.eq("track_inventory", true);
+        if (inventoryMode === "not_tracked") request = request.eq("track_inventory", false);
+        if (category.trim()) request = request.ilike("category", `%${category.trim()}%`);
 
         switch (sortBy) {
-          case "material_code_asc":
-            request = request.order("material_code", { ascending: true });
-            break;
-          case "status_asc":
-            request = request.order("status", { ascending: true }).order("name", { ascending: true });
-            break;
-          case "current_stock_desc":
-            request = request.order("current_stock", { ascending: false });
-            break;
-          case "standard_cost_desc":
-            request = request.order("standard_cost", { ascending: false });
-            break;
-          case "created_at_desc":
-            request = request.order("created_at", { ascending: false });
-            break;
+          case "material_code_asc": request = request.order("material_code", { ascending: true }); break;
+          case "status_asc": request = request.order("status", { ascending: true }).order("name", { ascending: true }); break;
+          case "current_stock_desc": request = request.order("current_stock", { ascending: false }); break;
+          case "standard_cost_desc": request = request.order("standard_cost", { ascending: false }); break;
+          case "created_at_desc": request = request.order("created_at", { ascending: false }); break;
           case "name_asc":
-          default:
-            request = request.order("name", { ascending: true });
-            break;
+          default: request = request.order("name", { ascending: true }); break;
         }
 
         const from = (page - 1) * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
-
         const { data, count, error } = await request.range(from, to);
 
         if (error) {
@@ -138,37 +114,18 @@ export function MaterialsListClient() {
           }
           return;
         }
-
-        if (!active) {
-          return;
-        }
+        if (!active) return;
 
         const rows = (data ?? []) as MaterialQueryRow[];
-        const vendorIds = Array.from(
-          new Set(
-            rows
-              .map((row) => row.preferred_vendor_id)
-              .filter((value): value is string => Boolean(value)),
-          ),
-        );
-
+        const vendorIds = Array.from(new Set(rows.map((row) => row.preferred_vendor_id).filter((value): value is string => Boolean(value))));
         const vendorMap: Record<string, string> = {};
 
         if (vendorIds.length > 0) {
-          const { data: vendorData, error: vendorError } = await supabase
-            .from("vendors")
-            .select("id, display_name")
-            .eq("company_id", workspace.context.companyId)
-            .in("id", vendorIds);
-
-          if (!vendorError) {
-            for (const vendor of vendorData ?? []) {
-              vendorMap[vendor.id] = vendor.display_name;
-            }
-          }
+          const { data: vendorData, error: vendorError } = await supabase.from("vendors").select("id, display_name").eq("company_id", workspace.context.companyId).in("id", vendorIds);
+          if (!vendorError) for (const vendor of vendorData ?? []) vendorMap[vendor.id] = vendor.display_name;
         }
 
-        const mapped = rows.map((row) => ({
+        setItems(rows.map((row) => ({
           id: row.id,
           materialCode: row.material_code,
           name: row.name,
@@ -183,79 +140,30 @@ export function MaterialsListClient() {
           preferredVendorId: row.preferred_vendor_id,
           preferredVendorName: row.preferred_vendor_id ? vendorMap[row.preferred_vendor_id] || null : null,
           createdAt: row.created_at,
-        }));
-
-        setItems(mapped);
+        })));
         setTotal(count || 0);
       } catch (error) {
-        if (active) {
-          setErrorMessage(error instanceof Error ? error.message : "Unable to load materials.");
-        }
+        if (active) setErrorMessage(error instanceof Error ? error.message : "Unable to load materials.");
       } finally {
-        if (active) {
-          setIsLoading(false);
-        }
+        if (active) setIsLoading(false);
       }
     };
 
     void load();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [category, inventoryMode, page, query, sortBy, status, supabase]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const activeFilters = useMemo(() => {
-    let count = 0;
-
-    if (query.trim()) {
-      count += 1;
-    }
-
-    if (status !== "all") {
-      count += 1;
-    }
-
-    if (inventoryMode !== "all") {
-      count += 1;
-    }
-
-    if (category.trim()) {
-      count += 1;
-    }
-
-    return count;
-  }, [category, inventoryMode, query, status]);
-
+  const activeFilters = useMemo(() => Number(Boolean(query.trim())) + Number(status !== "all") + Number(inventoryMode !== "all") + Number(Boolean(category.trim())), [category, inventoryMode, query, status]);
   const summary = useMemo(() => {
     const tracked = items.filter((item) => item.trackInventory).length;
     const lowStock = items.filter((item) => item.trackInventory && item.currentStock <= item.reorderPoint).length;
-    const avgCost = items.length > 0
-      ? items.reduce((totalCost, item) => totalCost + item.standardCost, 0) / items.length
-      : 0;
-
-    return {
-      tracked,
-      lowStock,
-      avgCost,
-    };
+    const avgCost = items.length > 0 ? items.reduce((totalCost, item) => totalCost + item.standardCost, 0) / items.length : 0;
+    return { tracked, lowStock, avgCost };
   }, [items]);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <SkeletonLoader className="h-10 w-80" />
-        <SkeletonLoader className="h-36 w-full" />
-        <SkeletonLoader className="h-72 w-full" />
-      </div>
-    );
-  }
-
-  if (errorMessage) {
-    return <ErrorState title="Unable to load materials" description={errorMessage} />;
-  }
+  if (isLoading) return <div className="space-y-4"><SkeletonLoader className="h-10 w-80" /><SkeletonLoader className="h-36 w-full" /><SkeletonLoader className="h-72 w-full" /></div>;
+  if (errorMessage) return <ErrorState title="Unable to load materials" description={errorMessage} />;
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
@@ -265,18 +173,9 @@ export function MaterialsListClient() {
         description={`Manage material catalog, costs, and inventory for ${companyName || "your company"}.`}
         primaryAction={
           <div className="flex flex-wrap gap-2">
-            <Link href="/materials/price-lists">
-              <Button variant="outline"><FileSpreadsheet size={16} />Supplier Price Lists</Button>
-            </Link>
-            <Link href="/materials/procurement">
-              <Button variant="outline">Procurement Workflow</Button>
-            </Link>
-            <Link href="/materials/new">
-              <Button>
-                <Plus size={16} />
-                New material
-              </Button>
-            </Link>
+            <Link href="/materials/price-lists" className={getButtonClassName({ variant: "outline" })}><FileSpreadsheet size={16} aria-hidden="true" />Supplier Price Lists</Link>
+            <Link href="/materials/procurement" className={getButtonClassName({ variant: "outline" })}>Procurement Workflow</Link>
+            <Link href="/materials/new" className={getButtonClassName()}><Plus size={16} aria-hidden="true" />New material</Link>
           </div>
         }
       />
@@ -288,52 +187,19 @@ export function MaterialsListClient() {
       </section>
 
       <MaterialsFilters
-        query={query}
-        status={status}
-        inventoryMode={inventoryMode}
-        category={category}
-        sortBy={sortBy}
-        onQueryChange={(value) => {
-          setQuery(value);
-          setPage(1);
-        }}
-        onStatusChange={(value) => {
-          setStatus(value);
-          setPage(1);
-        }}
-        onInventoryModeChange={(value) => {
-          setInventoryMode(value);
-          setPage(1);
-        }}
-        onCategoryChange={(value) => {
-          setCategory(value);
-          setPage(1);
-        }}
-        onSortByChange={(value) => {
-          setSortBy(value);
-          setPage(1);
-        }}
+        query={query} status={status} inventoryMode={inventoryMode} category={category} sortBy={sortBy}
+        onQueryChange={(value) => { setQuery(value); setPage(1); }}
+        onStatusChange={(value) => { setStatus(value); setPage(1); }}
+        onInventoryModeChange={(value) => { setInventoryMode(value); setPage(1); }}
+        onCategoryChange={(value) => { setCategory(value); setPage(1); }}
+        onSortByChange={(value) => { setSortBy(value); setPage(1); }}
         activeFilters={activeFilters}
       />
 
       {items.length === 0 ? (
-        <EmptyState
-          title="No materials found"
-          description="Try different filters or create your first material record."
-          action={
-            <Link href="/materials/new">
-              <Button>New material</Button>
-            </Link>
-          }
-        />
+        <EmptyState title="No materials found" description="Try different filters or create your first material record." action={<Link href="/materials/new" className={getButtonClassName()}>New material</Link>} />
       ) : (
-        <MaterialsTable
-          items={items}
-          total={total}
-          page={Math.min(page, totalPages)}
-          pageSize={PAGE_SIZE}
-          onPageChange={(nextPage) => setPage(Math.max(1, Math.min(nextPage, totalPages)))}
-        />
+        <MaterialsTable items={items} total={total} page={Math.min(page, totalPages)} pageSize={PAGE_SIZE} onPageChange={(nextPage) => setPage(Math.max(1, Math.min(nextPage, totalPages)))} />
       )}
     </div>
   );

@@ -3,20 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-  SkeletonLoader,
-  StatusBadge,
-  SummaryCard,
-} from "@/components/ui";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader, StatusBadge, SummaryCard, getButtonClassName } from "@/components/ui";
 import { UnitCategoryBadge, UnitSystemBadge } from "@/components/units-of-measure";
 import {
   convertToBaseUnit,
@@ -296,7 +283,7 @@ export function UnitDetailClient() {
       <EmptyState
         title="Unit not found"
         description="This unit could not be located in your workspace."
-        action={<Link href="/units-of-measure"><Button>Back to units</Button></Link>}
+        action={<Link href="/units-of-measure" className={getButtonClassName({})}>Back to units</Link>}
       />
     );
   }
@@ -326,9 +313,7 @@ export function UnitDetailClient() {
             <Badge tone="neutral">Managed by BangoOS</Badge>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <Link href={`/units-of-measure/${unit.id}/edit`}>
-                <Button>Edit Unit</Button>
-              </Link>
+              <Link href={`/units-of-measure/${unit.id}/edit`} className={getButtonClassName({})}>Edit Unit</Link>
               <Button variant="outline" onClick={() => void handleDeactivate()} disabled={!unit.is_active || isDeactivating}>
                 {isDeactivating ? "Deactivating..." : "Deactivate"}
               </Button>

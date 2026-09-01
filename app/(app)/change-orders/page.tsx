@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, PageHeader } from "@/components/ui";
+import { PageHeader, getButtonClassName } from "@/components/ui";
 import { ChangeOrdersDirectory } from "@/components/change-orders";
 import {
   archiveChangeOrder,
@@ -107,37 +107,15 @@ export default function ChangeOrdersPage() {
   }, [load]);
 
   async function handleArchive(changeOrderId: string) {
-    if (!supabase || !companyId || !userId) {
-      return;
-    }
-
-    const result = await archiveChangeOrder({
-      supabase,
-      companyId,
-      changeOrderId,
-      userId,
-    });
-
-    if (!result.error) {
-      await load();
-    }
+    if (!supabase || !companyId || !userId) return;
+    const result = await archiveChangeOrder({ supabase, companyId, changeOrderId, userId });
+    if (!result.error) await load();
   }
 
   async function handleRestore(changeOrderId: string) {
-    if (!supabase || !companyId || !userId) {
-      return;
-    }
-
-    const result = await restoreChangeOrder({
-      supabase,
-      companyId,
-      changeOrderId,
-      userId,
-    });
-
-    if (!result.error) {
-      await load();
-    }
+    if (!supabase || !companyId || !userId) return;
+    const result = await restoreChangeOrder({ supabase, companyId, changeOrderId, userId });
+    if (!result.error) await load();
   }
 
   return (
@@ -147,11 +125,7 @@ export default function ChangeOrdersPage() {
         eyebrow="COMPANY WORKSPACE"
         title="Change Orders"
         description="Track scope, approvals, schedule impacts, and downstream invoice changes."
-        primaryAction={(
-          <Link href="/change-orders/new">
-            <Button size="md">New Change Order</Button>
-          </Link>
-        )}
+        primaryAction={<Link href="/change-orders/new" className={getButtonClassName({ size: "md" })}>New Change Order</Link>}
       />
 
       <ChangeOrdersDirectory

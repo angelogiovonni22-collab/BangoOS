@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CostCodeForm } from "@/components/cost-codes";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   EMPTY_COST_CODE_FORM,
@@ -245,7 +245,7 @@ export function EditCostCodeClient() {
       <EmptyState
         title="Cost code not found"
         description="This cost code could not be located in your company workspace."
-        action={<Link href="/cost-codes"><Button>Back to cost codes</Button></Link>}
+        action={<Link href="/cost-codes" className={getButtonClassName({})}>Back to cost codes</Link>}
       />
     );
   }

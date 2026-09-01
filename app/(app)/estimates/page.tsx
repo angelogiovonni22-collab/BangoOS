@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, PageHeader } from "@/components/ui";
+import { PageHeader, getButtonClassName } from "@/components/ui";
 import { EstimatesDirectory } from "@/components/estimates";
 import { loadEstimateDirectoryData, getCustomerDisplayName, getProjectDisplayName } from "@/lib/estimates/service";
 import { createClient } from "@/lib/supabase/client";
@@ -104,9 +104,7 @@ export default function EstimatesPage() {
         title="Estimates"
         description="Create, price, send, and track construction estimates."
         primaryAction={(
-          <Link href="/estimates/new">
-            <Button size="md">New Estimate</Button>
-          </Link>
+          <Link href="/estimates/new" className={getButtonClassName({ size: "md" })}>New Estimate</Link>
         )}
       />
 

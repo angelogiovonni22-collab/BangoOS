@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, FormField, Input, PageHeader, Select, SkeletonLoader } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, FormField, Input, PageHeader, Select, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { CHANGE_ORDER_STATUS_OPTIONS, CHANGE_ORDER_UNIT_OPTIONS } from "@/lib/change-orders/constants";
 import { calculateChangeOrderTotals, changeOrderLineItemMoney, formatUsd } from "@/lib/change-orders/calculations";
 import { getNextChangeOrderNumber } from "@/lib/change-orders/numbering";
@@ -492,9 +492,7 @@ export function ChangeOrderForm({
         title={mode === "create" ? "New Change Order" : `Edit ${values.changeOrderNumber || "Change Order"}`}
         description="Manage scope changes, approvals, schedule impact, and financial deltas."
         secondaryActions={(
-          <Link href={mode === "create" ? "/change-orders" : `/change-orders/${changeOrderId || ""}`}>
-            <Button variant="secondary" size="md">Cancel</Button>
-          </Link>
+          <Link href={mode === "create" ? "/change-orders" : `/change-orders/${changeOrderId || ""}`} className={getButtonClassName({ variant: "secondary", size: "md" })}>Cancel</Link>
         )}
       />
 

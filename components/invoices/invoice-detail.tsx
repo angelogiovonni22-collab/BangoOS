@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { formatUsd } from "@/lib/invoices/calculations";
@@ -212,9 +212,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           </>
         )}
         primaryAction={(
-          <Link href={`/invoices/${invoiceId}/edit`}>
-            <Button size="md">Edit Invoice</Button>
-          </Link>
+          <Link href={`/invoices/${invoiceId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Invoice</Link>
         )}
       />
 

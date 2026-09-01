@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { VendorForm } from "@/components/vendors";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -239,7 +239,7 @@ export function EditVendorClient() {
       <EmptyState
         title="Vendor not found"
         description="This vendor could not be located in your company workspace."
-        action={<Link href="/vendors"><Button>Back to vendors</Button></Link>}
+        action={<Link href="/vendors" className={getButtonClassName({})}>Back to vendors</Link>}
       />
     );
   }

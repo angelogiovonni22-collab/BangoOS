@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { recordCustomerPayment } from "@/lib/accounts-receivable/service";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -100,7 +100,7 @@ export default function RecordCustomerPaymentPage() {
         eyebrow="ACCOUNTS RECEIVABLE"
         title="Record Customer Payment"
         description={`${invoice.invoice_number || "Invoice"} · ${invoice.title}`}
-        secondaryActions={<Link href={`/invoices/${invoiceId}`}><Button variant="secondary">Cancel</Button></Link>}
+        secondaryActions={<Link href={`/invoices/${invoiceId}`} className={getButtonClassName({ variant: "secondary" })}>Cancel</Link>}
       />
       <Card variant="elevated">
         <CardHeader><CardTitle>Payment Details</CardTitle></CardHeader>

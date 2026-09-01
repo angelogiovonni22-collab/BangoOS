@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, FormField, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { Button, FormField, Input, PageHeader, Select, Textarea, getButtonClassName } from "@/components/ui";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -454,9 +454,7 @@ export default function NewProjectPage() {
         title={t("projects.newTitle")}
         description={t("projects.newDescription")}
         secondaryActions={(
-          <Link href="/projects">
-            <Button variant="outline" size="md">{t("projects.backToProjects")}</Button>
-          </Link>
+          <Link href="/projects" className={getButtonClassName({ variant: "outline", size: "md" })}>{t("projects.backToProjects")}</Link>
         )}
       />
 
@@ -719,9 +717,7 @@ export default function NewProjectPage() {
         {successMessage ? <FormAlert tone="success">{successMessage}</FormAlert> : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/projects">
-            <Button variant="outline" size="lg">{t("projects.cancel")}</Button>
-          </Link>
+          <Link href="/projects" className={getButtonClassName({ variant: "outline", size: "lg" })}>{t("projects.cancel")}</Link>
 
           <Button
             type="submit"

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Activity, CalendarDays, CheckCircle2, ChevronDown, CircleDollarSign, ClipboardCheck, Gauge, ShieldCheck, Users } from "lucide-react";
-import { Badge, Button } from "@/components/ui";
+import { Badge, Button, getButtonClassName } from "@/components/ui";
 import { calculateProjectCloseoutReadiness, type ProjectCloseoutNextAction } from "@/lib/projects/project-closeout-readiness";
 import { ProjectBudgetControlDetails, ProjectCrewControlDetails } from "./project-control-card-details";
 import styles from "./project-command-center-foundation.module.css";
@@ -77,8 +77,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
               </div>
               <ProjectBudgetControlDetails projectId={props.projectId} />
               <div className="flex flex-wrap justify-end gap-2">
-                <Link href={projectHref + "?tab=financials"}><Button variant="outline" size="sm">View Full Financials</Button></Link>
-                <Link href={projectHref + "?tab=change_orders"}><Button size="sm">Change Orders</Button></Link>
+                <Link href={projectHref + "?tab=financials"} className={getButtonClassName({ variant: "outline", size: "sm" })}>View Full Financials</Link>
+                <Link href={projectHref + "?tab=change_orders"} className={getButtonClassName({ size: "sm" })}>Change Orders</Link>
               </div>
             </div>
           ) : null}
@@ -87,8 +87,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
             <div className="space-y-4">
               <ProjectCrewControlDetails projectId={props.projectId} />
               <div className="flex flex-wrap justify-end gap-2">
-                <Link href="/crews"><Button variant="outline" size="sm">Open CrewOS</Button></Link>
-                <Link href={crewCostHref}><Button size="sm">Open Workforce Details</Button></Link>
+                <Link href="/crews" className={getButtonClassName({ variant: "outline", size: "sm" })}>Open CrewOS</Link>
+                <Link href={crewCostHref} className={getButtonClassName({ size: "sm" })}>Open Workforce Details</Link>
               </div>
             </div>
           ) : null}
@@ -117,8 +117,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
                 </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
-                <Link href={projectHref + "?tab=tasks"}><Button variant="outline" size="sm">Project Tasks</Button></Link>
-                <Link href={scheduleHref}><Button size="sm">Open Full Schedule</Button></Link>
+                <Link href={projectHref + "?tab=tasks"} className={getButtonClassName({ variant: "outline", size: "sm" })}>Project Tasks</Link>
+                <Link href={scheduleHref} className={getButtonClassName({ size: "sm" })}>Open Full Schedule</Link>
               </div>
             </div>
           ) : null}
@@ -146,8 +146,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
                 </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
-                <Link href={projectHref + "?tab=tasks"}><Button variant="outline" size="sm">View Full Progress</Button></Link>
-                <Link href={projectHref + "?tab=tasks"}><Button size="sm">Update Progress</Button></Link>
+                <Link href={projectHref + "?tab=tasks"} className={getButtonClassName({ variant: "outline", size: "sm" })}>View Full Progress</Link>
+                <Link href={projectHref + "?tab=tasks"} className={getButtonClassName({ size: "sm" })}>Update Progress</Link>
               </div>
             </div>
           ) : null}
@@ -181,9 +181,9 @@ export function ProjectCommandCenterFoundation(props: Props) {
             ))}
           </div>
           <div className="mt-4 flex flex-wrap justify-end gap-2">
-            <Link href={projectHref + "/edit#project-scope"}><Button variant="outline" size="sm">Edit Scope</Button></Link>
-            <Link href={projectHref + "?tab=tasks"}><Button variant="outline" size="sm">View Full Scope</Button></Link>
-            <Link href={projectHref + "?tab=tasks"}><Button size="sm">Update Progress</Button></Link>
+            <Link href={projectHref + "/edit#project-scope"} className={getButtonClassName({ variant: "outline", size: "sm" })}>Edit Scope</Link>
+            <Link href={projectHref + "?tab=tasks"} className={getButtonClassName({ variant: "outline", size: "sm" })}>View Full Scope</Link>
+            <Link href={projectHref + "?tab=tasks"} className={getButtonClassName({ size: "sm" })}>Update Progress</Link>
           </div>
         </section>
 

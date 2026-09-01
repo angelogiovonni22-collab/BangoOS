@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { ArrowLeft, BadgeDollarSign, CheckCircle2, ShoppingCart } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, TableContainer } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, TableContainer, getButtonClassName } from "@/components/ui";
 import { createProjectMaterialPlanService } from "@/lib/materials/project-material-plan-service";
 import { createProjectSupplierComparisonService } from "@/lib/materials/project-supplier-comparison-service";
 import type { ProjectMaterialPlanPayload } from "@/lib/materials/project-material-plan-types";
@@ -57,7 +57,7 @@ export function ProjectSupplierComparisonClient({ projectId }: { projectId: stri
   if (!plan) return null;
 
   return <div className="container-content space-y-[var(--space-section)]">
-    <PageHeader eyebrow="Project · Materials · Supplier comparison" title={`${plan.project.name} Supplier Pricing`} description="Compare confirmed prices from uploaded supplier lists before creating purchase orders. The approved estimate cost remains the variance baseline." primaryAction={<div className="flex flex-wrap gap-2"><Link href={`/projects/${projectId}/materials`}><Button variant="outline"><ArrowLeft size={16}/>Material plan</Button></Link><Link href={`/materials/procurement?projectId=${projectId}`}><Button variant="outline"><ShoppingCart size={16}/>Procurement</Button></Link></div>} />
+    <PageHeader eyebrow="Project · Materials · Supplier comparison" title={`${plan.project.name} Supplier Pricing`} description="Compare confirmed prices from uploaded supplier lists before creating purchase orders. The approved estimate cost remains the variance baseline." primaryAction={<div className="flex flex-wrap gap-2"><Link href={`/projects/${projectId}/materials`} className={getButtonClassName({ variant: "outline" })}><ArrowLeft size={16}/>Material plan</Link><Link href={`/materials/procurement?projectId=${projectId}`} className={getButtonClassName({ variant: "outline" })}><ShoppingCart size={16}/>Procurement</Link></div>} />
     <section className="grid gap-3 sm:grid-cols-3">
       <SummaryCard icon={<BadgeDollarSign size={18}/>} label="Material lines" value={String(plan.items.length)} context="Approved project requirements" tone="brand" compact />
       <SummaryCard icon={<CheckCircle2 size={18}/>} label="Comparable lines" value={String(pricedLines)} context="Confirmed uploaded supplier matches" tone="success" compact />

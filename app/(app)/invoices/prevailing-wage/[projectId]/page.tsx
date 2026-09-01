@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Button, PageHeader } from "@/components/ui";
+import { Button, PageHeader, getButtonClassName } from "@/components/ui";
 import { loadPrevailingWageProjectCompliance } from "@/lib/finance/ap-prevailing-wage";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
@@ -131,7 +131,7 @@ export default function PrevailingWageProjectPage() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow="COMMERCIAL · PREVAILING WAGE" title={project?.name || project?.project_number || "Prevailing Wage Project"} description={`${labelApplicability(profile?.applicability || "")} · ${profile?.determination_number || profile?.determination_title || "Wage determination configured"}`} primaryAction={<Link href="/invoices/prevailing-wage/setup"><Button size="md">Edit / Configure Project</Button></Link>} />
+      <PageHeader compact eyebrow="COMMERCIAL · PREVAILING WAGE" title={project?.name || project?.project_number || "Prevailing Wage Project"} description={`${labelApplicability(profile?.applicability || "")} · ${profile?.determination_number || profile?.determination_title || "Wage determination configured"}`} primaryAction={<Link href="/invoices/prevailing-wage/setup" className={getButtonClassName({ size: "md" })}>Edit / Configure Project</Link>} />
       {errorMessage ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMessage}</div> : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

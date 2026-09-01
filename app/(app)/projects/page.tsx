@@ -9,13 +9,7 @@ import {
   ProjectTable,
   type ProjectTableItem,
 } from "@/components/projects";
-import {
-  Button,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-  SkeletonLoader,
-} from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import {
   formatProjectCurrency,
@@ -393,12 +387,8 @@ export default function ProjectsPage() {
         title={t("projects.pageTitle")}
         description={t("projects.pageDescription")}
         primaryAction={canManageProjects ? (
-          <Link href="/projects/new">
-            <Button size="md">
-              <Plus size={16} aria-hidden="true" />
-              {t("projects.newProject")}
-            </Button>
-          </Link>
+          <Link href="/projects/new" className={getButtonClassName({ size: "md" })}><Plus size={16} aria-hidden="true" />
+              {t("projects.newProject")}</Link>
         ) : undefined}
       />
 
@@ -448,9 +438,7 @@ export default function ProjectsPage() {
           title="No projects yet"
           description="Create your first project to start scheduling work, tracking spend, and monitoring profitability."
           action={canManageProjects ?
-            <Link href="/projects/new">
-              <Button>{t("projects.newProject")}</Button>
-            </Link>
+            <Link href="/projects/new" className={getButtonClassName({})}>{t("projects.newProject")}</Link>
           : undefined}
         />
       ) : (

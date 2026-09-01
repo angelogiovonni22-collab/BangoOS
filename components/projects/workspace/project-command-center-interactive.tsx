@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { ComponentProps, ReactNode } from "react";
 import { CalendarDays, CheckCircle2, ChevronDown, CircleDollarSign, Gauge, Users } from "lucide-react";
-import { Badge, Button } from "@/components/ui";
+import { Badge, getButtonClassName } from "@/components/ui";
 import { ProjectBudgetControlDetails, ProjectCrewControlDetails } from "./project-control-card-details";
 import { ProjectCommandCenterFoundation as BaseProjectCommandCenterFoundation } from "./project-command-center-foundation";
 import foundationStyles from "./project-command-center-foundation.module.css";
@@ -55,8 +55,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
               </div>
               <ProjectBudgetControlDetails projectId={props.projectId} />
               <div className="flex flex-wrap justify-end gap-2">
-                <Link href={projectHref + "?tab=financials"}><Button variant="outline" size="sm">View Full Financials</Button></Link>
-                <Link href={projectHref + "?tab=change_orders"}><Button size="sm">Change Orders</Button></Link>
+                <Link href={projectHref + "?tab=financials"} className={getButtonClassName({ variant: "outline", size: "sm" })}>View Full Financials</Link>
+                <Link href={projectHref + "?tab=change_orders"} className={getButtonClassName({ size: "sm" })}>Change Orders</Link>
               </div>
             </div>
           ) : null}
@@ -65,8 +65,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
             <div className="space-y-4">
               <ProjectCrewControlDetails projectId={props.projectId} />
               <div className="flex flex-wrap justify-end gap-2">
-                <Link href="/crews"><Button variant="outline" size="sm">Open CrewOS</Button></Link>
-                <Link href={crewCostHref}><Button size="sm">Open Workforce Details</Button></Link>
+                <Link href="/crews" className={getButtonClassName({ variant: "outline", size: "sm" })}>Open CrewOS</Link>
+                <Link href={crewCostHref} className={getButtonClassName({ size: "sm" })}>Open Workforce Details</Link>
               </div>
             </div>
           ) : null}
@@ -95,8 +95,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
                 </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
-                <Link href={projectHref + "?tab=tasks"}><Button variant="outline" size="sm">Project Tasks</Button></Link>
-                <Link href={scheduleHref}><Button size="sm">Open Full Schedule</Button></Link>
+                <Link href={projectHref + "?tab=tasks"} className={getButtonClassName({ variant: "outline", size: "sm" })}>Project Tasks</Link>
+                <Link href={scheduleHref} className={getButtonClassName({ size: "sm" })}>Open Full Schedule</Link>
               </div>
             </div>
           ) : null}
@@ -124,8 +124,8 @@ export function ProjectCommandCenterFoundation(props: Props) {
                 </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
-                <Link href={projectHref + "?tab=tasks"}><Button variant="outline" size="sm">View Full Progress</Button></Link>
-                <Link href={projectHref + "?tab=tasks"}><Button size="sm">Update Progress</Button></Link>
+                <Link href={projectHref + "?tab=tasks"} className={getButtonClassName({ variant: "outline", size: "sm" })}>View Full Progress</Link>
+                <Link href={projectHref + "?tab=tasks"} className={getButtonClassName({ size: "sm" })}>Update Progress</Link>
               </div>
             </div>
           ) : null}

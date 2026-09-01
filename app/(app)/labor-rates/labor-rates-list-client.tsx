@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { LaborRatesFilters, LaborRatesTable } from "@/components/labor-rates";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import { formatPercent, formatUsdCurrency, type CostCodeOption, type LaborRateListItem, type LaborRateSortKey, type LaborRateStatus, type SkillLevel, type UnionStatus, type WorkerClassification } from "@/lib/labor-rates";
 import { createClient } from "@/lib/supabase/client";
@@ -92,7 +92,7 @@ export function LaborRatesListClient() {
   if (errorMessage) return <ErrorState title="Unable to load labor rates" description={errorMessage} />;
 
   return <div className="container-content space-y-[var(--space-section)]">
-    <PageHeader eyebrow="Resource Costs" title="Labor Rates" description={`Manage labor cost standards and billable pricing for ${companyName || "your company"}.`} primaryAction={<Link href="/labor-rates/new"><Button><Plus size={16} />New labor rate</Button></Link>} />
+    <PageHeader eyebrow="Resource Costs" title="Labor Rates" description={`Manage labor cost standards and billable pricing for ${companyName || "your company"}.`} primaryAction={<Link href="/labor-rates/new" className={getButtonClassName()}><Plus size={16} aria-hidden="true" />New labor rate</Link>} />
     <section className="grid gap-3 sm:grid-cols-5">
       <SummaryCard icon={<span>A</span>} label="Active Labor Rates" value={String(summary.activeCount)} context="In current page" tone="brand" />
       <SummaryCard icon={<span>B</span>} label="Average Base Rate" value={formatUsdCurrency(summary.avgBaseRate)} context="Current page" tone="info" />
@@ -102,6 +102,6 @@ export function LaborRatesListClient() {
     </section>
     <LaborRatesFilters query={query} status={status} trade={trade} skillLevel={skillLevel} unionStatus={unionStatus} workerClassification={workerClassification} defaultCostCodeId={defaultCostCodeId} sortBy={sortBy} costCodeOptions={costCodeOptions}
       onQueryChange={setQuery} onStatusChange={(value)=>{setStatus(value);setPage(1);}} onTradeChange={setTrade} onSkillLevelChange={(value)=>{setSkillLevel(value);setPage(1);}} onUnionStatusChange={(value)=>{setUnionStatus(value);setPage(1);}} onWorkerClassificationChange={(value)=>{setWorkerClassification(value);setPage(1);}} onDefaultCostCodeChange={(value)=>{setDefaultCostCodeId(value);setPage(1);}} onSortByChange={(value)=>{setSortBy(value);setPage(1);}} activeFilters={activeFilters} />
-    {items.length === 0 ? <EmptyState title="No labor rates found" description="Try different filters or create your first labor rate." action={<Link href="/labor-rates/new"><Button>New labor rate</Button></Link>} /> : <LaborRatesTable items={items} total={total} page={page} pageSize={PAGE_SIZE} onPageChange={(nextPage)=>{const maxPage=Math.max(1,Math.ceil(total/PAGE_SIZE));setPage(Math.min(Math.max(nextPage,1),maxPage));}} />}
+    {items.length === 0 ? <EmptyState title="No labor rates found" description="Try different filters or create your first labor rate." action={<Link href="/labor-rates/new" className={getButtonClassName()}>New labor rate</Link>} /> : <LaborRatesTable items={items} total={total} page={page} pageSize={PAGE_SIZE} onPageChange={(nextPage)=>{const maxPage=Math.max(1,Math.ceil(total/PAGE_SIZE));setPage(Math.min(Math.max(nextPage,1),maxPage));}} />}
   </div>;
 }

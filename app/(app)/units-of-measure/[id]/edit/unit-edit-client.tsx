@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { UnitForm } from "@/components/units-of-measure";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   buildUnitUpdatePayload,
@@ -261,7 +261,7 @@ export function UnitEditClient() {
       <EmptyState
         title="Unit not found"
         description="This unit could not be located in your workspace."
-        action={<Link href="/units-of-measure"><Button>Back to units</Button></Link>}
+        action={<Link href="/units-of-measure" className={getButtonClassName({})}>Back to units</Link>}
       />
     );
   }
@@ -271,7 +271,7 @@ export function UnitEditClient() {
       <EmptyState
         title="System unit cannot be edited"
         description="System units are managed by BangoOS through platform migrations and admin tooling."
-        action={<Link href={`/units-of-measure/${unit.id}`}><Button>Back to details</Button></Link>}
+        action={<Link href={`/units-of-measure/${unit.id}`} className={getButtonClassName({})}>Back to details</Link>}
       />
     );
   }

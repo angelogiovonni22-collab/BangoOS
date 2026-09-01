@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Building2, Image as ImageIcon, MapPin, UserRound } from "lucide-react";
-import { Badge, Button } from "@/components/ui";
+import { Badge, Button, getButtonClassName } from "@/components/ui";
 import { LocationForecastCard } from "@/components/location-intelligence";
 import { WorkspaceHero } from "@/components/workspace";
 
@@ -95,16 +95,8 @@ export function ProjectWorkspaceHero({
       actions={
         <>
           {customerHref ? (
-            <Link href={customerHref}>
-              <Button
-                size="sm"
-                variant="primary"
-                className="rounded-[11px] border border-[#89b4e5] bg-[linear-gradient(180deg,#3a74b8,#2a598f)] px-4 py-2.5 text-[0.82rem] font-semibold tracking-[0.01em] text-white shadow-[0_10px_18px_-12px_rgba(22,82,168,0.7)]"
-              >
-                <UserRound size={15} aria-hidden="true" />
-                View Customer
-              </Button>
-            </Link>
+            <Link href={customerHref} className={getButtonClassName({ variant: "primary", size: "sm" })}><UserRound size={15} aria-hidden="true" />
+                View Customer</Link>
           ) : (
             <Button type="button" size="sm" variant="outline" className="border-[#5579a8] text-[#c8dcf5] disabled:border-[#3f5b80] disabled:text-[#8ea7ca]" disabled>
               <UserRound size={15} aria-hidden="true" />

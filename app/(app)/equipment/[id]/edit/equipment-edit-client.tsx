@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { EquipmentForm } from "@/components/equipment";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   EMPTY_EQUIPMENT_FORM,
@@ -192,7 +192,7 @@ export function EquipmentEditClient() {
   }
 
   if (notFound) {
-    return <EmptyState title="Equipment not found" description="This equipment record could not be located in your company workspace." action={<Link href="/equipment"><Button variant="outline">Back to equipment</Button></Link>} />;
+    return <EmptyState title="Equipment not found" description="This equipment record could not be located in your company workspace." action={<Link href="/equipment" className={getButtonClassName({ variant: "outline" })}>Back to equipment</Link>} />;
   }
 
   return (

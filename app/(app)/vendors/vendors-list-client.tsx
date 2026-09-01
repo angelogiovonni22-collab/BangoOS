@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { VendorsFilters, VendorsTable } from "@/components/vendors";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -216,12 +216,8 @@ export function VendorsListClient() {
         title="Vendors"
         description={`Manage vendor relationships for ${companyName || "your company"}.`}
         primaryAction={
-          <Link href="/vendors/new">
-            <Button>
-              <Plus size={16} />
-              New vendor
-            </Button>
-          </Link>
+          <Link href="/vendors/new" className={getButtonClassName({})}><Plus size={16} />
+              New vendor</Link>
         }
       />
 
@@ -260,9 +256,7 @@ export function VendorsListClient() {
           title="No vendors found"
           description="Try different filters or create your first vendor record."
           action={
-            <Link href="/vendors/new">
-              <Button>New vendor</Button>
-            </Link>
+            <Link href="/vendors/new" className={getButtonClassName({})}>New vendor</Link>
           }
         />
       ) : (

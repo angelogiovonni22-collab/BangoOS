@@ -4,24 +4,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  EmptyState,
-  ErrorState,
-  FormField,
-  Input,
-  PageHeader,
-  SectionHeader,
-  Select,
-  SkeletonLoader,
-  SummaryCard,
-  Textarea,
-} from "@/components/ui";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, FormField, Input, PageHeader, SectionHeader, Select, SkeletonLoader, SummaryCard, Textarea, getButtonClassName } from "@/components/ui";
 import { createProcurementService, ProcurementServiceError } from "@/lib/materials/procurement-service";
 import type {
   ProcurementMaterialRequest,
@@ -393,9 +376,7 @@ export function ProcurementWorkflowClient({ initialProjectId }: { initialProject
         title="Procurement Workflow"
         description={`Manage requests, purchasing, receiving, and allocation for ${companyName || "your company"}.`}
         primaryAction={
-          <Link href="/materials">
-            <Button variant="outline">Back to Materials</Button>
-          </Link>
+          <Link href="/materials" className={getButtonClassName({ variant: "outline" })}>Back to Materials</Link>
         }
       />
 

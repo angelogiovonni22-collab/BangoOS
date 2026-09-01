@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button, EmptyState } from "@/components/ui";
+import { EmptyState, getButtonClassName } from "@/components/ui";
 
 export function ChangeOrderDirectoryEmptyState() {
   return (
@@ -8,9 +8,7 @@ export function ChangeOrderDirectoryEmptyState() {
       title="No change orders yet"
       description="Create your first change order to track scope, schedule, and financial impacts."
       action={
-        <Link href="/change-orders/new">
-          <Button>Create Change Order</Button>
-        </Link>
+        <Link href="/change-orders/new" className={getButtonClassName({})}>Create Change Order</Link>
       }
     />
   );

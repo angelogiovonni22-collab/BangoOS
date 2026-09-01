@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { LaborRateForm } from "@/components/labor-rates";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   EMPTY_LABOR_RATE_FORM,
@@ -293,7 +293,7 @@ export function LaborRateEditClient() {
       <EmptyState
         title="Labor rate not found"
         description="This labor rate could not be located in your company workspace."
-        action={<Link href="/labor-rates"><Button>Back to labor rates</Button></Link>}
+        action={<Link href="/labor-rates" className={getButtonClassName({})}>Back to labor rates</Link>}
       />
     );
   }

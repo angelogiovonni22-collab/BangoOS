@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { EstimateStatusBadge, formatEstimateStatusLabel } from "@/components/estimates/estimate-status";
 import { formatEstimateDate } from "@/lib/estimates";
 import { formatUsd } from "@/lib/estimates/calculations";
@@ -177,9 +177,7 @@ export function EstimateDetail({ estimateId, sendIssue, createdForReview = false
           </>
         )}
         primaryAction={(
-          <Link href={`/estimates/${estimateId}/edit`}>
-            <Button size="md">Edit Estimate</Button>
-          </Link>
+          <Link href={`/estimates/${estimateId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Estimate</Link>
         )}
       />
 

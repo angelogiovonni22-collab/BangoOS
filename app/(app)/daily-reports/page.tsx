@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BadgeCheck, ClipboardCheck, Clock3, FileText } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ReportStatusChip } from "@/components/daily-reports";
-import { Button, EmptyState, EnterpriseTable, EnterpriseTableBody, EnterpriseTableCell, EnterpriseTableHead, EnterpriseTableHeading, EnterpriseTableRow, PageHeader, SummaryCard, TableContainer } from "@/components/ui";
+import { EmptyState, EnterpriseTable, EnterpriseTableBody, EnterpriseTableCell, EnterpriseTableHead, EnterpriseTableHeading, EnterpriseTableRow, PageHeader, SummaryCard, TableContainer, getButtonClassName } from "@/components/ui";
 import { createDailyReportsService, type DailyReportsService } from "@/lib/daily-reports";
 import { loadDailyReportsPageData, type DailyReportsPageData, type DailyReportsPageReport } from "@/lib/daily-reports/daily-reports-page-data";
 import { useI18n } from "@/lib/i18n/provider";
@@ -39,7 +39,7 @@ export default function DailyReportsPage() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow="Field Operations" title="Daily Reports" description="Capture, review, and track daily field activity across every active project." primaryAction={<Link href="/daily-reports/new"><Button size="lg">Create Report</Button></Link>} />
+      <PageHeader compact eyebrow="Field Operations" title="Daily Reports" description="Capture, review, and track daily field activity across every active project." primaryAction={<Link href="/daily-reports/new" className={getButtonClassName({ size: "lg" })}>Create Report</Link>} />
       {pageState.loading ? <StaticMessage>Loading daily reports...</StaticMessage> : pageState.error ? <StaticMessage error>{pageState.error}</StaticMessage> : pageState.data ? <ReportsView reports={pageState.data.reports} summary={pageState.data.summary} t={t} /> : null}
     </div>
   );
@@ -66,7 +66,7 @@ function ReportsView({ reports, summary, t }: { reports: DailyReportsPageReport[
           icon="R"
           title="No daily reports yet"
           description="Create the first field report to begin tracking daily production, workforce activity, safety, and jobsite conditions."
-          action={<Link href="/daily-reports/new"><Button>Create Report</Button></Link>}
+          action={<Link href="/daily-reports/new" className={getButtonClassName()}>Create Report</Link>}
         />
       ) : filteredReports.length === 0 ? (
         <EmptyState compact icon="R" title="No reports in this status" description="Choose another summary card to see the rest of your daily reports." />

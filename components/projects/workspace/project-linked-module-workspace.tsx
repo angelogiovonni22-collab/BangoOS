@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, FileText, HardHat, MessageSquareText, Plus, RefreshCw, X } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, getButtonClassName } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -322,7 +322,7 @@ export function ProjectLinkedModuleWorkspace({ projectId, projectName, tab, loca
             Refresh
           </Button>
           {primaryHref && primaryLabel ? (
-            <Link href={primaryHref}><Button size="sm">{primaryLabel}</Button></Link>
+            <Link href={primaryHref} className={getButtonClassName({ size: "sm" })}>{primaryLabel}</Link>
           ) : null}
           {canCreateRegisterRecord ? (
             <Button size="sm" onClick={() => setIsCreateOpen((value) => !value)}>

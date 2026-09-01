@@ -31,7 +31,7 @@ import {
 import { SiteCamWorkspace } from "./components/sitecam-workspace";
 import { PlansWorkspace } from "@/components/plans";
 import { WorkspaceLoadingState, WorkspaceShell } from "@/components/workspace";
-import { Button, EmptyState, ErrorState } from "@/components/ui";
+import { EmptyState, ErrorState, getButtonClassName } from "@/components/ui";
 import { buildProjectFinancialReport, type ProjectFinancialReport } from "@/lib/financial-reporting";
 import {
   formatProjectAddress,
@@ -657,9 +657,7 @@ export default function ProjectWorkspacePage() {
         title={t("projects.projectNotFoundTitle")}
         description={t("projects.projectNotFoundDescription")}
         action={
-          <Link href="/projects">
-            <Button>{t("projects.backToProjects")}</Button>
-          </Link>
+          <Link href="/projects" className={getButtonClassName({})}>{t("projects.backToProjects")}</Link>
         }
       />
     );

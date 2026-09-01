@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EquipmentFilters, EquipmentTable } from "@/components/equipment";
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, PartialDataNotice, Select, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, PartialDataNotice, Select, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   buildEquipmentQueryPlan,
@@ -370,9 +370,7 @@ export function EquipmentListClient() {
         title="Equipment & Fleet Intelligence"
         description={`Central operating system for company assets in ${companyName || "your company"}.`}
         primaryAction={
-          <Link href="/equipment/new">
-            <Button size="lg"><Plus size={16} /> New Equipment</Button>
-          </Link>
+          <Link href="/equipment/new" className={getButtonClassName({ size: "lg" })}><Plus size={16} /> New Equipment</Link>
         }
       />
 
@@ -387,7 +385,7 @@ export function EquipmentListClient() {
         <EmptyState
           title="No equipment yet"
           description="Create your first equipment record to track fleet utilization, maintenance, and assignment intelligence."
-          action={<Link href="/equipment/new"><Button size="lg"><Plus size={16} /> Add Equipment</Button></Link>}
+          action={<Link href="/equipment/new" className={getButtonClassName({ size: "lg" })}><Plus size={16} /> Add Equipment</Link>}
         />
       ) : null}
 
