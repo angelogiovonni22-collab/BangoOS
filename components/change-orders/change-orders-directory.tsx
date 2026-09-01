@@ -130,14 +130,19 @@ export function ChangeOrdersDirectory({
     setSortDirection("asc");
   }
 
+  function chooseStatus(status: string) {
+    setStatusValue((current) => current === status && status !== "all" ? "all" : status);
+    setPage(1);
+  }
+
   return (
     <div className="space-y-6">
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6">
-        <SummaryCard icon={<span className="text-sm font-bold">#</span>} label="Total" value={String(summary.total)} />
-        <SummaryCard icon={<span className="text-sm font-bold">D</span>} label="Draft" value={String(summary.draft)} tone="neutral" />
-        <SummaryCard icon={<span className="text-sm font-bold">P</span>} label="Pending Approval" value={String(summary.pending)} tone="warning" />
-        <SummaryCard icon={<span className="text-sm font-bold">A</span>} label="Approved" value={String(summary.approved)} tone="success" />
-        <SummaryCard icon={<span className="text-sm font-bold">R</span>} label="Rejected" value={String(summary.rejected)} tone="danger" />
+      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6" aria-label="Change order summary filters">
+        <SummaryCard icon={<span className="text-sm font-bold">#</span>} label="Total" value={String(summary.total)} onClick={() => chooseStatus("all")} selected={statusValue === "all"} actionLabel="Show all change orders" />
+        <SummaryCard icon={<span className="text-sm font-bold">D</span>} label="Draft" value={String(summary.draft)} tone="neutral" onClick={() => chooseStatus("draft")} selected={statusValue === "draft"} actionLabel="Show draft change orders" />
+        <SummaryCard icon={<span className="text-sm font-bold">P</span>} label="Pending Approval" value={String(summary.pending)} tone="warning" onClick={() => chooseStatus("pending_approval")} selected={statusValue === "pending_approval"} actionLabel="Show change orders pending approval" />
+        <SummaryCard icon={<span className="text-sm font-bold">A</span>} label="Approved" value={String(summary.approved)} tone="success" onClick={() => chooseStatus("approved")} selected={statusValue === "approved"} actionLabel="Show approved change orders" />
+        <SummaryCard icon={<span className="text-sm font-bold">R</span>} label="Rejected" value={String(summary.rejected)} tone="danger" onClick={() => chooseStatus("rejected")} selected={statusValue === "rejected"} actionLabel="Show rejected change orders" />
         <SummaryCard icon={<span className="text-sm font-bold">$</span>} label="Total Approved Value" value={formatUsd(summary.approvedValue, localeTag)} tone="info" />
       </section>
 
