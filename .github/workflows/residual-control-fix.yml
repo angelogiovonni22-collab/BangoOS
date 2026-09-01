@@ -1,0 +1,47 @@
+name: Residual Control Repair
+
+on:
+  push:
+    branches:
+      - fix/production-wide-residual-controls
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: contains(github.event.head_commit.message, 'Run residual control repair')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/production-wide-residual-controls
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Repair residual nested icon links
+        run: python3 scripts/fix-nested-icon-links.py
+      - name: Validate repair
+        run: |
+          git diff --check
+          npm run lint
+          npx tsc --noEmit
+      - name: Commit repaired controls
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app components scripts
+          if git diff --cached --quiet; then
+            echo "No residual nested icon links found."
+            exit 0
+          fi
+          git commit -m "Repair residual nested icon controls [skip ci]"
+          git push origin HEAD:fix/production-wide-residual-controls
