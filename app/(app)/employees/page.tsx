@@ -6,7 +6,7 @@ import {
   PageHeader,
   PartialDataNotice,
   TableContainer,
-  Button,
+  getButtonClassName,
 } from "@/components/ui";
 import {
   EmployeeDashboardMetrics,
@@ -61,11 +61,7 @@ export default function EmployeesPage() {
       <PageHeader
         title={t("employees.pageTitle")}
         description={t("employees.pageDescription")}
-        secondaryActions={(
-          <Link href="/employees/new">
-            <Button size="md">New Employee</Button>
-          </Link>
-        )}
+        secondaryActions={<Link href="/employees/new" className={getButtonClassName({ size: "md" })}>New Employee</Link>}
       />
 
       <EmployeeDashboardMetrics
@@ -117,12 +113,7 @@ export default function EmployeesPage() {
         ) : errorMessage ? (
           <ErrorState title={t("employees.errorTitle")} description={t(errorMessage)} compact />
         ) : items.length === 0 ? (
-          <EmptyState
-            compact
-            icon={<UsersIcon className="h-7 w-7" />}
-            title={t("employees.empty.title")}
-            description={t("employees.empty.description")}
-          />
+          <EmptyState compact icon={<UsersIcon className="h-7 w-7" />} title={t("employees.empty.title")} description={t("employees.empty.description")} />
         ) : (
           <>
             <EmployeeTable items={items} t={t} />
