@@ -13,7 +13,7 @@ export type DailyReportsPageSummary = {
   total: number;
   pending: number;
   approved: number;
-  rejected: number;
+  reviewed: number;
 };
 
 export type DailyReportsPageData = {
@@ -51,7 +51,7 @@ export async function loadDailyReportsPageData(service: Pick<DailyReportsService
       total: result.total,
       pending: result.items.filter((report) => report.header.overallStatus === "submitted").length,
       approved: result.items.filter((report) => report.header.overallStatus === "approved").length,
-      rejected: 0,
+      reviewed: result.items.filter((report) => report.header.overallStatus === "reviewed").length,
     },
   };
 }

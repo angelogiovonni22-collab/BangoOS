@@ -171,6 +171,9 @@ jobs:
       - name: Run Projects page polish regression
         run: npx -y tsx components/projects/projects-page-polish.contract.test.ts
 
+      - name: Run full-system UI cleanup regression
+        run: npx -y tsx components/ui/full-system-ui-cleanup.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
