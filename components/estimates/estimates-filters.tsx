@@ -34,7 +34,7 @@ export function EstimatesFilters({
   onDatePresetChange,
 }: EstimatesFiltersProps) {
   return (
-    <FilterToolbar gridClassName="md:grid-cols-2 xl:grid-cols-5">
+    <FilterToolbar gridClassName="md:grid-cols-2 xl:grid-cols-6">
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)] xl:col-span-2">
         <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Search</span>
         <SearchInput
@@ -50,7 +50,7 @@ export function EstimatesFilters({
       <FilterSelect label="Customer" value={customerValue} onChange={onCustomerChange} options={customerOptions} />
       <FilterSelect label="Project" value={projectValue} onChange={onProjectChange} options={projectOptions} />
 
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)] xl:col-span-2">
+      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
         <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Date</span>
         <Select value={datePresetValue} onChange={(event) => onDatePresetChange(event.target.value)} aria-label="Filter by date" className="h-10 py-2">
           <option value="all">All Dates</option>
