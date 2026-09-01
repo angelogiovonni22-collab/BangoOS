@@ -10,9 +10,9 @@ import {
   EnterpriseTableHead,
   EnterpriseTableHeading,
   EnterpriseTableRow,
-  IconButton,
   StatusBadge,
   TableContainer,
+  IconLink,
 } from "@/components/ui";
 import type { UnitListItem } from "@/lib/units-of-measure";
 import { UnitCategoryBadge } from "./unit-category-badge";
@@ -110,15 +110,11 @@ export function UnitTable({ items, total, page, pageSize, onPageChange }: UnitTa
               <EnterpriseTableCell>{formatDate(item.updated_at)}</EnterpriseTableCell>
               <EnterpriseTableCell align="right">
                 <div className="inline-flex items-center gap-1">
-                  <Link href={`/units-of-measure/${item.id}`}>
-                    <IconButton icon={<Eye size={15} />} label="View unit" variant="ghost" size="sm" />
-                  </Link>
+                  <IconLink href={`/units-of-measure/${item.id}`} icon={<Eye size={15} />} label="View unit" variant="ghost" size="sm" />
                   {item.is_system ? (
                     <span className="text-xs text-[var(--color-text-muted)]">System</span>
                   ) : (
-                    <Link href={`/units-of-measure/${item.id}/edit`}>
-                      <IconButton icon={<Pencil size={15} />} label="Edit unit" variant="ghost" size="sm" />
-                    </Link>
+                    <IconLink href={`/units-of-measure/${item.id}/edit`} icon={<Pencil size={15} />} label="Edit unit" variant="ghost" size="sm" />
                   )}
                 </div>
               </EnterpriseTableCell>

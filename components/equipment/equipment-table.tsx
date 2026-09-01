@@ -10,8 +10,8 @@ import {
   EnterpriseTableHead,
   EnterpriseTableHeading,
   EnterpriseTableRow,
-  IconButton,
   TableContainer,
+  IconLink,
 } from "@/components/ui";
 import { type FleetGridRow } from "@/lib/equipment";
 
@@ -109,12 +109,8 @@ export function EquipmentTable({ rows, total, page, pageSize, onPageChange }: Eq
 
               <EnterpriseTableCell align="right">
                 <div className="inline-flex items-center gap-1">
-                  <Link href={`/equipment/${row.equipmentId}`}>
-                    <IconButton icon={<Eye size={15} />} label="View equipment" variant="ghost" size="sm" />
-                  </Link>
-                  <Link href={`/equipment/${row.equipmentId}/edit`}>
-                    <IconButton icon={<Pencil size={15} />} label="Edit equipment" variant="ghost" size="sm" />
-                  </Link>
+                  <IconLink href={`/equipment/${row.equipmentId}`} icon={<Eye size={15} />} label="View equipment" variant="ghost" size="sm" />
+                  <IconLink href={`/equipment/${row.equipmentId}/edit`} icon={<Pencil size={15} />} label="Edit equipment" variant="ghost" size="sm" />
                 </div>
               </EnterpriseTableCell>
             </EnterpriseTableRow>

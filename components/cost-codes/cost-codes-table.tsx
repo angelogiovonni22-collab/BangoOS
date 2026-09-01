@@ -11,9 +11,9 @@ import {
   EnterpriseTableHead,
   EnterpriseTableHeading,
   EnterpriseTableRow,
-  IconButton,
   StatusBadge,
   TableContainer,
+  IconLink,
 } from "@/components/ui";
 import type { CostCodeListItem } from "@/lib/cost-codes";
 
@@ -108,12 +108,8 @@ export function CostCodesTable({ items, total, page, pageSize, onPageChange }: C
 
               <EnterpriseTableCell align="right">
                 <div className="inline-flex items-center gap-1">
-                  <Link href={`/cost-codes/${costCode.id}`}>
-                    <IconButton icon={<Eye size={15} />} label="View cost code" variant="ghost" size="sm" />
-                  </Link>
-                  <Link href={`/cost-codes/${costCode.id}/edit`}>
-                    <IconButton icon={<Pencil size={15} />} label="Edit cost code" variant="ghost" size="sm" />
-                  </Link>
+                  <IconLink href={`/cost-codes/${costCode.id}`} icon={<Eye size={15} />} label="View cost code" variant="ghost" size="sm" />
+                  <IconLink href={`/cost-codes/${costCode.id}/edit`} icon={<Pencil size={15} />} label="Edit cost code" variant="ghost" size="sm" />
                 </div>
               </EnterpriseTableCell>
             </EnterpriseTableRow>

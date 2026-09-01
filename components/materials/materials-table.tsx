@@ -11,9 +11,9 @@ import {
   EnterpriseTableHead,
   EnterpriseTableHeading,
   EnterpriseTableRow,
-  IconButton,
   StatusBadge,
   TableContainer,
+  IconLink,
 } from "@/components/ui";
 import { getStockBadgeLabel, getStockBadgeTone, type MaterialListItem } from "@/lib/materials";
 
@@ -107,12 +107,8 @@ export function MaterialsTable({ items, total, page, pageSize, onPageChange }: M
 
               <EnterpriseTableCell align="right">
                 <div className="inline-flex items-center gap-1">
-                  <Link href={`/materials/${material.id}`}>
-                    <IconButton icon={<Eye size={15} />} label="View material" variant="ghost" size="sm" />
-                  </Link>
-                  <Link href={`/materials/${material.id}/edit`}>
-                    <IconButton icon={<Pencil size={15} />} label="Edit material" variant="ghost" size="sm" />
-                  </Link>
+                  <IconLink href={`/materials/${material.id}`} icon={<Eye size={15} />} label="View material" variant="ghost" size="sm" />
+                  <IconLink href={`/materials/${material.id}/edit`} icon={<Pencil size={15} />} label="Edit material" variant="ghost" size="sm" />
                 </div>
               </EnterpriseTableCell>
             </EnterpriseTableRow>

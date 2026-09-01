@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { getButtonClassName, IconButton, PortalHost } from "@/components/ui";
+import {
+  getButtonClassName,
+  PortalHost,
+  IconLink,
+} from "@/components/ui";
 
 export const PROJECT_HUB_SECTIONS = [
   "overview",
@@ -115,9 +119,7 @@ export function ProjectActions({ projectId, projectName, viewLabel, moreLabel }:
   return (
     <>
       <div className="inline-flex items-center gap-1">
-        <Link href={`/projects/${projectId}`}>
-          <IconButton icon={<Eye size={15} aria-hidden="true" />} label={viewLabel} variant="ghost" size="sm" />
-        </Link>
+        <IconLink href={`/projects/${projectId}`} icon={<Eye size={15} aria-hidden="true" />} label={viewLabel} variant="ghost" size="sm" />
         <button
           ref={buttonRef}
           type="button"

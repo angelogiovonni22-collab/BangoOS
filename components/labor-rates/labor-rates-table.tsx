@@ -11,9 +11,9 @@ import {
   EnterpriseTableHead,
   EnterpriseTableHeading,
   EnterpriseTableRow,
-  IconButton,
   StatusBadge,
   TableContainer,
+  IconLink,
 } from "@/components/ui";
 import { formatPercent, formatUsdCurrency, type LaborRateListItem } from "@/lib/labor-rates";
 
@@ -109,12 +109,8 @@ export function LaborRatesTable({ items, total, page, pageSize, onPageChange }: 
 
               <EnterpriseTableCell align="right">
                 <div className="inline-flex items-center gap-1">
-                  <Link href={`/labor-rates/${item.id}`}>
-                    <IconButton icon={<Eye size={15} />} label="View labor rate" variant="ghost" size="sm" />
-                  </Link>
-                  <Link href={`/labor-rates/${item.id}/edit`}>
-                    <IconButton icon={<Pencil size={15} />} label="Edit labor rate" variant="ghost" size="sm" />
-                  </Link>
+                  <IconLink href={`/labor-rates/${item.id}`} icon={<Eye size={15} />} label="View labor rate" variant="ghost" size="sm" />
+                  <IconLink href={`/labor-rates/${item.id}/edit`} icon={<Pencil size={15} />} label="Edit labor rate" variant="ghost" size="sm" />
                 </div>
               </EnterpriseTableCell>
             </EnterpriseTableRow>

@@ -11,9 +11,9 @@ import {
   EnterpriseTableHead,
   EnterpriseTableHeading,
   EnterpriseTableRow,
-  IconButton,
   StatusBadge,
   TableContainer,
+  IconLink,
 } from "@/components/ui";
 import type { VendorListItem } from "@/lib/vendors";
 
@@ -107,12 +107,8 @@ export function VendorsTable({ items, total, page, pageSize, onPageChange }: Ven
 
               <EnterpriseTableCell align="right">
                 <div className="inline-flex items-center gap-1">
-                  <Link href={`/vendors/${vendor.id}`}>
-                    <IconButton icon={<Eye size={15} />} label="View vendor" variant="ghost" size="sm" />
-                  </Link>
-                  <Link href={`/vendors/${vendor.id}/edit`}>
-                    <IconButton icon={<Pencil size={15} />} label="Edit vendor" variant="ghost" size="sm" />
-                  </Link>
+                  <IconLink href={`/vendors/${vendor.id}`} icon={<Eye size={15} />} label="View vendor" variant="ghost" size="sm" />
+                  <IconLink href={`/vendors/${vendor.id}/edit`} icon={<Pencil size={15} />} label="Edit vendor" variant="ghost" size="sm" />
                 </div>
               </EnterpriseTableCell>
             </EnterpriseTableRow>
