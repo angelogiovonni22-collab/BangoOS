@@ -16,6 +16,7 @@ const invoices = readFileSync("components/invoices/invoices-directory.tsx", "utf
 const customers = readFileSync("app/(app)/customers/page.tsx", "utf8");
 const employees = readFileSync("components/employees/employee-dashboard-metrics.tsx", "utf8");
 const materialsFilters = readFileSync("components/materials/materials-filters.tsx", "utf8");
+const costCodeFilters = readFileSync("components/cost-codes/cost-codes-filters.tsx", "utf8");
 const changeOrders = readFileSync("components/change-orders/change-orders-directory.tsx", "utf8");
 const changeOrderFilters = readFileSync("components/change-orders/change-orders-filters.tsx", "utf8");
 const schedulingHeader = readFileSync("components/scheduling/scheduling-header.tsx", "utf8");
@@ -50,6 +51,7 @@ assert.match(employees, /Show available employees/, "Employee availability KPI m
 assert.match(employees, /Show assigned employees/, "Employee assignment KPI must be actionable");
 assert.match(employees, /Show employees on leave/, "Employee leave KPI must be actionable");
 assert.match(materialsFilters, /xl:grid-cols-6/, "Materials filters must fit one desktop row");
+assert.match(costCodeFilters, /xl:grid-cols-6/, "Cost code filters must fit one desktop row");
 assert.match(changeOrders, /Change order summary filters/, "Change order status KPIs must operate as filters");
 assert.match(changeOrders, /chooseStatus\("pending_approval"\)/, "Pending change order KPI must filter the directory");
 assert.match(changeOrderFilters, /xl:grid-cols-8/, "Change order filters must use the full desktop row");
