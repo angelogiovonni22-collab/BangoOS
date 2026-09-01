@@ -42,7 +42,7 @@ export function ChangeOrdersFilters({
   onArchivedChange,
 }: ChangeOrdersFiltersProps) {
   return (
-    <FilterToolbar gridClassName="md:grid-cols-2 xl:grid-cols-7">
+    <FilterToolbar gridClassName="md:grid-cols-2 xl:grid-cols-8">
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)] xl:col-span-2">
         <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Search</span>
         <SearchInput
@@ -94,9 +94,9 @@ function FilterSelect({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
+    <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)] min-w-0">
       <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{label}</span>
-      <Select value={value} onChange={(event) => onChange(event.target.value)} aria-label={`Filter by ${label.toLowerCase()}`} className="h-10 py-2">
+      <Select value={value} onChange={(event) => onChange(event.target.value)} aria-label={`Filter by ${label.toLowerCase()}`} className="h-10 min-w-0 py-2">
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

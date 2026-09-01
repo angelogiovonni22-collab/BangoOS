@@ -30,7 +30,7 @@ export function MaterialsFilters({
 }: MaterialsFiltersProps) {
   return (
     <FilterToolbar
-      gridClassName="md:grid-cols-2 xl:grid-cols-5"
+      gridClassName="md:grid-cols-2 xl:grid-cols-6"
       footer={<p className="text-xs font-medium text-[var(--color-text-secondary)]">Active filters: {activeFilters}</p>}
     >
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)] xl:col-span-2">

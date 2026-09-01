@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CustomerTable } from "@/components/customers";
-import { Button, EmptyState, ErrorState, PageHeader, SearchInput, SkeletonLoader } from "@/components/ui";
+import { Button, EmptyState, ErrorState, PageHeader, SearchInput, SkeletonLoader, SummaryCard } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -172,6 +172,7 @@ export default function CustomersPage() {
 
   const filteredCustomers = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
+    const now = new Date();
     return customers.filter((customer) => {
       const matchesSearch = !normalizedSearch
         || customer.name.toLowerCase().includes(normalizedSearch)
@@ -181,6 +182,11 @@ export default function CustomersPage() {
       if (chipFilter === "residential" || chipFilter === "commercial") return matchesSearch && customer.statusKey !== "archived" && customer.typeKey === chipFilter;
       if (chipFilter === "active") return matchesSearch && customer.statusKey === "active";
       if (chipFilter === "archived") return matchesSearch && customer.statusKey === "archived";
+      if (chipFilter === "new_this_month") {
+        const created = new Date(customer.createdAt);
+        const createdThisMonth = !Number.isNaN(created.getTime()) && created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+        return matchesSearch && customer.statusKey !== "archived" && createdThisMonth;
+      }
       return matchesSearch && customer.statusKey !== "archived";
     });
   }, [chipFilter, customers, searchTerm]);
@@ -197,6 +203,7 @@ export default function CustomersPage() {
     { key: "residential", label: "Residential" },
     { key: "commercial", label: "Commercial" },
     { key: "active", label: "Active" },
+    { key: "new_this_month", label: "New This Month" },
     { key: "archived", label: "Archived" },
   ];
 
@@ -212,22 +219,27 @@ export default function CustomersPage() {
     return { totalCustomers: visibleCustomers.length, activeCustomers, newThisMonth, archivedCustomers };
   }, [customers]);
 
+  const chooseCustomerFilter = (filter: string) => {
+    setChipFilter((current) => current === filter && filter !== "all" ? "all" : filter);
+    setPage(1);
+  };
+
   return (
     <div className="container-content space-y-[var(--space-section)]">
       <PageHeader compact title="Customers" description="Manage residential, commercial, and property management customers." primaryAction={<Link href="/customers/new"><Button size="md"><Plus size={16} aria-hidden="true" />New Customer</Button></Link>} />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Total Customers" value={kpis.totalCustomers.toLocaleString()} />
-        <KpiCard label="Active Customers" value={kpis.activeCustomers.toLocaleString()} />
-        <KpiCard label="New This Month" value={kpis.newThisMonth.toLocaleString()} />
-        <KpiCard label="Archived Customers" value={kpis.archivedCustomers.toLocaleString()} />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Customer summary filters">
+        <SummaryCard icon={<span>C</span>} label="Total Customers" value={kpis.totalCustomers.toLocaleString()} tone="brand" compact onClick={() => chooseCustomerFilter("all")} selected={chipFilter === "all"} actionLabel="Show all active customer records" />
+        <SummaryCard icon={<span>A</span>} label="Active Customers" value={kpis.activeCustomers.toLocaleString()} tone="success" compact onClick={() => chooseCustomerFilter("active")} selected={chipFilter === "active"} actionLabel="Show active customers" />
+        <SummaryCard icon={<span>N</span>} label="New This Month" value={kpis.newThisMonth.toLocaleString()} tone="info" compact onClick={() => chooseCustomerFilter("new_this_month")} selected={chipFilter === "new_this_month"} actionLabel="Show customers created this month" />
+        <SummaryCard icon={<span>R</span>} label="Archived Customers" value={kpis.archivedCustomers.toLocaleString()} tone="neutral" compact onClick={() => chooseCustomerFilter("archived")} selected={chipFilter === "archived"} actionLabel="Show archived customers" />
       </section>
 
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-3 shadow-[var(--shadow-small)] sm:px-4 sm:py-3.5">
         <div className="space-y-3">
           <SearchInput value={searchTerm} onChange={(event) => { setSearchTerm(event.target.value); setPage(1); }} placeholder="Search customers by name, email, or phone" aria-label="Search customers" className="h-10 rounded-[var(--radius-lg)] transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.12)]" />
           <div className="flex flex-wrap gap-2">
-            {filterChips.map((chip) => <Button key={chip.key} type="button" size="sm" variant={chipFilter === chip.key ? "primary" : "outline"} className="h-8 px-3.5 text-xs transition-all duration-200 hover:-translate-y-px" onClick={() => { setChipFilter(chip.key); setPage(1); }}>{chip.label}</Button>)}
+            {filterChips.map((chip) => <Button key={chip.key} type="button" size="sm" variant={chipFilter === chip.key ? "primary" : "outline"} className="h-8 px-3.5 text-xs transition-all duration-200 hover:-translate-y-px" onClick={() => chooseCustomerFilter(chip.key)}>{chip.label}</Button>)}
           </div>
           {actionMessage ? <p className="text-sm font-semibold text-[var(--color-text-secondary)]" role="status">{actionMessage}</p> : null}
         </div>
@@ -247,11 +259,7 @@ export default function CustomersPage() {
 }
 
 function CustomersLoadingState() {
-  return <div className="space-y-3 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-card)] sm:p-5"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-12 w-full" /><SkeletonLoader className="h-12 w-full" /><SkeletonLoader className="h-12 w-full" /><SkeletonLoader className="h-12 w-full" /></div>;
-}
-
-function KpiCard({ label, value }: { label: string; value: string }) {
-  return <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-3.5 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]"><p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)]">{label}</p><p className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{value}</p></article>;
+  return <div className="space-y-3 rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-card)] sm:p-5"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-12 w-full" /><SkeletonLoader className="h-12 w-full" /><SkeletonLoader className="h-12 w-full" /><SkeletonLoader className="h-12 w-full" /></div>;
 }
 
 function normalizeCustomerType(customerType: string | null, t: (key: string) => string) {
