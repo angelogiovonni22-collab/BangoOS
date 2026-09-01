@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ProjectFilters,
+  ProjectsPageKpi,
   ProjectTable,
   type ProjectTableItem,
 } from "@/components/projects";
@@ -61,6 +62,7 @@ type ProjectListItem = ProjectTableItem & {
 };
 
 type ProjectsErrorKind = "auth" | "company" | "database" | "network" | "unknown";
+type SummaryView = "active" | "behind" | "risk" | "completed" | null;
 
 export default function ProjectsPage() {
   const { t, locale } = useI18n();
@@ -77,6 +79,7 @@ export default function ProjectsPage() {
   const [superintendentFilter, setSuperintendentFilter] = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
   const [projectTypeFilter, setProjectTypeFilter] = useState("all");
+  const [summaryView, setSummaryView] = useState<SummaryView>(null);
 
   const [customerOptions, setCustomerOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [superintendentOptions, setSuperintendentOptions] = useState<Array<{ value: string; label: string }>>([]);
@@ -174,7 +177,6 @@ export default function ProjectsPage() {
             setErrorKind("database");
             setErrorMessage(t("projects.errorLoadCustomersDetailed", { message: customersResponse.error.message }));
           }
-
           return;
         }
 
@@ -183,7 +185,6 @@ export default function ProjectsPage() {
             setErrorKind("database");
             setErrorMessage(t("projects.errorLoadProjectProgressDetailed", { message: tasksResponse.error.message }));
           }
-
           return;
         }
 
@@ -192,7 +193,6 @@ export default function ProjectsPage() {
             setErrorKind("database");
             setErrorMessage(t("projects.errorLoadTeamProfiles"));
           }
-
           return;
         }
 
@@ -201,7 +201,6 @@ export default function ProjectsPage() {
             setErrorKind("database");
             setErrorMessage(t("projects.errorLoadInvoices"));
           }
-
           return;
         }
 
@@ -353,29 +352,26 @@ export default function ProjectsPage() {
       const matchesSuperintendent = superintendentFilter === "all" || project.superintendentId === superintendentFilter;
       const matchesCustomer = customerFilter === "all" || project.customerId === customerFilter;
       const matchesProjectType = projectTypeFilter === "all" || project.projectTypeKey === projectTypeFilter;
+      const matchesSummary = !summaryView
+        || (summaryView === "active" && !["completed", "cancelled"].includes(project.statusKey))
+        || (summaryView === "behind" && project.isOverdue)
+        || (summaryView === "risk" && ["at_risk", "behind"].includes(project.healthKey))
+        || (summaryView === "completed" && project.statusKey === "completed" && isCurrentMonth(project.completedAtRaw));
 
-      return matchesSearch && matchesStatus && matchesSuperintendent && matchesCustomer && matchesProjectType;
+      return matchesSearch && matchesStatus && matchesSuperintendent && matchesCustomer && matchesProjectType && matchesSummary;
     });
-  }, [projects, searchTerm, statusFilter, superintendentFilter, customerFilter, projectTypeFilter]);
+  }, [projects, searchTerm, statusFilter, superintendentFilter, customerFilter, projectTypeFilter, summaryView]);
 
   const summary = useMemo(() => {
     const activeProjects = projects.filter((project) => !["completed", "cancelled"].includes(project.statusKey)).length;
     const behindSchedule = projects.filter((project) => project.isOverdue).length;
     const atRisk = projects.filter((project) => ["at_risk", "behind"].includes(project.healthKey)).length;
     const completedThisMonth = projects.filter((project) => {
-      if (project.statusKey !== "completed") {
-        return false;
-      }
-
+      if (project.statusKey !== "completed") return false;
       return isCurrentMonth(project.completedAtRaw);
     }).length;
 
-    return {
-      activeProjects,
-      behindSchedule,
-      atRisk,
-      completedThisMonth,
-    };
+    return { activeProjects, behindSchedule, atRisk, completedThisMonth };
   }, [projects]);
 
   const statusOptions = useMemo(() => {
@@ -387,6 +383,7 @@ export default function ProjectsPage() {
 
   const canManageProjects = hasBosPermission(company.role, "projects.manage");
   const showFinancials = hasBosPermission(company.role, "project_financials.view");
+  const toggleSummaryView = (next: Exclude<SummaryView, null>) => setSummaryView((current) => current === next ? null : next);
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
@@ -406,10 +403,10 @@ export default function ProjectsPage() {
       />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project performance summary">
-        <KpiCard label="Active Projects" value={summary.activeProjects.toLocaleString()} />
-        <KpiCard label="Behind Schedule" value={summary.behindSchedule.toLocaleString()} />
-        <KpiCard label="At Risk" value={summary.atRisk.toLocaleString()} />
-        <KpiCard label="Completed This Month" value={summary.completedThisMonth.toLocaleString()} />
+        <ProjectsPageKpi label="Active Projects" value={summary.activeProjects.toLocaleString()} tone="brand" selected={summaryView === "active"} onClick={() => toggleSummaryView("active")} />
+        <ProjectsPageKpi label="Behind Schedule" value={summary.behindSchedule.toLocaleString()} tone="warning" selected={summaryView === "behind"} onClick={() => toggleSummaryView("behind")} />
+        <ProjectsPageKpi label="At Risk" value={summary.atRisk.toLocaleString()} tone="danger" selected={summaryView === "risk"} onClick={() => toggleSummaryView("risk")} />
+        <ProjectsPageKpi label="Completed This Month" value={summary.completedThisMonth.toLocaleString()} tone="success" selected={summaryView === "completed"} onClick={() => toggleSummaryView("completed")} />
       </section>
 
       <ProjectFilters
@@ -460,7 +457,7 @@ export default function ProjectsPage() {
         <EmptyState
           icon="?"
           title="No projects match this filter"
-          description="Try adjusting your search or filters to find the project you need."
+          description="Try adjusting your search, KPI selection, or filters to find the project you need."
           compact
         />
       )}
@@ -480,35 +477,14 @@ function ProjectsLoadingState() {
   );
 }
 
-function KpiCard({ label, value }: { label: string; value: string }) {
-  return (
-    <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-3.5 shadow-[var(--shadow-small)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]">
-      <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)]">{label}</p>
-      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">{value}</p>
-    </article>
-  );
-}
-
 function getProjectsErrorTitle(
   errorKind: ProjectsErrorKind | null,
   t: (key: string) => string,
 ) {
-  if (errorKind === "auth") {
-    return t("projects.errorTitleAuth");
-  }
-
-  if (errorKind === "company") {
-    return t("projects.errorTitleCompany");
-  }
-
-  if (errorKind === "database") {
-    return t("projects.errorTitleDatabase");
-  }
-
-  if (errorKind === "network") {
-    return t("projects.errorTitleNetwork");
-  }
-
+  if (errorKind === "auth") return t("projects.errorTitleAuth");
+  if (errorKind === "company") return t("projects.errorTitleCompany");
+  if (errorKind === "database") return t("projects.errorTitleDatabase");
+  if (errorKind === "network") return t("projects.errorTitleNetwork");
   return t("projects.errorTitle");
 }
 
@@ -517,10 +493,7 @@ function buildProjectProgressMap(tasks: TaskProgressRow[]) {
 
   for (const task of tasks) {
     const projectId = task.project_id;
-
-    if (!projectId) {
-      continue;
-    }
+    if (!projectId) continue;
 
     const normalizedStatus = task.status.trim().toLowerCase();
     const progress = normalizedStatus === "completed" ? 100 : Math.max(0, Math.min(100, task.completion_percentage));
@@ -544,10 +517,7 @@ function buildInvoiceSpentMap(invoices: InvoiceSpendRow[]) {
   const spentMap = new Map<string, number>();
 
   for (const invoice of invoices) {
-    if (!invoice.project_id) {
-      continue;
-    }
-
+    if (!invoice.project_id) continue;
     const current = spentMap.get(invoice.project_id) || 0;
     spentMap.set(invoice.project_id, current + Math.max(0, invoice.amount_paid));
   }
@@ -556,18 +526,12 @@ function buildInvoiceSpentMap(invoices: InvoiceSpendRow[]) {
 }
 
 function isProjectOverdue(endDate: string | null, statusKey: string) {
-  if (!endDate || ["completed", "cancelled"].includes(statusKey)) {
-    return false;
-  }
+  if (!endDate || ["completed", "cancelled"].includes(statusKey)) return false;
 
   const now = new Date();
   const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const due = new Date(`${endDate}T00:00:00Z`);
-
-  if (Number.isNaN(due.getTime())) {
-    return false;
-  }
-
+  if (Number.isNaN(due.getTime())) return false;
   return due.getTime() < cutoff.getTime();
 }
 
@@ -577,75 +541,44 @@ function getProjectHealth(input: {
   dueDate: string | null;
   isOverdue: boolean;
 }): ProjectTableItem["healthKey"] {
-  if (input.statusKey === "completed") {
-    return "complete";
-  }
-
-  if (input.isOverdue) {
-    return "behind";
-  }
-
-  if (!input.dueDate || input.statusKey === "cancelled") {
-    return "on_track";
-  }
+  if (input.statusKey === "completed") return "complete";
+  if (input.isOverdue) return "behind";
+  if (!input.dueDate || input.statusKey === "cancelled") return "on_track";
 
   const dueDate = new Date(`${input.dueDate}T00:00:00Z`);
-  if (Number.isNaN(dueDate.getTime())) {
-    return "on_track";
-  }
+  if (Number.isNaN(dueDate.getTime())) return "on_track";
 
   const now = new Date();
   const msUntilDue = dueDate.getTime() - now.getTime();
   const daysUntilDue = Math.ceil(msUntilDue / (1000 * 60 * 60 * 24));
 
-  if (daysUntilDue <= 14 && input.progress < 65) {
-    return "at_risk";
-  }
-
+  if (daysUntilDue <= 14 && input.progress < 65) return "at_risk";
   return "on_track";
 }
 
 function getProjectHealthLabel(healthKey: ProjectTableItem["healthKey"]) {
-  if (healthKey === "complete") {
-    return "Complete";
-  }
-
-  if (healthKey === "behind") {
-    return "Behind";
-  }
-
-  if (healthKey === "at_risk") {
-    return "At Risk";
-  }
-
+  if (healthKey === "complete") return "Complete";
+  if (healthKey === "behind") return "Behind";
+  if (healthKey === "at_risk") return "At Risk";
   return "On Track";
 }
 
 function formatProfitMarginLabel(budget: number | null, spent: number) {
-  if (typeof budget !== "number" || budget <= 0) {
-    return "-";
-  }
-
+  if (typeof budget !== "number" || budget <= 0 || spent <= 0) return "Not available";
   const margin = ((budget - spent) / budget) * 100;
-
   return `${margin.toFixed(1)}%`;
 }
 
 function isCurrentMonth(dateValue: string | null) {
-  if (!dateValue) {
-    return false;
-  }
+  if (!dateValue) return false;
 
   const parsedDate = dateValue.includes("T")
     ? new Date(dateValue)
     : new Date(`${dateValue}T00:00:00Z`);
 
-  if (Number.isNaN(parsedDate.getTime())) {
-    return false;
-  }
+  if (Number.isNaN(parsedDate.getTime())) return false;
 
   const now = new Date();
-
   return parsedDate.getUTCFullYear() === now.getUTCFullYear()
     && parsedDate.getUTCMonth() === now.getUTCMonth();
 }
@@ -684,16 +617,12 @@ function getCustomerDisplayName(customer: CustomerSummaryRow, fallbackLabel = "U
   const lastName = customer.last_name?.trim() || "";
   const fallbackName = [firstName, lastName].filter(Boolean).join(" ");
 
-  if (customer.customer_type?.trim().toLowerCase() === "commercial" && companyName) {
-    return companyName;
-  }
-
+  if (customer.customer_type?.trim().toLowerCase() === "commercial" && companyName) return companyName;
   return fallbackName || companyName || fallbackLabel;
 }
 
 function getProfileDisplayName(profile: ProfileSummaryRow, fallbackLabel = "Not assigned") {
   const firstName = profile.first_name?.trim() || "";
   const lastName = profile.last_name?.trim() || "";
-
   return [firstName, lastName].filter(Boolean).join(" ") || fallbackLabel;
 }

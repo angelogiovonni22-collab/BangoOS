@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   Badge,
-  Button,
   EnterpriseTable,
   EnterpriseTableBody,
   EnterpriseTableCell,
@@ -73,26 +72,32 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2" aria-label="Project lifecycle views">
-        <Button type="button" size="sm" variant="primary" disabled>Projects</Button>
-        {canManageProjects ? <Link href="/projects/deleted">
-          <Button type="button" size="sm" variant="outline">Previously Deleted</Button>
-        </Link> : null}
+        <span
+          aria-current="page"
+          className="inline-flex min-h-9 items-center rounded-[var(--radius-md)] border border-[var(--color-brand-500)] bg-[var(--color-brand-600)] px-3 py-2 text-sm font-semibold text-white shadow-[var(--shadow-small)]"
+        >
+          Projects
+        </span>
+        {canManageProjects ? (
+          <Link
+            href="/projects/deleted"
+            className="inline-flex min-h-9 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-brand-500)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
+          >
+            Previously Deleted
+          </Link>
+        ) : null}
       </div>
 
-      <TableContainer
-        title={t("projects.directoryTitle")}
-        description={t("projects.directoryDescription")}
-      >
-        <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[1320px]">
+      <TableContainer title={t("projects.directoryTitle")} description={t("projects.directoryDescription")}>
+        <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[1080px]">
           <EnterpriseTableHead>
             <tr>
               <EnterpriseTableHeading>{t("projects.tableProject")}</EnterpriseTableHeading>
-              <EnterpriseTableHeading>{t("projects.tableCustomer")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableStatus")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableProgress")}</EnterpriseTableHeading>
               {showFinancials ? <EnterpriseTableHeading>{t("projects.tableBudget")}</EnterpriseTableHeading> : null}
-              {showFinancials ? <EnterpriseTableHeading>Spent</EnterpriseTableHeading> : null}
-              {showFinancials ? <EnterpriseTableHeading>Profit Margin</EnterpriseTableHeading> : null}
+              {showFinancials ? <EnterpriseTableHeading>Recorded</EnterpriseTableHeading> : null}
+              {showFinancials ? <EnterpriseTableHeading>Margin</EnterpriseTableHeading> : null}
               <EnterpriseTableHeading>Superintendent</EnterpriseTableHeading>
               <EnterpriseTableHeading>Due Date</EnterpriseTableHeading>
               <EnterpriseTableHeading>Health</EnterpriseTableHeading>
@@ -110,60 +115,39 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 aria-label={`${t("projects.viewWorkspace")} ${project.projectName}`}
                 onClick={(event) => {
                   const target = event.target as HTMLElement;
-
-                  if (target.closest("a,button,input,select,textarea")) {
-                    return;
-                  }
-
+                  if (target.closest("a,button,input,select,textarea")) return;
                   router.push(`/projects/${project.id}`);
                 }}
                 onKeyDown={(event) => {
-                  if (event.key !== "Enter" && event.key !== " ") {
-                    return;
-                  }
-
+                  if (event.key !== "Enter" && event.key !== " ") return;
                   event.preventDefault();
                   router.push(`/projects/${project.id}`);
                 }}
               >
                 <EnterpriseTableCell>
-                  <div className="flex items-start gap-3">
+                  <div className="flex min-w-[190px] items-start gap-3">
                     <ProjectAvatar name={project.projectName} />
                     <div className="min-w-0">
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="truncate text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]"
-                      >
+                      <Link href={`/projects/${project.id}`} className="block truncate text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
                         {project.projectName}
                       </Link>
                       <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">{project.customerName}</p>
                     </div>
                   </div>
                 </EnterpriseTableCell>
-
-                <EnterpriseTableCell>{project.customerName}</EnterpriseTableCell>
-                <EnterpriseTableCell>
-                  <ProjectStatusBadge statusKey={project.statusKey} label={project.statusLabel} />
-                </EnterpriseTableCell>
-                <EnterpriseTableCell>
-                  <ProjectProgress value={project.progress} />
-                </EnterpriseTableCell>
+                <EnterpriseTableCell><ProjectStatusBadge statusKey={project.statusKey} label={project.statusLabel} /></EnterpriseTableCell>
+                <EnterpriseTableCell><ProjectProgress value={project.progress} /></EnterpriseTableCell>
                 {showFinancials ? <EnterpriseTableCell className="font-semibold">{project.budgetLabel}</EnterpriseTableCell> : null}
                 {showFinancials ? <EnterpriseTableCell>{project.spentLabel}</EnterpriseTableCell> : null}
                 {showFinancials ? <EnterpriseTableCell className="font-semibold">{project.profitMarginLabel}</EnterpriseTableCell> : null}
                 <EnterpriseTableCell>{project.superintendentName}</EnterpriseTableCell>
                 <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.dueDateLabel}</EnterpriseTableCell>
-                <EnterpriseTableCell>
-                  <Badge tone={getHealthTone(project.healthKey)}>{project.healthLabel}</Badge>
-                </EnterpriseTableCell>
-                {canManageProjects ? <EnterpriseTableCell align="right">
-                  <ProjectActions
-                    projectId={project.id}
-                    projectName={project.projectName}
-                    viewLabel={t("projects.viewWorkspace")}
-                    moreLabel={t("projects.actionsMore")}
-                  />
-                </EnterpriseTableCell> : null}
+                <EnterpriseTableCell><Badge tone={getHealthTone(project.healthKey)}>{project.healthLabel}</Badge></EnterpriseTableCell>
+                {canManageProjects ? (
+                  <EnterpriseTableCell align="right">
+                    <ProjectActions projectId={project.id} projectName={project.projectName} viewLabel={t("projects.viewWorkspace")} moreLabel={t("projects.actionsMore")} />
+                  </EnterpriseTableCell>
+                ) : null}
               </EnterpriseTableRow>
             ))}
           </EnterpriseTableBody>
