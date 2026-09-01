@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus, Upload } from "lucide-react";
-import { Button, PageHeader } from "@/components/ui";
+import { Button, PageHeader, getButtonClassName } from "@/components/ui";
 
 type ProjectHeaderProps = {
   eyebrow: string;
@@ -32,11 +32,9 @@ export function ProjectHeader({
         </Button>
       )}
       primaryAction={(
-        <Link href="/projects/new">
-          <Button size="md">
-            <Plus size={16} aria-hidden="true" />
-            {newProjectLabel}
-          </Button>
+        <Link href="/projects/new" className={getButtonClassName({ size: "md" })}>
+          <Plus size={16} aria-hidden="true" />
+          {newProjectLabel}
         </Link>
       )}
     />
