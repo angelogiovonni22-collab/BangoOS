@@ -1,0 +1,33 @@
+name: Production Wide Interaction Codemod
+
+on:
+  push:
+    branches:
+      - fix/production-wide-sweep
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    if: contains(github.event.head_commit.message, 'Run production-wide interaction codemod')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/production-wide-sweep
+          fetch-depth: 0
+      - name: Apply nested-link interaction fixes
+        run: python3 scripts/fix-nested-link-buttons.py
+      - name: Commit fixes
+        run: |
+          if git diff --quiet; then
+            echo "No codemod changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app components
+          git commit -m "Fix nested navigation controls [skip ci]"
+          git push origin HEAD:fix/production-wide-sweep
