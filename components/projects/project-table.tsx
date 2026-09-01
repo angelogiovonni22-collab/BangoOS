@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Badge,
   EnterpriseTable,
   EnterpriseTableBody,
   EnterpriseTableCell,
@@ -89,18 +88,16 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
       </div>
 
       <TableContainer title={t("projects.directoryTitle")} description={t("projects.directoryDescription")}>
-        <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[1080px]">
+        <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[920px]">
           <EnterpriseTableHead>
             <tr>
               <EnterpriseTableHeading>{t("projects.tableProject")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableStatus")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableProgress")}</EnterpriseTableHeading>
               {showFinancials ? <EnterpriseTableHeading>{t("projects.tableBudget")}</EnterpriseTableHeading> : null}
-              {showFinancials ? <EnterpriseTableHeading>Recorded</EnterpriseTableHeading> : null}
-              {showFinancials ? <EnterpriseTableHeading>Margin</EnterpriseTableHeading> : null}
+              {showFinancials ? <EnterpriseTableHeading>Payments</EnterpriseTableHeading> : null}
               <EnterpriseTableHeading>Superintendent</EnterpriseTableHeading>
               <EnterpriseTableHeading>Due Date</EnterpriseTableHeading>
-              <EnterpriseTableHeading>Health</EnterpriseTableHeading>
               {canManageProjects ? <EnterpriseTableHeading align="right">{t("projects.tableActions")}</EnterpriseTableHeading> : null}
             </tr>
           </EnterpriseTableHead>
@@ -125,7 +122,7 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 }}
               >
                 <EnterpriseTableCell>
-                  <div className="flex min-w-[190px] items-start gap-3">
+                  <div className="flex min-w-[170px] items-start gap-3">
                     <ProjectAvatar name={project.projectName} />
                     <div className="min-w-0">
                       <Link href={`/projects/${project.id}`} className="block truncate text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
@@ -139,10 +136,8 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 <EnterpriseTableCell><ProjectProgress value={project.progress} /></EnterpriseTableCell>
                 {showFinancials ? <EnterpriseTableCell className="font-semibold">{project.budgetLabel}</EnterpriseTableCell> : null}
                 {showFinancials ? <EnterpriseTableCell>{project.spentLabel}</EnterpriseTableCell> : null}
-                {showFinancials ? <EnterpriseTableCell className="font-semibold">{project.profitMarginLabel}</EnterpriseTableCell> : null}
                 <EnterpriseTableCell>{project.superintendentName}</EnterpriseTableCell>
                 <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.dueDateLabel}</EnterpriseTableCell>
-                <EnterpriseTableCell><Badge tone={getHealthTone(project.healthKey)}>{project.healthLabel}</Badge></EnterpriseTableCell>
                 {canManageProjects ? (
                   <EnterpriseTableCell align="right">
                     <ProjectActions projectId={project.id} projectName={project.projectName} viewLabel={t("projects.viewWorkspace")} moreLabel={t("projects.actionsMore")} />
@@ -155,12 +150,4 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
       </TableContainer>
     </div>
   );
-}
-
-function getHealthTone(projectHealth: ProjectTableItem["healthKey"]): "brand" | "success" | "warning" | "danger" | "neutral" {
-  if (projectHealth === "complete") return "success";
-  if (projectHealth === "at_risk") return "warning";
-  if (projectHealth === "behind") return "danger";
-  if (projectHealth === "on_track") return "brand";
-  return "neutral";
 }
