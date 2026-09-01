@@ -71,14 +71,18 @@ export function SchedulingHeader({
                 <Calendar className="h-4 w-4" />
                 {dateRangeLabel}
               </p>
-              <p className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] px-3 py-1.5">
-                <Users className="h-4 w-4" />
-                {companyContext}
-              </p>
-              <p className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] px-3 py-1.5">
-                <CalendarClock className="h-4 w-4" />
-                {branchContext}
-              </p>
+              {companyContext ? (
+                <p className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] px-3 py-1.5">
+                  <Users className="h-4 w-4" />
+                  {companyContext}
+                </p>
+              ) : null}
+              {branchContext ? (
+                <p className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] px-3 py-1.5">
+                  <CalendarClock className="h-4 w-4" />
+                  {branchContext}
+                </p>
+              ) : null}
             </div>
           </div>
 
