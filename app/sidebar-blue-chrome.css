@@ -15,22 +15,34 @@
       #83ddff 97%,
       #0a438f 100%) !important;
   color: #ffffff !important;
-  text-shadow: 0 1px 1px rgb(0 18 55 / 0.95), 0 0 10px rgb(125 211 252 / 0.34) !important;
+  text-shadow: 0 1px 1px rgb(0 18 55 / 0.95), 0 0 8px rgb(125 211 252 / 0.24) !important;
   box-shadow:
-    inset 0 2px 0 rgb(255 255 255 / 0.72),
-    inset 0 6px 12px rgb(119 211 255 / 0.18),
-    inset 0 -2px 0 rgb(1 18 55 / 0.86),
-    inset 0 -8px 14px rgb(0 23 66 / 0.36),
-    0 0 0 1px rgb(27 122 229 / 0.68),
-    0 8px 16px -10px rgb(0 0 0 / 0.95),
-    0 0 15px -8px rgb(64 184 255 / 0.9) !important;
+    inset 0 2px 0 rgb(255 255 255 / 0.58),
+    inset 0 5px 10px rgb(119 211 255 / 0.12),
+    inset 0 -2px 0 rgb(1 18 55 / 0.8),
+    inset 0 -7px 12px rgb(0 23 66 / 0.3),
+    0 0 0 1px rgb(27 122 229 / 0.58),
+    0 7px 14px -10px rgb(0 0 0 / 0.9),
+    0 0 10px -8px rgb(64 184 255 / 0.72) !important;
 }
 
 #bangoos-sidebar [data-sidebar-section-finish="blue-chrome"] {
-  border-radius: 14px !important;
+  min-height: 40px !important;
+  border-radius: 12px !important;
+  padding-block: 9px !important;
+  font-size: 11px !important;
+  letter-spacing: 0.12em !important;
+  filter: saturate(0.92) brightness(0.9);
+}
+
+#bangoos-sidebar [data-sidebar-section-finish="blue-chrome"] > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 #bangoos-sidebar [data-sidebar-section-finish="blue-chrome"] > span:last-child {
+  flex: 0 0 auto;
+  margin-left: 8px;
   color: #d9f4ff !important;
   filter: drop-shadow(0 1px 1px rgb(0 15 50 / 0.9));
 }
@@ -45,10 +57,41 @@
   box-shadow: 0 0 10px rgb(72 218 255 / 0.9) !important;
 }
 
-#bangoos-sidebar [data-sidebar-section-finish="blue-chrome"]:hover,
+#bangoos-sidebar [data-sidebar-section-finish="blue-chrome"]:hover {
+  border-color: #a7eaff !important;
+  filter: saturate(0.98) brightness(0.98);
+}
+
 #bangoos-sidebar [data-sidebar-active-finish="blue-chrome"]:hover {
   border-color: #b9f0ff !important;
   filter: brightness(1.08) saturate(1.04);
+}
+
+/* Keep navigation labels fully readable and give the active page stronger
+   emphasis than its surrounding section header. */
+#bangoos-sidebar nav a > span {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+#bangoos-sidebar nav a[aria-current="page"] {
+  background: rgb(43 107 197 / 0.24) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 0 0 1px rgb(101 231 255 / 0.2), 0 8px 20px -14px rgb(32 171 255 / 0.9);
+}
+
+#bangoos-sidebar nav a[aria-current="page"]::before {
+  width: 4px !important;
+  background: #65e7ff !important;
+  box-shadow: 0 0 10px rgb(72 218 255 / 0.9) !important;
+}
+
+@media (min-width: 1024px) {
+  #bangoos-sidebar {
+    width: 220px !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
