@@ -20,7 +20,7 @@ export function CrewTable({ items, t }: CrewTableProps) {
               <TableHeading>Supervisor</TableHeading>
               <TableHeading>{t("crews.table.members")}</TableHeading>
               <TableHeading>{t("crews.table.currentProject")}</TableHeading>
-              <TableHeading>{t("crews.table.assignment")}</TableHeading>
+              <TableHeading>Assignment</TableHeading>
               <TableHeading>{t("crews.table.status")}</TableHeading>
               <TableHeading>Next assignment</TableHeading>
               <TableHeading>{t("crews.table.updated")}</TableHeading>
@@ -88,7 +88,7 @@ export function CrewTable({ items, t }: CrewTableProps) {
               <InfoLine label="Supervisor" value={crew.supervisorName || "Unassigned"} />
               <InfoLine label={t("crews.table.members")} value={String(crew.activeMemberCount)} />
               <InfoLine label={t("crews.table.currentProject")} value={crew.currentProjectName || t("crews.unassigned")} />
-              <InfoLine label={t("crews.table.assignment")} value={crew.currentAssignmentTitle || t("crews.unassigned")} />
+              <InfoLine label="Assignment" value={crew.currentAssignmentTitle || t("crews.unassigned")} />
               <InfoLine label="Next assignment" value={crew.nextAssignmentTitle || "None"} />
             </div>
 
