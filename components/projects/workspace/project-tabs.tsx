@@ -88,7 +88,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
       data-bos-surface="dark"
       className="relative min-w-0 max-w-full rounded-[18px] border border-[var(--workspace-tabs-border)] [background:var(--workspace-tabs-surface)] p-2.5 shadow-[0_14px_28px_-22px_rgba(3,7,18,0.72)]"
     >
-      <nav className="flex min-w-0 items-center gap-2 overflow-x-auto pb-0.5" aria-label={t("projects.workspaceNavigationLabel")}>
+      <nav className="flex min-w-0 items-center gap-1.5 overflow-x-auto pb-0.5" aria-label={t("projects.workspaceNavigationLabel")}>
         {items.map((item) => {
           const active = item.key === activeKey;
           return (
