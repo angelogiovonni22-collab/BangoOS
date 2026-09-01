@@ -11,7 +11,15 @@ const plansPreview = readFileSync("components/plans/plans-preview.tsx", "utf8");
 const timeline = readFileSync("app/(app)/timeline/page.tsx", "utf8");
 const deletedProjects = readFileSync("app/(app)/projects/deleted/page.tsx", "utf8");
 const estimates = readFileSync("components/estimates/estimates-directory.tsx", "utf8");
+const estimateFilters = readFileSync("components/estimates/estimates-filters.tsx", "utf8");
 const invoices = readFileSync("components/invoices/invoices-directory.tsx", "utf8");
+const customers = readFileSync("app/(app)/customers/page.tsx", "utf8");
+const employees = readFileSync("components/employees/employee-dashboard-metrics.tsx", "utf8");
+const materialsFilters = readFileSync("components/materials/materials-filters.tsx", "utf8");
+const changeOrders = readFileSync("components/change-orders/change-orders-directory.tsx", "utf8");
+const changeOrderFilters = readFileSync("components/change-orders/change-orders-filters.tsx", "utf8");
+const schedulingHeader = readFileSync("components/scheduling/scheduling-header.tsx", "utf8");
+const partialDataNotice = readFileSync("components/ui/partial-data-notice.tsx", "utf8");
 
 assert.match(summaryCard, /onClick\?: \(\) => void/, "SummaryCard must support useful interaction");
 assert.match(summaryCard, /aria-pressed/, "Interactive summary cards must expose selected state");
@@ -32,7 +40,21 @@ assert.doesNotMatch(deletedProjects, /disabled>Previously Deleted/, "Deleted Pro
 assert.match(deletedProjects, /aria-current="page"/, "Deleted Projects active tab must expose current-page semantics");
 assert.match(estimates, /Estimate summary filters/, "Estimate KPIs must operate as directory filters");
 assert.match(estimates, /onClick=\{\(\) => chooseStatus/, "Estimate status KPIs must be clickable");
+assert.match(estimateFilters, /xl:grid-cols-6/, "Estimate filters must fit one desktop row");
 assert.match(invoices, /Invoice summary filters/, "Invoice KPIs must operate as directory filters");
 assert.match(invoices, /chooseOutstanding/, "Outstanding invoice KPI must filter by balance due");
+assert.match(customers, /Customer summary filters/, "Customer KPIs must operate as directory filters");
+assert.match(customers, /new_this_month/, "Customer directory must support the New This Month summary filter");
+assert.match(customers, /onClick=\{\(\) => chooseCustomerFilter/, "Customer summary cards must be clickable");
+assert.match(employees, /Show available employees/, "Employee availability KPI must be actionable");
+assert.match(employees, /Show assigned employees/, "Employee assignment KPI must be actionable");
+assert.match(employees, /Show employees on leave/, "Employee leave KPI must be actionable");
+assert.match(materialsFilters, /xl:grid-cols-6/, "Materials filters must fit one desktop row");
+assert.match(changeOrders, /Change order summary filters/, "Change order status KPIs must operate as filters");
+assert.match(changeOrders, /chooseStatus\("pending_approval"\)/, "Pending change order KPI must filter the directory");
+assert.match(changeOrderFilters, /xl:grid-cols-8/, "Change order filters must use the full desktop row");
+assert.doesNotMatch(schedulingHeader, /scheduling\.header\.badge/, "Schedule and Dispatch must not share a misleading dispatch-only eyebrow");
+assert.doesNotMatch(partialDataNotice, /bg-\[var\(--color-warning-50\)\]/, "Partial data notices must not force a light warning background in dark themes");
+assert.match(partialDataNotice, /color-mix/, "Partial data notices must blend into the active BOS surface theme");
 
 console.log("Full-system UI cleanup contract passed.");
