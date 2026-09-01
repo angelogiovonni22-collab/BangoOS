@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button, EmptyState } from "@/components/ui";
+import { EmptyState, getButtonClassName } from "@/components/ui";
 
 export function InvoiceDirectoryEmptyState() {
   return (
@@ -8,11 +8,7 @@ export function InvoiceDirectoryEmptyState() {
         icon="$"
         title="No invoices yet"
         description="Create your first invoice to start tracking receivables and payment history."
-        action={(
-          <Link href="/invoices/new">
-            <Button size="md">Create Invoice</Button>
-          </Link>
-        )}
+        action={<Link href="/invoices/new" className={getButtonClassName({ size: "md" })}>Create Invoice</Link>}
       />
     </div>
   );
