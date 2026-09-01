@@ -240,7 +240,7 @@ export function MobileFieldOperationsWorkspace() {
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Assigned Project</p>
             <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">{selectedCrew?.currentProjectName || "Unassigned"}</p>
-            <p className="text-xs text-[var(--text-secondary)]">Shift status: {selectedCrew?.shiftStatus || "off_duty"}</p>
+            <p className="text-xs text-[var(--text-secondary)]">Shift status: {(selectedCrew?.shiftStatus || "off_duty").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}</p>
           </div>
 
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3 sm:col-span-2">
