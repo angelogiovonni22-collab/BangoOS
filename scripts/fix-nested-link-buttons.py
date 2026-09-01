@@ -20,8 +20,19 @@ def option_from(attrs: str, name: str) -> str | None:
     return match.group(1) if match else None
 
 
+def helper_is_imported(text: str) -> bool:
+    for pattern in (UI_IMPORT, BUTTON_IMPORT):
+        match = pattern.search(text)
+        if not match:
+            continue
+        entries = [item.strip() for item in match.group("names").split(",") if item.strip()]
+        if "getButtonClassName" in entries:
+            return True
+    return False
+
+
 def ensure_helper_import(text: str) -> str:
-    if "getButtonClassName" in text:
+    if helper_is_imported(text):
         return text
 
     for pattern in (UI_IMPORT, BUTTON_IMPORT):
@@ -30,8 +41,7 @@ def ensure_helper_import(text: str) -> str:
             continue
         names = match.group("names")
         entries = [item.strip() for item in names.split(",") if item.strip()]
-        if "getButtonClassName" not in entries:
-            entries.append("getButtonClassName")
+        entries.append("getButtonClassName")
         replacement = 'import { ' + ", ".join(entries) + ' } from "' + ("@/components/ui/button" if pattern is BUTTON_IMPORT else "@/components/ui") + '";'
         return text[: match.start()] + replacement + text[match.end() :]
 
@@ -76,11 +86,15 @@ def transform_file(path: pathlib.Path) -> bool:
         return f'<Link{linkattrs} className={{getButtonClassName({option_expr})}}>{children}</Link>'
 
     updated = LINK_BUTTON.sub(replace, original)
-    if not transformed_any:
+    if transformed_any:
+        updated = remove_unused_button_import(updated)
+
+    if "getButtonClassName(" in updated:
+        updated = ensure_helper_import(updated)
+
+    if updated == original:
         return False
 
-    updated = ensure_helper_import(updated)
-    updated = remove_unused_button_import(updated)
     path.write_text(updated, encoding="utf-8")
     print(path.as_posix())
     return True
