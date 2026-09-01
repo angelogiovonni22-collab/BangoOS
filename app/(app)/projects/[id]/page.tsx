@@ -31,7 +31,7 @@ import {
 import { SiteCamWorkspace } from "./components/sitecam-workspace";
 import { PlansWorkspace } from "@/components/plans";
 import { WorkspaceLoadingState, WorkspaceShell } from "@/components/workspace";
-import { EmptyState, ErrorState } from "@/components/ui";
+import { EmptyState, ErrorState, getButtonClassName } from "@/components/ui";
 import { buildProjectFinancialReport, type ProjectFinancialReport } from "@/lib/financial-reporting";
 import {
   formatProjectAddress,

@@ -9,7 +9,7 @@ import {
   ProjectTable,
   type ProjectTableItem,
 } from "@/components/projects";
-import { EmptyState, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import {
   formatProjectCurrency,

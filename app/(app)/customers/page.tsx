@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CustomerTable } from "@/components/customers";
-import { Button, EmptyState, ErrorState, PageHeader, SearchInput, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { Button, EmptyState, ErrorState, PageHeader, SearchInput, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BadgeDollarSign } from "lucide-react";
-import {  } from "@/components/ui";
+import { getButtonClassName } from "@/components/ui";
 import { requireMaterialsAccess } from "@/lib/materials/server-access";
 import { ProjectMaterialPlanClient } from "./project-material-plan-client";
 

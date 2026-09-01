@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui";
+import { Badge, getButtonClassName } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { calculateLaborCost, compensationMethodLabel, type CompensationMethod } from "@/lib/projects/project-commitments";

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { ComponentProps, ReactNode } from "react";
 import { CalendarDays, CheckCircle2, ChevronDown, CircleDollarSign, Gauge, Users } from "lucide-react";
-import { Badge } from "@/components/ui";
+import { Badge, getButtonClassName } from "@/components/ui";
 import { ProjectBudgetControlDetails, ProjectCrewControlDetails } from "./project-control-card-details";
 import { ProjectCommandCenterFoundation as BaseProjectCommandCenterFoundation } from "./project-command-center-foundation";
 import foundationStyles from "./project-command-center-foundation.module.css";

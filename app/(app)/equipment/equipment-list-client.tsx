@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EquipmentFilters, EquipmentTable } from "@/components/equipment";
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, PartialDataNotice, Select, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, PartialDataNotice, Select, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   buildEquipmentQueryPlan,

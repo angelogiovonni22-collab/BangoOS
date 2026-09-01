@@ -1,4 +1,4 @@
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, getButtonClassName } from "@/components/ui";
 import Link from "next/link";
 import type { WorkspaceActivityItem, WorkspaceContactItem, WorkspaceMilestoneItem, WorkspaceQuickAction } from "./types";
 import { ProjectActivity } from "./project-activity";

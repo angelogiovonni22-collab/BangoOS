@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, FileText, HardHat, MessageSquareText, Plus, RefreshCw, X } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, getButtonClassName } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { useEffect, useMemo, useState } from "react";
-import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
 import { availableQuantity, inventoryHealth, inventoryValue, reorderSuggestion } from "@/lib/materials/inventory-intelligence";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 

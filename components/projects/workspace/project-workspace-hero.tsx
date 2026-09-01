@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Building2, Image as ImageIcon, MapPin, UserRound } from "lucide-react";
-import { Badge, Button } from "@/components/ui";
+import { Badge, Button, getButtonClassName } from "@/components/ui";
 import { LocationForecastCard } from "@/components/location-intelligence";
 import { WorkspaceHero } from "@/components/workspace";
 
