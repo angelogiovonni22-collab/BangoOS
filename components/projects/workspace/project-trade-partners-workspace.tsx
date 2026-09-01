@@ -5,7 +5,22 @@
 import Link from "next/link";
 import { ArrowUpRight, Building2, ClipboardCheck, Star, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Dialog, ErrorState, FormField, Input, SearchInput, Select, SkeletonLoader } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  ErrorState,
+  FormField,
+  Input,
+  SearchInput,
+  Select,
+  SkeletonLoader,
+  getButtonClassName,
+} from "@/components/ui";
 import { SubcontractorContractActions } from "./subcontractor-contract-actions";
 import {
   createTradePartnerAssignmentsService,
@@ -278,7 +293,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
                 <DetailRow label="Primary Contact" value={assignment.primaryContactName || vendor?.contactName || "Not Assigned"} icon={<Building2 size={14} />} />
                 <SubcontractorContractActions projectId={projectId} assignmentId={assignment.id} email={assignment.primaryContactEmail || vendor?.email || null} />
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <Link href={`/vendors/${assignment.vendorId}`}><Button type="button" variant="outline" className="w-full">View Trade Partner<ArrowUpRight size={14} /></Button></Link>
+                  <Link href={`/vendors/${assignment.vendorId}`} className={`${getButtonClassName({ variant: "outline" })} w-full`}>View Trade Partner<ArrowUpRight size={14} /></Link>
                   <Button type="button" variant="outline" onClick={() => openEditDialog(assignment)} disabled={assignment.assignmentStatus === "archived"}>Edit Assignment</Button>
                 </div>
               </CardContent>

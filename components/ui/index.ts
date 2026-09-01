@@ -1,5 +1,5 @@
 export { Button, getButtonClassName } from "./button";
-export { IconButton } from "./icon-button";
+export { IconButton, IconLink } from "./icon-button";
 export {
   Card,
   CardHeader,
