@@ -68,7 +68,18 @@ export default function EmployeesPage() {
         )}
       />
 
-      <EmployeeDashboardMetrics summary={summary} t={t} />
+      <EmployeeDashboardMetrics
+        summary={summary}
+        employmentStatus={employmentStatus}
+        availabilityStatus={availabilityStatus}
+        onShowAll={() => {
+          setEmploymentStatus("all");
+          setAvailabilityStatus("all");
+        }}
+        onAvailabilityChange={setAvailabilityStatus}
+        onEmploymentStatusChange={setEmploymentStatus}
+        t={t}
+      />
 
       {partialNotices.map((notice) => (
         <PartialDataNotice key={notice} message={notice} />
