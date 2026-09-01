@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 type BadgeTone =
   | "neutral"
@@ -14,7 +14,15 @@ type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
   tone?: BadgeTone;
 };
 
-export function Badge({ tone = "neutral", className, ...props }: BadgeProps) {
+function humanizeBadgeChildren(children: ReactNode) {
+  if (typeof children !== "string" || !/^[a-z0-9]+(?:_[a-z0-9]+)+$/.test(children)) return children;
+  return children
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+export function Badge({ tone = "neutral", className, children, ...props }: BadgeProps) {
   const toneClass: Record<BadgeTone, string> = {
     neutral: "bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)] ring-[var(--color-neutral-200)]",
     brand: "bg-[var(--color-primary-50)] text-[var(--color-brand-800)] ring-[var(--color-brand-100)]",
@@ -34,5 +42,5 @@ export function Badge({ tone = "neutral", className, ...props }: BadgeProps) {
     .filter(Boolean)
     .join(" ");
 
-  return <span className={composedClassName} {...props} />;
+  return <span className={composedClassName} {...props}>{humanizeBadgeChildren(children)}</span>;
 }
