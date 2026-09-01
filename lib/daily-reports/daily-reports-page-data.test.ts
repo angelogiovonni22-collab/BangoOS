@@ -83,8 +83,16 @@ async function main() {
             id: "report-2",
             header: {
               ...makeReport().header,
-              overallStatus: "approved",
+              overallStatus: "reviewed",
               superintendentName: "Nate McCall",
+            },
+          }),
+          makeReport({
+            id: "report-3",
+            header: {
+              ...makeReport().header,
+              overallStatus: "approved",
+              superintendentName: "Avery Cole",
             },
           }),
         ];
@@ -93,10 +101,10 @@ async function main() {
     });
 
     check(callCount === 1, "page loader calls the service once");
-    check(result.summary.total === 2, "summary total uses returned report count");
+    check(result.summary.total === 3, "summary total uses returned report count");
     check(result.summary.pending === 1, "summary pending counts submitted reports");
+    check(result.summary.reviewed === 1, "summary reviewed counts reviewed reports");
     check(result.summary.approved === 1, "summary approved counts approved reports");
-    check(result.summary.rejected === 0, "summary rejected remains zero in the current model");
     check(result.reports[0].authorName === "Maya Rivera", "author falls back to superintendent name");
   });
 
@@ -110,6 +118,7 @@ async function main() {
     check(result.reports.length === 0, "empty result returns no rows");
     check(result.summary.total === 0, "empty result returns zero total");
     check(result.summary.pending === 0, "empty result returns zero pending");
+    check(result.summary.reviewed === 0, "empty result returns zero reviewed");
     check(result.summary.approved === 0, "empty result returns zero approved");
   });
 
