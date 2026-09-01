@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Button } from "@/components/ui";
+import { Badge } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { summarizeProjectCommitments, type CompensationMethod } from "@/lib/projects/project-commitments";
 
@@ -107,7 +107,7 @@ export function ProjectCommitmentsControl({ projectId, companyId, budget }: { pr
       <Tile label="Available budget" value={money(summary.budgetRemainingAfterCommitments)} detail="After commitments" danger={summary.budgetRemainingAfterCommitments !== null && summary.budgetRemainingAfterCommitments < 0} />
       <Tile label="Activated partners" value={`${mobilized.length} / ${signed.length}`} detail="Signed and cleared" />
     </div>
-    <div className="mt-4 flex flex-wrap justify-end gap-2"><Link href="/invoices/payroll"><Button variant="outline" size="sm">Manage employee pay</Button></Link><Link href={`/projects/${projectId}?tab=crew`}><Button variant="outline" size="sm">Crew cost details</Button></Link><Link href={`/projects/${projectId}?tab=subcontractors`}><Button size="sm">Subcontract commitments</Button></Link></div>
+    <div className="mt-4 flex flex-wrap justify-end gap-2"><Link href="/invoices/payroll" className={getButtonClassName({ variant: "outline", size: "sm" })}>Manage employee pay</Link><Link href={`/projects/${projectId}?tab=crew`} className={getButtonClassName({ variant: "outline", size: "sm" })}>Crew cost details</Link><Link href={`/projects/${projectId}?tab=subcontractors`} className={getButtonClassName({ size: "sm" })}>Subcontract commitments</Link></div>
   </section>;
 }
 

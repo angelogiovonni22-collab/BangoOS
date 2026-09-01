@@ -293,7 +293,7 @@ export function LaborRateEditClient() {
       <EmptyState
         title="Labor rate not found"
         description="This labor rate could not be located in your company workspace."
-        action={<Link href="/labor-rates"><Button>Back to labor rates</Button></Link>}
+        action={<Link href="/labor-rates" className={getButtonClassName({})}>Back to labor rates</Link>}
       />
     );
   }

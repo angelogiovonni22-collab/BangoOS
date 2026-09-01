@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { loadAccountsPayableSnapshot, type AccountsPayableSnapshot } from "@/lib/finance/ap-prevailing-wage";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -58,7 +58,7 @@ export default function AccountsPayablePage() {
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
 
   return <div className="container-content space-y-[var(--space-section)]">
-    <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title="Accounts Payable" description="Monitor vendor bills, approvals, payments, outstanding balances, and overdue exposure from one company-scoped command center." primaryAction={canManage ? <Link href="/invoices/accounts-payable/new"><Button size="md">New Vendor Bill</Button></Link> : undefined} />
+    <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title="Accounts Payable" description="Monitor vendor bills, approvals, payments, outstanding balances, and overdue exposure from one company-scoped command center." primaryAction={canManage ? <Link href="/invoices/accounts-payable/new" className={getButtonClassName({ size: "md" })}>New Vendor Bill</Link> : undefined} />
     {errorMessage ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{errorMessage}</div> : null}
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"><Metric label="Open Bills" value={currency(snapshot.totalOpenBills)} detail={`${snapshot.billCount} active records`} /><Metric label="Outstanding" value={currency(snapshot.totalOutstanding)} detail="Remaining vendor liability" /><Metric label="Overdue" value={currency(snapshot.overdueOutstanding)} detail={`${snapshot.overdueBillCount} overdue`} danger={snapshot.overdueOutstanding > 0} /><Metric label="Approved" value={currency(snapshot.totalApproved)} detail="Approved / paid bill value" /><Metric label="Paid" value={currency(snapshot.totalPaid)} detail="Payments recorded" /></section>
     <section className="overflow-hidden rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] shadow-[var(--shadow-card)]">

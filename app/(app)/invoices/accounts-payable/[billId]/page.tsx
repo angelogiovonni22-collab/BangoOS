@@ -104,7 +104,7 @@ export default function VendorBillDetailPage() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title={bill ? `${bill.bill_number} · ${vendorName}` : "Vendor Bill"} description={`${projectName}${bill?.vendor_invoice_number ? ` · Vendor invoice ${bill.vendor_invoice_number}` : ""}`} primaryAction={<Link href="/invoices/accounts-payable"><Button size="md">Back to AP</Button></Link>} />
+      <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title={bill ? `${bill.bill_number} · ${vendorName}` : "Vendor Bill"} description={`${projectName}${bill?.vendor_invoice_number ? ` · Vendor invoice ${bill.vendor_invoice_number}` : ""}`} primaryAction={<Link href="/invoices/accounts-payable" className={getButtonClassName({ size: "md" })}>Back to AP</Link>} />
       {errorMessage ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMessage}</div> : null}
       {bill ? <>
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Status" value={bill.status.replaceAll("_", " ")} detail={bill.approved_at ? `Approved ${new Date(bill.approved_at).toLocaleDateString()}` : "Approval pending"} /><Metric label="Bill Total" value={currency2(bill.total_amount)} detail={`Bill date ${bill.bill_date}`} /><Metric label="Paid" value={currency2(bill.amount_paid)} detail={`${payments.length} payment${payments.length === 1 ? "" : "s"}`} /><Metric label="Balance Due" value={currency2(bill.balance_due)} detail={bill.due_date ? `Due ${bill.due_date}` : "No due date"} danger={bill.balance_due > 0 && Boolean(bill.due_date && bill.due_date < new Date().toISOString().slice(0,10))} /></section>

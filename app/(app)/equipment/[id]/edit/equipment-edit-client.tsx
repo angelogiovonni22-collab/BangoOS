@@ -192,7 +192,7 @@ export function EquipmentEditClient() {
   }
 
   if (notFound) {
-    return <EmptyState title="Equipment not found" description="This equipment record could not be located in your company workspace." action={<Link href="/equipment"><Button variant="outline">Back to equipment</Button></Link>} />;
+    return <EmptyState title="Equipment not found" description="This equipment record could not be located in your company workspace." action={<Link href="/equipment" className={getButtonClassName({ variant: "outline" })}>Back to equipment</Link>} />;
   }
 
   return (

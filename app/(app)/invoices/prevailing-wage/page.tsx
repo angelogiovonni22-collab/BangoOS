@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Button, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { loadPrevailingWageProjectCompliance } from "@/lib/finance/ap-prevailing-wage";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -57,7 +57,7 @@ export default function PrevailingWagePage() {
   const totals = items.reduce((acc, item) => ({ projects: acc.projects + 1, compliant: acc.compliant + item.compliantWorkers, deficient: acc.deficient + item.deficientWorkers, deficiency: acc.deficiency + item.estimatedDeficiency, payroll: acc.payroll + item.payrollPeriods, exceptions: acc.exceptions + item.payrollExceptions }), { projects: 0, compliant: 0, deficient: 0, deficiency: 0, payroll: 0, exceptions: 0 });
 
   return <div className="container-content space-y-[var(--space-section)]">
-    <PageHeader compact eyebrow="COMMERCIAL · LABOR COMPLIANCE" title="Prevailing Wage" description="Track federal DBRA, Ohio public-improvement, wage determinations, fringe, apprenticeship, certified payroll, and worker deficiency exposure by project." primaryAction={canConfigure ? <Link href="/invoices/prevailing-wage/setup"><Button size="md">Configure Project</Button></Link> : <Link href="/invoices/accounts-payable"><Button size="md">Accounts Payable</Button></Link>} />
+    <PageHeader compact eyebrow="COMMERCIAL · LABOR COMPLIANCE" title="Prevailing Wage" description="Track federal DBRA, Ohio public-improvement, wage determinations, fringe, apprenticeship, certified payroll, and worker deficiency exposure by project." primaryAction={canConfigure ? <Link href="/invoices/prevailing-wage/setup" className={getButtonClassName({ size: "md" })}>Configure Project</Link> : <Link href="/invoices/accounts-payable" className={getButtonClassName({ size: "md" })}>Accounts Payable</Link>} />
     {errorMessage ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{errorMessage}</div> : null}
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6"><Metric label="Covered Projects" value={String(totals.projects)} detail="Active prevailing-wage profiles" /><Metric label="Compliant Workers" value={String(totals.compliant)} detail="No detected deficiency" /><Metric label="Deficient Workers" value={String(totals.deficient)} detail="Needs payroll review" danger={totals.deficient > 0} /><Metric label="Estimated Deficiency" value={currency(totals.deficiency)} detail="Calculated wage exposure" danger={totals.deficiency > 0} /><Metric label="Payroll Periods" value={String(totals.payroll)} detail="Certified payroll records" /><Metric label="Payroll Exceptions" value={String(totals.exceptions)} detail="Rejected/corrected review" danger={totals.exceptions > 0} /></section>
     <section className="space-y-4"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--bos-text-muted)]">Project compliance register</p><h2 className="mt-1 text-xl font-semibold">Covered commercial/public projects</h2></div><Link href="/invoices/accounts-payable" className="text-sm font-semibold text-blue-400 hover:text-blue-300">Accounts Payable →</Link></div>

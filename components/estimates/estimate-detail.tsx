@@ -177,9 +177,7 @@ export function EstimateDetail({ estimateId, sendIssue, createdForReview = false
           </>
         )}
         primaryAction={(
-          <Link href={`/estimates/${estimateId}/edit`}>
-            <Button size="md">Edit Estimate</Button>
-          </Link>
+          <Link href={`/estimates/${estimateId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Estimate</Link>
         )}
       />
 

@@ -492,9 +492,7 @@ export function ChangeOrderForm({
         title={mode === "create" ? "New Change Order" : `Edit ${values.changeOrderNumber || "Change Order"}`}
         description="Manage scope changes, approvals, schedule impact, and financial deltas."
         secondaryActions={(
-          <Link href={mode === "create" ? "/change-orders" : `/change-orders/${changeOrderId || ""}`}>
-            <Button variant="secondary" size="md">Cancel</Button>
-          </Link>
+          <Link href={mode === "create" ? "/change-orders" : `/change-orders/${changeOrderId || ""}`} className={getButtonClassName({ variant: "secondary", size: "md" })}>Cancel</Link>
         )}
       />
 

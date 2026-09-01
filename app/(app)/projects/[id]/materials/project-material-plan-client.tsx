@@ -111,7 +111,7 @@ export function ProjectMaterialPlanClient({ projectId }: { projectId: string }) 
         eyebrow="Project · Materials & procurement"
         title={`${payload.project.name} Material Plan`}
         description="Review the approved estimate quantities, reserve inventory, compare the current purchasing cost, and prepare controlled purchase orders."
-        primaryAction={<div className="flex flex-wrap gap-2"><Link href={`/projects/${projectId}`}><Button variant="outline"><ArrowLeft size={16} />Project workspace</Button></Link><Link href={`/materials/procurement?projectId=${projectId}`}><Button variant="outline"><Truck size={16} />Procurement</Button></Link></div>}
+        primaryAction={<div className="flex flex-wrap gap-2"><Link href={`/projects/${projectId}`} className={getButtonClassName({ variant: "outline" })}><ArrowLeft size={16} />Project workspace</Link><Link href={`/materials/procurement?projectId=${projectId}`} className={getButtonClassName({ variant: "outline" })}><Truck size={16} />Procurement</Link></div>}
       />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

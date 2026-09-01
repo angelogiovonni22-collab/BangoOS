@@ -178,7 +178,7 @@ export function SupplierPriceListsClient() {
         eyebrow="Materials · Supplier pricing"
         title="Supplier Price Lists"
         description="Import dated supplier prices, validate every row, and preserve the source and price history before using costs in estimates."
-        primaryAction={<Link href="/materials"><Button variant="outline"><ArrowLeft size={16} />Materials catalog</Button></Link>}
+        primaryAction={<Link href="/materials" className={getButtonClassName({ variant: "outline" })}><ArrowLeft size={16} />Materials catalog</Link>}
       />
 
       <Card>

@@ -212,9 +212,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           </>
         )}
         primaryAction={(
-          <Link href={`/invoices/${invoiceId}/edit`}>
-            <Button size="md">Edit Invoice</Button>
-          </Link>
+          <Link href={`/invoices/${invoiceId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Invoice</Link>
         )}
       />
 

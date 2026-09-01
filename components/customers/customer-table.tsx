@@ -187,8 +187,8 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
                 <EnterpriseTableCell>{formatCreatedDate(customer.createdAt)}</EnterpriseTableCell>
                 <EnterpriseTableCell align="right">
                   <div className="inline-flex items-center gap-1">
-                    <Link href={`/customers/${customer.id}`}><Button variant="ghost" size="sm" aria-label={t("customers.view")}><Eye size={15} aria-hidden="true" /></Button></Link>
-                    <Link href={`/customers/${customer.id}?edit=1`}><Button variant="ghost" size="sm" aria-label={t("customers.editCustomer")}><Pencil size={15} aria-hidden="true" /></Button></Link>
+                    <Link href={`/customers/${customer.id}`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Eye size={15} aria-hidden="true" /></Link>
+                    <Link href={`/customers/${customer.id}?edit=1`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Pencil size={15} aria-hidden="true" /></Link>
                     <Button
                       variant="ghost"
                       size="sm"

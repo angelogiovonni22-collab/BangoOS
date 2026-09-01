@@ -239,7 +239,7 @@ export function EditVendorClient() {
       <EmptyState
         title="Vendor not found"
         description="This vendor could not be located in your company workspace."
-        action={<Link href="/vendors"><Button>Back to vendors</Button></Link>}
+        action={<Link href="/vendors" className={getButtonClassName({})}>Back to vendors</Link>}
       />
     );
   }

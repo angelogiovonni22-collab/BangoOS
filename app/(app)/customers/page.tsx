@@ -226,7 +226,7 @@ export default function CustomersPage() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact title="Customers" description="Manage residential, commercial, and property management customers." primaryAction={<Link href="/customers/new"><Button size="md"><Plus size={16} aria-hidden="true" />New Customer</Button></Link>} />
+      <PageHeader compact title="Customers" description="Manage residential, commercial, and property management customers." primaryAction={<Link href="/customers/new" className={getButtonClassName({ size: "md" })}><Plus size={16} aria-hidden="true" />New Customer</Link>} />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Customer summary filters">
         <SummaryCard icon={<span>C</span>} label="Total Customers" value={kpis.totalCustomers.toLocaleString()} tone="brand" compact onClick={() => chooseCustomerFilter("all")} selected={chipFilter === "all"} actionLabel="Show all active customer records" />
@@ -247,7 +247,7 @@ export default function CustomersPage() {
 
       <section>
         {isLoading ? <CustomersLoadingState /> : errorMessage ? <ErrorState title={t("customers.errorTitle")} description={errorMessage} compact /> : customers.length === 0 ? (
-          <EmptyState icon="C" title="No customers yet" description="Create your first customer to start managing your account relationships." compact action={<Link href="/customers/new"><Button>New Customer</Button></Link>} />
+          <EmptyState icon="C" title="No customers yet" description="Create your first customer to start managing your account relationships." compact action={<Link href="/customers/new" className={getButtonClassName({})}>New Customer</Link>} />
         ) : filteredCustomers.length === 0 ? (
           <EmptyState icon="?" title="No customers match this filter" description={chipFilter === "archived" ? "No customers have been archived." : "Try a different filter or search term."} compact />
         ) : (

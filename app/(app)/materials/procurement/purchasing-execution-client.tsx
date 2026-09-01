@@ -55,7 +55,7 @@ export function PurchasingExecutionClient({ projectId }: { projectId: string }) 
   if (!materials || !recommendation || !execution) return null;
 
   return <Card>
-    <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>Order Materials · B.O.S. Purchasing Plan</CardTitle><p className="mt-1 text-sm text-[var(--color-text-secondary)]">{materials.project.name}: remaining approved material requirements are matched to the best confirmed uploaded supplier pricing and split into supplier draft orders.</p></div><Link href={`/projects/${projectId}/materials/compare`}><Button variant="outline">Review supplier prices</Button></Link></div></CardHeader>
+    <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>Order Materials · B.O.S. Purchasing Plan</CardTitle><p className="mt-1 text-sm text-[var(--color-text-secondary)]">{materials.project.name}: remaining approved material requirements are matched to the best confirmed uploaded supplier pricing and split into supplier draft orders.</p></div><Link href={`/projects/${projectId}/materials/compare`} className={getButtonClassName({ variant: "outline" })}>Review supplier prices</Link></div></CardHeader>
     <CardContent className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={<ShoppingCart size={18}/>} label="Ready lines" value={String(recommendation.totals.readyLines)} context="Available for draft purchasing" tone="brand" compact />

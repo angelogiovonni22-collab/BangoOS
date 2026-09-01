@@ -266,7 +266,7 @@ export function EditMaterialClient() {
       <EmptyState
         title="Material not found"
         description="This material could not be located in your company workspace."
-        action={<Link href="/materials"><Button>Back to materials</Button></Link>}
+        action={<Link href="/materials" className={getButtonClassName({})}>Back to materials</Link>}
       />
     );
   }

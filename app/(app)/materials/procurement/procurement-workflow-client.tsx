@@ -393,9 +393,7 @@ export function ProcurementWorkflowClient({ initialProjectId }: { initialProject
         title="Procurement Workflow"
         description={`Manage requests, purchasing, receiving, and allocation for ${companyName || "your company"}.`}
         primaryAction={
-          <Link href="/materials">
-            <Button variant="outline">Back to Materials</Button>
-          </Link>
+          <Link href="/materials" className={getButtonClassName({ variant: "outline" })}>Back to Materials</Link>
         }
       />
 

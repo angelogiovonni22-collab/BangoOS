@@ -45,11 +45,7 @@ export function ProjectSidebar({ contacts, quickActions, milestones, activity, a
           {quickActions.map((action) => {
             if (action.href && !action.disabled) {
               return (
-                <Link key={action.id} href={action.href}>
-                  <Button variant="toolbar" fullWidth>
-                    {action.label}
-                  </Button>
-                </Link>
+                <Link key={action.id} href={action.href} className={getButtonClassName({ variant: "toolbar" })}>{action.label}</Link>
               );
             }
 

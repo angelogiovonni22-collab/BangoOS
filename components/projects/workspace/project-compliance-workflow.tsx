@@ -347,15 +347,9 @@ export function ProjectComplianceWorkflow({ projectId, workspaceContext }: Proje
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Link href={`/projects/${projectId}?tab=documents`}>
-              <Button variant="outline" size="sm">Review Compliance Documents</Button>
-            </Link>
-            <Link href={`/projects/${projectId}?tab=photos`}>
-              <Button variant="outline" size="sm">Review Photo Evidence</Button>
-            </Link>
-            <Link href={`/projects/${projectId}?tab=daily_logs`}>
-              <Button variant="outline" size="sm">Review Daily Safety Logs</Button>
-            </Link>
+            <Link href={`/projects/${projectId}?tab=documents`} className={getButtonClassName({ variant: "outline", size: "sm" })}>Review Compliance Documents</Link>
+            <Link href={`/projects/${projectId}?tab=photos`} className={getButtonClassName({ variant: "outline", size: "sm" })}>Review Photo Evidence</Link>
+            <Link href={`/projects/${projectId}?tab=daily_logs`} className={getButtonClassName({ variant: "outline", size: "sm" })}>Review Daily Safety Logs</Link>
             <Button variant="ghost" size="sm" onClick={() => void loadCompliance()} isLoading={isLoading}>Refresh Workflow</Button>
           </div>
         </CardContent>
@@ -549,7 +543,7 @@ export function ProjectComplianceWorkflow({ projectId, workspaceContext }: Proje
             ))}
             {openSafetyItems.length === 0 ? <p className="text-sm text-[var(--bos-text-medium-on-light)]">No open safety actions in submitted Daily Reports.</p> : null}
           </div>
-          <Link href={`/projects/${projectId}?tab=daily_logs`}><Button size="sm" variant="outline">Open Daily Safety Reports</Button></Link>
+          <Link href={`/projects/${projectId}?tab=daily_logs`} className={getButtonClassName({ variant: "outline", size: "sm" })}>Open Daily Safety Reports</Link>
         </CardContent>
       </Card>
 

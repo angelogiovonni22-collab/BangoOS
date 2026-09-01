@@ -126,7 +126,7 @@ export default function EditProjectPage() {
 
   return (
     <div className="space-y-6" data-orion-project-editor={projectId}>
-      <PageHeader title={`Edit ${form.name}`} description="Update the project record and operational scope of work. Orion can operate these controls while you watch." secondaryActions={<Link href={`/projects/${projectId}`}><Button variant="outline">Back to Project</Button></Link>} />
+      <PageHeader title={`Edit ${form.name}`} description="Update the project record and operational scope of work. Orion can operate these controls while you watch." secondaryActions={<Link href={`/projects/${projectId}`} className={getButtonClassName({ variant: "outline" })}>Back to Project</Link>} />
       <form onSubmit={save} className="space-y-5">
         <FormSection title="Project Details">
           <Field label="Project Name" id="project-name"><Input id="project-name" data-orion-control="project.name" value={form.name} onChange={(e) => update("name", e.target.value)} required /></Field>

@@ -332,9 +332,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
           </>
         )}
         primaryAction={(
-          <Link href={`/change-orders/${changeOrderId}/edit`}>
-            <Button size="md">Edit Change Order</Button>
-          </Link>
+          <Link href={`/change-orders/${changeOrderId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Change Order</Link>
         )}
       />
 

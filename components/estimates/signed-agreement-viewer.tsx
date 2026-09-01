@@ -99,7 +99,7 @@ export function SignedAgreementViewer({ estimateId }: { estimateId: string }) {
   return (
     <div className="mx-auto max-w-5xl space-y-5 print:max-w-none print:space-y-3" data-testid="signed-agreement-viewer">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        {projectId ? <Link href={`/projects/${projectId}?tab=documents`}><Button variant="secondary" size="sm"><ArrowLeft size={16} /> Back to Project Documents</Button></Link> : <Link href={`/estimates/${estimateId}`}><Button variant="secondary" size="sm"><ArrowLeft size={16} /> Back to Estimate</Button></Link>}
+        {projectId ? <Link href={`/projects/${projectId}?tab=documents`} className={getButtonClassName({ variant: "secondary", size: "sm" })}><ArrowLeft size={16} /> Back to Project Documents</Link> : <Link href={`/estimates/${estimateId}`} className={getButtonClassName({ variant: "secondary", size: "sm" })}><ArrowLeft size={16} /> Back to Estimate</Link>}
         <Button variant="outline" size="sm" onClick={() => window.print()}><Printer size={16} /> Print / Save PDF</Button>
       </div>
 

@@ -100,7 +100,7 @@ export default function RecordCustomerPaymentPage() {
         eyebrow="ACCOUNTS RECEIVABLE"
         title="Record Customer Payment"
         description={`${invoice.invoice_number || "Invoice"} · ${invoice.title}`}
-        secondaryActions={<Link href={`/invoices/${invoiceId}`}><Button variant="secondary">Cancel</Button></Link>}
+        secondaryActions={<Link href={`/invoices/${invoiceId}`} className={getButtonClassName({ variant: "secondary" })}>Cancel</Link>}
       />
       <Card variant="elevated">
         <CardHeader><CardTitle>Payment Details</CardTitle></CardHeader>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CostCodesFilters, CostCodesTable } from "@/components/cost-codes";
-import { Button, EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard } from "@/components/ui";
 import { useCompany } from "@/lib/company";
 import {
   type CostCodeListItem,
@@ -279,12 +279,8 @@ export function CostCodesListClient() {
         title="Cost Codes"
         description={`Manage budget structure and defaults for ${companyName || "your company"}.`}
         primaryAction={
-          <Link href="/cost-codes/new">
-            <Button>
-              <Plus size={16} />
-              New cost code
-            </Button>
-          </Link>
+          <Link href="/cost-codes/new" className={getButtonClassName({})}><Plus size={16} />
+              New cost code</Link>
         }
       />
 
@@ -329,9 +325,7 @@ export function CostCodesListClient() {
           title="No cost codes found"
           description="Try different filters or create your first cost code."
           action={
-            <Link href="/cost-codes/new">
-              <Button>New cost code</Button>
-            </Link>
+            <Link href="/cost-codes/new" className={getButtonClassName({})}>New cost code</Link>
           }
         />
       ) : (

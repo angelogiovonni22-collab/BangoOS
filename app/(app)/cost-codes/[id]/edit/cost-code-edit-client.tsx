@@ -245,7 +245,7 @@ export function EditCostCodeClient() {
       <EmptyState
         title="Cost code not found"
         description="This cost code could not be located in your company workspace."
-        action={<Link href="/cost-codes"><Button>Back to cost codes</Button></Link>}
+        action={<Link href="/cost-codes" className={getButtonClassName({})}>Back to cost codes</Link>}
       />
     );
   }
