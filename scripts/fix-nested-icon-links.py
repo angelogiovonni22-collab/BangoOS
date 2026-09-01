@@ -10,17 +10,21 @@ PATTERN = re.compile(
     re.DOTALL,
 )
 UI_IMPORT = re.compile(r'import\s*\{(?P<names>[^}]*)\}\s*from\s*["\']@/components/ui["\'];', re.DOTALL)
+NEXT_LINK_IMPORT = 'import Link from "next/link";\n'
+TRADE_PARTNER_PATH = pathlib.Path("components/projects/workspace/project-trade-partners-workspace.tsx")
+TRADE_PARTNER_OLD = '<Link href={`/vendors/${assignment.vendorId}`}><Button type="button" variant="outline" className="w-full">View Trade Partner<ArrowUpRight size={14} /></Button></Link>'
+TRADE_PARTNER_NEW = '<Link href={`/vendors/${assignment.vendorId}`} className={getButtonClassName({ variant: "outline", className: "w-full" })}>View Trade Partner<ArrowUpRight size={14} /></Link>'
 
 
-def ensure_icon_link_import(text: str) -> str:
+def update_ui_import(text: str, add: set[str] | None = None, remove: set[str] | None = None) -> str:
     match = UI_IMPORT.search(text)
     if not match:
         return text
     names = [item.strip() for item in match.group("names").split(",") if item.strip()]
-    if "IconLink" not in names:
-        names.append("IconLink")
-    if "<IconButton" not in text:
-        names = [name for name in names if name != "IconButton"]
+    for name in add or set():
+        if name not in names:
+            names.append(name)
+    names = [name for name in names if name not in (remove or set())]
     replacement = 'import {\n  ' + ',\n  '.join(names) + ',\n} from "@/components/ui";'
     return text[:match.start()] + replacement + text[match.end():]
 
@@ -36,9 +40,19 @@ def transform(path: pathlib.Path) -> bool:
         )
 
     updated = PATTERN.sub(repl, original)
+    if updated != original:
+        updated = update_ui_import(updated, add={"IconLink"}, remove={"IconButton"} if "<IconButton" not in updated else set())
+
+    if path == TRADE_PARTNER_PATH and TRADE_PARTNER_OLD in updated:
+        updated = updated.replace(TRADE_PARTNER_OLD, TRADE_PARTNER_NEW)
+        updated = update_ui_import(updated, add={"getButtonClassName"})
+
+    if NEXT_LINK_IMPORT in updated and "<Link" not in updated:
+        updated = updated.replace(NEXT_LINK_IMPORT, "", 1)
+
     if updated == original:
         return False
-    updated = ensure_icon_link_import(updated)
+
     path.write_text(updated, encoding="utf-8")
     print(path.as_posix())
     return True
