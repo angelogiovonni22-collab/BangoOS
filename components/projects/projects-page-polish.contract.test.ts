@@ -15,8 +15,10 @@ assert.match(filters, /xl:col-span-2/, "Projects search should use two columns i
 assert.doesNotMatch(table, /disabled>Projects/, "Active Projects lifecycle tab must not use disabled-button styling");
 assert.match(table, /aria-current="page"/, "Active Projects lifecycle tab must expose current-page semantics");
 assert.match(table, /text-white/, "Active Projects lifecycle tab must have readable high-contrast text");
-assert.match(table, /min-w-\[1080px\]/, "Projects table should avoid unnecessary horizontal overflow");
+assert.match(table, /min-w-\[920px\]/, "Projects table should avoid unnecessary horizontal overflow");
 assert.doesNotMatch(table, /projects\.tableCustomer/, "Customer must not be duplicated into a separate desktop column");
+assert.doesNotMatch(table, />Margin</, "Projects directory must not present an ungrounded profit-margin column");
+assert.match(table, />Payments</, "Invoice payment data must be labeled accurately in the Projects directory");
 assert.match(page, /spent <= 0\) return "Not available"/, "Projects must not show a misleading 100% margin with no recorded financial activity");
 
 console.log("Projects page polish contract passed.");
