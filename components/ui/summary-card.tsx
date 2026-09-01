@@ -9,9 +9,12 @@ type SummaryCardProps = {
   tone?: "brand" | "success" | "successLight" | "successDark" | "warning" | "sent" | "danger" | "info" | "neutral" | "analytics";
   trend?: ReactNode;
   compact?: boolean;
+  onClick?: () => void;
+  selected?: boolean;
+  actionLabel?: string;
 };
 
-export function SummaryCard({ icon, label, value, context, tone = "brand", trend, compact = false }: SummaryCardProps) {
+export function SummaryCard({ icon, label, value, context, tone = "brand", trend, compact = false, onClick, selected = false, actionLabel }: SummaryCardProps) {
   const toneClass: Record<NonNullable<SummaryCardProps["tone"]>, string> = {
     brand: "bg-[var(--color-primary-600)] text-white ring-[rgb(255_255_255/0.14)]",
     success: "bg-[var(--color-success-500)] text-white ring-[rgb(255_255_255/0.14)]",
@@ -38,8 +41,15 @@ export function SummaryCard({ icon, label, value, context, tone = "brand", trend
     analytics: "bg-[var(--color-analytics-500)]",
   };
 
-  return (
-    <Card variant="kpi" className="group h-full overflow-hidden border-[var(--color-border-subtle)] shadow-[var(--shadow-small)]">
+  const card = (
+    <Card
+      variant="kpi"
+      className={[
+        "group h-full overflow-hidden border-[var(--color-border-subtle)] shadow-[var(--shadow-small)] transition-all duration-200",
+        onClick ? "group-hover:-translate-y-0.5 group-hover:border-[var(--color-brand-500)] group-hover:shadow-[var(--shadow-card)]" : "",
+        selected ? "border-[var(--color-brand-500)] ring-2 ring-[var(--color-brand-500)]/35" : "",
+      ].filter(Boolean).join(" ")}
+    >
       <div aria-hidden="true" className={`pointer-events-none absolute -right-9 -top-9 h-28 w-28 rounded-full opacity-[0.12] blur-2xl transition-opacity duration-200 group-hover:opacity-[0.2] ${glowClass[tone]}`} />
       <div aria-hidden="true" className={`pointer-events-none absolute inset-x-0 top-0 h-[3px] opacity-75 ${glowClass[tone]}`} />
       <CardContent className={`relative flex h-full flex-col justify-between ${compact ? "min-h-[112px] p-3.5" : "min-h-[140px] p-4"}`}>
@@ -63,5 +73,19 @@ export function SummaryCard({ icon, label, value, context, tone = "brand", trend
         </div>
       </CardContent>
     </Card>
+  );
+
+  if (!onClick) return card;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      aria-label={actionLabel || `Filter by ${label}`}
+      className="block h-full w-full rounded-[var(--radius-xl)] text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
+    >
+      {card}
+    </button>
   );
 }
