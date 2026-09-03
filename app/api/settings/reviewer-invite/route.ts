@@ -48,6 +48,8 @@ const REVIEWER_PERMISSION_OVERRIDES: Partial<Record<BosPermission, boolean>> = {
   "customer_portal.view": false,
 };
 
+const REVIEWER_SAFE_EXISTING_ROLES = new Set(["employee"]);
+
 type InviteBody = {
   email?: string;
   firstName?: string;
@@ -99,6 +101,13 @@ export async function POST(request: Request) {
       .eq("user_id", user.id)
       .maybeSingle();
     if (membershipLookupError) throw membershipLookupError;
+
+    if (existingMembership && !REVIEWER_SAFE_EXISTING_ROLES.has(existingMembership.role)) {
+      return NextResponse.json(
+        { error: "That email already belongs to a B.O.S. company member with a different role. Reviewer setup will not downgrade existing access." },
+        { status: 409 },
+      );
+    }
 
     const membershipPayload = {
       company_id: companyAdmin.company_id,
