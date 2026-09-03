@@ -19,10 +19,14 @@ assert.match(layout, /manifest:\s*"\/manifest\.webmanifest"/);
 assert.match(layout, /appleWebApp:\s*\{[\s\S]*?capable:\s*true/);
 assert.match(layout, /viewportFit:\s*"cover"/);
 assert.match(layout, /mobile-reliability\.css/);
+assert.match(layout, /const APP_ICON = "\/branding\/bos-operating-system-logo\.png"/);
+assert.match(layout, /apple:\s*\[\{\s*url:\s*APP_ICON,\s*type:\s*"image\/png"\s*\}\]/);
 
 assert.match(manifest, /start_url:\s*"\/app-entry"/);
 assert.match(manifest, /display:\s*"standalone"/);
 assert.match(manifest, /scope:\s*"\/"/);
+assert.match(manifest, /const APP_ICON = "\/branding\/bos-operating-system-logo\.png"/);
+assert.match(manifest, /src:\s*APP_ICON[\s\S]*type:\s*"image\/png"/);
 
 assert.match(appEntryPage, /AppEntryClient/);
 assert.match(appEntryClient, /matchMedia\("\(max-width: 1023px\)"\)/);
