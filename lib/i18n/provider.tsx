@@ -11,6 +11,7 @@ import {
   translate,
   type AppLocale,
 } from "@/lib/i18n/config";
+import { LegacyTextLocalizer } from "@/lib/i18n/legacy-text-localizer";
 
 export type { AppLocale } from "@/lib/i18n/config";
 
@@ -124,7 +125,12 @@ export function I18nProvider({
     t: (key: string, params?: Record<string, string | number>) => translate(locale, key, params),
   }), [locale, userScope, setLocale, setUserScope]);
 
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  return (
+    <I18nContext.Provider value={value}>
+      <LegacyTextLocalizer locale={locale} />
+      {children}
+    </I18nContext.Provider>
+  );
 }
 
 export function useI18n() {
