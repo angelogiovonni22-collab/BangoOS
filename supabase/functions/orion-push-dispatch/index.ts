@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
         const payload = JSON.stringify({
           title: reminder.title || "Orion reminder",
           body: reminder.message || reminder.event_title || "You have an Orion reminder.",
-          href: reminder.linked_href || "/mobile-entry",
+          href: reminder.linked_href || "/app-entry",
           tag: `orion-${reminder.id}`,
           reminderId: reminder.id,
         });
