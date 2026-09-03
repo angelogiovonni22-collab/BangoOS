@@ -32,14 +32,25 @@ const SPANISH_MONTHS: Record<string, string> = {
 type AttributeName = (typeof TRANSLATABLE_ATTRIBUTES)[number];
 type TemplateTranslation = { pattern: RegExp; keys: string[]; localized: string };
 
+type TranslationIndex = {
+  literalMap: Map<string, string>;
+  foldedLiteralMap: Map<string, string>;
+  templates: TemplateTranslation[];
+};
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function buildTranslationIndex(locale: AppLocale) {
+function fold(value: string) {
+  return value.trim().toLocaleLowerCase("en-US");
+}
+
+function buildTranslationIndex(locale: AppLocale): TranslationIndex {
   const literalMap = new Map<string, string>();
+  const foldedLiteralMap = new Map<string, string>();
   const templates: TemplateTranslation[] = [];
-  if (locale === "en") return { literalMap, templates };
+  if (locale === "en") return { literalMap, foldedLiteralMap, templates };
 
   for (const namespace of Object.keys(resources.en) as TranslationNamespace[]) {
     const english = resources.en[namespace];
@@ -53,6 +64,8 @@ function buildTranslationIndex(locale: AppLocale) {
       const tokenMatches = [...normalized.matchAll(/\{\{\s*(\w+)\s*\}\}/g)];
       if (!tokenMatches.length) {
         literalMap.set(normalized, localizedValue);
+        const folded = fold(normalized);
+        if (!foldedLiteralMap.has(folded)) foldedLiteralMap.set(folded, localizedValue);
         continue;
       }
 
@@ -67,33 +80,51 @@ function buildTranslationIndex(locale: AppLocale) {
       }
       source += escapeRegExp(normalized.slice(cursor));
       source += "$";
-      templates.push({ pattern: new RegExp(source), keys, localized: localizedValue });
+      templates.push({ pattern: new RegExp(source, "i"), keys, localized: localizedValue });
     }
   }
 
-  return { literalMap, templates };
+  return { literalMap, foldedLiteralMap, templates };
 }
 
 function translateScheduleDate(value: string) {
-  const match = /^(MON|TUE|WED|THU|FRI|SAT|SUN),\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})$/.exec(value);
+  const match = /^(MON|TUE|WED|THU|FRI|SAT|SUN),\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})$/i.exec(value);
   if (!match) return null;
-  return `${SPANISH_WEEKDAYS[match[1]]}, ${match[3]} ${SPANISH_MONTHS[match[2]]}`;
+  const weekday = match[1].toUpperCase();
+  const month = match[2].toUpperCase();
+  return `${SPANISH_WEEKDAYS[weekday]}, ${match[3]} ${SPANISH_MONTHS[month]}`;
 }
 
-function translateValue(value: string, literalMap: Map<string, string>, templates: TemplateTranslation[]) {
+function translateKnownLiteral(value: string, index: TranslationIndex) {
   const normalized = value.trim();
-  const direct = literalMap.get(normalized);
+  return index.literalMap.get(normalized) || index.foldedLiteralMap.get(fold(normalized)) || null;
+}
+
+function translateDecoratedLiteral(value: string, index: TranslationIndex) {
+  const match = /^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u.exec(value.trim());
+  if (!match || !match[2]) return null;
+  const translatedCore = translateKnownLiteral(match[2], index);
+  return translatedCore ? `${match[1]}${translatedCore}${match[3]}` : null;
+}
+
+function translateValue(value: string, index: TranslationIndex) {
+  const normalized = value.trim();
+  const direct = translateKnownLiteral(normalized, index);
   if (direct) return direct;
-  for (const template of templates) {
+
+  for (const template of index.templates) {
     const match = template.pattern.exec(normalized);
     if (!match) continue;
     let localized = template.localized;
-    template.keys.forEach((key, index) => {
-      localized = localized.replace(new RegExp(`\\{\\{\\s*${escapeRegExp(key)}\\s*\\}\\}`, "g"), match[index + 1] ?? "");
+    template.keys.forEach((key, matchIndex) => {
+      const captured = match[matchIndex + 1] ?? "";
+      const translatedCaptured = translateKnownLiteral(captured, index) || captured;
+      localized = localized.replace(new RegExp(`\\{\\{\\s*${escapeRegExp(key)}\\s*\\}\\}`, "g"), translatedCaptured);
     });
     return localized;
   }
-  return translateScheduleDate(normalized);
+
+  return translateScheduleDate(normalized) || translateDecoratedLiteral(normalized, index);
 }
 
 function shouldSkip(element: Element | null) {
@@ -121,7 +152,7 @@ export function LegacyTextLocalizer({ locale }: { locale: AppLocale }) {
       const current = textNode.nodeValue ?? "";
       const trimmed = current.trim();
       if (!trimmed) return;
-      const translated = translateValue(trimmed, translationIndex.literalMap, translationIndex.templates);
+      const translated = translateValue(trimmed, translationIndex);
       if (!translated) return;
       if (!textOriginals.current.has(textNode)) textOriginals.current.set(textNode, current);
       const leading = current.match(/^\s*/)?.[0] ?? "";
@@ -142,7 +173,7 @@ export function LegacyTextLocalizer({ locale }: { locale: AppLocale }) {
       for (const attribute of TRANSLATABLE_ATTRIBUTES) {
         const current = element.getAttribute(attribute);
         if (!current) continue;
-        const translated = translateValue(current, translationIndex.literalMap, translationIndex.templates);
+        const translated = translateValue(current, translationIndex);
         if (!translated) continue;
         let originals = attributeOriginals.current.get(element);
         if (!originals) {

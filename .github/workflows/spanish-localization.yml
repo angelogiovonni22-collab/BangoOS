@@ -35,6 +35,8 @@ jobs:
         run: npx -y tsx lib/i18n/localization-coverage.contract.test.ts
       - name: Verify full-system Spanish runtime coverage
         run: npx -y tsx lib/i18n/full-system-spanish-runtime.contract.test.ts
+      - name: Verify case-folded live-label coverage
+        run: npx -y tsx lib/i18n/legacy-text-localizer-casefold.contract.test.ts
       - name: Verify provider ownership
         run: npx -y tsx lib/i18n/provider-ownership.contract.test.ts
       - name: Lint localization sources
