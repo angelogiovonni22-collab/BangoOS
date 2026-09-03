@@ -15,35 +15,35 @@ export default function SettingsPage() {
 
   return (
     <div className="container-narrow space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow="Workspace" title={t("navigation.settings")} description="Manage layout, appearance, security, memory review, and Orion voice preferences for this company workspace." />
+      <PageHeader compact eyebrow={t("settings.eyebrow")} title={t("navigation.settings")} description={t("settings.description")} />
 
       {canManageAccess ? <Card as="section" variant="elevated">
         <CardHeader className="bg-[var(--color-surface-subtle)]">
-          <CardTitle>Roles, Departments & Permissions</CardTitle>
-          <p className="text-sm text-[var(--color-text-secondary)]">Control which B.O.S. areas each employee, manager, subcontractor, or customer can access. Sensitive financial information is protected at both the interface and database layers.</p>
+          <CardTitle>{t("settings.rolesTitle")}</CardTitle>
+          <p className="text-sm text-[var(--color-text-secondary)]">{t("settings.rolesDescription")}</p>
         </CardHeader>
-        <CardContent className="p-5"><Link href="/settings/access-control" className="inline-flex items-center rounded-[10px] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105">Open Access Control</Link></CardContent>
+        <CardContent className="p-5"><Link href="/settings/access-control" className="inline-flex items-center rounded-[10px] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105">{t("settings.openAccessControl")}</Link></CardContent>
       </Card> : null}
 
       {canManageBilling ? <Card as="section" variant="elevated">
         <CardHeader className="bg-[var(--color-surface-subtle)]">
-          <CardTitle>Subscription & Billing</CardTitle>
-          <p className="text-sm text-[var(--color-text-secondary)]">Review your B.O.S. plan, company seats, Orion capacity, invoices, payment method, and renewal settings.</p>
+          <CardTitle>{t("settings.billingTitle")}</CardTitle>
+          <p className="text-sm text-[var(--color-text-secondary)]">{t("settings.billingDescription")}</p>
         </CardHeader>
-        <CardContent className="p-5"><Link href="/settings/billing" className="inline-flex items-center rounded-[10px] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105">Open Subscription & Billing</Link></CardContent>
+        <CardContent className="p-5"><Link href="/settings/billing" className="inline-flex items-center rounded-[10px] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105">{t("settings.openBilling")}</Link></CardContent>
       </Card> : null}
 
       <Card as="section" variant="elevated">
         <CardHeader className="bg-[var(--color-surface-subtle)]">
-          <CardTitle>Layout</CardTitle>
-          <p className="text-sm text-[var(--color-text-secondary)]">Choose how B.O.S. is physically arranged. Layout is independent from theme, so either layout can be combined with any B.O.S. color experience.</p>
+          <CardTitle>{t("settings.layoutTitle")}</CardTitle>
+          <p className="text-sm text-[var(--color-text-secondary)]">{t("settings.layoutDescription")}</p>
         </CardHeader>
-        <CardContent className="space-y-5 p-5"><div><p className="font-semibold text-[var(--color-text-primary)]">Workspace Layout</p><p className="mt-1 text-sm text-[var(--color-text-secondary)]">Switch instantly between the original sidebar workspace and the full-width Top Command workspace. Your choice is saved on this device.</p></div><LayoutGallery /></CardContent>
+        <CardContent className="space-y-5 p-5"><div><p className="font-semibold text-[var(--color-text-primary)]">{t("settings.workspaceLayout")}</p><p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t("settings.workspaceLayoutDescription")}</p></div><LayoutGallery /></CardContent>
       </Card>
 
       <Card as="section" variant="elevated">
-        <CardHeader className="bg-[var(--color-surface-subtle)]"><CardTitle>Theme</CardTitle><p className="text-sm text-[var(--color-text-secondary)]">Choose the visual language independently from your layout. Themes control color, surfaces, borders, glow, depth, and atmosphere without changing your B.O.S. data.</p></CardHeader>
-        <CardContent className="space-y-5 p-5"><div><p className="font-semibold text-[var(--color-text-primary)]">Themes & Experiences</p><p className="mt-1 text-sm text-[var(--color-text-secondary)]">Select a preview to apply it instantly across B.O.S.</p></div><ThemeGallery /></CardContent>
+        <CardHeader className="bg-[var(--color-surface-subtle)]"><CardTitle>{t("settings.themeTitle")}</CardTitle><p className="text-sm text-[var(--color-text-secondary)]">{t("settings.themeDescription")}</p></CardHeader>
+        <CardContent className="space-y-5 p-5"><div><p className="font-semibold text-[var(--color-text-primary)]">{t("settings.themesExperiences")}</p><p className="mt-1 text-sm text-[var(--color-text-secondary)]">{t("settings.themesExperiencesDescription")}</p></div><ThemeGallery /></CardContent>
       </Card>
 
       <Card as="section" variant="elevated">
@@ -52,7 +52,7 @@ export default function SettingsPage() {
       </Card>
 
       <Card as="section" variant="elevated">
-        <CardHeader className="bg-[var(--color-surface-subtle)]"><CardTitle>Orion Voice</CardTitle><p className="text-sm text-[var(--color-text-secondary)]">Configure spoken responses, preferred voice, and speech tuning.</p></CardHeader>
+        <CardHeader className="bg-[var(--color-surface-subtle)]"><CardTitle>{t("settings.orionVoice")}</CardTitle><p className="text-sm text-[var(--color-text-secondary)]">{t("settings.orionVoiceDescription")}</p></CardHeader>
         <CardContent className="p-5"><OrionVoiceSettingsPanel /></CardContent>
       </Card>
     </div>
