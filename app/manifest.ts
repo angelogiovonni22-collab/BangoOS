@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+const APP_ICON = "/branding/bos-operating-system-logo.png";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "B.O.S. — Bango Operating System",
@@ -12,8 +14,8 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#050b12",
     orientation: "any",
     icons: [
-      { src: "/bos-app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
-      { src: "/bos-app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },
+      { src: APP_ICON, sizes: "any", type: "image/png", purpose: "any" },
+      { src: APP_ICON, sizes: "any", type: "image/png", purpose: "maskable" },
     ],
   };
 }
