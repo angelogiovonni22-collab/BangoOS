@@ -1,0 +1,43 @@
+name: Spanish Localization
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  localization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Diagnose dashboard locale parity
+        run: node lib/i18n/dashboard-locale-parity-diagnostic.mjs
+      - name: Verify localization namespace parity
+        run: npx -y tsx lib/i18n/localization-coverage.contract.test.ts
+      - name: Verify full-system Spanish runtime coverage
+        run: npx -y tsx lib/i18n/full-system-spanish-runtime.contract.test.ts
+      - name: Verify provider ownership
+        run: npx -y tsx lib/i18n/provider-ownership.contract.test.ts
+      - name: Lint localization sources
+        run: npx eslint lib/i18n components/ui/language-selector.tsx
+      - name: Build B.O.S.
+        run: npm run build
