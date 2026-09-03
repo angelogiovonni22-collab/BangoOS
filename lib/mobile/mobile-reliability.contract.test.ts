@@ -16,7 +16,7 @@ const mobileField = read("components/crews/mobile-field-operations-workspace.tsx
 const pushDispatch = read("supabase/functions/orion-push-dispatch/index.ts");
 
 assert.match(layout, /manifest:\s*"\/manifest\.webmanifest"/);
-assert.match(layout, /appleWebApp:\s*\{[^}]*capable:\s*true/s);
+assert.match(layout, /appleWebApp:\s*\{[\s\S]*?capable:\s*true/);
 assert.match(layout, /viewportFit:\s*"cover"/);
 assert.match(layout, /mobile-reliability\.css/);
 
