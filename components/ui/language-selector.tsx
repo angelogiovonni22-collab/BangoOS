@@ -1,34 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "./button";
 import { useI18n, type AppLocale } from "@/lib/i18n/provider";
 
 export function LanguageSelector() {
   const { locale, setLocale, t } = useI18n();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+    if (!isOpen) return;
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
     };
-
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
+      if (event.key === "Escape") setIsOpen(false);
     };
 
     window.addEventListener("mousedown", handlePointerDown);
     window.addEventListener("keydown", handleEscape);
-
     return () => {
       window.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleEscape);
@@ -40,6 +34,7 @@ export function LanguageSelector() {
   const selectLanguage = (nextLocale: AppLocale) => {
     setLocale(nextLocale);
     setIsOpen(false);
+    router.refresh();
   };
 
   return (
@@ -68,19 +63,8 @@ export function LanguageSelector() {
           isOpen ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0"
         }`}
       >
-        <LanguageOption
-          label={t("common.english")}
-          value="en"
-          isActive={locale === "en"}
-          onSelect={selectLanguage}
-        />
-
-        <LanguageOption
-          label={t("common.spanish")}
-          value="es"
-          isActive={locale === "es"}
-          onSelect={selectLanguage}
-        />
+        <LanguageOption label={t("common.english")} value="en" isActive={locale === "en"} onSelect={selectLanguage} />
+        <LanguageOption label={t("common.spanish")} value="es" isActive={locale === "es"} onSelect={selectLanguage} />
       </div>
     </div>
   );
