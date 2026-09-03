@@ -55,6 +55,9 @@ test("Shared localization architecture", () => {
   check(selector.includes("router.refresh()"), "language switch refreshes server-rendered content");
   check(bridge.includes('[data-user-content]'), "migration bridge explicitly excludes user content");
   check(bridge.includes("MutationObserver"), "migration bridge covers dynamically rendered UI copy");
+  check(bridge.includes('"aria-description"'), "migration bridge translates dynamic accessibility descriptions");
+  check(bridge.includes('"alt"'), "migration bridge translates image alt copy");
+  check(bridge.includes("attributes: true"), "migration bridge re-translates dynamically changed attributes");
 });
 
 test("Representative previously-English-only pages are localized", () => {
@@ -69,6 +72,54 @@ test("Representative previously-English-only pages are localized", () => {
   check(resourcesEs.materialsTitle === "Gestión de materiales", "Materials Spanish translation is present");
   check(resourcesEs.unitsTitle === "Unidades de medida", "Units Spanish translation is present");
   check(settingsEs.themeTitle === "Tema", "Settings Spanish translation is present");
+});
+
+test("Global B.O.S. runtime copy has Spanish fallback coverage", () => {
+  const commonEn = json(join(enDir, "common.json"));
+  const commonEs = json(join(esDir, "common.json"));
+  const requiredKeys = [
+    "dashboard",
+    "operations",
+    "dispatchCenter",
+    "dailyReports",
+    "schedule",
+    "projects",
+    "blueprints",
+    "estimates",
+    "invoices",
+    "payroll",
+    "changeOrders",
+    "laborRates",
+    "customers",
+    "materials",
+    "unitsOfMeasure",
+    "equipment",
+    "vendors",
+    "employees",
+    "crew",
+    "settings",
+    "tradePartnerMessages",
+    "customerAdministration",
+    "companyOverview",
+    "projectPortfolioProgress",
+    "financialPerformance",
+    "fieldActivity",
+    "risksAndInspections",
+    "recentPhotos",
+    "alertsAndDecisions",
+    "liveJobsiteWeather",
+    "crewSupervisorTemplate",
+    "projectCloseoutTemplate",
+    "projectScheduleTemplate",
+    "daysAgoTemplate",
+    "tasksTemplate",
+    "activeRisksTemplate",
+  ];
+  check(requiredKeys.every((key) => Boolean(commonEn[key])), "global English runtime coverage keys are present");
+  check(requiredKeys.every((key) => Boolean(commonEs[key]) && commonEs[key] !== commonEn[key]), "global runtime coverage keys have real Spanish translations");
+  check(commonEs.companyOverview === "Resumen de la empresa", "dashboard headline has Spanish coverage");
+  check(commonEs.liveJobsiteWeather === "Clima en vivo del sitio de trabajo", "weather card has Spanish coverage");
+  check(commonEs.crewSupervisorTemplate.includes("supervisor asignado"), "dynamic crew alert template is localized");
 });
 
 console.log(`\nLocalization coverage contract results: ${passed} passed, ${failed} failed`);
