@@ -109,6 +109,24 @@ export async function POST(request: Request) {
       );
     }
 
+    const { data: existingProfile, error: profileLookupError } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profileLookupError) throw profileLookupError;
+
+    if (!existingProfile) {
+      const { error: profileError } = await admin.from("profiles").insert({
+        id: user.id,
+        company_id: companyAdmin.company_id,
+        first_name: body.firstName?.trim() || null,
+        last_name: body.lastName?.trim() || null,
+        role: "employee",
+      } as never);
+      if (profileError) throw profileError;
+    }
+
     const membershipPayload = {
       company_id: companyAdmin.company_id,
       user_id: user.id,
