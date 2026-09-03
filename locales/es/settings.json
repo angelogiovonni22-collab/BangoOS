@@ -1,0 +1,20 @@
+{
+  "eyebrow": "Espacio de trabajo",
+  "description": "Administre el diseño, la apariencia, la seguridad, la revisión de memoria y las preferencias de voz de Orion para este espacio de trabajo de la empresa.",
+  "rolesTitle": "Roles, departamentos y permisos",
+  "rolesDescription": "Controle a qué áreas de B.O.S. puede acceder cada empleado, gerente, subcontratista o cliente. La información financiera confidencial está protegida tanto en la interfaz como en la base de datos.",
+  "openAccessControl": "Abrir control de acceso",
+  "billingTitle": "Suscripción y facturación",
+  "billingDescription": "Revise su plan de B.O.S., puestos de la empresa, capacidad de Orion, facturas, método de pago y configuración de renovación.",
+  "openBilling": "Abrir suscripción y facturación",
+  "layoutTitle": "Diseño",
+  "layoutDescription": "Elija cómo se organiza físicamente B.O.S. El diseño es independiente del tema, por lo que cualquiera de los diseños puede combinarse con cualquier experiencia de color de B.O.S.",
+  "workspaceLayout": "Diseño del espacio de trabajo",
+  "workspaceLayoutDescription": "Cambie al instante entre el espacio de trabajo original con barra lateral y el espacio Top Command de ancho completo. Su elección se guarda en este dispositivo.",
+  "themeTitle": "Tema",
+  "themeDescription": "Elija el lenguaje visual independientemente del diseño. Los temas controlan color, superficies, bordes, brillo, profundidad y ambiente sin cambiar sus datos de B.O.S.",
+  "themesExperiences": "Temas y experiencias",
+  "themesExperiencesDescription": "Seleccione una vista previa para aplicarla inmediatamente en todo B.O.S.",
+  "orionVoice": "Voz de Orion",
+  "orionVoiceDescription": "Configure respuestas habladas, voz preferida y ajustes de habla."
+}
