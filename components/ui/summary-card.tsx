@@ -1,5 +1,9 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { Card, CardContent } from "./card";
+import { useI18n } from "@/lib/i18n/provider";
+import { translateLiteral } from "@/lib/i18n/literal";
 
 type SummaryCardProps = {
   icon: ReactNode;
@@ -15,6 +19,11 @@ type SummaryCardProps = {
 };
 
 export function SummaryCard({ icon, label, value, context, tone = "brand", trend, compact = false, onClick, selected = false, actionLabel }: SummaryCardProps) {
+  const { locale } = useI18n();
+  const localizedLabel = translateLiteral(locale, label);
+  const localizedContext = context ? translateLiteral(locale, context) : undefined;
+  const localizedActionLabel = actionLabel ? translateLiteral(locale, actionLabel) : undefined;
+
   const toneClass: Record<NonNullable<SummaryCardProps["tone"]>, string> = {
     brand: "bg-[var(--color-primary-600)] text-white ring-[rgb(255_255_255/0.14)]",
     success: "bg-[var(--color-success-500)] text-white ring-[rgb(255_255_255/0.14)]",
@@ -67,9 +76,9 @@ export function SummaryCard({ icon, label, value, context, tone = "brand", trend
         </div>
 
         <div className={compact ? "mt-3" : "mt-4"}>
-          <p className="text-table-header text-[var(--color-text-secondary)]">{label}</p>
+          <p className="text-table-header text-[var(--color-text-secondary)]">{localizedLabel}</p>
           <p className={`font-bold tracking-tight text-[var(--color-text-primary)] ${compact ? "mt-1.5 text-[1.5rem]" : "mt-2 text-[1.62rem]"}`}>{value}</p>
-          {context ? <p className="mt-1 text-xs font-semibold text-[var(--color-text-secondary)]">{context}</p> : null}
+          {localizedContext ? <p className="mt-1 text-xs font-semibold text-[var(--color-text-secondary)]">{localizedContext}</p> : null}
         </div>
       </CardContent>
     </Card>
@@ -82,7 +91,7 @@ export function SummaryCard({ icon, label, value, context, tone = "brand", trend
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      aria-label={actionLabel || `Filter by ${label}`}
+      aria-label={localizedActionLabel || `Filter by ${localizedLabel}`}
       className="block h-full w-full rounded-[var(--radius-xl)] text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
     >
       {card}
