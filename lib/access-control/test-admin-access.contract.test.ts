@@ -15,8 +15,8 @@ assert.match(route, /department:\s*"Test Administration"/, "test membership must
 assert.match(route, /permission_overrides:\s*\{\}/, "test administrator must use normal administrator permissions without hidden overrides");
 assert.match(route, /No billing customer or subscription should be attached/, "test tenant must be explicitly non-billing");
 assert.match(client, /Stripe customer or subscription/, "owner-facing UI must explicitly explain Stripe/billing isolation");
-assert.match(route, /conflictingMembership/, "existing real B.O.S. memberships must be protected from reassignment");
-assert.match(route, /department !== "Reviewer"/, "only a constrained reviewer membership may be safely superseded by test access");
+assert.match(route, /currentMemberships \|\| \[\]\)\.length > 0/, "any active existing B.O.S. membership must block test-workspace reassignment");
+assert.match(route, /will not move or replace an existing workspace/, "existing real workspaces must be protected explicitly");
 assert.match(route, /business_type:\s*"both"/, "test company must satisfy the production company business-type constraint");
 assert.match(route, /orion_text_allowance:\s*200/, "test Orion text allowance must remain intentionally small");
 assert.match(route, /orion_voice_minutes:\s*30/, "test Orion voice allowance must remain intentionally small");
