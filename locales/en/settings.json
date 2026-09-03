@@ -1,0 +1,20 @@
+{
+  "eyebrow": "Workspace",
+  "description": "Manage layout, appearance, security, memory review, and Orion voice preferences for this company workspace.",
+  "rolesTitle": "Roles, Departments & Permissions",
+  "rolesDescription": "Control which B.O.S. areas each employee, manager, subcontractor, or customer can access. Sensitive financial information is protected at both the interface and database layers.",
+  "openAccessControl": "Open Access Control",
+  "billingTitle": "Subscription & Billing",
+  "billingDescription": "Review your B.O.S. plan, company seats, Orion capacity, invoices, payment method, and renewal settings.",
+  "openBilling": "Open Subscription & Billing",
+  "layoutTitle": "Layout",
+  "layoutDescription": "Choose how B.O.S. is physically arranged. Layout is independent from theme, so either layout can be combined with any B.O.S. color experience.",
+  "workspaceLayout": "Workspace Layout",
+  "workspaceLayoutDescription": "Switch instantly between the original sidebar workspace and the full-width Top Command workspace. Your choice is saved on this device.",
+  "themeTitle": "Theme",
+  "themeDescription": "Choose the visual language independently from your layout. Themes control color, surfaces, borders, glow, depth, and atmosphere without changing your B.O.S. data.",
+  "themesExperiences": "Themes & Experiences",
+  "themesExperiencesDescription": "Select a preview to apply it instantly across B.O.S.",
+  "orionVoice": "Orion Voice",
+  "orionVoiceDescription": "Configure spoken responses, preferred voice, and speech tuning."
+}
