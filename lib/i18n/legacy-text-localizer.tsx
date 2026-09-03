@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { resources, type AppLocale, type TranslationNamespace } from "@/lib/i18n/config";
 
 const SKIP_SELECTOR = "[data-no-auto-i18n], [data-user-content], [contenteditable='true'], script, style, code, pre";
-const TRANSLATABLE_ATTRIBUTES = ["placeholder", "title", "aria-label"] as const;
+const TRANSLATABLE_ATTRIBUTES = ["placeholder", "title", "aria-label", "aria-description", "alt"] as const;
 
 type AttributeName = (typeof TRANSLATABLE_ATTRIBUTES)[number];
 type TemplateTranslation = { pattern: RegExp; keys: string[]; localized: string };
@@ -148,10 +148,17 @@ export function LegacyTextLocalizer({ locale }: { locale: AppLocale }) {
       if (applying) return;
       for (const record of records) {
         if (record.type === "characterData") apply(record.target);
+        if (record.type === "attributes") apply(record.target);
         for (const node of record.addedNodes) apply(node);
       }
     });
-    observer.observe(root, { childList: true, subtree: true, characterData: true });
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: [...TRANSLATABLE_ATTRIBUTES],
+    });
     return () => observer.disconnect();
   }, [locale, translationIndex]);
 
