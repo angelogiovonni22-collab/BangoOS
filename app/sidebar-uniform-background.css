@@ -8,9 +8,14 @@
  * Desktop Orion uses the canonical persistent Orion component so the original
  * animated particle sphere and original click-open panel remain intact. The
  * temporary top-bar orb remains in flow only as an anchor and is hidden.
+ *
+ * The aria-label is localized at runtime. Match both supported locales so
+ * switching B.O.S. to Spanish never reveals the temporary launcher or routes
+ * clicks into the advanced Orion command-center experience.
  */
 @media (min-width: 1024px) {
-  button[aria-label="Open Orion"] {
+  header[data-bos-topbar="true"] button[aria-label="Open Orion"],
+  header[data-bos-topbar="true"] button[aria-label="Abrir Orion"] {
     anchor-name: --orion-topbar-anchor;
     opacity: 0 !important;
     pointer-events: none !important;
