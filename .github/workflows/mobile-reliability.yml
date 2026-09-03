@@ -1,0 +1,42 @@
+name: Mobile Reliability
+
+on:
+  pull_request:
+    paths:
+      - "app/app-entry/**"
+      - "app/(app)/mobile-home/**"
+      - "app/mobile-*.css"
+      - "app/layout.tsx"
+      - "components/crews/mobile-field-operations-workspace.tsx"
+      - "lib/mobile/**"
+      - ".github/workflows/mobile-reliability.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/app-entry/**"
+      - "app/(app)/mobile-home/**"
+      - "app/mobile-*.css"
+      - "app/layout.tsx"
+      - "components/crews/mobile-field-operations-workspace.tsx"
+      - "lib/mobile/**"
+      - ".github/workflows/mobile-reliability.yml"
+
+jobs:
+  mobile-reliability:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify mobile reliability contract
+        run: npx -y tsx lib/mobile/mobile-reliability.contract.test.ts
+      - name: Lint mobile sources
+        run: npx eslint "app/app-entry/**/*.{ts,tsx}" "app/(app)/mobile-home/**/*.{ts,tsx}" lib/mobile/mobile-reliability.contract.test.ts
+      - name: Build B.O.S.
+        run: npm run build

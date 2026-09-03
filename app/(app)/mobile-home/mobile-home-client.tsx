@@ -60,6 +60,7 @@ export function MobileHomeClient({ role, userName, companyName, dashboardData, t
     () => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(new Date()),
     [],
   );
+  const greeting = useMemo(() => getMobileGreeting(new Date()), []);
 
   useEffect(() => {
     if (window.matchMedia("(min-width: 1024px)").matches) {
@@ -84,7 +85,7 @@ export function MobileHomeClient({ role, userName, companyName, dashboardData, t
       <header className="bos-mobile-home-header">
         <div>
           <p className="bos-mobile-wordmark" title={companyName}>B.O.S.</p>
-          <p className="bos-mobile-greeting">Good Morning,</p>
+          <p className="bos-mobile-greeting">{greeting},</p>
           <h1>{firstName}</h1>
           <p className="bos-mobile-date">{currentDate}</p>
         </div>
@@ -149,15 +150,17 @@ function OwnerMobileBody({ dashboardData, projects, activities }: { dashboardDat
     <>
       <section className="bos-mobile-section">
         <div className="bos-mobile-section-heading"><h2>Financial Overview</h2><Link href="/invoices">This Month</Link></div>
-        <div className="bos-mobile-finance-grid">
-          {(currencyMetrics.length > 0 ? currencyMetrics : defaultCurrencyMetrics()).map((metric) => (
-            <div key={metric.id} className="bos-mobile-finance-cell">
-              <span>{metricTitle(metric)}</span>
-              <strong>{formatCurrency(metric.value)}</strong>
-              <small>+{Math.max(1, Math.round(Math.abs(metric.trendPercent ?? 8.7)))}%</small>
-            </div>
-          ))}
-        </div>
+        {currencyMetrics.length > 0 ? (
+          <div className="bos-mobile-finance-grid">
+            {currencyMetrics.map((metric) => (
+              <div key={metric.id} className="bos-mobile-finance-cell">
+                <span>{metricTitle(metric)}</span>
+                <strong>{formatCurrency(metric.value)}</strong>
+                {typeof metric.trendPercent === "number" ? <small>{formatTrend(metric.trendPercent)}</small> : null}
+              </div>
+            ))}
+          </div>
+        ) : <div className="bos-mobile-list-card"><p className="bos-mobile-empty">Financial metrics are not available right now.</p></div>}
       </section>
       <ProjectList title="Top Projects" projects={projects} />
       <ActivityList title="Recent Activity" activities={activities} />
@@ -180,18 +183,18 @@ function EmployeeMobileBody({ projects, activities }: { projects: ProjectHealthR
       <section className="bos-mobile-section">
         <div className="bos-mobile-section-heading"><h2>My Tasks</h2><Link href="/crews/field">View all</Link></div>
         <div className="bos-mobile-list-card">
-          {(activities.length > 0 ? activities.slice(0, 3) : fallbackTasks()).map((activity, index) => (
-            <div key={typeof activity === "string" ? activity : activity.id} className="bos-mobile-task-row">
+          {activities.length === 0 ? <p className="bos-mobile-empty">No assigned field activity to display.</p> : activities.slice(0, 3).map((activity, index) => (
+            <div key={activity.id} className="bos-mobile-task-row">
               <span className="bos-mobile-task-dot" data-tone={index === 0 ? "orange" : "blue"} />
-              <div><strong>{typeof activity === "string" ? activity : activity.actionLabel || "Assigned field task"}</strong><small>{typeof activity === "string" ? "Assigned project" : activity.projectName || "B.O.S. Project"}</small></div>
-              <em>{index === 0 ? "Due Today" : index === 1 ? "Due Today" : "Tomorrow"}</em>
+              <div><strong>{activity.actionLabel || "Assigned field activity"}</strong><small>{activity.projectName || "B.O.S. Project"}</small></div>
+              <em>{formatMinutesAgo(activity.timestampMinutesAgo)}</em>
             </div>
           ))}
         </div>
       </section>
       <section className="bos-mobile-section">
         <div className="bos-mobile-section-heading"><h2>Time Clock</h2></div>
-        <div className="bos-mobile-time-card"><div><span className="bos-mobile-status-dot" /> <strong>Not Clocked In</strong></div><Link href="/crews/field">Clock In</Link></div>
+        <div className="bos-mobile-time-card"><div><span className="bos-mobile-status-dot" /> <strong>Open field time clock</strong></div><Link href="/crews/field">Open</Link></div>
       </section>
       {projects.length > 0 ? <ProjectList title="My Projects" projects={projects.slice(0, 2)} /> : null}
     </>
@@ -227,9 +230,7 @@ function TradePartnerMobileBody({ jobs }: { jobs: TradePartnerMobileJob[] }) {
       <section className="bos-mobile-section">
         <div className="bos-mobile-section-heading"><h2>Recent Updates</h2></div>
         <div className="bos-mobile-list-card">
-          <UpdateRow icon={<FileText size={15} />} label="Plan update" time="2h ago" />
-          <UpdateRow icon={<MessageCircle size={15} />} label="New message" time="4h ago" />
-          <UpdateRow icon={<Camera size={15} />} label="Photo uploaded" time="1d ago" />
+          <p className="bos-mobile-empty">Open a project to view its latest updates.</p>
         </div>
       </section>
     </>
@@ -270,13 +271,7 @@ function ActivityList({ title, activities }: { title: string; activities: Dashbo
     <section className="bos-mobile-section">
       <div className="bos-mobile-section-heading"><h2>{title}</h2><Link href="/timeline">View all</Link></div>
       <div className="bos-mobile-list-card">
-        {activities.length === 0 ? (
-          <>
-            <UpdateRow icon={<CheckCircle2 size={15} />} label="Daily Log submitted" time="2m ago" />
-            <UpdateRow icon={<CalendarDays size={15} />} label="Inspection scheduled" time="1h ago" />
-            <UpdateRow icon={<MessageCircle size={15} />} label="New message received" time="2h ago" />
-          </>
-        ) : activities.map((activity) => (
+        {activities.length === 0 ? <p className="bos-mobile-empty">No recent activity to display.</p> : activities.map((activity) => (
           <UpdateRow key={activity.id} icon={<ActivityIcon category={activity.category} />} label={activity.actionLabel || "Project activity"} sublabel={activity.projectName} time={formatMinutesAgo(activity.timestampMinutesAgo)} href={activity.href} />
         ))}
       </div>
@@ -340,7 +335,7 @@ function buildOverviewCards(roleGroup: ReturnType<typeof getRoleGroup>, data: Ex
     { label: "My Jobs", value: projectCount, status: "Active", tone: "blue", icon: <FolderKanban size={16} /> },
     { label: "Tasks", value: taskCount, status: "Today", tone: "green", icon: <ListTodo size={16} /> },
     { label: "Messages", value: messageCount, status: "Unread", tone: "orange", icon: <MessageCircle size={16} /> },
-    { label: "Time Clock", value: "—", status: "Clock In", tone: "blue", icon: <Clock3 size={16} /> },
+    { label: "Time Clock", value: "—", status: "Open", tone: "blue", icon: <Clock3 size={16} /> },
   ];
   if (roleGroup === "subcontractor") return [
     { label: "Projects", value: jobs.length, status: "Assigned", tone: "blue", icon: <FolderKanban size={16} /> },
@@ -383,12 +378,7 @@ function formatLabel(value: string) { return value.replace(/_/g, " ").replace(/\
 function getProjectProgress(status: string) { const value = status.toLowerCase(); if (value.includes("complete")) return "100%"; if (value.includes("progress") || value.includes("active")) return "65%"; if (value.includes("planning") || value.includes("scheduled")) return "28%"; return "12%"; }
 function formatMinutesAgo(value: number) { if (value < 60) return `${Math.max(1, value)}m ago`; const hours = Math.floor(value / 60); if (hours < 24) return `${hours}h ago`; return `${Math.floor(hours / 24)}d ago`; }
 function formatCurrency(value: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value); }
+function formatTrend(value: number) { const rounded = Math.round(value * 10) / 10; return `${rounded > 0 ? "+" : ""}${rounded}%`; }
 function metricTitle(metric: DashboardMetric) { const id = metric.id.replace(/[-_]/g, " "); return id.replace(/\b\w/g, (letter) => letter.toUpperCase()); }
-function defaultCurrencyMetrics(): DashboardMetric[] { return [
-  { id: "Revenue", icon: "$", titleKey: "", value: 0, valueKind: "currency", href: "/invoices", tooltipKey: "", trendPercent: 12.3 },
-  { id: "Profit", icon: "$", titleKey: "", value: 0, valueKind: "currency", href: "/projects", tooltipKey: "", trendPercent: 8.7 },
-  { id: "Job Cost", icon: "$", titleKey: "", value: 0, valueKind: "currency", href: "/projects", tooltipKey: "", trendPercent: 5.2 },
-  { id: "Cash Flow", icon: "$", titleKey: "", value: 0, valueKind: "currency", href: "/invoices", tooltipKey: "", trendPercent: 10.2 },
-]; }
-function fallbackTasks() { return ["Install Drywall", "Site Cleanup", "Material Delivery"]; }
+function getMobileGreeting(date: Date) { const hour = date.getHours(); if (hour < 12) return "Good Morning"; if (hour < 18) return "Good Afternoon"; return "Good Evening"; }
 function ActivityIcon({ category }: { category: DashboardActivityItem["category"] }) { if (category === "sitecam") return <Camera size={15} />; if (category === "project") return <FolderKanban size={15} />; if (category === "team") return <Users size={15} />; return <CheckCircle2 size={15} />; }
