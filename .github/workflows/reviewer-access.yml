@@ -1,0 +1,38 @@
+name: Reviewer Access
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  reviewer-access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify reviewer access security contract
+        run: npx -y tsx lib/access-control/reviewer-access.contract.test.ts
+      - name: Lint reviewer access sources
+        run: npx eslint 'app/api/settings/reviewer-invite/route.ts' 'app/(app)/settings/reviewer-access/page.tsx' lib/access-control/reviewer-access.contract.test.ts
+      - name: Build B.O.S.
+        run: npm run build
