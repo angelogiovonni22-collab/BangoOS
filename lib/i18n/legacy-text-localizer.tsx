@@ -5,6 +5,29 @@ import { resources, type AppLocale, type TranslationNamespace } from "@/lib/i18n
 
 const SKIP_SELECTOR = "[data-no-auto-i18n], [data-user-content], [contenteditable='true'], script, style, code, pre";
 const TRANSLATABLE_ATTRIBUTES = ["placeholder", "title", "aria-label", "aria-description", "alt"] as const;
+const SPANISH_WEEKDAYS: Record<string, string> = {
+  MON: "LUN",
+  TUE: "MAR",
+  WED: "MIÉ",
+  THU: "JUE",
+  FRI: "VIE",
+  SAT: "SÁB",
+  SUN: "DOM",
+};
+const SPANISH_MONTHS: Record<string, string> = {
+  JAN: "ENE",
+  FEB: "FEB",
+  MAR: "MAR",
+  APR: "ABR",
+  MAY: "MAY",
+  JUN: "JUN",
+  JUL: "JUL",
+  AUG: "AGO",
+  SEP: "SEP",
+  OCT: "OCT",
+  NOV: "NOV",
+  DEC: "DIC",
+};
 
 type AttributeName = (typeof TRANSLATABLE_ATTRIBUTES)[number];
 type TemplateTranslation = { pattern: RegExp; keys: string[]; localized: string };
@@ -51,6 +74,12 @@ function buildTranslationIndex(locale: AppLocale) {
   return { literalMap, templates };
 }
 
+function translateScheduleDate(value: string) {
+  const match = /^(MON|TUE|WED|THU|FRI|SAT|SUN),\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})$/.exec(value);
+  if (!match) return null;
+  return `${SPANISH_WEEKDAYS[match[1]]}, ${match[3]} ${SPANISH_MONTHS[match[2]]}`;
+}
+
 function translateValue(value: string, literalMap: Map<string, string>, templates: TemplateTranslation[]) {
   const normalized = value.trim();
   const direct = literalMap.get(normalized);
@@ -64,7 +93,7 @@ function translateValue(value: string, literalMap: Map<string, string>, template
     });
     return localized;
   }
-  return null;
+  return translateScheduleDate(normalized);
 }
 
 function shouldSkip(element: Element | null) {
