@@ -13,6 +13,7 @@ const mobileHome = read("app/(app)/mobile-home/mobile-home-client.tsx");
 const mobileCss = read("app/mobile-reference.css");
 const reliabilityCss = read("app/mobile-reliability.css");
 const mobileField = read("components/crews/mobile-field-operations-workspace.tsx");
+const pushDispatch = read("supabase/functions/orion-push-dispatch/index.ts");
 
 assert.match(layout, /manifest:\s*"\/manifest\.webmanifest"/);
 assert.match(layout, /appleWebApp:\s*\{[^}]*capable:\s*true/s);
@@ -31,6 +32,16 @@ assert.match(login, /mobileDestination[\s\S]*"\/mobile-home"/);
 assert.match(mobileHome, /MobileBottomNav/);
 assert.match(mobileHome, /aria-label="Mobile navigation"/);
 assert.match(mobileHome, /router\.replace\(getRoleHomePath\(role\)\)/);
+assert.match(mobileHome, /getMobileGreeting\(new Date\(\)\)/);
+assert.doesNotMatch(mobileHome, /fallbackTasks/);
+assert.doesNotMatch(mobileHome, /Daily Log submitted/);
+assert.doesNotMatch(mobileHome, /Inspection scheduled/);
+assert.doesNotMatch(mobileHome, /Photo uploaded/);
+assert.match(mobileHome, /No recent activity to display/);
+assert.match(mobileHome, /Open field time clock/);
+
+assert.match(pushDispatch, /reminder\.linked_href \|\| "\/app-entry"/);
+assert.doesNotMatch(pushDispatch, /\/mobile-entry/);
 
 assert.match(mobileCss, /env\(safe-area-inset-bottom\)/);
 assert.match(mobileCss, /env\(safe-area-inset-top\)/);
