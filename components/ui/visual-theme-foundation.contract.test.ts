@@ -39,7 +39,7 @@ test("theme gallery exposes persistent B.O.S. themes and experiences", () => {
   assert.match(gallery, /localStorage\.setItem/);
   assert.match(gallery, /document\.documentElement\.dataset\.theme/);
   assert.match(settings, /ThemeGallery/);
-  assert.match(settings, /Themes & Experiences/);
+  assert.match(settings, /t\("settings\.themesExperiences"\)/);
   assert.match(layout, /theme-gallery\.css/);
   assert.match(layout, /future-2030\.css/);
   assert.match(layout, /themeBootstrapScript/);
