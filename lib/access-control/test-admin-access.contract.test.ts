@@ -13,7 +13,7 @@ assert.match(route, /companySlug = `bos-test-/, "test company must use an isolat
 assert.match(route, /department:\s*"Test Administration"/, "test membership must be clearly marked");
 assert.match(route, /permission_overrides:\s*\{\}/, "test administrator must use normal administrator permissions without hidden overrides");
 assert.match(route, /No billing customer or subscription should be attached/, "test tenant must be explicitly non-billing");
-assert.match(route, /stripe/i, "test tenant copy must explicitly address Stripe/billing isolation");
+assert.match(page, /Stripe customer or subscription/, "owner-facing UI must explicitly explain Stripe/billing isolation");
 assert.match(route, /conflictingMembership/, "existing real B.O.S. memberships must be protected from reassignment");
 assert.match(route, /department !== "Reviewer"/, "only a constrained reviewer membership may be safely superseded by test access");
 assert.match(route, /business_type:\s*"both"/, "test company must satisfy the production company business-type constraint");
