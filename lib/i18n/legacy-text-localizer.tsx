@@ -7,23 +7,64 @@ const SKIP_SELECTOR = "[data-no-auto-i18n], [data-user-content], [contenteditabl
 const TRANSLATABLE_ATTRIBUTES = ["placeholder", "title", "aria-label"] as const;
 
 type AttributeName = (typeof TRANSLATABLE_ATTRIBUTES)[number];
+type TemplateTranslation = { pattern: RegExp; keys: string[]; localized: string };
 
-function buildLiteralMap(locale: AppLocale) {
-  const map = new Map<string, string>();
-  if (locale === "en") return map;
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildTranslationIndex(locale: AppLocale) {
+  const literalMap = new Map<string, string>();
+  const templates: TemplateTranslation[] = [];
+  if (locale === "en") return { literalMap, templates };
 
   for (const namespace of Object.keys(resources.en) as TranslationNamespace[]) {
     const english = resources.en[namespace];
     const localized = resources[locale][namespace];
     for (const [key, englishValue] of Object.entries(english)) {
       const localizedValue = localized[key];
-      if (!localizedValue || localizedValue === englishValue || englishValue.includes("{{")) continue;
+      if (!localizedValue || localizedValue === englishValue) continue;
       const normalized = englishValue.trim();
-      if (normalized) map.set(normalized, localizedValue);
+      if (!normalized) continue;
+
+      const tokenMatches = [...normalized.matchAll(/\{\{\s*(\w+)\s*\}\}/g)];
+      if (!tokenMatches.length) {
+        literalMap.set(normalized, localizedValue);
+        continue;
+      }
+
+      const keys = tokenMatches.map((match) => match[1]);
+      let cursor = 0;
+      let source = "^";
+      for (const match of tokenMatches) {
+        const index = match.index ?? 0;
+        source += escapeRegExp(normalized.slice(cursor, index));
+        source += "(.+?)";
+        cursor = index + match[0].length;
+      }
+      source += escapeRegExp(normalized.slice(cursor));
+      source += "$";
+      templates.push({ pattern: new RegExp(source), keys, localized: localizedValue });
     }
   }
 
-  return map;
+  return { literalMap, templates };
+}
+
+function translateValue(value: string, literalMap: Map<string, string>, templates: TemplateTranslation[]) {
+  const normalized = value.trim();
+  const direct = literalMap.get(normalized);
+  if (direct) return direct;
+  for (const template of templates) {
+    const match = template.pattern.exec(normalized);
+    if (!match) continue;
+    let localized = template.localized;
+    template.keys.forEach((key, index) => {
+      localized = localized.replace(new RegExp(`\\{\\{\\s*${escapeRegExp(key)}\\s*\\}\\}`, "g"), match[index + 1] ?? "");
+    });
+    return localized;
+  }
+  return null;
 }
 
 function shouldSkip(element: Element | null) {
@@ -31,7 +72,7 @@ function shouldSkip(element: Element | null) {
 }
 
 export function LegacyTextLocalizer({ locale }: { locale: AppLocale }) {
-  const literalMap = useMemo(() => buildLiteralMap(locale), [locale]);
+  const translationIndex = useMemo(() => buildTranslationIndex(locale), [locale]);
   const textOriginals = useRef(new WeakMap<Text, string>());
   const attributeOriginals = useRef(new WeakMap<Element, Map<AttributeName, string>>());
 
@@ -51,7 +92,7 @@ export function LegacyTextLocalizer({ locale }: { locale: AppLocale }) {
       const current = textNode.nodeValue ?? "";
       const trimmed = current.trim();
       if (!trimmed) return;
-      const translated = literalMap.get(trimmed);
+      const translated = translateValue(trimmed, translationIndex.literalMap, translationIndex.templates);
       if (!translated) return;
       if (!textOriginals.current.has(textNode)) textOriginals.current.set(textNode, current);
       const leading = current.match(/^\s*/)?.[0] ?? "";
@@ -72,7 +113,7 @@ export function LegacyTextLocalizer({ locale }: { locale: AppLocale }) {
       for (const attribute of TRANSLATABLE_ATTRIBUTES) {
         const current = element.getAttribute(attribute);
         if (!current) continue;
-        const translated = literalMap.get(current.trim());
+        const translated = translateValue(current, translationIndex.literalMap, translationIndex.templates);
         if (!translated) continue;
         let originals = attributeOriginals.current.get(element);
         if (!originals) {
@@ -112,7 +153,7 @@ export function LegacyTextLocalizer({ locale }: { locale: AppLocale }) {
     });
     observer.observe(root, { childList: true, subtree: true, characterData: true });
     return () => observer.disconnect();
-  }, [literalMap, locale]);
+  }, [locale, translationIndex]);
 
   return null;
 }
