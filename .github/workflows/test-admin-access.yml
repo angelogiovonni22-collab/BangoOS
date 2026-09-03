@@ -1,0 +1,36 @@
+name: Test Admin Access
+
+on:
+  pull_request:
+    paths:
+      - "app/api/settings/test-admin-invite/**"
+      - "app/(app)/settings/test-admin-access/**"
+      - "lib/access-control/test-admin-access.contract.test.ts"
+      - ".github/workflows/test-admin-access.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/api/settings/test-admin-invite/**"
+      - "app/(app)/settings/test-admin-access/**"
+      - "lib/access-control/test-admin-access.contract.test.ts"
+      - ".github/workflows/test-admin-access.yml"
+
+jobs:
+  test-admin-access:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify test administrator security contract
+        run: npx -y tsx lib/access-control/test-admin-access.contract.test.ts
+      - name: Lint test administrator sources
+        run: npx eslint "app/api/settings/test-admin-invite/route.ts" "app/(app)/settings/test-admin-access/page.tsx" lib/access-control/test-admin-access.contract.test.ts
+      - name: Build B.O.S.
+        run: npm run build
