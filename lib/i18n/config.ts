@@ -15,6 +15,7 @@ import orionEn from "@/locales/en/orion.json";
 import partnersEn from "@/locales/en/partners.json";
 import projectsEn from "@/locales/en/projects.json";
 import resourcesEn from "@/locales/en/resources.json";
+import runtimeEn from "@/locales/en/runtime.json";
 import schedulingEn from "@/locales/en/scheduling.json";
 import settingsEn from "@/locales/en/settings.json";
 import authEs from "@/locales/es/auth.json";
@@ -34,6 +35,7 @@ import orionEs from "@/locales/es/orion.json";
 import partnersEs from "@/locales/es/partners.json";
 import projectsEs from "@/locales/es/projects.json";
 import resourcesEs from "@/locales/es/resources.json";
+import runtimeEs from "@/locales/es/runtime.json";
 import schedulingEs from "@/locales/es/scheduling.json";
 import settingsEs from "@/locales/es/settings.json";
 
@@ -58,6 +60,7 @@ export type LocaleDictionaries = {
   partners: NamespaceDictionary;
   projects: NamespaceDictionary;
   resources: NamespaceDictionary;
+  runtime: NamespaceDictionary;
   scheduling: NamespaceDictionary;
   settings: NamespaceDictionary;
 };
@@ -90,6 +93,7 @@ export const resources: TranslationResources = {
     partners: partnersEn,
     projects: projectsEn,
     resources: resourcesEn,
+    runtime: runtimeEn,
     scheduling: schedulingEn,
     settings: settingsEn,
   },
@@ -111,6 +115,7 @@ export const resources: TranslationResources = {
     partners: partnersEs,
     projects: projectsEs,
     resources: resourcesEs,
+    runtime: runtimeEs,
     scheduling: schedulingEs,
     settings: settingsEs,
   },
