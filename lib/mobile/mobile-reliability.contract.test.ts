@@ -6,6 +6,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 
 const layout = read("app/layout.tsx");
 const manifest = read("app/manifest.ts");
+const appIconRoute = read("app/api/app-icon-v3/[size]/route.tsx");
 const appEntryPage = read("app/app-entry/page.tsx");
 const appEntryClient = read("app/app-entry/app-entry-client.tsx");
 const login = read("app/login/page.tsx");
@@ -19,14 +20,20 @@ assert.match(layout, /manifest:\s*"\/manifest\.webmanifest"/);
 assert.match(layout, /appleWebApp:\s*\{[\s\S]*?capable:\s*true/);
 assert.match(layout, /viewportFit:\s*"cover"/);
 assert.match(layout, /mobile-reliability\.css/);
-assert.match(layout, /const APP_ICON = "\/branding\/bos-operating-system-logo\.png"/);
-assert.match(layout, /apple:\s*\[\{\s*url:\s*APP_ICON,\s*type:\s*"image\/png"\s*\}\]/);
+assert.match(layout, /apple:\s*\[\{\s*url:\s*"\/api\/app-icon-v3\/180"[\s\S]*sizes:\s*"180x180"/);
+assert.match(layout, /url:\s*"\/api\/app-icon-v3\/512"[\s\S]*sizes:\s*"512x512"/);
 
 assert.match(manifest, /start_url:\s*"\/app-entry"/);
 assert.match(manifest, /display:\s*"standalone"/);
 assert.match(manifest, /scope:\s*"\/"/);
-assert.match(manifest, /const APP_ICON = "\/branding\/bos-operating-system-logo\.png"/);
-assert.match(manifest, /src:\s*APP_ICON[\s\S]*type:\s*"image\/png"/);
+assert.match(manifest, /src:\s*"\/api\/app-icon-v3\/192"[\s\S]*sizes:\s*"192x192"/);
+assert.match(manifest, /src:\s*"\/api\/app-icon-v3\/512"[\s\S]*sizes:\s*"512x512"/);
+
+assert.match(appIconRoute, /new ImageResponse/);
+assert.match(appIconRoute, /background:\s*"#000000"/);
+assert.match(appIconRoute, /bos-operating-system-logo\.png/);
+assert.match(appIconRoute, /width:\s*size,[\s\S]*height:\s*size/);
+assert.match(appIconRoute, /objectFit:\s*"contain"/);
 
 assert.match(appEntryPage, /AppEntryClient/);
 assert.match(appEntryClient, /matchMedia\("\(max-width: 1023px\)"\)/);

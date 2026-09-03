@@ -21,7 +21,6 @@ import "./sidebar-uniform-background.css";
 import { I18nProvider } from "@/lib/i18n/provider";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
-const APP_ICON = "/branding/bos-operating-system-logo.png";
 
 export const metadata: Metadata = {
   title: "B.O.S.",
@@ -30,9 +29,12 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "B.O.S." },
   icons: {
-    icon: [{ url: APP_ICON, type: "image/png" }],
-    apple: [{ url: APP_ICON, type: "image/png" }],
-    shortcut: [APP_ICON],
+    icon: [
+      { url: "/api/app-icon-v3/192", sizes: "192x192", type: "image/png" },
+      { url: "/api/app-icon-v3/512", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/api/app-icon-v3/180", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/api/app-icon-v3/192"],
   },
 };
 
