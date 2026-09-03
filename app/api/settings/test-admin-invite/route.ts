@@ -61,17 +61,14 @@ export async function POST(request: Request) {
 
     const { data: currentMemberships, error: membershipLookupError } = await admin
       .from("company_memberships")
-      .select("id,company_id,role,status,is_primary,department")
+      .select("id,company_id,role,status,is_primary")
       .eq("user_id", user.id)
       .eq("status", "active");
     if (membershipLookupError) throw membershipLookupError;
 
-    const conflictingMembership = (currentMemberships || []).find((membership) => (
-      membership.company_id !== companyAdmin.company_id || membership.department !== "Reviewer"
-    ));
-    if (conflictingMembership) {
+    if ((currentMemberships || []).length > 0) {
       return NextResponse.json(
-        { error: "That email already belongs to an active B.O.S. company account. Test setup will not move an existing real workspace." },
+        { error: "That email already belongs to an active B.O.S. company account. Test setup will not move or replace an existing workspace." },
         { status: 409 },
       );
     }
@@ -142,14 +139,6 @@ export async function POST(request: Request) {
         updated_at: now,
       } as never, { onConflict: "company_id" });
     if (tenantError) throw tenantError;
-
-    if ((currentMemberships || []).length > 0) {
-      const { error: clearPrimaryError } = await admin
-        .from("company_memberships")
-        .update({ is_primary: false, updated_at: now } as never)
-        .eq("user_id", user.id);
-      if (clearPrimaryError) throw clearPrimaryError;
-    }
 
     const { error: membershipError } = await admin
       .from("company_memberships")
