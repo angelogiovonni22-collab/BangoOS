@@ -6,12 +6,15 @@ const runtimeEn = JSON.parse(readFileSync(new URL("../../locales/en/runtime.json
 const runtimeEs = JSON.parse(readFileSync(new URL("../../locales/es/runtime.json", import.meta.url), "utf8")) as Record<string, string>;
 const config = readFileSync(new URL("./config.ts", import.meta.url), "utf8");
 const bridge = readFileSync(new URL("./legacy-text-localizer.tsx", import.meta.url), "utf8");
+const invariantTerms = new Set(["supervisor"]);
 
 test("audited runtime English and Spanish dictionaries stay in exact parity", () => {
   assert.deepEqual(Object.keys(runtimeEs).sort(), Object.keys(runtimeEn).sort());
   for (const key of Object.keys(runtimeEn)) {
     assert.ok(runtimeEs[key]?.trim(), `missing Spanish runtime value for ${key}`);
-    assert.notEqual(runtimeEs[key], runtimeEn[key], `runtime value ${key} must be genuinely localized`);
+    if (!invariantTerms.has(key)) {
+      assert.notEqual(runtimeEs[key], runtimeEn[key], `runtime value ${key} must be genuinely localized`);
+    }
   }
 });
 
