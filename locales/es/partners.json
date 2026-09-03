@@ -6,5 +6,16 @@
   "platform": "Plataforma B.O.S.",
   "platformAdmin": "Administración de la plataforma",
   "partnerHome": "Inicio del socio",
-  "customerPortal": "Portal del cliente"
+  "customerPortal": "Portal del cliente",
+  "myProjects": "Mis proyectos",
+  "myProject": "Mi proyecto",
+  "customerAdministration": "Administración de clientes",
+  "hideOrion": "Ocultar Orion",
+  "activateOrion": "Activar Orion",
+  "openOrion": "Abrir Orion",
+  "sidebarNavigation": "Navegación lateral",
+  "topCommandNavigation": "Navegación de Top Command",
+  "accessControl": "CONTROL DE ACCESO DE B.O.S.",
+  "openingAuthorizedWorkspace": "Abriendo su espacio de trabajo autorizado…",
+  "permissionDenied": "Su cuenta de {{role}} no tiene permiso para ver esta área."
 }
