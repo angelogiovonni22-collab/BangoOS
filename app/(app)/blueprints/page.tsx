@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ArrowRight, Building2, FileStack, Layers3, Ruler, ScanLine } from "lucide-react";
 import { Button, EmptyState, ErrorState, PageHeader } from "@/components/ui";
+import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -29,14 +30,10 @@ type WorkspaceOption = {
   icon: React.ReactNode;
 };
 
-const workspaceOptions: WorkspaceOption[] = [
-  { id: "plan-room", title: "Plan Room", detail: "Sheets and revision history", actionLabel: "Open plan room", tone: "blue", icon: <FileStack size={18} /> },
-  { id: "field-markup", title: "Field Markup", detail: "Redlines, pins, and media", actionLabel: "Open field markup", tone: "amber", icon: <ScanLine size={18} /> },
-  { id: "measurements", title: "Measurements", detail: "Calibrated takeoffs and scale", actionLabel: "Open measurements", tone: "green", icon: <Ruler size={18} /> },
-  { id: "layers", title: "2D / 3D Layers", detail: "Trades, models, and systems", actionLabel: "Open layers / model", tone: "purple", icon: <Layers3 size={18} /> },
-];
+const WORKSPACE_MODES: BlueprintWorkspaceMode[] = ["plan-room", "field-markup", "measurements", "layers"];
 
 export default function BlueprintsPage() {
+  const { t } = useI18n();
   const supabase = useMemo(() => createClient(), []);
   const pathname = usePathname();
   const router = useRouter();
@@ -46,6 +43,12 @@ export default function BlueprintsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const activeWorkspace = resolveWorkspaceMode(searchParams.get("workspace"));
+  const workspaceOptions = useMemo<WorkspaceOption[]>(() => [
+    { id: "plan-room", title: t("blueprints.planRoom"), detail: t("blueprints.planRoomDetail"), actionLabel: t("blueprints.openPlanRoom"), tone: "blue", icon: <FileStack size={18} /> },
+    { id: "field-markup", title: t("blueprints.fieldMarkup"), detail: t("blueprints.fieldMarkupDetail"), actionLabel: t("blueprints.openFieldMarkup"), tone: "amber", icon: <ScanLine size={18} /> },
+    { id: "measurements", title: t("blueprints.measurements"), detail: t("blueprints.measurementsDetail"), actionLabel: t("blueprints.openMeasurements"), tone: "green", icon: <Ruler size={18} /> },
+    { id: "layers", title: t("blueprints.layers"), detail: t("blueprints.layersDetail"), actionLabel: t("blueprints.openLayers"), tone: "purple", icon: <Layers3 size={18} /> },
+  ], [t]);
 
   useEffect(() => {
     let subscribed = true;
@@ -55,7 +58,7 @@ export default function BlueprintsPage() {
 
       if (!supabase || !workspace.context) {
         if (subscribed) {
-          setError(workspace.errorMessage || "Unable to load the blueprint plan room.");
+          setError(workspace.errorMessage || t("blueprints.loadError"));
           setLoading(false);
         }
         return;
@@ -71,7 +74,7 @@ export default function BlueprintsPage() {
       if (!subscribed) return;
 
       if (response.error) {
-        setError("BOS could not load project blueprint workspaces. Please try again.");
+        setError(t("blueprints.loadProjectsError"));
         setLoading(false);
         return;
       }
@@ -93,9 +96,7 @@ export default function BlueprintsPage() {
           for (const version of versionResponse.data ?? []) {
             const projectId = typeof version.project_id === "string" ? version.project_id : null;
             const versionId = typeof version.id === "string" ? version.id : null;
-            if (projectId && versionId && !nextLatestVersionByProject[projectId]) {
-              nextLatestVersionByProject[projectId] = versionId;
-            }
+            if (projectId && versionId && !nextLatestVersionByProject[projectId]) nextLatestVersionByProject[projectId] = versionId;
           }
           setLatestVersionByProject(nextLatestVersionByProject);
         }
@@ -106,7 +107,7 @@ export default function BlueprintsPage() {
 
     void loadProjects();
     return () => { subscribed = false; };
-  }, [supabase]);
+  }, [supabase, t]);
 
   const selectWorkspace = (workspace: BlueprintWorkspaceMode) => {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -120,42 +121,30 @@ export default function BlueprintsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        eyebrow="Project Intelligence"
-        title="Blueprints"
-        description="Open a project's plan room to manage drawing sheets, revisions, field markups, calibrated takeoffs, and 2D/3D plan intelligence."
-      />
+      <PageHeader eyebrow={t("blueprints.eyebrow")} title={t("blueprints.title")} description={t("blueprints.description")} />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Blueprint workspaces">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("blueprints.workspacesAria")}>
         {workspaceOptions.map((option) => (
-          <Capability
-            key={option.id}
-            icon={option.icon}
-            title={option.title}
-            detail={option.detail}
-            tone={option.tone}
-            active={activeWorkspace === option.id}
-            onClick={() => selectWorkspace(option.id)}
-          />
+          <Capability key={option.id} icon={option.icon} title={option.title} detail={option.detail} tone={option.tone} active={activeWorkspace === option.id} activeLabel={t("blueprints.active")} selectLabel={t("blueprints.select")} onClick={() => selectWorkspace(option.id)} />
         ))}
       </section>
 
       <section className="overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-white shadow-[var(--shadow-small)]">
         <div className="border-b border-[var(--color-border-subtle)] px-5 py-4">
-          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Project plan rooms</h2>
+          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{t("blueprints.projectPlanRooms")}</h2>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
             {activeWorkspace === "plan-room"
-              ? "Blueprints remain project-scoped so revisions, field records, and permissions stay attached to the correct job."
-              : `${activeWorkspaceOption.title} selected. Choose a project below to open that project’s existing Blueprint workspace with its current plans, permissions, markups, takeoffs, and layers.`}
+              ? t("blueprints.projectPlanRoomsDescription")
+              : t("blueprints.workspaceSelected", { workspace: activeWorkspaceOption.title })}
           </p>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-sm text-[var(--color-text-secondary)]" role="status">Loading project plan rooms…</div>
+          <div className="p-8 text-center text-sm text-[var(--color-text-secondary)]" role="status">{t("blueprints.loading")}</div>
         ) : error ? (
-          <ErrorState title="Blueprints unavailable" description={error} />
+          <ErrorState title={t("blueprints.unavailable")} description={error} />
         ) : projects.length === 0 ? (
-          <EmptyState icon="B" title="No project plan rooms yet" description="Create a project first, then open its Blueprints tab to begin a plan set." />
+          <EmptyState icon="B" title={t("blueprints.noPlanRooms")} description={t("blueprints.noPlanRoomsDescription")} />
         ) : (
           <div className="divide-y divide-[var(--color-border-subtle)]">
             {projects.map((project) => {
@@ -171,21 +160,13 @@ export default function BlueprintsPage() {
                   <div className="flex min-w-0 items-start gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-blue-50 text-blue-700"><Building2 size={18} aria-hidden="true" /></span>
                     <div className="min-w-0">
-                      <h3 className="truncate font-semibold text-[var(--color-text-primary)]">{project.name || "Untitled project"}</h3>
-                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                        {[project.project_number, location, formatStatus(project.status)].filter(Boolean).join(" · ")}
-                      </p>
+                      <h3 className="truncate font-semibold text-[var(--color-text-primary)]">{project.name || t("blueprints.untitledProject")}</h3>
+                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{[project.project_number, location, formatStatus(project.status)].filter(Boolean).join(" · ")}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {activeWorkspace !== "plan-room" ? (
-                      <Link href={workspaceHref} className="inline-flex">
-                        <Button size="sm">{activeWorkspaceOption.actionLabel} <ArrowRight size={15} aria-hidden="true" /></Button>
-                      </Link>
-                    ) : null}
-                    <Link href={directPlanRoomHref} className="inline-flex">
-                      <Button size="sm" variant="outline">Open plan room <ArrowRight size={15} aria-hidden="true" /></Button>
-                    </Link>
+                    {activeWorkspace !== "plan-room" ? <Link href={workspaceHref} className="inline-flex"><Button size="sm">{activeWorkspaceOption.actionLabel} <ArrowRight size={15} aria-hidden="true" /></Button></Link> : null}
+                    <Link href={directPlanRoomHref} className="inline-flex"><Button size="sm" variant="outline">{t("blueprints.openPlanRoom")} <ArrowRight size={15} aria-hidden="true" /></Button></Link>
                   </div>
                 </article>
               );
@@ -197,26 +178,13 @@ export default function BlueprintsPage() {
   );
 }
 
-function Capability({ icon, title, detail, tone, active, onClick }: { icon: React.ReactNode; title: string; detail: string; tone: "blue" | "amber" | "green" | "purple"; active: boolean; onClick: () => void }) {
-  const tones = {
-    blue: "bg-blue-50 text-blue-700",
-    amber: "bg-amber-50 text-amber-700",
-    green: "bg-emerald-50 text-emerald-700",
-    purple: "bg-purple-50 text-purple-700",
-  };
-
+function Capability({ icon, title, detail, tone, active, activeLabel, selectLabel, onClick }: { icon: React.ReactNode; title: string; detail: string; tone: "blue" | "amber" | "green" | "purple"; active: boolean; activeLabel: string; selectLabel: string; onClick: () => void }) {
+  const tones = { blue: "bg-blue-50 text-blue-700", amber: "bg-amber-50 text-amber-700", green: "bg-emerald-50 text-emerald-700", purple: "bg-purple-50 text-purple-700" };
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`group w-full rounded-[var(--radius-card)] border bg-white p-4 text-left shadow-[var(--shadow-small)] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${active ? "border-blue-500 ring-2 ring-blue-500/20" : "border-[var(--color-border-subtle)] hover:-translate-y-0.5 hover:border-[var(--color-border-strong)] hover:shadow-md"}`}
-    >
+    <button type="button" aria-pressed={active} onClick={onClick} className={`group w-full rounded-[var(--radius-card)] border bg-white p-4 text-left shadow-[var(--shadow-small)] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${active ? "border-blue-500 ring-2 ring-blue-500/20" : "border-[var(--color-border-subtle)] hover:-translate-y-0.5 hover:border-[var(--color-border-strong)] hover:shadow-md"}`}>
       <div className="flex items-start justify-between gap-3">
         <span className={`flex h-9 w-9 items-center justify-center rounded-[var(--radius-lg)] ${tones[tone]}`}>{icon}</span>
-        <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${active ? "bg-blue-600 text-white" : "bg-[var(--color-surface-subtle)] text-[var(--color-text-muted)] opacity-0 transition group-hover:opacity-100"}`}>
-          {active ? "Active" : "Select"}
-        </span>
+        <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${active ? "bg-blue-600 text-white" : "bg-[var(--color-surface-subtle)] text-[var(--color-text-muted)] opacity-0 transition group-hover:opacity-100"}`}>{active ? activeLabel : selectLabel}</span>
       </div>
       <p className="mt-3 text-sm font-semibold text-[var(--color-text-primary)]">{title}</p>
       <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{detail}</p>
@@ -225,7 +193,7 @@ function Capability({ icon, title, detail, tone, active, onClick }: { icon: Reac
 }
 
 function resolveWorkspaceMode(value: string | null): BlueprintWorkspaceMode {
-  return workspaceOptions.some((option) => option.id === value) ? value as BlueprintWorkspaceMode : "plan-room";
+  return WORKSPACE_MODES.includes(value as BlueprintWorkspaceMode) ? value as BlueprintWorkspaceMode : "plan-room";
 }
 
 function formatStatus(status: string | null) {

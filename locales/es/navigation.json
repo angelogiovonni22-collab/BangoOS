@@ -1,7 +1,7 @@
 {
   "dashboard": "Panel de control",
   "operations": "Operaciones",
-  "timeline": "Cronologia",
+  "timeline": "Cronología",
   "materials": "Materiales",
   "unitsOfMeasure": "Unidades de medida",
   "equipment": "Equipo",
@@ -10,14 +10,18 @@
   "blueprints": "Planos",
   "estimates": "Presupuestos",
   "invoices": "Facturas",
-  "changeOrders": "Ordenes de cambio",
+  "payroll": "Nómina",
+  "changeOrders": "Órdenes de cambio",
   "schedule": "Calendario",
-  "dispatch": "Centro de Despacho",
+  "dispatch": "Centro de despacho",
   "dailyReports": "Informes diarios",
   "employees": "Empleados",
   "laborRates": "Tarifas de mano de obra",
   "vendors": "Proveedores",
-  "crew": "Equipo",
+  "crew": "Cuadrillas",
   "reports": "Informes",
-  "settings": "Configuración"
+  "settings": "Configuración",
+  "financial": "Finanzas",
+  "resources": "Recursos",
+  "administration": "Administración"
 }

@@ -20,5 +20,8 @@
   "vendors": "Vendors",
   "crew": "Crew",
   "reports": "Reports",
-  "settings": "Settings"
+  "settings": "Settings",
+  "financial": "Financial",
+  "resources": "Resources",
+  "administration": "Administration"
 }

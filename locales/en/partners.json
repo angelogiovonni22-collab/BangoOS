@@ -1,0 +1,21 @@
+{
+  "tradePartner": "Trade Partner",
+  "customer": "Customer",
+  "communications": "Communications",
+  "tradePartnerMessages": "Trade Partner Messages",
+  "platform": "B.O.S. Platform",
+  "platformAdmin": "Platform Administration",
+  "partnerHome": "Partner Home",
+  "customerPortal": "Customer Portal",
+  "myProjects": "My Projects",
+  "myProject": "My Project",
+  "customerAdministration": "Customer Administration",
+  "hideOrion": "Hide Orion",
+  "activateOrion": "Activate Orion",
+  "openOrion": "Open Orion",
+  "sidebarNavigation": "Sidebar navigation",
+  "topCommandNavigation": "Top Command navigation",
+  "accessControl": "B.O.S. ACCESS CONTROL",
+  "openingAuthorizedWorkspace": "Opening your authorized workspace…",
+  "permissionDenied": "Your {{role}} account does not have permission to view this area."
+}
