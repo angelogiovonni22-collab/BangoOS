@@ -45,6 +45,11 @@ function optionalNumber(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+function optionalInteger(value: FormDataEntryValue | null) {
+  const parsed = optionalNumber(value);
+  return parsed === null ? null : Math.trunc(parsed);
+}
+
 function safeFileName(fileName: string, fallback: string) {
   const cleaned = fileName.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
   return cleaned || fallback;
@@ -115,6 +120,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "The 3D model must be a USDZ export." }, { status: 400 });
   }
 
+  let metadata: Record<string, unknown> = {};
+  const metadataRaw = String(form.get("metadata") || "").trim();
+  if (metadataRaw) {
+    try {
+      const parsed = JSON.parse(metadataRaw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Metadata must be an object.");
+      metadata = parsed as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ ok: false, error: "Scan metadata must be valid JSON object data." }, { status: 400 });
+    }
+  }
+
   const targetTable = targetType === "project" ? "projects" : "estimates";
   const { data: target } = await supabase.from(targetTable).select("id").eq("id", targetId).eq("company_id", workspace.context.companyId).maybeSingle();
   if (!target) return NextResponse.json({ ok: false, error: "Target not found in this company." }, { status: 404 });
@@ -139,17 +156,6 @@ export async function POST(req: NextRequest) {
       uploaded.push(modelPath);
     }
 
-    let metadata: Record<string, unknown> = {};
-    const metadataRaw = String(form.get("metadata") || "").trim();
-    if (metadataRaw) {
-      try {
-        const parsed = JSON.parse(metadataRaw);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
-      } catch {
-        return NextResponse.json({ ok: false, error: "Scan metadata must be valid JSON." }, { status: 400 });
-      }
-    }
-
     const payload = {
       id: scanId,
       company_id: workspace.context.companyId,
@@ -164,11 +170,11 @@ export async function POST(req: NextRequest) {
       device_model: String(form.get("deviceModel") || "").trim() || null,
       operating_system: String(form.get("operatingSystem") || "").trim() || null,
       framework_version: String(form.get("frameworkVersion") || "").trim() || null,
-      room_count: optionalNumber(form.get("roomCount")),
+      room_count: optionalInteger(form.get("roomCount")),
       floor_area_sqft: optionalNumber(form.get("floorAreaSqFt")),
       wall_area_sqft: optionalNumber(form.get("wallAreaSqFt")),
-      opening_count: optionalNumber(form.get("openingCount")),
-      object_count: optionalNumber(form.get("objectCount")),
+      opening_count: optionalInteger(form.get("openingCount")),
+      object_count: optionalInteger(form.get("objectCount")),
       metadata,
       captured_at: String(form.get("capturedAt") || "").trim() || null,
       created_by: user.id,
