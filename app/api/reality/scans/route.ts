@@ -55,14 +55,14 @@ export async function POST(req:NextRequest) {
 
   const { data:project } = await supabase.from("projects").select("id").eq("id", input.projectId).eq("company_id", workspace.context.companyId).maybeSingle();
   if (!project) return NextResponse.json({ ok:false, error:"Project not found in this company." }, { status:404 });
+  const db = supabase as unknown as UntypedSupabase;
   if (input.blueprintVersionId) {
-    const { data:version } = await supabase.from("blueprint_versions").select("id").eq("id", input.blueprintVersionId).eq("company_id", workspace.context.companyId).eq("project_id", input.projectId).maybeSingle();
+    const { data:version } = await db.from("blueprint_versions").select("id").eq("id", input.blueprintVersionId).eq("company_id", workspace.context.companyId).eq("project_id", input.projectId).maybeSingle();
     if (!version) return NextResponse.json({ ok:false, error:"Blueprint version not found for this project." }, { status:404 });
   }
 
   const roomPlanPayload = input.roomPlan ?? {};
   const spatialSummary = input.roomPlan ? summarizeRoomPlan(input.roomPlan) : (input.spatialSummary ?? {});
-  const db = supabase as unknown as UntypedSupabase;
   const { data, error } = await db.from("reality_capture_sessions").insert({
     company_id:workspace.context.companyId,
     project_id:input.projectId,
