@@ -53,9 +53,18 @@ const themeBootstrapScript = `(() => {
   try {
     const allowed = new Set(["light","dark","executive","blueprint","emerald","graphite","high-contrast","digital-command","future-2030"]);
     const neonAllowed = new Set(["cyan","blue","red","green","white","orange","yellow","purple"]);
-    const stored = localStorage.getItem("bangoos-theme");
+    const defaultTheme = "digital-command";
+    const defaultThemeMigrationKey = "bangoos-default-theme-digital-command-v1";
+    let stored = localStorage.getItem("bangoos-theme");
+
+    if (localStorage.getItem(defaultThemeMigrationKey) !== "1") {
+      stored = defaultTheme;
+      localStorage.setItem("bangoos-theme", defaultTheme);
+      localStorage.setItem(defaultThemeMigrationKey, "1");
+    }
+
     const storedNeonAccent = localStorage.getItem("bangoos-neon-accent");
-    const theme = allowed.has(stored) ? stored : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const theme = allowed.has(stored) ? stored : defaultTheme;
     const neonAccent = neonAllowed.has(storedNeonAccent) ? storedNeonAccent : "cyan";
     const dark = theme === "dark" || theme === "digital-command" || theme === "future-2030";
     document.documentElement.dataset.theme = theme;
@@ -95,7 +104,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const initialLocale = isAppLocale(cookieLocale) ? cookieLocale : "en";
 
   return (
-    <html lang={initialLocale} className={`${inter.variable} h-full antialiased bos-startup-prepaint`} suppressHydrationWarning>
+    <html
+      lang={initialLocale}
+      data-theme="digital-command"
+      className={`${inter.variable} h-full antialiased bos-startup-prepaint`}
+      suppressHydrationWarning
+    >
       <head>
         <style dangerouslySetInnerHTML={{ __html: startupPrepaintCss }} />
         {appleStartupImages.map((image) => (

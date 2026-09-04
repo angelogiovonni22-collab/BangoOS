@@ -14,6 +14,7 @@ export const BANGO_THEME_IDS = [
 ] as const;
 
 export type BangoThemeId = (typeof BANGO_THEME_IDS)[number];
+export const BANGO_DEFAULT_THEME_ID: BangoThemeId = "digital-command";
 
 export const BANGO_NEON_ACCENT_IDS = [
   "cyan",
@@ -137,5 +138,6 @@ export function isBangoNeonAccentId(value: string | null | undefined): value is 
 }
 
 export function getBangoThemeOption(themeId: BangoThemeId) {
-  return BANGO_THEME_OPTIONS.find((theme) => theme.id === themeId) ?? BANGO_THEME_OPTIONS[0];
+  return BANGO_THEME_OPTIONS.find((theme) => theme.id === themeId)
+    ?? BANGO_THEME_OPTIONS.find((theme) => theme.id === BANGO_DEFAULT_THEME_ID)!;
 }
