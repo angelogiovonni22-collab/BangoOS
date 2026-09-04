@@ -8,7 +8,6 @@ const layout = read("app/layout.tsx");
 const manifest = read("app/manifest.ts");
 const appIconRoute = read("app/api/app-icon-v3/[size]/route.tsx");
 const appEntryPage = read("app/app-entry/page.tsx");
-const appEntryClient = read("app/app-entry/app-entry-client.tsx");
 const login = read("app/login/page.tsx");
 const mobileHome = read("app/(app)/mobile-home/mobile-home-client.tsx");
 const mobileCss = read("app/mobile-reference.css");
@@ -35,10 +34,10 @@ assert.match(appIconRoute, /bos-operating-system-logo\.png/);
 assert.match(appIconRoute, /width:\s*size,[\s\S]*height:\s*size/);
 assert.match(appIconRoute, /objectFit:\s*"contain"/);
 
-assert.match(appEntryPage, /AppEntryClient/);
-assert.match(appEntryClient, /matchMedia\("\(max-width: 1023px\)"\)/);
-assert.match(appEntryClient, /mobile \? "\/mobile-home" : desktopPath/);
-assert.match(login, /mobileDestination[\s\S]*"\/mobile-home"/);
+assert.match(appEntryPage, /redirect\(getRoleHomePath\(workspace\.context\.role\)\)/);
+assert.doesNotMatch(appEntryPage, /AppEntryClient/);
+assert.match(login, /router\.push\(nextPath\)/);
+assert.doesNotMatch(login, /\/mobile-home/);
 
 assert.match(mobileHome, /MobileBottomNav/);
 assert.match(mobileHome, /aria-label="Mobile navigation"/);
