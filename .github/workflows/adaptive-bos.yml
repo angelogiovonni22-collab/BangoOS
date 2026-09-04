@@ -6,6 +6,7 @@ on:
       - "lib/adaptive-bos/**"
       - "app/api/adaptive-bos/**"
       - "app/(app)/layout.tsx"
+      - "app/(app)/app-shell.tsx"
       - "app/(app)/settings/operating-profile/**"
       - "app/(app)/settings/page.tsx"
       - "supabase/migrations/*adaptive_bos*"
@@ -16,6 +17,7 @@ on:
       - "lib/adaptive-bos/**"
       - "app/api/adaptive-bos/**"
       - "app/(app)/layout.tsx"
+      - "app/(app)/app-shell.tsx"
       - "app/(app)/settings/operating-profile/**"
       - "app/(app)/settings/page.tsx"
       - "supabase/migrations/*adaptive_bos*"
@@ -34,3 +36,4 @@ jobs:
       - run: npx -y tsx lib/adaptive-bos/adaptive-bos.contract.test.ts
       - run: npx -y tsx lib/adaptive-bos/operating-profile-ui.contract.test.ts
       - run: npx -y tsx lib/adaptive-bos/runtime-provider.contract.test.ts
+      - run: npx -y tsx lib/adaptive-bos/runtime-navigation.contract.test.ts
