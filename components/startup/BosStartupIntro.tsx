@@ -61,7 +61,6 @@ export function BosStartupIntro() {
 
   useEffect(() => {
     if (state !== "fallback") return;
-    setVideoVisible(false);
     fallbackTimerRef.current = window.setTimeout(() => {
       setState("fading");
       finishTimerRef.current = window.setTimeout(() => setState("hidden"), 320);
