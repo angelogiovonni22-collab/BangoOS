@@ -14,6 +14,8 @@ const mobileHome = read("app/(app)/mobile-home/mobile-home-client.tsx");
 const mobileCss = read("app/mobile-reference.css");
 const reliabilityCss = read("app/mobile-reliability.css");
 const mobileField = read("components/crews/mobile-field-operations-workspace.tsx");
+const startupIntro = read("components/startup/BosStartupIntro.tsx");
+const startupCss = read("components/startup/BosStartupIntro.module.css");
 const pushDispatch = read("supabase/functions/orion-push-dispatch/index.ts");
 
 assert.match(layout, /manifest:\s*"\/manifest\.webmanifest"/);
@@ -50,6 +52,16 @@ assert.doesNotMatch(mobileHome, /Inspection scheduled/);
 assert.doesNotMatch(mobileHome, /Photo uploaded/);
 assert.match(mobileHome, /No recent activity to display/);
 assert.match(mobileHome, /Open field time clock/);
+
+assert.match(startupIntro, /state === "fallback" \?/);
+assert.match(startupIntro, /state === "video" \?/);
+assert.doesNotMatch(startupIntro, /state === "checking" \|\| state === "fallback"/);
+assert.doesNotMatch(startupIntro, /poster=\{FALLBACK_LOGO_SRC\}/);
+assert.match(startupIntro, /classList\.toggle\("bos-startup-active", active\)/);
+assert.match(startupCss, /bottom:\s*calc\(-1 \* env\(safe-area-inset-bottom\)\)/);
+assert.match(startupCss, /height:\s*calc\(100dvh \+ env\(safe-area-inset-bottom\)\)/);
+assert.match(startupCss, /html\.bos-startup-active/);
+assert.match(startupCss, /body\.bos-startup-active/);
 
 assert.match(pushDispatch, /reminder\.linked_href \|\| "\/app-entry"/);
 assert.doesNotMatch(pushDispatch, /\/mobile-entry/);
