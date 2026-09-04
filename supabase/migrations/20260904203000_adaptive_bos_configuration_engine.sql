@@ -72,12 +72,7 @@ on conflict (key) do update set
   workflow_hints = excluded.workflow_hints,
   updated_at = now();
 
--- Preserve every existing B.O.S. workspace as construction unless an administrator explicitly changes it.
-insert into public.company_operating_profiles (company_id,industry_key,industry_label,created_by,updated_by)
-select c.id, 'construction', 'Construction', c.owner_id, c.owner_id
-from public.companies c
-where c.owner_id is not null
-on conflict (company_id) do nothing;
+-- Existing workspaces remain construction through the application fallback until an administrator saves a profile.
 
 alter table public.bos_industry_templates enable row level security;
 alter table public.company_operating_profiles enable row level security;
