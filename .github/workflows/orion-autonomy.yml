@@ -1,0 +1,31 @@
+name: Orion Autonomy Guardrails
+
+on:
+  pull_request:
+    paths:
+      - "lib/orion/autonomy/**"
+      - "app/api/orion/realtime/tool/route.ts"
+      - "lib/orion/operator/browser.ts"
+      - ".github/workflows/orion-autonomy.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/orion/autonomy/**"
+      - "app/api/orion/realtime/tool/route.ts"
+      - "lib/orion/operator/browser.ts"
+      - ".github/workflows/orion-autonomy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx -y tsx lib/orion/autonomy/orion-autonomy.contract.test.ts
