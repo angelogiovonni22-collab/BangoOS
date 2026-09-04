@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import styles from "./BosStartupIntro.module.css";
 
@@ -13,33 +14,49 @@ export function BosStartupIntro() {
   const [state, setState] = useState<IntroState>("checking");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fallbackTimerRef = useRef<number | null>(null);
+  const finishTimerRef = useRef<number | null>(null);
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    const isMobile = window.matchMedia("(max-width: 1023px)").matches;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const alreadyShown = window.sessionStorage.getItem(SESSION_KEY) === "1";
+    let cancelled = false;
+    const frame = window.requestAnimationFrame(() => {
+      if (cancelled) return;
 
-    if (!isMobile || reducedMotion || alreadyShown) {
-      setState("hidden");
-      return;
-    }
+      const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const alreadyShown = window.sessionStorage.getItem(SESSION_KEY) === "1";
 
-    window.sessionStorage.setItem(SESSION_KEY, "1");
-    setState("video");
+      if (!isMobile || reducedMotion || alreadyShown) {
+        setState("hidden");
+        return;
+      }
+
+      window.sessionStorage.setItem(SESSION_KEY, "1");
+      setState("video");
+    });
 
     return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
       if (fallbackTimerRef.current !== null) {
         window.clearTimeout(fallbackTimerRef.current);
+      }
+      if (finishTimerRef.current !== null) {
+        window.clearTimeout(finishTimerRef.current);
       }
     };
   }, []);
 
   const finish = () => {
     setState("fading");
-    window.setTimeout(() => setState("hidden"), 320);
+    if (finishTimerRef.current !== null) {
+      window.clearTimeout(finishTimerRef.current);
+    }
+    finishTimerRef.current = window.setTimeout(() => setState("hidden"), 320);
   };
 
   const startFallback = () => {
+    startedRef.current = true;
     setState("fallback");
     if (fallbackTimerRef.current !== null) {
       window.clearTimeout(fallbackTimerRef.current);
@@ -49,8 +66,9 @@ export function BosStartupIntro() {
 
   const startVideo = async () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || startedRef.current) return;
 
+    startedRef.current = true;
     try {
       video.currentTime = 0;
       await video.play();
@@ -72,7 +90,14 @@ export function BosStartupIntro() {
 
       {isFallback ? (
         <div className={`${styles.fallback} ${state === "fallback" ? styles.fallbackPlaying : ""}`}>
-          <img src={FALLBACK_LOGO_SRC} alt="" className={styles.fallbackLogo} />
+          <Image
+            src={FALLBACK_LOGO_SRC}
+            alt=""
+            width={720}
+            height={672}
+            priority
+            className={styles.fallbackLogo}
+          />
           <div className={styles.fallbackGlow} />
         </div>
       ) : (
