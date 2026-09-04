@@ -7,7 +7,8 @@ import styles from "./BosStartupIntro.module.css";
 const SESSION_KEY = "bos-startup-intro-shown";
 const VIDEO_SRC = "/branding/Mobile_app_startup_logo_animation_202609032341.mp4";
 const FALLBACK_LOGO_SRC = "/branding/bos-operating-system-logo.png";
-const MAX_VIDEO_WAIT_MS = 15000;
+const LOAD_TIMEOUT_MS = 5000;
+const PLAYBACK_TIMEOUT_MS = 15000;
 
 type IntroState = "checking" | "video" | "fallback" | "fading" | "hidden";
 
@@ -16,8 +17,18 @@ export function BosStartupIntro() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fallbackTimerRef = useRef<number | null>(null);
   const finishTimerRef = useRef<number | null>(null);
-  const videoWatchdogRef = useRef<number | null>(null);
-  const startedRef = useRef(false);
+  const loadTimerRef = useRef<number | null>(null);
+  const playbackTimerRef = useRef<number | null>(null);
+  const playRequestedRef = useRef(false);
+
+  const clearTimers = () => {
+    for (const ref of [fallbackTimerRef, finishTimerRef, loadTimerRef, playbackTimerRef]) {
+      if (ref.current !== null) {
+        window.clearTimeout(ref.current);
+        ref.current = null;
+      }
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -35,61 +46,63 @@ export function BosStartupIntro() {
 
       window.sessionStorage.setItem(SESSION_KEY, "1");
       setState("video");
+      loadTimerRef.current = window.setTimeout(() => {
+        setState((current) => (current === "video" ? "fallback" : current));
+      }, LOAD_TIMEOUT_MS);
     });
 
     return () => {
       cancelled = true;
       window.cancelAnimationFrame(frame);
-      if (fallbackTimerRef.current !== null) {
-        window.clearTimeout(fallbackTimerRef.current);
-      }
-      if (finishTimerRef.current !== null) {
-        window.clearTimeout(finishTimerRef.current);
-      }
-      if (videoWatchdogRef.current !== null) {
-        window.clearTimeout(videoWatchdogRef.current);
-      }
+      clearTimers();
     };
   }, []);
 
-  const clearVideoWatchdog = () => {
-    if (videoWatchdogRef.current !== null) {
-      window.clearTimeout(videoWatchdogRef.current);
-      videoWatchdogRef.current = null;
-    }
-  };
+  useEffect(() => {
+    if (state !== "fallback") return;
+    fallbackTimerRef.current = window.setTimeout(() => {
+      setState("fading");
+      finishTimerRef.current = window.setTimeout(() => setState("hidden"), 320);
+    }, 2200);
+
+    return () => {
+      if (fallbackTimerRef.current !== null) {
+        window.clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+    };
+  }, [state]);
 
   const finish = () => {
-    clearVideoWatchdog();
+    clearTimers();
     setState("fading");
-    if (finishTimerRef.current !== null) {
-      window.clearTimeout(finishTimerRef.current);
-    }
     finishTimerRef.current = window.setTimeout(() => setState("hidden"), 320);
   };
 
-  const startFallback = () => {
-    clearVideoWatchdog();
-    startedRef.current = true;
-    setState("fallback");
-    if (fallbackTimerRef.current !== null) {
-      window.clearTimeout(fallbackTimerRef.current);
+  const requestPlayback = async () => {
+    const video = videoRef.current;
+    if (!video || playRequestedRef.current) return;
+
+    playRequestedRef.current = true;
+    try {
+      video.muted = true;
+      video.defaultMuted = true;
+      await video.play();
+    } catch {
+      playRequestedRef.current = false;
+      setState("fallback");
     }
-    fallbackTimerRef.current = window.setTimeout(finish, 3900);
   };
 
-  const startVideo = async () => {
-    const video = videoRef.current;
-    if (!video || startedRef.current) return;
-
-    startedRef.current = true;
-    try {
-      video.currentTime = 0;
-      await video.play();
-      videoWatchdogRef.current = window.setTimeout(finish, MAX_VIDEO_WAIT_MS);
-    } catch {
-      startFallback();
+  const handlePlaying = () => {
+    if (loadTimerRef.current !== null) {
+      window.clearTimeout(loadTimerRef.current);
+      loadTimerRef.current = null;
     }
+    if (playbackTimerRef.current !== null) {
+      window.clearTimeout(playbackTimerRef.current);
+    }
+    playbackTimerRef.current = window.setTimeout(finish, PLAYBACK_TIMEOUT_MS);
   };
 
   if (state === "hidden") return null;
@@ -121,13 +134,17 @@ export function BosStartupIntro() {
           className={styles.video}
           src={VIDEO_SRC}
           poster={FALLBACK_LOGO_SRC}
+          autoPlay
           muted
           playsInline
           preload="auto"
           disablePictureInPicture
-          onCanPlay={startVideo}
+          onLoadedMetadata={requestPlayback}
+          onCanPlay={requestPlayback}
+          onPlaying={handlePlaying}
           onEnded={finish}
-          onError={startFallback}
+          onError={() => setState("fallback")}
+          onStalled={() => setState("fallback")}
         />
       )}
     </div>
