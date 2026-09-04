@@ -61,6 +61,29 @@ const documentLabels: Record<DocumentType, string> = {
   licenses: "License / Certification",
 };
 
+type PasswordCheckReason = "length" | "complexity" | "leaked" | "unavailable" | "invalid_request";
+
+async function screenPassword(password: string): Promise<{ ok: true } | { ok: false; reason: PasswordCheckReason }> {
+  try {
+    const response = await fetch("/api/security/password-check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const body = await response.json() as { ok?: boolean; reason?: PasswordCheckReason };
+    return body.ok ? { ok: true } : { ok: false, reason: body.reason || "unavailable" };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+function passwordCheckMessage(reason: PasswordCheckReason) {
+  if (reason === "length") return "Use a password with at least 12 characters.";
+  if (reason === "complexity") return "Include uppercase, lowercase, a number, and a symbol.";
+  if (reason === "leaked") return "That password appears in known breach data. Choose a different password.";
+  return "Password safety verification is temporarily unavailable. Please try again.";
+}
+
 export default function TradePartnerWelcomePage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -141,7 +164,8 @@ export default function TradePartnerWelcomePage() {
       if (form.crewSize && Number(form.crewSize) < 1) return "Crew size must be at least 1.";
     }
     if (step === 4) {
-      if (password.length < 8) return "Use a password with at least 8 characters.";
+      if (password.length < 12) return "Use a password with at least 12 characters.";
+      if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) return "Include uppercase, lowercase, a number, and a symbol.";
       if (password !== confirmPassword) return "Passwords do not match.";
     }
     return "";
@@ -192,6 +216,9 @@ export default function TradePartnerWelcomePage() {
     setBusy("finish");
     setMessage("");
     try {
+      const passwordCheck = await screenPassword(password);
+      if (!passwordCheck.ok) throw new Error(passwordCheckMessage(passwordCheck.reason));
+
       const saveResponse = await fetch("/api/trade-partners/onboarding", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -262,6 +289,7 @@ export default function TradePartnerWelcomePage() {
                 <SectionIntro title="Review & secure account" description="Confirm the essentials, create your password, and open your Trade Partner workspace." />
                 <div className="grid gap-3 sm:grid-cols-2"><ReviewCard label="Company" value={form.displayName || form.companyName} /><ReviewCard label="Primary trade" value={form.primaryTrade} /><ReviewCard label="Work type" value={form.marketType === "both" ? "Residential & Commercial" : form.marketType.charAt(0).toUpperCase() + form.marketType.slice(1)} /><ReviewCard label="Service area" value={form.serviceArea || "Not provided"} /><ReviewCard label="W-9" value={uploadedTypes.has("w9") ? "Uploaded" : "Finish later"} /><ReviewCard label="Insurance" value={uploadedTypes.has("coi") ? "Uploaded" : "Finish later"} /><ReviewCard label="Workers' Comp" value={uploadedTypes.has("workers_comp") ? "Uploaded" : "Finish later"} /><ReviewCard label="License" value={uploadedTypes.has("licenses") ? "Uploaded" : form.contractorLicense ? "Number provided" : "Not provided"} /></div>
                 <div className="grid gap-4 sm:grid-cols-2"><Field label="Password" type="password" value={password} onChange={setPassword} required /><Field label="Confirm password" type="password" value={confirmPassword} onChange={setConfirmPassword} required /></div>
+                <p className="text-xs text-[var(--bos-text-secondary)]">Use at least 12 characters with uppercase, lowercase, a number, and a symbol. B.O.S. also checks the password against known breach data before activation.</p>
               </div> : null}
 
               {message ? <div role="status" className="mt-6 rounded-xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-root)] px-4 py-3 text-sm font-semibold">{message}</div> : null}

@@ -31,6 +31,22 @@ function normalizeSignupError(error: unknown, fallback: string, accountAlreadyEx
   return message;
 }
 
+type PasswordCheckReason = "length" | "complexity" | "leaked" | "unavailable" | "invalid_request";
+
+async function screenPassword(password: string): Promise<{ ok: true } | { ok: false; reason: PasswordCheckReason }> {
+  try {
+    const response = await fetch("/api/security/password-check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const body = await response.json() as { ok?: boolean; reason?: PasswordCheckReason };
+    return body.ok ? { ok: true } : { ok: false, reason: body.reason || "unavailable" };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
 export default function SignupPage() {
   const { t } = useI18n();
   const [email, setEmail] = useState("");
@@ -56,6 +72,19 @@ export default function SignupPage() {
     const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth/confirm` : undefined;
 
     try {
+      const passwordCheck = await screenPassword(password);
+      if (!passwordCheck.ok) {
+        const key = passwordCheck.reason === "length"
+          ? "auth.passwordTooShort"
+          : passwordCheck.reason === "complexity"
+            ? "auth.passwordComplexity"
+            : passwordCheck.reason === "leaked"
+              ? "auth.passwordLeaked"
+              : "auth.passwordCheckUnavailable";
+        setError(t(key));
+        return;
+      }
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -113,8 +142,10 @@ export default function SignupPage() {
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  minLength={12}
                   required
                 />
+                <span className="block text-xs font-normal text-[var(--color-text-secondary)]">{t("auth.passwordRequirements")}</span>
               </label>
 
               {error ? (
