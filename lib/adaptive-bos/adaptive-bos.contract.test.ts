@@ -14,7 +14,7 @@ assert(migration.includes("Healthcare"));
 assert(migration.includes("Manufacturing"));
 assert(migration.includes("Logistics"));
 assert(migration.includes("Professional Services"));
-assert(migration.includes("Preserve every existing B.O.S. workspace as construction"));
+assert(migration.includes("Existing workspaces remain construction through the application fallback"));
 assert(route.includes("resolveWorkspaceContext"), "Adaptive profile API must stay tenant-scoped");
 assert(route.includes("No supported profile fields were supplied."));
 
