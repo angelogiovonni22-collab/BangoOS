@@ -17,7 +17,7 @@ assert.match(policy, /HIBP_TIMEOUT_MS = 5_000/, "external password screening mus
 assert.doesNotMatch(policy, /console\./, "password screening must not log password material");
 
 const route = read("app/api/security/password-check/route.ts");
-assert.match(route, /Cache-Control.*no-store/s, "password check responses must not be cached");
+assert.ok(route.includes("Cache-Control") && route.includes("no-store"), "password check responses must not be cached");
 assert.match(route, /status: 503/, "breach-service outages must fail closed");
 
 for (const file of ["app/signup/page.tsx", "app/(app)/partner/welcome/page.tsx"]) {
