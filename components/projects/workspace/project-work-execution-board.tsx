@@ -36,6 +36,7 @@ type ProjectWorkExecutionBoardProps = {
   filters: ExecutionBoardFilters;
   onFiltersChange: (next: ExecutionBoardFilters) => void;
   onSelectedTaskChange: (taskId: string | null) => void;
+  onDependenciesChanged: () => void;
   t: TranslateFn;
 };
 
@@ -60,6 +61,7 @@ export function ProjectWorkExecutionBoard({
   filters,
   onFiltersChange,
   onSelectedTaskChange,
+  onDependenciesChanged,
   t,
 }: ProjectWorkExecutionBoardProps) {
   const previousBucketByTaskId = useRef<Record<string, StatusBucketKey>>({});
@@ -264,7 +266,7 @@ export function ProjectWorkExecutionBoard({
         </label>
       </div>
 
-      <ProjectTaskDependenciesPanel selectedTaskId={selectedTaskId} tasks={tasks} t={t} />
+      <ProjectTaskDependenciesPanel selectedTaskId={selectedTaskId} tasks={tasks} onDependenciesChanged={onDependenciesChanged} t={t} />
 
       <div className="space-y-4 md:hidden">
         {STATUS_BUCKET_ORDER.map((bucket) => {

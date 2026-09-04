@@ -24,6 +24,7 @@ type DependencyRow = {
 type ProjectTaskDependenciesPanelProps = {
   selectedTaskId: string | null;
   tasks: DependencyTask[];
+  onDependenciesChanged: () => void;
   t: TranslateFn;
 };
 
@@ -34,7 +35,7 @@ const DEPENDENCY_TYPES: Array<{ value: DependencyType; label: string }> = [
   { value: "start_to_finish", label: "SF" },
 ];
 
-export function ProjectTaskDependenciesPanel({ selectedTaskId, tasks, t }: ProjectTaskDependenciesPanelProps) {
+export function ProjectTaskDependenciesPanel({ selectedTaskId, tasks, onDependenciesChanged, t }: ProjectTaskDependenciesPanelProps) {
   const supabase = useMemo(() => createClient(), []);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [rows, setRows] = useState<DependencyRow[]>([]);
@@ -148,6 +149,7 @@ export function ProjectTaskDependenciesPanel({ selectedTaskId, tasks, t }: Proje
 
     setRows((current) => [...current, response.data as DependencyRow]);
     setCandidateId("");
+    onDependenciesChanged();
   };
 
   const handleTypeChange = async (row: DependencyRow, nextType: DependencyType) => {
@@ -192,6 +194,7 @@ export function ProjectTaskDependenciesPanel({ selectedTaskId, tasks, t }: Proje
     }
 
     setRows((current) => current.filter((item) => item.id !== row.id));
+    onDependenciesChanged();
   };
 
   if (!selectedTaskId) return null;
