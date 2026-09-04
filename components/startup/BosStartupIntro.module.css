@@ -1,15 +1,27 @@
 .root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
   z-index: 2147483647;
   display: grid;
   place-items: center;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100svh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 48%, rgba(6, 19, 33, 0.98), rgba(0, 0, 0, 1) 64%),
-    #000;
+  background: #000;
+  box-shadow: 0 0 0 100vmax #000;
   opacity: 1;
   transition: opacity 320ms ease;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+@supports (height: 100lvh) {
+  .root {
+    height: 100lvh;
+  }
 }
 
 .fading {
@@ -26,14 +38,19 @@
 }
 
 .video {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  max-width: 100vw;
-  max-height: 100dvh;
   object-fit: contain;
   object-position: center;
   background: #000;
+  opacity: 0;
+}
+
+.videoPlaying {
+  opacity: 1;
 }
 
 .fallback {
@@ -44,7 +61,7 @@
 }
 
 .fallbackPlaying {
-  animation: fallbackReveal 3.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: fallbackReveal 2.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .fallbackLogo {
