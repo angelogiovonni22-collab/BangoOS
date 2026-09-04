@@ -8,6 +8,9 @@ const health = read("app/api/health/route.ts");
 assert.match(health, /force-dynamic/, "health responses must not be cached");
 assert.match(health, /admin\.from\("companies"\)/, "health must verify Production database access");
 assert.match(health, /admin\.storage\.listBuckets/, "health must verify Production Storage access");
+assert.match(health, /CHECK_TIMEOUT_MS = 5_000/, "dependency checks must have a bounded timeout");
+assert.match(health, /Promise\.race/, "health dependencies must fail closed when a check stalls");
+assert.match(health, /\.select\("id"\)\.limit\(1\)/, "database health must avoid a full exact-count scan");
 assert.match(health, /status: healthy \? 200 : 503/, "degraded dependencies must fail the health check");
 assert.doesNotMatch(health, /SUPABASE_SERVICE_ROLE_KEY|publishableKey/, "health output must not expose credential names or values");
 
@@ -15,10 +18,18 @@ const instrumentation = read("instrumentation.ts");
 assert.match(instrumentation, /export function onRequestError/, "Next.js request failures must emit structured telemetry");
 assert.doesNotMatch(instrumentation, /error\.message|request\.headers|request\.body/, "telemetry must not record sensitive request or error details");
 
+const nextConfig = read("next.config.ts");
+for (const header of ["X-Content-Type-Options", "Referrer-Policy", "X-Frame-Options", "Content-Security-Policy", "Permissions-Policy", "Strict-Transport-Security"]) {
+  assert.ok(nextConfig.includes(header), `global security headers must include ${header}`);
+}
+assert.match(nextConfig, /frame-ancestors 'none'/, "B.O.S. must reject clickjacking frames");
+assert.match(nextConfig, /camera=\(self\), microphone=\(self\), geolocation=\(self\)/, "sensitive browser capabilities must stay first-party scoped");
+
 const workflow = read(".github/workflows/production-smoke.yml");
 assert.match(workflow, /schedule:/, "Production monitoring must run on a schedule");
 assert.match(workflow, /workflow_dispatch:/, "operators must be able to run the smoke manually");
 assert.match(workflow, /\/api\/health/, "smoke monitoring must verify dependencies");
+assert.match(workflow, /Verify production security headers/, "Production smoke must verify deployed security headers");
 assert.match(workflow, /supabase-test/, "smoke monitoring must guard the removed developer surface");
 
 const runbook = read("docs/operations/COMMERCIAL-LAUNCH-RUNBOOK.md");

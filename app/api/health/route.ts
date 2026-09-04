@@ -4,14 +4,23 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 type CheckResult = { status: "pass" | "fail"; latencyMs: number };
+const CHECK_TIMEOUT_MS = 5_000;
 
 async function runCheck(check: () => Promise<unknown>): Promise<CheckResult> {
   const startedAt = performance.now();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    await check();
+    await Promise.race([
+      check(),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error("health-check-timeout")), CHECK_TIMEOUT_MS);
+      }),
+    ]);
     return { status: "pass", latencyMs: Math.round(performance.now() - startedAt) };
   } catch {
     return { status: "fail", latencyMs: Math.round(performance.now() - startedAt) };
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 }
 
@@ -28,7 +37,7 @@ export async function GET() {
 
   const [database, storage] = await Promise.all([
     runCheck(async () => {
-      const { error } = await admin.from("companies").select("id", { head: true, count: "exact" });
+      const { error } = await admin.from("companies").select("id").limit(1);
       if (error) throw error;
     }),
     runCheck(async () => {
