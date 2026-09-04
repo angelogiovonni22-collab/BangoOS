@@ -76,6 +76,19 @@ html.bos-startup-prepaint body {
 }
 `;
 
+const appleStartupImages = [
+  { width: 320, height: 568, ratio: 2, fileWidth: 640, fileHeight: 1136 },
+  { width: 375, height: 667, ratio: 2, fileWidth: 750, fileHeight: 1334 },
+  { width: 414, height: 736, ratio: 3, fileWidth: 1242, fileHeight: 2208 },
+  { width: 375, height: 812, ratio: 3, fileWidth: 1125, fileHeight: 2436 },
+  { width: 414, height: 896, ratio: 2, fileWidth: 828, fileHeight: 1792 },
+  { width: 414, height: 896, ratio: 3, fileWidth: 1242, fileHeight: 2688 },
+  { width: 390, height: 844, ratio: 3, fileWidth: 1170, fileHeight: 2532 },
+  { width: 428, height: 926, ratio: 3, fileWidth: 1284, fileHeight: 2778 },
+  { width: 393, height: 852, ratio: 3, fileWidth: 1179, fileHeight: 2556 },
+  { width: 430, height: 932, ratio: 3, fileWidth: 1290, fileHeight: 2796 },
+] as const;
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE_KEY)?.value;
@@ -85,6 +98,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang={initialLocale} className={`${inter.variable} h-full antialiased bos-startup-prepaint`} suppressHydrationWarning>
       <head>
         <style dangerouslySetInnerHTML={{ __html: startupPrepaintCss }} />
+        {appleStartupImages.map((image) => (
+          <link
+            key={`${image.fileWidth}x${image.fileHeight}`}
+            rel="apple-touch-startup-image"
+            href={`/api/app-splash/${image.fileWidth}/${image.fileHeight}`}
+            media={`(device-width: ${image.width}px) and (device-height: ${image.height}px) and (-webkit-device-pixel-ratio: ${image.ratio}) and (orientation: portrait)`}
+          />
+        ))}
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body className="min-h-full flex flex-col">
