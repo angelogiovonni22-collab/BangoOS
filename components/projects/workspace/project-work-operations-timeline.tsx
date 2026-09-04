@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Activity, Camera, CheckCircle2, ClipboardList, DollarSign, FileText, Search } from "lucide-react";
+import { Activity, Camera, CheckCircle2, ClipboardCheck, ClipboardList, DollarSign, FileText, Search } from "lucide-react";
 import { FadeIn, StatusPulse } from "@/components/motion";
 import { Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, Input, Select, SkeletonLoader } from "@/components/ui";
 import { collectNewEntityIds, hasAnimatedEntries } from "@/lib/motion/replay-helpers";
@@ -31,7 +31,7 @@ type TimelineSort = "newest" | "oldest";
 type TimelineEvent = {
   id: string;
   filter: Exclude<TimelineFilter, "all">;
-  eventType: "task_created" | "task_updated" | "task_completed" | "photo_uploaded" | "change_order_created" | "invoice_sent" | "estimate_approved";
+  eventType: "task_created" | "task_updated" | "task_completed" | "photo_uploaded" | "change_order_created" | "invoice_sent" | "estimate_approved" | "daily_report_created" | "daily_report_updated" | "inspection_activity";
   title: string;
   description: string;
   occurredAt: string;
@@ -46,6 +46,22 @@ type ProjectPhotoRow = Pick<Database["public"]["Tables"]["project_photos"]["Row"
 type ChangeOrderRow = Pick<Database["public"]["Tables"]["change_orders"]["Row"], "id" | "title" | "change_order_number" | "created_at" | "created_by">;
 type InvoiceRow = Pick<Database["public"]["Tables"]["invoices"]["Row"], "id" | "title" | "invoice_number" | "sent_at" | "created_by">;
 type EstimateRow = Pick<Database["public"]["Tables"]["estimates"]["Row"], "id" | "title" | "estimate_number" | "status" | "updated_at" | "updated_by">;
+type WorkflowDailyReportRow = {
+  id: string;
+  reference_id: string;
+  actor_profile_id: string | null;
+  occurred_at: string;
+  event_type: string;
+  payload: Record<string, unknown> | null;
+};
+type ProjectInspectionRow = {
+  id: string;
+  inspection_type: string;
+  status: string;
+  created_at: string;
+  scheduled_at: string | null;
+  completed_at: string | null;
+};
 
 type ProjectWorkOperationsTimelineProps = {
   companyId: string;
@@ -74,6 +90,8 @@ export function ProjectWorkOperationsTimeline({
 
   const [photoEvents, setPhotoEvents] = useState<TimelineEvent[]>([]);
   const [financialEvents, setFinancialEvents] = useState<TimelineEvent[]>([]);
+  const [dailyLogEvents, setDailyLogEvents] = useState<TimelineEvent[]>([]);
+  const [inspectionEvents, setInspectionEvents] = useState<TimelineEvent[]>([]);
   const [newEventIds, setNewEventIds] = useState<Record<string, true>>({});
   const knownEventIdsRef = useRef<Set<string>>(new Set());
 
@@ -154,21 +172,26 @@ export function ProjectWorkOperationsTimeline({
       setIsLoading(true);
       setErrorMessage(null);
 
-      const [photosResult, financialResult] = await Promise.all([
+      const [photosResult, financialResult, dailyLogsResult, inspectionsResult] = await Promise.all([
         loadPhotoEvents(supabase, companyId, projectId, profiles, t),
         loadFinancialEvents(supabase, companyId, projectId, profiles, t),
+        loadDailyLogEvents(supabase, companyId, projectId, profiles, t),
+        loadInspectionEvents(supabase, companyId, projectId, t),
       ]);
 
       if (!isSubscribed) {
         return;
       }
 
-      if (photosResult.error || financialResult.error) {
-        setErrorMessage(photosResult.error || financialResult.error || t("projects.workTimelineLoadError"));
+      const feedError = photosResult.error || financialResult.error || dailyLogsResult.error || inspectionsResult.error;
+      if (feedError) {
+        setErrorMessage(feedError || t("projects.workTimelineLoadError"));
       }
 
       setPhotoEvents(photosResult.events);
       setFinancialEvents(financialResult.events);
+      setDailyLogEvents(dailyLogsResult.events);
+      setInspectionEvents(inspectionsResult.events);
       setIsLoading(false);
     };
 
@@ -180,8 +203,9 @@ export function ProjectWorkOperationsTimeline({
   }, [companyId, projectId, profiles, supabase, t]);
 
   const allEvents = useMemo(() => {
-    return [...taskEvents, ...photoEvents, ...financialEvents].filter((event) => Boolean(event.occurredAt));
-  }, [financialEvents, photoEvents, taskEvents]);
+    return [...taskEvents, ...photoEvents, ...financialEvents, ...dailyLogEvents, ...inspectionEvents]
+      .filter((event) => Boolean(event.occurredAt));
+  }, [dailyLogEvents, financialEvents, inspectionEvents, photoEvents, taskEvents]);
 
   useEffect(() => {
     if (allEvents.length === 0) {
@@ -297,7 +321,7 @@ export function ProjectWorkOperationsTimeline({
             compact
             icon="T"
             title={resolveEmptyTitle(filter, t)}
-            description={resolveEmptyDescription(filter, t)}
+            description={t("projects.workTimelineEmptyDescription")}
           />
         ) : (
           <div className="max-h-[560px] space-y-4 overflow-y-auto pr-1">
@@ -530,8 +554,101 @@ async function loadFinancialEvents(
   return { events: [...changeOrderEvents, ...invoiceEvents, ...estimateEvents], error: null };
 }
 
+async function loadDailyLogEvents(
+  supabase: ReturnType<typeof createClient>,
+  companyId: string,
+  projectId: string,
+  profiles: Record<string, string>,
+  t: (key: string) => string,
+): Promise<{ events: TimelineEvent[]; error: string | null }> {
+  if (!supabase) {
+    return { events: [], error: t("projects.errorConnect") };
+  }
+
+  const response = await supabase
+    .from("workflow_events")
+    .select("id, reference_id, actor_profile_id, occurred_at, event_type, payload")
+    .eq("company_id", companyId)
+    .eq("reference_entity", "daily_report")
+    .in("event_type", ["daily_report.created", "daily_report.updated"])
+    .eq("payload->>project_id", projectId)
+    .order("occurred_at", { ascending: false })
+    .limit(40);
+
+  if (response.error) {
+    return { events: [], error: response.error.message };
+  }
+
+  const rows = (response.data || []) as unknown as WorkflowDailyReportRow[];
+  const events: TimelineEvent[] = rows.map((row) => {
+    const payload = row.payload || {};
+    const report = asRecord(payload.report);
+    const header = asRecord(report?.header);
+    const reportNumber = stringValue(payload.report_number) || stringValue(report?.reportNumber) || row.reference_id.slice(0, 8);
+    const reportDate = stringValue(payload.report_date) || stringValue(header?.date) || row.occurred_at.slice(0, 10);
+    const status = stringValue(payload.status) || stringValue(header?.overallStatus) || "updated";
+    const superintendentName = stringValue(header?.superintendentName);
+
+    return {
+      id: `daily-report-${row.id}`,
+      filter: "daily_logs",
+      eventType: row.event_type === "daily_report.created" ? "daily_report_created" : "daily_report_updated",
+      title: `${t("projects.workTimelineFilterDailyLogs")} · ${reportNumber}`,
+      description: `${reportDate} · ${humanizeStatus(status)}`,
+      occurredAt: row.occurred_at,
+      userName: row.actor_profile_id ? profiles[row.actor_profile_id] || superintendentName || t("projects.notAssigned") : superintendentName || t("projects.notAssigned"),
+      phaseName: null,
+      taskName: null,
+      href: `/daily-reports/${row.reference_id}`,
+      thumbnailUrl: null,
+    };
+  });
+
+  return { events, error: null };
+}
+
+async function loadInspectionEvents(
+  supabase: ReturnType<typeof createClient>,
+  companyId: string,
+  projectId: string,
+  t: (key: string) => string,
+): Promise<{ events: TimelineEvent[]; error: string | null }> {
+  if (!supabase) {
+    return { events: [], error: t("projects.errorConnect") };
+  }
+
+  const response = await supabase
+    .from("project_inspections")
+    .select("id, inspection_type, status, created_at, scheduled_at, completed_at")
+    .eq("company_id", companyId)
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  if (response.error) {
+    return { events: [], error: response.error.message };
+  }
+
+  const rows = (response.data || []) as unknown as ProjectInspectionRow[];
+  const events: TimelineEvent[] = rows.map((inspection) => ({
+    id: `inspection-${inspection.id}`,
+    filter: "inspections",
+    eventType: "inspection_activity",
+    title: humanizeStatus(inspection.inspection_type),
+    description: humanizeStatus(inspection.status),
+    occurredAt: inspection.completed_at || inspection.scheduled_at || inspection.created_at,
+    userName: t("projects.workTimelineFilterInspections"),
+    phaseName: null,
+    taskName: null,
+    href: `/projects/${projectId}?tab=inspections`,
+    thumbnailUrl: null,
+  }));
+
+  return { events, error: null };
+}
+
 function eventIcon(eventType: TimelineEvent["eventType"]) {
-  if (eventType === "task_created") {
+  if (eventType === "task_created" || eventType === "daily_report_created") {
     return <ClipboardList size={14} aria-hidden="true" />;
   }
 
@@ -539,12 +656,16 @@ function eventIcon(eventType: TimelineEvent["eventType"]) {
     return <CheckCircle2 size={14} aria-hidden="true" />;
   }
 
-  if (eventType === "task_updated") {
+  if (eventType === "task_updated" || eventType === "daily_report_updated") {
     return <FileText size={14} aria-hidden="true" />;
   }
 
   if (eventType === "photo_uploaded") {
     return <Camera size={14} aria-hidden="true" />;
+  }
+
+  if (eventType === "inspection_activity") {
+    return <ClipboardCheck size={14} aria-hidden="true" />;
   }
 
   return <DollarSign size={14} aria-hidden="true" />;
@@ -582,16 +703,17 @@ function resolveEmptyTitle(filter: TimelineFilter, t: (key: string) => string) {
   return t("projects.workTimelineEmptyTitle");
 }
 
-function resolveEmptyDescription(filter: TimelineFilter, t: (key: string) => string) {
-  if (filter === "daily_logs") {
-    return t("projects.workTimelineEmptyDailyLogsDescription");
-  }
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
 
-  if (filter === "inspections") {
-    return t("projects.workTimelineEmptyInspectionsDescription");
-  }
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
 
-  return t("projects.workTimelineEmptyDescription");
+function humanizeStatus(value: string) {
+  const normalized = value.trim().replace(/[_-]+/g, " ");
+  return normalized ? normalized.replace(/\b\w/g, (letter) => letter.toUpperCase()) : "—";
 }
 
 function formatTimestamp(value: string) {

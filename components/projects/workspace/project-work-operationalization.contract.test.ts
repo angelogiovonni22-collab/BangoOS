@@ -23,6 +23,13 @@ assert.match(workspace, /\/daily-reports\/new\?projectId=\$\{projectId\}&project
 assert.match(workspace, /\?tab=inspections/);
 assert.match(workspace, /#punch-list/);
 assert.doesNotMatch(operationsTimeline, /\?tab=work/);
+assert.match(operationsTimeline, /loadDailyLogEvents/);
+assert.match(operationsTimeline, /\.from\("workflow_events"\)[\s\S]*?\.eq\("reference_entity", "daily_report"\)/);
+assert.match(operationsTimeline, /\.eq\("payload->>project_id", projectId\)/);
+assert.match(operationsTimeline, /loadInspectionEvents/);
+assert.match(operationsTimeline, /\.from\("project_inspections"\)[\s\S]*?\.eq\("project_id", projectId\)/);
+assert.match(operationsTimeline, /\.\.\.dailyLogEvents/);
+assert.match(operationsTimeline, /\.\.\.inspectionEvents/);
 assert.match(dailyReportPage, /searchParams\.get\("projectId"\)/);
 assert.match(dailyReportHook, /projectId: initialProjectId/);
 
