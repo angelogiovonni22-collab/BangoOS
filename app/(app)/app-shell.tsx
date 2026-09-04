@@ -15,6 +15,8 @@ import { GlobalSearch } from "@/components/search/global-search";
 import { NotificationCenter } from "@/components/notifications/notification-center";
 import { useBodyScrollLock } from "@/components/ui/use-body-scroll-lock";
 import { useI18n } from "@/lib/i18n/provider";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
+import type { AdaptiveBosModuleKey } from "@/lib/adaptive-bos/config";
 import { ORION_SIDEBAR_NAVIGATION_GROUPS } from "@/lib/orion/navigation";
 import { canAccessPath, getRoleHomePath, hasBosPermission, normalizeCompanyRole } from "@/lib/access-control/permissions";
 import { shouldIgnoreGlobalShortcut } from "@/lib/ui/keyboard";
@@ -28,6 +30,47 @@ type AppShellProps = {
   orionEnabled: boolean;
   platformAdmin: boolean;
 };
+
+const NAV_MODULE_BY_KEY: Partial<Record<string, AdaptiveBosModuleKey>> = {
+  dashboard: "dashboard",
+  dispatch: "scheduling",
+  schedule: "scheduling",
+  projects: "projects",
+  blueprints: "projects",
+  estimates: "estimates",
+  invoices: "finance",
+  payroll: "payroll",
+  changeOrders: "projects",
+  laborRates: "finance",
+  customers: "customers",
+  materials: "materials",
+  unitsOfMeasure: "materials",
+  equipment: "equipment",
+  vendors: "vendors",
+  employees: "workforce",
+  crew: "workforce",
+};
+
+const ADAPTIVE_TERM_BY_NAV_KEY: Partial<Record<string, string>> = {
+  projects: "projects",
+  estimates: "estimates",
+  customers: "customers",
+  materials: "materials",
+  equipment: "equipment",
+  vendors: "vendors",
+};
+
+function moduleForNavigation(key: string): AdaptiveBosModuleKey | null {
+  return NAV_MODULE_BY_KEY[key] ?? null;
+}
+
+function moduleForPath(pathname: string | null): AdaptiveBosModuleKey | null {
+  if (!pathname) return null;
+  const match = ORION_SIDEBAR_NAVIGATION_GROUPS.flatMap((group) => group.items)
+    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((left, right) => right.href.length - left.href.length)[0];
+  return match ? moduleForNavigation(match.key) : null;
+}
 
 export function AppShell({ children, userName, userEmail, companyName, role, orionEnabled, platformAdmin }: AppShellProps) {
   const frame = (
@@ -47,13 +90,20 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   const isDashboard = pathname === "/dashboard";
   const router = useRouter();
   const { t } = useI18n();
+  const { hasModule, term } = useAdaptiveBos();
   const normalizedRole = normalizeCompanyRole(role);
   const homePath = getRoleHomePath(normalizedRole);
 
   useBodyScrollLock(mobileOpen);
 
   const visibleNavigationGroups = useMemo(() => {
-    const groups = ORION_SIDEBAR_NAVIGATION_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => canAccessPath(normalizedRole, item.href)) })).filter((group) => group.items.length > 0);
+    const groups = ORION_SIDEBAR_NAVIGATION_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        const moduleKey = moduleForNavigation(item.key);
+        return canAccessPath(normalizedRole, item.href) && (!moduleKey || hasModule(moduleKey));
+      }),
+    })).filter((group) => group.items.length > 0);
     if (normalizedRole === "subcontractor") return [{ key: "partner", label: "Trade Partner", items: [{ key: "partnerHome", href: "/partner", icon: "◇" }] }, ...groups];
     if (normalizedRole === "customer") return [{ key: "customer", label: "Customer", items: [{ key: "customerPortal", href: "/customer-portal", icon: "◉" }] }];
     if (hasBosPermission(normalizedRole, "communications.view")) {
@@ -61,9 +111,13 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
       return platformAdmin ? [...companyGroups, { key: "platform", label: "B.O.S. Platform", items: [{ key: "platformAdmin", href: "/platform-admin", icon: "◆" }] }] : companyGroups;
     }
     return platformAdmin ? [...groups, { key: "platform", label: "B.O.S. Platform", items: [{ key: "platformAdmin", href: "/platform-admin", icon: "◆" }] }] : groups;
-  }, [normalizedRole, platformAdmin]);
+  }, [hasModule, normalizedRole, platformAdmin]);
 
   useEffect(() => { if (pathname && !canAccessPath(normalizedRole, pathname)) router.replace(homePath); }, [homePath, normalizedRole, pathname, router]);
+  useEffect(() => {
+    const moduleKey = moduleForPath(pathname);
+    if (moduleKey && !hasModule(moduleKey)) router.replace(homePath);
+  }, [hasModule, homePath, pathname, router]);
   useEffect(() => {
     if (!mobileOpen) return;
     const handleEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileOpen(false); };
@@ -85,7 +139,8 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   const activeNavigationHref = topNavigationItems
     .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
     .sort((left, right) => right.href.length - left.href.length)[0]?.href;
-  const routeAllowed = !pathname || canAccessPath(normalizedRole, pathname);
+  const activeModule = moduleForPath(pathname);
+  const routeAllowed = (!pathname || canAccessPath(normalizedRole, pathname)) && (!activeModule || hasModule(activeModule));
 
   return (
     <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
@@ -113,7 +168,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                     {group.key !== "dashboard" ? <button type="button" data-sidebar-section-finish="blue-chrome" className="group flex min-h-11 w-full items-center justify-between rounded-[14px] border px-3 py-3 text-left text-xs font-extrabold uppercase tracking-[0.18em] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7dd3fc] focus-visible:ring-offset-2 focus-visible:ring-offset-[#071528]" onClick={() => setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))} aria-expanded={!isCollapsed}>
                       <span>{group.label}</span><span className="transition group-hover:text-white">{isCollapsed ? "+" : "−"}</span>
                     </button> : null}
-                    {!isCollapsed ? <div className="space-y-1.5">{group.items.map((item) => <SidebarItem key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t)} href={item.href} active={item.href === activeNavigationHref} onNavigate={() => setMobileOpen(false)} />)}</div> : null}
+                    {!isCollapsed ? <div className="space-y-1.5">{group.items.map((item) => <SidebarItem key={`${group.key}-${item.href}`} label={getNavigationLabel(item.key, t, term)} href={item.href} active={item.href === activeNavigationHref} onNavigate={() => setMobileOpen(false)} />)}</div> : null}
                   </section>;
                 })}
               </nav>
@@ -150,7 +205,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
 
               {!isDashboard && topNavigationItems.length > 0 ? <nav className="bos-top-command-nav" aria-label="Top Command navigation">
                 <Link href={homePath} className="bos-top-command-brand" aria-label="B.O.S. Home"><span className="bos-top-command-brand-mark">B</span><span><strong className="block text-xs tracking-[0.22em]">B.O.S.</strong><small className="block text-[9px] text-[var(--bos-text-muted)]">{formatRole(normalizedRole).toUpperCase()}</small></span></Link>
-                {topNavigationItems.map((item) => <Link key={`${item.key}-${item.href}`} href={item.href} className="bos-top-command-link" data-active={item.href === activeNavigationHref ? "true" : "false"}><span className="bos-top-command-link-icon" aria-hidden="true">{item.icon}</span><span>{getNavigationLabel(item.key, t)}</span></Link>)}
+                {topNavigationItems.map((item) => <Link key={`${item.key}-${item.href}`} href={item.href} className="bos-top-command-link" data-active={item.href === activeNavigationHref ? "true" : "false"}><span className="bos-top-command-link-icon" aria-hidden="true">{item.icon}</span><span>{getNavigationLabel(item.key, t, term)}</span></Link>)}
               </nav> : null}
             </header>
           </LayerManager>
@@ -173,12 +228,13 @@ function AccessRedirect({ role }: { role: string }) {
   return <div className="mx-auto max-w-xl rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-6 shadow-[var(--shadow-card)]"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--bos-text-muted)]">B.O.S. ACCESS CONTROL</p><h1 className="mt-2 text-xl font-semibold">Opening your authorized workspace…</h1><p className="mt-2 text-sm text-[var(--bos-text-secondary)]">Your {formatRole(role)} account does not have permission to view this area.</p></div>;
 }
 
-function getNavigationLabel(key: string, t: (key: string) => string) {
+function getNavigationLabel(key: string, t: (key: string) => string, term: (key: string, fallback?: string) => string) {
   if (key === "partnerHome") return "My Projects";
   if (key === "customerPortal") return "My Project";
   if (key === "tradePartnerMessages") return "Trade Partner Messages";
   if (key === "platformAdmin") return "Customer Administration";
-  return t(`navigation.${key}`);
+  const adaptiveTerm = ADAPTIVE_TERM_BY_NAV_KEY[key];
+  return adaptiveTerm ? term(adaptiveTerm, t(`navigation.${key}`)) : t(`navigation.${key}`);
 }
 
 function formatRole(role: string) { return role.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" "); }
