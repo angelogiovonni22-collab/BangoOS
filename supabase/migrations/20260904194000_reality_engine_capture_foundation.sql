@@ -4,7 +4,7 @@ create table public.reality_capture_sessions (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
   project_id uuid not null references public.projects(id) on delete cascade,
-  blueprint_version_id uuid null,
+  blueprint_version_id uuid null references public.blueprint_versions(id) on delete set null,
   capture_type text not null check (capture_type in ('roomplan','arkit_mesh','webxr','photogrammetry')),
   status text not null default 'captured' check (status in ('captured','uploading','processing','ready','failed')),
   source_platform text not null default 'web' check (source_platform in ('ios','ipados','web')),
@@ -17,10 +17,7 @@ create table public.reality_capture_sessions (
   captured_at timestamptz not null default now(),
   created_by uuid not null references public.profiles(id),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  foreign key (blueprint_version_id, company_id, project_id)
-    references public.blueprint_versions(id, company_id, project_id)
-    on delete set null
+  updated_at timestamptz not null default now()
 );
 
 create index reality_capture_sessions_company_project_idx
@@ -76,12 +73,35 @@ create policy reality_capture_sessions_insert on public.reality_capture_sessions
     public.is_company_member(company_id)
     and public.blueprint_project_belongs_to_company(project_id, company_id)
     and created_by = auth.uid()
+    and (
+      blueprint_version_id is null
+      or exists (
+        select 1
+        from public.blueprint_versions bv
+        where bv.id = blueprint_version_id
+          and bv.company_id = company_id
+          and bv.project_id = project_id
+      )
+    )
   );
 
 create policy reality_capture_sessions_update on public.reality_capture_sessions
   for update to authenticated
   using (public.is_company_member(company_id))
-  with check (public.is_company_member(company_id));
+  with check (
+    public.is_company_member(company_id)
+    and public.blueprint_project_belongs_to_company(project_id, company_id)
+    and (
+      blueprint_version_id is null
+      or exists (
+        select 1
+        from public.blueprint_versions bv
+        where bv.id = blueprint_version_id
+          and bv.company_id = company_id
+          and bv.project_id = project_id
+      )
+    )
+  );
 
 create policy reality_capture_sessions_delete on public.reality_capture_sessions
   for delete to authenticated
@@ -97,6 +117,13 @@ create policy reality_capture_assets_insert on public.reality_capture_assets
     public.is_company_member(company_id)
     and public.blueprint_project_belongs_to_company(project_id, company_id)
     and created_by = auth.uid()
+    and exists (
+      select 1
+      from public.reality_capture_sessions s
+      where s.id = session_id
+        and s.company_id = company_id
+        and s.project_id = project_id
+    )
   );
 
 create policy reality_capture_assets_delete on public.reality_capture_assets
@@ -113,6 +140,13 @@ create policy reality_capture_measurements_insert on public.reality_capture_meas
     public.is_company_member(company_id)
     and public.blueprint_project_belongs_to_company(project_id, company_id)
     and created_by = auth.uid()
+    and exists (
+      select 1
+      from public.reality_capture_sessions s
+      where s.id = session_id
+        and s.company_id = company_id
+        and s.project_id = project_id
+    )
   );
 
 create policy reality_capture_measurements_delete on public.reality_capture_measurements
