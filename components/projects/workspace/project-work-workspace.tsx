@@ -65,6 +65,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
   const [taskDraftById, setTaskDraftById] = useState<Record<string, TaskDetailsDraft>>({});
   const [phaseNameById, setPhaseNameById] = useState<Record<string, string>>({});
   const [dependencySummary, setDependencySummary] = useState<DependencySummary | null>(null);
+  const [dependencyRefreshToken, setDependencyRefreshToken] = useState(0);
   const [executionFilters, setExecutionFilters] = useState<{
     status: "all" | "not_started" | "in_progress" | "blocked" | "completed";
     assignee: "all" | string;
@@ -93,6 +94,10 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     if (taskId) {
       setIsMobileDetailsOpen(true);
     }
+  }, []);
+
+  const handleDependenciesChanged = useCallback(() => {
+    setDependencyRefreshToken((current) => current + 1);
   }, []);
 
   const selectedTask = selectedTaskId ? workspaceTasks.find((task) => task.id === selectedTaskId) ?? null : null;
@@ -233,7 +238,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     return () => {
       isSubscribed = false;
     };
-  }, [companyId, selectedTaskId, supabase]);
+  }, [companyId, dependencyRefreshToken, selectedTaskId, supabase]);
 
   const handleTaskFieldChange = (field: keyof TaskDetailsDraft, value: string) => {
     if (!selectedTask) {
@@ -468,6 +473,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
                 filters={executionFilters}
                 onFiltersChange={setExecutionFilters}
                 onSelectedTaskChange={handleSelectedTaskChange}
+                onDependenciesChanged={handleDependenciesChanged}
                 t={t}
               />
             </Card>
