@@ -7,6 +7,7 @@ import styles from "./BosStartupIntro.module.css";
 const SESSION_KEY = "bos-startup-intro-shown";
 const VIDEO_SRC = "/branding/Mobile_app_startup_logo_animation_202609032341.mp4";
 const FALLBACK_LOGO_SRC = "/branding/bos-operating-system-logo.png";
+const MAX_VIDEO_WAIT_MS = 15000;
 
 type IntroState = "checking" | "video" | "fallback" | "fading" | "hidden";
 
@@ -15,6 +16,7 @@ export function BosStartupIntro() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fallbackTimerRef = useRef<number | null>(null);
   const finishTimerRef = useRef<number | null>(null);
+  const videoWatchdogRef = useRef<number | null>(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -44,10 +46,21 @@ export function BosStartupIntro() {
       if (finishTimerRef.current !== null) {
         window.clearTimeout(finishTimerRef.current);
       }
+      if (videoWatchdogRef.current !== null) {
+        window.clearTimeout(videoWatchdogRef.current);
+      }
     };
   }, []);
 
+  const clearVideoWatchdog = () => {
+    if (videoWatchdogRef.current !== null) {
+      window.clearTimeout(videoWatchdogRef.current);
+      videoWatchdogRef.current = null;
+    }
+  };
+
   const finish = () => {
+    clearVideoWatchdog();
     setState("fading");
     if (finishTimerRef.current !== null) {
       window.clearTimeout(finishTimerRef.current);
@@ -56,6 +69,7 @@ export function BosStartupIntro() {
   };
 
   const startFallback = () => {
+    clearVideoWatchdog();
     startedRef.current = true;
     setState("fallback");
     if (fallbackTimerRef.current !== null) {
@@ -72,6 +86,7 @@ export function BosStartupIntro() {
     try {
       video.currentTime = 0;
       await video.play();
+      videoWatchdogRef.current = window.setTimeout(finish, MAX_VIDEO_WAIT_MS);
     } catch {
       startFallback();
     }
