@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./BosStartupIntro.module.css";
 
 const SESSION_KEY = "bos-startup-intro-shown";
-const VIDEO_SRC = "/branding/Mobile_app_startup_logo_animation_202609032341.mp4";
+const VIDEO_SRC = "/branding/Mobile_app_startup_logo_animation_202609032341_iOS_optimized%20(1).mp4";
 const FALLBACK_LOGO_SRC = "/branding/bos-operating-system-logo.png";
 const LOAD_TIMEOUT_MS = 5000;
 const PLAYBACK_TIMEOUT_MS = 15000;
