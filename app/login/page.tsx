@@ -1,10 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
+
+const BOS_LOGO_SRC = "/branding/bos-operating-system-logo.png";
 
 export default function LoginPage() {
   return (
@@ -64,7 +67,16 @@ function LoginPageContent() {
   return (
     <main className="bos-login-page mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
       <div className="bos-mobile-login-brand lg:hidden" aria-label="B.O.S. Bango Operating System">
-        <div className="bos-mobile-login-logo"><span>B.O.S.</span><small>BANGO OPERATING SYSTEM</small></div>
+        <div className="bos-mobile-login-logo">
+          <Image
+            src={BOS_LOGO_SRC}
+            alt="B.O.S. Bango Operating System"
+            width={720}
+            height={672}
+            priority
+            className="bos-mobile-login-logo-image"
+          />
+        </div>
         <h1>Welcome Back</h1>
         <p>Sign in to your account</p>
       </div>
@@ -72,9 +84,15 @@ function LoginPageContent() {
       <div className="grid w-full gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="hidden rounded-[var(--radius-3xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-8 shadow-[var(--shadow-large)] lg:flex lg:flex-col lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-brand-700)]">B.O.S.</p>
-            <p className="mt-2 text-sm font-medium text-[var(--color-text-secondary)]">Bango Operating System</p>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight text-[var(--color-text-primary)]">{t("auth.loginTitle")}</h1>
+            <Image
+              src={BOS_LOGO_SRC}
+              alt="B.O.S. Bango Operating System"
+              width={720}
+              height={672}
+              priority
+              className="h-auto w-[280px] max-w-full object-contain"
+            />
+            <h1 className="mt-6 text-4xl font-bold tracking-tight text-[var(--color-text-primary)]">{t("auth.loginTitle")}</h1>
             <p className="mt-4 max-w-md text-base leading-7 text-[var(--color-text-secondary)]">{t("auth.loginDescription")}</p>
           </div>
           <div className="mt-8 grid gap-3 text-sm text-[var(--color-text-secondary)]">
