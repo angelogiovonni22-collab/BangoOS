@@ -78,9 +78,9 @@ create policy reality_capture_sessions_insert on public.reality_capture_sessions
       or exists (
         select 1
         from public.blueprint_versions bv
-        where bv.id = blueprint_version_id
-          and bv.company_id = company_id
-          and bv.project_id = project_id
+        where bv.id = reality_capture_sessions.blueprint_version_id
+          and bv.company_id = reality_capture_sessions.company_id
+          and bv.project_id = reality_capture_sessions.project_id
       )
     )
   );
@@ -96,9 +96,9 @@ create policy reality_capture_sessions_update on public.reality_capture_sessions
       or exists (
         select 1
         from public.blueprint_versions bv
-        where bv.id = blueprint_version_id
-          and bv.company_id = company_id
-          and bv.project_id = project_id
+        where bv.id = reality_capture_sessions.blueprint_version_id
+          and bv.company_id = reality_capture_sessions.company_id
+          and bv.project_id = reality_capture_sessions.project_id
       )
     )
   );
@@ -120,9 +120,9 @@ create policy reality_capture_assets_insert on public.reality_capture_assets
     and exists (
       select 1
       from public.reality_capture_sessions s
-      where s.id = session_id
-        and s.company_id = company_id
-        and s.project_id = project_id
+      where s.id = reality_capture_assets.session_id
+        and s.company_id = reality_capture_assets.company_id
+        and s.project_id = reality_capture_assets.project_id
     )
   );
 
@@ -143,9 +143,9 @@ create policy reality_capture_measurements_insert on public.reality_capture_meas
     and exists (
       select 1
       from public.reality_capture_sessions s
-      where s.id = session_id
-        and s.company_id = company_id
-        and s.project_id = project_id
+      where s.id = reality_capture_measurements.session_id
+        and s.company_id = reality_capture_measurements.company_id
+        and s.project_id = reality_capture_measurements.project_id
     )
   );
 
