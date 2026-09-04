@@ -5,6 +5,8 @@ on:
     paths:
       - "lib/adaptive-bos/**"
       - "app/api/adaptive-bos/**"
+      - "app/(app)/settings/operating-profile/**"
+      - "app/(app)/settings/page.tsx"
       - "supabase/migrations/*adaptive_bos*"
       - ".github/workflows/adaptive-bos.yml"
   push:
@@ -12,6 +14,8 @@ on:
     paths:
       - "lib/adaptive-bos/**"
       - "app/api/adaptive-bos/**"
+      - "app/(app)/settings/operating-profile/**"
+      - "app/(app)/settings/page.tsx"
       - "supabase/migrations/*adaptive_bos*"
       - ".github/workflows/adaptive-bos.yml"
 
@@ -26,3 +30,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx -y tsx lib/adaptive-bos/adaptive-bos.contract.test.ts
+      - run: npx -y tsx lib/adaptive-bos/operating-profile-ui.contract.test.ts
