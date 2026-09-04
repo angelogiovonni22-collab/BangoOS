@@ -156,6 +156,9 @@ begin
   return coalesce(new, old);
 end $$;
 
+revoke execute on function public.sync_bank_transaction_reconciliation_status_fn() from public, anon, authenticated;
+grant execute on function public.sync_bank_transaction_reconciliation_status_fn() to service_role;
+
 drop trigger if exists sync_bank_transaction_reconciliation_status on public.bank_reconciliation_matches;
 create trigger sync_bank_transaction_reconciliation_status
 after insert or update or delete on public.bank_reconciliation_matches
