@@ -59,6 +59,20 @@ export function BosStartupIntro() {
   }, []);
 
   useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const active = state !== "hidden";
+
+    html.classList.toggle("bos-startup-active", active);
+    body.classList.toggle("bos-startup-active", active);
+
+    return () => {
+      html.classList.remove("bos-startup-active");
+      body.classList.remove("bos-startup-active");
+    };
+  }, [state]);
+
+  useEffect(() => {
     if (state !== "fallback") return;
     fallbackTimerRef.current = window.setTimeout(() => {
       setState("fading");
@@ -107,8 +121,6 @@ export function BosStartupIntro() {
 
   if (state === "hidden") return null;
 
-  const isFallback = state === "checking" || state === "fallback";
-
   return (
     <div
       className={`${styles.root} ${state === "fading" ? styles.fading : ""}`}
@@ -116,8 +128,8 @@ export function BosStartupIntro() {
     >
       <div className={styles.ambient} />
 
-      {isFallback ? (
-        <div className={`${styles.fallback} ${state === "fallback" ? styles.fallbackPlaying : ""}`}>
+      {state === "fallback" ? (
+        <div className={`${styles.fallback} ${styles.fallbackPlaying}`}>
           <Image
             src={FALLBACK_LOGO_SRC}
             alt=""
@@ -128,12 +140,11 @@ export function BosStartupIntro() {
           />
           <div className={styles.fallbackGlow} />
         </div>
-      ) : (
+      ) : state === "video" ? (
         <video
           ref={videoRef}
           className={styles.video}
           src={VIDEO_SRC}
-          poster={FALLBACK_LOGO_SRC}
           autoPlay
           muted
           playsInline
@@ -146,7 +157,7 @@ export function BosStartupIntro() {
           onError={() => setState("fallback")}
           onStalled={() => setState("fallback")}
         />
-      )}
+      ) : null}
     </div>
   );
 }

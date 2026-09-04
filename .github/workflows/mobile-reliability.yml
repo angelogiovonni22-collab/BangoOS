@@ -7,6 +7,7 @@ on:
       - "app/(app)/mobile-home/**"
       - "app/mobile-*.css"
       - "app/layout.tsx"
+      - "components/startup/**"
       - "components/crews/mobile-field-operations-workspace.tsx"
       - "lib/mobile/**"
       - ".github/workflows/mobile-reliability.yml"
@@ -17,6 +18,7 @@ on:
       - "app/(app)/mobile-home/**"
       - "app/mobile-*.css"
       - "app/layout.tsx"
+      - "components/startup/**"
       - "components/crews/mobile-field-operations-workspace.tsx"
       - "lib/mobile/**"
       - ".github/workflows/mobile-reliability.yml"
@@ -37,6 +39,6 @@ jobs:
       - name: Verify mobile reliability contract
         run: npx -y tsx lib/mobile/mobile-reliability.contract.test.ts
       - name: Lint mobile sources
-        run: npx eslint "app/app-entry/**/*.{ts,tsx}" "app/(app)/mobile-home/**/*.{ts,tsx}" lib/mobile/mobile-reliability.contract.test.ts
+        run: npx eslint "app/app-entry/**/*.{ts,tsx}" "app/(app)/mobile-home/**/*.{ts,tsx}" "components/startup/**/*.{ts,tsx}" lib/mobile/mobile-reliability.contract.test.ts
       - name: Build B.O.S.
         run: npm run build
