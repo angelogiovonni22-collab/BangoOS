@@ -18,6 +18,7 @@ import "./mobile-reference.css";
 import "./mobile-login.css";
 import "./mobile-reliability.css";
 import "./sidebar-uniform-background.css";
+import { BosStartupIntro } from "@/components/startup/BosStartupIntro";
 import { I18nProvider } from "@/lib/i18n/provider";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
@@ -80,6 +81,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body className="min-h-full flex flex-col">
+        <BosStartupIntro />
         <I18nProvider initialLocale={initialLocale}>{children}</I18nProvider>
       </body>
     </html>
