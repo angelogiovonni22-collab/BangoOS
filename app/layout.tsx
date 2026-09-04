@@ -43,10 +43,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eef4fb" },
-    { media: "(prefers-color-scheme: dark)", color: "#050b16" },
-  ],
+  themeColor: "#000000",
 };
 
 const LOCALE_COOKIE_KEY = "bangoos_i18n_locale";
@@ -70,14 +67,24 @@ const themeBootstrapScript = `(() => {
   } catch {}
 })();`;
 
+const startupPrepaintCss = `
+html.bos-startup-prepaint,
+html.bos-startup-prepaint body {
+  margin: 0;
+  min-height: 100%;
+  background: #000 !important;
+}
+`;
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(LOCALE_COOKIE_KEY)?.value;
   const initialLocale = isAppLocale(cookieLocale) ? cookieLocale : "en";
 
   return (
-    <html lang={initialLocale} className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang={initialLocale} className={`${inter.variable} h-full antialiased bos-startup-prepaint`} suppressHydrationWarning>
       <head>
+        <style dangerouslySetInnerHTML={{ __html: startupPrepaintCss }} />
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body className="min-h-full flex flex-col">
