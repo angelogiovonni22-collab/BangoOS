@@ -56,19 +56,23 @@ export function classifyOrionCommandRisk(command: Pick<OrionCommandDefinition, "
   if (DESTRUCTIVE_COMMANDS.has(command.id)) return "destructive";
   if (LEGAL_OR_AUTHORITY_COMMANDS.has(command.id)) return "legal_or_authority";
   if (looksReadOnly(command)) return "read";
-  return command.undoCapable ? "reversible_write" : "reversible_write";
+  return "reversible_write";
 }
 
 export function autonomyModeForCommand(command: Pick<OrionCommandDefinition, "id" | "coverage" | "undoCapable" | "confirmationLevel">): OrionAutonomyMode {
   const risk = classifyOrionCommandRisk(command);
   if (command.confirmationLevel === "REQUIRED") return "confirm";
   if (["external_effect", "financial", "destructive", "legal_or_authority"].includes(risk)) return "confirm";
+  if (risk === "read") return "auto";
   if (command.confirmationLevel === "REVIEW") return "review";
   return "auto";
 }
 
 export function effectiveOrionConfirmationLevel(command: Pick<OrionCommandDefinition, "id" | "coverage" | "undoCapable" | "confirmationLevel">): OrionCommandConfirmationLevel {
-  return autonomyModeForCommand(command) === "confirm" ? "REQUIRED" : command.confirmationLevel;
+  const mode = autonomyModeForCommand(command);
+  if (mode === "confirm") return "REQUIRED";
+  if (mode === "auto" && classifyOrionCommandRisk(command) === "read") return "NONE";
+  return command.confirmationLevel;
 }
 
 export function canContinueAutonomousSequence(args: {
