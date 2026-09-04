@@ -4,11 +4,11 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import styles from "./BosStartupIntro.module.css";
 
-const SESSION_KEY = "bos-startup-intro-shown";
 const VIDEO_SRC = "/branding/Mobile_app_startup_logo_animation_202609032341_iOS_optimized%20(1).mp4";
 const FALLBACK_LOGO_SRC = "/branding/bos-operating-system-logo.png";
 const LOAD_TIMEOUT_MS = 5000;
 const PLAYBACK_TIMEOUT_MS = 15000;
+const PREPAINT_CLASS = "bos-startup-prepaint";
 
 type IntroState = "checking" | "video" | "fallback" | "fading" | "hidden";
 
@@ -31,6 +31,10 @@ export function BosStartupIntro() {
     }
   };
 
+  const releasePrepaint = () => {
+    document.documentElement.classList.remove(PREPAINT_CLASS);
+  };
+
   useEffect(() => {
     let cancelled = false;
     const frame = window.requestAnimationFrame(() => {
@@ -38,14 +42,13 @@ export function BosStartupIntro() {
 
       const isMobile = window.matchMedia("(max-width: 1023px)").matches;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const alreadyShown = window.sessionStorage.getItem(SESSION_KEY) === "1";
 
-      if (!isMobile || reducedMotion || alreadyShown) {
+      if (!isMobile || reducedMotion) {
+        releasePrepaint();
         setState("hidden");
         return;
       }
 
-      window.sessionStorage.setItem(SESSION_KEY, "1");
       setState("video");
       loadTimerRef.current = window.setTimeout(() => {
         setState((current) => (current === "video" ? "fallback" : current));
@@ -63,7 +66,10 @@ export function BosStartupIntro() {
     if (state !== "fallback") return;
     fallbackTimerRef.current = window.setTimeout(() => {
       setState("fading");
-      finishTimerRef.current = window.setTimeout(() => setState("hidden"), 320);
+      finishTimerRef.current = window.setTimeout(() => {
+        releasePrepaint();
+        setState("hidden");
+      }, 320);
     }, 2200);
 
     return () => {
@@ -77,7 +83,10 @@ export function BosStartupIntro() {
   const finish = () => {
     clearTimers();
     setState("fading");
-    finishTimerRef.current = window.setTimeout(() => setState("hidden"), 320);
+    finishTimerRef.current = window.setTimeout(() => {
+      releasePrepaint();
+      setState("hidden");
+    }, 320);
   };
 
   const requestPlayback = async () => {
