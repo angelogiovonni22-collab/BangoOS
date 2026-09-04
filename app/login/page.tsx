@@ -57,10 +57,7 @@ function LoginPageContent() {
       return;
     }
 
-    const mobileDestination = nextPath === "/dashboard" && window.matchMedia("(max-width: 1023px)").matches
-      ? "/mobile-home"
-      : nextPath;
-    router.push(mobileDestination);
+    router.push(nextPath);
     router.refresh();
   };
 
