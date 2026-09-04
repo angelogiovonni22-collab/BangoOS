@@ -8,14 +8,24 @@ import { hasBosPermission } from "@/lib/access-control/permissions";
 import { useI18n } from "@/lib/i18n/provider";
 
 export default function SettingsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { role } = useCompany();
   const canManageAccess = hasBosPermission(role, "access_control.manage");
   const canManageBilling = role === "owner" || role === "administrator";
+  const canManageOperatingProfile = role === "owner" || role === "administrator";
+  const es = locale === "es";
 
   return (
     <div className="container-narrow space-y-[var(--space-section)]">
       <PageHeader compact eyebrow={t("settings.eyebrow")} title={t("navigation.settings")} description={t("settings.description")} />
+
+      {canManageOperatingProfile ? <Card as="section" variant="elevated">
+        <CardHeader className="bg-[var(--color-surface-subtle)]">
+          <CardTitle>{es ? "Perfil operativo adaptable" : "Adaptive operating profile"}</CardTitle>
+          <p className="text-sm text-[var(--color-text-secondary)]">{es ? "Define la industria, el modelo de negocio y los servicios que B.O.S. usará para adaptar terminología, módulos y flujos de trabajo." : "Define the industry, business model, and services B.O.S. uses to adapt terminology, modules, and workflows."}</p>
+        </CardHeader>
+        <CardContent className="p-5"><Link href="/settings/operating-profile" className="inline-flex items-center rounded-[10px] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105">{es ? "Configurar B.O.S. adaptable" : "Configure Adaptive B.O.S."}</Link></CardContent>
+      </Card> : null}
 
       {canManageAccess ? <Card as="section" variant="elevated">
         <CardHeader className="bg-[var(--color-surface-subtle)]">
