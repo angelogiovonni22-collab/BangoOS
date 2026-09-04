@@ -6,6 +6,8 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 import { summarizeRoomPlan, validateRealityCaptureInput, type RealityCaptureCreateInput } from "@/lib/reality/capture";
 
+// Reality Engine tables are migration-backed until the next generated Supabase type refresh.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type UntypedSupabase = SupabaseClient<any>;
 
 async function clientForRequest(req:NextRequest):Promise<SupabaseClient<Database>|null> {
