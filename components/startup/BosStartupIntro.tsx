@@ -8,19 +8,24 @@ const VIDEO_SRC = "/branding/Mobile_app_startup_logo_animation_202609032341_iOS_
 const FALLBACK_LOGO_SRC = "/branding/bos-operating-system-logo.png";
 const LOAD_TIMEOUT_MS = 5000;
 const PLAYBACK_TIMEOUT_MS = 15000;
+const REOPEN_THRESHOLD_MS = 1000;
 const PREPAINT_CLASS = "bos-startup-prepaint";
 
 type IntroState = "checking" | "video" | "fallback" | "fading" | "hidden";
 
+type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+
 export function BosStartupIntro() {
   const [state, setState] = useState<IntroState>("checking");
   const [videoVisible, setVideoVisible] = useState(false);
+  const [runId, setRunId] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fallbackTimerRef = useRef<number | null>(null);
   const finishTimerRef = useRef<number | null>(null);
   const loadTimerRef = useRef<number | null>(null);
   const playbackTimerRef = useRef<number | null>(null);
   const playRequestedRef = useRef(false);
+  const hiddenAtRef = useRef<number | null>(null);
 
   const clearTimers = () => {
     for (const ref of [fallbackTimerRef, finishTimerRef, loadTimerRef, playbackTimerRef]) {
@@ -33,6 +38,13 @@ export function BosStartupIntro() {
 
   const releasePrepaint = () => {
     document.documentElement.classList.remove(PREPAINT_CLASS);
+  };
+
+  const armLoadTimeout = () => {
+    if (loadTimerRef.current !== null) window.clearTimeout(loadTimerRef.current);
+    loadTimerRef.current = window.setTimeout(() => {
+      setState((current) => (current === "video" ? "fallback" : current));
+    }, LOAD_TIMEOUT_MS);
   };
 
   useEffect(() => {
@@ -50,9 +62,7 @@ export function BosStartupIntro() {
       }
 
       setState("video");
-      loadTimerRef.current = window.setTimeout(() => {
-        setState((current) => (current === "video" ? "fallback" : current));
-      }, LOAD_TIMEOUT_MS);
+      armLoadTimeout();
     });
 
     return () => {
@@ -60,6 +70,36 @@ export function BosStartupIntro() {
       window.cancelAnimationFrame(frame);
       clearTimers();
     };
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
+
+      const hiddenAt = hiddenAtRef.current;
+      hiddenAtRef.current = null;
+      if (hiddenAt === null || Date.now() - hiddenAt < REOPEN_THRESHOLD_MS) return;
+
+      const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+        || (navigator as NavigatorWithStandalone).standalone === true;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!isMobile || !isStandalone || reducedMotion) return;
+
+      clearTimers();
+      playRequestedRef.current = false;
+      setVideoVisible(false);
+      document.documentElement.classList.add(PREPAINT_CLASS);
+      setRunId((current) => current + 1);
+      setState("video");
+      armLoadTimeout();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   useEffect(() => {
@@ -95,6 +135,7 @@ export function BosStartupIntro() {
 
     playRequestedRef.current = true;
     try {
+      video.currentTime = 0;
       video.muted = true;
       video.defaultMuted = true;
       await video.play();
@@ -141,6 +182,7 @@ export function BosStartupIntro() {
         </div>
       ) : state === "video" ? (
         <video
+          key={runId}
           ref={videoRef}
           className={`${styles.video} ${videoVisible ? styles.videoPlaying : ""}`}
           src={VIDEO_SRC}
