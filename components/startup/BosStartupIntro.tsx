@@ -14,6 +14,7 @@ type IntroState = "checking" | "video" | "fallback" | "fading" | "hidden";
 
 export function BosStartupIntro() {
   const [state, setState] = useState<IntroState>("checking");
+  const [videoVisible, setVideoVisible] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fallbackTimerRef = useRef<number | null>(null);
   const finishTimerRef = useRef<number | null>(null);
@@ -95,6 +96,7 @@ export function BosStartupIntro() {
   };
 
   const handlePlaying = () => {
+    setVideoVisible(true);
     if (loadTimerRef.current !== null) {
       window.clearTimeout(loadTimerRef.current);
       loadTimerRef.current = null;
@@ -107,7 +109,7 @@ export function BosStartupIntro() {
 
   if (state === "hidden") return null;
 
-  const isFallback = state === "checking" || state === "fallback";
+  const isFallback = state === "fallback";
 
   return (
     <div
@@ -117,7 +119,7 @@ export function BosStartupIntro() {
       <div className={styles.ambient} />
 
       {isFallback ? (
-        <div className={`${styles.fallback} ${state === "fallback" ? styles.fallbackPlaying : ""}`}>
+        <div className={`${styles.fallback} ${styles.fallbackPlaying}`}>
           <Image
             src={FALLBACK_LOGO_SRC}
             alt=""
@@ -128,12 +130,11 @@ export function BosStartupIntro() {
           />
           <div className={styles.fallbackGlow} />
         </div>
-      ) : (
+      ) : state === "video" ? (
         <video
           ref={videoRef}
-          className={styles.video}
+          className={`${styles.video} ${videoVisible ? styles.videoPlaying : ""}`}
           src={VIDEO_SRC}
-          poster={FALLBACK_LOGO_SRC}
           autoPlay
           muted
           playsInline
@@ -146,7 +147,7 @@ export function BosStartupIntro() {
           onError={() => setState("fallback")}
           onStalled={() => setState("fallback")}
         />
-      )}
+      ) : null}
     </div>
   );
 }
