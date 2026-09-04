@@ -1,0 +1,28 @@
+name: Adaptive BOS Configuration
+
+on:
+  pull_request:
+    paths:
+      - "lib/adaptive-bos/**"
+      - "app/api/adaptive-bos/**"
+      - "supabase/migrations/*adaptive_bos*"
+      - ".github/workflows/adaptive-bos.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/adaptive-bos/**"
+      - "app/api/adaptive-bos/**"
+      - "supabase/migrations/*adaptive_bos*"
+      - ".github/workflows/adaptive-bos.yml"
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx -y tsx lib/adaptive-bos/adaptive-bos.contract.test.ts
