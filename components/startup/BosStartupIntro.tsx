@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./BosStartupIntro.module.css";
 
 const SESSION_KEY = "bos-startup-intro-shown";
-const VIDEO_SRC = "/branding/bos-startup.mp4";
+const VIDEO_SRC = "/branding/Mobile_app_startup_logo_animation_202609032341.mp4";
 const FALLBACK_LOGO_SRC = "/branding/bos-operating-system-logo.png";
 
 type IntroState = "checking" | "video" | "fallback" | "fading" | "hidden";
