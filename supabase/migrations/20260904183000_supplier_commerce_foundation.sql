@@ -94,20 +94,22 @@ alter table public.supplier_product_quotes enable row level security;
 alter table public.supplier_order_submissions enable row level security;
 alter table public.supplier_order_events enable row level security;
 
+-- Authenticated company members may inspect integration/readiness/audit data, but
+-- provider state, quote cache, and outbound order audit writes are server-only.
 do $$
 declare t text;
 begin
   foreach t in array array['supplier_integrations','supplier_product_quotes','supplier_order_submissions','supplier_order_events'] loop
     execute format('drop policy if exists %I on public.%I', t || '_company_access', t);
+    execute format('drop policy if exists %I on public.%I', t || '_company_read', t);
     execute format($policy$
       create policy %I on public.%I
-      for all to authenticated
+      for select to authenticated
       using (exists (select 1 from public.company_memberships cm where cm.company_id = %I.company_id and cm.user_id = auth.uid() and cm.status = 'active'))
-      with check (exists (select 1 from public.company_memberships cm where cm.company_id = %I.company_id and cm.user_id = auth.uid() and cm.status = 'active'))
-    $policy$, t || '_company_access', t, t, t);
+    $policy$, t || '_company_read', t, t);
   end loop;
 end $$;
 
 comment on table public.supplier_integrations is 'Non-secret supplier integration state. Credentials remain in deployment secret storage.';
 comment on table public.supplier_product_quotes is 'Short-lived provider quote/inventory observations used to compare live supplier pricing.';
-comment on table public.supplier_order_submissions is 'Auditable outbound supplier order lifecycle. Rows do not themselves move money.';
+comment on table public.supplier_order_submissions is 'Auditable outbound supplier order lifecycle. Writes are server-only and rows do not themselves move money.';
