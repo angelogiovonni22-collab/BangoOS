@@ -1,0 +1,26 @@
+name: Native Mobile Shell
+
+on:
+  pull_request:
+    paths:
+      - "native/**"
+      - "lib/native/**"
+      - ".github/workflows/native-mobile-shell.yml"
+  push:
+    branches: [main]
+    paths:
+      - "native/**"
+      - "lib/native/**"
+      - ".github/workflows/native-mobile-shell.yml"
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx -y tsx lib/native/native-mobile-shell.contract.test.ts
