@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, Filter, ShieldAlert } from "lucide-react";
 import { FadeIn } from "@/components/motion";
 import { CardContent, EmptyState, Input } from "@/components/ui";
 import { PhaseProgressBar } from "@/app/(app)/projects/[id]/components/phase-progress-bar";
+import { ProjectTaskDependenciesPanel } from "./project-task-dependencies-panel";
 
 type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -262,6 +263,8 @@ export function ProjectWorkExecutionBoard({
           </select>
         </label>
       </div>
+
+      <ProjectTaskDependenciesPanel selectedTaskId={selectedTaskId} tasks={tasks} t={t} />
 
       <div className="space-y-4 md:hidden">
         {STATUS_BUCKET_ORDER.map((bucket) => {
