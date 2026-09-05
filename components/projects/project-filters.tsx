@@ -1,4 +1,7 @@
+"use client";
+
 import { FilterToolbar, SearchInput, Select } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 
 type FilterOption = {
   value: string;
@@ -40,6 +43,10 @@ export function ProjectFilters({
   onTypeChange,
   t,
 }: ProjectFiltersProps) {
+  const { term } = useAdaptiveBos();
+  const projectLabel = term("project", "Project");
+  const customerLabel = term("customer", "Customer");
+
   return (
     <FilterToolbar gridClassName="md:grid-cols-2 xl:grid-cols-6">
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)] md:col-span-2 xl:col-span-2">
@@ -47,8 +54,8 @@ export function ProjectFilters({
         <SearchInput
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder={t("projects.searchPlaceholder")}
-          aria-label={t("projects.filterSearch")}
+          placeholder={`Search ${projectLabel.toLowerCase()} name, ${customerLabel.toLowerCase()}, manager, or status`}
+          aria-label={`Search ${projectLabel.toLowerCase()} records`}
         />
       </label>
 
@@ -79,11 +86,11 @@ export function ProjectFilters({
       </label>
 
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{t("projects.filterCustomerLabel")}</span>
+        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{customerLabel}</span>
         <Select
           value={customerValue}
           onChange={(event) => onCustomerChange(event.target.value)}
-          aria-label={t("projects.filterCustomerLabel")}
+          aria-label={customerLabel}
         >
           {customerOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
@@ -92,11 +99,11 @@ export function ProjectFilters({
       </label>
 
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{t("projects.filterProjectType")}</span>
+        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{projectLabel} Type</span>
         <Select
           value={typeValue}
           onChange={(event) => onTypeChange(event.target.value)}
-          aria-label={t("projects.filterProjectType")}
+          aria-label={`${projectLabel} Type`}
         >
           {typeOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
