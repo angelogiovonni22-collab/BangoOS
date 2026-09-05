@@ -37,5 +37,6 @@ jobs:
       - run: npx -y tsx lib/orion/autonomy/orion-autonomy.contract.test.ts
       - run: npx -y tsx lib/orion/autonomy/orion-autonomy-planner.contract.test.ts
       - run: npx -y tsx lib/orion/autonomy/orion-autonomy-plan-request.contract.test.ts
+      - run: npx -y tsx lib/orion/autonomy/orion-step-references.contract.test.ts
       - run: npx -y tsx lib/orion/autonomy/orion-safe-read-executor.contract.test.ts
       - run: npx -y tsx lib/orion/autonomy/orion-realtime-safe-sequence.contract.test.ts
