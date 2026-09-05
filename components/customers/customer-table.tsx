@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { Archive, ChevronLeft, ChevronRight, Eye, FilePlus2, MoreHorizontal, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { Badge, Button, EnterpriseTable, EnterpriseTableBody, EnterpriseTableCell, EnterpriseTableFooter, EnterpriseTableHead, EnterpriseTableHeading, EnterpriseTableRow, PortalHost, StatusBadge, TableContainer, getButtonClassName } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { CustomerAvatar } from "./customer-avatar";
 
 type CustomerTableItem = {
@@ -59,6 +60,13 @@ function getMenuPosition(rect: DOMRect) {
 
 export function CustomerTable({ items, total, page, pageSize, onPageChange, onArchive, onRestore, onDelete, t }: CustomerTableProps) {
   const router = useRouter();
+  const { term } = useAdaptiveBos();
+  const customerLabel = term("customer", "Customer");
+  const customersLabel = term("customers", "Customers");
+  const estimateLabel = term("estimate", "Estimate");
+  const projectLabel = term("project", "Project");
+  const customerLower = customerLabel.toLowerCase();
+  const customersLower = customersLabel.toLowerCase();
   const [openMenu, setOpenMenu] = useState<OpenMenu | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const activeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -123,11 +131,11 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
 
   return (
     <>
-      <TableContainer title="Customer List" description={`${total} ${total === 1 ? "customer" : "customers"}`}>
-        <EnterpriseTable ariaLabel={t("customers.list.title")}>
+      <TableContainer title={`${customerLabel} List`} description={`${total} ${total === 1 ? customerLower : customersLower}`}>
+        <EnterpriseTable ariaLabel={`${customersLabel} list`}>
           <EnterpriseTableHead>
             <tr>
-              <EnterpriseTableHeading>{t("customers.tableCustomer")}</EnterpriseTableHeading>
+              <EnterpriseTableHeading>{customerLabel}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("customers.tableType")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("customers.email")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("customers.phoneNumber")}</EnterpriseTableHeading>
@@ -145,7 +153,7 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
                 className="cursor-pointer transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]/80 hover:shadow-[0_10px_24px_-20px_rgba(15,23,42,0.28)]"
                 role="link"
                 tabIndex={0}
-                aria-label={`${t("customers.view")} ${customer.name}`}
+                aria-label={`View ${customerLabel} ${customer.name}`}
                 onClick={(event) => {
                   const target = event.target as HTMLElement;
                   if (target.closest("a,button,input,select,textarea")) return;
@@ -174,13 +182,13 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
                 <EnterpriseTableCell>{formatCreatedDate(customer.createdAt)}</EnterpriseTableCell>
                 <EnterpriseTableCell align="right">
                   <div className="inline-flex items-center gap-1">
-                    <Link href={`/customers/${customer.id}`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Eye size={15} aria-hidden="true" /></Link>
-                    <Link href={`/customers/${customer.id}?edit=1`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Pencil size={15} aria-hidden="true" /></Link>
+                    <Link href={`/customers/${customer.id}`} aria-label={`View ${customerLabel}`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Eye size={15} aria-hidden="true" /></Link>
+                    <Link href={`/customers/${customer.id}?edit=1`} aria-label={`Edit ${customerLabel}`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Pencil size={15} aria-hidden="true" /></Link>
                     <Button
                       variant="ghost"
                       size="sm"
                       disabled={busyId === customer.id}
-                      aria-label={t("customers.actions.more")}
+                      aria-label={`${customerLabel} actions`}
                       aria-haspopup="menu"
                       aria-expanded={openMenu?.customer.id === customer.id}
                       onClick={(event) => toggleMenu(event, customer)}
@@ -196,7 +204,7 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
 
         <EnterpriseTableFooter>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[var(--color-text-secondary)]">{t("customers.pagination.showing", { from: showingFrom, to: showingTo, total })}</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">Showing {showingFrom}-{showingTo} of {total} {customersLower}</p>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => onPageChange(page - 1)} disabled={!canPrev}><ChevronLeft size={14} aria-hidden="true" />{t("customers.pagination.previous")}</Button>
               <span className="inline-flex min-w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)]">{page}</span>
@@ -215,17 +223,17 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
             className="fixed z-[1000] w-52 overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-white p-1.5 text-left shadow-2xl"
             style={{ left: openMenu.left, top: openMenu.top }}
           >
-            <MenuLink href={`/customers/${openMenu.customer.id}`} icon={<Eye size={14} />} onNavigate={() => setOpenMenu(null)}>View Customer</MenuLink>
-            <MenuLink href={`/customers/${openMenu.customer.id}?edit=1`} icon={<Pencil size={14} />} onNavigate={() => setOpenMenu(null)}>Edit Customer</MenuLink>
-            <MenuLink href={`/estimates/new?customerId=${openMenu.customer.id}`} icon={<FilePlus2 size={14} />} onNavigate={() => setOpenMenu(null)}>Create Estimate</MenuLink>
-            <MenuLink href={`/projects/new?customerId=${openMenu.customer.id}`} icon={<FilePlus2 size={14} />} onNavigate={() => setOpenMenu(null)}>Create Project</MenuLink>
+            <MenuLink href={`/customers/${openMenu.customer.id}`} icon={<Eye size={14} />} onNavigate={() => setOpenMenu(null)}>View {customerLabel}</MenuLink>
+            <MenuLink href={`/customers/${openMenu.customer.id}?edit=1`} icon={<Pencil size={14} />} onNavigate={() => setOpenMenu(null)}>Edit {customerLabel}</MenuLink>
+            <MenuLink href={`/estimates/new?customerId=${openMenu.customer.id}`} icon={<FilePlus2 size={14} />} onNavigate={() => setOpenMenu(null)}>Create {estimateLabel}</MenuLink>
+            <MenuLink href={`/projects/new?customerId=${openMenu.customer.id}`} icon={<FilePlus2 size={14} />} onNavigate={() => setOpenMenu(null)}>Create {projectLabel}</MenuLink>
             <div className="my-1 border-t border-[var(--color-border-subtle)]" />
             {openMenu.customer.statusKey === "archived" ? (
-              <MenuButton icon={<RotateCcw size={14} />} onClick={() => void runAction(openMenu.customer, "restore")}>Restore Customer</MenuButton>
+              <MenuButton icon={<RotateCcw size={14} />} onClick={() => void runAction(openMenu.customer, "restore")}>Restore {customerLabel}</MenuButton>
             ) : (
-              <MenuButton icon={<Archive size={14} />} onClick={() => void runAction(openMenu.customer, "archive")}>Archive Customer</MenuButton>
+              <MenuButton icon={<Archive size={14} />} onClick={() => void runAction(openMenu.customer, "archive")}>Archive {customerLabel}</MenuButton>
             )}
-            <MenuButton danger icon={<Trash2 size={14} />} onClick={() => void runAction(openMenu.customer, "delete")}>Delete Customer</MenuButton>
+            <MenuButton danger icon={<Trash2 size={14} />} onClick={() => void runAction(openMenu.customer, "delete")}>Delete {customerLabel}</MenuButton>
           </div>
         </PortalHost>
       ) : null}
