@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createOrionCommandRouter, createOrionCommandRegistry, type OrionCommandPermission } from "@/lib/orion/commands";
+import { effectiveOrionConfirmationLevel, autonomyModeForCommand, classifyOrionCommandRisk } from "@/lib/orion/autonomy/policy";
 import { authorizeOrionCommand } from "@/lib/orion/commands/authorization";
 import { createOrionExecutionEnvelope } from "@/lib/orion/commands/execution-envelope";
 import { getUniversalBosCommandByToolName } from "@/lib/orion/intelligence";
@@ -141,8 +142,11 @@ async function executeCanonicalCommand(args: {
   }
 
   const normalizedParams: Record<string, unknown> = validation.normalizedParams ?? {};
+  const autonomyRisk = classifyOrionCommandRisk(command);
+  const autonomyMode = autonomyModeForCommand(command);
+  const effectiveConfirmation = effectiveOrionConfirmationLevel(command);
 
-  if (command.confirmationLevel === "REQUIRED" && !args.confirmed) {
+  if (effectiveConfirmation === "REQUIRED" && !args.confirmed) {
     const confirmationToken = encodeConfirmationToken({
       commandId: command.id,
       params: normalizedParams,
@@ -160,6 +164,7 @@ async function executeCanonicalCommand(args: {
         confirmationRequired: true,
         confirmationToken,
         userMessage: `Please confirm before I ${command.description.toLowerCase()}`,
+        details: { autonomyRisk, autonomyMode, policyEnforced: command.confirmationLevel !== "REQUIRED" },
       },
     };
   }
@@ -170,7 +175,7 @@ async function executeCanonicalCommand(args: {
   const result = await router.executeCommand({
     commandId: command.id,
     params: normalizedParams,
-    confirmation: command.confirmationLevel === "REQUIRED"
+    confirmation: effectiveConfirmation === "REQUIRED"
       ? { confirmed: true, summary: `Confirmed in Orion Realtime conversation for ${command.id}.` }
       : undefined,
     companyContext: { companyId: args.companyId },
@@ -194,6 +199,8 @@ async function executeCanonicalCommand(args: {
         fastPath: !args.confirmed,
         elapsedMs,
         resolvedAliases: fastParams.resolvedAliases,
+        autonomyRisk,
+        autonomyMode,
       },
     },
   };

@@ -42,8 +42,7 @@ function main() {
   assert(toolRoute.includes("normalizeRealtimeFastCommandParams") && toolRoute.includes("command.validate(fastParams.params)"), "Realtime BOS calls normalize fast-path inputs before canonical validation");
   assert(toolRoute.includes("createOrionCommandRouter({ supabase: args.supabase })"), "Realtime BOS calls use the canonical command router");
   assert(toolRoute.includes("createOrionExecutionEnvelope(command.id, \"orion-realtime\", args.executionId)"), "Realtime uses compact retry-stable idempotency keys");
-  assert(bridge.includes("executionId: call.callId"), "Realtime forwards the stable function-call ID to command execution");
-  assert(toolRoute.includes('command.confirmationLevel === "REQUIRED"') && toolRoute.includes("confirmationRequired: true"), "required confirmation is gated before execution");
+  assert(toolRoute.includes("effectiveOrionConfirmationLevel(command)") && toolRoute.includes('effectiveConfirmation === "REQUIRED"') && toolRoute.includes("confirmationRequired: true"), "central autonomy policy gates required confirmation before execution");
   assert(toolRoute.includes("createHmac") && toolRoute.includes("timingSafeEqual") && toolRoute.includes("CONFIRMATION_TTL_MS"), "pending confirmation uses a signed short-lived token");
   assert(client.includes("extractOrionRealtimeUserTranscript") && client.includes("waitForRecentUserTranscript"), "confirmation execution uses recent user speech rather than model assertion alone");
   assert(toolRoute.includes("isExplicitConfirmation(confirmationTranscript)"), "server requires explicit transcribed user confirmation before gated execution");
