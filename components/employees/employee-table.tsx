@@ -5,21 +5,22 @@ import type { Employee } from "@/lib/employees";
 
 type EmployeeTableProps = {
   items: Employee[];
+  projectLabel: string;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function EmployeeTable({ items, t }: EmployeeTableProps) {
+export function EmployeeTable({ items, projectLabel, t }: EmployeeTableProps) {
   return (
     <>
       <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full divide-y divide-[var(--color-border-subtle)]">
           <thead className="bg-[var(--color-surface-subtle)]">
             <tr>
-              <TableHeading>{t("employees.table.employee")}</TableHeading>
+              <TableHeading>Team Member</TableHeading>
               <TableHeading>{t("employees.table.position")}</TableHeading>
-              <TableHeading>{t("employees.table.crew")}</TableHeading>
+              <TableHeading>Team</TableHeading>
               <TableHeading>Supervisor</TableHeading>
-              <TableHeading>Project</TableHeading>
+              <TableHeading>{projectLabel}</TableHeading>
               <TableHeading>{t("employees.table.status")}</TableHeading>
               <TableHeading>{t("employees.table.assignment")}</TableHeading>
               <TableHeading align="right">{t("employees.table.actions")}</TableHeading>
@@ -41,24 +42,12 @@ export function EmployeeTable({ items, t }: EmployeeTableProps) {
                 <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{employee.primaryCrewName || t("employees.unassigned")}</td>
                 <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{employee.supervisorName || "Unassigned"}</td>
                 <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{employee.currentProjectName || t("employees.unassigned")}</td>
-                <td className="whitespace-nowrap px-6 py-5 align-top">
-                  <EmployeeStatusPill
-                    employmentStatus={employee.employmentStatus}
-                    availabilityStatus={employee.availabilityStatus}
-                    t={t}
-                  />
-                </td>
-                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">
-                  {employee.currentAssignmentTitle || t("employees.unassigned")}
-                </td>
+                <td className="whitespace-nowrap px-6 py-5 align-top"><EmployeeStatusPill employmentStatus={employee.employmentStatus} availabilityStatus={employee.availabilityStatus} t={t} /></td>
+                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{employee.currentAssignmentTitle || t("employees.unassigned")}</td>
                 <td className="whitespace-nowrap px-6 py-5 text-right text-sm font-semibold">
                   <div className="inline-flex gap-2">
-                    <Link href={`/employees/${employee.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
-                      {t("employees.actions.view")}
-                    </Link>
-                    <Link href={`/employees/${employee.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
-                      Edit
-                    </Link>
+                    <Link href={`/employees/${employee.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">{t("employees.actions.view")}</Link>
+                    <Link href={`/employees/${employee.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">Edit</Link>
                   </div>
                 </td>
               </tr>
@@ -73,32 +62,21 @@ export function EmployeeTable({ items, t }: EmployeeTableProps) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <EmployeeAvatar fullName={employee.fullName} avatarUrl={employee.avatarUrl ?? null} size="md" />
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold text-[var(--color-text-primary)]">{employee.fullName}</p>
-                  <p className="text-sm font-medium text-[var(--color-text-secondary)]">{employee.employeeNumber}</p>
-                </div>
+                <div className="min-w-0"><p className="truncate text-base font-semibold text-[var(--color-text-primary)]">{employee.fullName}</p><p className="text-sm font-medium text-[var(--color-text-secondary)]">{employee.employeeNumber}</p></div>
               </div>
-              <EmployeeStatusPill
-                employmentStatus={employee.employmentStatus}
-                availabilityStatus={employee.availabilityStatus}
-                t={t}
-              />
+              <EmployeeStatusPill employmentStatus={employee.employmentStatus} availabilityStatus={employee.availabilityStatus} t={t} />
             </div>
 
             <div className="mt-4 grid gap-3 text-sm text-[var(--color-text-secondary)] sm:grid-cols-2">
               <InfoLine label={t("employees.table.position")} value={employee.positionTitle} />
-              <InfoLine label={t("employees.table.crew")} value={employee.primaryCrewName || t("employees.unassigned")} />
+              <InfoLine label="Team" value={employee.primaryCrewName || t("employees.unassigned")} />
               <InfoLine label="Supervisor" value={employee.supervisorName || "Unassigned"} />
               <InfoLine label={t("employees.table.assignment")} value={employee.currentAssignmentTitle || t("employees.unassigned")} />
             </div>
 
             <div className="mt-4 flex gap-2">
-              <Link href={`/employees/${employee.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-sm font-semibold text-[var(--color-brand-700)]">
-                {t("employees.actions.view")}
-              </Link>
-              <Link href={`/employees/${employee.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-sm font-semibold text-[var(--color-brand-700)]">
-                Edit
-              </Link>
+              <Link href={`/employees/${employee.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-sm font-semibold text-[var(--color-brand-700)]">{t("employees.actions.view")}</Link>
+              <Link href={`/employees/${employee.id}/edit`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-sm font-semibold text-[var(--color-brand-700)]">Edit</Link>
             </div>
           </article>
         ))}
@@ -108,21 +86,9 @@ export function EmployeeTable({ items, t }: EmployeeTableProps) {
 }
 
 function TableHeading({ children, align = "left" }: { children: string; align?: "left" | "right" }) {
-  return (
-    <th
-      scope="col"
-      className={`px-6 py-3 text-xs font-semibold uppercase tracking-[0.09em] text-[var(--color-text-secondary)] ${align === "right" ? "text-right" : "text-left"}`}
-    >
-      {children}
-    </th>
-  );
+  return <th scope="col" className={`px-6 py-3 text-xs font-semibold uppercase tracking-[0.09em] text-[var(--color-text-secondary)] ${align === "right" ? "text-right" : "text-left"}`}>{children}</th>;
 }
 
 function InfoLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{label}</p>
-      <p className="mt-1 text-sm font-medium text-[var(--color-text-secondary)]">{value}</p>
-    </div>
-  );
+  return <div><p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{label}</p><p className="mt-1 text-sm font-medium text-[var(--color-text-secondary)]">{value}</p></div>;
 }
