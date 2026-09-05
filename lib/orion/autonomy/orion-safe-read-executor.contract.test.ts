@@ -21,7 +21,7 @@ function main() {
   assert(executor.includes("authorizeOrionCommand"), "every read command is re-authorized against live membership");
   assert(executor.includes("resolveOrionStepReferences"), "later read parameters resolve only through the guarded step-reference resolver");
   assert(executor.includes("currentStepIndex: stepIndex"), "step references are evaluated against the current one-based sequence position");
-  assert(executor.includes("outputs.push({") && executor.includes("details: result.details"), "only verified command outputs become available to later reads");
+  assert(executor.includes("output: {") && executor.includes("details: result.details") && executor.includes("outputs.push(attempt.output)"), "only verified command outputs become available to later reads");
   assert(executor.includes("normalizeRealtimeFastCommandParams"), "sequence steps reuse canonical fast parameter normalization");
   assert(executor.includes("params: asParams(referenceResolution.value)"), "canonical normalization receives resolved chained values rather than raw references");
   assert(executor.includes("command.validate(fastParams.params)"), "each command is canonically validated before execution");
