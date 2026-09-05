@@ -8,6 +8,7 @@ import {
 import { authorizeOrionCommand } from "@/lib/orion/commands/authorization";
 import { createOrionExecutionEnvelope } from "@/lib/orion/commands/execution-envelope";
 import { classifyOrionCommandRisk } from "./policy";
+import type { OrionAutonomyPlanStep } from "./planner";
 import { buildOrionAutonomyPlanFromToolSteps, type OrionAutonomyPlanRequestStep } from "./plan-request";
 import { normalizeRealtimeFastCommandParams } from "@/lib/orion/realtime/fast-command-params";
 
@@ -26,9 +27,7 @@ export type OrionSafeReadExecutionResult = {
   executed: OrionSafeReadExecutionStep[];
   stoppedAt: number | null;
   stopReason: "plan_boundary" | "write_boundary" | "authorization_failed" | "validation_failed" | "execution_failed" | null;
-  nextBlockedStep: ReturnType<typeof buildOrionAutonomyPlanFromToolSteps> extends { ok: true; plan: infer P }
-    ? P extends { nextBlockedStep: infer B } ? B : never
-    : never;
+  nextBlockedStep: OrionAutonomyPlanStep | null;
   error?: string;
 };
 
