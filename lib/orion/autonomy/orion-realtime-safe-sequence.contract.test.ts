@@ -42,7 +42,7 @@ function main() {
   assert(executor.includes('classifyOrionCommandRisk(command) !== "read"'), "executor hard-stops before every non-read command");
   assert(executor.includes("authorizeOrionCommand"), "executor re-authorizes every autonomous read step");
   assert(executor.includes("command.validate(fastParams.params)"), "executor validates every autonomous read step");
-  assert(executor.includes('result.status === "completed"'), "executor verifies successful completion before advancing");
+  assert(executor.includes("verifyOrionAutonomousReadResult({ command, result })") && executor.includes("const verified = verification.ok"), "executor semantically verifies every successful read before advancing");
 
   console.log(`\nOrion Realtime safe-sequence results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
