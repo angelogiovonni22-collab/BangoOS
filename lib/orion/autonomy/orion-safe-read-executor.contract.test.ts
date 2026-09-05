@@ -26,7 +26,7 @@ function main() {
   assert(executor.includes("params: asParams(referenceResolution.value)"), "canonical normalization receives resolved chained values rather than raw references");
   assert(executor.includes("command.validate(fastParams.params)"), "each command is canonically validated before execution");
   assert(executor.includes("createOrionExecutionEnvelope") && executor.includes("idempotencyKey"), "each sequence step receives retry-stable execution identity");
-  assert(executor.includes('result.success && result.status === "completed"'), "sequence advancement requires a verified completed result");
+  assert(executor.includes("verifyOrionAutonomousReadResult({ command, result })") && executor.includes("const verified = verification.ok"), "sequence advancement requires semantic verification of a completed read result");
   assert(executor.includes('stopReason: "execution_failed"'), "failed verification stops remaining execution");
   assert(route.includes("resolveWorkspaceContext"), "safe-read execution requires an authenticated BOS workspace");
   assert(route.includes("executeOrionSafeReadPrefix"), "endpoint delegates to the guarded sequence executor");

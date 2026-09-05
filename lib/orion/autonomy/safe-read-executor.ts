@@ -12,6 +12,7 @@ import type { OrionAutonomyPlanStep } from "./planner";
 import { buildOrionAutonomyPlanFromToolSteps, type OrionAutonomyPlanRequestStep } from "./plan-request";
 import { normalizeRealtimeFastCommandParams } from "@/lib/orion/realtime/fast-command-params";
 import { resolveOrionStepReferences, type OrionStepReferenceOutput } from "./step-references";
+import { verifyOrionAutonomousReadResult } from "./read-result-verifier";
 
 export type OrionSafeReadExecutionStep = {
   index: number;
@@ -162,7 +163,9 @@ export async function executeOrionSafeReadPrefix(args: {
       idempotencyKey,
     });
 
-    const verified = result.success && result.status === "completed";
+    const verification = verifyOrionAutonomousReadResult({ command, result });
+    const verified = verification.ok;
+    const verificationError = verification.ok ? result.userMessage : verification.reason;
     executed.push({
       index: stepIndex,
       commandId: command.id,
@@ -175,7 +178,7 @@ export async function executeOrionSafeReadPrefix(args: {
     });
 
     if (!verified) {
-      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "execution_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: result.userMessage });
+      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "execution_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: verificationError });
     }
 
     outputs.push({
