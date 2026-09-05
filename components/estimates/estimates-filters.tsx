@@ -1,4 +1,7 @@
+"use client";
+
 import { FilterToolbar, SearchInput, Select } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 
 type FilterOption = { value: string; label: string };
 
@@ -33,6 +36,12 @@ export function EstimatesFilters({
   onProjectChange,
   onDatePresetChange,
 }: EstimatesFiltersProps) {
+  const { term } = useAdaptiveBos();
+  const estimateLabel = term("estimate", "Estimate");
+  const estimatesLabel = term("estimates", "Estimates");
+  const customerLabel = term("customer", "Customer");
+  const projectLabel = term("project", "Project");
+
   return (
     <FilterToolbar gridClassName="md:grid-cols-2 xl:grid-cols-6">
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)] xl:col-span-2">
@@ -40,15 +49,15 @@ export function EstimatesFilters({
         <SearchInput
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search by number, estimate, customer, or project"
-          aria-label="Search estimates"
+          placeholder={`Search by number, ${estimateLabel.toLowerCase()}, ${customerLabel.toLowerCase()}, or ${projectLabel.toLowerCase()}`}
+          aria-label={`Search ${estimatesLabel.toLowerCase()}`}
           className="h-10 py-2"
         />
       </label>
 
       <FilterSelect label="Status" value={statusValue} onChange={onStatusChange} options={statusOptions} />
-      <FilterSelect label="Customer" value={customerValue} onChange={onCustomerChange} options={customerOptions} />
-      <FilterSelect label="Project" value={projectValue} onChange={onProjectChange} options={projectOptions} />
+      <FilterSelect label={customerLabel} value={customerValue} onChange={onCustomerChange} options={customerOptions} />
+      <FilterSelect label={projectLabel} value={projectValue} onChange={onProjectChange} options={projectOptions} />
 
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
         <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Date</span>
