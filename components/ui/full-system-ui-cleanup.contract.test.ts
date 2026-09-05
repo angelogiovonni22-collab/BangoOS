@@ -56,6 +56,8 @@ assert.match(changeOrders, /Change order summary filters/, "Change order status 
 assert.match(changeOrders, /chooseStatus\("pending_approval"\)/, "Pending change order KPI must filter the directory");
 assert.match(changeOrderFilters, /xl:grid-cols-8/, "Change order filters must use the full desktop row");
 assert.doesNotMatch(schedulingHeader, /scheduling\.header\.badge/, "Schedule and Dispatch must not share a misleading dispatch-only eyebrow");
+assert.match(schedulingHeader, /companyContext \? \(/, "Schedule header must hide an empty company context pill");
+assert.match(schedulingHeader, /branchContext \? \(/, "Schedule header must hide an empty branch context pill");
 assert.doesNotMatch(partialDataNotice, /bg-\[var\(--color-warning-50\)\]/, "Partial data notices must not force a light warning background in dark themes");
 assert.match(partialDataNotice, /color-mix/, "Partial data notices must blend into the active BOS surface theme");
 
