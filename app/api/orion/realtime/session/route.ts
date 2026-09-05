@@ -138,7 +138,8 @@ function realtimeBosTools() {
           },
         },
         executionId: { type: "string", description: "Optional stable identifier for retry-safe sequence execution." },
-      }, ["steps"]),
+        continuationToken: { type: "string", description: "Encrypted short-lived continuation token returned after a safe sequence reaches its server time budget. When this is supplied, omit steps and executionId; BOS restores the verified prior outputs server-side." },
+      }),
     },
     {
       type: "function" as const,
@@ -218,6 +219,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         `Multi-step autonomy policy: when a user asks for an ordered task containing two or more BOS lookups/reads, or a larger task whose first steps are reads, call ${AUTONOMY_SAFE_READ_TOOL_NAME} with those canonical bos_* tool calls in order. It may execute only the verified read-only prefix and will stop before every non-read step. Never bypass a returned boundary: continue any write or protected step only through its normal canonical BOS tool so existing review and confirmation controls remain authoritative.`,
         "Verified read evidence policy: after orion_autonomy_safe_read returns, answer from executed[].evidence as the source of truth for completed read steps. Evidence is bounded and secret-key filtered. If evidence.truncated is true and the user needs more detail, perform a narrower canonical read instead of guessing.",
         "Read-chain policy: when a later read depends on the verified result of an earlier read in the same safe sequence, use an exact $step.N output reference instead of guessing or inventing an id. Only reference an earlier step, and use the reference as the entire parameter value so BOS can preserve the original value type.",
+        `Continuation policy: if ${AUTONOMY_SAFE_READ_TOOL_NAME} returns stopReason=time_budget_exceeded with continuationAvailable=true, immediately resume the same safe-read task by calling ${AUTONOMY_SAFE_READ_TOOL_NAME} again with only the returned continuationToken. Never reconstruct, decode, edit, or guess the prior step outputs; BOS restores them from the encrypted token and re-authorizes subsequent reads.`, 
         `Reminder policy: use ${PERSONAL_ASSISTANT_TOOL_NAME} for spoken reminders and calendar-event alerts. If the user says a relative time such as later, in 30 minutes, tomorrow morning, or before an event, call action=now first so you anchor the request to the device-local clock. Never claim a reminder is set until the tool returns success.`,
         `Calendar-alert policy: use ${PERSONAL_ASSISTANT_TOOL_NAME} action=set_event_alert when the user asks to be alerted before or at a meeting, appointment, inspection, job, schedule item, or other calendar event. Keep eventStartsAt separate from dueAt so the alert can occur before the event.`,
         `Zoom policy: when the user says zoom in, zoom out, make this bigger/smaller, reset zoom, or set a B.O.S. zoom percentage, call ${VIEWPORT_CONTROL_TOOL_NAME} immediately. Do not use UI scrolling for zoom requests.`,
