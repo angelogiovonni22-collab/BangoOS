@@ -8,11 +8,15 @@ import { loadEstimateDirectoryData, getCustomerDisplayName, getProjectDisplayNam
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 
 export default function EstimatesPage() {
   const { locale } = useI18n();
+  const { term } = useAdaptiveBos();
   const localeTag = locale === "es" ? "es-ES" : "en-US";
   const supabase = useMemo(() => createClient(), []);
+  const estimateLabel = term("estimate", "Estimate");
+  const estimatesLabel = term("estimates", "Estimates");
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -61,7 +65,7 @@ export default function EstimatesPage() {
     const result = await loadEstimateDirectoryData(supabase, workspace.context.companyId);
 
     if (result.error || !result.customers || !result.projects || !result.estimates) {
-      setErrorMessage(result.error || "Unable to load estimates.");
+      setErrorMessage(result.error || `Unable to load ${estimatesLabel.toLowerCase()}.`);
       setIsLoading(false);
       return;
     }
@@ -88,7 +92,7 @@ export default function EstimatesPage() {
     setCustomerOptions(result.customers.map((customer) => ({ value: customer.id, label: getCustomerDisplayName(customer) })));
     setProjectOptions(result.projects.map((project) => ({ value: project.id, label: getProjectDisplayName(project) })));
     setIsLoading(false);
-  }, [supabase]);
+  }, [estimatesLabel, supabase]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -101,10 +105,10 @@ export default function EstimatesPage() {
       <PageHeader
         compact
         eyebrow="COMPANY WORKSPACE"
-        title="Estimates"
-        description="Create, price, send, and track construction estimates."
+        title={estimatesLabel}
+        description={`Create, price, send, and track ${estimatesLabel.toLowerCase()} for your business.`}
         primaryAction={(
-          <Link href="/estimates/new" className={getButtonClassName({ size: "md" })}>New Estimate</Link>
+          <Link href="/estimates/new" className={getButtonClassName({ size: "md" })}>New {estimateLabel}</Link>
         )}
       />
 
