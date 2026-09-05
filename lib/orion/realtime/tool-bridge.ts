@@ -116,6 +116,7 @@ async function executeAutonomySafeRead(call: OrionRealtimeFunctionCall): Promise
     stoppedAt?: unknown;
     stopReason?: unknown;
     nextBlockedStep?: unknown;
+    nextBlockedAction?: unknown;
   };
   const ok = Boolean(response.ok && payload.ok);
   return {
@@ -130,6 +131,7 @@ async function executeAutonomySafeRead(call: OrionRealtimeFunctionCall): Promise
       stoppedAt: payload.stoppedAt ?? null,
       stopReason: payload.stopReason ?? null,
       nextBlockedStep: payload.nextBlockedStep ?? null,
+      nextBlockedAction: payload.nextBlockedAction ?? null,
     },
   };
 }
