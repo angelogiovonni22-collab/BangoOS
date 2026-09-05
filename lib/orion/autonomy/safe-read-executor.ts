@@ -70,6 +70,18 @@ function asParams(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function hasOrionStepReference(value: unknown, depth = 0): boolean {
+  if (depth > 20) return true;
+  if (typeof value === "string") return value.startsWith("$step.");
+  if (Array.isArray(value)) return value.some((item) => hasOrionStepReference(item, depth + 1));
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).some((item) => hasOrionStepReference(item, depth + 1));
+  }
+  return false;
+}
+
+const MAX_PARALLEL_SAFE_READS = 4;
+
 function emptyResult(args: {
   ok: boolean;
   executed: OrionSafeReadExecutionStep[];
@@ -99,16 +111,48 @@ export async function executeOrionSafeReadPrefix(args: {
   const executed: OrionSafeReadExecutionStep[] = [];
   const outputs: OrionStepReferenceOutput[] = [];
 
-  for (let zeroIndex = 0; zeroIndex < planned.plan.autonomousPrefixLength; zeroIndex += 1) {
+  type StepAttempt =
+    | {
+        ok: true;
+        executedStep: OrionSafeReadExecutionStep;
+        output: OrionStepReferenceOutput;
+      }
+    | {
+        ok: false;
+        executedStep: OrionSafeReadExecutionStep | null;
+        stoppedAt: number;
+        stopReason: Exclude<OrionSafeReadExecutionResult["stopReason"], null>;
+        nextBlockedStep: OrionAutonomyPlanStep | null;
+        error: string;
+      };
+
+  const executeReadStep = async (
+    zeroIndex: number,
+    availableOutputs: OrionStepReferenceOutput[],
+  ): Promise<StepAttempt> => {
     const stepIndex = zeroIndex + 1;
     const planStep = planned.plan.steps[zeroIndex];
     const command = registry.getById(planStep.commandId);
     if (!command) {
-      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: "Planned BOS command is unavailable." });
+      return {
+        ok: false,
+        executedStep: null,
+        stoppedAt: stepIndex,
+        stopReason: "validation_failed",
+        nextBlockedStep: planned.plan.nextBlockedStep,
+        error: "Planned BOS command is unavailable.",
+      };
     }
 
     if (classifyOrionCommandRisk(command) !== "read") {
-      return emptyResult({ ok: true, executed, stoppedAt: stepIndex, stopReason: "write_boundary", nextBlockedStep: planStep });
+      return {
+        ok: false,
+        executedStep: null,
+        stoppedAt: stepIndex,
+        stopReason: "write_boundary",
+        nextBlockedStep: planStep,
+        error: "Autonomous safe-read execution stopped at a protected command boundary.",
+      };
     }
 
     const authorization = await authorizeOrionCommand({
@@ -119,23 +163,30 @@ export async function executeOrionSafeReadPrefix(args: {
       legacyRoleAllowed: (membershipRole) => command.requiredPermissions.includes(normalizeRole(membershipRole)),
     });
     if (!authorization.allowed) {
-      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "authorization_failed", nextBlockedStep: planStep, error: authorization.reason });
+      return {
+        ok: false,
+        executedStep: null,
+        stoppedAt: stepIndex,
+        stopReason: "authorization_failed",
+        nextBlockedStep: planStep,
+        error: authorization.reason,
+      };
     }
 
     const referenceResolution = resolveOrionStepReferences({
       params: asParams(args.steps[zeroIndex]?.params),
-      outputs,
+      outputs: availableOutputs,
       currentStepIndex: stepIndex,
     });
     if (!referenceResolution.ok) {
-      return emptyResult({
+      return {
         ok: false,
-        executed,
+        executedStep: null,
         stoppedAt: stepIndex,
         stopReason: "validation_failed",
         nextBlockedStep: planStep,
         error: referenceResolution.error,
-      });
+      };
     }
 
     const fastParams = await normalizeRealtimeFastCommandParams({
@@ -145,12 +196,26 @@ export async function executeOrionSafeReadPrefix(args: {
       params: asParams(referenceResolution.value),
     });
     if (fastParams.error) {
-      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planStep, error: fastParams.error });
+      return {
+        ok: false,
+        executedStep: null,
+        stoppedAt: stepIndex,
+        stopReason: "validation_failed",
+        nextBlockedStep: planStep,
+        error: fastParams.error,
+      };
     }
 
     const validation = command.validate(fastParams.params);
     if (!validation.ok) {
-      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planStep, error: validation.errors.join(" ") || "BOS command validation failed." });
+      return {
+        ok: false,
+        executedStep: null,
+        stoppedAt: stepIndex,
+        stopReason: "validation_failed",
+        nextBlockedStep: planStep,
+        error: validation.errors.join(" ") || "BOS command validation failed.",
+      };
     }
 
     const stepExecutionId = `${args.executionId || "orion-safe-read"}-${stepIndex}`;
@@ -167,9 +232,7 @@ export async function executeOrionSafeReadPrefix(args: {
 
     const verification = verifyOrionAutonomousReadResult({ command, result });
     const verified = verification.ok;
-    const verificationError = verification.ok ? result.userMessage : verification.reason;
-    const evidence = verified ? buildOrionReadEvidence(result) : null;
-    executed.push({
+    const executedStep: OrionSafeReadExecutionStep = {
       index: stepIndex,
       commandId: command.id,
       success: result.success,
@@ -178,22 +241,76 @@ export async function executeOrionSafeReadPrefix(args: {
       href: result.href,
       verified,
       referencesResolved: referenceResolution.referencesResolved,
-      evidence,
-    });
+      evidence: verified ? buildOrionReadEvidence(result) : null,
+    };
 
     if (!verified) {
-      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "execution_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: verificationError });
+      return {
+        ok: false,
+        executedStep,
+        stoppedAt: stepIndex,
+        stopReason: "execution_failed",
+        nextBlockedStep: planned.plan.nextBlockedStep,
+        error: verification.reason,
+      };
     }
 
-    outputs.push({
-      index: stepIndex,
-      commandId: command.id,
-      entityId: result.entityId,
-      href: result.href,
-      createdEntityIds: result.createdEntityIds,
-      updatedEntityIds: result.updatedEntityIds,
-      details: result.details,
-    });
+    return {
+      ok: true,
+      executedStep,
+      output: {
+        index: stepIndex,
+        commandId: command.id,
+        entityId: result.entityId,
+        href: result.href,
+        createdEntityIds: result.createdEntityIds,
+        updatedEntityIds: result.updatedEntityIds,
+        details: result.details,
+      },
+    };
+  };
+
+  let zeroIndex = 0;
+  while (zeroIndex < planned.plan.autonomousPrefixLength) {
+    const currentParams = asParams(args.steps[zeroIndex]?.params);
+    const canParallelize = !hasOrionStepReference(currentParams);
+    let batchEnd = zeroIndex + 1;
+
+    if (canParallelize) {
+      while (
+        batchEnd < planned.plan.autonomousPrefixLength
+        && batchEnd - zeroIndex < MAX_PARALLEL_SAFE_READS
+        && !hasOrionStepReference(asParams(args.steps[batchEnd]?.params))
+      ) {
+        const candidate = registry.getById(planned.plan.steps[batchEnd].commandId);
+        if (!candidate || classifyOrionCommandRisk(candidate) !== "read") break;
+        batchEnd += 1;
+      }
+    }
+
+    const indexes = Array.from({ length: batchEnd - zeroIndex }, (_, offset) => zeroIndex + offset);
+    const availableOutputs = [...outputs];
+    const attempts = await Promise.all(indexes.map((index) => executeReadStep(index, availableOutputs)));
+
+    for (const attempt of attempts) {
+      if (attempt.executedStep) executed.push(attempt.executedStep);
+      if (!attempt.ok) {
+        executed.sort((a, b) => a.index - b.index);
+        return emptyResult({
+          ok: false,
+          executed,
+          stoppedAt: attempt.stoppedAt,
+          stopReason: attempt.stopReason,
+          nextBlockedStep: attempt.nextBlockedStep,
+          error: attempt.error,
+        });
+      }
+      outputs.push(attempt.output);
+    }
+
+    executed.sort((a, b) => a.index - b.index);
+    outputs.sort((a, b) => a.index - b.index);
+    zeroIndex = batchEnd;
   }
 
   const nextBlockedStep = planned.plan.nextBlockedStep;
