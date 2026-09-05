@@ -11,6 +11,7 @@ import { classifyOrionCommandRisk } from "./policy";
 import type { OrionAutonomyPlanStep } from "./planner";
 import { buildOrionAutonomyPlanFromToolSteps, type OrionAutonomyPlanRequestStep } from "./plan-request";
 import { normalizeRealtimeFastCommandParams } from "@/lib/orion/realtime/fast-command-params";
+import { resolveOrionStepReferences, type OrionStepReferenceOutput } from "./step-references";
 
 export type OrionSafeReadExecutionStep = {
   index: number;
@@ -20,6 +21,7 @@ export type OrionSafeReadExecutionStep = {
   userMessage: string;
   href: string | null;
   verified: boolean;
+  referencesResolved: number;
 };
 
 export type OrionSafeReadExecutionResult = {
@@ -67,16 +69,18 @@ export async function executeOrionSafeReadPrefix(args: {
   const registry = createOrionCommandRegistry();
   const router = createOrionCommandRouter({ supabase: args.supabase });
   const executed: OrionSafeReadExecutionStep[] = [];
+  const outputs: OrionStepReferenceOutput[] = [];
 
   for (let zeroIndex = 0; zeroIndex < planned.plan.autonomousPrefixLength; zeroIndex += 1) {
+    const stepIndex = zeroIndex + 1;
     const planStep = planned.plan.steps[zeroIndex];
     const command = registry.getById(planStep.commandId);
     if (!command) {
-      return { ok: false, executed, stoppedAt: zeroIndex + 1, stopReason: "validation_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: "Planned BOS command is unavailable." };
+      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: "Planned BOS command is unavailable." };
     }
 
     if (classifyOrionCommandRisk(command) !== "read") {
-      return { ok: true, executed, stoppedAt: zeroIndex + 1, stopReason: "write_boundary", nextBlockedStep: planStep };
+      return { ok: true, executed, stoppedAt: stepIndex, stopReason: "write_boundary", nextBlockedStep: planStep };
     }
 
     const authorization = await authorizeOrionCommand({
@@ -87,25 +91,41 @@ export async function executeOrionSafeReadPrefix(args: {
       legacyRoleAllowed: (membershipRole) => command.requiredPermissions.includes(normalizeRole(membershipRole)),
     });
     if (!authorization.allowed) {
-      return { ok: false, executed, stoppedAt: zeroIndex + 1, stopReason: "authorization_failed", nextBlockedStep: planStep, error: authorization.reason };
+      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "authorization_failed", nextBlockedStep: planStep, error: authorization.reason };
+    }
+
+    const referenceResolution = resolveOrionStepReferences({
+      params: asParams(args.steps[zeroIndex]?.params),
+      outputs,
+      currentStepIndex: stepIndex,
+    });
+    if (!referenceResolution.ok) {
+      return {
+        ok: false,
+        executed,
+        stoppedAt: stepIndex,
+        stopReason: "validation_failed",
+        nextBlockedStep: planStep,
+        error: referenceResolution.error,
+      };
     }
 
     const fastParams = await normalizeRealtimeFastCommandParams({
       supabase: args.supabase,
       companyId: args.companyId,
       commandId: command.id,
-      params: asParams(args.steps[zeroIndex]?.params),
+      params: asParams(referenceResolution.value),
     });
     if (fastParams.error) {
-      return { ok: false, executed, stoppedAt: zeroIndex + 1, stopReason: "validation_failed", nextBlockedStep: planStep, error: fastParams.error };
+      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planStep, error: fastParams.error };
     }
 
     const validation = command.validate(fastParams.params);
     if (!validation.ok) {
-      return { ok: false, executed, stoppedAt: zeroIndex + 1, stopReason: "validation_failed", nextBlockedStep: planStep, error: validation.errors.join(" ") || "BOS command validation failed." };
+      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planStep, error: validation.errors.join(" ") || "BOS command validation failed." };
     }
 
-    const stepExecutionId = `${args.executionId || "orion-safe-read"}-${zeroIndex + 1}`;
+    const stepExecutionId = `${args.executionId || "orion-safe-read"}-${stepIndex}`;
     const { correlationId, idempotencyKey } = createOrionExecutionEnvelope(command.id, "orion-autonomy", stepExecutionId);
     const result = await router.executeCommand({
       commandId: command.id,
@@ -119,18 +139,29 @@ export async function executeOrionSafeReadPrefix(args: {
 
     const verified = result.success && result.status === "completed";
     executed.push({
-      index: zeroIndex + 1,
+      index: stepIndex,
       commandId: command.id,
       success: result.success,
       status: result.status,
       userMessage: result.userMessage,
       href: result.href,
       verified,
+      referencesResolved: referenceResolution.referencesResolved,
     });
 
     if (!verified) {
-      return { ok: false, executed, stoppedAt: zeroIndex + 1, stopReason: "execution_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: result.userMessage };
+      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "execution_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: result.userMessage };
     }
+
+    outputs.push({
+      index: stepIndex,
+      commandId: command.id,
+      entityId: result.entityId,
+      href: result.href,
+      createdEntityIds: result.createdEntityIds,
+      updatedEntityIds: result.updatedEntityIds,
+      details: result.details,
+    });
   }
 
   return {
