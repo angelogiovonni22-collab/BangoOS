@@ -20,6 +20,8 @@ type EmployeeFiltersProps = {
   onEmploymentStatusChange: (value: EmploymentStatus | "all") => void;
   onAvailabilityStatusChange: (value: AvailabilityStatus | "all") => void;
   onSortChange: (value: SortKey) => void;
+  projectLabel: string;
+  projectsLabel: string;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
@@ -42,45 +44,32 @@ export function EmployeeFilters({
   onEmploymentStatusChange,
   onAvailabilityStatusChange,
   onSortChange,
+  projectLabel,
+  projectsLabel,
   t,
 }: EmployeeFiltersProps) {
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       <div className="md:col-span-2 xl:col-span-2">
-        <SearchInput
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder={t("employees.filters.searchPlaceholder")}
-          aria-label={t("employees.filters.searchPlaceholder")}
-        />
+        <SearchInput value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search team members by name, role, crew, or assignment" aria-label="Search team members" />
       </div>
 
       <Select value={crewId} onChange={(event) => onCrewChange(event.target.value)} aria-label={t("employees.filters.crew")}>
         <option value="all">{t("employees.filters.allCrews")}</option>
-        {crewOptions.map((item) => (
-          <option key={item.id} value={item.id}>{item.label}</option>
-        ))}
+        {crewOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
       </Select>
 
       <Select value={supervisorId} onChange={(event) => onSupervisorChange(event.target.value)} aria-label="Supervisor filter">
         <option value="all">All supervisors</option>
-        {supervisorOptions.map((item) => (
-          <option key={item.id} value={item.id}>{item.label}</option>
-        ))}
+        {supervisorOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
       </Select>
 
-      <Select value={projectId} onChange={(event) => onProjectChange(event.target.value)} aria-label="Project filter">
-        <option value="all">All projects</option>
-        {projectOptions.map((item) => (
-          <option key={item.id} value={item.id}>{item.label}</option>
-        ))}
+      <Select value={projectId} onChange={(event) => onProjectChange(event.target.value)} aria-label={`${projectLabel} filter`}>
+        <option value="all">All {projectsLabel}</option>
+        {projectOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
       </Select>
 
-      <Select
-        value={employmentStatus}
-        onChange={(event) => onEmploymentStatusChange(event.target.value as EmploymentStatus | "all")}
-        aria-label={t("employees.filters.employmentStatus")}
-      >
+      <Select value={employmentStatus} onChange={(event) => onEmploymentStatusChange(event.target.value as EmploymentStatus | "all")} aria-label={t("employees.filters.employmentStatus")}>
         <option value="all">{t("employees.filters.allEmploymentStatuses")}</option>
         <option value="active">{t("employees.employmentStatus.active")}</option>
         <option value="leave">On leave</option>
@@ -88,11 +77,7 @@ export function EmployeeFilters({
         <option value="terminated">Terminated</option>
       </Select>
 
-      <Select
-        value={availabilityStatus}
-        onChange={(event) => onAvailabilityStatusChange(event.target.value as AvailabilityStatus | "all")}
-        aria-label={t("employees.filters.availability")}
-      >
+      <Select value={availabilityStatus} onChange={(event) => onAvailabilityStatusChange(event.target.value as AvailabilityStatus | "all")} aria-label={t("employees.filters.availability")}>
         <option value="all">{t("employees.filters.allAvailabilityStatuses")}</option>
         <option value="available">{t("employees.availabilityStatus.available")}</option>
         <option value="assigned">{t("employees.availabilityStatus.assigned")}</option>
@@ -105,14 +90,12 @@ export function EmployeeFilters({
         <Select value={sortBy} onChange={(event) => onSortChange(event.target.value as SortKey)} aria-label={t("employees.filters.sortBy")}>
           <option value="name_asc">{t("employees.sort.nameAsc")}</option>
           <option value="name_desc">{t("employees.sort.nameDesc")}</option>
-          <option value="employee_number_asc">Employee # ascending</option>
-          <option value="employee_number_desc">Employee # descending</option>
+          <option value="employee_number_asc">Team member # ascending</option>
+          <option value="employee_number_desc">Team member # descending</option>
           <option value="updated_desc">Recently updated</option>
           <option value="updated_asc">Least recently updated</option>
         </Select>
-        <p className="text-xs font-medium text-[var(--color-text-secondary)]" aria-live="polite">
-          {t("employees.filters.activeFilters", { count: activeFilters })}
-        </p>
+        <p className="text-xs font-medium text-[var(--color-text-secondary)]" aria-live="polite">{t("employees.filters.activeFilters", { count: activeFilters })}</p>
       </div>
     </div>
   );
