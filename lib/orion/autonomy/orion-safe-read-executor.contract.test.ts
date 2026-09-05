@@ -19,7 +19,11 @@ function main() {
   assert(executor.includes('classifyOrionCommandRisk(command) !== "read"'), "sequence executor hard-stops before every non-read command");
   assert(executor.includes('stopReason: "write_boundary"'), "non-read boundary is explicit in the result");
   assert(executor.includes("authorizeOrionCommand"), "every read command is re-authorized against live membership");
+  assert(executor.includes("resolveOrionStepReferences"), "later read parameters resolve only through the guarded step-reference resolver");
+  assert(executor.includes("currentStepIndex: stepIndex"), "step references are evaluated against the current one-based sequence position");
+  assert(executor.includes("outputs.push({") && executor.includes("details: result.details"), "only verified command outputs become available to later reads");
   assert(executor.includes("normalizeRealtimeFastCommandParams"), "sequence steps reuse canonical fast parameter normalization");
+  assert(executor.includes("params: asParams(referenceResolution.value)"), "canonical normalization receives resolved chained values rather than raw references");
   assert(executor.includes("command.validate(fastParams.params)"), "each command is canonically validated before execution");
   assert(executor.includes("createOrionExecutionEnvelope") && executor.includes("idempotencyKey"), "each sequence step receives retry-stable execution identity");
   assert(executor.includes('result.success && result.status === "completed"'), "sequence advancement requires a verified completed result");
