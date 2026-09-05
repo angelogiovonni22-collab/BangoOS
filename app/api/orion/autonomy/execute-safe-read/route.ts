@@ -28,6 +28,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ? body.executionId.trim()
       : undefined;
 
+    const sequenceStartedAt = Date.now();
     const result = await executeOrionSafeReadPrefix({
       steps: body.steps as OrionAutonomyPlanRequestStep[],
       supabase,
@@ -37,7 +38,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       executionId,
     });
 
-    return NextResponse.json(result, { status: result.ok ? 200 : 400 });
+    const durationMs = Math.max(0, Date.now() - sequenceStartedAt);
+    const retries = result.executed.reduce((total, step) => total + Math.max(0, step.attempts - 1), 0);
+    const slowestStepMs = result.executed.reduce((max, step) => Math.max(max, step.durationMs), 0);
+    const response = NextResponse.json({
+      ...result,
+      telemetry: {
+        durationMs,
+        executedSteps: result.executed.length,
+        retries,
+        slowestStepMs,
+      },
+    }, { status: result.ok ? 200 : 400 });
+    response.headers.set("Server-Timing", `orion-safe-read;dur=${durationMs}`);
+    return response;
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Orion safe-read sequence failed." },

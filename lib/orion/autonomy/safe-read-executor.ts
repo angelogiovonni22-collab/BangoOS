@@ -24,6 +24,7 @@ export type OrionSafeReadExecutionStep = {
   href: string | null;
   verified: boolean;
   attempts: number;
+  durationMs: number;
   referencesResolved: number;
   evidence: OrionReadEvidence | null;
 };
@@ -133,6 +134,7 @@ export async function executeOrionSafeReadPrefix(args: {
     availableOutputs: OrionStepReferenceOutput[],
   ): Promise<StepAttempt> => {
     const stepIndex = zeroIndex + 1;
+    const stepStartedAt = Date.now();
     const planStep = planned.plan.steps[zeroIndex];
     const command = registry.getById(planStep.commandId);
     if (!command) {
@@ -264,6 +266,7 @@ export async function executeOrionSafeReadPrefix(args: {
       href: result.href,
       verified,
       attempts,
+      durationMs: Math.max(0, Date.now() - stepStartedAt),
       referencesResolved: referenceResolution.referencesResolved,
       evidence: verified ? buildOrionReadEvidence(result) : null,
     };
