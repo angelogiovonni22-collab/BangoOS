@@ -51,11 +51,11 @@ export function EmployeeFilters({
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       <div className="md:col-span-2 xl:col-span-2">
-        <SearchInput value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search team members by name, role, crew, or assignment" aria-label="Search team members" />
+        <SearchInput value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Search team members by name, role, team, or assignment" aria-label="Search team members" />
       </div>
 
-      <Select value={crewId} onChange={(event) => onCrewChange(event.target.value)} aria-label={t("employees.filters.crew")}>
-        <option value="all">{t("employees.filters.allCrews")}</option>
+      <Select value={crewId} onChange={(event) => onCrewChange(event.target.value)} aria-label="Team filter">
+        <option value="all">All teams</option>
         {crewOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
       </Select>
 
