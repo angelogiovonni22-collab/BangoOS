@@ -12,6 +12,7 @@ import {
   EnterpriseTableRow,
   TableContainer,
 } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { ProjectActions } from "./project-actions";
 import { ProjectAvatar } from "./project-avatar";
 import { ProjectProgress } from "./project-progress";
@@ -46,6 +47,10 @@ type DeletedProjectResponse = {
 
 export function ProjectTable({ items, t, canManageProjects, showFinancials }: ProjectTableProps) {
   const router = useRouter();
+  const { term } = useAdaptiveBos();
+  const projectLabel = term("project", "Project");
+  const projectsLabel = term("projects", "Projects");
+  const customerLabel = term("customer", "Customer");
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -70,12 +75,12 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2" aria-label="Project lifecycle views">
+      <div className="flex flex-wrap items-center gap-2" aria-label={`${projectLabel} lifecycle views`}>
         <span
           aria-current="page"
           className="inline-flex min-h-9 items-center rounded-[var(--radius-md)] border border-[var(--color-brand-500)] bg-[var(--color-brand-600)] px-3 py-2 text-sm font-semibold text-white shadow-[var(--shadow-small)]"
         >
-          Projects
+          {projectsLabel}
         </span>
         {canManageProjects ? (
           <Link
@@ -87,11 +92,11 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
         ) : null}
       </div>
 
-      <TableContainer title={t("projects.directoryTitle")} description={t("projects.directoryDescription")}>
-        <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[920px]">
+      <TableContainer title={`${projectLabel} Directory`} description={`${visibleItems.length} ${visibleItems.length === 1 ? projectLabel.toLowerCase() : projectsLabel.toLowerCase()}`}>
+        <EnterpriseTable ariaLabel={`${projectLabel} Directory`} minWidthClassName="min-w-[920px]">
           <EnterpriseTableHead>
             <tr>
-              <EnterpriseTableHeading>{t("projects.tableProject")}</EnterpriseTableHeading>
+              <EnterpriseTableHeading>{projectLabel}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableStatus")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableProgress")}</EnterpriseTableHeading>
               {showFinancials ? <EnterpriseTableHeading>{t("projects.tableBudget")}</EnterpriseTableHeading> : null}
@@ -109,7 +114,7 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 className="cursor-pointer transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]/80 hover:shadow-[0_10px_24px_-20px_rgba(15,23,42,0.28)]"
                 role="link"
                 tabIndex={0}
-                aria-label={`${t("projects.viewWorkspace")} ${project.projectName}`}
+                aria-label={`View ${projectLabel} workspace ${project.projectName}`}
                 onClick={(event) => {
                   const target = event.target as HTMLElement;
                   if (target.closest("a,button,input,select,textarea")) return;
@@ -128,7 +133,7 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                       <Link href={`/projects/${project.id}`} className="block truncate text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
                         {project.projectName}
                       </Link>
-                      <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">{project.customerName}</p>
+                      <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]" aria-label={`${customerLabel}: ${project.customerName}`}>{project.customerName}</p>
                     </div>
                   </div>
                 </EnterpriseTableCell>
@@ -140,7 +145,7 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.dueDateLabel}</EnterpriseTableCell>
                 {canManageProjects ? (
                   <EnterpriseTableCell align="right">
-                    <ProjectActions projectId={project.id} projectName={project.projectName} viewLabel={t("projects.viewWorkspace")} moreLabel={t("projects.actionsMore")} />
+                    <ProjectActions projectId={project.id} projectName={project.projectName} viewLabel={`View ${projectLabel} workspace`} moreLabel={t("projects.actionsMore")} />
                   </EnterpriseTableCell>
                 ) : null}
               </EnterpriseTableRow>
