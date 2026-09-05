@@ -50,6 +50,7 @@ export type OrionSafeReadExecutionResult = {
   nextBlockedStep: OrionAutonomyPlanStep | null;
   nextBlockedAction: OrionProtectedBoundaryHandoff | null;
   error?: string;
+  continuation?: { nextZeroIndex: number; outputs: OrionStepReferenceOutput[] } | null;
 };
 
 function normalizeRole(role: string | null): OrionCommandPermission {
@@ -104,16 +105,21 @@ export async function executeOrionSafeReadPrefix(args: {
   userId: string;
   role: string | null;
   executionId?: string;
+  resume?: { nextZeroIndex: number; outputs: OrionStepReferenceOutput[] } | null;
 }): Promise<OrionSafeReadExecutionResult> {
   const planned = buildOrionAutonomyPlanFromToolSteps(args.steps);
   if (!planned.ok) {
     return emptyResult({ ok: false, executed: [], stoppedAt: 0, stopReason: "validation_failed", nextBlockedStep: null, error: planned.error });
   }
 
+  if (args.resume && (!Number.isInteger(args.resume.nextZeroIndex) || args.resume.nextZeroIndex < 0 || args.resume.nextZeroIndex > planned.plan.autonomousPrefixLength)) {
+    return emptyResult({ ok: false, executed: [], stoppedAt: 0, stopReason: "validation_failed", nextBlockedStep: null, error: "Orion continuation state is invalid." });
+  }
+
   const registry = createOrionCommandRegistry();
   const router = createOrionCommandRouter({ supabase: args.supabase });
   const executed: OrionSafeReadExecutionStep[] = [];
-  const outputs: OrionStepReferenceOutput[] = [];
+  const outputs: OrionStepReferenceOutput[] = [...(args.resume?.outputs ?? [])];
   const sequenceStartedAt = Date.now();
 
   type StepAttempt =
@@ -299,7 +305,7 @@ export async function executeOrionSafeReadPrefix(args: {
     };
   };
 
-  let zeroIndex = 0;
+  let zeroIndex = args.resume?.nextZeroIndex ?? 0;
   while (zeroIndex < planned.plan.autonomousPrefixLength) {
     if (Date.now() - sequenceStartedAt >= MAX_SAFE_READ_SEQUENCE_MS) {
       return {
@@ -309,6 +315,7 @@ export async function executeOrionSafeReadPrefix(args: {
         stopReason: "time_budget_exceeded",
         nextBlockedStep: planned.plan.steps[zeroIndex] ?? null,
         nextBlockedAction: null,
+        continuation: { nextZeroIndex: zeroIndex, outputs: [...outputs] },
       };
     }
 

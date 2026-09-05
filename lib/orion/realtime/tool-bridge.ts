@@ -103,11 +103,12 @@ async function executeEntityResolution(call: OrionRealtimeFunctionCall): Promise
 
 async function executeAutonomySafeRead(call: OrionRealtimeFunctionCall): Promise<OrionRealtimeToolExecutionResult> {
   const steps = Array.isArray(call.params.steps) ? call.params.steps : [];
+  const continuationToken = typeof call.params.continuationToken === "string" && call.params.continuationToken.trim() ? call.params.continuationToken.trim() : null;
   const requestedExecutionId = typeof call.params.executionId === "string" && call.params.executionId.trim() ? call.params.executionId.trim() : call.callId;
   const response = await fetch("/api/orion/autonomy/execute-safe-read", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ steps, executionId: requestedExecutionId }),
+    body: JSON.stringify({ steps, executionId: requestedExecutionId, continuationToken }),
   });
   const payload = await response.json() as {
     ok?: boolean;
@@ -118,11 +119,14 @@ async function executeAutonomySafeRead(call: OrionRealtimeFunctionCall): Promise
     nextBlockedStep?: unknown;
     nextBlockedAction?: unknown;
     telemetry?: unknown;
+    continuationToken?: unknown;
+    continuationAvailable?: unknown;
   };
   const ok = Boolean(response.ok && payload.ok);
+  const paused = ok && payload.stopReason === "time_budget_exceeded" && typeof payload.continuationToken === "string";
   return {
     ok,
-    statusCategory: ok ? "autonomy_read_sequence_completed" : "autonomy_read_sequence_failed",
+    statusCategory: paused ? "autonomy_read_sequence_paused" : (ok ? "autonomy_read_sequence_completed" : "autonomy_read_sequence_failed"),
     userMessage: payload.error || (ok ? "Orion completed the safe read-only portion of the multi-step task." : "Orion could not complete the safe read-only portion of the task."),
     href: null,
     confirmationRequired: false,
@@ -134,6 +138,8 @@ async function executeAutonomySafeRead(call: OrionRealtimeFunctionCall): Promise
       nextBlockedStep: payload.nextBlockedStep ?? null,
       nextBlockedAction: payload.nextBlockedAction ?? null,
       telemetry: payload.telemetry ?? null,
+      continuationToken: typeof payload.continuationToken === "string" ? payload.continuationToken : null,
+      continuationAvailable: Boolean(payload.continuationAvailable),
     },
   };
 }
