@@ -44,7 +44,7 @@ assert.match(estimates, /onClick=\{\(\) => chooseStatus/, "Estimate status KPIs 
 assert.match(estimateFilters, /xl:grid-cols-6/, "Estimate filters must fit one desktop row");
 assert.match(invoices, /Invoice summary filters/, "Invoice KPIs must operate as directory filters");
 assert.match(invoices, /chooseOutstanding/, "Outstanding invoice KPI must filter by balance due");
-assert.match(customers, /Customer summary filters/, "Customer KPIs must operate as directory filters");
+assert.match(customers, /customerLabel\} summary filters/, "Customer KPIs must remain actionable while using adaptive terminology");
 assert.match(customers, /new_this_month/, "Customer directory must support the New This Month summary filter");
 assert.match(customers, /onClick=\{\(\) => chooseCustomerFilter/, "Customer summary cards must be clickable");
 assert.match(employees, /Show available employees/, "Employee availability KPI must be actionable");
