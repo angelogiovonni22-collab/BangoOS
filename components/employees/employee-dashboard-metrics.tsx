@@ -15,6 +15,8 @@ type EmployeeDashboardMetricsProps = {
   onShowAll: () => void;
   onAvailabilityChange: (value: "all" | "available" | "assigned") => void;
   onEmploymentStatusChange: (value: "all" | "leave") => void;
+  workforceLabel: string;
+  projectLabel: string;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
@@ -25,19 +27,21 @@ export function EmployeeDashboardMetrics({
   onShowAll,
   onAvailabilityChange,
   onEmploymentStatusChange,
+  workforceLabel,
+  projectLabel,
   t,
 }: EmployeeDashboardMetricsProps) {
   return (
-    <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5" aria-label={t("employees.dashboard.title")}>
+    <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5" aria-label={`${workforceLabel} summary`}>
       <SummaryCard
         icon={<UsersIcon className="h-5 w-5" />}
-        label={t("employees.dashboard.totalEmployees")}
+        label="Total Team Members"
         value={String(summary.totalEmployees)}
-        context={t("employees.dashboardInsight.totalEmployees", { count: summary.totalEmployees })}
+        context={`${summary.totalEmployees} team members in ${workforceLabel.toLowerCase()}`}
         tone="brand"
         onClick={onShowAll}
         selected={employmentStatus === "all" && availabilityStatus === "all"}
-        actionLabel="Show all employees"
+        actionLabel="Show all team members"
       />
       <SummaryCard
         icon={<UserCheckIcon className="h-5 w-5" />}
@@ -54,17 +58,17 @@ export function EmployeeDashboardMetrics({
         tone="info"
         onClick={() => onAvailabilityChange(availabilityStatus === "available" ? "all" : "available")}
         selected={availabilityStatus === "available"}
-        actionLabel="Show available employees"
+        actionLabel="Show available team members"
       />
       <SummaryCard
         icon={<BriefcaseIcon className="h-5 w-5" />}
-        label={t("employees.dashboard.assignedToProjects")}
+        label={`Assigned to ${projectLabel}`}
         value={String(summary.assignedToProjects)}
         context={t("employees.dashboardInsight.assigned", { count: summary.assignedToProjects })}
         tone="warning"
         onClick={() => onAvailabilityChange(availabilityStatus === "assigned" ? "all" : "assigned")}
         selected={availabilityStatus === "assigned"}
-        actionLabel="Show assigned employees"
+        actionLabel={`Show team members assigned to ${projectLabel.toLowerCase()} work`}
       />
       <SummaryCard
         icon={<BedDoubleIcon className="h-5 w-5" />}
@@ -74,7 +78,7 @@ export function EmployeeDashboardMetrics({
         tone="danger"
         onClick={() => onEmploymentStatusChange(employmentStatus === "leave" ? "all" : "leave")}
         selected={employmentStatus === "leave"}
-        actionLabel="Show employees on leave"
+        actionLabel="Show team members on leave"
       />
     </section>
   );
