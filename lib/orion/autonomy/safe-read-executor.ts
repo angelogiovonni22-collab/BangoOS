@@ -239,7 +239,8 @@ export async function executeOrionSafeReadPrefix(args: {
       });
       verification = verifyOrionAutonomousReadResult({ command, result });
       if (verification.ok) break;
-      if (!result.retryable || attempt >= MAX_SAFE_READ_ATTEMPTS) break;
+      const canRetry = !result.success && result.retryable && attempt < MAX_SAFE_READ_ATTEMPTS;
+      if (!canRetry) break;
     }
 
     if (!result || !verification) {
