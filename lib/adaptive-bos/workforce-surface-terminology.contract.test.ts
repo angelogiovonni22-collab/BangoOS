@@ -16,10 +16,13 @@ assert.doesNotMatch(workforcePage, /title=\{t\("employees\.pageTitle"\)\}/, "Wor
 assert.match(workforceFilters, /projectLabel: string/, "Workforce filters must receive adaptive project terminology");
 assert.match(workforceFilters, /All \{projectsLabel\}/, "Workforce project filter must use adaptive plural project terminology");
 assert.match(workforceFilters, /Search team members/, "Workforce search must use cross-industry member terminology");
+assert.match(workforceFilters, /aria-label="Team filter"/, "Workforce team filter must use cross-industry team terminology");
+assert.match(workforceFilters, />All teams</, "Workforce team filter options must not expose construction-only crew copy");
 assert.doesNotMatch(workforceFilters, /aria-label="Project filter"/, "Workforce project filter must not hard-code Project");
 
 assert.match(workforceTable, /projectLabel: string/, "Workforce table must receive adaptive project terminology");
 assert.match(workforceTable, /<TableHeading>Team Member<\/TableHeading>/, "Workforce table must use cross-industry member terminology");
+assert.match(workforceTable, /<TableHeading>Team<\/TableHeading>/, "Workforce table must use cross-industry team terminology");
 assert.match(workforceTable, /<TableHeading>\{projectLabel\}<\/TableHeading>/, "Workforce table must use adaptive project terminology");
 
 assert.match(workforceMetrics, /workforceLabel: string/, "Workforce KPIs must receive adaptive workforce terminology");
