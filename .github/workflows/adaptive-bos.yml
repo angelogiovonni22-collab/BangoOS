@@ -11,6 +11,8 @@ on:
       - "components/estimates/**"
       - "app/(app)/customers/**"
       - "components/customers/**"
+      - "app/(app)/projects/**"
+      - "components/projects/**"
       - "app/(app)/settings/operating-profile/**"
       - "app/(app)/settings/page.tsx"
       - "supabase/migrations/*adaptive_bos*"
@@ -26,6 +28,8 @@ on:
       - "components/estimates/**"
       - "app/(app)/customers/**"
       - "components/customers/**"
+      - "app/(app)/projects/**"
+      - "components/projects/**"
       - "app/(app)/settings/operating-profile/**"
       - "app/(app)/settings/page.tsx"
       - "supabase/migrations/*adaptive_bos*"
@@ -48,3 +52,4 @@ jobs:
       - run: npx -y tsx lib/adaptive-bos/database-template-runtime.contract.test.ts
       - run: npx -y tsx lib/adaptive-bos/estimate-surface-terminology.contract.test.ts
       - run: npx -y tsx lib/adaptive-bos/customer-surface-terminology.contract.test.ts
+      - run: npx -y tsx lib/adaptive-bos/project-surface-terminology.contract.test.ts
