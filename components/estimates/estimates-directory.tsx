@@ -7,6 +7,7 @@ import { EstimatesFilters } from "@/components/estimates/estimates-filters";
 import { EstimatesTable } from "@/components/estimates/estimates-table";
 import { duplicateEstimate, archiveEstimate } from "@/lib/estimates/service";
 import { createClient } from "@/lib/supabase/client";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import type { EstimateDirectoryItem } from "@/components/estimates/types";
 
 type SortField = "estimateNumber" | "title" | "status" | "issueDate" | "expirationDate" | "totalAmount" | "updatedAt";
@@ -23,6 +24,11 @@ export function EstimatesDirectory({ items, customerOptions, projectOptions, loc
   errorMessage: string | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const { term } = useAdaptiveBos();
+  const estimateLabel = term("estimate", "Estimate");
+  const estimatesLabel = term("estimates", "Estimates");
+  const customersLabel = term("customers", "Customers");
+  const projectsLabel = term("projects", "Projects");
   const [isMutating, setIsMutating] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [statusValue, setStatusValue] = useState("all");
@@ -104,18 +110,18 @@ export function EstimatesDirectory({ items, customerOptions, projectOptions, loc
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="Estimate summary filters">
-        <SummaryCard icon={<span>#</span>} label="Total Estimates" value={String(summary.totalEstimates)} tone="brand" compact onClick={() => chooseStatus("all")} selected={statusValue === "all"} actionLabel="Show all estimates" />
-        <SummaryCard icon={<span>D</span>} label="Draft" value={String(summary.draft)} tone="analytics" compact onClick={() => chooseStatus("draft")} selected={statusValue === "draft"} actionLabel="Show draft estimates" />
-        <SummaryCard icon={<span>S</span>} label="Sent" value={String(summary.sent)} tone="sent" compact onClick={() => chooseStatus("sent")} selected={statusValue === "sent"} actionLabel="Show sent estimates" />
-        <SummaryCard icon={<span>A</span>} label="Approved" value={String(summary.approved)} tone="successLight" compact onClick={() => chooseStatus("approved")} selected={statusValue === "approved"} actionLabel="Show approved estimates" />
-        <SummaryCard icon={<span>$</span>} label="Total Estimated Value" value={summary.totalValue} tone="successDark" compact onClick={() => chooseStatus("all")} selected={false} actionLabel="Show all estimates represented by total estimated value" />
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label={`${estimateLabel} summary filters`}>
+        <SummaryCard icon={<span>#</span>} label={`Total ${estimatesLabel}`} value={String(summary.totalEstimates)} tone="brand" compact onClick={() => chooseStatus("all")} selected={statusValue === "all"} actionLabel={`Show all ${estimatesLabel.toLowerCase()}`} />
+        <SummaryCard icon={<span>D</span>} label="Draft" value={String(summary.draft)} tone="analytics" compact onClick={() => chooseStatus("draft")} selected={statusValue === "draft"} actionLabel={`Show draft ${estimatesLabel.toLowerCase()}`} />
+        <SummaryCard icon={<span>S</span>} label="Sent" value={String(summary.sent)} tone="sent" compact onClick={() => chooseStatus("sent")} selected={statusValue === "sent"} actionLabel={`Show sent ${estimatesLabel.toLowerCase()}`} />
+        <SummaryCard icon={<span>A</span>} label="Approved" value={String(summary.approved)} tone="successLight" compact onClick={() => chooseStatus("approved")} selected={statusValue === "approved"} actionLabel={`Show approved ${estimatesLabel.toLowerCase()}`} />
+        <SummaryCard icon={<span>$</span>} label={`Total ${estimateLabel} Value`} value={summary.totalValue} tone="successDark" compact onClick={() => chooseStatus("all")} selected={false} actionLabel={`Show all ${estimatesLabel.toLowerCase()} represented by total value`} />
       </section>
 
-      <EstimatesFilters searchValue={searchValue} statusValue={statusValue} customerValue={customerValue} projectValue={projectValue} datePresetValue={datePreset} statusOptions={statusOptions} customerOptions={[{ value: "all", label: "All Customers" }, ...customerOptions]} projectOptions={[{ value: "all", label: "All Projects" }, ...projectOptions]} onSearchChange={setSearchValue} onStatusChange={setStatusValue} onCustomerChange={setCustomerValue} onProjectChange={setProjectValue} onDatePresetChange={setDatePreset} />
+      <EstimatesFilters searchValue={searchValue} statusValue={statusValue} customerValue={customerValue} projectValue={projectValue} datePresetValue={datePreset} statusOptions={statusOptions} customerOptions={[{ value: "all", label: `All ${customersLabel}` }, ...customerOptions]} projectOptions={[{ value: "all", label: `All ${projectsLabel}` }, ...projectOptions]} onSearchChange={setSearchValue} onStatusChange={setStatusValue} onCustomerChange={setCustomerValue} onProjectChange={setProjectValue} onDatePresetChange={setDatePreset} />
 
-      <TableContainer title="Estimate Directory" description="Search, filter, and manage estimate records.">
-        {isLoading ? <div className="space-y-3 p-6"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /></div> : errorMessage ? <div className="p-6"><ErrorState title="We couldn't load estimates" description={errorMessage} compact /></div> : filteredAndSortedItems.length > 0 ? <EstimatesTable items={filteredAndSortedItems} localeTag={localeTag} sortField={sortField} sortDirection={sortDirection} onSort={handleSort} onDuplicate={handleDuplicate} onArchive={handleArchive} /> : items.length === 0 ? <EstimateDirectoryEmptyState /> : <EstimateDirectoryFilteredEmptyState />}
+      <TableContainer title={`${estimateLabel} Directory`} description={`Search, filter, and manage ${estimatesLabel.toLowerCase()}.`}>
+        {isLoading ? <div className="space-y-3 p-6"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /></div> : errorMessage ? <div className="p-6"><ErrorState title={`We couldn't load ${estimatesLabel.toLowerCase()}`} description={errorMessage} compact /></div> : filteredAndSortedItems.length > 0 ? <EstimatesTable items={filteredAndSortedItems} localeTag={localeTag} sortField={sortField} sortDirection={sortDirection} onSort={handleSort} onDuplicate={handleDuplicate} onArchive={handleArchive} /> : items.length === 0 ? <EstimateDirectoryEmptyState /> : <EstimateDirectoryFilteredEmptyState />}
       </TableContainer>
     </div>
   );
