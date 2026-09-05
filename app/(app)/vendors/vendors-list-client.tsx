@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { VendorsFilters, VendorsTable } from "@/components/vendors";
 import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { useCompany } from "@/lib/company";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -15,6 +16,11 @@ const PAGE_SIZE = 10;
 export function VendorsListClient() {
   const supabase = useMemo(() => createClient(), []);
   const { companyName } = useCompany();
+  const { term } = useAdaptiveBos();
+  const vendorLabel = term("vendor", "Vendor");
+  const vendorsLabel = term("vendors", "Vendors");
+  const vendorLower = vendorLabel.toLowerCase();
+  const vendorsLower = vendorsLabel.toLowerCase();
 
   const [items, setItems] = useState<VendorListItem[]>([]);
   const [query, setQuery] = useState("");
@@ -67,43 +73,22 @@ export function VendorsListClient() {
           );
         }
 
-        if (status !== "all") {
-          request = request.eq("status", status);
-        }
-
-        if (preferred === "preferred") {
-          request = request.eq("preferred_vendor", true);
-        }
-
-        if (preferred === "standard") {
-          request = request.eq("preferred_vendor", false);
-        }
+        if (status !== "all") request = request.eq("status", status);
+        if (preferred === "preferred") request = request.eq("preferred_vendor", true);
+        if (preferred === "standard") request = request.eq("preferred_vendor", false);
 
         switch (sortBy) {
-          case "display_name_desc":
-            request = request.order("display_name", { ascending: false });
-            break;
-          case "vendor_code_asc":
-            request = request.order("vendor_code", { ascending: true });
-            break;
-          case "status_asc":
-            request = request.order("status", { ascending: true }).order("display_name", { ascending: true });
-            break;
-          case "quality_desc":
-            request = request.order("quality_rating", { ascending: false, nullsFirst: false }).order("display_name", { ascending: true });
-            break;
-          case "created_at_desc":
-            request = request.order("created_at", { ascending: false });
-            break;
+          case "display_name_desc": request = request.order("display_name", { ascending: false }); break;
+          case "vendor_code_asc": request = request.order("vendor_code", { ascending: true }); break;
+          case "status_asc": request = request.order("status", { ascending: true }).order("display_name", { ascending: true }); break;
+          case "quality_desc": request = request.order("quality_rating", { ascending: false, nullsFirst: false }).order("display_name", { ascending: true }); break;
+          case "created_at_desc": request = request.order("created_at", { ascending: false }); break;
           case "display_name_asc":
-          default:
-            request = request.order("display_name", { ascending: true });
-            break;
+          default: request = request.order("display_name", { ascending: true }); break;
         }
 
         const from = (page - 1) * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
-
         const { data, count, error } = await request.range(from, to);
 
         if (error) {
@@ -113,15 +98,11 @@ export function VendorsListClient() {
           }
           return;
         }
-
-        if (!active) {
-          return;
-        }
+        if (!active) return;
 
         const mapped = (data ?? []).map((row) => {
           const firstName = row.first_name?.trim() || "";
           const lastName = row.last_name?.trim() || "";
-
           return {
             id: row.id,
             vendorCode: row.vendor_code,
@@ -142,88 +123,40 @@ export function VendorsListClient() {
         setItems(mapped);
         setTotal(count || 0);
       } catch (error) {
-        if (active) {
-          setErrorMessage(error instanceof Error ? error.message : "Unable to load vendors.");
-        }
+        if (active) setErrorMessage(error instanceof Error ? error.message : `Unable to load ${vendorsLower}.`);
       } finally {
-        if (active) {
-          setIsLoading(false);
-        }
+        if (active) setIsLoading(false);
       }
     };
 
     void load();
-
-    return () => {
-      active = false;
-    };
-  }, [page, preferred, query, sortBy, status, supabase]);
+    return () => { active = false; };
+  }, [page, preferred, query, sortBy, status, supabase, vendorsLower]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const activeFilters = useMemo(() => {
-    let count = 0;
-
-    if (query.trim()) {
-      count += 1;
-    }
-
-    if (status !== "all") {
-      count += 1;
-    }
-
-    if (preferred !== "all") {
-      count += 1;
-    }
-
-    return count;
-  }, [preferred, query, status]);
-
+  const activeFilters = useMemo(() => Number(Boolean(query.trim())) + Number(status !== "all") + Number(preferred !== "all"), [preferred, query, status]);
   const summary = useMemo(() => {
     const preferredCount = items.filter((item) => item.preferredVendor).length;
-    const activeCount = items.filter((item) => item.status === "active").length;
-
     const avgQuality = items.filter((item) => item.qualityRating !== null);
-    const quality = avgQuality.length > 0
-      ? avgQuality.reduce((acc, item) => acc + (item.qualityRating || 0), 0) / avgQuality.length
-      : 0;
-
-    return {
-      preferredCount,
-      activeCount,
-      quality,
-    };
+    const quality = avgQuality.length > 0 ? avgQuality.reduce((acc, item) => acc + (item.qualityRating || 0), 0) / avgQuality.length : 0;
+    return { preferredCount, quality };
   }, [items]);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <SkeletonLoader className="h-10 w-80" />
-        <SkeletonLoader className="h-36 w-full" />
-        <SkeletonLoader className="h-72 w-full" />
-      </div>
-    );
-  }
-
-  if (errorMessage) {
-    return <ErrorState title="Unable to load vendors" description={errorMessage} />;
-  }
+  if (isLoading) return <div className="space-y-4"><SkeletonLoader className="h-10 w-80" /><SkeletonLoader className="h-36 w-full" /><SkeletonLoader className="h-72 w-full" /></div>;
+  if (errorMessage) return <ErrorState title={`Unable to load ${vendorsLower}`} description={errorMessage} />;
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
-        eyebrow="Supply Chain"
-        title="Vendors"
-        description={`Manage vendor relationships for ${companyName || "your company"}.`}
-        primaryAction={
-          <Link href="/vendors/new" className={getButtonClassName({})}><Plus size={16} />
-              New vendor</Link>
-        }
+        eyebrow={vendorsLabel}
+        title={vendorsLabel}
+        description={`Manage ${vendorsLower} relationships for ${companyName || "your company"}.`}
+        primaryAction={<Link href="/vendors/new" className={getButtonClassName({})}><Plus size={16} />New {vendorLabel}</Link>}
       />
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-3" aria-label={`${vendorLabel} summary`}>
         <SummaryCard icon={<span>V</span>} label="Total loaded" value={String(total)} context="Across current filters" tone="brand" />
-        <SummaryCard icon={<span>*</span>} label="Preferred in view" value={String(summary.preferredCount)} context="Starred vendors" tone="warning" />
+        <SummaryCard icon={<span>*</span>} label="Preferred in view" value={String(summary.preferredCount)} context={`Starred ${vendorsLower}`} tone="warning" />
         <SummaryCard icon={<span>Q</span>} label="Average quality" value={summary.quality > 0 ? summary.quality.toFixed(1) : "-"} context="0 to 5 rating scale" tone="info" />
       </section>
 
@@ -232,41 +165,17 @@ export function VendorsListClient() {
         status={status}
         preferred={preferred}
         sortBy={sortBy}
-        onQueryChange={(value) => {
-          setQuery(value);
-          setPage(1);
-        }}
-        onStatusChange={(value) => {
-          setStatus(value);
-          setPage(1);
-        }}
-        onPreferredChange={(value) => {
-          setPreferred(value);
-          setPage(1);
-        }}
-        onSortByChange={(value) => {
-          setSortBy(value);
-          setPage(1);
-        }}
+        onQueryChange={(value) => { setQuery(value); setPage(1); }}
+        onStatusChange={(value) => { setStatus(value); setPage(1); }}
+        onPreferredChange={(value) => { setPreferred(value); setPage(1); }}
+        onSortByChange={(value) => { setSortBy(value); setPage(1); }}
         activeFilters={activeFilters}
       />
 
       {items.length === 0 ? (
-        <EmptyState
-          title="No vendors found"
-          description="Try different filters or create your first vendor record."
-          action={
-            <Link href="/vendors/new" className={getButtonClassName({})}>New vendor</Link>
-          }
-        />
+        <EmptyState title={`No ${vendorsLower} found`} description={`Try different filters or create your first ${vendorLower} record.`} action={<Link href="/vendors/new" className={getButtonClassName({})}>New {vendorLabel}</Link>} />
       ) : (
-        <VendorsTable
-          items={items}
-          total={total}
-          page={Math.min(page, totalPages)}
-          pageSize={PAGE_SIZE}
-          onPageChange={(nextPage) => setPage(Math.max(1, Math.min(nextPage, totalPages)))}
-        />
+        <VendorsTable items={items} total={total} page={Math.min(page, totalPages)} pageSize={PAGE_SIZE} onPageChange={(nextPage) => setPage(Math.max(1, Math.min(nextPage, totalPages)))} />
       )}
     </div>
   );
