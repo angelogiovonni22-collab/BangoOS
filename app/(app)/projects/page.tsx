@@ -10,6 +10,7 @@ import {
   type ProjectTableItem,
 } from "@/components/projects";
 import { EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { useI18n } from "@/lib/i18n/provider";
 import {
   formatProjectCurrency,
@@ -60,6 +61,13 @@ type SummaryView = "active" | "behind" | "risk" | "completed" | null;
 
 export default function ProjectsPage() {
   const { t, locale } = useI18n();
+  const { term } = useAdaptiveBos();
+  const projectLabel = term("project", "Project");
+  const projectsLabel = term("projects", "Projects");
+  const customerLabel = term("customer", "Customer");
+  const customersLabel = term("customers", "Customers");
+  const projectLower = projectLabel.toLowerCase();
+  const projectsLower = projectsLabel.toLowerCase();
   const company = useCompany();
   const supabase = useMemo(() => createClient(), []);
 
@@ -384,16 +392,16 @@ export default function ProjectsPage() {
       <PageHeader
         compact
         eyebrow={t("projects.headerEyebrow")}
-        title={t("projects.pageTitle")}
-        description={t("projects.pageDescription")}
+        title={projectsLabel}
+        description={`Manage ${projectsLower}, delivery progress, schedules, and financial performance from one workspace.`}
         primaryAction={canManageProjects ? (
           <Link href="/projects/new" className={getButtonClassName({ size: "md" })}><Plus size={16} aria-hidden="true" />
-              {t("projects.newProject")}</Link>
+              New {projectLabel}</Link>
         ) : undefined}
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Project performance summary">
-        <ProjectsPageKpi label="Active Projects" value={summary.activeProjects.toLocaleString()} tone="brand" selected={summaryView === "active"} onClick={() => toggleSummaryView("active")} />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={`${projectLabel} performance summary`}>
+        <ProjectsPageKpi label={`Active ${projectsLabel}`} value={summary.activeProjects.toLocaleString()} tone="brand" selected={summaryView === "active"} onClick={() => toggleSummaryView("active")} />
         <ProjectsPageKpi label="Behind Schedule" value={summary.behindSchedule.toLocaleString()} tone="warning" selected={summaryView === "behind"} onClick={() => toggleSummaryView("behind")} />
         <ProjectsPageKpi label="At Risk" value={summary.atRisk.toLocaleString()} tone="danger" selected={summaryView === "risk"} onClick={() => toggleSummaryView("risk")} />
         <ProjectsPageKpi label="Completed This Month" value={summary.completedThisMonth.toLocaleString()} tone="success" selected={summaryView === "completed"} onClick={() => toggleSummaryView("completed")} />
@@ -411,11 +419,11 @@ export default function ProjectsPage() {
           ...superintendentOptions,
         ]}
         customerOptions={[
-          { value: "all", label: t("projects.filterAllCustomers") },
+          { value: "all", label: `All ${customersLabel}` },
           ...customerOptions,
         ]}
         typeOptions={[
-          { value: "all", label: t("projects.filterAllProjectTypes") },
+          { value: "all", label: `All ${projectLabel} Types` },
           ...projectTypeOptions,
         ]}
         onSearchChange={setSearchTerm}
@@ -435,17 +443,17 @@ export default function ProjectsPage() {
       ) : projects.length === 0 ? (
         <EmptyState
           icon="P"
-          title="No projects yet"
-          description="Create your first project to start scheduling work, tracking spend, and monitoring profitability."
+          title={`No ${projectsLower} yet`}
+          description={`Create your first ${projectLower} to start scheduling work, tracking spend, and monitoring performance.`}
           action={canManageProjects ?
-            <Link href="/projects/new" className={getButtonClassName({})}>{t("projects.newProject")}</Link>
+            <Link href="/projects/new" className={getButtonClassName({})}>New {projectLabel}</Link>
           : undefined}
         />
       ) : (
         <EmptyState
           icon="?"
-          title="No projects match this filter"
-          description="Try adjusting your search, KPI selection, or filters to find the project you need."
+          title={`No ${projectsLower} match this filter`}
+          description={`Try adjusting your search, KPI selection, or filters to find the ${projectLower} you need.`}
           compact
         />
       )}
