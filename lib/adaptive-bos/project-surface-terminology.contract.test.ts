@@ -1,8 +1,19 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+const projectsPage = readFileSync("app/(app)/projects/page.tsx", "utf8");
 const projectTable = readFileSync("components/projects/project-table.tsx", "utf8");
 const projectFilters = readFileSync("components/projects/project-filters.tsx", "utf8");
+
+assert.match(projectsPage, /useAdaptiveBos/, "Projects workspace must resolve Adaptive B.O.S. terminology");
+assert.match(projectsPage, /term\("project", "Project"\)/, "Projects workspace must resolve singular project terminology");
+assert.match(projectsPage, /term\("projects", "Projects"\)/, "Projects workspace must resolve plural project terminology");
+assert.match(projectsPage, /term\("customer", "Customer"\)/, "Projects workspace must resolve customer terminology");
+assert.match(projectsPage, /title=\{projectsLabel\}/, "Projects page title must use adaptive terminology");
+assert.match(projectsPage, /New \{projectLabel\}/, "Projects primary action must use adaptive terminology");
+assert.match(projectsPage, /aria-label=\{`\$\{projectLabel\} performance summary`\}/, "Project KPI group must expose the adaptive noun");
+assert.match(projectsPage, /`All \$\{customersLabel\}`/, "Customer filter option must use adaptive plural terminology");
+assert.doesNotMatch(projectsPage, /title=\{t\("projects\.pageTitle"\)\}/, "Projects page must not hard-code its construction-default i18n title");
 
 assert.match(projectTable, /useAdaptiveBos/, "Project directory must resolve Adaptive B.O.S. terminology");
 assert.match(projectTable, /term\("project", "Project"\)/, "Project directory must resolve singular project terminology");
