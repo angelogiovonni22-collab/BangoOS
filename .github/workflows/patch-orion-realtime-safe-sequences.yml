@@ -143,3 +143,4 @@ jobs:
             git commit -m "Wire Orion safe read sequences into Realtime"
             git push origin HEAD:feat/orion-realtime-safe-sequences-20260904
           fi
+# trigger: resume-20260904
