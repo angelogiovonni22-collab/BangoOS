@@ -17,7 +17,7 @@ function main() {
   const executor = read("lib/orion/autonomy/safe-read-executor.ts");
   const route = read("app/api/orion/autonomy/execute-safe-read/route.ts");
   const bridge = read("lib/orion/realtime/tool-bridge.ts");
-  const session = read("app/api/orion/realtime/session/route.ts");
+  const policy = read("lib/orion/intelligence/orion-tool-router.ts");
 
   console.log("\nOrion protected-boundary handoff contract");
 
@@ -33,8 +33,8 @@ function main() {
 
   assert(bridge.includes("nextBlockedAction?: unknown"), "Realtime bridge accepts the protected handoff from the safe-read endpoint");
   assert(bridge.includes("nextBlockedAction: payload.nextBlockedAction ?? null"), "Realtime returns the exact protected handoff to the model");
-  assert(session.includes("Protected-boundary handoff policy:"), "Realtime instructions require the canonical protected tool after the safe-read boundary");
-  assert(session.includes("never bypass its review or confirmation response"), "Realtime instructions preserve canonical review and confirmation controls");
+  assert(policy.includes("Protected-boundary handoff policy:"), "Orion system policy requires the canonical protected tool after the safe-read boundary");
+  assert(policy.includes("never bypass its review or confirmation response"), "Orion system policy preserves canonical review and confirmation controls");
 
   console.log(`\nOrion protected-boundary handoff results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
