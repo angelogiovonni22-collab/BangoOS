@@ -1,3 +1,5 @@
+"use client";
+
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Eye, Pencil } from "lucide-react";
 import {
@@ -14,6 +16,7 @@ import {
   TableContainer,
   IconLink,
 } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { getStockBadgeLabel, getStockBadgeTone, type MaterialListItem } from "@/lib/materials";
 
 type MaterialsTableProps = {
@@ -26,6 +29,9 @@ type MaterialsTableProps = {
 
 export function MaterialsTable({ items, total, page, pageSize, onPageChange }: MaterialsTableProps) {
   const router = useRouter();
+  const { term } = useAdaptiveBos();
+  const materialsLabel = term("materials", "Materials");
+  const vendorLabel = term("vendor", "Vendor");
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const showingFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const showingTo = total === 0 ? 0 : Math.min(total, page * pageSize);
@@ -34,17 +40,17 @@ export function MaterialsTable({ items, total, page, pageSize, onPageChange }: M
 
   return (
     <TableContainer
-      title="Materials Catalog"
-      description="Manage costing, inventory, and vendor preferences for your materials."
+      title={`${materialsLabel} Catalog`}
+      description={`Manage costing, inventory, and ${vendorLabel.toLowerCase()} preferences for these items.`}
     >
-      <EnterpriseTable ariaLabel="Materials catalog table">
+      <EnterpriseTable ariaLabel={`${materialsLabel} catalog table`}>
         <EnterpriseTableHead>
           <tr>
-            <EnterpriseTableHeading>Material</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Item</EnterpriseTableHeading>
             <EnterpriseTableHeading>Code</EnterpriseTableHeading>
             <EnterpriseTableHeading>Status</EnterpriseTableHeading>
             <EnterpriseTableHeading>Stock</EnterpriseTableHeading>
-            <EnterpriseTableHeading>Preferred vendor</EnterpriseTableHeading>
+            <EnterpriseTableHeading>Preferred {vendorLabel}</EnterpriseTableHeading>
             <EnterpriseTableHeading align="right">Standard cost</EnterpriseTableHeading>
             <EnterpriseTableHeading align="right">Actions</EnterpriseTableHeading>
           </tr>
@@ -57,7 +63,7 @@ export function MaterialsTable({ items, total, page, pageSize, onPageChange }: M
               className="cursor-pointer"
               role="link"
               tabIndex={0}
-              aria-label={`Open material ${material.name}`}
+              aria-label={`Open ${materialsLabel} item ${material.name}`}
               onClick={(event) => {
                 const target = event.target as HTMLElement;
 
@@ -106,8 +112,8 @@ export function MaterialsTable({ items, total, page, pageSize, onPageChange }: M
 
               <EnterpriseTableCell align="right">
                 <div className="inline-flex items-center gap-1">
-                  <IconLink href={`/materials/${material.id}`} icon={<Eye size={15} />} label="View material" variant="ghost" size="sm" />
-                  <IconLink href={`/materials/${material.id}/edit`} icon={<Pencil size={15} />} label="Edit material" variant="ghost" size="sm" />
+                  <IconLink href={`/materials/${material.id}`} icon={<Eye size={15} />} label={`View ${materialsLabel} item`} variant="ghost" size="sm" />
+                  <IconLink href={`/materials/${material.id}/edit`} icon={<Pencil size={15} />} label={`Edit ${materialsLabel} item`} variant="ghost" size="sm" />
                 </div>
               </EnterpriseTableCell>
             </EnterpriseTableRow>
