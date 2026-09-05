@@ -24,12 +24,26 @@ export type OrionSafeReadExecutionStep = {
   referencesResolved: number;
 };
 
+export type OrionProtectedBoundaryHandoff = {
+  stepIndex: number;
+  toolName: string;
+  commandId: string;
+  params: Record<string, unknown>;
+  risk: OrionAutonomyPlanStep["risk"];
+  mode: OrionAutonomyPlanStep["mode"];
+  stopReason: OrionAutonomyPlanStep["stopReason"];
+  confirmationRequired: boolean;
+  reviewRequired: boolean;
+  referencesResolved: number;
+};
+
 export type OrionSafeReadExecutionResult = {
   ok: boolean;
   executed: OrionSafeReadExecutionStep[];
   stoppedAt: number | null;
   stopReason: "plan_boundary" | "write_boundary" | "authorization_failed" | "validation_failed" | "execution_failed" | null;
   nextBlockedStep: OrionAutonomyPlanStep | null;
+  nextBlockedAction: OrionProtectedBoundaryHandoff | null;
   error?: string;
 };
 
@@ -53,6 +67,17 @@ function asParams(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function emptyResult(args: {
+  ok: boolean;
+  executed: OrionSafeReadExecutionStep[];
+  stoppedAt: number | null;
+  stopReason: OrionSafeReadExecutionResult["stopReason"];
+  nextBlockedStep: OrionAutonomyPlanStep | null;
+  error?: string;
+}): OrionSafeReadExecutionResult {
+  return { ...args, nextBlockedAction: null };
+}
+
 export async function executeOrionSafeReadPrefix(args: {
   steps: OrionAutonomyPlanRequestStep[];
   supabase: SupabaseClient<Database>;
@@ -63,7 +88,7 @@ export async function executeOrionSafeReadPrefix(args: {
 }): Promise<OrionSafeReadExecutionResult> {
   const planned = buildOrionAutonomyPlanFromToolSteps(args.steps);
   if (!planned.ok) {
-    return { ok: false, executed: [], stoppedAt: 0, stopReason: "validation_failed", nextBlockedStep: null, error: planned.error };
+    return emptyResult({ ok: false, executed: [], stoppedAt: 0, stopReason: "validation_failed", nextBlockedStep: null, error: planned.error });
   }
 
   const registry = createOrionCommandRegistry();
@@ -76,11 +101,11 @@ export async function executeOrionSafeReadPrefix(args: {
     const planStep = planned.plan.steps[zeroIndex];
     const command = registry.getById(planStep.commandId);
     if (!command) {
-      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: "Planned BOS command is unavailable." };
+      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: "Planned BOS command is unavailable." });
     }
 
     if (classifyOrionCommandRisk(command) !== "read") {
-      return { ok: true, executed, stoppedAt: stepIndex, stopReason: "write_boundary", nextBlockedStep: planStep };
+      return emptyResult({ ok: true, executed, stoppedAt: stepIndex, stopReason: "write_boundary", nextBlockedStep: planStep });
     }
 
     const authorization = await authorizeOrionCommand({
@@ -91,7 +116,7 @@ export async function executeOrionSafeReadPrefix(args: {
       legacyRoleAllowed: (membershipRole) => command.requiredPermissions.includes(normalizeRole(membershipRole)),
     });
     if (!authorization.allowed) {
-      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "authorization_failed", nextBlockedStep: planStep, error: authorization.reason };
+      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "authorization_failed", nextBlockedStep: planStep, error: authorization.reason });
     }
 
     const referenceResolution = resolveOrionStepReferences({
@@ -100,14 +125,14 @@ export async function executeOrionSafeReadPrefix(args: {
       currentStepIndex: stepIndex,
     });
     if (!referenceResolution.ok) {
-      return {
+      return emptyResult({
         ok: false,
         executed,
         stoppedAt: stepIndex,
         stopReason: "validation_failed",
         nextBlockedStep: planStep,
         error: referenceResolution.error,
-      };
+      });
     }
 
     const fastParams = await normalizeRealtimeFastCommandParams({
@@ -117,12 +142,12 @@ export async function executeOrionSafeReadPrefix(args: {
       params: asParams(referenceResolution.value),
     });
     if (fastParams.error) {
-      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planStep, error: fastParams.error };
+      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planStep, error: fastParams.error });
     }
 
     const validation = command.validate(fastParams.params);
     if (!validation.ok) {
-      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planStep, error: validation.errors.join(" ") || "BOS command validation failed." };
+      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "validation_failed", nextBlockedStep: planStep, error: validation.errors.join(" ") || "BOS command validation failed." });
     }
 
     const stepExecutionId = `${args.executionId || "orion-safe-read"}-${stepIndex}`;
@@ -150,7 +175,7 @@ export async function executeOrionSafeReadPrefix(args: {
     });
 
     if (!verified) {
-      return { ok: false, executed, stoppedAt: stepIndex, stopReason: "execution_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: result.userMessage };
+      return emptyResult({ ok: false, executed, stoppedAt: stepIndex, stopReason: "execution_failed", nextBlockedStep: planned.plan.nextBlockedStep, error: result.userMessage });
     }
 
     outputs.push({
@@ -164,11 +189,97 @@ export async function executeOrionSafeReadPrefix(args: {
     });
   }
 
+  const nextBlockedStep = planned.plan.nextBlockedStep;
+  if (!nextBlockedStep) {
+    return {
+      ok: true,
+      executed,
+      stoppedAt: null,
+      stopReason: null,
+      nextBlockedStep: null,
+      nextBlockedAction: null,
+    };
+  }
+
+  const blockedIndex = planned.plan.autonomousPrefixLength + 1;
+  if (nextBlockedStep.stopReason === "step_limit") {
+    return {
+      ok: true,
+      executed,
+      stoppedAt: blockedIndex,
+      stopReason: "plan_boundary",
+      nextBlockedStep,
+      nextBlockedAction: null,
+    };
+  }
+
+  const rawBlockedStep = args.steps[blockedIndex - 1];
+  const toolName = typeof rawBlockedStep?.toolName === "string" ? rawBlockedStep.toolName.trim() : "";
+  const blockedCommand = registry.getById(nextBlockedStep.commandId);
+  if (!toolName || !blockedCommand) {
+    return emptyResult({
+      ok: false,
+      executed,
+      stoppedAt: blockedIndex,
+      stopReason: "validation_failed",
+      nextBlockedStep,
+      error: "The protected BOS boundary could not be resolved safely.",
+    });
+  }
+
+  const blockedAuthorization = await authorizeOrionCommand({
+    supabase: args.supabase,
+    companyId: args.companyId,
+    userId: args.userId,
+    command: blockedCommand,
+    legacyRoleAllowed: (membershipRole) => blockedCommand.requiredPermissions.includes(normalizeRole(membershipRole)),
+  });
+  if (!blockedAuthorization.allowed) {
+    return emptyResult({
+      ok: false,
+      executed,
+      stoppedAt: blockedIndex,
+      stopReason: "authorization_failed",
+      nextBlockedStep,
+      error: blockedAuthorization.reason,
+    });
+  }
+
+  const blockedReferenceResolution = resolveOrionStepReferences({
+    params: asParams(rawBlockedStep.params),
+    outputs,
+    currentStepIndex: blockedIndex,
+  });
+  if (!blockedReferenceResolution.ok) {
+    return emptyResult({
+      ok: false,
+      executed,
+      stoppedAt: blockedIndex,
+      stopReason: "validation_failed",
+      nextBlockedStep,
+      error: blockedReferenceResolution.error,
+    });
+  }
+
+  const nextBlockedAction: OrionProtectedBoundaryHandoff = {
+    stepIndex: blockedIndex,
+    toolName,
+    commandId: blockedCommand.id,
+    params: asParams(blockedReferenceResolution.value),
+    risk: nextBlockedStep.risk,
+    mode: nextBlockedStep.mode,
+    stopReason: nextBlockedStep.stopReason,
+    confirmationRequired: nextBlockedStep.mode === "confirm",
+    reviewRequired: nextBlockedStep.mode === "review",
+    referencesResolved: blockedReferenceResolution.referencesResolved,
+  };
+
   return {
     ok: true,
     executed,
-    stoppedAt: planned.plan.nextBlockedStep ? planned.plan.autonomousPrefixLength + 1 : null,
-    stopReason: planned.plan.nextBlockedStep ? "plan_boundary" : null,
-    nextBlockedStep: planned.plan.nextBlockedStep,
+    stoppedAt: blockedIndex,
+    stopReason: "plan_boundary",
+    nextBlockedStep,
+    nextBlockedAction,
   };
 }
