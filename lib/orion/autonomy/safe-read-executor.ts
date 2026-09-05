@@ -23,6 +23,7 @@ export type OrionSafeReadExecutionStep = {
   userMessage: string;
   href: string | null;
   verified: boolean;
+  attempts: number;
   referencesResolved: number;
   evidence: OrionReadEvidence | null;
 };
@@ -81,6 +82,7 @@ function hasOrionStepReference(value: unknown, depth = 0): boolean {
 }
 
 const MAX_PARALLEL_SAFE_READS = 4;
+const MAX_SAFE_READ_ATTEMPTS = 2;
 
 function emptyResult(args: {
   ok: boolean;
@@ -220,17 +222,37 @@ export async function executeOrionSafeReadPrefix(args: {
 
     const stepExecutionId = `${args.executionId || "orion-safe-read"}-${stepIndex}`;
     const { correlationId, idempotencyKey } = createOrionExecutionEnvelope(command.id, "orion-autonomy", stepExecutionId);
-    const result = await router.executeCommand({
-      commandId: command.id,
-      params: validation.normalizedParams ?? {},
-      companyContext: { companyId: args.companyId },
-      userContext: { actorProfileId: args.userId, role: normalizeRole(authorization.role) },
-      executionContext: { origin: "user" },
-      correlationId,
-      idempotencyKey,
-    });
+    let result: Awaited<ReturnType<typeof router.executeCommand>> | null = null;
+    let verification: ReturnType<typeof verifyOrionAutonomousReadResult> | null = null;
+    let attempts = 0;
 
-    const verification = verifyOrionAutonomousReadResult({ command, result });
+    for (let attempt = 1; attempt <= MAX_SAFE_READ_ATTEMPTS; attempt += 1) {
+      attempts = attempt;
+      result = await router.executeCommand({
+        commandId: command.id,
+        params: validation.normalizedParams ?? {},
+        companyContext: { companyId: args.companyId },
+        userContext: { actorProfileId: args.userId, role: normalizeRole(authorization.role) },
+        executionContext: { origin: "user" },
+        correlationId,
+        idempotencyKey,
+      });
+      verification = verifyOrionAutonomousReadResult({ command, result });
+      if (verification.ok) break;
+      if (!result.retryable || attempt >= MAX_SAFE_READ_ATTEMPTS) break;
+    }
+
+    if (!result || !verification) {
+      return {
+        ok: false,
+        executedStep: null,
+        stoppedAt: stepIndex,
+        stopReason: "execution_failed",
+        nextBlockedStep: planned.plan.nextBlockedStep,
+        error: "Orion could not obtain a safe read result.",
+      };
+    }
+
     const verified = verification.ok;
     const executedStep: OrionSafeReadExecutionStep = {
       index: stepIndex,
@@ -240,6 +262,7 @@ export async function executeOrionSafeReadPrefix(args: {
       userMessage: result.userMessage,
       href: result.href,
       verified,
+      attempts,
       referencesResolved: referenceResolution.referencesResolved,
       evidence: verified ? buildOrionReadEvidence(result) : null,
     };
