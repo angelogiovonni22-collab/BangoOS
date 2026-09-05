@@ -19,6 +19,8 @@ on:
       - "components/vendors/**"
       - "app/(app)/employees/**"
       - "components/employees/**"
+      - "app/(app)/equipment/**"
+      - "components/equipment/**"
       - "app/(app)/settings/operating-profile/**"
       - "app/(app)/settings/page.tsx"
       - "supabase/migrations/*adaptive_bos*"
@@ -42,6 +44,8 @@ on:
       - "components/vendors/**"
       - "app/(app)/employees/**"
       - "components/employees/**"
+      - "app/(app)/equipment/**"
+      - "components/equipment/**"
       - "app/(app)/settings/operating-profile/**"
       - "app/(app)/settings/page.tsx"
       - "supabase/migrations/*adaptive_bos*"
@@ -68,3 +72,4 @@ jobs:
       - run: npx -y tsx lib/adaptive-bos/materials-surface-terminology.contract.test.ts
       - run: npx -y tsx lib/adaptive-bos/vendor-surface-terminology.contract.test.ts
       - run: npx -y tsx lib/adaptive-bos/workforce-surface-terminology.contract.test.ts
+      - run: npx -y tsx lib/adaptive-bos/equipment-surface-terminology.contract.test.ts
