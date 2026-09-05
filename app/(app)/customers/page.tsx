@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CustomerTable } from "@/components/customers";
 import { Button, EmptyState, ErrorState, PageHeader, SearchInput, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -40,6 +41,15 @@ const PAGE_SIZE = 8;
 
 export default function CustomersPage() {
   const { t } = useI18n();
+  const { term } = useAdaptiveBos();
+  const customerLabel = term("customer", "Customer");
+  const customersLabel = term("customers", "Customers");
+  const projectLabel = term("project", "Project");
+  const projectsLabel = term("projects", "Projects");
+  const estimateLabel = term("estimate", "Estimate");
+  const estimatesLabel = term("estimates", "Estimates");
+  const customerLower = customerLabel.toLowerCase();
+  const customersLower = customersLabel.toLowerCase();
   const supabase = useMemo(() => createClient(), []);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -127,7 +137,7 @@ export default function CustomersPage() {
 
   const runLifecycleAction = useCallback(async (customer: Customer, action: "archive" | "restore") => {
     setActionMessage("");
-    if (action === "archive" && !window.confirm(`Archive ${customer.name}? They will be hidden from the normal customer list but their history will be preserved.`)) return;
+    if (action === "archive" && !window.confirm(`Archive ${customer.name}? They will be hidden from the normal ${customerLower} list but their history will be preserved.`)) return;
 
     const response = await fetch(`/api/customers/${customer.id}/lifecycle`, {
       method: "PATCH",
@@ -135,40 +145,40 @@ export default function CustomersPage() {
       body: JSON.stringify({ action }),
     });
     const body = await response.json();
-    if (!response.ok) throw new Error(body.error || `Unable to ${action} customer.`);
+    if (!response.ok) throw new Error(body.error || `Unable to ${action} ${customerLower}.`);
 
     const nextStatusKey = action === "archive" ? "archived" : "active";
     const nextStatus = action === "archive" ? t("customers.statusArchived") : t("customers.statusActive");
     setCustomers((current) => current.map((item) => item.id === customer.id ? { ...item, statusKey: nextStatusKey, status: nextStatus } : item));
     setActionMessage(action === "archive" ? `${customer.name} was archived.` : `${customer.name} was restored.`);
     setPage(1);
-  }, [t]);
+  }, [customerLower, t]);
 
   const archiveCustomer = useCallback(async (customer: Customer) => {
     try { await runLifecycleAction(customer, "archive"); }
-    catch (error) { window.alert(error instanceof Error ? error.message : "Unable to archive customer."); }
-  }, [runLifecycleAction]);
+    catch (error) { window.alert(error instanceof Error ? error.message : `Unable to archive ${customerLower}.`); }
+  }, [customerLower, runLifecycleAction]);
 
   const restoreCustomer = useCallback(async (customer: Customer) => {
     try { await runLifecycleAction(customer, "restore"); }
-    catch (error) { window.alert(error instanceof Error ? error.message : "Unable to restore customer."); }
-  }, [runLifecycleAction]);
+    catch (error) { window.alert(error instanceof Error ? error.message : `Unable to restore ${customerLower}.`); }
+  }, [customerLower, runLifecycleAction]);
 
   const deleteCustomer = useCallback(async (customer: Customer) => {
     setActionMessage("");
-    if (!window.confirm(`Delete ${customer.name} permanently? This is only allowed when the customer has no linked projects, estimates, invoices, or other protected business history. This cannot be undone.`)) return;
+    if (!window.confirm(`Delete ${customer.name} permanently? This is only allowed when the ${customerLower} has no linked ${projectsLabel.toLowerCase()}, ${estimatesLabel.toLowerCase()}, invoices, or other protected business history. This cannot be undone.`)) return;
 
     try {
       const response = await fetch(`/api/customers/${customer.id}/lifecycle`, { method: "DELETE" });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Unable to delete customer.");
+      if (!response.ok) throw new Error(body.error || `Unable to delete ${customerLower}.`);
       setCustomers((current) => current.filter((item) => item.id !== customer.id));
       setActionMessage(`${customer.name} was permanently deleted.`);
       setPage(1);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Unable to delete customer.");
+      window.alert(error instanceof Error ? error.message : `Unable to delete ${customerLower}.`);
     }
-  }, []);
+  }, [customerLower, estimatesLabel, projectsLabel]);
 
   const filteredCustomers = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -226,18 +236,18 @@ export default function CustomersPage() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact title="Customers" description="Manage residential, commercial, and property management customers." primaryAction={<Link href="/customers/new" className={getButtonClassName({ size: "md" })}><Plus size={16} aria-hidden="true" />New Customer</Link>} />
+      <PageHeader compact title={customersLabel} description={`Manage ${customersLower} and the relationships that drive your business.`} primaryAction={<Link href="/customers/new" className={getButtonClassName({ size: "md" })}><Plus size={16} aria-hidden="true" />New {customerLabel}</Link>} />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Customer summary filters">
-        <SummaryCard icon={<span>C</span>} label="Total Customers" value={kpis.totalCustomers.toLocaleString()} tone="brand" compact onClick={() => chooseCustomerFilter("all")} selected={chipFilter === "all"} actionLabel="Show all active customer records" />
-        <SummaryCard icon={<span>A</span>} label="Active Customers" value={kpis.activeCustomers.toLocaleString()} tone="success" compact onClick={() => chooseCustomerFilter("active")} selected={chipFilter === "active"} actionLabel="Show active customers" />
-        <SummaryCard icon={<span>N</span>} label="New This Month" value={kpis.newThisMonth.toLocaleString()} tone="info" compact onClick={() => chooseCustomerFilter("new_this_month")} selected={chipFilter === "new_this_month"} actionLabel="Show customers created this month" />
-        <SummaryCard icon={<span>R</span>} label="Archived Customers" value={kpis.archivedCustomers.toLocaleString()} tone="neutral" compact onClick={() => chooseCustomerFilter("archived")} selected={chipFilter === "archived"} actionLabel="Show archived customers" />
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={`${customerLabel} summary filters`}>
+        <SummaryCard icon={<span>C</span>} label={`Total ${customersLabel}`} value={kpis.totalCustomers.toLocaleString()} tone="brand" compact onClick={() => chooseCustomerFilter("all")} selected={chipFilter === "all"} actionLabel={`Show all active ${customerLower} records`} />
+        <SummaryCard icon={<span>A</span>} label={`Active ${customersLabel}`} value={kpis.activeCustomers.toLocaleString()} tone="success" compact onClick={() => chooseCustomerFilter("active")} selected={chipFilter === "active"} actionLabel={`Show active ${customersLower}`} />
+        <SummaryCard icon={<span>N</span>} label="New This Month" value={kpis.newThisMonth.toLocaleString()} tone="info" compact onClick={() => chooseCustomerFilter("new_this_month")} selected={chipFilter === "new_this_month"} actionLabel={`Show ${customersLower} created this month`} />
+        <SummaryCard icon={<span>R</span>} label={`Archived ${customersLabel}`} value={kpis.archivedCustomers.toLocaleString()} tone="neutral" compact onClick={() => chooseCustomerFilter("archived")} selected={chipFilter === "archived"} actionLabel={`Show archived ${customersLower}`} />
       </section>
 
       <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-3 shadow-[var(--shadow-small)] sm:px-4 sm:py-3.5">
         <div className="space-y-3">
-          <SearchInput value={searchTerm} onChange={(event) => { setSearchTerm(event.target.value); setPage(1); }} placeholder="Search customers by name, email, or phone" aria-label="Search customers" className="h-10 rounded-[var(--radius-lg)] transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.12)]" />
+          <SearchInput value={searchTerm} onChange={(event) => { setSearchTerm(event.target.value); setPage(1); }} placeholder={`Search ${customersLower} by name, email, or phone`} aria-label={`Search ${customersLower}`} className="h-10 rounded-[var(--radius-lg)] transition-all duration-200 focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.12)]" />
           <div className="flex flex-wrap gap-2">
             {filterChips.map((chip) => <Button key={chip.key} type="button" size="sm" variant={chipFilter === chip.key ? "primary" : "outline"} className="h-8 px-3.5 text-xs transition-all duration-200 hover:-translate-y-px" onClick={() => chooseCustomerFilter(chip.key)}>{chip.label}</Button>)}
           </div>
@@ -246,10 +256,10 @@ export default function CustomersPage() {
       </section>
 
       <section>
-        {isLoading ? <CustomersLoadingState /> : errorMessage ? <ErrorState title={t("customers.errorTitle")} description={errorMessage} compact /> : customers.length === 0 ? (
-          <EmptyState icon="C" title="No customers yet" description="Create your first customer to start managing your account relationships." compact action={<Link href="/customers/new" className={getButtonClassName({})}>New Customer</Link>} />
+        {isLoading ? <CustomersLoadingState /> : errorMessage ? <ErrorState title={`We couldn't load ${customersLower}`} description={errorMessage} compact /> : customers.length === 0 ? (
+          <EmptyState icon="C" title={`No ${customersLower} yet`} description={`Create your first ${customerLower} to start managing business relationships.`} compact action={<Link href="/customers/new" className={getButtonClassName({})}>New {customerLabel}</Link>} />
         ) : filteredCustomers.length === 0 ? (
-          <EmptyState icon="?" title="No customers match this filter" description={chipFilter === "archived" ? "No customers have been archived." : "Try a different filter or search term."} compact />
+          <EmptyState icon="?" title={`No ${customersLower} match this filter`} description={chipFilter === "archived" ? `No ${customersLower} have been archived.` : "Try a different filter or search term."} compact />
         ) : (
           <CustomerTable items={pagedCustomers} total={filteredCustomers.length} page={currentPage} pageSize={PAGE_SIZE} onPageChange={setPage} onArchive={archiveCustomer} onRestore={restoreCustomer} onDelete={deleteCustomer} t={t} />
         )}
