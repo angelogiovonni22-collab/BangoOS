@@ -18,7 +18,7 @@ export function EmployeeTable({ items, projectLabel, t }: EmployeeTableProps) {
             <tr>
               <TableHeading>Team Member</TableHeading>
               <TableHeading>{t("employees.table.position")}</TableHeading>
-              <TableHeading>{t("employees.table.crew")}</TableHeading>
+              <TableHeading>Team</TableHeading>
               <TableHeading>Supervisor</TableHeading>
               <TableHeading>{projectLabel}</TableHeading>
               <TableHeading>{t("employees.table.status")}</TableHeading>
@@ -69,7 +69,7 @@ export function EmployeeTable({ items, projectLabel, t }: EmployeeTableProps) {
 
             <div className="mt-4 grid gap-3 text-sm text-[var(--color-text-secondary)] sm:grid-cols-2">
               <InfoLine label={t("employees.table.position")} value={employee.positionTitle} />
-              <InfoLine label={t("employees.table.crew")} value={employee.primaryCrewName || t("employees.unassigned")} />
+              <InfoLine label="Team" value={employee.primaryCrewName || t("employees.unassigned")} />
               <InfoLine label="Supervisor" value={employee.supervisorName || "Unassigned"} />
               <InfoLine label={t("employees.table.assignment")} value={employee.currentAssignmentTitle || t("employees.unassigned")} />
             </div>
