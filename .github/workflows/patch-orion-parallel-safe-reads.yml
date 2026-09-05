@@ -22,6 +22,6 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/orion/autonomy/safe-read-executor.ts lib/orion/autonomy/orion-parallel-safe-reads.contract.test.ts .github/workflows/orion-autonomy.yml
+          git add lib/orion/autonomy/safe-read-executor.ts lib/orion/autonomy/orion-parallel-safe-reads.contract.test.ts
           git diff --cached --quiet || git commit -m "Parallelize independent Orion safe reads"
           git push
