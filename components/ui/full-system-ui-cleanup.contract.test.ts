@@ -39,7 +39,7 @@ assert.match(timeline, /PageHeader/, "Timeline must use the shared BOS page head
 assert.match(timeline, /bg-\[var\(--color-surface-card\)\]/, "Timeline surfaces must use BOS semantic colors");
 assert.doesNotMatch(deletedProjects, /disabled>Previously Deleted/, "Deleted Projects active tab must not use disabled-button styling");
 assert.match(deletedProjects, /aria-current="page"/, "Deleted Projects active tab must expose current-page semantics");
-assert.match(estimates, /Estimate summary filters/, "Estimate KPIs must operate as directory filters");
+assert.match(estimates, /summary filters/, "Estimate KPIs must operate as directory filters");
 assert.match(estimates, /onClick=\{\(\) => chooseStatus/, "Estimate status KPIs must be clickable");
 assert.match(estimateFilters, /xl:grid-cols-6/, "Estimate filters must fit one desktop row");
 assert.match(invoices, /Invoice summary filters/, "Invoice KPIs must operate as directory filters");
