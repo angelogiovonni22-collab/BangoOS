@@ -1,0 +1,33 @@
+name: Reality Engine Native Capture
+
+on:
+  pull_request:
+    paths:
+      - "native/ios/**"
+      - "app/api/reality/**"
+      - "lib/reality/**"
+      - "supabase/migrations/*reality*"
+      - ".github/workflows/reality-native-capture.yml"
+  push:
+    branches: [main]
+    paths:
+      - "native/ios/**"
+      - "app/api/reality/**"
+      - "lib/reality/**"
+      - "supabase/migrations/*reality*"
+      - ".github/workflows/reality-native-capture.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx -y tsx lib/reality/reality-native-capture.contract.test.ts

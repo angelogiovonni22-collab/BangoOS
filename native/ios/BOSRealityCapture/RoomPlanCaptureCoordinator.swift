@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import RoomPlan
 import UIKit
@@ -6,13 +7,14 @@ import UIKit
 @MainActor
 final class RoomPlanCaptureCoordinator: NSObject, ObservableObject {
     @Published private(set) var isScanning = false
+    @Published private(set) var capturedRoom: CapturedRoom?
     @Published private(set) var lastError: String?
 
     private let captureView = RoomCaptureView(frame: .zero)
-    private var continuation: CheckedContinuation<CapturedRoom, Error>?
 
     override init() {
         super.init()
+        captureView.delegate = self
         captureView.captureSession.delegate = self
     }
 
@@ -22,12 +24,14 @@ final class RoomPlanCaptureCoordinator: NSObject, ObservableObject {
 
     func start() {
         lastError = nil
+        capturedRoom = nil
         let configuration = RoomCaptureSession.Configuration()
         captureView.captureSession.run(configuration: configuration)
         isScanning = true
     }
 
     func stop() {
+        guard isScanning else { return }
         captureView.captureSession.stop()
         isScanning = false
     }
@@ -41,6 +45,27 @@ final class RoomPlanCaptureCoordinator: NSObject, ObservableObject {
         let data = try JSONEncoder.bosReality.encode(payload)
         try data.write(to: metadataURL, options: .atomic)
         return (usdzURL, metadataURL)
+    }
+}
+
+@available(iOS 16.0, *)
+extension RoomPlanCaptureCoordinator: RoomCaptureViewDelegate {
+    func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: Error?) -> Bool {
+        if let error {
+            lastError = error.localizedDescription
+            return false
+        }
+        return true
+    }
+
+    func captureView(didPresent processedResult: CapturedRoom, error: Error?) {
+        isScanning = false
+        if let error {
+            lastError = error.localizedDescription
+            capturedRoom = nil
+            return
+        }
+        capturedRoom = processedResult
     }
 }
 
