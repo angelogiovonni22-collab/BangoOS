@@ -4,7 +4,8 @@ import { AppShell } from "./app-shell";
 import { CompanyProvider } from "@/lib/company";
 import { canUseOrion, type PermissionOverrides } from "@/lib/access-control/permissions";
 import { AdaptiveBosProvider } from "@/lib/adaptive-bos/provider";
-import { resolveAdaptiveBosConfig, type AdaptiveBosCompanyProfile } from "@/lib/adaptive-bos/config";
+import { type AdaptiveBosCompanyProfile } from "@/lib/adaptive-bos/config";
+import { resolveAdaptiveBosConfigFromDatabase } from "@/lib/adaptive-bos/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -76,7 +77,7 @@ export default async function DashboardLayout({
     terminologyOverrides: operatingProfileRow.terminology_overrides,
     workflowOverrides: operatingProfileRow.workflow_overrides,
   } : { industryKey: "construction", industryLabel: "Construction" };
-  const adaptiveConfig = resolveAdaptiveBosConfig(operatingProfile);
+  const adaptiveConfig = await resolveAdaptiveBosConfigFromDatabase(supabase, operatingProfile);
 
   const orionEnabled = canUseOrion(workspace.context.role, permissionOverrides);
   const { data: platformAdministrator } = await supabase
