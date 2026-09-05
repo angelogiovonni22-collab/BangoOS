@@ -16,6 +16,7 @@ export const ORION_REALTIME_CONFIRM_TOOL = "bos_confirm_pending_action";
 export const ORION_REALTIME_RESEARCH_TOOL = "orion_web_research";
 export const ORION_REALTIME_CONTEXT_TOOL = "orion_current_context";
 export const ORION_REALTIME_RESOLVE_ENTITY_TOOL = "orion_resolve_entity";
+export const ORION_AUTONOMY_SAFE_READ_TOOL = "orion_autonomy_safe_read";
 
 export type OrionRealtimeFunctionCall = {
   callId: string;
@@ -100,10 +101,44 @@ async function executeEntityResolution(call: OrionRealtimeFunctionCall): Promise
   };
 }
 
+async function executeAutonomySafeRead(call: OrionRealtimeFunctionCall): Promise<OrionRealtimeToolExecutionResult> {
+  const steps = Array.isArray(call.params.steps) ? call.params.steps : [];
+  const requestedExecutionId = typeof call.params.executionId === "string" && call.params.executionId.trim() ? call.params.executionId.trim() : call.callId;
+  const response = await fetch("/api/orion/autonomy/execute-safe-read", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ steps, executionId: requestedExecutionId }),
+  });
+  const payload = await response.json() as {
+    ok?: boolean;
+    error?: string;
+    executed?: unknown;
+    stoppedAt?: unknown;
+    stopReason?: unknown;
+    nextBlockedStep?: unknown;
+  };
+  const ok = Boolean(response.ok && payload.ok);
+  return {
+    ok,
+    statusCategory: ok ? "autonomy_read_sequence_completed" : "autonomy_read_sequence_failed",
+    userMessage: payload.error || (ok ? "Orion completed the safe read-only portion of the multi-step task." : "Orion could not complete the safe read-only portion of the task."),
+    href: null,
+    confirmationRequired: false,
+    confirmationToken: null,
+    details: {
+      executed: payload.executed ?? [],
+      stoppedAt: payload.stoppedAt ?? null,
+      stopReason: payload.stopReason ?? null,
+      nextBlockedStep: payload.nextBlockedStep ?? null,
+    },
+  };
+}
+
 export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall, options?: { confirmationTranscript?: string | null }): Promise<OrionRealtimeToolExecutionResult> {
   if (call.toolName === ORION_REALTIME_CONTEXT_TOOL) return currentBosContext();
   if (call.toolName === ORION_REALTIME_RESEARCH_TOOL) return executeRealtimeResearch(call);
   if (call.toolName === ORION_REALTIME_RESOLVE_ENTITY_TOOL) return executeEntityResolution(call);
+  if (call.toolName === ORION_AUTONOMY_SAFE_READ_TOOL) return executeAutonomySafeRead(call);
   if (call.toolName === ORION_UI_OPERATOR_TOOL) {
     ensureOrionMediaSemantics();
     const result = await executeOrionUiOperator(call.params);

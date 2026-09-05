@@ -16,6 +16,7 @@ const RESOLVE_ENTITY_TOOL_NAME = "orion_resolve_entity";
 const UI_OPERATOR_TOOL_NAME = "orion_ui_operator";
 const PERSONAL_ASSISTANT_TOOL_NAME = "orion_personal_assistant";
 const VIEWPORT_CONTROL_TOOL_NAME = "orion_viewport_control";
+const AUTONOMY_SAFE_READ_TOOL_NAME = "orion_autonomy_safe_read";
 
 function openAIKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -118,6 +119,29 @@ function realtimeBosTools() {
     },
     {
       type: "function" as const,
+      name: AUTONOMY_SAFE_READ_TOOL_NAME,
+      description: "Plan and execute only the read-only prefix of an ordered multi-step BOS request. Every step must name an existing canonical BOS tool and its params. This tool re-plans and re-authorizes server-side, executes at most eight read-risk steps, verifies each result, and stops before every write, external effect, financial, destructive, or legal/authority action. Never use it to bypass normal canonical BOS confirmation controls.",
+      parameters: wrappedToolParameters({
+        steps: {
+          type: "array",
+          minItems: 1,
+          maxItems: 8,
+          description: "Ordered canonical BOS tool calls for the task. Use exact available bos_* tool names.",
+          items: {
+            type: "object",
+            properties: {
+              toolName: { type: "string", description: "Exact canonical bos_* tool name." },
+              params: { type: "object", additionalProperties: true, description: "Parameters for that canonical BOS tool." },
+            },
+            required: ["toolName"],
+            additionalProperties: false,
+          },
+        },
+        executionId: { type: "string", description: "Optional stable identifier for retry-safe sequence execution." },
+      }, ["steps"]),
+    },
+    {
+      type: "function" as const,
       name: CONFIRM_TOOL_NAME,
       description: "Execute a previously requested BOS action only after the user has explicitly confirmed it in the current conversation. Use the exact confirmationToken returned by the prior function output.",
       parameters: wrappedToolParameters({ confirmationToken: { type: "string", description: "Signed short-lived confirmation token returned by the pending BOS action." } }, ["confirmationToken"]),
@@ -191,6 +215,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         voiceStyleInstruction(voiceStyle),
         voiceIsolationInstruction(isolationMode),
         "Execution-speed policy: for clear reversible BOS requests, call the correct tool immediately and narrate briefly after the tool result. Do not spend a response explaining what you are about to do when you can safely start doing it.",
+        `Multi-step autonomy policy: when a user asks for an ordered task containing two or more BOS lookups/reads, or a larger task whose first steps are reads, call ${AUTONOMY_SAFE_READ_TOOL_NAME} with those canonical bos_* tool calls in order. It may execute only the verified read-only prefix and will stop before every non-read step. Never bypass a returned boundary: continue any write or protected step only through its normal canonical BOS tool so existing review and confirmation controls remain authoritative.`,
         `Reminder policy: use ${PERSONAL_ASSISTANT_TOOL_NAME} for spoken reminders and calendar-event alerts. If the user says a relative time such as later, in 30 minutes, tomorrow morning, or before an event, call action=now first so you anchor the request to the device-local clock. Never claim a reminder is set until the tool returns success.`,
         `Calendar-alert policy: use ${PERSONAL_ASSISTANT_TOOL_NAME} action=set_event_alert when the user asks to be alerted before or at a meeting, appointment, inspection, job, schedule item, or other calendar event. Keep eventStartsAt separate from dueAt so the alert can occur before the event.`,
         `Zoom policy: when the user says zoom in, zoom out, make this bigger/smaller, reset zoom, or set a B.O.S. zoom percentage, call ${VIEWPORT_CONTROL_TOOL_NAME} immediately. Do not use UI scrolling for zoom requests.`,
