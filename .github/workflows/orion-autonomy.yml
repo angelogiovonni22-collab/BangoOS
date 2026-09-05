@@ -29,3 +29,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx -y tsx lib/orion/autonomy/orion-autonomy.contract.test.ts
+      - run: npx -y tsx lib/orion/autonomy/orion-autonomy-planner.contract.test.ts
