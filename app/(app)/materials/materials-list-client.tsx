@@ -5,6 +5,7 @@ import { FileSpreadsheet, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { MaterialsFilters, MaterialsTable } from "@/components/materials";
 import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { useCompany } from "@/lib/company";
 import {
   type MaterialListItem,
@@ -35,6 +36,11 @@ type MaterialQueryRow = {
 export function MaterialsListClient() {
   const supabase = useMemo(() => createClient(), []);
   const { companyName } = useCompany();
+  const { term } = useAdaptiveBos();
+  const materialsLabel = term("materials", "Materials");
+  const procurementLabel = term("procurement", "Procurement");
+  const vendorLabel = term("vendor", "Vendor");
+  const materialsLower = materialsLabel.toLowerCase();
 
   const [items, setItems] = useState<MaterialListItem[]>([]);
   const [query, setQuery] = useState("");
@@ -143,7 +149,7 @@ export function MaterialsListClient() {
         })));
         setTotal(count || 0);
       } catch (error) {
-        if (active) setErrorMessage(error instanceof Error ? error.message : "Unable to load materials.");
+        if (active) setErrorMessage(error instanceof Error ? error.message : `Unable to load ${materialsLower}.`);
       } finally {
         if (active) setIsLoading(false);
       }
@@ -151,7 +157,7 @@ export function MaterialsListClient() {
 
     void load();
     return () => { active = false; };
-  }, [category, inventoryMode, page, query, sortBy, status, supabase]);
+  }, [category, inventoryMode, materialsLower, page, query, sortBy, status, supabase]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const activeFilters = useMemo(() => Number(Boolean(query.trim())) + Number(status !== "all") + Number(inventoryMode !== "all") + Number(Boolean(category.trim())), [category, inventoryMode, query, status]);
@@ -163,24 +169,24 @@ export function MaterialsListClient() {
   }, [items]);
 
   if (isLoading) return <div className="space-y-4"><SkeletonLoader className="h-10 w-80" /><SkeletonLoader className="h-36 w-full" /><SkeletonLoader className="h-72 w-full" /></div>;
-  if (errorMessage) return <ErrorState title="Unable to load materials" description={errorMessage} />;
+  if (errorMessage) return <ErrorState title={`Unable to load ${materialsLower}`} description={errorMessage} />;
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
-        eyebrow="Materials"
-        title="Materials Management"
-        description={`Manage material catalog, costs, and inventory for ${companyName || "your company"}.`}
+        eyebrow={materialsLabel}
+        title={`${materialsLabel} Management`}
+        description={`Manage ${materialsLower}, costs, and inventory for ${companyName || "your company"}.`}
         primaryAction={
           <div className="flex flex-wrap gap-2">
-            <Link href="/materials/price-lists" className={getButtonClassName({ variant: "outline" })}><FileSpreadsheet size={16} aria-hidden="true" />Supplier Price Lists</Link>
-            <Link href="/materials/procurement" className={getButtonClassName({ variant: "outline" })}>Procurement Workflow</Link>
-            <Link href="/materials/new" className={getButtonClassName()}><Plus size={16} aria-hidden="true" />New material</Link>
+            <Link href="/materials/price-lists" className={getButtonClassName({ variant: "outline" })}><FileSpreadsheet size={16} aria-hidden="true" />{vendorLabel} Price Lists</Link>
+            <Link href="/materials/procurement" className={getButtonClassName({ variant: "outline" })}>{procurementLabel} Workflow</Link>
+            <Link href="/materials/new" className={getButtonClassName()}><Plus size={16} aria-hidden="true" />Add item</Link>
           </div>
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-3" aria-label={`${materialsLabel} summary`}>
         <SummaryCard icon={<span>M</span>} label="Total loaded" value={String(total)} context="Across current filters" tone="brand" />
         <SummaryCard icon={<span>S</span>} label="Inventory tracked" value={String(summary.tracked)} context="Items with stock tracking" tone="info" />
         <SummaryCard icon={<span>C</span>} label="Average cost" value={summary.avgCost > 0 ? `$${summary.avgCost.toFixed(2)}` : "$0.00"} context={`Low stock in view: ${summary.lowStock}`} tone="warning" />
@@ -197,7 +203,7 @@ export function MaterialsListClient() {
       />
 
       {items.length === 0 ? (
-        <EmptyState title="No materials found" description="Try different filters or create your first material record." action={<Link href="/materials/new" className={getButtonClassName()}>New material</Link>} />
+        <EmptyState title={`No ${materialsLower} found`} description={`Try different filters or add your first ${materialsLower} record.`} action={<Link href="/materials/new" className={getButtonClassName()}>Add item</Link>} />
       ) : (
         <MaterialsTable items={items} total={total} page={Math.min(page, totalPages)} pageSize={PAGE_SIZE} onPageChange={(nextPage) => setPage(Math.max(1, Math.min(nextPage, totalPages)))} />
       )}
