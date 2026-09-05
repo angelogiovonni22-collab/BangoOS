@@ -13,6 +13,7 @@ import { buildOrionAutonomyPlanFromToolSteps, type OrionAutonomyPlanRequestStep 
 import { normalizeRealtimeFastCommandParams } from "@/lib/orion/realtime/fast-command-params";
 import { resolveOrionStepReferences, type OrionStepReferenceOutput } from "./step-references";
 import { verifyOrionAutonomousReadResult } from "./read-result-verifier";
+import { buildOrionReadEvidence, type OrionReadEvidence } from "./read-evidence";
 
 export type OrionSafeReadExecutionStep = {
   index: number;
@@ -23,6 +24,7 @@ export type OrionSafeReadExecutionStep = {
   href: string | null;
   verified: boolean;
   referencesResolved: number;
+  evidence: OrionReadEvidence | null;
 };
 
 export type OrionProtectedBoundaryHandoff = {
@@ -166,6 +168,7 @@ export async function executeOrionSafeReadPrefix(args: {
     const verification = verifyOrionAutonomousReadResult({ command, result });
     const verified = verification.ok;
     const verificationError = verification.ok ? result.userMessage : verification.reason;
+    const evidence = verified ? buildOrionReadEvidence(result) : null;
     executed.push({
       index: stepIndex,
       commandId: command.id,
@@ -175,6 +178,7 @@ export async function executeOrionSafeReadPrefix(args: {
       href: result.href,
       verified,
       referencesResolved: referenceResolution.referencesResolved,
+      evidence,
     });
 
     if (!verified) {
