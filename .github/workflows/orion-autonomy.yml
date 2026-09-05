@@ -42,5 +42,6 @@ jobs:
       - run: npx -y tsx lib/orion/autonomy/orion-read-result-verifier.contract.test.ts
       - run: npx -y tsx lib/orion/autonomy/orion-read-evidence.contract.test.ts
       - run: npx -y tsx lib/orion/autonomy/orion-parallel-safe-reads.contract.test.ts
+      - run: npx -y tsx lib/orion/autonomy/orion-safe-read-retry.contract.test.ts
       - run: npx -y tsx lib/orion/autonomy/orion-safe-read-executor.contract.test.ts
       - run: npx -y tsx lib/orion/autonomy/orion-realtime-safe-sequence.contract.test.ts
