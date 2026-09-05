@@ -9,7 +9,17 @@ import { resolveAdaptiveBosConfigFromDatabase } from "@/lib/adaptive-bos/server"
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = SupabaseClient<any>;
 
-function toAdaptiveProfile(data: Record<string, any> | null): AdaptiveBosCompanyProfile {
+type OperatingProfileRow = {
+  industry_key?: string | null;
+  industry_label?: string | null;
+  business_model?: string | null;
+  primary_services?: string[] | null;
+  module_overrides?: Partial<Record<string, boolean>> | null;
+  terminology_overrides?: Record<string, string> | null;
+  workflow_overrides?: Record<string, string> | null;
+};
+
+function toAdaptiveProfile(data: OperatingProfileRow | null): AdaptiveBosCompanyProfile {
   return data ? {
     industryKey:data.industry_key,
     industryLabel:data.industry_label,
@@ -32,7 +42,7 @@ export async function GET() {
     .eq("company_id", workspace.context.companyId)
     .maybeSingle();
   if (error) return NextResponse.json({ ok:false, error:error.message }, { status:500 });
-  const resolved = await resolveAdaptiveBosConfigFromDatabase(supabase, toAdaptiveProfile(data));
+  const resolved = await resolveAdaptiveBosConfigFromDatabase(supabase, toAdaptiveProfile(data as OperatingProfileRow | null));
   return NextResponse.json({ ok:true, profile:data, resolved });
 }
 
@@ -56,6 +66,6 @@ export async function PATCH(req:Request) {
   else query = db.from("company_operating_profiles").insert({ ...payload, created_by:user.id });
   const { data, error } = await query.select("industry_key,industry_label,business_model,primary_services,module_overrides,terminology_overrides,workflow_overrides,config_version").single();
   if (error) return NextResponse.json({ ok:false, error:error.message }, { status:400 });
-  const resolved = await resolveAdaptiveBosConfigFromDatabase(supabase, toAdaptiveProfile(data));
+  const resolved = await resolveAdaptiveBosConfigFromDatabase(supabase, toAdaptiveProfile(data as OperatingProfileRow));
   return NextResponse.json({ ok:true, profile:data, resolved });
 }
