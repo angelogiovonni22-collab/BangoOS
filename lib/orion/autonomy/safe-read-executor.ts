@@ -46,7 +46,7 @@ export type OrionSafeReadExecutionResult = {
   ok: boolean;
   executed: OrionSafeReadExecutionStep[];
   stoppedAt: number | null;
-  stopReason: "plan_boundary" | "write_boundary" | "authorization_failed" | "validation_failed" | "execution_failed" | null;
+  stopReason: "plan_boundary" | "write_boundary" | "time_budget_exceeded" | "authorization_failed" | "validation_failed" | "execution_failed" | null;
   nextBlockedStep: OrionAutonomyPlanStep | null;
   nextBlockedAction: OrionProtectedBoundaryHandoff | null;
   error?: string;
@@ -84,6 +84,7 @@ function hasOrionStepReference(value: unknown, depth = 0): boolean {
 
 const MAX_PARALLEL_SAFE_READS = 4;
 const MAX_SAFE_READ_ATTEMPTS = 2;
+const MAX_SAFE_READ_SEQUENCE_MS = 12_000;
 
 function emptyResult(args: {
   ok: boolean;
@@ -113,6 +114,7 @@ export async function executeOrionSafeReadPrefix(args: {
   const router = createOrionCommandRouter({ supabase: args.supabase });
   const executed: OrionSafeReadExecutionStep[] = [];
   const outputs: OrionStepReferenceOutput[] = [];
+  const sequenceStartedAt = Date.now();
 
   type StepAttempt =
     | {
@@ -299,6 +301,17 @@ export async function executeOrionSafeReadPrefix(args: {
 
   let zeroIndex = 0;
   while (zeroIndex < planned.plan.autonomousPrefixLength) {
+    if (Date.now() - sequenceStartedAt >= MAX_SAFE_READ_SEQUENCE_MS) {
+      return {
+        ok: true,
+        executed,
+        stoppedAt: zeroIndex + 1,
+        stopReason: "time_budget_exceeded",
+        nextBlockedStep: planned.plan.steps[zeroIndex] ?? null,
+        nextBlockedAction: null,
+      };
+    }
+
     const currentParams = asParams(args.steps[zeroIndex]?.params);
     const canParallelize = !hasOrionStepReference(currentParams);
     let batchEnd = zeroIndex + 1;
