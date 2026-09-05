@@ -18,13 +18,16 @@ create policy bos_reality_captures_storage_select
 on storage.objects for select to authenticated
 using (
   bucket_id = 'bos-reality-captures'
-  and public.is_company_member(((storage.foldername(name))[1])::uuid)
+  and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  and split_part(name, '/', 2) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  and split_part(name, '/', 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  and public.is_company_member(split_part(name, '/', 1)::uuid)
   and exists (
     select 1
     from public.reality_capture_sessions s
-    where s.id = ((storage.foldername(name))[3])::uuid
-      and s.company_id = ((storage.foldername(name))[1])::uuid
-      and s.project_id = ((storage.foldername(name))[2])::uuid
+    where s.id = split_part(name, '/', 3)::uuid
+      and s.company_id = split_part(name, '/', 1)::uuid
+      and s.project_id = split_part(name, '/', 2)::uuid
   )
 );
 
@@ -33,13 +36,16 @@ create policy bos_reality_captures_storage_insert
 on storage.objects for insert to authenticated
 with check (
   bucket_id = 'bos-reality-captures'
-  and public.is_company_member(((storage.foldername(name))[1])::uuid)
+  and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  and split_part(name, '/', 2) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  and split_part(name, '/', 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  and public.is_company_member(split_part(name, '/', 1)::uuid)
   and exists (
     select 1
     from public.reality_capture_sessions s
-    where s.id = ((storage.foldername(name))[3])::uuid
-      and s.company_id = ((storage.foldername(name))[1])::uuid
-      and s.project_id = ((storage.foldername(name))[2])::uuid
+    where s.id = split_part(name, '/', 3)::uuid
+      and s.company_id = split_part(name, '/', 1)::uuid
+      and s.project_id = split_part(name, '/', 2)::uuid
       and s.created_by = auth.uid()
   )
 );
@@ -49,13 +55,16 @@ create policy bos_reality_captures_storage_delete
 on storage.objects for delete to authenticated
 using (
   bucket_id = 'bos-reality-captures'
-  and public.is_company_member(((storage.foldername(name))[1])::uuid)
+  and split_part(name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  and split_part(name, '/', 2) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  and split_part(name, '/', 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+  and public.is_company_member(split_part(name, '/', 1)::uuid)
   and exists (
     select 1
     from public.reality_capture_sessions s
-    where s.id = ((storage.foldername(name))[3])::uuid
-      and s.company_id = ((storage.foldername(name))[1])::uuid
-      and s.project_id = ((storage.foldername(name))[2])::uuid
+    where s.id = split_part(name, '/', 3)::uuid
+      and s.company_id = split_part(name, '/', 1)::uuid
+      and s.project_id = split_part(name, '/', 2)::uuid
       and s.created_by = auth.uid()
   )
 );
