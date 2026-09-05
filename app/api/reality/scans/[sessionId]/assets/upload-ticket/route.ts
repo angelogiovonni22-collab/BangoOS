@@ -8,6 +8,8 @@ import type { Database } from "@/types/database.types";
 const BUCKET = "bos-reality-captures";
 const ALLOWED_KINDS = new Set(["usdz", "mesh", "thumbnail", "depth", "photo", "metadata"]);
 
+// Reality Engine tables are migration-backed until the next generated Supabase type refresh.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type UntypedSupabase = SupabaseClient<any>;
 
 type RouteContext = { params: Promise<{ sessionId: string }> };
