@@ -13,6 +13,7 @@ function main() {
   const evidence = read("lib/orion/autonomy/read-evidence.ts");
   const executor = read("lib/orion/autonomy/safe-read-executor.ts");
   const bridge = read("lib/orion/realtime/tool-bridge.ts");
+  const session = read("app/api/orion/realtime/session/route.ts");
 
   console.log("\nOrion read evidence contract");
   assert(evidence.includes("MAX_SERIALIZED_BYTES = 8_000"), "Realtime evidence has a per-step serialized size budget");
@@ -24,6 +25,8 @@ function main() {
   assert(executor.includes("evidence:"), "safe-read execution returns bounded evidence per completed step");
   assert(executor.indexOf("buildOrionReadEvidence(result)") > executor.indexOf("verifyOrionAutonomousReadResult({ command, result })"), "evidence is built only after semantic result verification");
   assert(bridge.includes("executed: payload.executed ?? []"), "Realtime receives executed-step evidence through the existing authenticated bridge");
+  assert(session.includes("Verified read evidence policy:") && session.includes("executed[].evidence"), "Realtime is instructed to answer from verified read evidence");
+  assert(session.includes("evidence.truncated") && session.includes("narrower canonical read"), "Realtime narrows follow-up reads instead of guessing when evidence is truncated");
 
   console.log(`\nOrion read evidence results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
