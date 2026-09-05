@@ -16,12 +16,17 @@ import {
   EmployeeTable,
 } from "@/components/employees";
 import { UsersIcon } from "@/components/employees/employee-icons";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { useEmployees } from "@/lib/employees";
 import { useI18n } from "@/lib/i18n/provider";
 import Link from "next/link";
 
 export default function EmployeesPage() {
   const { t } = useI18n();
+  const { term } = useAdaptiveBos();
+  const workforceLabel = term("workforce", "Workforce");
+  const projectLabel = term("project", "Project");
+  const projectsLabel = term("projects", "Projects");
   const {
     items,
     summary,
@@ -59,9 +64,9 @@ export default function EmployeesPage() {
   return (
     <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
-        title={t("employees.pageTitle")}
-        description={t("employees.pageDescription")}
-        secondaryActions={<Link href="/employees/new" className={getButtonClassName({ size: "md" })}>New Employee</Link>}
+        title={workforceLabel}
+        description={`Manage team members, assignments, availability, and ${workforceLabel.toLowerCase()} operations.`}
+        secondaryActions={<Link href="/employees/new" className={getButtonClassName({ size: "md" })}>New Team Member</Link>}
       />
 
       <EmployeeDashboardMetrics
@@ -74,6 +79,8 @@ export default function EmployeesPage() {
         }}
         onAvailabilityChange={setAvailabilityStatus}
         onEmploymentStatusChange={setEmploymentStatus}
+        workforceLabel={workforceLabel}
+        projectLabel={projectLabel}
         t={t}
       />
 
@@ -82,8 +89,8 @@ export default function EmployeesPage() {
       ))}
 
       <TableContainer
-        title={t("employees.directoryTitle")}
-        description={t("employees.directoryDescription")}
+        title={`${workforceLabel} Directory`}
+        description="Search team members, review current assignments, and manage availability."
         controls={
           <EmployeeFilters
             query={query}
@@ -104,6 +111,8 @@ export default function EmployeesPage() {
             onEmploymentStatusChange={setEmploymentStatus}
             onAvailabilityStatusChange={setAvailabilityStatus}
             onSortChange={setSortBy}
+            projectLabel={projectLabel}
+            projectsLabel={projectsLabel}
             t={t}
           />
         }
@@ -111,12 +120,12 @@ export default function EmployeesPage() {
         {isLoading ? (
           <EmployeeLoadingState />
         ) : errorMessage ? (
-          <ErrorState title={t("employees.errorTitle")} description={t(errorMessage)} compact />
+          <ErrorState title={`${workforceLabel} unavailable`} description={t(errorMessage)} compact />
         ) : items.length === 0 ? (
-          <EmptyState compact icon={<UsersIcon className="h-7 w-7" />} title={t("employees.empty.title")} description={t("employees.empty.description")} />
+          <EmptyState compact icon={<UsersIcon className="h-7 w-7" />} title="No team members found" description="Add a team member or adjust your filters to continue." />
         ) : (
           <>
-            <EmployeeTable items={items} t={t} />
+            <EmployeeTable items={items} projectLabel={projectLabel} t={t} />
             <EmployeePagination
               page={page}
               totalPages={totalPages}
