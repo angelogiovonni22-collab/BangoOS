@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EquipmentFilters, EquipmentTable } from "@/components/equipment";
 import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, PartialDataNotice, Select, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { useCompany } from "@/lib/company";
 import {
   buildEquipmentQueryPlan,
@@ -56,6 +57,8 @@ type EquipmentSavedView = {
 export function EquipmentListClient() {
   const supabase = useMemo(() => createClient(), []);
   const { companyName } = useCompany();
+  const { term } = useAdaptiveBos();
+  const equipmentLabel = term("equipment", "Equipment");
 
   const [workspace, setWorkspace] = useState<WorkspaceContext | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
@@ -366,26 +369,26 @@ export function EquipmentListClient() {
   return (
     <div className="container-content space-y-[var(--space-section)]">
       <PageHeader
-        eyebrow="Equipment"
-        title="Equipment & Fleet Intelligence"
-        description={`Central operating system for company assets in ${companyName || "your company"}.`}
+        eyebrow={equipmentLabel}
+        title={`${equipmentLabel} Intelligence`}
+        description={`Central operating system for ${equipmentLabel.toLowerCase()} and company assets in ${companyName || "your company"}.`}
         primaryAction={
-          <Link href="/equipment/new" className={getButtonClassName({ size: "lg" })}><Plus size={16} /> New Equipment</Link>
+          <Link href="/equipment/new" className={getButtonClassName({ size: "lg" })}><Plus size={16} /> New {equipmentLabel}</Link>
         }
       />
 
-      {workspaceError ? <ErrorState title="Unable to load equipment" description={workspaceError} /> : null}
+      {workspaceError ? <ErrorState title={`Unable to load ${equipmentLabel.toLowerCase()}`} description={workspaceError} /> : null}
 
-      <PartialDataNotice message="Historical assignment, maintenance, inspection, and document coverage reflects the records currently available for each asset." />
+      <PartialDataNotice message={`Historical assignment, maintenance, inspection, and document coverage reflects the records currently available for each ${equipmentLabel.toLowerCase()} asset.`} />
 
       {isLoading ? <SkeletonLoader className="h-40 w-full" /> : null}
-      {!isLoading && errorMessage ? <ErrorState title="Unable to load equipment" description={errorMessage} /> : null}
+      {!isLoading && errorMessage ? <ErrorState title={`Unable to load ${equipmentLabel.toLowerCase()}`} description={errorMessage} /> : null}
 
       {!isLoading && !errorMessage && items.length === 0 ? (
         <EmptyState
-          title="No equipment yet"
-          description="Create your first equipment record to track fleet utilization, maintenance, and assignment intelligence."
-          action={<Link href="/equipment/new" className={getButtonClassName({ size: "lg" })}><Plus size={16} /> Add Equipment</Link>}
+          title={`No ${equipmentLabel.toLowerCase()} yet`}
+          description={`Create your first ${equipmentLabel.toLowerCase()} record to track utilization, maintenance, and assignment intelligence.`}
+          action={<Link href="/equipment/new" className={getButtonClassName({ size: "lg" })}><Plus size={16} /> Add {equipmentLabel}</Link>}
         />
       ) : null}
 
@@ -406,11 +409,11 @@ export function EquipmentListClient() {
 
           <Card as="section" variant="elevated">
             <CardHeader className="bg-[var(--color-surface-subtle)]/45">
-              <CardTitle>Orion Equipment Brief (Read-only)</CardTitle>
+              <CardTitle>Orion {equipmentLabel} Brief (Read-only)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 p-5">
               {orionRecommendations.length === 0 ? (
-                <p className="text-sm text-[var(--color-text-secondary)]">No urgent equipment recommendations right now.</p>
+                <p className="text-sm text-[var(--color-text-secondary)]">No urgent {equipmentLabel.toLowerCase()} recommendations right now.</p>
               ) : (
                 orionRecommendations.map((recommendation) => (
                   <Link key={recommendation.id} href={recommendation.href} className="block rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-white p-3">
