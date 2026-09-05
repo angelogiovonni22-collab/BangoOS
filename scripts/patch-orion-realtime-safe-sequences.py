@@ -1,0 +1,107 @@
+from pathlib import Path
+
+session_path = Path("app/api/orion/realtime/session/route.ts")
+session = session_path.read_text()
+anchor = 'const VIEWPORT_CONTROL_TOOL_NAME = "orion_viewport_control";'
+replacement = anchor + '\nconst AUTONOMY_SAFE_READ_TOOL_NAME = "orion_autonomy_safe_read";'
+if "AUTONOMY_SAFE_READ_TOOL_NAME" not in session:
+    if anchor not in session:
+        raise SystemExit("session constant anchor not found")
+    session = session.replace(anchor, replacement, 1)
+
+confirm_anchor = '''    {
+      type: "function" as const,
+      name: CONFIRM_TOOL_NAME,'''
+safe_tool = '''    {
+      type: "function" as const,
+      name: AUTONOMY_SAFE_READ_TOOL_NAME,
+      description: "Plan and execute only the read-only prefix of an ordered multi-step BOS request. Every step must name an existing canonical BOS tool and its params. This tool re-plans and re-authorizes server-side, executes at most eight read-risk steps, verifies each result, and stops before every write, external effect, financial, destructive, or legal/authority action. Never use it to bypass normal canonical BOS confirmation controls.",
+      parameters: wrappedToolParameters({
+        steps: {
+          type: "array",
+          minItems: 1,
+          maxItems: 8,
+          description: "Ordered canonical BOS tool calls for the task. Use exact available bos_* tool names.",
+          items: {
+            type: "object",
+            properties: {
+              toolName: { type: "string", description: "Exact canonical bos_* tool name." },
+              params: { type: "object", additionalProperties: true, description: "Parameters for that canonical BOS tool." },
+            },
+            required: ["toolName"],
+            additionalProperties: false,
+          },
+        },
+        executionId: { type: "string", description: "Optional stable identifier for retry-safe sequence execution." },
+      }, ["steps"]),
+    },
+'''
+if "name: AUTONOMY_SAFE_READ_TOOL_NAME" not in session:
+    if confirm_anchor not in session:
+        raise SystemExit("session confirm tool anchor not found")
+    session = session.replace(confirm_anchor, safe_tool + confirm_anchor, 1)
+
+instruction_anchor = '        "Execution-speed policy: for clear reversible BOS requests, call the correct tool immediately and narrate briefly after the tool result. Do not spend a response explaining what you are about to do when you can safely start doing it.",'
+instruction = '        `Multi-step autonomy policy: when a user asks for an ordered task containing two or more BOS lookups/reads, or a larger task whose first steps are reads, call ${AUTONOMY_SAFE_READ_TOOL_NAME} with those canonical bos_* tool calls in order. It may execute only the verified read-only prefix and will stop before every non-read step. Never bypass a returned boundary: continue any write or protected step only through its normal canonical BOS tool so existing review and confirmation controls remain authoritative.`,'
+if "Multi-step autonomy policy:" not in session:
+    if instruction_anchor not in session:
+        raise SystemExit("session instruction anchor not found")
+    session = session.replace(instruction_anchor, instruction_anchor + "\n" + instruction, 1)
+session_path.write_text(session)
+
+bridge_path = Path("lib/orion/realtime/tool-bridge.ts")
+bridge = bridge_path.read_text()
+bridge_anchor = 'export const ORION_REALTIME_RESOLVE_ENTITY_TOOL = "orion_resolve_entity";'
+bridge_replacement = bridge_anchor + '\nexport const ORION_AUTONOMY_SAFE_READ_TOOL = "orion_autonomy_safe_read";'
+if "ORION_AUTONOMY_SAFE_READ_TOOL" not in bridge:
+    if bridge_anchor not in bridge:
+        raise SystemExit("bridge constant anchor not found")
+    bridge = bridge.replace(bridge_anchor, bridge_replacement, 1)
+
+execute_anchor = 'export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall, options?: { confirmationTranscript?: string | null }): Promise<OrionRealtimeToolExecutionResult> {'
+safe_executor = '''async function executeAutonomySafeRead(call: OrionRealtimeFunctionCall): Promise<OrionRealtimeToolExecutionResult> {
+  const steps = Array.isArray(call.params.steps) ? call.params.steps : [];
+  const requestedExecutionId = typeof call.params.executionId === "string" && call.params.executionId.trim() ? call.params.executionId.trim() : call.callId;
+  const response = await fetch("/api/orion/autonomy/execute-safe-read", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ steps, executionId: requestedExecutionId }),
+  });
+  const payload = await response.json() as {
+    ok?: boolean;
+    error?: string;
+    executed?: unknown;
+    stoppedAt?: unknown;
+    stopReason?: unknown;
+    nextBlockedStep?: unknown;
+  };
+  const ok = Boolean(response.ok && payload.ok);
+  return {
+    ok,
+    statusCategory: ok ? "autonomy_read_sequence_completed" : "autonomy_read_sequence_failed",
+    userMessage: payload.error || (ok ? "Orion completed the safe read-only portion of the multi-step task." : "Orion could not complete the safe read-only portion of the task."),
+    href: null,
+    confirmationRequired: false,
+    confirmationToken: null,
+    details: {
+      executed: payload.executed ?? [],
+      stoppedAt: payload.stoppedAt ?? null,
+      stopReason: payload.stopReason ?? null,
+      nextBlockedStep: payload.nextBlockedStep ?? null,
+    },
+  };
+}
+
+'''
+if "async function executeAutonomySafeRead" not in bridge:
+    if execute_anchor not in bridge:
+        raise SystemExit("bridge execute anchor not found")
+    bridge = bridge.replace(execute_anchor, safe_executor + execute_anchor, 1)
+
+entity_anchor = '  if (call.toolName === ORION_REALTIME_RESOLVE_ENTITY_TOOL) return executeEntityResolution(call);'
+autonomy_route = '  if (call.toolName === ORION_AUTONOMY_SAFE_READ_TOOL) return executeAutonomySafeRead(call);'
+if autonomy_route not in bridge:
+    if entity_anchor not in bridge:
+        raise SystemExit("bridge entity route anchor not found")
+    bridge = bridge.replace(entity_anchor, entity_anchor + "\n" + autonomy_route, 1)
+bridge_path.write_text(bridge)
