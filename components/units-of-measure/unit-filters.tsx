@@ -1,4 +1,5 @@
 import { FilterToolbar, SearchInput, Select } from "@/components/ui";
+import { useI18n } from "@/lib/i18n/provider";
 import {
   UNIT_CATEGORIES,
   UNIT_MEASUREMENT_SYSTEMS,
@@ -34,135 +35,37 @@ type UnitFiltersProps = {
   activeFilters: number;
 };
 
-export function UnitFilters({
-  query,
-  category,
-  measurementSystem,
-  unitType,
-  source,
-  active,
-  fractional,
-  hasConversion,
-  baseUnitId,
-  sortBy,
-  baseUnitOptions,
-  onQueryChange,
-  onCategoryChange,
-  onMeasurementSystemChange,
-  onUnitTypeChange,
-  onSourceChange,
-  onActiveChange,
-  onFractionalChange,
-  onHasConversionChange,
-  onBaseUnitIdChange,
-  onSortByChange,
-  activeFilters,
-}: UnitFiltersProps) {
+export function UnitFilters(props: UnitFiltersProps) {
+  const { locale } = useI18n();
+  const es = locale === "es";
+  const categoryLabels: Record<string, string> = es ? {
+    count: "conteo", time: "tiempo", length: "longitud", area: "área", volume: "volumen", weight: "peso", mass: "masa", liquid: "líquido", material: "material", packaging: "empaque", equipment: "equipo", labor: "mano de obra", temperature: "temperatura", currency: "moneda", percentage: "porcentaje", other: "otro",
+  } : {};
+  const systemLabels: Record<string, string> = es ? { universal: "universal", imperial: "imperial", metric: "métrico", custom: "personalizado" } : {};
+  const typeLabels: Record<string, string> = es ? { standard: "estándar", derived: "derivada", packaging: "empaque", custom: "personalizada" } : {};
+  const label = (en: string, spanish: string) => es ? spanish : en;
+
   return (
-    <FilterToolbar
-      gridClassName="md:grid-cols-2 xl:grid-cols-5"
-      footer={<p className="text-xs font-medium text-[var(--color-text-secondary)]">Active filters: {activeFilters}</p>}
-    >
+    <FilterToolbar gridClassName="md:grid-cols-2 xl:grid-cols-5" footer={<p className="text-xs font-medium text-[var(--color-text-secondary)]">{label("Active filters", "Filtros activos")}: {props.activeFilters}</p>}>
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)] xl:col-span-2">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Search</span>
-        <SearchInput
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search code, name, symbol, plural, or description"
-          aria-label="Search units"
-          className="h-10 py-2"
-        />
+        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{label("Search", "Buscar")}</span>
+        <SearchInput value={props.query} onChange={(event) => props.onQueryChange(event.target.value)} placeholder={label("Search code, name, symbol, plural, or description", "Buscar código, nombre, símbolo, plural o descripción")} aria-label={label("Search units", "Buscar unidades")} className="h-10 py-2" />
       </label>
-
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Category</span>
-        <Select value={category} onChange={(event) => onCategoryChange(event.target.value as UnitCategory | "all")} className="h-10 py-2">
-          <option value="all">All categories</option>
-          {UNIT_CATEGORIES.map((option) => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </Select>
-      </label>
-
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Measurement System</span>
-        <Select value={measurementSystem} onChange={(event) => onMeasurementSystemChange(event.target.value as UnitMeasurementSystem | "all")} className="h-10 py-2">
-          <option value="all">All systems</option>
-          {UNIT_MEASUREMENT_SYSTEMS.map((option) => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </Select>
-      </label>
-
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Unit Type</span>
-        <Select value={unitType} onChange={(event) => onUnitTypeChange(event.target.value as UnitType | "all")} className="h-10 py-2">
-          <option value="all">All types</option>
-          {UNIT_TYPES.map((option) => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </Select>
-      </label>
-
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Source</span>
-        <Select value={source} onChange={(event) => onSourceChange(event.target.value as "all" | "system" | "company")} className="h-10 py-2">
-          <option value="all">All sources</option>
-          <option value="system">System</option>
-          <option value="company">Company</option>
-        </Select>
-      </label>
-
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Status</span>
-        <Select value={active} onChange={(event) => onActiveChange(event.target.value as "all" | "active" | "inactive")} className="h-10 py-2">
-          <option value="all">All statuses</option>
-          <option value="active">Active only</option>
-          <option value="inactive">Inactive only</option>
-        </Select>
-      </label>
-
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Fractional</span>
-        <Select value={fractional} onChange={(event) => onFractionalChange(event.target.value as "all" | "fractional" | "whole_only")} className="h-10 py-2">
-          <option value="all">All</option>
-          <option value="fractional">Allows fractions</option>
-          <option value="whole_only">Whole only</option>
-        </Select>
-      </label>
-
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Conversion</span>
-        <Select value={hasConversion} onChange={(event) => onHasConversionChange(event.target.value as "all" | "with_conversion" | "without_conversion")} className="h-10 py-2">
-          <option value="all">All</option>
-          <option value="with_conversion">Has conversion</option>
-          <option value="without_conversion">No conversion</option>
-        </Select>
-      </label>
-
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Base Unit</span>
-        <Select value={baseUnitId} onChange={(event) => onBaseUnitIdChange(event.target.value)} className="h-10 py-2">
-          <option value="">All base units</option>
-          {baseUnitOptions.map((unit) => (
-            <option key={unit.id} value={unit.id}>{unit.code} - {unit.name}</option>
-          ))}
-        </Select>
-      </label>
-
-      <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Sort by</span>
-        <Select value={sortBy} onChange={(event) => onSortByChange(event.target.value as UnitSortKey)} className="h-10 py-2">
-          <option value="code_asc">Code (A-Z)</option>
-          <option value="name_asc">Name (A-Z)</option>
-          <option value="category_asc">Category</option>
-          <option value="measurement_system_asc">Measurement system</option>
-          <option value="unit_type_asc">Unit type</option>
-          <option value="is_system_desc">Source (System first)</option>
-          <option value="sort_order_asc">Sort order</option>
-          <option value="updated_at_desc">Updated (Newest)</option>
-        </Select>
-      </label>
+      <Filter label={label("Category", "Categoría")} value={props.category} onChange={(v) => props.onCategoryChange(v as UnitCategory | "all")} options={[{value:"all",label:label("All categories","Todas las categorías")}, ...UNIT_CATEGORIES.map((v) => ({value:v,label:categoryLabels[v] || v}))]} />
+      <Filter label={label("Measurement System", "Sistema de medición")} value={props.measurementSystem} onChange={(v) => props.onMeasurementSystemChange(v as UnitMeasurementSystem | "all")} options={[{value:"all",label:label("All systems","Todos los sistemas")}, ...UNIT_MEASUREMENT_SYSTEMS.map((v) => ({value:v,label:systemLabels[v] || v}))]} />
+      <Filter label={label("Unit Type", "Tipo de unidad")} value={props.unitType} onChange={(v) => props.onUnitTypeChange(v as UnitType | "all")} options={[{value:"all",label:label("All types","Todos los tipos")}, ...UNIT_TYPES.map((v) => ({value:v,label:typeLabels[v] || v}))]} />
+      <Filter label={label("Source", "Fuente")} value={props.source} onChange={(v) => props.onSourceChange(v as "all"|"system"|"company")} options={[{value:"all",label:label("All sources","Todas las fuentes")},{value:"system",label:label("System","Sistema")},{value:"company",label:label("Company","Empresa")}]}/>
+      <Filter label={label("Status", "Estado")} value={props.active} onChange={(v) => props.onActiveChange(v as "all"|"active"|"inactive")} options={[{value:"all",label:label("All statuses","Todos los estados")},{value:"active",label:label("Active only","Solo activas")},{value:"inactive",label:label("Inactive only","Solo inactivas")}]}/>
+      <Filter label={label("Fractional", "Fraccionaria")} value={props.fractional} onChange={(v) => props.onFractionalChange(v as "all"|"fractional"|"whole_only")} options={[{value:"all",label:label("All","Todas")},{value:"fractional",label:label("Allows fractions","Permite fracciones")},{value:"whole_only",label:label("Whole only","Solo enteros")}]}/>
+      <Filter label={label("Conversion", "Conversión")} value={props.hasConversion} onChange={(v) => props.onHasConversionChange(v as "all"|"with_conversion"|"without_conversion")} options={[{value:"all",label:label("All","Todas")},{value:"with_conversion",label:label("Has conversion","Con conversión")},{value:"without_conversion",label:label("No conversion","Sin conversión")}]}/>
+      <Filter label={label("Base Unit", "Unidad base")} value={props.baseUnitId} onChange={props.onBaseUnitIdChange} options={[{value:"",label:label("All base units","Todas las unidades base")}, ...props.baseUnitOptions.map((u)=>({value:u.id,label:`${u.code} - ${u.name}`}))]}/>
+      <Filter label={label("Sort by", "Ordenar por")} value={props.sortBy} onChange={(v) => props.onSortByChange(v as UnitSortKey)} options={[
+        {value:"code_asc",label:label("Code (A-Z)","Código (A-Z)")},{value:"name_asc",label:label("Name (A-Z)","Nombre (A-Z)")},{value:"category_asc",label:label("Category","Categoría")},{value:"measurement_system_asc",label:label("Measurement system","Sistema de medición")},{value:"unit_type_asc",label:label("Unit type","Tipo de unidad")},{value:"is_system_desc",label:label("Source (System first)","Fuente (sistema primero)")},{value:"sort_order_asc",label:label("Sort order","Orden")},{value:"updated_at_desc",label:label("Updated (Newest)","Actualizado (más reciente)")}
+      ]}/>
     </FilterToolbar>
   );
+}
+
+function Filter({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<{value:string;label:string}> }) {
+  return <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]"><span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{label}</span><Select value={value} onChange={(event)=>onChange(event.target.value)} className="h-10 py-2">{options.map((o)=><option key={o.value} value={o.value}>{o.label}</option>)}</Select></label>;
 }
