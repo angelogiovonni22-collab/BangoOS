@@ -1,0 +1,33 @@
+name: Commercial Launch Security
+
+on:
+  pull_request:
+    paths:
+      - "lib/security/**"
+      - "supabase/migrations/*commercial_launch*"
+      - "supabase/migrations/*blueprint_plan_packages*"
+      - ".github/workflows/commercial-launch-security.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/security/**"
+      - "supabase/migrations/*commercial_launch*"
+      - "supabase/migrations/*blueprint_plan_packages*"
+      - ".github/workflows/commercial-launch-security.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx -y tsx lib/security/commercial-launch-rpc-security.contract.test.ts
+      - run: npx -y tsx lib/security/commercial-launch-entry-and-authenticated-rpc.contract.test.ts
+      - run: npx -y tsx lib/security/commercial-launch-data-api-hardening.contract.test.ts
