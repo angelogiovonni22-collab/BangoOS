@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Card, CardContent, CardHeader, CardTitle, ErrorState, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { createProcurementService } from "@/lib/materials/procurement-service";
 import type { ProcurementOverviewPayload } from "@/lib/materials/procurement-types";
 import { buildFulfillmentDashboard } from "@/lib/materials/purchasing-fulfillment-intelligence";
@@ -21,6 +22,9 @@ const STAGE_TONE = {
 
 export function FulfillmentCommandCenter() {
   const service = useMemo(() => createProcurementService(), []);
+  const { term } = useAdaptiveBos();
+  const materialsLabel = term("materials", "Materials");
+  const vendorLabel = term("vendor", "Supplier");
   const [payload, setPayload] = useState<ProcurementOverviewPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,13 +50,13 @@ export function FulfillmentCommandCenter() {
     <section className="space-y-4" aria-labelledby="fulfillment-command-center-title">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">Purchasing Automation</p>
-        <h2 id="fulfillment-command-center-title" className="mt-1 text-xl font-semibold text-[var(--color-text-primary)]">Material Fulfillment Command Center</h2>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Live purchasing exposure, receipt progress, and fulfillment risk. Supplier ordering remains approval-controlled.</p>
+        <h2 id="fulfillment-command-center-title" className="mt-1 text-xl font-semibold text-[var(--color-text-primary)]">{materialsLabel} Fulfillment Command Center</h2>
+        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Live purchasing exposure, receipt progress, and fulfillment risk. {vendorLabel} ordering remains approval-controlled.</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={<span>$</span>} label="Committed Cost" value={`$${dashboard.totals.committedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} context="Active purchase orders" tone="brand" />
-        <SummaryCard icon={<span>R</span>} label="Received Cost" value={`$${dashboard.totals.receivedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} context="Materials physically received" tone="success" />
+        <SummaryCard icon={<span>R</span>} label="Received Cost" value={`$${dashboard.totals.receivedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} context={`${materialsLabel} physically received`} tone="success" />
         <SummaryCard icon={<span>U</span>} label="Outstanding Units" value={dashboard.totals.outstandingUnits.toLocaleString()} context="Ordered less received/damaged" tone="warning" />
         <SummaryCard icon={<span>!</span>} label="At-Risk Orders" value={String(dashboard.totals.atRiskOrders)} context="Damage, backorder, or outstanding" tone={dashboard.totals.atRiskOrders > 0 ? "warning" : "success"} />
       </div>

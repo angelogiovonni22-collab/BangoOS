@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState, ErrorState, PageHeader, SkeletonLoader, SummaryCard, getButtonClassName } from "@/components/ui";
+import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
 import { availableQuantity, inventoryHealth, inventoryValue, reorderSuggestion } from "@/lib/materials/inventory-intelligence";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -16,6 +17,9 @@ type InventoryView = BalanceRow & { materialName: string; materialCode: string; 
 
 export function InventoryWorkspaceClient() {
   const supabase = useMemo(() => createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!), []);
+  const { term } = useAdaptiveBos();
+  const materialsLabel = term("materials", "Materials");
+  const projectsLabel = term("projects", "Projects");
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [balances, setBalances] = useState<InventoryView[]>([]);
   const [movements, setMovements] = useState<MovementRow[]>([]);
@@ -53,7 +57,7 @@ export function InventoryWorkspaceClient() {
         setBalances(rawBalances.map((row) => {
           const material = materialMap.get(row.material_id);
           const location = locationMap.get(row.location_id);
-          return { ...row, materialName: material?.name || "Unknown material", materialCode: material?.material_code || "—", unit: material?.unit_of_measure || "unit", locationName: location?.name || "Unknown location", locationType: location?.location_type || "other", reorderPoint: Number(material?.reorder_point || 0) };
+          return { ...row, materialName: material?.name || `Unknown ${materialsLabel.toLowerCase()}`, materialCode: material?.material_code || "—", unit: material?.unit_of_measure || "unit", locationName: location?.name || "Unknown location", locationType: location?.location_type || "other", reorderPoint: Number(material?.reorder_point || 0) };
         }));
         setMovements((movementResult.data || []) as MovementRow[]);
       } catch (caught) {
@@ -64,7 +68,7 @@ export function InventoryWorkspaceClient() {
     };
     void load();
     return () => { active = false; };
-  }, [supabase]);
+  }, [supabase, materialsLabel]);
 
   const summary = useMemo(() => {
     let value = 0;
@@ -86,29 +90,29 @@ export function InventoryWorkspaceClient() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader eyebrow="Resources · Inventory" title="Inventory & Warehouse Command Center" description="Live stock, reservations, locations, movement history, and replenishment intelligence across B.O.S." primaryAction={<div className="flex flex-wrap gap-2"><Link href="/materials/procurement" className={getButtonClassName({})}>Receive Materials</Link><Link href="/materials" className={getButtonClassName({ variant: "outline" })}>Material Catalog</Link></div>} />
+      <PageHeader eyebrow={`${materialsLabel} · Inventory`} title="Inventory & Storage Command Center" description={`Live ${materialsLabel.toLowerCase()}, reservations, locations, movement history, and replenishment intelligence across B.O.S.`} primaryAction={<div className="flex flex-wrap gap-2"><Link href="/materials/procurement" className={getButtonClassName({})}>Receive {materialsLabel}</Link><Link href="/materials" className={getButtonClassName({ variant: "outline" })}>{materialsLabel} Catalog</Link></div>} />
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={<span>$</span>} label="Inventory value" value={`$${summary.value.toFixed(2)}`} context="Current on-hand value" tone="brand" />
         <SummaryCard icon={<span>A</span>} label="Available units" value={summary.available.toFixed(1)} context="On hand less reserved" tone="info" />
-        <SummaryCard icon={<span>R</span>} label="Reserved units" value={summary.reserved.toFixed(1)} context="Committed to projects" tone="warning" />
+        <SummaryCard icon={<span>R</span>} label="Reserved units" value={summary.reserved.toFixed(1)} context={`Committed to ${projectsLabel.toLowerCase()}`} tone="warning" />
         <SummaryCard icon={<span>!</span>} label="Needs reorder" value={String(summary.low)} context="Low or out of stock" tone={summary.low ? "warning" : "success"} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_2fr]">
         <article className="rounded-[var(--radius-xl)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-small)]">
           <div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--bos-text-muted)]">Storage network</p><h2 className="text-xl font-bold">Locations</h2></div>
-          {locations.length ? <div className="space-y-2">{locations.map((location) => <div key={location.id} className="flex items-center justify-between rounded-lg border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-control)] px-4 py-3"><div><p className="font-semibold">{location.name}</p><p className="text-xs uppercase tracking-wide text-[var(--bos-text-muted)]">{location.location_type}</p></div><span className="text-xs font-semibold text-[var(--color-success-500)]">{location.active ? "Active" : "Inactive"}</span></div>)}</div> : <EmptyState title="No inventory locations" description="Warehouse, jobsite, and vehicle locations will appear here as inventory is configured." />}
+          {locations.length ? <div className="space-y-2">{locations.map((location) => <div key={location.id} className="flex items-center justify-between rounded-lg border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-control)] px-4 py-3"><div><p className="font-semibold">{location.name}</p><p className="text-xs uppercase tracking-wide text-[var(--bos-text-muted)]">{location.location_type}</p></div><span className="text-xs font-semibold text-[var(--color-success-500)]">{location.active ? "Active" : "Inactive"}</span></div>)}</div> : <EmptyState title="No inventory locations" description={`Storage, worksite, vehicle, and service locations will appear here as ${materialsLabel.toLowerCase()} inventory is configured.`} />}
         </article>
 
         <article className="rounded-[var(--radius-xl)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-small)]">
           <div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--bos-text-muted)]">Stock intelligence</p><h2 className="text-xl font-bold">Inventory balances</h2></div>
-          {balances.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-[var(--bos-border-default)] text-left text-xs uppercase tracking-wide text-[var(--bos-text-muted)]"><th className="py-3 pr-3">Material</th><th className="py-3 pr-3">Location</th><th className="py-3 pr-3 text-right">On hand</th><th className="py-3 pr-3 text-right">Reserved</th><th className="py-3 pr-3 text-right">Available</th><th className="py-3 text-right">Reorder</th></tr></thead><tbody>{balances.map((row) => { const model = { materialId: row.material_id, locationId: row.location_id, onHand: Number(row.on_hand), reserved: Number(row.reserved), reorderPoint: row.reorderPoint, unitCost: Number(row.unit_cost) }; const health = inventoryHealth(model); return <tr key={row.id} className="border-b border-[var(--bos-border-subtle)]"><td className="py-3 pr-3"><p className="font-semibold">{row.materialName}</p><p className="text-xs text-[var(--bos-text-muted)]">{row.materialCode}</p></td><td className="py-3 pr-3">{row.locationName}</td><td className="py-3 pr-3 text-right">{model.onHand.toFixed(1)}</td><td className="py-3 pr-3 text-right">{model.reserved.toFixed(1)}</td><td className="py-3 pr-3 text-right font-semibold">{availableQuantity(model).toFixed(1)}</td><td className="py-3 text-right"><span className={health === "healthy" ? "text-[var(--color-success-500)]" : "font-bold text-[var(--color-warning-500)]"}>{health === "healthy" ? "Healthy" : `${reorderSuggestion(model, Math.max(model.reorderPoint * 2, model.onHand)).toFixed(1)} suggested`}</span></td></tr>; })}</tbody></table></div> : <EmptyState title="No inventory balances yet" description="Receive a purchase order into inventory to establish the first stock balance." action={<Link href="/materials/procurement" className={getButtonClassName({})}>Open Receiving</Link>} />}
+          {balances.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-[var(--bos-border-default)] text-left text-xs uppercase tracking-wide text-[var(--bos-text-muted)]"><th className="py-3 pr-3">{materialsLabel}</th><th className="py-3 pr-3">Location</th><th className="py-3 pr-3 text-right">On hand</th><th className="py-3 pr-3 text-right">Reserved</th><th className="py-3 pr-3 text-right">Available</th><th className="py-3 text-right">Reorder</th></tr></thead><tbody>{balances.map((row) => { const model = { materialId: row.material_id, locationId: row.location_id, onHand: Number(row.on_hand), reserved: Number(row.reserved), reorderPoint: row.reorderPoint, unitCost: Number(row.unit_cost) }; const health = inventoryHealth(model); return <tr key={row.id} className="border-b border-[var(--bos-border-subtle)]"><td className="py-3 pr-3"><p className="font-semibold">{row.materialName}</p><p className="text-xs text-[var(--bos-text-muted)]">{row.materialCode}</p></td><td className="py-3 pr-3">{row.locationName}</td><td className="py-3 pr-3 text-right">{model.onHand.toFixed(1)}</td><td className="py-3 pr-3 text-right">{model.reserved.toFixed(1)}</td><td className="py-3 pr-3 text-right font-semibold">{availableQuantity(model).toFixed(1)}</td><td className="py-3 text-right"><span className={health === "healthy" ? "text-[var(--color-success-500)]" : "font-bold text-[var(--color-warning-500)]"}>{health === "healthy" ? "Healthy" : `${reorderSuggestion(model, Math.max(model.reorderPoint * 2, model.onHand)).toFixed(1)} suggested`}</span></td></tr>; })}</tbody></table></div> : <EmptyState title="No inventory balances yet" description={`Receive a purchase order into inventory to establish the first ${materialsLabel.toLowerCase()} stock balance.`} action={<Link href="/materials/procurement" className={getButtonClassName({})}>Open Receiving</Link>} />}
         </article>
       </section>
 
       <article className="rounded-[var(--radius-xl)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-small)]">
         <div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--bos-text-muted)]">Audit trail</p><h2 className="text-xl font-bold">Recent inventory movements</h2><p className="text-sm text-[var(--bos-text-secondary)]">Receiving, allocation, consumption, returns, transfers, and audited adjustments.</p></div>
-        {movements.length ? <div className="space-y-2">{movements.map((movement) => <div key={movement.id} className="grid gap-2 rounded-lg border border-[var(--bos-border-subtle)] px-4 py-3 sm:grid-cols-[140px_1fr_120px_180px]"><span className="font-semibold capitalize">{movement.movement_type}</span><span className="text-[var(--bos-text-secondary)]">{movement.reason || "Inventory movement"}</span><span className="font-semibold sm:text-right">{Number(movement.quantity).toFixed(1)}</span><span className="text-xs text-[var(--bos-text-muted)] sm:text-right">{new Date(movement.created_at).toLocaleString()}</span></div>)}</div> : <EmptyState title="No inventory movements yet" description="The immutable movement ledger will populate when materials are received or allocated." />}
+        {movements.length ? <div className="space-y-2">{movements.map((movement) => <div key={movement.id} className="grid gap-2 rounded-lg border border-[var(--bos-border-subtle)] px-4 py-3 sm:grid-cols-[140px_1fr_120px_180px]"><span className="font-semibold capitalize">{movement.movement_type}</span><span className="text-[var(--bos-text-secondary)]">{movement.reason || "Inventory movement"}</span><span className="font-semibold sm:text-right">{Number(movement.quantity).toFixed(1)}</span><span className="text-xs text-[var(--bos-text-muted)] sm:text-right">{new Date(movement.created_at).toLocaleString()}</span></div>)}</div> : <EmptyState title="No inventory movements yet" description={`The immutable movement ledger will populate when ${materialsLabel.toLowerCase()} are received or allocated.`} />}
       </article>
     </div>
   );
