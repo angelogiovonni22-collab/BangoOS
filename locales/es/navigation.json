@@ -37,5 +37,8 @@
   "searchEstimateRecordsPlaceholder": "Buscar por número, presupuesto, cliente o proyecto",
   "expiringIn14Days": "Vencen en 14 días",
   "estimatesDirectoryDescription": "Busca, filtra y administra presupuestos.",
-  "projectSummaryApproved": "{{code}} · {{location}} · Aprobado"
+  "projectSummaryApproved": "{{code}} · {{location}} · Aprobado",
+  "allTeams": "Todos los equipos",
+  "team": "Equipo",
+  "teamMember": "Miembro del equipo"
 }
