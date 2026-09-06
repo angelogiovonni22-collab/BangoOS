@@ -116,5 +116,22 @@
   "manual": "Manual",
   "stripeActive": "Stripe activo",
   "customerCompaniesTitle": "Empresas clientes",
-  "customerCompaniesDescription": "Administra planes, estado del ciclo de vida, puestos y asignaciones de Orion."
+  "customerCompaniesDescription": "Administra planes, estado del ciclo de vida, puestos y asignaciones de Orion.",
+  "bosCommunications": "Comunicaciones de B.O.S.",
+  "tradePartnerMessages": "Mensajes de socios comerciales",
+  "tradePartnerMessagesDescription": "Comunicación bidireccional de proyectos con subcontratistas asignados. Cada conversación está aislada al proyecto y proveedor asignados.",
+  "activeAssignments": "Asignaciones activas",
+  "noActiveTradePartnerAssignments": "No hay asignaciones activas de socios comerciales disponibles.",
+  "openProject": "Abrir proyecto",
+  "you": "Tú",
+  "bosTeam": "Equipo B.O.S.",
+  "tradePartner": "Socio comercial",
+  "noMessagesYet": "Aún no hay mensajes. Inicia la conversación abajo.",
+  "messageTradePartner": "Enviar mensaje a este socio comercial…",
+  "sendMessage": "Enviar mensaje",
+  "readOnlyConversation": "Tienes acceso de solo lectura a esta conversación.",
+  "assignTradePartnerPrompt": "Asigna un subcontratista a un proyecto para iniciar una conversación con un socio comercial.",
+  "enterMessageFirst": "Escribe un mensaje primero.",
+  "messageSentTradePartner": "Mensaje enviado al socio comercial.",
+  "tradePartnerLoadError": "No se pudieron cargar las conversaciones con socios comerciales. Confirma que se aplicó la migración más reciente de la base de datos de B.O.S."
 }
