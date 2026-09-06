@@ -16,13 +16,13 @@ assert.doesNotMatch(vendorsPage, /title="Vendors"/, "Vendor workspace must not h
 assert.doesNotMatch(vendorsPage, />\s*New vendor\s*</, "Vendor workspace must not hard-code its primary action");
 
 assert.match(vendorsTable, /useAdaptiveBos/, "Vendor table must resolve Adaptive B.O.S. terminology");
-assert.match(vendorsTable, /title=\{`\$\{vendorLabel\} Directory`\}/, "Vendor directory title must use adaptive terminology");
-assert.match(vendorsTable, /<EnterpriseTableHeading>\{vendorLabel\}<\/EnterpriseTableHeading>/, "Vendor table heading must use adaptive terminology");
+assert.match(vendorsTable, /const directoryTitle = isContractorVendor \? t\("navigation\.vendorDirectory"\) : `\$\{vendorLabel\} Directory`/, "Vendor directory title must preserve adaptive terminology outside the localized construction default");
+assert.match(vendorsTable, /isContractorVendor \? t\("navigation\.contractorVendorHeading"\) : vendorLabel/, "Vendor table heading must preserve adaptive terminology outside the localized construction default");
 assert.doesNotMatch(vendorsTable, /title="Vendor Directory"/, "Vendor table must not hard-code its construction-default directory title");
 
 assert.match(vendorsFilters, /useAdaptiveBos/, "Vendor filters must resolve Adaptive B.O.S. terminology");
-assert.match(vendorsFilters, /All \{vendorsLabel\}/, "Vendor filter options must use adaptive terminology");
-assert.match(vendorsFilters, /\{vendorLabel\} code/, "Vendor code sort label must use adaptive terminology");
+assert.match(vendorsFilters, /: `All \$\{vendorsLabel\}`/, "Vendor filter options must preserve adaptive terminology outside the localized construction default");
+assert.match(vendorsFilters, /: `\$\{vendorLabel\} code \(A-Z\)`/, "Vendor code sort label must preserve adaptive terminology outside the localized construction default");
 assert.doesNotMatch(vendorsFilters, /aria-label="Search vendors"/, "Vendor search must not hard-code vendor terminology");
 
 assert.match(vendorsRoute, /AdaptiveVendorActions/, "Vendor route must delegate industry-sensitive trade partner controls");
