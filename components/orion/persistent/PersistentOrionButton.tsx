@@ -51,6 +51,7 @@ export function PersistentOrionButton({
       .replace(/_/g, " ")
       .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
   const availabilityLabel = minimized ? "Orion is minimized." : "Orion is available.";
+  const statusSentence = `Open Orion. Current state: ${stateLabel}. Microphone ${micActive ? "on" : "off"}. Workspace: ${fixture.workspace}.`;
 
   return (
     <button
@@ -65,7 +66,7 @@ export function PersistentOrionButton({
       aria-expanded={open}
       aria-controls={panelId}
       aria-describedby={instructionsId}
-      aria-label={`Open Orion. Current state: ${stateLabel}. Microphone ${micActive ? "on" : "off"}. Workspace: ${fixture.workspace}.`}
+      aria-label={statusSentence}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -77,7 +78,7 @@ export function PersistentOrionButton({
         <PersistentOrionMiniSphere state={sphereState} reducedMotion={reducedMotion} minimized={minimized} voiceLevel={voiceLevel} />
       </span>
       <span className="persistentOrionSr">
-        Open Orion. Current state: {stateLabel}. {availabilityLabel}
+        {statusSentence} {availabilityLabel}
       </span>
     </button>
   );
