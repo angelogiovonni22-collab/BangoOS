@@ -16,7 +16,8 @@ assert.doesNotMatch(customersPage, /description="Manage residential, commercial,
 assert.match(customerTable, /useAdaptiveBos/, "Customer table must resolve Adaptive B.O.S. terminology");
 assert.match(customerTable, /Create \{estimateLabel\}/, "Customer actions must adapt estimate terminology");
 assert.match(customerTable, /Create \{projectLabel\}/, "Customer actions must adapt project terminology");
-assert.match(customerTable, /View \{customerLabel\}/, "Customer actions must adapt customer terminology");
+assert.match(customerTable, /t\("customers\.view"\)/, "Customer view actions must localize the action verb");
+assert.match(customerTable, /\$\{t\("customers\.view"\)\} \$\{customerLabel\}/, "Customer view accessibility actions must combine localized verbs with adaptive customer terminology");
 assert.match(customerTable, /Archive \{customerLabel\}/, "Customer lifecycle actions must adapt customer terminology");
 assert.doesNotMatch(customerTable, />View Customer</, "Customer action menu must not hard-code Customer");
 assert.doesNotMatch(customerTable, />Create Estimate</, "Customer action menu must not hard-code Estimate");
