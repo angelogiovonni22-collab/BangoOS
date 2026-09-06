@@ -1,3 +1,4 @@
+import RoomPlan
 import SwiftUI
 import WebKit
 
@@ -66,15 +67,23 @@ struct BOSWebView: UIViewRepresentable {
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.userContentController.add(context.coordinator, name: "bosRealityCapture")
+        let realityCaptureSupported = RoomCaptureSession.isSupported
         configuration.userContentController.addUserScript(WKUserScript(
             source: """
+            const bosRealityAvailable = \(realityCaptureSupported ? "true" : "false");
             window.BOSNativeReality = Object.freeze({
-              available: true,
+              available: bosRealityAvailable,
               startCapture: function(payload) {
+                if (!bosRealityAvailable) {
+                  window.dispatchEvent(new CustomEvent('bos:reality-capture-complete', {
+                    detail: { ok: false, error: 'B.O.S. Reality Engine room capture requires an Apple device with a LiDAR Scanner.' }
+                  }));
+                  return;
+                }
                 window.webkit.messageHandlers.bosRealityCapture.postMessage(Object.assign({ action: 'start' }, payload || {}));
               }
             });
-            window.dispatchEvent(new CustomEvent('bos:native-ready', { detail: { realityCapture: true } }));
+            window.dispatchEvent(new CustomEvent('bos:native-ready', { detail: { realityCapture: bosRealityAvailable } }));
             """,
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
@@ -108,6 +117,7 @@ struct BOSWebView: UIViewRepresentable {
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard
+                RoomCaptureSession.isSupported,
                 message.name == "bosRealityCapture",
                 message.frameInfo.isMainFrame,
                 let webView,
