@@ -40,5 +40,7 @@
   "projectSummaryApproved": "{{code}} · {{location}} · Approved",
   "allTeams": "All teams",
   "team": "Team",
-  "teamMember": "Team Member"
+  "teamMember": "Team Member",
+  "customerRelationshipsDescription": "Manage customers and the relationships that drive your business.",
+  "customerSearchByContact": "Search customers by name, email, or phone"
 }
