@@ -107,7 +107,7 @@ export function SchedulingHeader({
 
           <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
             <span>{projectLabel}</span>
-            <Select value={filters.project} onChange={(event) => onFilterChange("project", event.target.value)}><option value="all">{t("scheduling.filters.allProjects")}</option>{projectOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</Select>
+            <Select value={filters.project} onChange={(event) => onFilterChange("project", event.target.value)}><option value="all">All {projectsLabel}</option>{projectOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</Select>
           </label>
 
           <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
