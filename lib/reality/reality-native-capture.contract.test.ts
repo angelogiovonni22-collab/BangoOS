@@ -19,10 +19,17 @@ assert(coordinator.includes("RoomCaptureViewDelegate"));
 assert(coordinator.includes("captureView(didPresent processedResult: CapturedRoom"));
 assert(coordinator.includes("capturedRoom = processedResult"));
 assert(coordinator.includes("room.export(to: usdzURL)"));
+assert(coordinator.includes("RoomCaptureSession.isSupported"), "native capture must guard unsupported non-LiDAR hardware");
+assert(coordinator.includes("requires an Apple device with a LiDAR Scanner"));
 
+assert(rootView.includes("import RoomPlan"));
 assert(rootView.includes('name: "bosRealityCapture"'), "native shell must expose an explicit Reality Engine bridge");
 assert(rootView.includes("message.frameInfo.isMainFrame"));
 assert(rootView.includes("NativeAppConfiguration.isAllowed(currentURL)"), "native requests must originate from an allowed B.O.S. page");
+assert(rootView.includes("RoomCaptureSession.isSupported"), "web/native bridge must report the actual RoomPlan device capability");
+assert(rootView.includes("available: bosRealityAvailable"));
+assert(rootView.includes("realityCapture: bosRealityAvailable"));
+assert(rootView.includes("if (!bosRealityAvailable)"));
 assert(rootView.includes("bos:reality-capture-complete"));
 assert(captureSheet.includes("RoomPlanCaptureCoordinator"));
 assert(captureSheet.includes("RealityCaptureUploadClient"));
