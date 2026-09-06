@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.bango.bos"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = providers.gradleProperty("BOS_ANDROID_APPLICATION_ID").orElse("com.bango.bos.dev").get()
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
     }
