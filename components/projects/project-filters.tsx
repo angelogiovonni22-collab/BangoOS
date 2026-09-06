@@ -44,6 +44,7 @@ export function ProjectFilters({
   t,
 }: ProjectFiltersProps) {
   const { term } = useAdaptiveBos();
+  const projectLabel = term("project", "Project");
   const customerLabel = term("customer", "Customer");
 
   return (
@@ -53,8 +54,8 @@ export function ProjectFilters({
         <SearchInput
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder={t("navigation.searchProjectRecordsPlaceholder")}
-          aria-label={t("navigation.searchProjectRecords")}
+          placeholder={`Search ${projectLabel.toLowerCase()} name, ${customerLabel.toLowerCase()}, manager, or status`}
+          aria-label={`Search ${projectLabel.toLowerCase()} records`}
         />
       </label>
 
@@ -72,11 +73,11 @@ export function ProjectFilters({
       </label>
 
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{t("projects.filterProjectManager")}</span>
+        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Superintendent</span>
         <Select
           value={managerValue}
           onChange={(event) => onManagerChange(event.target.value)}
-          aria-label={t("projects.filterProjectManager")}
+          aria-label="Superintendent"
         >
           {managerOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
@@ -98,11 +99,11 @@ export function ProjectFilters({
       </label>
 
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
-        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{t("projects.filterProjectType")}</span>
+        <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{projectLabel} Type</span>
         <Select
           value={typeValue}
           onChange={(event) => onTypeChange(event.target.value)}
-          aria-label={t("projects.filterProjectType")}
+          aria-label={`${projectLabel} Type`}
         >
           {typeOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
