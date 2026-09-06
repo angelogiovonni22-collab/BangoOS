@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type R
 import { Archive, ChevronLeft, ChevronRight, Eye, FilePlus2, MoreHorizontal, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { Badge, Button, EnterpriseTable, EnterpriseTableBody, EnterpriseTableCell, EnterpriseTableFooter, EnterpriseTableHead, EnterpriseTableHeading, EnterpriseTableRow, PortalHost, StatusBadge, TableContainer, getButtonClassName } from "@/components/ui";
 import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
+import { useI18n } from "@/lib/i18n/provider";
 import { CustomerAvatar } from "./customer-avatar";
 
 type CustomerTableItem = {
@@ -60,6 +61,7 @@ function getMenuPosition(rect: DOMRect) {
 
 export function CustomerTable({ items, total, page, pageSize, onPageChange, onArchive, onRestore, onDelete, t }: CustomerTableProps) {
   const router = useRouter();
+  const { locale } = useI18n();
   const { term } = useAdaptiveBos();
   const customerLabel = term("customer", "Customer");
   const customersLabel = term("customers", "Customers");
@@ -132,14 +134,14 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
   return (
     <>
       <TableContainer title={`${customerLabel} List`} description={`${total} ${total === 1 ? customerLower : customersLower}`}>
-        <EnterpriseTable ariaLabel={`${customersLabel} list`}>
+        <EnterpriseTable ariaLabel={t("customers.list.title")}>
           <EnterpriseTableHead>
             <tr>
               <EnterpriseTableHeading>{customerLabel}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("customers.tableType")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("customers.email")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("customers.phoneNumber")}</EnterpriseTableHeading>
-              <EnterpriseTableHeading>City</EnterpriseTableHeading>
+              <EnterpriseTableHeading>{t("customers.city")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("customers.tableStatus")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>Created</EnterpriseTableHeading>
               <EnterpriseTableHeading align="right">{t("customers.tableActions")}</EnterpriseTableHeading>
@@ -153,7 +155,7 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
                 className="cursor-pointer transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]/80 hover:shadow-[0_10px_24px_-20px_rgba(15,23,42,0.28)]"
                 role="link"
                 tabIndex={0}
-                aria-label={`View ${customerLabel} ${customer.name}`}
+                aria-label={`${t("customers.view")} ${customerLabel} ${customer.name}`}
                 onClick={(event) => {
                   const target = event.target as HTMLElement;
                   if (target.closest("a,button,input,select,textarea")) return;
@@ -179,16 +181,16 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
                 <EnterpriseTableCell>{customer.phone}</EnterpriseTableCell>
                 <EnterpriseTableCell>{customer.city}</EnterpriseTableCell>
                 <EnterpriseTableCell><StatusBadge status={customer.status} /></EnterpriseTableCell>
-                <EnterpriseTableCell>{formatCreatedDate(customer.createdAt)}</EnterpriseTableCell>
+                <EnterpriseTableCell>{formatCreatedDate(customer.createdAt, locale)}</EnterpriseTableCell>
                 <EnterpriseTableCell align="right">
                   <div className="inline-flex items-center gap-1">
-                    <Link href={`/customers/${customer.id}`} aria-label={`View ${customerLabel}`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Eye size={15} aria-hidden="true" /></Link>
-                    <Link href={`/customers/${customer.id}?edit=1`} aria-label={`Edit ${customerLabel}`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Pencil size={15} aria-hidden="true" /></Link>
+                    <Link href={`/customers/${customer.id}`} aria-label={`${t("customers.view")} ${customerLabel}`} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Eye size={15} aria-hidden="true" /></Link>
+                    <Link href={`/customers/${customer.id}?edit=1`} aria-label={t("customers.editCustomer")} className={getButtonClassName({ variant: "ghost", size: "sm" })}><Pencil size={15} aria-hidden="true" /></Link>
                     <Button
                       variant="ghost"
                       size="sm"
                       disabled={busyId === customer.id}
-                      aria-label={`${customerLabel} actions`}
+                      aria-label={t("customers.tableActions")}
                       aria-haspopup="menu"
                       aria-expanded={openMenu?.customer.id === customer.id}
                       onClick={(event) => toggleMenu(event, customer)}
@@ -204,7 +206,7 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
 
         <EnterpriseTableFooter>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[var(--color-text-secondary)]">Showing {showingFrom}-{showingTo} of {total} {customersLower}</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">{t("customers.pagination.showing", { from: showingFrom, to: showingTo, total })}</p>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => onPageChange(page - 1)} disabled={!canPrev}><ChevronLeft size={14} aria-hidden="true" />{t("customers.pagination.previous")}</Button>
               <span className="inline-flex min-w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)]">{page}</span>
@@ -219,12 +221,12 @@ export function CustomerTable({ items, total, page, pageSize, onPageChange, onAr
           <div
             ref={menuRef}
             role="menu"
-            aria-label={`${openMenu.customer.name} actions`}
+            aria-label={`${openMenu.customer.name} ${t("customers.tableActions").toLowerCase()}`}
             className="fixed z-[1000] w-52 overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-white p-1.5 text-left shadow-2xl"
             style={{ left: openMenu.left, top: openMenu.top }}
           >
-            <MenuLink href={`/customers/${openMenu.customer.id}`} icon={<Eye size={14} />} onNavigate={() => setOpenMenu(null)}>View {customerLabel}</MenuLink>
-            <MenuLink href={`/customers/${openMenu.customer.id}?edit=1`} icon={<Pencil size={14} />} onNavigate={() => setOpenMenu(null)}>Edit {customerLabel}</MenuLink>
+            <MenuLink href={`/customers/${openMenu.customer.id}`} icon={<Eye size={14} />} onNavigate={() => setOpenMenu(null)}>{t("customers.view")} {customerLabel}</MenuLink>
+            <MenuLink href={`/customers/${openMenu.customer.id}?edit=1`} icon={<Pencil size={14} />} onNavigate={() => setOpenMenu(null)}>{t("customers.editCustomer")}</MenuLink>
             <MenuLink href={`/estimates/new?customerId=${openMenu.customer.id}`} icon={<FilePlus2 size={14} />} onNavigate={() => setOpenMenu(null)}>Create {estimateLabel}</MenuLink>
             <MenuLink href={`/projects/new?customerId=${openMenu.customer.id}`} icon={<FilePlus2 size={14} />} onNavigate={() => setOpenMenu(null)}>Create {projectLabel}</MenuLink>
             <div className="my-1 border-t border-[var(--color-border-subtle)]" />
@@ -249,10 +251,10 @@ function MenuButton({ icon, children, onClick, danger = false }: { icon: ReactNo
   return <button type="button" role="menuitem" onClick={onClick} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold hover:bg-slate-50 ${danger ? "text-red-700" : "text-slate-700"}`}>{icon}<span>{children}</span></button>;
 }
 
-function formatCreatedDate(value: string) {
+function formatCreatedDate(value: string, locale: "en" | "es") {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(locale === "es" ? "es-ES" : "en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
 function getCustomerTypeTone(typeKey: string): "neutral" | "brand" | "success" | "warning" | "info" {

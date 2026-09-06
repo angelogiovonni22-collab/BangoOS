@@ -9,6 +9,20 @@ type SchedulingAiAssistantProps = {
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
+function localizeInsightExplanation(
+  value: string,
+  t: SchedulingAiAssistantProps["t"],
+) {
+  const workersMatch = /^(\d+) workers needed for (.+)\.$/.exec(value);
+  if (!workersMatch) return value;
+
+  const trade = workersMatch[2] === "field work"
+    ? t("scheduling.assignmentType.project_work")
+    : workersMatch[2];
+
+  return `${workersMatch[1]} ${t("scheduling.openShifts.workersNeeded")}: ${trade}.`;
+}
+
 export function SchedulingAiAssistant({ insights, onAccept, onDismiss, t }: SchedulingAiAssistantProps) {
   return (
     <Card as="section" variant="elevated">
@@ -29,7 +43,7 @@ export function SchedulingAiAssistant({ insights, onAccept, onDismiss, t }: Sche
               <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
               <Badge tone={item.severity === "critical" ? "danger" : item.severity === "high" ? "warning" : "info"}>{t(`scheduling.severity.${item.severity}`)}</Badge>
             </div>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.explanation}</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{localizeInsightExplanation(item.explanation, t)}</p>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{item.expectedImpact}</p>
             <p className="mt-1 inline-flex items-center gap-1 text-xs text-[var(--color-text-secondary)]">
               <Sparkles className="h-3.5 w-3.5" />

@@ -39,7 +39,7 @@ export default function DailyReportsPage() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow="Field Operations" title="Daily Reports" description="Capture, review, and track daily field activity across every active project." primaryAction={<Link href="/daily-reports/new" className={getButtonClassName({ size: "lg" })}>Create Report</Link>} />
+      <PageHeader compact eyebrow={t("dailyReports.dashboard.badge")} title="Daily Reports" description="Capture, review, and track daily field activity across every active project." primaryAction={<Link href="/daily-reports/new" className={getButtonClassName({ size: "lg" })}>Create Report</Link>} />
       {pageState.loading ? <StaticMessage>Loading daily reports...</StaticMessage> : pageState.error ? <StaticMessage error>{pageState.error}</StaticMessage> : pageState.data ? <ReportsView reports={pageState.data.reports} summary={pageState.data.summary} t={t} /> : null}
     </div>
   );
