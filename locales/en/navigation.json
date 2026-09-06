@@ -23,5 +23,19 @@
   "settings": "Settings",
   "financial": "Financial",
   "resources": "Resources",
-  "administration": "Administration"
+  "administration": "Administration",
+  "contractorsAndVendors": "Contractors & Vendors",
+  "projectsWorkspaceDescription": "Manage projects, delivery progress, schedules, and financial performance from one workspace.",
+  "previouslyDeleted": "Previously Deleted",
+  "payments": "PAYMENTS",
+  "searchProjectRecords": "Search project records",
+  "searchProjectRecordsPlaceholder": "Search project name, customer, manager, or status",
+  "projectCountSingular": "{{count}} project",
+  "projectCountPlural": "{{count}} projects",
+  "estimatesWorkspaceDescription": "Create, price, send, and track estimates for your business.",
+  "showEstimateTotalValue": "Show all estimates represented by total value",
+  "searchEstimateRecordsPlaceholder": "Search by number, estimate, customer, or project",
+  "expiringIn14Days": "Expiring in 14 Days",
+  "estimatesDirectoryDescription": "Search, filter, and manage estimates.",
+  "projectSummaryApproved": "{{code}} · {{location}} · Approved"
 }
