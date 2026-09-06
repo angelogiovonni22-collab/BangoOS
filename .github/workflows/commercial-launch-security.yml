@@ -4,15 +4,15 @@ on:
   pull_request:
     paths:
       - "lib/security/**"
-      - "lib/blueprints/plan-package-security.contract.test.ts"
       - "supabase/migrations/*commercial_launch*"
+      - "supabase/migrations/*blueprint_plan_packages*"
       - ".github/workflows/commercial-launch-security.yml"
   push:
     branches: [main]
     paths:
       - "lib/security/**"
-      - "lib/blueprints/plan-package-security.contract.test.ts"
       - "supabase/migrations/*commercial_launch*"
+      - "supabase/migrations/*blueprint_plan_packages*"
       - ".github/workflows/commercial-launch-security.yml"
 
 permissions:
@@ -31,4 +31,3 @@ jobs:
       - run: npx -y tsx lib/security/commercial-launch-rpc-security.contract.test.ts
       - run: npx -y tsx lib/security/commercial-launch-entry-and-authenticated-rpc.contract.test.ts
       - run: npx -y tsx lib/security/commercial-launch-data-api-hardening.contract.test.ts
-      - run: npx -y tsx lib/blueprints/plan-package-security.contract.test.ts
