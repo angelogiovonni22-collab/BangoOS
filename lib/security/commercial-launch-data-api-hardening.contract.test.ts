@@ -6,7 +6,8 @@ const root = process.cwd();
 const read = (path: string) => readFileSync(resolve(root, path), "utf8");
 
 const migration = read("supabase/migrations/20260906002000_commercial_launch_sequence_table_data_api_hardening.sql");
-const planPackageSecurity = read("lib/blueprints/plan-package-security.contract.test.ts");
+const planPackageMigration = read("supabase/migrations/20260813010000_blueprint_plan_packages.sql");
+const rpcHardeningMigration = read("supabase/migrations/20260830210000_commercial_launch_rpc_security_hardening.sql");
 
 for (const table of [
   "company_change_order_sequences",
@@ -21,9 +22,14 @@ for (const table of [
 }
 
 assert.match(
-  planPackageSecurity,
+  planPackageMigration,
   /grant execute on function public\.validate_blueprint_plan_package\(text\) to anon, authenticated/i,
-  "Public plan-package token validation is an intentional anonymous SECURITY DEFINER exception",
+  "Public plan-package token validation must remain intentionally callable by the share flow",
+);
+assert.match(
+  rpcHardeningMigration,
+  /grant execute on function public\.validate_blueprint_plan_package\(text\) to anon/i,
+  "Commercial-launch RPC hardening must preserve the intentional anonymous plan-package exception",
 );
 assert.doesNotMatch(
   migration,
