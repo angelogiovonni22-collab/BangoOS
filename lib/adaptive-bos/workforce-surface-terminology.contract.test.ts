@@ -14,7 +14,7 @@ assert.match(workforcePage, /New Team Member/, "Workforce primary action must us
 assert.doesNotMatch(workforcePage, /title=\{t\("employees\.pageTitle"\)\}/, "Workforce page must not use a fixed employee title");
 
 assert.match(workforceFilters, /projectLabel: string/, "Workforce filters must receive adaptive project terminology");
-assert.match(workforceFilters, /All \{projectsLabel\}/, "Workforce project filter must use adaptive plural project terminology");
+assert.match(workforceFilters, /projectsLabel === "Projects" \? t\("scheduling\.filters\.allProjects"\) : `All \$\{projectsLabel\}`/, "Workforce project filter must localize the default project label while preserving adaptive plural terminology");
 assert.match(workforceFilters, /Search team members/, "Workforce search must use cross-industry member terminology");
 assert.match(workforceFilters, /aria-label="Team filter"/, "Workforce team filter must use cross-industry team terminology");
 assert.match(workforceFilters, />All teams</, "Workforce team filter options must not expose construction-only crew copy");
