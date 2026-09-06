@@ -23,5 +23,19 @@
   "settings": "Configuración",
   "financial": "Finanzas",
   "resources": "Recursos",
-  "administration": "Administración"
+  "administration": "Administración",
+  "contractorsAndVendors": "Contratistas y proveedores",
+  "projectsWorkspaceDescription": "Administra proyectos, avance de ejecución, cronogramas y rendimiento financiero desde un solo espacio de trabajo.",
+  "previouslyDeleted": "Eliminados anteriormente",
+  "payments": "PAGOS",
+  "searchProjectRecords": "Buscar registros de proyectos",
+  "searchProjectRecordsPlaceholder": "Buscar por nombre del proyecto, cliente, gerente o estado",
+  "projectCountSingular": "{{count}} proyecto",
+  "projectCountPlural": "{{count}} proyectos",
+  "estimatesWorkspaceDescription": "Crea, calcula, envía y da seguimiento a presupuestos para tu empresa.",
+  "showEstimateTotalValue": "Mostrar todos los presupuestos representados por el valor total",
+  "searchEstimateRecordsPlaceholder": "Buscar por número, presupuesto, cliente o proyecto",
+  "expiringIn14Days": "Vencen en 14 días",
+  "estimatesDirectoryDescription": "Busca, filtra y administra presupuestos.",
+  "projectSummaryApproved": "{{code}} · {{location}} · Aprobado"
 }
