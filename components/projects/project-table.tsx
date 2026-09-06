@@ -72,10 +72,14 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
   }, []);
 
   const visibleItems = useMemo(() => items.filter((project) => !deletedIds.has(project.id)), [deletedIds, items]);
+  const countLabel = t(
+    visibleItems.length === 1 ? "navigation.projectCountSingular" : "navigation.projectCountPlural",
+    { count: visibleItems.length },
+  );
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2" aria-label={`${projectLabel} lifecycle views`}>
+      <div className="flex flex-wrap items-center gap-2" aria-label={t("runtime.projectLifecycleViews")}>
         <span
           aria-current="page"
           className="inline-flex min-h-9 items-center rounded-[var(--radius-md)] border border-[var(--color-brand-500)] bg-[var(--color-brand-600)] px-3 py-2 text-sm font-semibold text-white shadow-[var(--shadow-small)]"
@@ -87,22 +91,22 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
             href="/projects/deleted"
             className="inline-flex min-h-9 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-brand-500)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]"
           >
-            Previously Deleted
+            {t("navigation.previouslyDeleted")}
           </Link>
         ) : null}
       </div>
 
-      <TableContainer title={`${projectLabel} Directory`} description={`${visibleItems.length} ${visibleItems.length === 1 ? projectLabel.toLowerCase() : projectsLabel.toLowerCase()}`}>
-        <EnterpriseTable ariaLabel={`${projectLabel} Directory`} minWidthClassName="min-w-[920px]">
+      <TableContainer title={t("projects.directoryTitle")} description={countLabel}>
+        <EnterpriseTable ariaLabel={t("projects.directoryTitle")} minWidthClassName="min-w-[920px]">
           <EnterpriseTableHead>
             <tr>
               <EnterpriseTableHeading>{projectLabel}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableStatus")}</EnterpriseTableHeading>
               <EnterpriseTableHeading>{t("projects.tableProgress")}</EnterpriseTableHeading>
               {showFinancials ? <EnterpriseTableHeading>{t("projects.tableBudget")}</EnterpriseTableHeading> : null}
-              {showFinancials ? <EnterpriseTableHeading>Payments</EnterpriseTableHeading> : null}
-              <EnterpriseTableHeading>Superintendent</EnterpriseTableHeading>
-              <EnterpriseTableHeading>Due Date</EnterpriseTableHeading>
+              {showFinancials ? <EnterpriseTableHeading>{t("navigation.payments")}</EnterpriseTableHeading> : null}
+              <EnterpriseTableHeading>{t("projects.filterProjectManager")}</EnterpriseTableHeading>
+              <EnterpriseTableHeading>{t("projects.tableEndDate")}</EnterpriseTableHeading>
               {canManageProjects ? <EnterpriseTableHeading align="right">{t("projects.tableActions")}</EnterpriseTableHeading> : null}
             </tr>
           </EnterpriseTableHead>
@@ -114,7 +118,7 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 className="cursor-pointer transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]/80 hover:shadow-[0_10px_24px_-20px_rgba(15,23,42,0.28)]"
                 role="link"
                 tabIndex={0}
-                aria-label={`View ${projectLabel} workspace ${project.projectName}`}
+                aria-label={`${t("projects.viewWorkspace")} ${project.projectName}`}
                 onClick={(event) => {
                   const target = event.target as HTMLElement;
                   if (target.closest("a,button,input,select,textarea")) return;
@@ -145,7 +149,7 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.dueDateLabel}</EnterpriseTableCell>
                 {canManageProjects ? (
                   <EnterpriseTableCell align="right">
-                    <ProjectActions projectId={project.id} projectName={project.projectName} viewLabel={`View ${projectLabel} workspace`} moreLabel={t("projects.actionsMore")} />
+                    <ProjectActions projectId={project.id} projectName={project.projectName} viewLabel={t("projects.viewWorkspace")} moreLabel={t("projects.actionsMore")} />
                   </EnterpriseTableCell>
                 ) : null}
               </EnterpriseTableRow>
