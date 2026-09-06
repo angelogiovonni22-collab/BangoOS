@@ -63,7 +63,6 @@ export function SchedulingHeader({
 }: SchedulingHeaderProps) {
   const { term } = useAdaptiveBos();
   const projectLabel = term("project", "Project");
-  const projectsLabel = term("projects", "Projects");
   const workforceLabel = term("workforce", "Workforce");
 
   return (
@@ -107,12 +106,12 @@ export function SchedulingHeader({
 
           <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
             <span>{projectLabel}</span>
-            <Select value={filters.project} onChange={(event) => onFilterChange("project", event.target.value)}><option value="all">All {projectsLabel}</option>{projectOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</Select>
+            <Select value={filters.project} onChange={(event) => onFilterChange("project", event.target.value)}><option value="all">{t("scheduling.filters.allProjects")}</option>{projectOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</Select>
           </label>
 
           <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
             <span>{workforceLabel}</span>
-            <Select value={filters.crew} onChange={(event) => onFilterChange("crew", event.target.value)}><option value="all">All teams</option>{crewOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</Select>
+            <Select value={filters.crew} onChange={(event) => onFilterChange("crew", event.target.value)}><option value="all">{t("scheduling.filters.allCrews")}</option>{crewOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</Select>
           </label>
 
           <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]"><span>{t("scheduling.filters.trade")}</span><Select value={filters.employeeTrade} onChange={(event) => onFilterChange("employeeTrade", event.target.value)}><option value="all">{t("scheduling.filters.allTrades")}</option>{tradeOptions.map((option) => <option key={option} value={option}>{option}</option>)}</Select></label>
@@ -125,7 +124,7 @@ export function SchedulingHeader({
 
           <label className="space-y-1.5 text-sm font-semibold text-[var(--color-text-primary)]">
             <span>{t("scheduling.filters.groupBy")}</span>
-            <Select value={filters.groupBy} onChange={(event) => onFilterChange("groupBy", event.target.value as ScheduleFilterState["groupBy"])}><option value="project">{projectLabel}</option><option value="crew">Team</option><option value="employee">Team Member</option><option value="trade">{t("scheduling.group.trade")}</option><option value="location">{t("scheduling.group.location")}</option></Select>
+            <Select value={filters.groupBy} onChange={(event) => onFilterChange("groupBy", event.target.value as ScheduleFilterState["groupBy"])}><option value="project">{projectLabel}</option><option value="crew">{t("scheduling.group.crew")}</option><option value="employee">{t("scheduling.group.employee")}</option><option value="trade">{t("scheduling.group.trade")}</option><option value="location">{t("scheduling.group.location")}</option></Select>
           </label>
         </div>
       </div>
