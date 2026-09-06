@@ -65,7 +65,7 @@ export function EmployeeFilters({
       </Select>
 
       <Select value={projectId} onChange={(event) => onProjectChange(event.target.value)} aria-label={`${projectLabel} filter`}>
-        <option value="all">All {projectsLabel}</option>
+        <option value="all">{projectsLabel === "Projects" ? t("scheduling.filters.allProjects") : `All ${projectsLabel}`}</option>
         {projectOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
       </Select>
 
