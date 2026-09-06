@@ -12,6 +12,10 @@ final class RoomPlanCaptureCoordinator: NSObject, ObservableObject {
 
     private let captureView = RoomCaptureView(frame: .zero)
 
+    static var isSupported: Bool {
+        RoomCaptureSession.isSupported
+    }
+
     override init() {
         super.init()
         captureView.delegate = self
@@ -25,6 +29,11 @@ final class RoomPlanCaptureCoordinator: NSObject, ObservableObject {
     func start() {
         lastError = nil
         capturedRoom = nil
+        guard RoomCaptureSession.isSupported else {
+            isScanning = false
+            lastError = "B.O.S. Reality Engine room capture requires an Apple device with a LiDAR Scanner."
+            return
+        }
         let configuration = RoomCaptureSession.Configuration()
         captureView.captureSession.run(configuration: configuration)
         isScanning = true
