@@ -37,5 +37,8 @@
   "searchEstimateRecordsPlaceholder": "Search by number, estimate, customer, or project",
   "expiringIn14Days": "Expiring in 14 Days",
   "estimatesDirectoryDescription": "Search, filter, and manage estimates.",
-  "projectSummaryApproved": "{{code}} · {{location}} · Approved"
+  "projectSummaryApproved": "{{code}} · {{location}} · Approved",
+  "allTeams": "All teams",
+  "team": "Team",
+  "teamMember": "Team Member"
 }
