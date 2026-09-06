@@ -114,7 +114,7 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 className="cursor-pointer transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]/80 hover:shadow-[0_10px_24px_-20px_rgba(15,23,42,0.28)]"
                 role="link"
                 tabIndex={0}
-                aria-label={`View ${projectLabel} workspace ${project.projectName}`}
+                aria-label={`${t("projects.viewWorkspace")} ${project.projectName}`}
                 onClick={(event) => {
                   const target = event.target as HTMLElement;
                   if (target.closest("a,button,input,select,textarea")) return;
@@ -145,7 +145,7 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{project.dueDateLabel}</EnterpriseTableCell>
                 {canManageProjects ? (
                   <EnterpriseTableCell align="right">
-                    <ProjectActions projectId={project.id} projectName={project.projectName} viewLabel={`View ${projectLabel} workspace`} moreLabel={t("projects.actionsMore")} />
+                    <ProjectActions projectId={project.id} projectName={project.projectName} viewLabel={t("projects.viewWorkspace")} moreLabel={t("projects.actionsMore")} />
                   </EnterpriseTableCell>
                 ) : null}
               </EnterpriseTableRow>
