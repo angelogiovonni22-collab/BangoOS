@@ -13,6 +13,8 @@ const androidRootBuild = fs.readFileSync(path.join(root, "native/android/build.g
 
 assert(iosProject.includes("$(BOS_IOS_BUNDLE_ID)"), "iOS bundle ID must remain externally configurable");
 assert(iosProject.includes("$(BOS_APPLE_TEAM_ID)"), "Apple signing team must remain externally configurable");
+assert(iosProject.includes("NSCameraUsageDescription"), "iOS Reality Engine must explain camera use");
+assert(iosProject.includes("NSMicrophoneUsageDescription"), "iOS native shell must explain microphone use before Orion voice capture");
 assert(iosConfig.includes("https://bango-os.vercel.app"));
 assert(iosConfig.includes('url.scheme == "https"'), "iOS shell must fail closed to HTTPS");
 assert(iosWebView.includes("WKNavigationDelegate"));

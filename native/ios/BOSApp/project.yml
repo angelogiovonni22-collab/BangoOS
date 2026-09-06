@@ -19,6 +19,7 @@ targets:
         CFBundleDisplayName: B.O.S.
         UILaunchScreen: {}
         NSCameraUsageDescription: B.O.S. uses the camera for Reality Engine room capture and project documentation.
+        NSMicrophoneUsageDescription: B.O.S. uses the microphone when you speak with Orion.
         NSPhotoLibraryUsageDescription: B.O.S. can attach project photos and Reality Engine capture assets.
     settings:
       base:
