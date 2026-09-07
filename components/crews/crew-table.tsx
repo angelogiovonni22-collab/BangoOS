@@ -6,9 +6,11 @@ import type { Crew } from "@/lib/crews";
 type CrewTableProps = {
   items: Crew[];
   t: (key: string, params?: Record<string, string | number>) => string;
+  locale: string;
 };
 
-export function CrewTable({ items, t }: CrewTableProps) {
+export function CrewTable({ items, t, locale }: CrewTableProps) {
+  const localeTag = locale === "es" ? "es-ES" : "en-US";
   return (
     <>
       <div className="hidden overflow-x-auto md:block">
@@ -50,7 +52,7 @@ export function CrewTable({ items, t }: CrewTableProps) {
                   <CrewStatusPill status={crew.status} availability={crew.availability} t={t} />
                 </td>
                 <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{crew.nextAssignmentTitle || "None"}</td>
-                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{formatDate(crew.updatedAt)}</td>
+                <td className="whitespace-nowrap px-6 py-5 text-sm font-medium text-[var(--color-text-secondary)]">{formatDate(crew.updatedAt, localeTag)}</td>
                 <td className="whitespace-nowrap px-6 py-5 text-right text-sm font-semibold">
                   <div className="inline-flex gap-2">
                     <Link href={`/crews/${crew.id}`} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-2.5 py-1.5 text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-brand-800)]">
@@ -127,8 +129,8 @@ function InfoLine({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
+function formatDate(value: string, localeTag: string) {
+  return new Intl.DateTimeFormat(localeTag, {
     month: "short",
     day: "numeric",
   }).format(new Date(value));
