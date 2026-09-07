@@ -14,7 +14,9 @@ type ReportSummaryFilter = "all" | "submitted" | "reviewed" | "approved";
 const INITIAL_STATE: PageState = { loading: true, error: null, data: null };
 
 export default function DailyReportsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const es = locale === "es";
+  const l = (en: string, spanish: string) => es ? spanish : en;
   const [service] = useState<DailyReportsService>(() => createDailyReportsService());
   const requestIdRef = useRef(0);
   const [pageState, setPageState] = useState<PageState>(INITIAL_STATE);
@@ -30,22 +32,23 @@ export default function DailyReportsPage() {
         setPageState({ loading: false, error: null, data });
       } catch {
         if (cancelled || requestId !== requestIdRef.current) return;
-        setPageState({ loading: false, error: "Daily Reports could not be loaded.", data: null });
+        setPageState({ loading: false, error: l("Daily Reports could not be loaded.", "No se pudieron cargar los reportes diarios."), data: null });
       }
     };
     void run();
     return () => { cancelled = true; };
-  }, [service]);
+  }, [service, es]);
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow={t("dailyReports.dashboard.badge")} title="Daily Reports" description="Capture, review, and track daily field activity across every active project." primaryAction={<Link href="/daily-reports/new" className={getButtonClassName({ size: "lg" })}>Create Report</Link>} />
-      {pageState.loading ? <StaticMessage>Loading daily reports...</StaticMessage> : pageState.error ? <StaticMessage error>{pageState.error}</StaticMessage> : pageState.data ? <ReportsView reports={pageState.data.reports} summary={pageState.data.summary} t={t} /> : null}
+      <PageHeader compact eyebrow={t("dailyReports.dashboard.badge")} title={l("Daily Reports", "Reportes diarios")} description={l("Capture, review, and track daily field activity across every active project.", "Captura, revisa y controla la actividad diaria de campo en todos los proyectos activos.")} primaryAction={<Link href="/daily-reports/new" className={getButtonClassName({ size: "lg" })}>{l("Create Report", "Crear reporte")}</Link>} />
+      {pageState.loading ? <StaticMessage>{l("Loading daily reports...", "Cargando reportes diarios...")}</StaticMessage> : pageState.error ? <StaticMessage error>{pageState.error}</StaticMessage> : pageState.data ? <ReportsView reports={pageState.data.reports} summary={pageState.data.summary} t={t} es={es} /> : null}
     </div>
   );
 }
 
-function ReportsView({ reports, summary, t }: { reports: DailyReportsPageReport[]; summary: DailyReportsPageData["summary"]; t: (key: string, params?: Record<string, string | number>) => string }) {
+function ReportsView({ reports, summary, t, es }: { reports: DailyReportsPageReport[]; summary: DailyReportsPageData["summary"]; t: (key: string, params?: Record<string, string | number>) => string; es: boolean }) {
+  const l = (en: string, spanish: string) => es ? spanish : en;
   const [summaryFilter, setSummaryFilter] = useState<ReportSummaryFilter>("all");
   const filteredReports = useMemo(
     () => summaryFilter === "all" ? reports : reports.filter((report) => report.status === summaryFilter),
@@ -54,27 +57,27 @@ function ReportsView({ reports, summary, t }: { reports: DailyReportsPageReport[
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Daily report summary filters">
-        <SummaryCard icon={<FileText aria-hidden="true" />} label="Total Reports" value={String(summary.total)} tone="brand" compact onClick={() => setSummaryFilter("all")} selected={summaryFilter === "all"} actionLabel="Show all daily reports" />
-        <SummaryCard icon={<Clock3 aria-hidden="true" />} label="Pending Review" value={String(summary.pending)} tone="warning" compact onClick={() => setSummaryFilter("submitted")} selected={summaryFilter === "submitted"} actionLabel="Show daily reports pending review" />
-        <SummaryCard icon={<ClipboardCheck aria-hidden="true" />} label="Reviewed" value={String(summary.reviewed)} tone="info" compact onClick={() => setSummaryFilter("reviewed")} selected={summaryFilter === "reviewed"} actionLabel="Show reviewed daily reports" />
-        <SummaryCard icon={<BadgeCheck aria-hidden="true" />} label="Approved" value={String(summary.approved)} tone="success" compact onClick={() => setSummaryFilter("approved")} selected={summaryFilter === "approved"} actionLabel="Show approved daily reports" />
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label={l("Daily report summary filters", "Filtros de resumen de reportes diarios")}>
+        <SummaryCard icon={<FileText aria-hidden="true" />} label={l("Total Reports", "Reportes totales")} value={String(summary.total)} tone="brand" compact onClick={() => setSummaryFilter("all")} selected={summaryFilter === "all"} actionLabel={l("Show all daily reports", "Mostrar todos los reportes diarios")} />
+        <SummaryCard icon={<Clock3 aria-hidden="true" />} label={l("Pending Review", "Pendientes de revisión")} value={String(summary.pending)} tone="warning" compact onClick={() => setSummaryFilter("submitted")} selected={summaryFilter === "submitted"} actionLabel={l("Show daily reports pending review", "Mostrar reportes diarios pendientes de revisión")} />
+        <SummaryCard icon={<ClipboardCheck aria-hidden="true" />} label={l("Reviewed", "Revisados")} value={String(summary.reviewed)} tone="info" compact onClick={() => setSummaryFilter("reviewed")} selected={summaryFilter === "reviewed"} actionLabel={l("Show reviewed daily reports", "Mostrar reportes diarios revisados")} />
+        <SummaryCard icon={<BadgeCheck aria-hidden="true" />} label={l("Approved", "Aprobados")} value={String(summary.approved)} tone="success" compact onClick={() => setSummaryFilter("approved")} selected={summaryFilter === "approved"} actionLabel={l("Show approved daily reports", "Mostrar reportes diarios aprobados")} />
       </section>
 
       {reports.length === 0 ? (
         <EmptyState
           icon="R"
-          title="No daily reports yet"
-          description="Create the first field report to begin tracking daily production, workforce activity, safety, and jobsite conditions."
-          action={<Link href="/daily-reports/new" className={getButtonClassName()}>Create Report</Link>}
+          title={l("No daily reports yet", "Aún no hay reportes diarios")}
+          description={l("Create the first field report to begin tracking daily production, workforce activity, safety, and jobsite conditions.", "Crea el primer reporte de campo para comenzar a controlar la producción diaria, la actividad del personal, la seguridad y las condiciones del sitio.")}
+          action={<Link href="/daily-reports/new" className={getButtonClassName()}>{l("Create Report", "Crear reporte")}</Link>}
         />
       ) : filteredReports.length === 0 ? (
-        <EmptyState compact icon="R" title="No reports in this status" description="Choose another summary card to see the rest of your daily reports." />
+        <EmptyState compact icon="R" title={l("No reports in this status", "No hay reportes con este estado")} description={l("Choose another summary card to see the rest of your daily reports.", "Elige otra tarjeta de resumen para ver el resto de los reportes diarios.")} />
       ) : (
-        <TableContainer title="Reports" description="Daily report directory with status visibility and direct access.">
-          <EnterpriseTable ariaLabel="Daily reports directory" minWidthClassName="min-w-[820px]">
-            <EnterpriseTableHead><tr><EnterpriseTableHeading>Date</EnterpriseTableHeading><EnterpriseTableHeading>Project</EnterpriseTableHeading><EnterpriseTableHeading>Employee or author</EnterpriseTableHeading><EnterpriseTableHeading>Status</EnterpriseTableHeading><EnterpriseTableHeading>View</EnterpriseTableHeading></tr></EnterpriseTableHead>
-            <EnterpriseTableBody>{filteredReports.map((report) => <EnterpriseTableRow key={report.id}><EnterpriseTableCell>{report.date}</EnterpriseTableCell><EnterpriseTableCell>{report.projectName}</EnterpriseTableCell><EnterpriseTableCell>{report.authorName}</EnterpriseTableCell><EnterpriseTableCell><ReportStatusChip status={report.status} t={t} /></EnterpriseTableCell><EnterpriseTableCell><Link href={`/daily-reports/${report.id}`} className="font-semibold text-[var(--color-brand-700)] hover:underline">View</Link></EnterpriseTableCell></EnterpriseTableRow>)}</EnterpriseTableBody>
+        <TableContainer title={l("Reports", "Reportes")} description={l("Daily report directory with status visibility and direct access.", "Directorio de reportes diarios con estado visible y acceso directo.")}>
+          <EnterpriseTable ariaLabel={l("Daily reports directory", "Directorio de reportes diarios")} minWidthClassName="min-w-[820px]">
+            <EnterpriseTableHead><tr><EnterpriseTableHeading>{l("Date", "Fecha")}</EnterpriseTableHeading><EnterpriseTableHeading>{l("Project", "Proyecto")}</EnterpriseTableHeading><EnterpriseTableHeading>{l("Employee or author", "Empleado o autor")}</EnterpriseTableHeading><EnterpriseTableHeading>{l("Status", "Estado")}</EnterpriseTableHeading><EnterpriseTableHeading>{l("View", "Ver")}</EnterpriseTableHeading></tr></EnterpriseTableHead>
+            <EnterpriseTableBody>{filteredReports.map((report) => <EnterpriseTableRow key={report.id}><EnterpriseTableCell>{report.date}</EnterpriseTableCell><EnterpriseTableCell>{report.projectName}</EnterpriseTableCell><EnterpriseTableCell>{report.authorName}</EnterpriseTableCell><EnterpriseTableCell><ReportStatusChip status={report.status} t={t} /></EnterpriseTableCell><EnterpriseTableCell><Link href={`/daily-reports/${report.id}`} className="font-semibold text-[var(--color-brand-700)] hover:underline">{l("View", "Ver")}</Link></EnterpriseTableCell></EnterpriseTableRow>)}</EnterpriseTableBody>
           </EnterpriseTable>
         </TableContainer>
       )}
