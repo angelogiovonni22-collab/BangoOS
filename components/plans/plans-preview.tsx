@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Component, useState, type ErrorInfo, type ReactNode } from "react";
 import { ExternalLink, FileBadge2, Maximize2 } from "lucide-react";
 import { Button, EmptyState } from "@/components/ui";
 import { RevisionHistory } from "./revision-history";
@@ -37,6 +37,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
   }
 
   const previewType = resolvePreviewType(selectedDocument.originalFileName || selectedDocument.fileName, selectedDocument.mimeType);
+  const workspaceBoundaryKey = `${selectedDocument.id}:${selectedDocument.versionId}:${effectiveWorkspaceOpen ? "open" : "closed"}`;
 
   return (
     <section className="self-start rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] shadow-[var(--shadow-small)]" aria-label="Drawing preview and metadata">
@@ -46,14 +47,18 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{selectedDocument.fileName}</h3>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Revision {selectedDocument.revision}</p>
           </div>
-          <Button type="button" size="sm" disabled={!selectedDocument.fileUrl || previewType === "unsupported"} onClick={() => setWorkspaceOpen(true)} data-orion-action="blueprints.open-workspace">
+          <Button type="button" size="sm" disabled={!selectedDocument.fileUrl || previewType === "unsupported"} onClick={() => { setDeepLinkDismissed(false); setWorkspaceOpen(true); }} data-orion-action="blueprints.open-workspace">
             <Maximize2 size={15} aria-hidden="true" /> Open workspace
           </Button>
         </div>
       </div>
 
       <div className="space-y-5 p-5">
-        {selectedDocument.fileUrl && (previewType === "ifc" || previewType === "gltf") ? (
+        {effectiveWorkspaceOpen && selectedDocument.fileUrl && previewType !== "unsupported" ? (
+          <div className="flex h-72 items-center justify-center rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-900 px-6 text-center text-sm font-semibold text-slate-200">
+            The interactive plan is open in the large workspace. The inline preview is paused while the workspace is active to avoid loading the same 2D/3D plan twice.
+          </div>
+        ) : selectedDocument.fileUrl && (previewType === "ifc" || previewType === "gltf") ? (
           <div className="h-[38rem]"><Blueprint3dViewer fileUrl={selectedDocument.fileUrl} fileName={selectedDocument.fileName} format={previewType} companyId={companyId} projectId={projectId} versionId={selectedDocument.versionId} userId={userId}/></div>
         ) : selectedDocument.fileUrl && (previewType === "image" || previewType === "pdf") ? (
           <Blueprint2dViewer key={`${selectedDocument.id}:${selectedDocument.revision}`} fileUrl={selectedDocument.fileUrl} fileName={selectedDocument.fileName} previewType={previewType} companyId={companyId} projectId={projectId} versionId={selectedDocument.versionId} userId={userId} discipline={selectedDocument.discipline} />
@@ -98,10 +103,51 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
       </div>
 
       {selectedDocument.fileUrl && previewType !== "unsupported" ? (
-        <BlueprintPlanWorkspace open={effectiveWorkspaceOpen} onClose={() => { setWorkspaceOpen(false); setDeepLinkDismissed(true); }} document={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} previewType={previewType} initialPage={initialPage} initialAnnotationId={initialAnnotationId} />
+        <BlueprintWorkspaceBoundary resetKey={workspaceBoundaryKey}>
+          <BlueprintPlanWorkspace open={effectiveWorkspaceOpen} onClose={() => { setWorkspaceOpen(false); setDeepLinkDismissed(true); }} document={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} previewType={previewType} initialPage={initialPage} initialAnnotationId={initialAnnotationId} />
+        </BlueprintWorkspaceBoundary>
       ) : null}
     </section>
   );
+}
+
+type BlueprintWorkspaceBoundaryProps = {
+  children: ReactNode;
+  resetKey: string;
+};
+
+type BlueprintWorkspaceBoundaryState = {
+  hasError: boolean;
+};
+
+class BlueprintWorkspaceBoundary extends Component<BlueprintWorkspaceBoundaryProps, BlueprintWorkspaceBoundaryState> {
+  state: BlueprintWorkspaceBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): BlueprintWorkspaceBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Blueprint plan workspace failed to render", error, info);
+  }
+
+  componentDidUpdate(previousProps: BlueprintWorkspaceBoundaryProps) {
+    if (previousProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="mx-5 mb-5 rounded-[var(--radius-xl)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+          The large plan workspace could not render. The project plan room remains available, and reopening the workspace will retry it without taking down the entire project page.
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 function resolvePreviewType(fileName: string, mimeType?: string) {

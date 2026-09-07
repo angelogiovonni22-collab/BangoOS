@@ -20,14 +20,23 @@ export function BlueprintFieldTools({
     [message, setMessage] = useState("");
   const identity = useMemo(() => ({ companyId, projectId, versionId }), [companyId, projectId, versionId]);
   useEffect(() => {
+    let active = true;
     const refresh = () => setOnline(navigator.onLine);
     refresh();
     addEventListener("online", refresh);
     addEventListener("offline", refresh);
-    void listBlueprintFieldDrafts(identity).then((items) =>
-      setCount(items.length),
-    );
+    void listBlueprintFieldDrafts(identity)
+      .then((items) => {
+        if (active) setCount(items.length);
+      })
+      .catch(() => {
+        if (active) {
+          setCount(0);
+          setMessage("Offline field storage is unavailable on this device. Online plan tools remain available.");
+        }
+      });
     return () => {
+      active = false;
       removeEventListener("online", refresh);
       removeEventListener("offline", refresh);
     };
