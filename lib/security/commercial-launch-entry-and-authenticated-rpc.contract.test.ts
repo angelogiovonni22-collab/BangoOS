@@ -51,4 +51,16 @@ assert.equal(projectManageChecks.length, 2, "project delete and restore must bot
 assert.match(projectLifecycleMigration, /revoke all on function public\.soft_delete_project\(uuid\) from public, anon/i);
 assert.match(projectLifecycleMigration, /revoke all on function public\.restore_deleted_project\(uuid\) from public, anon/i);
 
+const mobilizationMigration = read("supabase/migrations/20260907024500_subcontractor_mobilization_rpc_hardening.sql");
+assert.match(
+  mobilizationMigration,
+  /revoke execute on function public\.refresh_subcontractor_mobilization_status\(uuid, uuid\)[\s\S]*from public, anon, authenticated/i,
+  "mobilization refresh must not remain a signed-in browser RPC",
+);
+assert.match(
+  mobilizationMigration,
+  /grant execute on function public\.refresh_subcontractor_mobilization_status\(uuid, uuid\)[\s\S]*to service_role/i,
+  "mobilization refresh must remain available to trusted server workflows",
+);
+
 console.log("Commercial-launch entry and authenticated RPC contract passed.");
