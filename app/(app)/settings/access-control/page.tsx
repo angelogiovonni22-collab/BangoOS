@@ -65,7 +65,7 @@ const DEPARTMENT_ES: Record<string, string> = {
   Customer: "Cliente",
 };
 
-const PERMISSION_ES: Record<BosPermission, string> = {
+const PERMISSION_ES: Partial<Record<BosPermission, string>> = {
   "orion.use": "IA y voz de Orion",
   "dashboard.view": "Panel ejecutivo",
   "projects.view": "Proyectos",
@@ -224,8 +224,11 @@ function formatLabel(value: string, es: boolean) {
     administrator: "Administrador",
     operations_manager: "Gerente de operaciones",
     project_manager: "Gerente de proyecto",
+    estimator: "Estimador",
     superintendent: "Superintendente",
+    office_manager: "Gerente de oficina",
     accountant: "Contador",
+    foreman: "Capataz",
     employee: "Empleado",
     subcontractor: "Subcontratista",
     customer: "Cliente",
