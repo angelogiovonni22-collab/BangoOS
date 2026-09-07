@@ -32,7 +32,7 @@ export default function DailyReportsPage() {
         setPageState({ loading: false, error: null, data });
       } catch {
         if (cancelled || requestId !== requestIdRef.current) return;
-        setPageState({ loading: false, error: l("Daily Reports could not be loaded.", "No se pudieron cargar los reportes diarios."), data: null });
+        setPageState({ loading: false, error: es ? "No se pudieron cargar los reportes diarios." : "Daily Reports could not be loaded.", data: null });
       }
     };
     void run();
