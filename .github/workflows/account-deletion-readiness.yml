@@ -1,0 +1,37 @@
+name: Account Deletion Readiness
+
+on:
+  pull_request:
+    paths:
+      - "app/account-deletion/**"
+      - "app/(app)/settings/account-deletion/**"
+      - "app/(app)/settings/page.tsx"
+      - "app/api/account/deletion-request/**"
+      - "lib/native/account-deletion-readiness.contract.test.ts"
+      - "supabase/migrations/*user_account_deletion_requests*"
+      - ".github/workflows/account-deletion-readiness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/account-deletion/**"
+      - "app/(app)/settings/account-deletion/**"
+      - "app/(app)/settings/page.tsx"
+      - "app/api/account/deletion-request/**"
+      - "lib/native/account-deletion-readiness.contract.test.ts"
+      - "supabase/migrations/*user_account_deletion_requests*"
+      - ".github/workflows/account-deletion-readiness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx -y tsx lib/native/account-deletion-readiness.contract.test.ts
