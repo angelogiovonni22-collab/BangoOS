@@ -49,12 +49,13 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
     if (media instanceof HTMLCanvasElement && (media.width <= 300 || media.height <= 150)) return false;
     if (media instanceof HTMLImageElement && (!media.complete || media.naturalWidth <= 0 || media.naturalHeight <= 0)) return false;
 
-    // Use the rendered sheet's intrinsic dimensions rather than the transform
-    // frame's constrained box. The frame is capped by max-h/max-w, so measuring
-    // it can incorrectly report that a tall sheet already fits while its canvas
-    // is visibly clipped below the workspace.
-    const baseWidth = media instanceof HTMLCanvasElement ? media.width : media.naturalWidth;
-    const baseHeight = media instanceof HTMLCanvasElement ? media.height : media.naturalHeight;
+    // The workspace now has an explicit viewport height. The canvas/image is
+    // already constrained by max-h-full/max-w-full, so fit from its actual
+    // laid-out frame rather than its high-resolution intrinsic render buffer.
+    // Using canvas.width here would double-apply the PDF render scale and make
+    // an otherwise fitted sheet appear tiny.
+    const baseWidth = frame.offsetWidth;
+    const baseHeight = frame.offsetHeight;
     const availableWidth = viewport.clientWidth;
     const availableHeight = viewport.clientHeight;
     if (baseWidth <= 0 || baseHeight <= 0 || availableWidth <= 0 || availableHeight <= 0) return false;
