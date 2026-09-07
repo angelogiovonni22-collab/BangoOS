@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, useState, type ErrorInfo, type ReactNode } from "react";
+import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { ExternalLink, FileBadge2, Maximize2 } from "lucide-react";
 import { Button, EmptyState } from "@/components/ui";
 import { RevisionHistory } from "./revision-history";
@@ -27,6 +27,16 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [deepLinkDismissed, setDeepLinkDismissed] = useState(false);
   const effectiveWorkspaceOpen = workspaceOpen || (initialWorkspaceOpen && !deepLinkDismissed);
+
+  useEffect(() => {
+    if (!initialWorkspaceOpen || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("blueprintVersion") && !url.searchParams.has("blueprintPage") && !url.searchParams.has("blueprintAnnotation")) return;
+    url.searchParams.delete("blueprintVersion");
+    url.searchParams.delete("blueprintPage");
+    url.searchParams.delete("blueprintAnnotation");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [initialWorkspaceOpen]);
 
   if (!selectedDocument) {
     return (
