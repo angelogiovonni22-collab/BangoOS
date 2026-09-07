@@ -102,4 +102,27 @@ assert.match(
   "authorized signed-in workflows must retain the guarded deposit calculation RPC",
 );
 
+const sequenceMigration = read("supabase/migrations/20260907034000_sequence_allocator_permission_hardening.sql");
+for (const [routine, permission] of [
+  ["allocate_estimate_number", "estimates.manage"],
+  ["allocate_project_number", "projects.manage"],
+  ["allocate_change_order_number", "change_orders.manage"],
+] as const) {
+  assert.match(
+    sequenceMigration,
+    new RegExp(`bos_role_has_permission\\(p_company_id,\\s*'${permission.replace(".", "\\.")}',\\s*auth\\.uid\\(\\)\\)`, "i"),
+    `${routine} must require ${permission}`,
+  );
+  assert.match(
+    sequenceMigration,
+    new RegExp(`revoke all on function public\\.${routine}_internal\\(uuid\\)[\\s\\S]*from public, anon, authenticated`, "i"),
+    `${routine} internal allocator must not remain directly callable by signed-in clients`,
+  );
+  assert.match(
+    sequenceMigration,
+    new RegExp(`grant execute on function public\\.${routine}\\(uuid\\)[\\s\\S]*to authenticated`, "i"),
+    `${routine} guarded RPC must remain available to authorized signed-in workflows`,
+  );
+}
+
 console.log("Commercial-launch entry and authenticated RPC contract passed.");
