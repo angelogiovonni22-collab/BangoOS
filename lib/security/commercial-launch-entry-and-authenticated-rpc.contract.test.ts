@@ -12,6 +12,16 @@ const diagnostic = read("app/supabase-test/page.tsx");
 assert.match(diagnostic, /notFound\(\)/, "the Supabase diagnostic route must not be publicly rendered");
 assert.doesNotMatch(diagnostic, /createClient|environment variables|configuration successful/i, "the diagnostic route must not disclose environment readiness");
 
+const authConfirm = read("app/auth/confirm/route.ts");
+assert.match(authConfirm, /!value\.startsWith\(['"]\/['"]\)/, "auth confirmation redirects must require an app-local path");
+assert.match(authConfirm, /value\.startsWith\(['"]\/\/['"]\)/, "auth confirmation redirects must reject protocol-relative URLs");
+assert.doesNotMatch(authConfirm, /encodeURIComponent\(error\.message\)/, "auth confirmation failures must not reflect provider error details into redirect URLs");
+
+const login = read("app/login/page.tsx");
+assert.match(login, /rawNext\.startsWith\(["']\/\/["']\)/, "login continuation must reject protocol-relative redirects");
+assert.doesNotMatch(login, /decodeURIComponent\(rawError\)/, "login must not render arbitrary error text supplied through the URL");
+assert.doesNotMatch(login, /signInError\.message\s*\|\|/, "login must not expose provider authentication details directly to users");
+
 const migration = read("supabase/migrations/20260830220000_commercial_launch_authenticated_rpc_hardening.sql");
 const internalRoutines = [
   "close_trade_partner_access_when_project_completed()",
@@ -87,5 +97,17 @@ for (const signature of [
     `${signature} must not remain directly callable by signed-in clients`,
   );
 }
+
+const internalComplianceMigration = read("supabase/migrations/20260907154500_internal_compliance_guard_rpc_hardening.sql");
+assert.match(
+  internalComplianceMigration,
+  /revoke execute on function public\.assert_estimate_work_may_begin\(uuid, uuid\)[\s\S]*from public, anon, authenticated/i,
+  "the internal estimate work-start legal guard must not be directly callable through the public Data API",
+);
+assert.match(
+  internalComplianceMigration,
+  /grant execute on function public\.assert_estimate_work_may_begin\(uuid, uuid\)[\s\S]*to service_role/i,
+  "trusted server workflows must retain access to the internal estimate work-start legal guard",
+);
 
 console.log("Commercial-launch entry and authenticated RPC contract passed.");
