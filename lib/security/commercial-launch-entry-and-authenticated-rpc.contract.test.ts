@@ -85,4 +85,21 @@ assert.match(
   "trusted server operations must retain access to the internal conversion implementation",
 );
 
+const estimateDepositMigration = read("supabase/migrations/20260907032000_estimate_deposit_rpc_permission_hardening.sql");
+assert.match(
+  estimateDepositMigration,
+  /bos_role_has_permission\(p_company_id,\s*'estimates\.view',\s*auth\.uid\(\)\)/i,
+  "deposit calculation must require estimates.view because it exposes estimate financial data",
+);
+assert.match(
+  estimateDepositMigration,
+  /revoke all on function public\.calculate_estimate_deposit_internal\(uuid, uuid\)[\s\S]*from public, anon, authenticated/i,
+  "the compliant deposit implementation must not remain directly callable by signed-in clients",
+);
+assert.match(
+  estimateDepositMigration,
+  /grant execute on function public\.calculate_estimate_deposit\(uuid, uuid\)[\s\S]*to authenticated/i,
+  "authorized signed-in workflows must retain the guarded deposit calculation RPC",
+);
+
 console.log("Commercial-launch entry and authenticated RPC contract passed.");
