@@ -32,12 +32,13 @@ function LoginPageContent() {
     if (!rawError) return null;
     if (rawError === "missing-confirmation-data") return t("auth.missingConfirmationData");
     if (rawError === "supabase-not-configured") return t("auth.supabaseUnavailable");
-    return decodeURIComponent(rawError);
+    if (rawError === "confirmation-failed") return t("auth.defaultLoginError");
+    return t("auth.defaultLoginError");
   }, [searchParams, t]);
 
   const nextPath = useMemo(() => {
     const rawNext = searchParams.get("next");
-    if (!rawNext || !rawNext.startsWith("/")) return "/dashboard";
+    if (!rawNext || !rawNext.startsWith("/") || rawNext.startsWith("//")) return "/dashboard";
     return rawNext;
   }, [searchParams]);
 
@@ -55,7 +56,7 @@ function LoginPageContent() {
 
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) {
-      setError(signInError.message || t("auth.defaultLoginError"));
+      setError(t("auth.defaultLoginError"));
       setLoading(false);
       return;
     }
