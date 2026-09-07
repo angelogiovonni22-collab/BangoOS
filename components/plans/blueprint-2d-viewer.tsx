@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent } from "react";
-import { Expand, Hand, Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent } from "react";
+import { Expand, Hand, Maximize2, Minimize2, Minus, Plus, RotateCcw } from "lucide-react";
 import { BlueprintMarkupSurface } from "./blueprint-markup-surface";
 import { BlueprintPdfViewer } from "./blueprint-pdf-viewer";
 
@@ -19,7 +19,7 @@ type Blueprint2dViewerProps = {
   initialAnnotationId?: string | null;
 };
 
-const MIN_ZOOM = 50;
+const MIN_ZOOM = 20;
 const MAX_ZOOM = 300;
 const ZOOM_STEP = 25;
 const TRACKPAD_ZOOM_STEP = 5;
@@ -29,6 +29,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   const viewerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | null>(null);
   const lastTrackpadZoomAtRef = useRef(0);
+  const autoFitAppliedRef = useRef(false);
   const [zoom, setZoom] = useState(100);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
@@ -36,29 +37,100 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fillsAvailableHeight = expanded || isFullscreen;
 
+  const fitPlanToView = useCallback(() => {
+    const root = viewerRef.current;
+    if (!root) return false;
+
+    const media = root.querySelector("canvas, img") as HTMLCanvasElement | HTMLImageElement | null;
+    const frame = media?.parentElement?.parentElement as HTMLElement | null;
+    const viewport = frame?.parentElement as HTMLElement | null;
+    if (!media || !frame || !viewport) return false;
+
+    if (media instanceof HTMLCanvasElement && (media.width <= 300 || media.height <= 150)) return false;
+    if (media instanceof HTMLImageElement && (!media.complete || media.naturalWidth <= 0 || media.naturalHeight <= 0)) return false;
+
+    const baseWidth = frame.offsetWidth;
+    const baseHeight = frame.offsetHeight;
+    const availableWidth = viewport.clientWidth;
+    const availableHeight = viewport.clientHeight;
+    if (baseWidth <= 0 || baseHeight <= 0 || availableWidth <= 0 || availableHeight <= 0) return false;
+
+    const fitZoom = Math.min(100, (availableWidth / baseWidth) * 100, (availableHeight / baseHeight) * 100);
+    const paddedZoom = Math.max(MIN_ZOOM, Math.floor(fitZoom * 0.96));
+    setZoom(paddedZoom);
+    setPosition({ x: 0, y: 0 });
+    return true;
+  }, []);
+
+  useEffect(() => {
+    autoFitAppliedRef.current = false;
+    const root = viewerRef.current;
+    if (!root) return;
+
+    let resizeObserver: ResizeObserver | null = null;
+    let frameId = 0;
+    let disposed = false;
+
+    const attach = () => {
+      if (disposed) return;
+      const media = root.querySelector("canvas, img") as HTMLCanvasElement | HTMLImageElement | null;
+      const frame = media?.parentElement?.parentElement as HTMLElement | null;
+      const viewport = frame?.parentElement as HTMLElement | null;
+      if (!media || !frame || !viewport) {
+        frameId = requestAnimationFrame(attach);
+        return;
+      }
+
+      const tryFit = () => {
+        if (!autoFitAppliedRef.current && fitPlanToView()) autoFitAppliedRef.current = true;
+      };
+
+      resizeObserver = new ResizeObserver(tryFit);
+      resizeObserver.observe(media);
+      resizeObserver.observe(viewport);
+      tryFit();
+    };
+
+    attach();
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frameId);
+      resizeObserver?.disconnect();
+    };
+  }, [fileUrl, initialPage, fitPlanToView]);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(document.fullscreenElement === viewerRef.current);
+      const fullscreen = document.fullscreenElement === viewerRef.current;
+      setIsFullscreen(fullscreen);
+      if (fullscreen) {
+        autoFitAppliedRef.current = false;
+        requestAnimationFrame(() => {
+          if (fitPlanToView()) autoFitAppliedRef.current = true;
+        });
+      }
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, []);
+  }, [fitPlanToView]);
 
   const updateZoom = (nextZoom: number) => {
-    const boundedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom));
-    setZoom(boundedZoom);
-    if (boundedZoom <= 100) setPosition({ x: 0, y: 0 });
+    autoFitAppliedRef.current = true;
+    setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom)));
   };
 
   const resetView = () => {
-    setZoom(100);
-    setPosition({ x: 0, y: 0 });
+    autoFitAppliedRef.current = true;
+    if (!fitPlanToView()) {
+      setZoom(100);
+      setPosition({ x: 0, y: 0 });
+    }
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest("[data-blueprint-controls]")) return;
-    if (markingUp || zoom <= 100 || event.button !== 0) return;
+    if (markingUp || event.button !== 0) return;
     dragRef.current = {
       pointerId: event.pointerId,
       x: event.clientX,
@@ -95,19 +167,21 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
     const now = performance.now();
     if (now - lastTrackpadZoomAtRef.current < TRACKPAD_ZOOM_THROTTLE_MS) return;
     lastTrackpadZoomAtRef.current = now;
+    autoFitAppliedRef.current = true;
 
     const direction = event.deltaY < 0 ? 1 : -1;
-    setZoom((currentZoom) => {
-      const boundedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentZoom + direction * TRACKPAD_ZOOM_STEP));
-      if (boundedZoom <= 100) setPosition({ x: 0, y: 0 });
-      return boundedZoom;
-    });
+    setZoom((currentZoom) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentZoom + direction * TRACKPAD_ZOOM_STEP)));
   };
 
-  const openFullscreen = async () => {
-    if (!viewerRef.current?.requestFullscreen) return;
+  const toggleFullscreen = async () => {
+    const node = viewerRef.current;
+    if (!node) return;
     try {
-      await viewerRef.current.requestFullscreen();
+      if (document.fullscreenElement === node) {
+        await document.exitFullscreen();
+      } else if (node.requestFullscreen) {
+        await node.requestFullscreen();
+      }
     } catch {
       // The browser may deny fullscreen when the document is embedded or permission is unavailable.
     }
@@ -116,7 +190,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   return (
     <div
       ref={viewerRef}
-      className={`overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-950 shadow-inner ${fillsAvailableHeight ? "flex h-full min-h-0 flex-col" : ""} ${isFullscreen ? "rounded-none border-0" : ""}`}
+      className={`overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-950 shadow-inner ${fillsAvailableHeight ? "flex h-full min-h-0 flex-col" : ""} ${isFullscreen ? "h-screen w-screen rounded-none border-0" : ""}`}
       data-orion-region="blueprint-2d-viewer"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-slate-900 px-2.5 py-2 text-white">
@@ -138,29 +212,25 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
           >
             <Plus size={15} aria-hidden="true" />
           </ToolButton>
-          <ToolButton label="Reset view" onClick={resetView}>
+          <ToolButton label="Fit plan to view" onClick={resetView}>
             <RotateCcw size={14} aria-hidden="true" />
           </ToolButton>
         </div>
 
         <div className="flex items-center gap-2 text-[11px] text-slate-300">
-          {previewType === "image" ? (
-            <span className="hidden items-center gap-1 sm:inline-flex">
-              <Hand size={13} aria-hidden="true" />
-              Zoom, then drag to pan
-            </span>
-          ) : (
-            <span className="hidden sm:inline">Scroll inside the plan to pan</span>
-          )}
-          <ToolButton label="View fullscreen" onClick={() => void openFullscreen()}>
-            <Maximize2 size={15} aria-hidden="true" />
+          <span className="hidden items-center gap-1 sm:inline-flex">
+            <Hand size={13} aria-hidden="true" />
+            Drag to pan · pinch to zoom
+          </span>
+          <ToolButton label={isFullscreen ? "Exit fullscreen" : "View fullscreen"} onClick={() => void toggleFullscreen()}>
+            {isFullscreen ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
           </ToolButton>
         </div>
       </div>
 
       <div
         className={`relative flex items-center justify-center overflow-hidden bg-slate-800 ${fillsAvailableHeight ? "min-h-0 flex-1" : "h-80 sm:h-96"} ${
-          previewType === "image" && zoom > 100 ? (dragging ? "cursor-grabbing touch-none" : "cursor-grab touch-none") : ""
+          !markingUp ? (dragging ? "cursor-grabbing touch-none" : "cursor-grab touch-none") : ""
         }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
