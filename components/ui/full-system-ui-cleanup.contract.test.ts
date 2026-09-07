@@ -10,6 +10,7 @@ const projectWeather = readFileSync("components/projects/workspace/project-heade
 const takeoffs = readFileSync("components/plans/blueprint-takeoff-register.tsx", "utf8");
 const plansTable = readFileSync("components/plans/plans-table.tsx", "utf8");
 const plansPreview = readFileSync("components/plans/plans-preview.tsx", "utf8");
+const blueprint2dViewer = readFileSync("components/plans/blueprint-2d-viewer.tsx", "utf8");
 const timeline = readFileSync("app/(app)/timeline/page.tsx", "utf8");
 const deletedProjects = readFileSync("app/(app)/projects/deleted/page.tsx", "utf8");
 const estimates = readFileSync("components/estimates/estimates-directory.tsx", "utf8");
@@ -43,6 +44,11 @@ assert.doesNotMatch(takeoffs, /bg-emerald-50|text-slate-950|text-slate-800/, "Bl
 assert.match(plansTable, /self-start/, "Blueprint document register must not stretch to the folder sidebar height");
 assert.match(plansPreview, /self-start/, "Blueprint preview must not stretch to the folder sidebar height");
 assert.doesNotMatch(plansPreview, /bg-white/, "Blueprint preview must use semantic surface tokens");
+assert.match(blueprint2dViewer, /fitPlanToView/, "Blueprint 2D workspace must fit a loaded plan to the visible viewport");
+assert.match(blueprint2dViewer, /document\.exitFullscreen/, "Blueprint fullscreen control must support a visible exit/minimize action");
+assert.match(blueprint2dViewer, /Minimize2/, "Blueprint fullscreen state must render a minimize icon");
+assert.doesNotMatch(blueprint2dViewer, /markingUp \|\| zoom <= 100/, "Blueprint panning must not be disabled below 100% zoom");
+assert.match(blueprint2dViewer, /Drag to pan · pinch to zoom/, "Blueprint workspace must describe the actual pan and zoom gestures");
 assert.match(timeline, /PageHeader/, "Timeline must use the shared BOS page header");
 assert.match(timeline, /bg-\[var\(--color-surface-card\)\]/, "Timeline surfaces must use BOS semantic colors");
 assert.doesNotMatch(deletedProjects, /disabled>Previously Deleted/, "Deleted Projects active tab must not use disabled-button styling");
