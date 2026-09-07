@@ -40,11 +40,7 @@ for (const routine of internalRoutines) {
 
 const projectLifecycleMigration = read("supabase/migrations/20260907023500_project_lifecycle_permission_hardening.sql");
 for (const routine of ["soft_delete_project", "restore_deleted_project"]) {
-  assert.match(
-    projectLifecycleMigration,
-    new RegExp(`create or replace function public\\.${routine}`, "i"),
-    `${routine} must be hardened at the database boundary`,
-  );
+  assert.match(projectLifecycleMigration, new RegExp(`create or replace function public\\.${routine}`, "i"), `${routine} must be hardened at the database boundary`);
 }
 const projectManageChecks = projectLifecycleMigration.match(/bos_role_has_permission\(v_company_id,\s*'projects\.manage',\s*auth\.uid\(\)\)/gi) ?? [];
 assert.equal(projectManageChecks.length, 2, "project delete and restore must both require projects.manage and honor permission overrides");
@@ -52,55 +48,19 @@ assert.match(projectLifecycleMigration, /revoke all on function public\.soft_del
 assert.match(projectLifecycleMigration, /revoke all on function public\.restore_deleted_project\(uuid\) from public, anon/i);
 
 const mobilizationMigration = read("supabase/migrations/20260907024500_subcontractor_mobilization_rpc_hardening.sql");
-assert.match(
-  mobilizationMigration,
-  /revoke execute on function public\.refresh_subcontractor_mobilization_status\(uuid, uuid\)[\s\S]*from public, anon, authenticated/i,
-  "mobilization refresh must not remain a signed-in browser RPC",
-);
-assert.match(
-  mobilizationMigration,
-  /grant execute on function public\.refresh_subcontractor_mobilization_status\(uuid, uuid\)[\s\S]*to service_role/i,
-  "mobilization refresh must remain available to trusted server workflows",
-);
+assert.match(mobilizationMigration, /revoke execute on function public\.refresh_subcontractor_mobilization_status\(uuid, uuid\)[\s\S]*from public, anon, authenticated/i, "mobilization refresh must not remain a signed-in browser RPC");
+assert.match(mobilizationMigration, /grant execute on function public\.refresh_subcontractor_mobilization_status\(uuid, uuid\)[\s\S]*to service_role/i, "mobilization refresh must remain available to trusted server workflows");
 
 const estimateConversionMigration = read("supabase/migrations/20260907030000_estimate_conversion_rpc_permission_hardening.sql");
-assert.match(
-  estimateConversionMigration,
-  /bos_role_has_permission\(p_company_id,\s*'estimates\.manage',\s*auth\.uid\(\)\)/i,
-  "estimate conversion must require estimates.manage",
-);
-assert.match(
-  estimateConversionMigration,
-  /bos_role_has_permission\(p_company_id,\s*'projects\.manage',\s*auth\.uid\(\)\)/i,
-  "estimate conversion must also require projects.manage because it creates a project",
-);
-assert.match(
-  estimateConversionMigration,
-  /revoke all on function public\.convert_estimate_to_project_internal\(uuid, uuid, uuid, text, boolean\)[\s\S]*from public, anon, authenticated/i,
-  "the original SECURITY DEFINER conversion implementation must become internal-only",
-);
-assert.match(
-  estimateConversionMigration,
-  /grant execute on function public\.convert_estimate_to_project_internal\(uuid, uuid, uuid, text, boolean\)[\s\S]*to service_role/i,
-  "trusted server operations must retain access to the internal conversion implementation",
-);
+assert.match(estimateConversionMigration, /bos_role_has_permission\(p_company_id,\s*'estimates\.manage',\s*auth\.uid\(\)\)/i, "estimate conversion must require estimates.manage");
+assert.match(estimateConversionMigration, /bos_role_has_permission\(p_company_id,\s*'projects\.manage',\s*auth\.uid\(\)\)/i, "estimate conversion must also require projects.manage because it creates a project");
+assert.match(estimateConversionMigration, /revoke all on function public\.convert_estimate_to_project_internal\(uuid, uuid, uuid, text, boolean\)[\s\S]*from public, anon, authenticated/i, "the original SECURITY DEFINER conversion implementation must become internal-only");
+assert.match(estimateConversionMigration, /grant execute on function public\.convert_estimate_to_project_internal\(uuid, uuid, uuid, text, boolean\)[\s\S]*to service_role/i, "trusted server operations must retain access to the internal conversion implementation");
 
 const estimateDepositMigration = read("supabase/migrations/20260907032000_estimate_deposit_rpc_permission_hardening.sql");
-assert.match(
-  estimateDepositMigration,
-  /bos_role_has_permission\(p_company_id,\s*'estimates\.view',\s*auth\.uid\(\)\)/i,
-  "deposit calculation must require estimates.view because it exposes estimate financial data",
-);
-assert.match(
-  estimateDepositMigration,
-  /revoke all on function public\.calculate_estimate_deposit_internal\(uuid, uuid\)[\s\S]*from public, anon, authenticated/i,
-  "the compliant deposit implementation must not remain directly callable by signed-in clients",
-);
-assert.match(
-  estimateDepositMigration,
-  /grant execute on function public\.calculate_estimate_deposit\(uuid, uuid\)[\s\S]*to authenticated/i,
-  "authorized signed-in workflows must retain the guarded deposit calculation RPC",
-);
+assert.match(estimateDepositMigration, /bos_role_has_permission\(p_company_id,\s*'estimates\.view',\s*auth\.uid\(\)\)/i, "deposit calculation must require estimates.view because it exposes estimate financial data");
+assert.match(estimateDepositMigration, /revoke all on function public\.calculate_estimate_deposit_internal\(uuid, uuid\)[\s\S]*from public, anon, authenticated/i, "the compliant deposit implementation must not remain directly callable by signed-in clients");
+assert.match(estimateDepositMigration, /grant execute on function public\.calculate_estimate_deposit\(uuid, uuid\)[\s\S]*to authenticated/i, "authorized signed-in workflows must retain the guarded deposit calculation RPC");
 
 const sequenceMigration = read("supabase/migrations/20260907034000_sequence_allocator_permission_hardening.sql");
 for (const [routine, permission] of [
@@ -108,20 +68,23 @@ for (const [routine, permission] of [
   ["allocate_project_number", "projects.manage"],
   ["allocate_change_order_number", "change_orders.manage"],
 ] as const) {
+  assert.match(sequenceMigration, new RegExp(`bos_role_has_permission\\(p_company_id,\\s*'${permission.replace(".", "\\.")}',\\s*auth\\.uid\\(\\)\\)`, "i"), `${routine} must require ${permission}`);
+  assert.match(sequenceMigration, new RegExp(`revoke all on function public\\.${routine}_internal\\(uuid\\)[\\s\\S]*from public, anon, authenticated`, "i"), `${routine} internal allocator must not remain directly callable by signed-in clients`);
+  assert.match(sequenceMigration, new RegExp(`grant execute on function public\\.${routine}\\(uuid\\)[\\s\\S]*to authenticated`, "i"), `${routine} guarded RPC must remain available to authorized signed-in workflows`);
+}
+
+const blueprintWriteMigration = read("supabase/migrations/20260907041000_blueprint_write_rpc_permission_hardening.sql");
+const blueprintManageChecks = blueprintWriteMigration.match(/bos_role_has_permission\(v_company_id,\s*'blueprints\.manage',\s*auth\.uid\(\)\)/gi) ?? [];
+assert.equal(blueprintManageChecks.length, 3, "sheet creation and both blueprint-version write RPCs must require blueprints.manage");
+for (const signature of [
+  "create_blueprint_sheet_upload_internal\\(uuid, text, text, text\\)",
+  "register_initial_blueprint_version_internal\\(uuid, text, text, text, text, bigint\\)",
+  "register_blueprint_revision_internal\\(uuid, text, text, text, text, bigint, text\\)",
+]) {
   assert.match(
-    sequenceMigration,
-    new RegExp(`bos_role_has_permission\\(p_company_id,\\s*'${permission.replace(".", "\\.")}',\\s*auth\\.uid\\(\\)\\)`, "i"),
-    `${routine} must require ${permission}`,
-  );
-  assert.match(
-    sequenceMigration,
-    new RegExp(`revoke all on function public\\.${routine}_internal\\(uuid\\)[\\s\\S]*from public, anon, authenticated`, "i"),
-    `${routine} internal allocator must not remain directly callable by signed-in clients`,
-  );
-  assert.match(
-    sequenceMigration,
-    new RegExp(`grant execute on function public\\.${routine}\\(uuid\\)[\\s\\S]*to authenticated`, "i"),
-    `${routine} guarded RPC must remain available to authorized signed-in workflows`,
+    blueprintWriteMigration,
+    new RegExp(`revoke all on function public\\.${signature}[\\s\\S]*from public, anon, authenticated`, "i"),
+    `${signature} must not remain directly callable by signed-in clients`,
   );
 }
 
