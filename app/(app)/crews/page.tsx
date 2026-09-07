@@ -21,7 +21,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import Link from "next/link";
 
 export default function CrewsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const {
     items,
     summary,
@@ -107,7 +107,7 @@ export default function CrewsPage() {
           <EmptyState compact icon={<HardHat className="h-7 w-7" />} title={t("crews.empty.title")} description={t("crews.empty.description")} />
         ) : (
           <>
-            <CrewTable items={items} t={t} />
+            <CrewTable items={items} t={t} locale={locale} />
             <CrewPagination
               page={page}
               totalPages={totalPages}
