@@ -63,4 +63,26 @@ assert.match(
   "mobilization refresh must remain available to trusted server workflows",
 );
 
+const estimateConversionMigration = read("supabase/migrations/20260907030000_estimate_conversion_rpc_permission_hardening.sql");
+assert.match(
+  estimateConversionMigration,
+  /bos_role_has_permission\(p_company_id,\s*'estimates\.manage',\s*auth\.uid\(\)\)/i,
+  "estimate conversion must require estimates.manage",
+);
+assert.match(
+  estimateConversionMigration,
+  /bos_role_has_permission\(p_company_id,\s*'projects\.manage',\s*auth\.uid\(\)\)/i,
+  "estimate conversion must also require projects.manage because it creates a project",
+);
+assert.match(
+  estimateConversionMigration,
+  /revoke all on function public\.convert_estimate_to_project_internal\(uuid, uuid, uuid, text, boolean\)[\s\S]*from public, anon, authenticated/i,
+  "the original SECURITY DEFINER conversion implementation must become internal-only",
+);
+assert.match(
+  estimateConversionMigration,
+  /grant execute on function public\.convert_estimate_to_project_internal\(uuid, uuid, uuid, text, boolean\)[\s\S]*to service_role/i,
+  "trusted server operations must retain access to the internal conversion implementation",
+);
+
 console.log("Commercial-launch entry and authenticated RPC contract passed.");
