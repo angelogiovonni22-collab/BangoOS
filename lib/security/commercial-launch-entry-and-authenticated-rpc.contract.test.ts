@@ -88,4 +88,16 @@ for (const signature of [
   );
 }
 
+const internalComplianceMigration = read("supabase/migrations/20260907154500_internal_compliance_guard_rpc_hardening.sql");
+assert.match(
+  internalComplianceMigration,
+  /revoke execute on function public\.assert_estimate_work_may_begin\(uuid, uuid\)[\s\S]*from public, anon, authenticated/i,
+  "the internal estimate work-start legal guard must not be directly callable through the public Data API",
+);
+assert.match(
+  internalComplianceMigration,
+  /grant execute on function public\.assert_estimate_work_may_begin\(uuid, uuid\)[\s\S]*to service_role/i,
+  "trusted server workflows must retain access to the internal estimate work-start legal guard",
+);
+
 console.log("Commercial-launch entry and authenticated RPC contract passed.");
