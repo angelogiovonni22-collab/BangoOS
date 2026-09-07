@@ -35,6 +35,8 @@ export function ChangeOrdersDirectory({
   onArchive: (changeOrderId: string) => Promise<void>;
   onRestore: (changeOrderId: string) => Promise<void>;
 }) {
+  const es = localeTag.toLowerCase().startsWith("es");
+  const l = (en: string, spanish: string) => es ? spanish : en;
   const [searchValue, setSearchValue] = useState("");
   const [statusValue, setStatusValue] = useState("all");
   const [customerValue, setCustomerValue] = useState("all");
@@ -47,17 +49,30 @@ export function ChangeOrdersDirectory({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
 
+  const localizeStatus = (status: string) => {
+    if (!es) return formatChangeOrderStatusLabel(status);
+    const labels: Record<string, string> = {
+      draft: "Borrador",
+      pending_approval: "Pendiente de aprobación",
+      approved: "Aprobada",
+      rejected: "Rechazada",
+      invoiced: "Facturada",
+      void: "Anulada",
+    };
+    return labels[normalizeChangeOrderStatus(status)] || formatChangeOrderStatusLabel(status);
+  };
+
   const statusOptions = useMemo(() => {
     const available = new Set(items.map((item) => normalizeChangeOrderStatus(item.status)));
 
     return [
-      { value: "all", label: "All Statuses" },
+      { value: "all", label: l("All Statuses", "Todos los estados") },
       ...Array.from(available).map((status) => ({
         value: status,
-        label: formatChangeOrderStatusLabel(status),
+        label: localizeStatus(status),
       })),
     ];
-  }, [items]);
+  }, [items, es]);
 
   const filteredAndSortedItems = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
@@ -122,7 +137,7 @@ export function ChangeOrdersDirectory({
 
   function handleSort(field: SortField) {
     if (sortField === field) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      setSortDirection((current) => current === "asc" ? "desc" : "asc");
       return;
     }
 
@@ -137,13 +152,13 @@ export function ChangeOrdersDirectory({
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6" aria-label="Change order summary filters">
-        <SummaryCard icon={<span className="text-sm font-bold">#</span>} label="Total" value={String(summary.total)} onClick={() => chooseStatus("all")} selected={statusValue === "all"} actionLabel="Show all change orders" />
-        <SummaryCard icon={<span className="text-sm font-bold">D</span>} label="Draft" value={String(summary.draft)} tone="neutral" onClick={() => chooseStatus("draft")} selected={statusValue === "draft"} actionLabel="Show draft change orders" />
-        <SummaryCard icon={<span className="text-sm font-bold">P</span>} label="Pending Approval" value={String(summary.pending)} tone="warning" onClick={() => chooseStatus("pending_approval")} selected={statusValue === "pending_approval"} actionLabel="Show change orders pending approval" />
-        <SummaryCard icon={<span className="text-sm font-bold">A</span>} label="Approved" value={String(summary.approved)} tone="success" onClick={() => chooseStatus("approved")} selected={statusValue === "approved"} actionLabel="Show approved change orders" />
-        <SummaryCard icon={<span className="text-sm font-bold">R</span>} label="Rejected" value={String(summary.rejected)} tone="danger" onClick={() => chooseStatus("rejected")} selected={statusValue === "rejected"} actionLabel="Show rejected change orders" />
-        <SummaryCard icon={<span className="text-sm font-bold">$</span>} label="Total Approved Value" value={formatUsd(summary.approvedValue, localeTag)} tone="info" />
+      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6" aria-label={l("Change order summary filters", "Filtros de resumen de órdenes de cambio")}>
+        <SummaryCard icon={<span className="text-sm font-bold">#</span>} label={l("Total", "Total")} value={String(summary.total)} onClick={() => chooseStatus("all")} selected={statusValue === "all"} actionLabel={l("Show all change orders", "Mostrar todas las órdenes de cambio")} />
+        <SummaryCard icon={<span className="text-sm font-bold">D</span>} label={l("Draft", "Borrador")} value={String(summary.draft)} tone="neutral" onClick={() => chooseStatus("draft")} selected={statusValue === "draft"} actionLabel={l("Show draft change orders", "Mostrar órdenes de cambio en borrador")} />
+        <SummaryCard icon={<span className="text-sm font-bold">P</span>} label={l("Pending Approval", "Pendiente de aprobación")} value={String(summary.pending)} tone="warning" onClick={() => chooseStatus("pending_approval")} selected={statusValue === "pending_approval"} actionLabel={l("Show change orders pending approval", "Mostrar órdenes de cambio pendientes de aprobación")} />
+        <SummaryCard icon={<span className="text-sm font-bold">A</span>} label={l("Approved", "Aprobadas")} value={String(summary.approved)} tone="success" onClick={() => chooseStatus("approved")} selected={statusValue === "approved"} actionLabel={l("Show approved change orders", "Mostrar órdenes de cambio aprobadas")} />
+        <SummaryCard icon={<span className="text-sm font-bold">R</span>} label={l("Rejected", "Rechazadas")} value={String(summary.rejected)} tone="danger" onClick={() => chooseStatus("rejected")} selected={statusValue === "rejected"} actionLabel={l("Show rejected change orders", "Mostrar órdenes de cambio rechazadas")} />
+        <SummaryCard icon={<span className="text-sm font-bold">$</span>} label={l("Total Approved Value", "Valor total aprobado")} value={formatUsd(summary.approvedValue, localeTag)} tone="info" />
       </section>
 
       <ChangeOrdersFilters
@@ -155,8 +170,8 @@ export function ChangeOrdersDirectory({
         dateTo={dateTo}
         archivedValue={archivedValue}
         statusOptions={statusOptions}
-        customerOptions={[{ value: "all", label: "All Customers" }, ...customerOptions]}
-        projectOptions={[{ value: "all", label: "All Projects" }, ...projectOptions]}
+        customerOptions={[{ value: "all", label: l("All Customers", "Todos los clientes") }, ...customerOptions]}
+        projectOptions={[{ value: "all", label: l("All Projects", "Todos los proyectos") }, ...projectOptions]}
         onSearchChange={(value) => {
           setPage(1);
           setSearchValue(value);
@@ -188,8 +203,8 @@ export function ChangeOrdersDirectory({
       />
 
       <TableContainer
-        title="Change Orders Directory"
-        description="Track scope changes, approvals, and financial impacts."
+        title={l("Change Orders Directory", "Directorio de órdenes de cambio")}
+        description={l("Track scope changes, approvals, and financial impacts.", "Controla cambios de alcance, aprobaciones e impactos financieros.")}
       >
         {isLoading ? (
           <div className="p-6 space-y-3">
@@ -199,7 +214,7 @@ export function ChangeOrdersDirectory({
           </div>
         ) : errorMessage ? (
           <div className="p-6">
-            <ErrorState title="We couldn't load change orders" description={errorMessage} compact />
+            <ErrorState title={l("We couldn't load change orders", "No pudimos cargar las órdenes de cambio")} description={errorMessage} compact />
           </div>
         ) : filteredAndSortedItems.length > 0 ? (
           <>
@@ -217,14 +232,14 @@ export function ChangeOrdersDirectory({
               }}
             />
             <div className="flex items-center justify-between border-t border-[var(--color-border-subtle)] px-5 py-3 text-sm text-[var(--color-text-secondary)]">
-              <p>Showing {(safePage - 1) * PAGE_SIZE + 1} to {Math.min(safePage * PAGE_SIZE, filteredAndSortedItems.length)} of {filteredAndSortedItems.length}</p>
+              <p>{l("Showing", "Mostrando")} {(safePage - 1) * PAGE_SIZE + 1} {l("to", "a")} {Math.min(safePage * PAGE_SIZE, filteredAndSortedItems.length)} {l("of", "de")} {filteredAndSortedItems.length}</p>
               <div className="flex items-center gap-2">
                 <Button type="button" variant="secondary" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={safePage <= 1}>
-                  Previous
+                  {l("Previous", "Anterior")}
                 </Button>
-                <span>Page {safePage} of {totalPages}</span>
+                <span>{l("Page", "Página")} {safePage} {l("of", "de")} {totalPages}</span>
                 <Button type="button" variant="secondary" size="sm" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={safePage >= totalPages}>
-                  Next
+                  {l("Next", "Siguiente")}
                 </Button>
               </div>
             </div>
