@@ -23,6 +23,7 @@ Representative row-count verification matched between Production and recovery:
 
 | Dataset | Production | Recovery |
 | --- | ---: | ---: |
+| public tables | 152 | 152 |
 | companies | 3 | 3 |
 | projects | 1 | 1 |
 | customers | 2 | 2 |
@@ -32,7 +33,9 @@ Representative row-count verification matched between Production and recovery:
 | Storage object metadata rows | 4 | 4 |
 | Storage buckets | 8 | 8 |
 
-Current post-restore migrations were rolled forward on the recovery project, including the account-deletion request queue migration added during commercial-launch hardening.
+A fresh post-security-hardening verification again matched the critical restored counts: **152 public tables, 12 auth users, 4 Storage object metadata rows, 3 companies, and 1 project** on both Production and recovery.
+
+Current post-restore migrations were rolled forward on the recovery project. This includes the account-deletion request queue and the later `internal_compliance_guard_rpc_hardening` permission boundary added during commercial-launch security hardening.
 
 ## Storage verification
 
@@ -49,23 +52,46 @@ This validates restored Storage metadata and object inventory. **Private object 
 
 `8c279a203fc86c8c6252a3aed0951f79a760d65687511e8edf4395a9927bff1f`
 
-The function source contains explicit dispatch-secret validation before service-role or push-delivery logic. Recovery function source parity is therefore confirmed. Recovery runtime secrets and an authorized send-path were **not** exercised, intentionally avoiding outbound push delivery from the isolated recovery project.
+Production currently reports Edge Function version 3 and the isolated recovery deployment reports version 1, but the source hash is identical. The function source contains explicit dispatch-secret validation before service-role or push-delivery logic. Recovery function source parity is therefore confirmed.
 
-## Known gaps / required approvals
+Recovery runtime secrets and an authorized send-path were **not** exercised, intentionally avoiding outbound push delivery from the isolated recovery project.
 
-The following are intentionally not completed by this evidence file:
+## Production security state observed during closeout
+
+The disaster-recovery closeout was performed after the Production security phase. At that point:
+
+- Production Supabase status was `ACTIVE_HEALTHY`.
+- Database SSL enforcement was enabled and the live B.O.S. health endpoint continued to pass application, database, and Storage checks.
+- Organization-wide Supabase MFA enforcement was enabled.
+- Production Auth Site URL was `https://bango-os.vercel.app/` with the stale/localhost redirect entries removed.
+- The strongest recommended Supabase password character requirements were enabled.
+
+These controls are configuration-layer safeguards and are not expected to be reproduced automatically by a database-only restore. They must be included in the recovery configuration checklist when promoting a restored environment.
+
+## Secondary recovery project
+
+A second project named `BangoOS Recovery Drill` (`areldaufdjmhzlweltqc`) exists, but it has **no BangoOS migrations** and was not used as the successful restored environment. It is not a valid recovery copy of Production.
+
+No cleanup action was performed because pausing or deleting a Supabase project changes billing/availability and requires an explicit operator decision.
+
+## Known manual gates
+
+The following controls cannot be safely completed by database-schema comparison alone:
 
 1. Private Storage file **bytes** must be fetched/read from the restored project to confirm object-body recovery, not only metadata recovery.
 2. Recovery Edge Function secret presence and a safe authorized runtime path require a controlled secret-aware test; no outbound push should be sent during the drill.
 3. The restored recovery project must not be deleted until explicit cleanup approval is obtained because deletion is irreversible.
-4. A second project named `BangoOS Recovery Drill` (`areldaufdjmhzlweltqc`) exists but does not contain the BangoOS schema and was not used as the successful restored environment. It should be reviewed for cleanup separately; no deletion was performed.
+4. The unused `BangoOS Recovery Drill` project should be paused or removed only after an explicit cost/cleanup decision.
 
 ## Result
 
 **Database/auth recovery: PASS**  
+**Schema/table-count parity: PASS**  
 **Storage metadata recovery: PASS**  
 **Edge Function source recovery: PASS**  
+**Post-restore migration roll-forward: PASS**  
+**Production security/health after closeout: PASS**  
 **Private Storage byte recovery: MANUAL GATE REMAINS**  
 **Recovery secret/send-path validation: MANUAL GATE REMAINS**
 
-No Production data was modified by the restore itself, no real customer workflow was exercised, and no recovery project was deleted during this drill.
+The automated disaster-recovery closeout is complete. No Production data was modified by the restore itself, no real customer workflow was exercised, and no recovery project was deleted or paused during this drill.
