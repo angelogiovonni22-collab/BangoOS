@@ -45,8 +45,8 @@ export function BlueprintPlanWorkspace({
       className="p-2 sm:p-4"
       panelClassName="flex h-[calc(100dvh-1rem)] max-w-[min(96rem,calc(100vw-1rem))] flex-col overflow-hidden p-0 sm:h-[calc(100dvh-2rem)]"
     >
-      <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border-subtle)] bg-white px-4 py-3 sm:px-5">
+      <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain">
+      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border-subtle)] bg-white px-4 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
             <FileText size={18} aria-hidden="true" />
@@ -74,7 +74,7 @@ export function BlueprintPlanWorkspace({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 bg-slate-900 p-2 sm:p-3" data-orion-region="blueprint-plan-workspace">
+      <div className="min-h-[36rem] shrink-0 bg-slate-900 p-2 sm:p-3" data-orion-region="blueprint-plan-workspace">
         {previewType === "ifc" || previewType === "gltf" ? <Blueprint3dViewer fileUrl={document.fileUrl} fileName={document.fileName} format={previewType} companyId={companyId} projectId={projectId} versionId={document.versionId} userId={userId} /> : <Blueprint2dViewer
           key={`workspace:${document.versionId}`}
           fileUrl={document.fileUrl}
