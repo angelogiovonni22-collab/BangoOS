@@ -22,10 +22,13 @@ type Blueprint2dViewerProps = {
 const MIN_ZOOM = 50;
 const MAX_ZOOM = 300;
 const ZOOM_STEP = 25;
+const TRACKPAD_ZOOM_STEP = 5;
+const TRACKPAD_ZOOM_THROTTLE_MS = 70;
 
 export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, projectId, versionId, userId, discipline, expanded = false, initialPage = 1, initialAnnotationId }: Blueprint2dViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | null>(null);
+  const lastTrackpadZoomAtRef = useRef(0);
   const [zoom, setZoom] = useState(100);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
@@ -88,7 +91,17 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
     if (!event.ctrlKey) return;
     event.preventDefault();
-    updateZoom(zoom + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
+
+    const now = performance.now();
+    if (now - lastTrackpadZoomAtRef.current < TRACKPAD_ZOOM_THROTTLE_MS) return;
+    lastTrackpadZoomAtRef.current = now;
+
+    const direction = event.deltaY < 0 ? 1 : -1;
+    setZoom((currentZoom) => {
+      const boundedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentZoom + direction * TRACKPAD_ZOOM_STEP));
+      if (boundedZoom <= 100) setPosition({ x: 0, y: 0 });
+      return boundedZoom;
+    });
   };
 
   const openFullscreen = async () => {
