@@ -17,6 +17,11 @@ assert.match(authConfirm, /!value\.startsWith\(['"]\/['"]\)/, "auth confirmation
 assert.match(authConfirm, /value\.startsWith\(['"]\/\/['"]\)/, "auth confirmation redirects must reject protocol-relative URLs");
 assert.doesNotMatch(authConfirm, /encodeURIComponent\(error\.message\)/, "auth confirmation failures must not reflect provider error details into redirect URLs");
 
+const login = read("app/login/page.tsx");
+assert.match(login, /rawNext\.startsWith\(["']\/\/["']\)/, "login continuation must reject protocol-relative redirects");
+assert.doesNotMatch(login, /decodeURIComponent\(rawError\)/, "login must not render arbitrary error text supplied through the URL");
+assert.doesNotMatch(login, /signInError\.message\s*\|\|/, "login must not expose provider authentication details directly to users");
+
 const migration = read("supabase/migrations/20260830220000_commercial_launch_authenticated_rpc_hardening.sql");
 const internalRoutines = [
   "close_trade_partner_access_when_project_completed()",
