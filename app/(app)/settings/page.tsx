@@ -45,6 +45,18 @@ export default function SettingsPage() {
 
       <Card as="section" variant="elevated">
         <CardHeader className="bg-[var(--color-surface-subtle)]">
+          <CardTitle>{es ? "Privacidad y eliminación de cuenta" : "Privacy & account deletion"}</CardTitle>
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            {es
+              ? "Revisa cómo solicitar la eliminación de tu cuenta de B.O.S. y los datos personales asociados."
+              : "Review and initiate deletion of your B.O.S. account and associated personal data."}
+          </p>
+        </CardHeader>
+        <CardContent className="p-5"><Link href="/settings/account-deletion" className="inline-flex items-center rounded-[10px] border border-red-700 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">{es ? "Administrar eliminación de cuenta" : "Manage account deletion"}</Link></CardContent>
+      </Card>
+
+      <Card as="section" variant="elevated">
+        <CardHeader className="bg-[var(--color-surface-subtle)]">
           <CardTitle>{t("settings.layoutTitle")}</CardTitle>
           <p className="text-sm text-[var(--color-text-secondary)]">{t("settings.layoutDescription")}</p>
         </CardHeader>
