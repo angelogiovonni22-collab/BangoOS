@@ -49,8 +49,12 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
     if (media instanceof HTMLCanvasElement && (media.width <= 300 || media.height <= 150)) return false;
     if (media instanceof HTMLImageElement && (!media.complete || media.naturalWidth <= 0 || media.naturalHeight <= 0)) return false;
 
-    const baseWidth = frame.offsetWidth;
-    const baseHeight = frame.offsetHeight;
+    // Use the rendered sheet's intrinsic dimensions rather than the transform
+    // frame's constrained box. The frame is capped by max-h/max-w, so measuring
+    // it can incorrectly report that a tall sheet already fits while its canvas
+    // is visibly clipped below the workspace.
+    const baseWidth = media instanceof HTMLCanvasElement ? media.width : media.naturalWidth;
+    const baseHeight = media instanceof HTMLCanvasElement ? media.height : media.naturalHeight;
     const availableWidth = viewport.clientWidth;
     const availableHeight = viewport.clientHeight;
     if (baseWidth <= 0 || baseHeight <= 0 || availableWidth <= 0 || availableHeight <= 0) return false;
