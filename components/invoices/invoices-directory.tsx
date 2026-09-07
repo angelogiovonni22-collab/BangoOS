@@ -13,6 +13,8 @@ type SummaryFilter = "none" | "outstanding";
 const PAGE_SIZE = 10;
 
 export function InvoicesDirectory({ items, customerOptions, projectOptions, localeTag, isLoading, errorMessage }: { items: InvoiceDirectoryItem[]; customerOptions: Array<{ value: string; label: string }>; projectOptions: Array<{ value: string; label: string }>; localeTag: string; isLoading: boolean; errorMessage: string | null }) {
+  const es = localeTag.toLowerCase().startsWith("es");
+  const l = (en: string, spanish: string) => es ? spanish : en;
   const [searchValue, setSearchValue] = useState("");
   const [statusValue, setStatusValue] = useState("all");
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>("none");
@@ -24,10 +26,25 @@ export function InvoicesDirectory({ items, customerOptions, projectOptions, loca
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
 
+  const localizeStatus = (status: string) => {
+    const normalized = normalizeInvoiceStatus(status);
+    if (!es) return formatInvoiceStatusLabel(normalized);
+    const labels: Record<string, string> = {
+      draft: "Borrador",
+      sent: "Enviada",
+      viewed: "Vista",
+      partially_paid: "Pagada parcialmente",
+      paid: "Pagada",
+      overdue: "Vencida",
+      void: "Anulada",
+    };
+    return labels[normalized] || formatInvoiceStatusLabel(normalized);
+  };
+
   const statusOptions = useMemo(() => {
     const available = new Set(items.map((item) => normalizeInvoiceStatus(item.status)));
-    return [{ value: "all", label: "All Statuses" }, ...Array.from(available).map((status) => ({ value: status, label: formatInvoiceStatusLabel(status) }))];
-  }, [items]);
+    return [{ value: "all", label: l("All Statuses", "Todos los estados") }, ...Array.from(available).map((status) => ({ value: status, label: localizeStatus(status) }))];
+  }, [items, es]);
 
   const filteredAndSortedItems = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
@@ -47,9 +64,9 @@ export function InvoicesDirectory({ items, customerOptions, projectOptions, loca
     });
     return [...filtered].sort((a, b) => {
       const m = sortDirection === "asc" ? 1 : -1;
-      const text = (l: string, r: string) => l.localeCompare(r) * m;
-      const number = (l: number, r: number) => (l - r) * m;
-      const date = (l: string | null, r: string | null) => ((l ? new Date(`${l}T00:00:00`).getTime() : 0) - (r ? new Date(`${r}T00:00:00`).getTime() : 0)) * m;
+      const text = (left: string, right: string) => left.localeCompare(right) * m;
+      const number = (left: number, right: number) => (left - right) * m;
+      const date = (left: string | null, right: string | null) => ((left ? new Date(`${left}T00:00:00`).getTime() : 0) - (right ? new Date(`${right}T00:00:00`).getTime() : 0)) * m;
       if (sortField === "invoiceNumber") return text(a.invoiceNumber, b.invoiceNumber);
       if (sortField === "customerName") return text(a.customerName, b.customerName);
       if (sortField === "projectName") return text(a.projectName, b.projectName);
@@ -81,19 +98,19 @@ export function InvoicesDirectory({ items, customerOptions, projectOptions, loca
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6" aria-label="Invoice summary filters">
-        <SummaryCard icon={<span>#</span>} label="Total Invoices" value={String(summary.totalInvoices)} onClick={() => chooseStatus("all")} selected={statusValue === "all" && summaryFilter === "none"} actionLabel="Show all invoices" />
-        <SummaryCard icon={<span>D</span>} label="Draft" value={String(summary.draft)} tone="neutral" onClick={() => chooseStatus("draft")} selected={statusValue === "draft"} actionLabel="Show draft invoices" />
-        <SummaryCard icon={<span>S</span>} label="Sent" value={String(summary.sent)} tone="info" onClick={() => chooseStatus("sent")} selected={statusValue === "sent"} actionLabel="Show sent invoices" />
-        <SummaryCard icon={<span>O</span>} label="Outstanding" value={String(summary.outstanding)} tone="warning" onClick={chooseOutstanding} selected={summaryFilter === "outstanding"} actionLabel="Show invoices with outstanding balances" />
-        <SummaryCard icon={<span>P</span>} label="Paid" value={String(summary.paid)} tone="success" onClick={() => chooseStatus("paid")} selected={statusValue === "paid"} actionLabel="Show paid invoices" />
-        <SummaryCard icon={<span>!</span>} label="Overdue" value={String(summary.overdue)} tone="danger" onClick={() => chooseStatus("overdue")} selected={statusValue === "overdue"} actionLabel="Show overdue invoices" />
+      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6" aria-label={l("Invoice summary filters", "Filtros de resumen de facturas")}>
+        <SummaryCard icon={<span>#</span>} label={l("Total Invoices", "Facturas totales")} value={String(summary.totalInvoices)} onClick={() => chooseStatus("all")} selected={statusValue === "all" && summaryFilter === "none"} actionLabel={l("Show all invoices", "Mostrar todas las facturas")} />
+        <SummaryCard icon={<span>D</span>} label={l("Draft", "Borrador")} value={String(summary.draft)} tone="neutral" onClick={() => chooseStatus("draft")} selected={statusValue === "draft"} actionLabel={l("Show draft invoices", "Mostrar facturas en borrador")} />
+        <SummaryCard icon={<span>S</span>} label={l("Sent", "Enviadas")} value={String(summary.sent)} tone="info" onClick={() => chooseStatus("sent")} selected={statusValue === "sent"} actionLabel={l("Show sent invoices", "Mostrar facturas enviadas")} />
+        <SummaryCard icon={<span>O</span>} label={l("Outstanding", "Pendientes")} value={String(summary.outstanding)} tone="warning" onClick={chooseOutstanding} selected={summaryFilter === "outstanding"} actionLabel={l("Show invoices with outstanding balances", "Mostrar facturas con saldos pendientes")} />
+        <SummaryCard icon={<span>P</span>} label={l("Paid", "Pagadas")} value={String(summary.paid)} tone="success" onClick={() => chooseStatus("paid")} selected={statusValue === "paid"} actionLabel={l("Show paid invoices", "Mostrar facturas pagadas")} />
+        <SummaryCard icon={<span>!</span>} label={l("Overdue", "Vencidas")} value={String(summary.overdue)} tone="danger" onClick={() => chooseStatus("overdue")} selected={statusValue === "overdue"} actionLabel={l("Show overdue invoices", "Mostrar facturas vencidas")} />
       </section>
 
-      <InvoicesFilters searchValue={searchValue} statusValue={statusValue} customerValue={customerValue} projectValue={projectValue} dateFrom={dateFrom} dateTo={dateTo} statusOptions={statusOptions} customerOptions={[{ value: "all", label: "All Customers" }, ...customerOptions]} projectOptions={[{ value: "all", label: "All Projects" }, ...projectOptions]} onSearchChange={(value) => { setPage(1); setSearchValue(value); }} onStatusChange={(value) => { setPage(1); setSummaryFilter("none"); setStatusValue(value); }} onCustomerChange={(value) => { setPage(1); setCustomerValue(value); }} onProjectChange={(value) => { setPage(1); setProjectValue(value); }} onDateFromChange={(value) => { setPage(1); setDateFrom(value); }} onDateToChange={(value) => { setPage(1); setDateTo(value); }} />
+      <InvoicesFilters searchValue={searchValue} statusValue={statusValue} customerValue={customerValue} projectValue={projectValue} dateFrom={dateFrom} dateTo={dateTo} statusOptions={statusOptions} customerOptions={[{ value: "all", label: l("All Customers", "Todos los clientes") }, ...customerOptions]} projectOptions={[{ value: "all", label: l("All Projects", "Todos los proyectos") }, ...projectOptions]} onSearchChange={(value) => { setPage(1); setSearchValue(value); }} onStatusChange={(value) => { setPage(1); setSummaryFilter("none"); setStatusValue(value); }} onCustomerChange={(value) => { setPage(1); setCustomerValue(value); }} onProjectChange={(value) => { setPage(1); setProjectValue(value); }} onDateFromChange={(value) => { setPage(1); setDateFrom(value); }} onDateToChange={(value) => { setPage(1); setDateTo(value); }} />
 
-      <TableContainer title="Invoice Directory" description="Search, filter, and manage invoice records.">
-        {isLoading ? <div className="space-y-3 p-6"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /></div> : errorMessage ? <div className="p-6"><ErrorState title="We couldn't load invoices" description={errorMessage} compact /></div> : filteredAndSortedItems.length > 0 ? <><InvoicesTable items={paginatedItems} localeTag={localeTag} sortField={sortField} sortDirection={sortDirection} onSort={handleSort} /><div className="flex items-center justify-between border-t border-[var(--color-border-subtle)] px-5 py-3 text-sm text-[var(--color-text-secondary)]"><p>Showing {(safePage - 1) * PAGE_SIZE + 1} to {Math.min(safePage * PAGE_SIZE, filteredAndSortedItems.length)} of {filteredAndSortedItems.length}</p><div className="flex items-center gap-2"><Button type="button" variant="secondary" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={safePage <= 1}>Previous</Button><span>Page {safePage} of {totalPages}</span><Button type="button" variant="secondary" size="sm" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={safePage >= totalPages}>Next</Button></div></div></> : items.length === 0 ? <InvoiceDirectoryEmptyState /> : <InvoiceDirectoryFilteredEmptyState />}
+      <TableContainer title={l("Invoice Directory", "Directorio de facturas")} description={l("Search, filter, and manage invoice records.", "Busca, filtra y administra los registros de facturas.")}>
+        {isLoading ? <div className="space-y-3 p-6"><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /><SkeletonLoader className="h-10 w-full" /></div> : errorMessage ? <div className="p-6"><ErrorState title={l("We couldn't load invoices", "No pudimos cargar las facturas")} description={errorMessage} compact /></div> : filteredAndSortedItems.length > 0 ? <><InvoicesTable items={paginatedItems} localeTag={localeTag} sortField={sortField} sortDirection={sortDirection} onSort={handleSort} /><div className="flex items-center justify-between border-t border-[var(--color-border-subtle)] px-5 py-3 text-sm text-[var(--color-text-secondary)]"><p>{l("Showing", "Mostrando")} {(safePage - 1) * PAGE_SIZE + 1} {l("to", "a")} {Math.min(safePage * PAGE_SIZE, filteredAndSortedItems.length)} {l("of", "de")} {filteredAndSortedItems.length}</p><div className="flex items-center gap-2"><Button type="button" variant="secondary" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={safePage <= 1}>{l("Previous", "Anterior")}</Button><span>{l("Page", "Página")} {safePage} {l("of", "de")} {totalPages}</span><Button type="button" variant="secondary" size="sm" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={safePage >= totalPages}>{l("Next", "Siguiente")}</Button></div></div></> : items.length === 0 ? <InvoiceDirectoryEmptyState /> : <InvoiceDirectoryFilteredEmptyState />}
       </TableContainer>
     </div>
   );

@@ -18,7 +18,7 @@ assert.match(projectTabs, /items\.map\(\(item\)/);
 assert.match(projectTabs, /flex min-w-0 items-center gap-1\.5 overflow-x-auto/);
 assert.doesNotMatch(projectTabs, /workspace-tab-more/);
 assert.doesNotMatch(projectTabs, /data-project-more-menu/);
-assert.match(projectTabs, /key: RECEIPTS_TAB_KEY, label: "Receipts"/);
+assert.match(projectTabs, /key: RECEIPTS_TAB_KEY, label: locale === "es" \? "Recibos" : "Receipts"/);
 assert.match(projectTabs, /nextParams\.set\("tab", "documents"\)/);
 assert.match(projectTabs, /nextParams\.set\("section", RECEIPTS_TAB_KEY\)/);
 assert.match(toolRouter, /request to open, show, or select a project workspace tab such as Photos, Documents, Blueprints/i);

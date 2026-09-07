@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { CloudMoon, CloudSun, MapPin, Navigation } from "lucide-react";
 import weatherSceneStyles from "@/components/location-intelligence/location-weather-scene.module.css";
+import { useI18n } from "@/lib/i18n/provider";
 
 type HeaderWeatherPayload = {
   ok: boolean;
@@ -24,6 +25,9 @@ type HeaderWeatherPayload = {
 };
 
 export function ProjectHeaderWeatherStrip() {
+  const { locale } = useI18n();
+  const es = locale === "es";
+  const l = (en: string, spanish: string) => es ? spanish : en;
   const params = useParams<{ id?: string | string[] }>();
   const projectId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const [payload, setPayload] = useState<HeaderWeatherPayload | null>(null);
@@ -110,21 +114,21 @@ export function ProjectHeaderWeatherStrip() {
                 <p className="text-[2.4rem] font-light leading-none tracking-[-0.05em] text-white">{payload.forecast.current.temperatureF}°</p>
                 <div className="pb-0.5">
                   <p className="text-sm font-bold text-white">{payload.forecast.current.condition}</p>
-                  <p className="text-[11px] font-semibold text-[#e0ecf8]">Feels like {payload.forecast.current.apparentTemperatureF}° · Wind {payload.forecast.current.windMph} mph</p>
+                  <p className="text-[11px] font-semibold text-[#e0ecf8]">{l("Feels like", "Sensación térmica")} {payload.forecast.current.apparentTemperatureF}° · {l("Wind", "Viento")} {payload.forecast.current.windMph} mph</p>
                 </div>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-[#e0ecf8]">
                 <span className="inline-flex items-center gap-1"><MapPin size={11} aria-hidden="true" />{payload.forecast.location}</span>
-                {payload.forecast.days[0] ? <span>H: {payload.forecast.days[0].highF}° · L: {payload.forecast.days[0].lowF}°</span> : null}
+                {payload.forecast.days[0] ? <span>{l("H", "Máx")}: {payload.forecast.days[0].highF}° · {l("L", "Mín")}: {payload.forecast.days[0].lowF}°</span> : null}
               </div>
             </div>
           </div>
 
           <div className="flex items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#8faed3]">Jobsite</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#8faed3]">{l("Jobsite", "Sitio de trabajo")}</p>
               <p className="mt-1 truncate text-sm font-bold text-white" title={payload.directionsAddress}>{payload.directionsAddress}</p>
-              <p className="mt-1 text-[11px] font-medium text-[#afc5e2]">Live project location</p>
+              <p className="mt-1 text-[11px] font-medium text-[#afc5e2]">{l("Live project location", "Ubicación activa del proyecto")}</p>
             </div>
             {directionsHref ? (
               <a
@@ -133,18 +137,18 @@ export function ProjectHeaderWeatherStrip() {
                 rel="noreferrer"
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-[#5c85ba] bg-[#164e91] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#1d62b2]"
               >
-                <Navigation size={13} aria-hidden="true" />Directions
+                <Navigation size={13} aria-hidden="true" />{l("Directions", "Cómo llegar")}
               </a>
             ) : null}
           </div>
 
           <div className="relative min-h-[112px] bg-[#dfe9f2]">
-            {mapEmbed ? <iframe title={`Map of ${payload.directionsAddress}`} src={mapEmbed} className="absolute inset-0 h-full w-full" loading="lazy" /> : null}
+            {mapEmbed ? <iframe title={`${l("Map of", "Mapa de")} ${payload.directionsAddress}`} src={mapEmbed} className="absolute inset-0 h-full w-full" loading="lazy" /> : null}
           </div>
         </div>
       ) : (
         <div className="flex min-h-[92px] items-center gap-3 px-5 py-4 text-sm font-semibold text-[#c6d8ef]">
-          <CloudSun size={18} aria-hidden="true" />Jobsite weather and map are temporarily unavailable.
+          <CloudSun size={18} aria-hidden="true" />{l("Jobsite weather and map are temporarily unavailable.", "El clima y el mapa del sitio de trabajo no están disponibles temporalmente.")}
         </div>
       )}
     </section>

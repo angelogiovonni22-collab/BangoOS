@@ -1,5 +1,6 @@
 import { SummaryCard } from "@/components/ui";
 import type { EmployeeDashboardSummary } from "@/lib/employees";
+import { useI18n } from "@/lib/i18n/provider";
 import {
   BriefcaseIcon,
   CircleCheckIcon,
@@ -31,17 +32,21 @@ export function EmployeeDashboardMetrics({
   projectLabel,
   t,
 }: EmployeeDashboardMetricsProps) {
+  const { locale } = useI18n();
+  const es = locale === "es";
+  const l = (en: string, spanish: string) => es ? spanish : en;
+
   return (
-    <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5" aria-label={`${workforceLabel} summary`}>
+    <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5" aria-label={`${workforceLabel} ${l("summary", "resumen")}`}>
       <SummaryCard
         icon={<UsersIcon className="h-5 w-5" />}
-        label="Total Team Members"
+        label={l("Total Team Members", "Miembros totales del equipo")}
         value={String(summary.totalEmployees)}
-        context={`${summary.totalEmployees} team members in ${workforceLabel.toLowerCase()}`}
+        context={`${summary.totalEmployees} ${l("team members in", "miembros del equipo en")} ${workforceLabel.toLowerCase()}`}
         tone="brand"
         onClick={onShowAll}
         selected={employmentStatus === "all" && availabilityStatus === "all"}
-        actionLabel="Show all team members"
+        actionLabel={l("Show all team members", "Mostrar todos los miembros del equipo")}
       />
       <SummaryCard
         icon={<UserCheckIcon className="h-5 w-5" />}
@@ -58,17 +63,17 @@ export function EmployeeDashboardMetrics({
         tone="info"
         onClick={() => onAvailabilityChange(availabilityStatus === "available" ? "all" : "available")}
         selected={availabilityStatus === "available"}
-        actionLabel="Show available team members"
+        actionLabel={l("Show available team members", "Mostrar miembros del equipo disponibles")}
       />
       <SummaryCard
         icon={<BriefcaseIcon className="h-5 w-5" />}
-        label={`Assigned to ${projectLabel}`}
+        label={`${l("Assigned to", "Asignados a")} ${projectLabel}`}
         value={String(summary.assignedToProjects)}
         context={t("employees.dashboardInsight.assigned", { count: summary.assignedToProjects })}
         tone="warning"
         onClick={() => onAvailabilityChange(availabilityStatus === "assigned" ? "all" : "assigned")}
         selected={availabilityStatus === "assigned"}
-        actionLabel={`Show team members assigned to ${projectLabel.toLowerCase()} work`}
+        actionLabel={`${l("Show team members assigned to", "Mostrar miembros del equipo asignados a")} ${projectLabel.toLowerCase()}`}
       />
       <SummaryCard
         icon={<BedDoubleIcon className="h-5 w-5" />}
@@ -78,7 +83,7 @@ export function EmployeeDashboardMetrics({
         tone="danger"
         onClick={() => onEmploymentStatusChange(employmentStatus === "leave" ? "all" : "leave")}
         selected={employmentStatus === "leave"}
-        actionLabel="Show team members on leave"
+        actionLabel={l("Show team members on leave", "Mostrar miembros del equipo con permiso")}
       />
     </section>
   );

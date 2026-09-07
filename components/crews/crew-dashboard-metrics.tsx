@@ -67,6 +67,7 @@ export function CrewDashboardMetrics({ summary, selected, onSelect, t }: CrewDas
             type="button"
             onClick={() => onSelect(item.key)}
             aria-pressed={isSelected}
+            aria-label={`${item.label}: ${item.value}. ${item.insight}`}
             className="h-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)] focus-visible:ring-offset-2"
           >
             <Card
@@ -78,9 +79,6 @@ export function CrewDashboardMetrics({ summary, selected, onSelect, t }: CrewDas
                   <div className={`flex h-11 w-11 items-center justify-center rounded-full shadow-[var(--shadow-small)] [&>svg]:stroke-[2.5] ${item.iconTone}`}>
                     {item.icon}
                   </div>
-                  {isSelected ? (
-                    <span className="rounded-full bg-[var(--color-brand-50)] px-2.5 py-1 text-xs font-semibold text-[var(--color-brand-700)]">Selected</span>
-                  ) : null}
                 </div>
 
                 <div className="mt-4">

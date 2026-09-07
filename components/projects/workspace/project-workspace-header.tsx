@@ -10,6 +10,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Button, getButtonClassName } from "@/components/ui";
 import { WorkspaceHeader } from "@/components/workspace";
+import { useI18n } from "@/lib/i18n/provider";
 import { ProjectHeaderWeatherStrip } from "./project-header-weather-strip";
 
 type ProjectWorkspaceHeaderProps = {
@@ -32,6 +33,9 @@ export function ProjectWorkspaceHeader({
   statusKey,
   editProjectHref,
 }: ProjectWorkspaceHeaderProps) {
+  const { locale } = useI18n();
+  const es = locale === "es";
+  const l = (en: string, spanish: string) => es ? spanish : en;
   const pathname = usePathname();
   const [shareState, setShareState] = useState<"idle" | "copied">("idle");
   const [completeBusy, setCompleteBusy] = useState(false);
@@ -53,7 +57,7 @@ export function ProjectWorkspaceHeader({
 
     const sharePayload = {
       title: projectName,
-      text: `Project workspace: ${projectName}`,
+      text: `${l("Project workspace", "Espacio de trabajo del proyecto")}: ${projectName}`,
       url: window.location.href,
     };
 
@@ -75,7 +79,9 @@ export function ProjectWorkspaceHeader({
   const handleCompleteProject = async () => {
     if (!projectId || statusKey === "completed") return;
     const confirmed = window.confirm(
-      `Mark ${projectName} complete? B.O.S. will automatically remove this project from active Trade Partner portals and preserve all contractor history.`,
+      es
+        ? `¿Marcar ${projectName} como completado? B.O.S. lo quitará automáticamente de los portales activos de socios comerciales y conservará todo el historial de contratistas.`
+        : `Mark ${projectName} complete? B.O.S. will automatically remove this project from active Trade Partner portals and preserve all contractor history.`,
     );
     if (!confirmed) return;
 
@@ -84,11 +90,11 @@ export function ProjectWorkspaceHeader({
     try {
       const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/complete`, { method: "POST" });
       const body = await response.json() as { error?: string; message?: string };
-      if (!response.ok) throw new Error(body.error || "Unable to complete project.");
-      setCompleteMessage(body.message || "Project completed.");
+      if (!response.ok) throw new Error(body.error || l("Unable to complete project.", "No se pudo completar el proyecto."));
+      setCompleteMessage(body.message || l("Project completed.", "Proyecto completado."));
       window.setTimeout(() => window.location.reload(), 500);
     } catch (error) {
-      setCompleteMessage(error instanceof Error ? error.message : "Unable to complete project.");
+      setCompleteMessage(error instanceof Error ? error.message : l("Unable to complete project.", "No se pudo completar el proyecto."));
     } finally {
       setCompleteBusy(false);
     }
@@ -99,12 +105,12 @@ export function ProjectWorkspaceHeader({
       <WorkspaceHeader
         compact
         breadcrumbs={[
-          { label: "Projects", href: "/projects" },
+          { label: l("Projects", "Proyectos"), href: "/projects" },
           { label: customerLabel, href: customerProjectsHref },
           { label: projectName },
         ]}
         title={projectName}
-        subtitle={projectNumber ? `Project Workspace · ${projectNumber}` : "Project Workspace"}
+        subtitle={projectNumber ? `${l("Project Workspace", "Espacio de trabajo del proyecto")} · ${projectNumber}` : l("Project Workspace", "Espacio de trabajo del proyecto")}
         badgeLabel={statusLabel}
         badgeTone={statusTone}
         actions={
@@ -117,7 +123,7 @@ export function ProjectWorkspaceHeader({
               onClick={() => void handleShare()}
             >
               <Share2 size={15} aria-hidden="true" />
-              {shareState === "copied" ? "Copied" : "Share"}
+              {shareState === "copied" ? l("Copied", "Copiado") : l("Share", "Compartir")}
             </Button>
 
             {statusKey !== "completed" && statusKey !== "cancelled" ? (
@@ -130,7 +136,7 @@ export function ProjectWorkspaceHeader({
                 className="rounded-[11px] border-emerald-500/60 bg-emerald-500/10 px-3.5 py-2 text-[0.8rem] font-semibold text-emerald-200 hover:bg-emerald-500/20"
               >
                 <CheckCircle2 size={15} aria-hidden="true" />
-                {completeBusy ? "Completing Project…" : "Project Complete"}
+                {completeBusy ? l("Completing Project…", "Completando proyecto…") : l("Project Complete", "Completar proyecto")}
               </Button>
             ) : null}
 
@@ -140,7 +146,7 @@ export function ProjectWorkspaceHeader({
                 className={`${getButtonClassName({ variant: "primary", size: "sm" })} rounded-[11px] border border-[#9ecfff] bg-[linear-gradient(180deg,#3b77be,#2d5f9f)] px-3.5 py-2 text-[0.8rem] font-semibold shadow-[0_12px_22px_-14px_rgba(30,120,255,0.84)]`}
               >
                 <Pencil size={15} aria-hidden="true" />
-                Edit Project
+                {l("Edit Project", "Editar proyecto")}
               </Link>
             ) : null}
           </>

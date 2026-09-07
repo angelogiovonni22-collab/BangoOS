@@ -12,7 +12,7 @@ const subcontractors = read("components/projects/workspace/project-trade-partner
 const migration = read("supabase/migrations/20260828020000_project_commitments_control_cards.sql");
 const payroll = read("app/(app)/invoices/payroll/page.tsx");
 
-assert.match(commandCenter, /label="Budget"[\s\S]*label="Crew"[\s\S]*label="Schedule"[\s\S]*label="Progress"/);
+assert.match(commandCenter, /label=\{l\("Budget",[\s\S]*label=\{l\("Crew",[\s\S]*label=\{l\("Schedule",[\s\S]*label=\{l\("Progress",/);
 assert.match(commandCenter, /activeControl/);
 assert.match(commandCenter, /data-project-control-expanded/);
 assert.match(commandCenter, /aria-expanded=/);

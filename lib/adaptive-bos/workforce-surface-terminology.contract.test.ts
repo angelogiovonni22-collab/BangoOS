@@ -26,8 +26,10 @@ assert.match(workforceTable, /<TableHeading>Team<\/TableHeading>/, "Workforce ta
 assert.match(workforceTable, /<TableHeading>\{projectLabel\}<\/TableHeading>/, "Workforce table must use adaptive project terminology");
 
 assert.match(workforceMetrics, /workforceLabel: string/, "Workforce KPIs must receive adaptive workforce terminology");
-assert.match(workforceMetrics, /aria-label=\{`\$\{workforceLabel\} summary`\}/, "Workforce KPI group must expose adaptive terminology");
-assert.match(workforceMetrics, /Assigned to \$\{projectLabel\}/, "Workforce assignment KPI must use adaptive project terminology");
+assert.match(workforceMetrics, /aria-label=\{`\$\{workforceLabel\} \$\{l\("summary", "resumen"\)\}`\}/, "Workforce KPI group must expose adaptive terminology and current locale");
+assert.match(workforceMetrics, /label=\{`\$\{l\("Assigned to", "Asignados a"\)\} \$\{projectLabel\}`\}/, "Workforce assignment KPI must use adaptive project terminology without leaking English in Spanish");
 assert.doesNotMatch(workforceMetrics, /actionLabel="Show all employees"/, "Workforce KPI actions must not hard-code employee terminology");
+assert.match(workforceMetrics, /Show all team members/, "Workforce KPI actions must retain cross-industry team terminology");
+assert.match(workforceMetrics, /Mostrar todos los miembros del equipo/, "Workforce KPI actions must expose Spanish copy");
 
 console.log("Adaptive B.O.S. workforce surface terminology contract passed.");
