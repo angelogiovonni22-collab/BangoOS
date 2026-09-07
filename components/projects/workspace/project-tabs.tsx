@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
+import { useI18n } from "@/lib/i18n/provider";
 import { PROJECT_WORKSPACE_TABS } from "./project-workspace-tabs";
 import type { ProjectWorkspaceTabKey } from "./types";
 
@@ -32,6 +33,7 @@ type ProjectNavItem = { key: ProjectNavKey; label: string; icon: ReactNode };
 
 const RECEIPTS_TAB_KEY = "receipts";
 export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
+  const { locale } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,7 +60,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
   const items: ProjectNavItem[] = PROJECT_WORKSPACE_TABS.flatMap((tab) => {
     const item: ProjectNavItem = { key: tab.key, label: t(tab.labelKey), icon: tabIcon[tab.key] };
     if (tab.key !== "documents") return [item];
-    return [item, { key: RECEIPTS_TAB_KEY, label: "Receipts", icon: <ReceiptText size={17} aria-hidden="true" /> }];
+    return [item, { key: RECEIPTS_TAB_KEY, label: locale === "es" ? "Recibos" : "Receipts", icon: <ReceiptText size={17} aria-hidden="true" /> }];
   });
 
   const handleChange = (key: ProjectNavKey) => {
