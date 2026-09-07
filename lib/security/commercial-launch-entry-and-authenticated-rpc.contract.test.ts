@@ -12,6 +12,11 @@ const diagnostic = read("app/supabase-test/page.tsx");
 assert.match(diagnostic, /notFound\(\)/, "the Supabase diagnostic route must not be publicly rendered");
 assert.doesNotMatch(diagnostic, /createClient|environment variables|configuration successful/i, "the diagnostic route must not disclose environment readiness");
 
+const authConfirm = read("app/auth/confirm/route.ts");
+assert.match(authConfirm, /!value\.startsWith\(['"]\/['"]\)/, "auth confirmation redirects must require an app-local path");
+assert.match(authConfirm, /value\.startsWith\(['"]\/\/['"]\)/, "auth confirmation redirects must reject protocol-relative URLs");
+assert.doesNotMatch(authConfirm, /encodeURIComponent\(error\.message\)/, "auth confirmation failures must not reflect provider error details into redirect URLs");
+
 const migration = read("supabase/migrations/20260830220000_commercial_launch_authenticated_rpc_hardening.sql");
 const internalRoutines = [
   "close_trade_partner_access_when_project_completed()",
