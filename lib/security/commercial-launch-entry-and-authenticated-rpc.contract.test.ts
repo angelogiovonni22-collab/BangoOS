@@ -38,4 +38,17 @@ for (const routine of internalRoutines) {
   );
 }
 
+const projectLifecycleMigration = read("supabase/migrations/20260907023500_project_lifecycle_permission_hardening.sql");
+for (const routine of ["soft_delete_project", "restore_deleted_project"]) {
+  assert.match(
+    projectLifecycleMigration,
+    new RegExp(`create or replace function public\\.${routine}`, "i"),
+    `${routine} must be hardened at the database boundary`,
+  );
+}
+const projectManageChecks = projectLifecycleMigration.match(/bos_role_has_permission\(v_company_id,\s*'projects\.manage',\s*auth\.uid\(\)\)/gi) ?? [];
+assert.equal(projectManageChecks.length, 2, "project delete and restore must both require projects.manage and honor permission overrides");
+assert.match(projectLifecycleMigration, /revoke all on function public\.soft_delete_project\(uuid\) from public, anon/i);
+assert.match(projectLifecycleMigration, /revoke all on function public\.restore_deleted_project\(uuid\) from public, anon/i);
+
 console.log("Commercial-launch entry and authenticated RPC contract passed.");
