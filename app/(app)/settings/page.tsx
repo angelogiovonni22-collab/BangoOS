@@ -69,7 +69,7 @@ export default function SettingsPage() {
       </Card>
 
       <Card as="section" variant="elevated">
-        <CardHeader className="bg-[var(--color-surface-subtle)]"><CardTitle>{t("navigation.settings")}</CardTitle><p className="text-sm text-[var(--color-text-secondary)]">{t("projects.memorySettingsDescription")}</p></CardHeader>
+        <CardHeader className="bg-[var(--color-surface-subtle)]"><CardTitle>{es ? "Revisión de memoria" : "Memory Review"}</CardTitle><p className="text-sm text-[var(--color-text-secondary)]">{t("projects.memorySettingsDescription")}</p></CardHeader>
         <CardContent className="p-5"><Link href="/settings/memory-review" className="inline-flex items-center rounded-[10px] border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]">{t("projects.memoryReviewOpen")}</Link></CardContent>
       </Card>
 
