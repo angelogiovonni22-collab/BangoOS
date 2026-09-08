@@ -26,7 +26,7 @@ Legend:
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
-- [x] Full CI green through merged Phase B opening-symbol recognition
+- [x] Full CI green through merged Phase B diagonal-corner hardening
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
@@ -58,7 +58,16 @@ Legend:
 - Merge commit: `0570fa486dba597579671f68a3ed47507ca2849f`
 - Required CI and Vercel Production deployment completed green.
 
+### Merged Phase B diagonal-corner checkpoint
+
+- Branch: `feat/blueprint-engine-junction-annotation-hardening`
+- PR: `#529 — Harden Blueprint diagonal corner recovery`
+- Merge commit: `99ac86664cd5785bd13dfc87d879fb564fffc3f4`
+- Required CI and Vercel Production deployment completed green.
+
 ## Phase B — Architectural Reconstruction
+
+Phase B follows `master-plan.md`: wall classification, openings, rooms/architectural semantics, dimension reconciliation, corner/junction handling, nested/annotation filtering, and raster fallback. Slab/roof semantic promotion is tracked separately below because the Master Plan and workstream boundaries describe those as future architectural semantics rather than Phase B release gates.
 
 - [x] Gap-based opening association
 - [x] Door/window typed opening output
@@ -70,16 +79,19 @@ Legend:
 - [x] Native raster line-extraction module foundation
 - [x] Raster fallback integrated into the reconstruction orchestrator
 - [x] Selected PDF-page raster decoding/render fallback for vector-poor PDFs when scale is verified
-- [~] Wall-bounded room tracing and room polygon foundation
+- [x] Wall-bounded room tracing and room polygon foundation
 - [x] Room tracing recovers T/cross junctions where partitions terminate into unsplit wall runs
 - [x] Room tracing bridges near-miss partition endpoints within snap tolerance without bridging larger gaps
 - [x] Room tracing closes diagonal endpoint-to-endpoint corner gaps within snap tolerance without bridging separated corners
 - [x] Door swing/symbol recognition from gap-anchored vector leaf/slider evidence
 - [x] Window symbol/type recognition from gap-overlapping vector line evidence
-- [~] Better wall junction/corner recovery
-- [~] Nested/duplicate annotation-line filtering (nested paired-wall duplicate suppression plus dimension-evidence-zone filtering implemented; broader witness/dimension-line filtering remains)
-- [ ] Slab/foundation recognition
-- [ ] Roof geometry recognition
+- [x] Better wall junction/corner recovery foundation for exact, projected near-miss, and diagonal endpoint gaps
+- [x] Nested/duplicate annotation-line filtering, including paired-wall duplicate suppression, dimension-label zones, and conservative thin witness-line suppression
+
+### Future architectural semantics — post-Phase B
+
+- [ ] Slab/foundation semantic promotion when explicit source evidence supports it
+- [ ] Roof geometry/semantic promotion when explicit source evidence supports it
 
 ## Phase C — Correction and Review Workspace
 
@@ -144,18 +156,17 @@ Legend:
 
 ## Current release branch
 
-- Branch: `feat/blueprint-engine-junction-annotation-hardening`
-- PR: `#529 — Harden Blueprint diagonal corner recovery`
+- Branch: `feat/blueprint-engine-witness-filtering`
+- PR: `#530 — Filter Blueprint dimension witness linework`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
 
-1. Keep the control documents synchronized with implementation.
-2. Harden room tracing, junction recovery, and annotation-line filtering with focused regressions.
-3. Extend tests for raster fallback, corrections, IFC, openings, dimensions, and export UI.
-4. Resolve all CI failures automatically.
-5. Merge only when gates are green.
-6. Apply required Supabase migrations.
-7. Verify Production.
-8. Run strongest safe real-plan/visual benchmark.
-9. Continue to the next incomplete phase automatically.
+1. Finish and merge the remaining Phase B witness-filter hardening only when all required gates are green.
+2. Verify Vercel Production for the merged Phase B completion commit.
+3. Continue Phase C by wiring the existing correction API/Building Graph into the Blueprint review workspace instead of duplicating correction logic.
+4. Add focused correction UI contracts during development and run full validation before merge.
+5. Resolve CI failures automatically and merge only when gates are green.
+6. Apply required Supabase migrations only if a phase genuinely introduces schema changes.
+7. Verify Production and run the strongest safe real-plan/visual benchmark available.
+8. Continue to the next incomplete phase automatically.
