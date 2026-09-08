@@ -44,6 +44,24 @@ function toCorrection(row: PersistedBosGraphCorrectionRow): BosGraphCorrection |
   } as BosGraphCorrection;
 }
 
+export function normalizePersistedBosGraphCorrections(rows: PersistedBosGraphCorrectionRow[]) {
+  return rows
+    .map(toCorrection)
+    .filter((correction): correction is BosGraphCorrection => correction !== null)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+}
+
+export function latestPersistedManualScale(rows: PersistedBosGraphCorrectionRow[]) {
+  const corrections = normalizePersistedBosGraphCorrections(rows);
+  for (let index = corrections.length - 1; index >= 0; index -= 1) {
+    const correction = corrections[index];
+    if (correction.type === "set_scale" && Number.isFinite(correction.drawingUnitsPerMeter) && correction.drawingUnitsPerMeter > 0) {
+      return correction.drawingUnitsPerMeter;
+    }
+  }
+  return undefined;
+}
+
 function conflictIssue(conflicts: BosGraphCorrectionConflict[]): BosValidationIssue {
   const objectIds = conflicts.flatMap((conflict) => conflict.objectId ? [conflict.objectId] : []);
   return {
@@ -59,10 +77,7 @@ export function replayPersistedBosGraphCorrections(
   graph: BosBuildingGraph,
   rows: PersistedBosGraphCorrectionRow[],
 ): PersistedBosGraphCorrectionReplay {
-  const corrections = rows
-    .map(toCorrection)
-    .filter((correction): correction is BosGraphCorrection => correction !== null);
-
+  const corrections = normalizePersistedBosGraphCorrections(rows);
   if (!corrections.length) return { graph, corrections: [], conflicts: [] };
 
   const replayed = replayBosGraphCorrectionsWithConflicts(graph, corrections);
