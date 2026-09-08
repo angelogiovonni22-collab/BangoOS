@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Box, LoaderCircle, RefreshCw, Sparkles, TriangleAlert } from "lucide-react";
+import { Box, Download, LoaderCircle, RefreshCw, Sparkles, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui";
 import { BlueprintPlanWorkspace } from "./blueprint-plan-workspace";
 import type { PlanDocument } from "./types";
 
 type GeneratedModelPayload = {
   status: string;
+  engineStatus?: string | null;
   model: null | {
     id: string;
     signedUrl: string | null;
@@ -16,6 +17,13 @@ type GeneratedModelPayload = {
     assumptions: string[];
     generationModel: string | null;
     errorMessage: string | null;
+    validationReport?: {
+      score?: number;
+      status?: string;
+      issues?: Array<{ severity?: string; code?: string; message?: string }>;
+    } | null;
+    sourcePage?: number | null;
+    reconstructionVersion?: string | null;
     updatedAt: string | null;
   };
   error?: string;
@@ -83,6 +91,7 @@ export function BlueprintAuto3dControl({ source, projectName, companyId, project
   const busy = generating || payload.status === "processing" || payload.status === "pending";
   const needsInput = payload.status === "needs_input";
   const failed = payload.status === "failed";
+  const nativeReconstruction = payload.engineStatus === "reconstructed" || payload.model?.generationModel === "bos-native-blueprint-engine";
   const generatedDocument: PlanDocument | null = ready && payload.model?.signedUrl ? {
     ...source,
     id: `${source.id}:generated-3d`,
@@ -91,6 +100,10 @@ export function BlueprintAuto3dControl({ source, projectName, companyId, project
     fileUrl: payload.model.signedUrl,
     mimeType: "model/gltf-binary",
   } : null;
+
+  const downloadIfc = () => {
+    window.location.assign(`/api/blueprints/${encodeURIComponent(source.versionId)}/generated-3d/export?format=ifc`);
+  };
 
   return (
     <>
@@ -101,11 +114,16 @@ export function BlueprintAuto3dControl({ source, projectName, companyId, project
               <Sparkles size={14} aria-hidden="true" /> Automatic Blueprint-to-3D
             </p>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              B.O.S. reconstructs the registered sheet into a conceptual GLB model. On multi-page PDFs it targets the drawing that matches this sheet title instead of modeling the first page. Generated dimensions must be verified before construction use.
+              B.O.S. reconstructs the registered sheet into a canonical Building Graph and conceptual 3D model. On multi-page PDFs it targets the drawing that matches this sheet title instead of modeling the first page. Generated dimensions must be verified before construction use.
             </p>
           </div>
           {ready ? (
             <div className="flex flex-wrap gap-2">
+              {nativeReconstruction ? (
+                <Button type="button" size="sm" variant="secondary" onClick={downloadIfc} data-orion-action="blueprints.export-ifc">
+                  <Download size={15} aria-hidden="true" /> Export IFC
+                </Button>
+              ) : null}
               <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => void generate(true)} data-orion-action="blueprints.regenerate-3d">
                 {busy ? <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={15} aria-hidden="true" />}
                 {busy ? "Regenerating…" : "Regenerate 3D"}
@@ -125,8 +143,11 @@ export function BlueprintAuto3dControl({ source, projectName, companyId, project
         {ready && payload.model ? (
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--color-text-secondary)]">
             <span className="font-semibold text-emerald-700 dark:text-emerald-300">3D Ready</span>
+            {nativeReconstruction ? <span className="font-semibold text-cyan-700 dark:text-cyan-200">Native Building Graph</span> : null}
             <span>Confidence {Math.round(payload.model.confidence * 100)}%</span>
-            {payload.model.assumptions.length ? <span>{payload.model.assumptions.length} assumption{payload.model.assumptions.length === 1 ? "" : "s"} to verify</span> : null}
+            {typeof payload.model.validationReport?.score === "number" ? <span>Validation {Math.round(payload.model.validationReport.score * 100)}%</span> : null}
+            {payload.model.sourcePage ? <span>Source page {payload.model.sourcePage}</span> : null}
+            {payload.model.assumptions.length ? <span>{payload.model.assumptions.length} item{payload.model.assumptions.length === 1 ? "" : "s"} to verify</span> : null}
           </div>
         ) : null}
         {needsInput || failed ? (

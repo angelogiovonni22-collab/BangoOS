@@ -11,11 +11,18 @@ import {
   normalizeBlueprint3dAnalysis,
   type NormalizedBlueprint3dAnalysis,
 } from "@/lib/blueprints/automatic-3d";
+import { buildBosBuildingGraphGlb } from "@/lib/blueprints/engine/graph-to-glb";
+import {
+  latestPersistedManualScale,
+  replayPersistedBosGraphCorrections,
+  type PersistedBosGraphCorrectionRow,
+} from "@/lib/blueprints/engine/persisted-corrections";
+import { reconstructNativeBlueprint } from "@/lib/blueprints/engine/reconstruct";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
 
-const MAX_AI_SOURCE_BYTES = 45 * 1024 * 1024;
+const MAX_SOURCE_BYTES = 45 * 1024 * 1024;
 const SOURCE_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 
 type SourceVersion = {
@@ -83,7 +90,7 @@ async function getContext(versionId: string) {
 async function payloadForModel(supabase: SupabaseClient<Database>, db: ReturnType<typeof dbClient>, source: SourceVersion) {
   const response = await db
     .from("blueprint_generated_models")
-    .select("id,status,storage_path,mime_type,confidence,assumptions,generation_model,error_message,updated_at")
+    .select("id,status,engine_status,storage_path,mime_type,confidence,assumptions,generation_model,error_message,validation_report,source_page,reconstruction_version,updated_at")
     .eq("company_id", source.company_id)
     .eq("source_version_id", source.id)
     .maybeSingle();
@@ -98,6 +105,7 @@ async function payloadForModel(supabase: SupabaseClient<Database>, db: ReturnTyp
   }
   return {
     status: String(row.status),
+    engineStatus: typeof row.engine_status === "string" ? row.engine_status : null,
     model: {
       id: String(row.id),
       signedUrl,
@@ -106,9 +114,91 @@ async function payloadForModel(supabase: SupabaseClient<Database>, db: ReturnTyp
       assumptions: Array.isArray(row.assumptions) ? row.assumptions : [],
       generationModel: typeof row.generation_model === "string" ? row.generation_model : null,
       errorMessage: typeof row.error_message === "string" ? row.error_message : null,
+      validationReport: row.validation_report && typeof row.validation_report === "object" ? row.validation_report : null,
+      sourcePage: typeof row.source_page === "number" ? row.source_page : null,
+      reconstructionVersion: typeof row.reconstruction_version === "string" ? row.reconstruction_version : null,
       updatedAt: typeof row.updated_at === "string" ? row.updated_at : null,
     },
   };
+}
+
+async function markNeedsReview(db: ReturnType<typeof dbClient>, modelRowId: string, input: {
+  graph: unknown;
+  confidence: number;
+  engineStatus: "needs_review" | "needs_input" | "failed";
+  validationReport?: unknown;
+  sourcePage?: number;
+  reconstructionVersion?: string;
+  algorithmVersions?: Record<string, string>;
+  assumptions?: string[];
+  correctionHistory?: unknown[];
+  errorMessage: string;
+}) {
+  const update = await db.from("blueprint_generated_models").update({
+    status: input.engineStatus === "failed" ? "failed" : "needs_input",
+    engine_status: input.engineStatus,
+    geometry_json: input.graph,
+    building_graph: input.graph,
+    validation_report: input.validationReport || null,
+    source_page: input.sourcePage || null,
+    reconstruction_version: input.reconstructionVersion || null,
+    algorithm_versions: input.algorithmVersions || {},
+    correction_history: input.correctionHistory || [],
+    confidence: Math.max(0, Math.min(0.69, input.confidence)),
+    assumptions: input.assumptions || [],
+    generation_model: "bos-native-blueprint-engine",
+    error_message: input.errorMessage.slice(0, 1000),
+  }).eq("id", modelRowId);
+  if (update.error) throw new Error(update.error.message);
+}
+
+async function saveReadyModel(input: {
+  supabase: SupabaseClient<Database>;
+  db: ReturnType<typeof dbClient>;
+  source: SourceVersion;
+  modelRowId: string;
+  previousStoragePath: string | null;
+  glb: Buffer;
+  geometry: unknown;
+  buildingGraph?: unknown;
+  validationReport?: unknown;
+  confidence: number;
+  assumptions: string[];
+  generationModel: string;
+  engineStatus?: "reconstructed" | "needs_review";
+  sourcePage?: number;
+  reconstructionVersion?: string;
+  algorithmVersions?: Record<string, string>;
+  correctionHistory?: unknown[];
+}) {
+  const storagePath = `${input.source.company_id}/${input.source.project_id}/generated-3d/${input.source.id}/${randomUUID()}-bos-generated.glb`;
+  const upload = await input.supabase.storage.from(BLUEPRINTS_BUCKET).upload(storagePath, input.glb, { contentType: "model/gltf-binary", upsert: false });
+  if (upload.error) throw new Error(upload.error.message);
+
+  const ready = await input.db.from("blueprint_generated_models").update({
+    status: "ready",
+    engine_status: input.engineStatus || "reconstructed",
+    storage_path: storagePath,
+    mime_type: "model/gltf-binary",
+    geometry_json: input.geometry,
+    building_graph: input.buildingGraph || null,
+    validation_report: input.validationReport || null,
+    source_page: input.sourcePage || null,
+    reconstruction_version: input.reconstructionVersion || null,
+    algorithm_versions: input.algorithmVersions || {},
+    correction_history: input.correctionHistory || [],
+    confidence: input.confidence,
+    assumptions: input.assumptions,
+    generation_model: input.generationModel,
+    error_message: null,
+  }).eq("id", input.modelRowId);
+  if (ready.error) {
+    await input.supabase.storage.from(BLUEPRINTS_BUCKET).remove([storagePath]);
+    throw new Error(ready.error.message);
+  }
+  if (input.previousStoragePath && input.previousStoragePath !== storagePath) {
+    await input.supabase.storage.from(BLUEPRINTS_BUCKET).remove([input.previousStoragePath]);
+  }
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ versionId: string }> }) {
@@ -131,11 +221,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
     if (!SOURCE_MIME_TYPES.has(source.mime_type)) {
       return NextResponse.json({ error: "Automatic 3D generation currently starts from PDF or image plan sheets. Existing IFC/GLB/GLTF files already open directly in the 3D viewer." }, { status: 415 });
     }
-    if (source.file_size_bytes <= 0 || source.file_size_bytes > MAX_AI_SOURCE_BYTES) {
+    if (source.file_size_bytes <= 0 || source.file_size_bytes > MAX_SOURCE_BYTES) {
       return NextResponse.json({ error: "This plan is too large for automatic 3D analysis. Reduce the source PDF/image below 45 MB or upload a BIM model." }, { status: 413 });
-    }
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: "Automatic Blueprint-to-3D intelligence is not configured on this deployment." }, { status: 503 });
     }
 
     const existing = await db
@@ -152,7 +239,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
 
     if (existing.data?.id) {
       modelRowId = String(existing.data.id);
-      const update = await db.from("blueprint_generated_models").update({ status: "processing", error_message: null }).eq("id", modelRowId);
+      const update = await db.from("blueprint_generated_models").update({ status: "processing", engine_status: "processing", error_message: null }).eq("id", modelRowId);
       if (update.error) throw new Error(update.error.message);
     } else {
       const insert = await db.from("blueprint_generated_models").insert({
@@ -160,6 +247,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
         project_id: source.project_id,
         source_version_id: source.id,
         status: "processing",
+        engine_status: "processing",
         created_by: workspace.userId,
       }).select("id").single();
       if (insert.error || !insert.data) throw new Error(insert.error?.message || "Unable to start 3D generation.");
@@ -169,44 +257,124 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
     const download = await supabase.storage.from(BLUEPRINTS_BUCKET).download(source.storage_path);
     if (download.error || !download.data) throw new Error(download.error?.message || "Unable to read the source Blueprint.");
     const buffer = Buffer.from(await download.data.arrayBuffer());
-    const { analysis, modelName } = await analyzePlan(buffer, source);
+    const previousStoragePath = typeof existing.data?.storage_path === "string" ? existing.data.storage_path : null;
 
+    if (source.mime_type === "application/pdf") {
+      const correctionResponse = await db.from("blueprint_model_corrections")
+        .select("id,correction_type,payload,created_by,created_at")
+        .eq("company_id", source.company_id)
+        .eq("generated_model_id", modelRowId)
+        .eq("source_version_id", source.id)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
+      if (correctionResponse.error) throw new Error(correctionResponse.error.message);
+      const correctionRows = (correctionResponse.data || []) as PersistedBosGraphCorrectionRow[];
+      const manualDrawingUnitsPerMeter = latestPersistedManualScale(correctionRows);
+
+      const native = await reconstructNativeBlueprint({
+        buffer,
+        mimeType: source.mime_type,
+        buildingId: source.id,
+        companyId: source.company_id,
+        projectId: source.project_id,
+        sourceVersionId: source.id,
+        sheetNumber: source.sheet_number,
+        sheetTitle: source.sheet_title,
+        discipline: source.discipline,
+        manualDrawingUnitsPerMeter,
+      });
+      const replay = replayPersistedBosGraphCorrections(native.graph, correctionRows);
+      const graph = replay.graph;
+      const targetSafe = native.targetScore >= 0.45;
+      const geometrySafe = graph.walls.length >= 8 && !native.rasterRequired;
+      const validated = graph.validation.status === "reconstructed";
+      const correctionHistory = replay.corrections.map((correction) => ({
+        id: correction.id,
+        type: correction.type,
+        actorId: correction.actorId || null,
+        createdAt: correction.createdAt,
+      }));
+
+      if (!targetSafe || !geometrySafe || !validated) {
+        const engineStatus = graph.validation.status === "failed" ? "failed" : graph.validation.status === "needs_review" ? "needs_review" : "needs_input";
+        const conflictMessage = replay.conflicts.length
+          ? ` ${replay.conflicts.length} saved correction${replay.conflicts.length === 1 ? "" : "s"} could not be matched after regeneration and require review.`
+          : "";
+        const reason = native.diagnostics.length
+          ? native.diagnostics.join(" ")
+          : `B.O.S. could not validate ${source.sheet_number} · ${source.sheet_title} strongly enough for a native 3D reconstruction.`;
+        await markNeedsReview(db, modelRowId, {
+          graph,
+          confidence: graph.confidence,
+          engineStatus,
+          validationReport: graph.validation,
+          sourcePage: native.selectedPage,
+          reconstructionVersion: graph.reconstructionVersion,
+          algorithmVersions: graph.metadata.algorithms,
+          assumptions: graph.validation.issues.map((item) => item.message),
+          correctionHistory,
+          errorMessage: `${reason}${conflictMessage} The result was intentionally withheld instead of presenting an under-traced or incorrectly scaled building as 3D Ready.`,
+        });
+        return NextResponse.json(await payloadForModel(supabase, db, source), { status: 422 });
+      }
+
+      const glb = buildBosBuildingGraphGlb(graph);
+      await saveReadyModel({
+        supabase,
+        db,
+        source,
+        modelRowId,
+        previousStoragePath,
+        glb,
+        geometry: graph,
+        buildingGraph: graph,
+        validationReport: graph.validation,
+        confidence: graph.confidence,
+        assumptions: graph.validation.issues.map((item) => item.message),
+        generationModel: "bos-native-blueprint-engine",
+        engineStatus: "reconstructed",
+        sourcePage: native.selectedPage,
+        reconstructionVersion: graph.reconstructionVersion,
+        algorithmVersions: graph.metadata.algorithms,
+        correctionHistory,
+      });
+      return NextResponse.json(await payloadForModel(supabase, db, source));
+    }
+
+    // Preserve the existing image-plan capability while raster line extraction is upgraded behind the same endpoint.
+    if (!process.env.OPENAI_API_KEY) {
+      await markNeedsReview(db, modelRowId, {
+        graph: {},
+        confidence: 0,
+        engineStatus: "needs_input",
+        errorMessage: "Raster Blueprint reconstruction is not configured on this deployment.",
+      });
+      return NextResponse.json(await payloadForModel(supabase, db, source), { status: 503 });
+    }
+    const { analysis, modelName } = await analyzePlan(buffer, source);
     if (!isUsableBlueprint3dAnalysis(analysis) || isObviouslyUnderTracedFloorPlan(source, analysis)) {
-      await db.from("blueprint_generated_models").update({
-        status: "needs_input",
-        geometry_json: analysis,
+      await markNeedsReview(db, modelRowId, {
+        graph: analysis,
         confidence: Math.min(analysis.confidence, 0.45),
+        engineStatus: "needs_input",
         assumptions: analysis.assumptions,
-        generation_model: modelName,
-        error_message: `B.O.S. could not trace enough of ${source.sheet_number} · ${source.sheet_title} to produce a faithful conceptual model. The result was intentionally withheld instead of showing an oversimplified building. Verify the registered drawing, scale/dimensions, or add a clearer architectural sheet and retry.`,
-      }).eq("id", modelRowId);
+        errorMessage: `B.O.S. could not trace enough of ${source.sheet_number} · ${source.sheet_title} to produce a faithful conceptual model. The result was intentionally withheld instead of showing an oversimplified building.`,
+      });
       return NextResponse.json(await payloadForModel(supabase, db, source), { status: 422 });
     }
-
-    const glb = buildBlueprintGlb(analysis);
-    const storagePath = `${source.company_id}/${source.project_id}/generated-3d/${source.id}/${randomUUID()}-bos-generated.glb`;
-    const upload = await supabase.storage.from(BLUEPRINTS_BUCKET).upload(storagePath, glb, { contentType: "model/gltf-binary", upsert: false });
-    if (upload.error) throw new Error(upload.error.message);
-
-    const previousStoragePath = typeof existing.data?.storage_path === "string" ? existing.data.storage_path : null;
-    const ready = await db.from("blueprint_generated_models").update({
-      status: "ready",
-      storage_path: storagePath,
-      mime_type: "model/gltf-binary",
-      geometry_json: analysis,
+    await saveReadyModel({
+      supabase,
+      db,
+      source,
+      modelRowId,
+      previousStoragePath,
+      glb: buildBlueprintGlb(analysis),
+      geometry: analysis,
       confidence: analysis.confidence,
       assumptions: analysis.assumptions,
-      generation_model: modelName,
-      error_message: null,
-    }).eq("id", modelRowId);
-    if (ready.error) {
-      await supabase.storage.from(BLUEPRINTS_BUCKET).remove([storagePath]);
-      throw new Error(ready.error.message);
-    }
-    if (previousStoragePath && previousStoragePath !== storagePath) {
-      await supabase.storage.from(BLUEPRINTS_BUCKET).remove([previousStoragePath]);
-    }
-
+      generationModel: `legacy-raster-ai:${modelName}`,
+      engineStatus: "needs_review",
+    });
     return NextResponse.json(await payloadForModel(supabase, db, source));
   } catch (error) {
     if (modelRowId) {
@@ -215,6 +383,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
         const { db } = await getContext(versionId);
         await db.from("blueprint_generated_models").update({
           status: "failed",
+          engine_status: "failed",
           error_message: error instanceof Error ? error.message.slice(0, 1000) : "Automatic 3D generation failed.",
         }).eq("id", modelRowId);
       } catch {
@@ -230,27 +399,24 @@ async function analyzePlan(buffer: Buffer, source: SourceVersion): Promise<{ ana
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 45_000, maxRetries: 1 });
   const target = `${source.sheet_number} · ${source.sheet_title}`;
   const multiPageRule = source.mime_type === "application/pdf" && (source.page_count || 1) > 1
-    ? `This PDF contains ${source.page_count} pages. Locate the page/drawing whose title, sheet label, or content best matches the registered B.O.S. sheet \"${target}\" (${source.discipline}). Reconstruct ONLY that matching drawing. Do not reconstruct a basement/foundation plan, second floor plan, roof plan, elevation, detail, or other page merely because it appears first in the PDF.`
-    : `The registered B.O.S. sheet is \"${target}\" (${source.discipline}). Reconstruct that drawing only.`;
+    ? `This PDF contains ${source.page_count} pages. Locate the page/drawing whose title, sheet label, or content best matches the registered B.O.S. sheet "${target}" (${source.discipline}). Reconstruct ONLY that matching drawing. Do not reconstruct a basement/foundation plan, second floor plan, roof plan, elevation, detail, or other page merely because it appears first in the PDF.`
+    : `The registered B.O.S. sheet is "${target}" (${source.discipline}). Reconstruct that drawing only.`;
 
-  const geometryRules = `Trace the target drawing as architectural geometry, not as a simplified room diagram. Return one wall entry for EACH straight wall centerline segment that is actually visible. For a house, the exterior perimeter often needs many segments because of garages, entries, decks, porches, bays, offsets, bump-outs, and jogs; do not replace these with a four-wall bounding rectangle. Trace the full exterior perimeter first, then add all major interior partitions needed to make the 3D footprint visibly resemble the plan. Preserve stairs/cores as surrounding walls when they materially affect the plan shape. Labels should begin with \"Exterior\" or \"Interior\" so B.O.S. can audit completeness. Prefer printed dimensions over visual guesses. Do not invent geometry contradicted by the sheet.`;
+  const geometryRules = `Trace the target drawing as architectural geometry, not as a simplified room diagram. Return one wall entry for EACH straight wall centerline segment that is actually visible. For a house, the exterior perimeter often needs many segments because of garages, entries, decks, porches, bays, offsets, bump-outs, and jogs; do not replace these with a four-wall bounding rectangle. Trace the full exterior perimeter first, then add all major interior partitions needed to make the 3D footprint visibly resemble the plan. Preserve stairs/cores as surrounding walls when they materially affect the plan shape. Labels should begin with "Exterior" or "Interior" so B.O.S. can audit completeness. Prefer printed dimensions over visual guesses. Do not invent geometry contradicted by the sheet.`;
 
-  const prompt = `${multiPageRule}\n\nAnalyze the target architectural plan for a conceptual B.O.S. 3D reconstruction. Return JSON only with: units (ft or m), ceilingHeight, floorThickness, confidence (0-1), assumptions (array of strings), notes (array), walls (array). Each wall must contain x1,y1,x2,y2,thickness,height,label. Use one consistent plan coordinate system with the lower-left of the complete visible building footprint near 0,0. ${geometryRules} In notes, explicitly name the drawing/page you selected and summarize the major footprint elements you traced. If you cannot identify a drawing matching \"${target}\", return an empty walls array and explain the mismatch in notes instead of modeling a different sheet. If wall height is not shown, use 8 ft and state that assumption. If wall thickness is unclear, use 0.5 ft and state that assumption. This is a conceptual coordination model, not construction-authoritative BIM.`;
+  const prompt = `${multiPageRule}\n\nAnalyze the target architectural plan for a conceptual B.O.S. 3D reconstruction. Return JSON only with: units (ft or m), ceilingHeight, floorThickness, confidence (0-1), assumptions (array of strings), notes (array), walls (array). Each wall must contain x1,y1,x2,y2,thickness,height,label. Use one consistent plan coordinate system with the lower-left of the complete visible building footprint near 0,0. ${geometryRules} In notes, explicitly name the drawing/page you selected and summarize the major footprint elements you traced. If you cannot identify a drawing matching "${target}", return an empty walls array and explain the mismatch in notes instead of modeling a different sheet. If wall height is not shown, use 8 ft and state that assumption. If wall thickness is unclear, use 0.5 ft and state that assumption. This is a conceptual coordination model, not construction-authoritative BIM.`;
 
   const first = await runAnalysisPass(client, modelName, buffer, source, prompt);
   let final = first;
-
   if (shouldRunFidelityPass(source, first.analysis)) {
     const refinementPrompt = `${multiPageRule}\n\nA first-pass reconstruction produced only ${first.analysis.walls.length} wall segments. Treat that as a DRAFT, not as truth. Re-open the source and visually compare the target drawing against the draft JSON below. Return a corrected FULL reconstruction JSON using the same schema. Count every exterior change of direction and every major interior partition visible on the target plan. The final wall network must visibly resemble the plan when extruded. Do not preserve a rectangular bounding box if the drawing contains attached garages, offsets, entry projections, decks/porches, bays, or other perimeter changes. Do not omit major rooms/partitions just to reduce wall count. If the source truly is simple, keep it simple; otherwise trace the complexity you can actually see. ${geometryRules}\n\nFIRST PASS JSON:\n${first.raw.slice(0, 18000)}`;
     final = await runAnalysisPass(client, modelName, buffer, source, refinementPrompt);
   }
-
   return { analysis: final.analysis, modelName };
 }
 
 async function runAnalysisPass(client: OpenAI, modelName: string, buffer: Buffer, source: SourceVersion, prompt: string): Promise<AnalysisPass> {
   let raw = "{}";
-
   if (source.mime_type.startsWith("image/")) {
     const dataUrl = `data:${source.mime_type};base64,${buffer.toString("base64")}`;
     const completion = await client.chat.completions.create({
@@ -259,7 +425,7 @@ async function runAnalysisPass(client: OpenAI, modelName: string, buffer: Buffer
       max_tokens: 8000,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: "You reconstruct architectural floor-plan geometry for B.O.S. Never substitute a different drawing for the registered sheet. Trace the complete visible footprint and major partitions. Return only strict JSON and clearly report assumptions." },
+        { role: "system", content: "You classify and interpret architectural floor plans for B.O.S. Return strict JSON and clearly report assumptions." },
         { role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl, detail: "high" } }] },
       ],
     });
@@ -268,25 +434,17 @@ async function runAnalysisPass(client: OpenAI, modelName: string, buffer: Buffer
     const createResponse = client.responses.create.bind(client.responses) as unknown as ResponsesCreate;
     const response = await createResponse({
       model: modelName,
-      instructions: "You reconstruct architectural floor-plan geometry for B.O.S. Never substitute a different drawing for the registered sheet. Trace the complete visible footprint and major partitions. Return only strict JSON and clearly report assumptions.",
-      input: [{
-        role: "user",
-        content: [
-          { type: "input_file", filename: source.original_filename, file_data: `data:${source.mime_type};base64,${buffer.toString("base64")}` },
-          { type: "input_text", text: prompt },
-        ],
-      }],
+      instructions: "You classify and interpret architectural floor-plan geometry for B.O.S. Return only strict JSON and clearly report assumptions.",
+      input: [{ role: "user", content: [
+        { type: "input_file", filename: source.original_filename, file_data: `data:${source.mime_type};base64,${buffer.toString("base64")}` },
+        { type: "input_text", text: prompt },
+      ] }],
       store: false,
     });
     raw = response.output_text || "{}";
   }
-
   let parsed: unknown = {};
-  try {
-    parsed = JSON.parse(stripJsonFence(raw));
-  } catch {
-    parsed = {};
-  }
+  try { parsed = JSON.parse(stripJsonFence(raw)); } catch { parsed = {}; }
   return { raw, analysis: normalizeBlueprint3dAnalysis(parsed) };
 }
 
