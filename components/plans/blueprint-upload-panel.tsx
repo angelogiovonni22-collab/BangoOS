@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileUp, X } from "lucide-react";
+import { FileUp, Sparkles, X } from "lucide-react";
 import { Button, Input, Select } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { uploadBlueprint, validateBlueprintFile, type BlueprintDiscipline } from "@/lib/blueprints/plan-room";
@@ -61,10 +61,15 @@ export function BlueprintUploadPanel({ companyId, projectId, userId, onUploaded,
     setSubmitting(true);
     setMessage(null);
     try {
-      await uploadBlueprint({
+      const uploaded = await uploadBlueprint({
         supabase,
         input: { companyId, projectId, userId, file, discipline, sheetNumber, title, revisionLabel },
       });
+      if (file.type === "application/pdf" || file.type.startsWith("image/")) {
+        void fetch(`/api/blueprints/${encodeURIComponent(uploaded.versionId)}/generate-3d`, { method: "POST", keepalive: true }).catch(() => {
+          // The sheet upload remains successful even if automatic conceptual 3D generation needs a manual retry.
+        });
+      }
       onUploaded();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The blueprint could not be uploaded.");
@@ -79,6 +84,9 @@ export function BlueprintUploadPanel({ companyId, projectId, userId, onUploaded,
         <div>
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Upload blueprint sheet</h2>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">PDF, image, IFC, GLB, and GLTF files are stored privately and attached to this project.</p>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-700">
+            <Sparkles size={14} aria-hidden="true" /> PDF and image sheets automatically begin conceptual 3D reconstruction after upload.
+          </p>
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={onClose} aria-label="Close blueprint upload"><X size={17} /></Button>
       </div>
