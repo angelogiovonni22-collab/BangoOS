@@ -40,9 +40,9 @@ Legend:
 - [x] Dimension-to-wall association foundation
 - [x] Dimension-based scale reconciliation foundation
 - [x] Native raster line-extraction module foundation
-- [ ] Raster fallback integrated into the reconstruction orchestrator
-- [ ] PDF-page raster rendering fallback for vector-poor PDFs
-- [ ] Robust room-boundary tracing
+- [x] Raster fallback integrated into the reconstruction orchestrator
+- [x] Selected PDF-page raster decoding/render fallback for vector-poor PDFs when scale is verified
+- [~] Wall-bounded room tracing and room polygon foundation
 - [ ] Door swing/symbol recognition
 - [ ] Window symbol/type recognition
 - [ ] Better wall junction/corner recovery
@@ -120,8 +120,8 @@ Legend:
 ## Immediate execution order
 
 1. Keep the control documents synchronized with implementation.
-2. Integrate deterministic raster fallback where scale can be verified safely.
-3. Extend tests for corrections, IFC, openings, dimensions, and export UI.
+2. Harden room tracing, junction recovery, and annotation-line filtering with focused regressions.
+3. Extend tests for raster fallback, corrections, IFC, openings, dimensions, and export UI.
 4. Resolve all CI failures automatically.
 5. Merge only when gates are green.
 6. Apply required Supabase migrations.
