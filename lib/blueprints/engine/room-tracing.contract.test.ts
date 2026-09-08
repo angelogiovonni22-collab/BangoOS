@@ -4,16 +4,18 @@ import { pointInBosPolygon, traceWallBoundedRooms } from "./room-tracing";
 
 const graph = createEmptyBosBuildingGraph({ buildingId: "room-test", sourcePage: 1, levelName: "First Floor" });
 const segments = [
-  [0, 0, 8, 0],
+  [0, 0, 4, 0],
+  [4, 0, 8, 0],
   [8, 0, 8, 5],
-  [8, 5, 0, 5],
+  [8, 5, 4, 5],
+  [4, 5, 0, 5],
   [0, 5, 0, 0],
   [4, 0, 4, 5],
 ] as const;
 graph.walls = segments.map(([x1, y1, x2, y2], index): BosWall => ({
   id: `room-wall-${index + 1}`,
   levelId: "level-1",
-  type: index < 4 ? "exterior" : "interior",
+  type: index < 6 ? "exterior" : "interior",
   centerline: { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } },
   thickness: 0.15,
   height: 2.44,
