@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import "./engine/engine.contract.test";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
