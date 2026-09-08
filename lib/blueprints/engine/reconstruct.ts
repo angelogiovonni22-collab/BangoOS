@@ -4,6 +4,7 @@ import { segmentsToWalls } from "./geometry";
 import { detectWallGapOpenings } from "./openings";
 import { normalizeParsedPlan, summarizeSelectedPlan } from "./plan-parser";
 import { parsePdfVectorPlan } from "./pdf-vector-parser";
+import { extractRasterLineSegments } from "./raster";
 import { applyBosValidation } from "./validation";
 import { detectWallCenterlines, scaleSegmentsToMeters } from "./wall-detector";
 
@@ -121,7 +122,34 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   }
 
   const meterSegments = scaleSegmentsToMeters(summary.page.vectorSegments, graph.scale.drawingUnitsPerMeter);
-  const wallCandidates = detectWallCenterlines(meterSegments);
+  let wallCandidates = detectWallCenterlines(meterSegments);
+  let rasterRequired = summary.rasterRequired;
+
+  if (summary.rasterRequired || wallCandidates.length < 8) {
+    try {
+      const raster = await extractRasterLineSegments(source.buffer, {
+        page: parsed.selectedPage,
+        drawingUnitsPerMeter: graph.scale.drawingUnitsPerMeter,
+        sourceWidth: summary.page.width,
+        sourceHeight: summary.page.height,
+      });
+      diagnostics.push(...raster.diagnostics);
+      const rasterWallCandidates = detectWallCenterlines(raster.segments);
+      if (rasterWallCandidates.length > wallCandidates.length) {
+        wallCandidates = rasterWallCandidates;
+        graph.metadata.algorithms = {
+          ...graph.metadata.algorithms,
+          rasterFallback: "selected-pdf-page-orthogonal-lines-1.0.0",
+        };
+      }
+      rasterRequired = wallCandidates.length < 8;
+      if (rasterRequired) diagnostics.push("Raster fallback still found too few paired wall candidates for a faithful floor-plan reconstruction.");
+    } catch (error) {
+      rasterRequired = true;
+      diagnostics.push(error instanceof Error ? error.message : "Raster Blueprint fallback failed closed.");
+    }
+  }
+
   let walls = segmentsToWalls(wallCandidates, { levelId, type: "unknown" });
   walls = classifyExteriorWalls(walls);
   graph.walls = walls;
@@ -134,7 +162,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   const semanticGraph = recognizeArchitecturalSemantics(graph, scaledText);
   const validated = applyBosValidation(semanticGraph);
   if (parsed.targetScore < 0.45) diagnostics.push("Registered sheet targeting confidence is low; B.O.S. should request review before accepting geometry.");
-  if (summary.rasterRequired) diagnostics.push("The selected page has too little usable vector linework and should enter raster fallback.");
+  if (rasterRequired) diagnostics.push("The selected page does not yet contain enough verified vector or raster linework for native reconstruction.");
   if (wallCandidates.length < 8) diagnostics.push("Deterministic paired-line detection found too few wall candidates for a faithful floor-plan reconstruction.");
   if (validated.validation.status !== "reconstructed") diagnostics.push(...validated.validation.issues.map((item) => item.message));
 
@@ -144,7 +172,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     targetScore: parsed.targetScore,
     vectorCount: summary.vectorCount,
     wallCandidateCount: wallCandidates.length,
-    rasterRequired: summary.rasterRequired,
+    rasterRequired,
     diagnostics: [...new Set(diagnostics)],
   };
 }
