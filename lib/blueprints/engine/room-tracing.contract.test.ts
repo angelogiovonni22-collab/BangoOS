@@ -39,7 +39,7 @@ assert(rooms.every((room) => room.polygon.points.length >= 4), "Traced rooms mus
 assert(rooms.some((room) => pointInBosPolygon({ x: 2, y: 2 }, room.polygon)), "Left room must contain its interior point");
 assert(rooms.some((room) => pointInBosPolygon({ x: 6, y: 2 }, room.polygon)), "Right room must contain its interior point");
 assert(rooms.every((room) => room.provenance.createdBy === "deterministic"), "Room tracing must preserve deterministic provenance");
-assert(rooms.every((room) => room.provenance.algorithmVersion === "1.2.0"), "Near-miss-aware room tracing must report the current algorithm version");
+assert(rooms.every((room) => room.provenance.algorithmVersion === "1.3.0"), "Corner-aware room tracing must report the current algorithm version");
 
 // Vector extraction often leaves a small endpoint gap even when two walls visually meet. A gap
 // inside the configured 12 cm snap tolerance must still close the junction and preserve both rooms.
@@ -55,6 +55,18 @@ assert.equal(nearMissRooms.length, 2, "Partition endpoints within snap tolerance
 assert(nearMissRooms.some((room) => pointInBosPolygon({ x: 2, y: 2 }, room.polygon)), "Near-miss recovery must preserve the left bounded room");
 assert(nearMissRooms.some((room) => pointInBosPolygon({ x: 6, y: 2 }, room.polygon)), "Near-miss recovery must preserve the right bounded room");
 
+// A diagonal corner gap can leave both finite-segment projections outside range even though the
+// two intended wall endpoints are only centimeters apart. Recover that endpoint-to-endpoint case.
+const diagonalCornerGraph = wallFixture("diagonal-corner-room-test", [
+  [0, 0, 3.94, 0],
+  [4.02, 0.06, 4, 4],
+  [4, 4, 0, 4],
+  [0, 4, 0, 0],
+]);
+const diagonalCornerRooms = traceWallBoundedRooms(diagonalCornerGraph);
+assert.equal(diagonalCornerRooms.length, 1, "A diagonal endpoint-to-endpoint corner gap inside snap tolerance must close into a bounded room");
+assert(pointInBosPolygon({ x: 2, y: 2 }, diagonalCornerRooms[0].polygon), "Recovered diagonal corner topology must contain the intended room interior");
+
 // Do not bridge a visibly separate wall when the endpoint gap is outside the configured tolerance.
 const separatedGraph = wallFixture("separated-room-test", [
   [0, 0, 8, 0],
@@ -65,5 +77,14 @@ const separatedGraph = wallFixture("separated-room-test", [
 ]);
 const separatedRooms = traceWallBoundedRooms(separatedGraph);
 assert.equal(separatedRooms.length, 1, "Endpoint gaps outside snap tolerance must not be silently bridged into false room topology");
+
+const separatedDiagonalCornerGraph = wallFixture("separated-diagonal-corner-room-test", [
+  [0, 0, 3.9, 0],
+  [4.05, 0.12, 4, 4],
+  [4, 4, 0, 4],
+  [0, 4, 0, 0],
+]);
+const separatedDiagonalCornerRooms = traceWallBoundedRooms(separatedDiagonalCornerGraph);
+assert.equal(separatedDiagonalCornerRooms.length, 0, "Diagonal endpoint gaps outside snap tolerance must remain open instead of fabricating a closed room");
 
 console.log("B.O.S. wall-bounded room tracing contract: PASS");

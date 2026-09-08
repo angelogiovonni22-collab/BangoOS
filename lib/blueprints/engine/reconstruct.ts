@@ -112,7 +112,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     annotationFiltering: "dimension-evidence-zone-1.0.0",
     openings: "wall-gap-openings-1.1.0",
     openingSymbols: "anchored-vector-symbols-1.0.0",
-    rooms: "wall-bounded-face-tracing-1.2.0",
+    rooms: "wall-bounded-face-tracing-1.3.0",
     semantics: "plan-label-semantics-1.0.0",
     validation: "building-graph-validation-1.0.0",
   };
