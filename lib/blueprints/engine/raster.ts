@@ -18,11 +18,34 @@ export const DEFAULT_RASTER_LINE_OPTIONS: RasterLineOptions = {
 
 type GrayImage = { data: Uint8Array; width: number; height: number; sourceScale: number };
 
+type SharpImage = {
+  greyscale(): SharpImage;
+  normalize(): SharpImage;
+  metadata(): Promise<{ width?: number; height?: number }>;
+  resize(options: { width: number; height: number; fit: "fill" }): SharpImage;
+  raw(): SharpImage;
+  toBuffer(options: { resolveWithObject: true }): Promise<{ data: Uint8Array; info: { width: number; height: number } }>;
+};
+
+type SharpFactory = (buffer: Buffer, options: { failOn: "none" }) => SharpImage;
+
+async function loadSharp(): Promise<SharpFactory> {
+  // Next.js installs sharp as an optional server dependency in production builds. Keep the
+  // module name indirect so TypeScript does not require a direct application dependency while
+  // the raster path remains server-only and can fail closed when the optional decoder is absent.
+  const moduleName = "sharp";
+  try {
+    const sharpModule = await import(moduleName) as { default?: SharpFactory } & Partial<SharpFactory>;
+    const factory = sharpModule.default || (sharpModule as unknown as SharpFactory);
+    if (typeof factory !== "function") throw new Error("invalid sharp module");
+    return factory;
+  } catch {
+    throw new Error("Raster Blueprint decoding is unavailable on this deployment.");
+  }
+}
+
 async function decodeGray(buffer: Buffer, options: RasterLineOptions): Promise<GrayImage> {
-  // sharp is already present in the Next.js dependency graph in BangoOS. Keeping the import dynamic
-  // prevents the browser bundle from ever receiving native image-processing code.
-  const sharpModule = await import("sharp");
-  const sharp = sharpModule.default;
+  const sharp = await loadSharp();
   const image = sharp(buffer, { failOn: "none" }).greyscale().normalize();
   const metadata = await image.metadata();
   const width = metadata.width || 0;
