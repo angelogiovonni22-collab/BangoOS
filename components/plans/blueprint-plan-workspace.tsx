@@ -23,7 +23,7 @@ type BlueprintPlanWorkspaceProps = {
 export function BlueprintPlanWorkspace({
   open,
   onClose,
-  document,
+  document: planDocument,
   companyId,
   projectId,
   userId,
@@ -32,15 +32,15 @@ export function BlueprintPlanWorkspace({
   initialAnnotationId,
 }: BlueprintPlanWorkspaceProps) {
   useEffect(() => {
-    if (!open) return;
-    const previousOverflow = documentBodyOverflow();
+    if (!open || typeof document === "undefined") return;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
     };
   }, [open]);
 
-  if (!open || !document.fileUrl) return null;
+  if (!open || !planDocument.fileUrl) return null;
 
   const is3d = previewType === "ifc" || previewType === "gltf";
 
@@ -49,18 +49,18 @@ export function BlueprintPlanWorkspace({
       className="fixed inset-0 z-[120] h-dvh w-screen overflow-hidden bg-slate-950"
       role="dialog"
       aria-modal="true"
-      aria-label={`Plan workspace for ${document.fileName}`}
+      aria-label={`Plan workspace for ${planDocument.fileName}`}
       data-orion-region="blueprint-plan-workspace"
     >
       {is3d ? (
         <>
           <Blueprint3dViewer
-            fileUrl={document.fileUrl}
-            fileName={document.fileName}
+            fileUrl={planDocument.fileUrl}
+            fileName={planDocument.fileName}
             format={previewType}
             companyId={companyId}
             projectId={projectId}
-            versionId={document.versionId}
+            versionId={planDocument.versionId}
             userId={userId}
           />
           <Button
@@ -77,15 +77,15 @@ export function BlueprintPlanWorkspace({
         </>
       ) : (
         <Blueprint2dViewer
-          key={`workspace:${document.versionId}`}
-          fileUrl={document.fileUrl}
-          fileName={document.fileName}
+          key={`workspace:${planDocument.versionId}`}
+          fileUrl={planDocument.fileUrl}
+          fileName={planDocument.fileName}
           previewType={previewType}
           companyId={companyId}
           projectId={projectId}
-          versionId={document.versionId}
+          versionId={planDocument.versionId}
           userId={userId}
-          discipline={document.discipline}
+          discipline={planDocument.discipline}
           expanded
           initialPage={initialPage}
           initialAnnotationId={initialAnnotationId}
@@ -94,8 +94,4 @@ export function BlueprintPlanWorkspace({
       )}
     </div>
   );
-}
-
-function documentBodyOverflow() {
-  return typeof document === "undefined" ? "" : document.body.style.overflow;
 }
