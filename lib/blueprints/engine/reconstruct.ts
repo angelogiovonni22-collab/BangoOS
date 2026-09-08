@@ -5,6 +5,7 @@ import { detectWallGapOpenings } from "./openings";
 import { normalizeParsedPlan, summarizeSelectedPlan } from "./plan-parser";
 import { parsePdfVectorPlan } from "./pdf-vector-parser";
 import { extractRasterLineSegments } from "./raster";
+import { traceWallBoundedRooms } from "./room-tracing";
 import { applyBosValidation } from "./validation";
 import { detectWallCenterlines, scaleSegmentsToMeters } from "./wall-detector";
 
@@ -93,6 +94,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     sheetTargeting: "deterministic-title-sheet-1.0.0",
     wallDetection: "paired-line-1.0.0",
     openings: "wall-gap-openings-1.0.0",
+    rooms: "wall-bounded-face-tracing-1.0.0",
     semantics: "plan-label-semantics-1.0.0",
     validation: "building-graph-validation-1.0.0",
   };
@@ -157,6 +159,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   graph.openings = openings.openings;
   graph.doors = openings.doors;
   graph.windows = openings.windows;
+  graph.rooms = traceWallBoundedRooms(graph);
 
   const scaledText = scaleTextTokensToMeters(summary.page.text, graph.scale.drawingUnitsPerMeter);
   const semanticGraph = recognizeArchitecturalSemantics(graph, scaledText);
