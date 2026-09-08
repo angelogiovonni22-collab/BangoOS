@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import "./engine/control.contract.test";
 import "./engine/engine.contract.test";
+import "./engine/room-tracing.contract.test";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -32,6 +33,7 @@ assert(route.indexOf("replayPersistedBosGraphCorrections") < route.indexOf("buil
 assert(route.includes("correction_history") && route.includes("correctionHistory"), "Generated model persistence must retain correction history across regeneration");
 assert(reconstruct.includes("extractRasterLineSegments") && reconstruct.includes("summary.rasterRequired || wallCandidates.length < 8"), "Vector-poor PDFs must attempt the deterministic raster fallback before being withheld");
 assert(reconstruct.includes("sourceWidth: summary.page.width") && reconstruct.includes("sourceHeight: summary.page.height"), "Raster fallback must map the selected raster page back to deterministic PDF coordinates");
+assert(reconstruct.includes("traceWallBoundedRooms") && reconstruct.includes("graph.rooms = traceWallBoundedRooms(graph)"), "Native reconstruction must promote closed wall faces into deterministic room polygons");
 assert(raster.includes("page: Math.max(0, page - 1)") && raster.includes("density: options.density"), "Raster decoding must target the selected PDF page instead of implicitly rendering page one");
 assert(raster.includes("sourcePerPixelX") && raster.includes("drawingToMeters"), "Raster candidate coordinates must normalize through PDF drawing units before entering wall detection");
 assert(route.includes("model/gltf-binary") && route.includes("buildBlueprintGlb"), "Automatic reconstruction must emit a GLB consumable by the existing 3D viewer");
