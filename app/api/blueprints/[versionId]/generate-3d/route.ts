@@ -22,10 +22,15 @@ type SourceVersion = {
   id: string;
   company_id: string;
   project_id: string;
+  blueprint_sheet_id: string;
   storage_path: string;
   original_filename: string;
   mime_type: string;
   file_size_bytes: number;
+  page_count: number | null;
+  sheet_number: string;
+  sheet_title: string;
+  discipline: string;
 };
 
 type ResponsesCreate = (body: Record<string, unknown>) => Promise<{ output_text?: string }>;
@@ -44,13 +49,30 @@ async function getContext(versionId: string) {
   const db = dbClient(supabase as SupabaseClient<Database>);
   const sourceResponse = await db
     .from("blueprint_versions")
-    .select("id,company_id,project_id,storage_path,original_filename,mime_type,file_size_bytes")
+    .select("id,company_id,project_id,blueprint_sheet_id,storage_path,original_filename,mime_type,file_size_bytes,page_count")
     .eq("id", versionId)
     .eq("company_id", workspace.context.companyId)
     .maybeSingle();
   if (sourceResponse.error) throw new Error(sourceResponse.error.message);
   if (!sourceResponse.data) throw new Error("Blueprint revision not found.");
-  return { supabase: supabase as SupabaseClient<Database>, db, workspace: workspace.context, source: sourceResponse.data as SourceVersion };
+
+  const sheetResponse = await db
+    .from("blueprint_sheets")
+    .select("sheet_number,title,discipline")
+    .eq("id", sourceResponse.data.blueprint_sheet_id)
+    .eq("company_id", workspace.context.companyId)
+    .maybeSingle();
+  if (sheetResponse.error) throw new Error(sheetResponse.error.message);
+  if (!sheetResponse.data) throw new Error("Blueprint sheet metadata not found.");
+
+  const source: SourceVersion = {
+    ...sourceResponse.data,
+    sheet_number: String(sheetResponse.data.sheet_number || ""),
+    sheet_title: String(sheetResponse.data.title || ""),
+    discipline: String(sheetResponse.data.discipline || "Architectural"),
+  } as SourceVersion;
+
+  return { supabase: supabase as SupabaseClient<Database>, db, workspace: workspace.context, source };
 }
 
 async function payloadForModel(supabase: SupabaseClient<Database>, db: ReturnType<typeof dbClient>, source: SourceVersion) {
@@ -94,11 +116,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ver
   }
 }
 
-export async function POST(_request: Request, { params }: { params: Promise<{ versionId: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ versionId: string }> }) {
   let modelRowId: string | null = null;
   try {
     const { versionId } = await params;
     const { supabase, db, workspace, source } = await getContext(versionId);
+    const force = new URL(request.url).searchParams.get("force") === "1";
 
     if (!SOURCE_MIME_TYPES.has(source.mime_type)) {
       return NextResponse.json({ error: "Automatic 3D generation currently starts from PDF or image plan sheets. Existing IFC/GLB/GLTF files already open directly in the 3D viewer." }, { status: 415 });
@@ -118,7 +141,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ve
       .maybeSingle();
     if (existing.error) throw new Error(existing.error.message);
 
-    if (existing.data?.status === "ready" && existing.data.storage_path) {
+    if (!force && existing.data?.status === "ready" && existing.data.storage_path) {
       return NextResponse.json(await payloadForModel(supabase, db, source));
     }
 
@@ -141,7 +164,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ve
     const download = await supabase.storage.from(BLUEPRINTS_BUCKET).download(source.storage_path);
     if (download.error || !download.data) throw new Error(download.error?.message || "Unable to read the source Blueprint.");
     const buffer = Buffer.from(await download.data.arrayBuffer());
-    const { analysis, modelName } = await analyzePlan(buffer, source.mime_type, source.original_filename);
+    const { analysis, modelName } = await analyzePlan(buffer, source);
 
     if (!isUsableBlueprint3dAnalysis(analysis)) {
       await db.from("blueprint_generated_models").update({
@@ -150,7 +173,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ve
         confidence: analysis.confidence,
         assumptions: analysis.assumptions,
         generation_model: modelName,
-        error_message: "B.O.S. could not identify enough connected wall geometry to build a reliable conceptual model. Add dimensions/calibration or another architectural sheet and retry.",
+        error_message: `B.O.S. could not identify enough connected wall geometry for ${source.sheet_number} · ${source.sheet_title}. Verify the registered sheet title, dimensions/calibration, or add another architectural sheet and retry.`,
       }).eq("id", modelRowId);
       return NextResponse.json(await payloadForModel(supabase, db, source), { status: 422 });
     }
@@ -197,21 +220,25 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ve
   }
 }
 
-async function analyzePlan(buffer: Buffer, mimeType: string, filename: string): Promise<{ analysis: NormalizedBlueprint3dAnalysis; modelName: string }> {
+async function analyzePlan(buffer: Buffer, source: SourceVersion): Promise<{ analysis: NormalizedBlueprint3dAnalysis; modelName: string }> {
   const modelName = process.env.BANGO_BLUEPRINT_3D_MODEL || "gpt-4o";
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 45_000, maxRetries: 1 });
-  const prompt = `Analyze this architectural plan for a conceptual B.O.S. 3D reconstruction. Return JSON only with: units (ft or m), ceilingHeight, floorThickness, confidence (0-1), assumptions (array of strings), notes (array), walls (array). Each wall must contain x1,y1,x2,y2,thickness,height,label. Use one consistent plan coordinate system with the lower-left of the visible building footprint near 0,0. Preserve visible dimensions and proportions. Prefer printed dimensions over visual guesses. Include exterior and major interior walls. Do not invent rooms or dimensions that are contradicted by the sheet. If wall height is not shown, use 8 ft and state that assumption. If wall thickness is unclear, use 0.5 ft and state that assumption. This is a conceptual coordination model, not construction-authoritative BIM.`;
+  const target = `${source.sheet_number} · ${source.sheet_title}`;
+  const multiPageRule = source.mime_type === "application/pdf" && (source.page_count || 1) > 1
+    ? `This PDF contains ${source.page_count} pages. Locate the page/drawing whose title, sheet label, or content best matches the registered B.O.S. sheet \"${target}\" (${source.discipline}). Reconstruct ONLY that matching drawing. Do not reconstruct a basement/foundation plan, roof plan, elevation, detail, or other page merely because it appears first in the PDF.`
+    : `The registered B.O.S. sheet is \"${target}\" (${source.discipline}). Reconstruct that drawing only.`;
+  const prompt = `${multiPageRule}\n\nAnalyze the target architectural plan for a conceptual B.O.S. 3D reconstruction. Return JSON only with: units (ft or m), ceilingHeight, floorThickness, confidence (0-1), assumptions (array of strings), notes (array), walls (array). Each wall must contain x1,y1,x2,y2,thickness,height,label. Use one consistent plan coordinate system with the lower-left of the visible building footprint near 0,0. Preserve the COMPLETE visible building footprint and major interior partitions from the target drawing, including offsets, bump-outs, attached spaces, and non-rectangular perimeter changes. Do not simplify a house into a generic rectangle. Prefer printed dimensions over visual guesses. Include exterior and major interior walls. Do not invent rooms or dimensions contradicted by the target sheet. In notes, explicitly name the drawing/page you selected. If you cannot identify a drawing matching \"${target}\", return an empty walls array and explain the mismatch in notes instead of modeling a different sheet. If wall height is not shown, use 8 ft and state that assumption. If wall thickness is unclear, use 0.5 ft and state that assumption. This is a conceptual coordination model, not construction-authoritative BIM.`;
   let rawText = "{}";
 
-  if (mimeType.startsWith("image/")) {
-    const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+  if (source.mime_type.startsWith("image/")) {
+    const dataUrl = `data:${source.mime_type};base64,${buffer.toString("base64")}`;
     const completion = await client.chat.completions.create({
       model: modelName,
       temperature: 0,
-      max_tokens: 6000,
+      max_tokens: 7000,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: "You reconstruct architectural floor-plan geometry for B.O.S. Return only strict JSON and clearly report assumptions." },
+        { role: "system", content: "You reconstruct architectural floor-plan geometry for B.O.S. Never substitute a different drawing for the registered sheet. Return only strict JSON and clearly report assumptions." },
         { role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl, detail: "high" } }] },
       ],
     });
@@ -223,11 +250,11 @@ async function analyzePlan(buffer: Buffer, mimeType: string, filename: string): 
     const createResponse = client.responses.create.bind(client.responses) as unknown as ResponsesCreate;
     const response = await createResponse({
       model: modelName,
-      instructions: "You reconstruct architectural floor-plan geometry for B.O.S. Return only strict JSON and clearly report assumptions.",
+      instructions: "You reconstruct architectural floor-plan geometry for B.O.S. Never substitute a different drawing for the registered sheet. Return only strict JSON and clearly report assumptions.",
       input: [{
         role: "user",
         content: [
-          { type: "input_file", filename, file_data: `data:${mimeType};base64,${buffer.toString("base64")}` },
+          { type: "input_file", filename: source.original_filename, file_data: `data:${source.mime_type};base64,${buffer.toString("base64")}` },
           { type: "input_text", text: prompt },
         ],
       }],
