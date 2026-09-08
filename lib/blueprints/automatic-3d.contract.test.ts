@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import "./engine/control.contract.test";
 import "./engine/engine.contract.test";
 
 function assert(condition: boolean, message: string) {
@@ -18,12 +19,13 @@ const migration = fs.readFileSync(path.join(root, "supabase/migrations/202609080
 assert(migration.includes("create table if not exists public.blueprint_generated_models"), "Generated 3D models must have a tenant-scoped persistence record");
 assert(migration.includes("enable row level security") && migration.includes("blueprint_member_of_company"), "Generated model records must remain behind company RLS");
 assert(migration.includes("blueprints_generated_model_storage_select"), "Generated GLB storage must be authorized through its generated-model record");
-assert(route.includes("OPENAI_API_KEY") && route.includes("input_file"), "PDF reconstruction must use server-side multimodal Blueprint analysis");
+assert(route.includes("OPENAI_API_KEY") && route.includes("input_file"), "PDF reconstruction must retain server-side multimodal fallback support");
+assert(route.includes("reconstructNativeBlueprint") && route.includes("buildBosBuildingGraphGlb"), "Registered PDFs must route through the native B.O.S. Building Graph reconstruction path");
 assert(route.includes("model/gltf-binary") && route.includes("buildBlueprintGlb"), "Automatic reconstruction must emit a GLB consumable by the existing 3D viewer");
 assert(route.includes("needs_input"), "Low-information plans must fail safely instead of pretending to be construction-authoritative");
 assert(route.includes("blueprint_sheet_id") && route.includes("sheet_number,title,discipline"), "3D generation must load the registered Blueprint sheet metadata");
-assert(route.includes("Reconstruct ONLY that matching drawing") && route.includes("do not replace these with a four-wall bounding rectangle"), "Multi-page 3D generation must target the registered drawing and preserve its real footprint");
-assert(route.includes("shouldRunFidelityPass") && route.includes("FIRST PASS JSON"), "Complex floor plans must receive a second fidelity pass when the first trace is too simple");
+assert(route.includes("Reconstruct ONLY that matching drawing") && route.includes("do not replace these with a four-wall bounding rectangle"), "Multi-page fallback generation must target the registered drawing and preserve its real footprint");
+assert(route.includes("shouldRunFidelityPass") && route.includes("FIRST PASS JSON"), "Complex fallback floor plans must receive a second fidelity pass when the first trace is too simple");
 assert(route.includes("isObviouslyUnderTracedFloorPlan") && route.includes("intentionally withheld"), "B.O.S. must withhold obviously under-traced floor-plan models instead of labeling them 3D Ready");
 assert(route.includes('searchParams.get("force") === "1"'), "Ready 3D models must support intentional regeneration after reconstruction improvements");
 assert(service.includes("B.O.S. Automatic Blueprint-to-3D") && service.includes("Generated Floor"), "The generated GLB must identify its B.O.S. conceptual origin and include spatial geometry");
