@@ -92,7 +92,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   graph.metadata.algorithms = {
     parser: "pdfjs-vector-1.0.0",
     sheetTargeting: "deterministic-title-sheet-1.0.0",
-    wallDetection: "paired-line-1.0.0",
+    wallDetection: "paired-line-1.1.0",
     openings: "wall-gap-openings-1.0.0",
     rooms: "wall-bounded-face-tracing-1.1.0",
     semantics: "plan-label-semantics-1.0.0",
