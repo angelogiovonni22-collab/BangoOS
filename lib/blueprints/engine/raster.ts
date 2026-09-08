@@ -6,6 +6,7 @@ export type RasterLineOptions = {
   minRunPixels: number;
   gapPixels: number;
   mergeBandPixels: number;
+  density: number;
 };
 
 export const DEFAULT_RASTER_LINE_OPTIONS: RasterLineOptions = {
@@ -14,6 +15,7 @@ export const DEFAULT_RASTER_LINE_OPTIONS: RasterLineOptions = {
   minRunPixels: 34,
   gapPixels: 3,
   mergeBandPixels: 3,
+  density: 180,
 };
 
 type GrayImage = { data: Uint8Array; width: number; height: number; sourceScale: number };
@@ -27,7 +29,7 @@ type SharpImage = {
   toBuffer(options: { resolveWithObject: true }): Promise<{ data: Uint8Array; info: { width: number; height: number } }>;
 };
 
-type SharpFactory = (buffer: Buffer, options: { failOn: "none" }) => SharpImage;
+type SharpFactory = (buffer: Buffer, options: { failOn: "none"; page?: number; density?: number }) => SharpImage;
 
 async function loadSharp(): Promise<SharpFactory> {
   // Next.js installs sharp as an optional server dependency in production builds. Keep the
@@ -44,9 +46,13 @@ async function loadSharp(): Promise<SharpFactory> {
   }
 }
 
-async function decodeGray(buffer: Buffer, options: RasterLineOptions): Promise<GrayImage> {
+async function decodeGray(buffer: Buffer, options: RasterLineOptions, page: number): Promise<GrayImage> {
   const sharp = await loadSharp();
-  const image = sharp(buffer, { failOn: "none" }).greyscale().normalize();
+  const image = sharp(buffer, {
+    failOn: "none",
+    page: Math.max(0, page - 1),
+    density: options.density,
+  }).greyscale().normalize();
   const metadata = await image.metadata();
   const width = metadata.width || 0;
   const height = metadata.height || 0;
@@ -84,17 +90,17 @@ function findRuns(values: boolean[], minRun: number, gap: number) {
   return runs;
 }
 
-function lineKey(segment: BosRawSegment, band: number) {
+function lineKey(segment: BosRawSegment, bandX: number, bandY: number) {
   const horizontal = Math.abs(segment.end.x - segment.start.x) >= Math.abs(segment.end.y - segment.start.y);
   return horizontal
-    ? `h:${Math.round(segment.start.y / band)}:${Math.round(Math.min(segment.start.x, segment.end.x) / band)}:${Math.round(Math.max(segment.start.x, segment.end.x) / band)}`
-    : `v:${Math.round(segment.start.x / band)}:${Math.round(Math.min(segment.start.y, segment.end.y) / band)}:${Math.round(Math.max(segment.start.y, segment.end.y) / band)}`;
+    ? `h:${Math.round(segment.start.y / bandY)}:${Math.round(Math.min(segment.start.x, segment.end.x) / bandX)}:${Math.round(Math.max(segment.start.x, segment.end.x) / bandX)}`
+    : `v:${Math.round(segment.start.x / bandX)}:${Math.round(Math.min(segment.start.y, segment.end.y) / bandY)}:${Math.round(Math.max(segment.start.y, segment.end.y) / bandY)}`;
 }
 
-function dedupeBands(segments: BosRawSegment[], band: number) {
+function dedupeBands(segments: BosRawSegment[], bandX: number, bandY: number) {
   const selected = new Map<string, BosRawSegment>();
   for (const segment of segments) {
-    const key = lineKey(segment, band);
+    const key = lineKey(segment, bandX, bandY);
     const current = selected.get(key);
     const length = Math.hypot(segment.end.x - segment.start.x, segment.end.y - segment.start.y);
     const currentLength = current ? Math.hypot(current.end.x - current.start.x, current.end.y - current.start.y) : 0;
@@ -105,14 +111,25 @@ function dedupeBands(segments: BosRawSegment[], band: number) {
 
 export async function extractRasterLineSegments(
   buffer: Buffer,
-  input: { page: number; drawingUnitsPerMeter?: number | null; options?: Partial<RasterLineOptions> },
+  input: {
+    page: number;
+    drawingUnitsPerMeter?: number | null;
+    sourceWidth?: number | null;
+    sourceHeight?: number | null;
+    options?: Partial<RasterLineOptions>;
+  },
 ): Promise<{ segments: BosRawSegment[]; width: number; height: number; diagnostics: string[] }> {
   const options = { ...DEFAULT_RASTER_LINE_OPTIONS, ...(input.options || {}) };
-  const image = await decodeGray(buffer, options);
+  const image = await decodeGray(buffer, options, input.page);
   const segments: BosRawSegment[] = [];
-  const factor = input.drawingUnitsPerMeter && input.drawingUnitsPerMeter > 0
-    ? 1 / (input.drawingUnitsPerMeter * image.sourceScale)
-    : 1 / image.sourceScale;
+
+  const sourceWidth = input.sourceWidth && input.sourceWidth > 0 ? input.sourceWidth : image.width / image.sourceScale;
+  const sourceHeight = input.sourceHeight && input.sourceHeight > 0 ? input.sourceHeight : image.height / image.sourceScale;
+  const sourcePerPixelX = sourceWidth / image.width;
+  const sourcePerPixelY = sourceHeight / image.height;
+  const drawingToMeters = input.drawingUnitsPerMeter && input.drawingUnitsPerMeter > 0 ? 1 / input.drawingUnitsPerMeter : 1;
+  const factorX = sourcePerPixelX * drawingToMeters;
+  const factorY = sourcePerPixelY * drawingToMeters;
 
   for (let y = 0; y < image.height; y += 1) {
     const row = new Array<boolean>(image.width);
@@ -121,8 +138,8 @@ export async function extractRasterLineSegments(
     for (const [start, end] of findRuns(row, options.minRunPixels, options.gapPixels)) {
       segments.push({
         sourcePage: input.page,
-        start: { x: start * factor, y: y * factor },
-        end: { x: end * factor, y: y * factor },
+        start: { x: start * factorX, y: y * factorY },
+        end: { x: end * factorX, y: y * factorY },
         sourceObjectId: `raster-h-${y}-${start}`,
         confidence: 0.62,
       });
@@ -135,22 +152,25 @@ export async function extractRasterLineSegments(
     for (const [start, end] of findRuns(column, options.minRunPixels, options.gapPixels)) {
       segments.push({
         sourcePage: input.page,
-        start: { x: x * factor, y: start * factor },
-        end: { x: x * factor, y: end * factor },
+        start: { x: x * factorX, y: start * factorY },
+        end: { x: x * factorX, y: end * factorY },
         sourceObjectId: `raster-v-${x}-${start}`,
         confidence: 0.62,
       });
     }
   }
 
-  const deduped = dedupeBands(segments, Math.max(1, options.mergeBandPixels) * factor);
+  const bandPixels = Math.max(1, options.mergeBandPixels);
+  const deduped = dedupeBands(segments, bandPixels * factorX, bandPixels * factorY);
   return {
     segments: deduped,
-    width: image.width * factor,
-    height: image.height * factor,
+    width: image.width * factorX,
+    height: image.height * factorY,
     diagnostics: [
-      `Raster line extraction produced ${deduped.length} orthogonal candidates from ${image.width}×${image.height} pixels.`,
-      input.drawingUnitsPerMeter ? "Raster coordinates were normalized to meters using the verified drawing scale." : "Raster coordinates remain in source-image units until scale reconciliation succeeds.",
+      `Raster line extraction produced ${deduped.length} orthogonal candidates from selected page ${input.page} at ${image.width}×${image.height} pixels.`,
+      input.drawingUnitsPerMeter
+        ? "Raster coordinates were mapped back to the selected PDF page coordinate space and normalized to meters using the verified drawing scale."
+        : "Raster coordinates remain unscaled and cannot be promoted to construction geometry until scale reconciliation succeeds.",
     ],
   };
 }
