@@ -70,6 +70,61 @@ function segmentIntersection(a: BosWall, b: BosWall, tolerance: number) {
   };
 }
 
+function projectPointToWall(point: BosPoint2, wall: BosWall) {
+  const start = wall.centerline.start;
+  const delta = {
+    x: wall.centerline.end.x - start.x,
+    y: wall.centerline.end.y - start.y,
+  };
+  const lengthSquared = delta.x * delta.x + delta.y * delta.y;
+  if (lengthSquared <= Number.EPSILON) return null;
+  const parameter = ((point.x - start.x) * delta.x + (point.y - start.y) * delta.y) / lengthSquared;
+  if (parameter < 0 || parameter > 1) return null;
+  const projected = {
+    x: start.x + parameter * delta.x,
+    y: start.y + parameter * delta.y,
+  };
+  return { point: projected, parameter, distance: Math.hypot(point.x - projected.x, point.y - projected.y) };
+}
+
+function nearMissJunction(a: BosWall, b: BosWall, tolerance: number) {
+  const aDelta = {
+    x: a.centerline.end.x - a.centerline.start.x,
+    y: a.centerline.end.y - a.centerline.start.y,
+  };
+  const bDelta = {
+    x: b.centerline.end.x - b.centerline.start.x,
+    y: b.centerline.end.y - b.centerline.start.y,
+  };
+  const scale = Math.max(Math.hypot(aDelta.x, aDelta.y), Math.hypot(bDelta.x, bDelta.y), 1);
+  if (Math.abs(cross(aDelta, bDelta)) <= tolerance / scale) return null;
+
+  const candidates: Array<{ point: BosPoint2; t: number; u: number; distance: number }> = [];
+  const aEndpoints = [
+    { point: a.centerline.start, parameter: 0 },
+    { point: a.centerline.end, parameter: 1 },
+  ];
+  const bEndpoints = [
+    { point: b.centerline.start, parameter: 0 },
+    { point: b.centerline.end, parameter: 1 },
+  ];
+
+  for (const endpoint of aEndpoints) {
+    const projection = projectPointToWall(endpoint.point, b);
+    if (projection && projection.distance <= tolerance) {
+      candidates.push({ point: projection.point, t: endpoint.parameter, u: projection.parameter, distance: projection.distance });
+    }
+  }
+  for (const endpoint of bEndpoints) {
+    const projection = projectPointToWall(endpoint.point, a);
+    if (projection && projection.distance <= tolerance) {
+      candidates.push({ point: projection.point, t: projection.parameter, u: endpoint.parameter, distance: projection.distance });
+    }
+  }
+  candidates.sort((left, right) => left.distance - right.distance);
+  return candidates[0] || null;
+}
+
 function buildNodes(walls: BosWall[], tolerance: number) {
   const nodes = new Map<string, Node>();
   const splitPoints = new Map<string, SplitPoint[]>();
@@ -81,15 +136,32 @@ function buildNodes(walls: BosWall[], tolerance: number) {
     ]);
   }
 
+  const addSplitPoint = (wallId: string, point: SplitPoint) => {
+    const points = splitPoints.get(wallId);
+    if (!points) return;
+    if (point.parameter === 0 || point.parameter === 1) {
+      const endpointIndex = points.findIndex((candidate) => candidate.parameter === point.parameter);
+      if (endpointIndex >= 0) {
+        points[endpointIndex] = point;
+        return;
+      }
+    }
+    points.push(point);
+  };
+
   // Split centerlines where reconstructed walls meet in the middle of another wall. PDF
   // extraction commonly leaves a long exterior run intact while an interior partition ends on
-  // it, so endpoint-only topology would miss otherwise valid bounded rooms.
+  // it, so endpoint-only topology would miss otherwise valid bounded rooms. Also bridge a
+  // near-miss endpoint when it falls within the configured snap tolerance of a non-parallel wall.
+  // Endpoint projections replace the original endpoint so the topology does not retain a tiny
+  // dangling stub beside the recovered junction.
   for (let i = 0; i < walls.length; i += 1) {
     for (let j = i + 1; j < walls.length; j += 1) {
-      const intersection = segmentIntersection(walls[i], walls[j], tolerance);
+      const intersection = segmentIntersection(walls[i], walls[j], tolerance)
+        || nearMissJunction(walls[i], walls[j], tolerance);
       if (!intersection) continue;
-      splitPoints.get(walls[i].id)?.push({ ...intersection.point, parameter: intersection.t });
-      splitPoints.get(walls[j].id)?.push({ ...intersection.point, parameter: intersection.u });
+      addSplitPoint(walls[i].id, { ...intersection.point, parameter: intersection.t });
+      addSplitPoint(walls[j].id, { ...intersection.point, parameter: intersection.u });
     }
   }
 
@@ -224,7 +296,7 @@ export function traceWallBoundedRooms(
         provenance: {
           createdBy: "deterministic",
           algorithm: "wall-bounded-face-tracing",
-          algorithmVersion: "1.1.0",
+          algorithmVersion: "1.2.0",
           evidenceIds: [],
         },
       });

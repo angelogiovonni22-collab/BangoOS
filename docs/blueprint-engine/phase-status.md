@@ -27,8 +27,15 @@ Legend:
 - [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
 - [~] Full CI green on current branch
-- [ ] Production migration application and verification
+- [x] Production migration application and verification
 - [ ] Production visual verification
+
+### Merged Phase A release checkpoint
+
+- Branch: `feat/blueprint-engine-native`
+- PR: `#524 — Add B.O.S. Native Blueprint Engine foundation`
+- Merge commit: `6adfee4a28c589c2ead71f29ae3902a1d21b87a2`
+- Production migration and deployment verification completed; authenticated visual verification remains tracked separately.
 
 ## Phase B — Architectural Reconstruction
 
@@ -44,6 +51,7 @@ Legend:
 - [x] Selected PDF-page raster decoding/render fallback for vector-poor PDFs when scale is verified
 - [~] Wall-bounded room tracing and room polygon foundation
 - [x] Room tracing recovers T/cross junctions where partitions terminate into unsplit wall runs
+- [x] Room tracing bridges near-miss partition endpoints within snap tolerance without bridging larger gaps
 - [ ] Door swing/symbol recognition
 - [ ] Window symbol/type recognition
 - [~] Better wall junction/corner recovery
@@ -114,8 +122,8 @@ Legend:
 
 ## Current release branch
 
-- Branch: `feat/blueprint-engine-native`
-- PR: `#524 — Add B.O.S. Native Blueprint Engine foundation`
+- Branch: `feat/blueprint-engine-reconstruction-hardening`
+- PR: `#525 — Harden Blueprint room junction recovery`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
