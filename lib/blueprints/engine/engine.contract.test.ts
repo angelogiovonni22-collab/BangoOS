@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { createEmptyBosBuildingGraph, type BosWall } from "./building-graph";
 import { MITCHELL_DEWITT_FIRST_FLOOR, runBuildingGraphBenchmark } from "./benchmarks";
 import { parseArchitecturalLength, parsePrintedScale } from "./dimensions";
+import { associateDimensionsToWalls } from "./dimension-solver";
 import { footprintComplexity, mergeCollinearSegments, topologyMetrics, type BosRawSegment } from "./geometry";
+import { buildBosBuildingGraphIfc } from "./graph-to-ifc";
+import { detectWallGapOpenings } from "./openings";
 import { selectTargetPage, type BosParsedPage } from "./plan-parser";
 import { applyBosValidation } from "./validation";
 
@@ -77,6 +80,31 @@ graph.stairs.push({
 const validated = applyBosValidation(graph);
 const benchmark = runBuildingGraphBenchmark(validated, MITCHELL_DEWITT_FIRST_FLOOR);
 assert(benchmark.passed, `Benchmark fixture must pass: ${JSON.stringify(benchmark)}`);
+
+const openingWalls: BosWall[] = [
+  { ...graph.walls[0], id: "opening-a", centerline: { start: { x: 0, y: 0 }, end: { x: 2, y: 0 } } },
+  { ...graph.walls[0], id: "opening-b", centerline: { start: { x: 2.9, y: 0 }, end: { x: 5, y: 0 } } },
+];
+const detectedOpenings = detectWallGapOpenings(openingWalls);
+assert.equal(detectedOpenings.doors.length, 1, "A door-sized wall gap should become a deterministic door opening");
+assert.equal(detectedOpenings.doors[0].wallId, "opening-b", "Detected opening must remain associated with one source wall");
+
+graph.dimensions.push({
+  id: "dimension-wall-1",
+  levelId: "level-1",
+  page: 2,
+  start: { x: 0, y: -0.4 },
+  end: { x: 12, y: -0.4 },
+  value: 12,
+  unit: "m",
+  confidence: 0.95,
+  evidence: [],
+});
+assert(associateDimensionsToWalls(graph).some((item) => item.wallId === "wall-1"), "Dimension solver must associate a parallel dimension to the matching wall");
+
+const ifc = buildBosBuildingGraphIfc(validated);
+assert(ifc.startsWith("ISO-10303-21;"), "IFC export must emit a STEP header");
+assert(ifc.includes("IFCWALLSTANDARDCASE") && ifc.includes("FILE_SCHEMA(('IFC4'))"), "IFC export must contain IFC4 wall entities");
 
 const rectangle = createEmptyBosBuildingGraph({ buildingId: "bad", sourcePage: 2, sourceSheetTitle: "FIRST FLOOR PLAN" });
 rectangle.scale = scale;
