@@ -78,6 +78,31 @@ function midpointLine(a: BosLine2, b: BosLine2, metrics: ReturnType<typeof pairM
   };
 }
 
+function wallDetectionPreference(segment: BosRawSegment) {
+  const standardThickness = 0.1524;
+  const thicknessPenalty = Math.abs((segment.strokeWidth || standardThickness) - standardThickness);
+  return (segment.confidence || 0) * 2 + Math.min(1, length(segment) / 8) - thicknessPenalty * 2;
+}
+
+export function suppressNestedWallDetections(
+  input: BosRawSegment[],
+  options: WallDetectionOptions = DEFAULT_WALL_DETECTION_OPTIONS,
+) {
+  const ordered = [...input].sort((a, b) => wallDetectionPreference(b) - wallDetectionPreference(a));
+  const selected: BosRawSegment[] = [];
+  const centerlineTolerance = Math.min(0.18, options.maxWallThickness * 0.5);
+
+  for (const candidate of ordered) {
+    const duplicate = selected.some((current) => {
+      if (angleDelta(angle(candidate), angle(current)) > options.parallelToleranceRadians * 1.5) return false;
+      const metrics = pairMetrics(current, candidate);
+      return metrics.overlapRatio >= 0.72 && metrics.separation <= centerlineTolerance;
+    });
+    if (!duplicate) selected.push(candidate);
+  }
+  return selected;
+}
+
 export function detectWallCenterlines(
   source: BosRawSegment[],
   options: WallDetectionOptions = DEFAULT_WALL_DETECTION_OPTIONS,
@@ -135,7 +160,7 @@ export function detectWallCenterlines(
     }
   }
 
-  return mergeCollinearSegments(detections, {
+  return mergeCollinearSegments(suppressNestedWallDetections(detections, options), {
     snapTolerance: 0.08,
     collinearToleranceRadians: Math.PI / 180 * 2,
     minLength: options.minWallLength,
