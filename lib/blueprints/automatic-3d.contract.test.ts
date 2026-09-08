@@ -21,7 +21,9 @@ assert(route.includes("OPENAI_API_KEY") && route.includes("input_file"), "PDF re
 assert(route.includes("model/gltf-binary") && route.includes("buildBlueprintGlb"), "Automatic reconstruction must emit a GLB consumable by the existing 3D viewer");
 assert(route.includes("needs_input"), "Low-information plans must fail safely instead of pretending to be construction-authoritative");
 assert(route.includes("blueprint_sheet_id") && route.includes("sheet_number,title,discipline"), "3D generation must load the registered Blueprint sheet metadata");
-assert(route.includes("Reconstruct ONLY that matching drawing") && route.includes("Do not simplify a house into a generic rectangle"), "Multi-page 3D generation must target the registered drawing instead of defaulting to another PDF page");
+assert(route.includes("Reconstruct ONLY that matching drawing") && route.includes("do not replace these with a four-wall bounding rectangle"), "Multi-page 3D generation must target the registered drawing and preserve its real footprint");
+assert(route.includes("shouldRunFidelityPass") && route.includes("FIRST PASS JSON"), "Complex floor plans must receive a second fidelity pass when the first trace is too simple");
+assert(route.includes("isObviouslyUnderTracedFloorPlan") && route.includes("intentionally withheld"), "B.O.S. must withhold obviously under-traced floor-plan models instead of labeling them 3D Ready");
 assert(route.includes('searchParams.get("force") === "1"'), "Ready 3D models must support intentional regeneration after reconstruction improvements");
 assert(service.includes("B.O.S. Automatic Blueprint-to-3D") && service.includes("Generated Floor"), "The generated GLB must identify its B.O.S. conceptual origin and include spatial geometry");
 assert(control.includes("Generate 3D") && control.includes("View 3D") && control.includes("3D Ready"), "The Blueprint UI must expose generation, readiness, and 3D viewing states");

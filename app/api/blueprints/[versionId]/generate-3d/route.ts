@@ -35,6 +35,11 @@ type SourceVersion = {
 
 type ResponsesCreate = (body: Record<string, unknown>) => Promise<{ output_text?: string }>;
 
+type AnalysisPass = {
+  raw: string;
+  analysis: NormalizedBlueprint3dAnalysis;
+};
+
 function dbClient(supabase: SupabaseClient<Database>) {
   // Migration-backed tables intentionally remain usable before generated Supabase types refresh.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -166,14 +171,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
     const buffer = Buffer.from(await download.data.arrayBuffer());
     const { analysis, modelName } = await analyzePlan(buffer, source);
 
-    if (!isUsableBlueprint3dAnalysis(analysis)) {
+    if (!isUsableBlueprint3dAnalysis(analysis) || isObviouslyUnderTracedFloorPlan(source, analysis)) {
       await db.from("blueprint_generated_models").update({
         status: "needs_input",
         geometry_json: analysis,
-        confidence: analysis.confidence,
+        confidence: Math.min(analysis.confidence, 0.45),
         assumptions: analysis.assumptions,
         generation_model: modelName,
-        error_message: `B.O.S. could not identify enough connected wall geometry for ${source.sheet_number} · ${source.sheet_title}. Verify the registered sheet title, dimensions/calibration, or add another architectural sheet and retry.`,
+        error_message: `B.O.S. could not trace enough of ${source.sheet_number} · ${source.sheet_title} to produce a faithful conceptual model. The result was intentionally withheld instead of showing an oversimplified building. Verify the registered drawing, scale/dimensions, or add a clearer architectural sheet and retry.`,
       }).eq("id", modelRowId);
       return NextResponse.json(await payloadForModel(supabase, db, source), { status: 422 });
     }
@@ -225,32 +230,45 @@ async function analyzePlan(buffer: Buffer, source: SourceVersion): Promise<{ ana
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 45_000, maxRetries: 1 });
   const target = `${source.sheet_number} · ${source.sheet_title}`;
   const multiPageRule = source.mime_type === "application/pdf" && (source.page_count || 1) > 1
-    ? `This PDF contains ${source.page_count} pages. Locate the page/drawing whose title, sheet label, or content best matches the registered B.O.S. sheet \"${target}\" (${source.discipline}). Reconstruct ONLY that matching drawing. Do not reconstruct a basement/foundation plan, roof plan, elevation, detail, or other page merely because it appears first in the PDF.`
+    ? `This PDF contains ${source.page_count} pages. Locate the page/drawing whose title, sheet label, or content best matches the registered B.O.S. sheet \"${target}\" (${source.discipline}). Reconstruct ONLY that matching drawing. Do not reconstruct a basement/foundation plan, second floor plan, roof plan, elevation, detail, or other page merely because it appears first in the PDF.`
     : `The registered B.O.S. sheet is \"${target}\" (${source.discipline}). Reconstruct that drawing only.`;
-  const prompt = `${multiPageRule}\n\nAnalyze the target architectural plan for a conceptual B.O.S. 3D reconstruction. Return JSON only with: units (ft or m), ceilingHeight, floorThickness, confidence (0-1), assumptions (array of strings), notes (array), walls (array). Each wall must contain x1,y1,x2,y2,thickness,height,label. Use one consistent plan coordinate system with the lower-left of the visible building footprint near 0,0. Preserve the COMPLETE visible building footprint and major interior partitions from the target drawing, including offsets, bump-outs, attached spaces, and non-rectangular perimeter changes. Do not simplify a house into a generic rectangle. Prefer printed dimensions over visual guesses. Include exterior and major interior walls. Do not invent rooms or dimensions contradicted by the target sheet. In notes, explicitly name the drawing/page you selected. If you cannot identify a drawing matching \"${target}\", return an empty walls array and explain the mismatch in notes instead of modeling a different sheet. If wall height is not shown, use 8 ft and state that assumption. If wall thickness is unclear, use 0.5 ft and state that assumption. This is a conceptual coordination model, not construction-authoritative BIM.`;
-  let rawText = "{}";
+
+  const geometryRules = `Trace the target drawing as architectural geometry, not as a simplified room diagram. Return one wall entry for EACH straight wall centerline segment that is actually visible. For a house, the exterior perimeter often needs many segments because of garages, entries, decks, porches, bays, offsets, bump-outs, and jogs; do not replace these with a four-wall bounding rectangle. Trace the full exterior perimeter first, then add all major interior partitions needed to make the 3D footprint visibly resemble the plan. Preserve stairs/cores as surrounding walls when they materially affect the plan shape. Labels should begin with \"Exterior\" or \"Interior\" so B.O.S. can audit completeness. Prefer printed dimensions over visual guesses. Do not invent geometry contradicted by the sheet.`;
+
+  const prompt = `${multiPageRule}\n\nAnalyze the target architectural plan for a conceptual B.O.S. 3D reconstruction. Return JSON only with: units (ft or m), ceilingHeight, floorThickness, confidence (0-1), assumptions (array of strings), notes (array), walls (array). Each wall must contain x1,y1,x2,y2,thickness,height,label. Use one consistent plan coordinate system with the lower-left of the complete visible building footprint near 0,0. ${geometryRules} In notes, explicitly name the drawing/page you selected and summarize the major footprint elements you traced. If you cannot identify a drawing matching \"${target}\", return an empty walls array and explain the mismatch in notes instead of modeling a different sheet. If wall height is not shown, use 8 ft and state that assumption. If wall thickness is unclear, use 0.5 ft and state that assumption. This is a conceptual coordination model, not construction-authoritative BIM.`;
+
+  const first = await runAnalysisPass(client, modelName, buffer, source, prompt);
+  let final = first;
+
+  if (shouldRunFidelityPass(source, first.analysis)) {
+    const refinementPrompt = `${multiPageRule}\n\nA first-pass reconstruction produced only ${first.analysis.walls.length} wall segments. Treat that as a DRAFT, not as truth. Re-open the source and visually compare the target drawing against the draft JSON below. Return a corrected FULL reconstruction JSON using the same schema. Count every exterior change of direction and every major interior partition visible on the target plan. The final wall network must visibly resemble the plan when extruded. Do not preserve a rectangular bounding box if the drawing contains attached garages, offsets, entry projections, decks/porches, bays, or other perimeter changes. Do not omit major rooms/partitions just to reduce wall count. If the source truly is simple, keep it simple; otherwise trace the complexity you can actually see. ${geometryRules}\n\nFIRST PASS JSON:\n${first.raw.slice(0, 18000)}`;
+    final = await runAnalysisPass(client, modelName, buffer, source, refinementPrompt);
+  }
+
+  return { analysis: final.analysis, modelName };
+}
+
+async function runAnalysisPass(client: OpenAI, modelName: string, buffer: Buffer, source: SourceVersion, prompt: string): Promise<AnalysisPass> {
+  let raw = "{}";
 
   if (source.mime_type.startsWith("image/")) {
     const dataUrl = `data:${source.mime_type};base64,${buffer.toString("base64")}`;
     const completion = await client.chat.completions.create({
       model: modelName,
       temperature: 0,
-      max_tokens: 7000,
+      max_tokens: 8000,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: "You reconstruct architectural floor-plan geometry for B.O.S. Never substitute a different drawing for the registered sheet. Return only strict JSON and clearly report assumptions." },
+        { role: "system", content: "You reconstruct architectural floor-plan geometry for B.O.S. Never substitute a different drawing for the registered sheet. Trace the complete visible footprint and major partitions. Return only strict JSON and clearly report assumptions." },
         { role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: dataUrl, detail: "high" } }] },
       ],
     });
-    rawText = completion.choices[0]?.message?.content || "{}";
+    raw = completion.choices[0]?.message?.content || "{}";
   } else {
-    // The installed OpenAI SDK's generated TypeScript union lags the Responses API's
-    // input_file item even though the endpoint accepts it. Cast the callable boundary,
-    // not the request payload, so the rest of this route remains type checked.
     const createResponse = client.responses.create.bind(client.responses) as unknown as ResponsesCreate;
     const response = await createResponse({
       model: modelName,
-      instructions: "You reconstruct architectural floor-plan geometry for B.O.S. Never substitute a different drawing for the registered sheet. Return only strict JSON and clearly report assumptions.",
+      instructions: "You reconstruct architectural floor-plan geometry for B.O.S. Never substitute a different drawing for the registered sheet. Trace the complete visible footprint and major partitions. Return only strict JSON and clearly report assumptions.",
       input: [{
         role: "user",
         content: [
@@ -260,16 +278,32 @@ async function analyzePlan(buffer: Buffer, source: SourceVersion): Promise<{ ana
       }],
       store: false,
     });
-    rawText = response.output_text || "{}";
+    raw = response.output_text || "{}";
   }
 
   let parsed: unknown = {};
   try {
-    parsed = JSON.parse(stripJsonFence(rawText));
+    parsed = JSON.parse(stripJsonFence(raw));
   } catch {
     parsed = {};
   }
-  return { analysis: normalizeBlueprint3dAnalysis(parsed), modelName };
+  return { raw, analysis: normalizeBlueprint3dAnalysis(parsed) };
+}
+
+function shouldRunFidelityPass(source: SourceVersion, analysis: NormalizedBlueprint3dAnalysis) {
+  const title = `${source.sheet_number} ${source.sheet_title}`.toLowerCase();
+  const isFloorPlan = title.includes("floor") && title.includes("plan");
+  if (!isFloorPlan) return analysis.walls.length < 8;
+  const exteriorWalls = analysis.walls.filter((wall) => wall.label?.toLowerCase().startsWith("exterior")).length;
+  return analysis.walls.length < 18 || exteriorWalls < 8;
+}
+
+function isObviouslyUnderTracedFloorPlan(source: SourceVersion, analysis: NormalizedBlueprint3dAnalysis) {
+  const title = `${source.sheet_number} ${source.sheet_title}`.toLowerCase();
+  const isFloorPlan = title.includes("floor") && title.includes("plan");
+  if (!isFloorPlan) return false;
+  const exteriorWalls = analysis.walls.filter((wall) => wall.label?.toLowerCase().startsWith("exterior")).length;
+  return analysis.walls.length < 10 || exteriorWalls < 4;
 }
 
 function stripJsonFence(value: string) {
