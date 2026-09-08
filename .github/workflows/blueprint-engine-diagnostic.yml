@@ -36,6 +36,10 @@ jobs:
         if: always()
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts openings
 
+      - name: Slab and foundation semantics
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/architecture.contract.test.ts
+
       - name: Dimension association
         if: always()
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts dimension
