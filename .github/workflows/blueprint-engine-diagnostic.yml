@@ -29,16 +29,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Blueprint foundation contract
-        run: npx -y tsx components/plans/blueprints-foundation.contract.test.ts
+      - name: Blueprint control contract
+        run: npx -y tsx lib/blueprints/engine/control.contract.test.ts
 
-      - name: Blueprint release contract
+      - name: Native engine contract
         if: always()
-        run: npx -y tsx components/plans/blueprints-release.contract.test.ts
+        run: npx -y tsx lib/blueprints/engine/engine.contract.test.ts
 
-      - name: Blueprint operations contract
+      - name: Room tracing contract
         if: always()
-        run: npx -y tsx lib/blueprints/operations.contract.test.ts
+        run: npx -y tsx lib/blueprints/engine/room-tracing.contract.test.ts
+
+      - name: Wall detector contract
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/wall-detector.contract.test.ts
 
       - name: Automatic Blueprint-to-3D contract
         if: always()
