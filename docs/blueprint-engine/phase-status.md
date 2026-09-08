@@ -24,6 +24,7 @@ Legend:
 - [x] Generated-model persistence fields for graph/validation/version/status
 - [x] Permanent Mitchell Dewitt first-floor executable benchmark
 - [x] Native PDF route integration behind existing Generate 3D endpoint
+- [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
 - [~] Full CI green on current branch
 - [ ] Production migration application and verification
@@ -56,8 +57,9 @@ Legend:
 - [x] Tenant-scoped correction migration/table
 - [x] Correction read/write API
 - [x] Building Graph exposed through correction API
-- [ ] Regeneration replays persisted corrections automatically
-- [ ] Correction conflict detection when object IDs no longer match
+- [~] Regeneration replay plumbing (engine implemented; generation-route persistence integration still pending)
+- [x] Correction conflict detection when object IDs no longer match
+- [~] Native reconstruction/validation metadata surfaced in Blueprint control UI
 - [ ] 2D wall selection/edit controls
 - [ ] Move/add/remove/classify wall UI
 - [ ] Opening correction UI
@@ -83,8 +85,8 @@ Legend:
 
 - [x] Native IFC graph serializer foundation
 - [x] Authenticated IFC export endpoint
+- [x] Native IFC export control in Blueprint UI
 - [ ] IFC schema/validator regression
-- [ ] Export control in Blueprint UI
 - [ ] Graph query helpers for Orion
 - [ ] Validated quantity/takeoff derivation
 - [ ] Job-cost/material integration contract
@@ -95,6 +97,7 @@ Legend:
 - [x] Wrong-page benchmark rule
 - [x] Four-wall rectangle rejection rule
 - [x] Topology/scale/semantic benchmark metrics
+- [x] Control-document regression protecting the source-of-truth structure
 - [ ] Execute Mitchell Dewitt source through native parser and inspect resulting graph
 - [ ] Add scanned-plan benchmark fixture
 - [ ] Add conflicting-dimension fixture
@@ -114,9 +117,9 @@ Legend:
 ## Immediate execution order
 
 1. Keep the control documents synchronized with implementation.
-2. Integrate persisted correction replay into native regeneration.
-3. Integrate deterministic raster fallback into reconstruction where safely possible.
-4. Extend tests for corrections, IFC, openings, and dimension reconciliation.
+2. Complete persisted correction replay integration in native regeneration.
+3. Integrate deterministic raster fallback where scale can be verified safely.
+4. Extend tests for corrections, IFC, openings, dimensions, and export UI.
 5. Resolve all CI failures automatically.
 6. Merge only when gates are green.
 7. Apply required Supabase migrations.
