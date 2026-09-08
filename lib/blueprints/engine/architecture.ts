@@ -1,5 +1,6 @@
 import type { BosBuildingGraph, BosPoint2, BosPolygon2, BosRoom, BosSlab, BosStair, BosWall } from "./building-graph";
 import type { BosTextToken } from "./dimensions";
+import { pointInBosPolygon } from "./room-tracing";
 
 export type ScaledTextToken = BosTextToken & { xMeters?: number; yMeters?: number; widthMeters?: number; heightMeters?: number };
 
@@ -48,6 +49,30 @@ function tokenPoint(token: ScaledTextToken): BosPoint2 | null {
   return { x: token.xMeters + (token.widthMeters || 0) / 2, y: token.yMeters + (token.heightMeters || 0) / 2 };
 }
 
+function roomLabel(text: string) {
+  const value = normalized(text);
+  const labels: Array<[RegExp, string]> = [
+    [/\b(2 car|two car|3 car|three car)?\s*garage\b/, "Garage"],
+    [/\bgreat room\b/, "Great Room"],
+    [/\bfamily room\b/, "Family Room"],
+    [/\bliving room\b/, "Living Room"],
+    [/\bdining( room)?\b/, "Dining Room"],
+    [/\bkitchen\b/, "Kitchen"],
+    [/\b(primary|master) bedroom\b/, "Primary Bedroom"],
+    [/\bbed(room)?\b/, "Bedroom"],
+    [/\b(primary|master) bath(room)?\b/, "Primary Bathroom"],
+    [/\b(bath(room)?|powder room)\b/, "Bathroom"],
+    [/\blaundry\b/, "Laundry"],
+    [/\b(office|study)\b/, "Office"],
+    [/\b(mud room|mudroom)\b/, "Mud Room"],
+    [/\b(foyer|entry)\b/, "Foyer"],
+    [/\bpantry\b/, "Pantry"],
+    [/\b(walk in closet|wic|closet)\b/, "Closet"],
+    [/\b(sun room|sunroom)\b/, "Sun Room"],
+  ];
+  return labels.find(([pattern]) => pattern.test(value))?.[1] || null;
+}
+
 export function scaleTextTokensToMeters(tokens: BosTextToken[], drawingUnitsPerMeter: number): ScaledTextToken[] {
   const factor = drawingUnitsPerMeter > 0 ? 1 / drawingUnitsPerMeter : 0;
   return tokens.map((token) => ({
@@ -62,7 +87,7 @@ export function scaleTextTokensToMeters(tokens: BosTextToken[], drawingUnitsPerM
 export function recognizeArchitecturalSemantics(graph: BosBuildingGraph, tokens: ScaledTextToken[]) {
   const levelId = graph.levels[0]?.id;
   if (!levelId) return graph;
-  const rooms: BosRoom[] = [...graph.rooms];
+  let rooms: BosRoom[] = [...graph.rooms];
   const decksPorches: BosSlab[] = [...graph.decksPorches];
   const stairs: BosStair[] = [...graph.stairs];
   const seen = new Set<string>();
@@ -85,10 +110,28 @@ export function recognizeArchitecturalSemantics(graph: BosBuildingGraph, tokens:
       provenance: {
         createdBy: "deterministic" as const,
         algorithm: "bos-plan-label-semantics",
-        algorithmVersion: "1.0.0",
+        algorithmVersion: "1.1.0",
         evidenceIds: [`semantic-${kind}-${token.page}-${Math.round(point.x * 100)}-${Math.round(point.y * 100)}`],
       },
     });
+
+    const label = roomLabel(token.text);
+    if (label) {
+      const roomIndex = rooms.findIndex((room) => room.levelId === levelId && pointInBosPolygon(point, room.polygon));
+      if (roomIndex >= 0) {
+        const evidence = semantic(`room-label-${roomIndex + 1}`, 0.88);
+        const existing = rooms[roomIndex];
+        rooms = rooms.map((room, index) => index === roomIndex ? {
+          ...existing,
+          name: label,
+          confidence: Math.max(existing.confidence, evidence.confidence),
+          sourcePage: token.page,
+          evidence: [...existing.evidence, ...evidence.evidence],
+          provenance: evidence.provenance,
+        } : room);
+        if (label === "Garage") seen.add("garage");
+      }
+    }
 
     if (/\bgarage\b/.test(text) && !seen.has("garage")) {
       seen.add("garage");
