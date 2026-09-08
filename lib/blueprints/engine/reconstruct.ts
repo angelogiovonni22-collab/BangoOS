@@ -110,7 +110,8 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     sheetTargeting: "deterministic-title-sheet-1.0.0",
     wallDetection: "paired-line-1.2.0",
     annotationFiltering: "dimension-evidence-zone-1.0.0",
-    openings: "wall-gap-openings-1.0.0",
+    openings: "wall-gap-openings-1.1.0",
+    openingSymbols: "anchored-vector-symbols-1.0.0",
     rooms: "wall-bounded-face-tracing-1.2.0",
     semantics: "plan-label-semantics-1.0.0",
     validation: "building-graph-validation-1.0.0",
@@ -147,6 +148,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
 
   const annotationZones = dimensionAnnotationZones(graph);
   const meterSegments = scaleSegmentsToMeters(summary.page.vectorSegments, graph.scale.drawingUnitsPerMeter);
+  const symbolSegments = suppressDimensionAnnotationDetections(meterSegments, annotationZones);
   let wallCandidates = suppressDimensionAnnotationDetections(detectWallCenterlines(meterSegments), annotationZones);
   let rasterRequired = summary.rasterRequired;
 
@@ -178,7 +180,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   let walls = segmentsToWalls(wallCandidates, { levelId, type: "unknown" });
   walls = classifyExteriorWalls(walls);
   graph.walls = walls;
-  const openings = detectWallGapOpenings(walls);
+  const openings = detectWallGapOpenings(walls, { symbolSegments });
   graph.openings = openings.openings;
   graph.doors = openings.doors;
   graph.windows = openings.windows;
