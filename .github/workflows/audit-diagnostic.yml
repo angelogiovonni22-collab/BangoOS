@@ -1,0 +1,58 @@
+name: Production Audit Diagnostic
+
+on:
+  push:
+    branches:
+      - diag/blueprint-526-audit
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Summarize production audit
+        shell: bash
+        run: |
+          npm audit --omit=dev --json > audit.json || true
+          node <<'NODE'
+          const fs = require('fs');
+          const audit = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+          const vulns = audit.vulnerabilities || {};
+          console.log('AUDIT_TOTALS', JSON.stringify(audit.metadata?.vulnerabilities || {}));
+          for (const [name, v] of Object.entries(vulns)) {
+            if (!['high','critical'].includes(v.severity)) continue;
+            const via = (v.via || []).map((item) => typeof item === 'string' ? item : ({
+              source: item.source,
+              name: item.name,
+              title: item.title,
+              severity: item.severity,
+              range: item.range,
+              url: item.url,
+            }));
+            console.log('VULNERABILITY', JSON.stringify({
+              name,
+              severity: v.severity,
+              isDirect: v.isDirect,
+              range: v.range,
+              nodes: v.nodes,
+              via,
+              effects: v.effects,
+              fixAvailable: v.fixAvailable,
+            }));
+          }
+          NODE
