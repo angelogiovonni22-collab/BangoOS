@@ -19,7 +19,7 @@ async function context(versionId: string) {
   if (!workspace.context) throw new Error(workspace.errorMessage || "Unauthorized.");
   const db = dbClient(typed);
   const model = await db.from("blueprint_generated_models")
-    .select("id,company_id,project_id,source_version_id,reconstruction_version")
+    .select("id,company_id,project_id,source_version_id,reconstruction_version,building_graph,engine_status")
     .eq("company_id", workspace.context.companyId)
     .eq("source_version_id", versionId)
     .maybeSingle();
@@ -39,7 +39,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ver
       .order("created_at", { ascending: true })
       .order("id", { ascending: true });
     if (response.error) throw new Error(response.error.message);
-    return NextResponse.json({ corrections: response.data || [] });
+    return NextResponse.json({
+      graph: model.building_graph || null,
+      engineStatus: model.engine_status || null,
+      corrections: response.data || [],
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to load Blueprint corrections." }, { status: 400 });
   }
