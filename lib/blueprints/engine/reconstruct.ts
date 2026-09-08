@@ -1,6 +1,7 @@
 import { createEmptyBosBuildingGraph, type BosBuildingGraph, type BosWall } from "./building-graph";
 import { scaleTextTokensToMeters, recognizeArchitecturalSemantics } from "./architecture";
 import { segmentsToWalls } from "./geometry";
+import { detectWallGapOpenings } from "./openings";
 import { normalizeParsedPlan, summarizeSelectedPlan } from "./plan-parser";
 import { parsePdfVectorPlan } from "./pdf-vector-parser";
 import { applyBosValidation } from "./validation";
@@ -89,6 +90,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     parser: "pdfjs-vector-1.0.0",
     sheetTargeting: "deterministic-title-sheet-1.0.0",
     wallDetection: "paired-line-1.0.0",
+    openings: "wall-gap-openings-1.0.0",
     semantics: "plan-label-semantics-1.0.0",
     validation: "building-graph-validation-1.0.0",
   };
@@ -114,6 +116,10 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   let walls = segmentsToWalls(wallCandidates, { levelId, type: "unknown" });
   walls = classifyExteriorWalls(walls);
   graph.walls = walls;
+  const openings = detectWallGapOpenings(walls);
+  graph.openings = openings.openings;
+  graph.doors = openings.doors;
+  graph.windows = openings.windows;
 
   const scaledText = scaleTextTokensToMeters(summary.page.text, graph.scale.drawingUnitsPerMeter);
   const semanticGraph = recognizeArchitecturalSemantics(graph, scaledText);
