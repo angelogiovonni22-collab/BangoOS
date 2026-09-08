@@ -1,12 +1,10 @@
 "use client";
 
-import { ExternalLink, FileText, X } from "lucide-react";
-import { Button, Dialog } from "@/components/ui";
+import { useEffect } from "react";
+import { Minimize2 } from "lucide-react";
+import { Button } from "@/components/ui";
 import { Blueprint2dViewer } from "./blueprint-2d-viewer";
-import { BlueprintExportActions } from "./blueprint-export-actions";
 import { Blueprint3dViewer } from "./blueprint-3d-viewer";
-import { BlueprintFieldTools } from "./blueprint-field-tools";
-import { BlueprintOrionIntelligence } from "./blueprint-orion-intelligence";
 import type { PlanDocument } from "./types";
 
 type BlueprintPlanWorkspaceProps = {
@@ -26,7 +24,6 @@ export function BlueprintPlanWorkspace({
   open,
   onClose,
   document,
-  projectName,
   companyId,
   projectId,
   userId,
@@ -34,48 +31,52 @@ export function BlueprintPlanWorkspace({
   initialPage = 1,
   initialAnnotationId,
 }: BlueprintPlanWorkspaceProps) {
-  if (!document.fileUrl) return null;
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = documentBodyOverflow();
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  if (!open || !document.fileUrl) return null;
+
+  const is3d = previewType === "ifc" || previewType === "gltf";
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      ariaLabel={`Plan workspace for ${document.fileName}`}
-      closeOnBackdrop={false}
-      className="p-2 sm:p-4"
-      panelClassName="flex h-[calc(100dvh-1rem)] max-w-[min(96rem,calc(100vw-1rem))] flex-col overflow-hidden p-0 sm:h-[calc(100dvh-2rem)]"
+    <div
+      className="fixed inset-0 z-[120] h-dvh w-screen overflow-hidden bg-slate-950"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Plan workspace for ${document.fileName}`}
+      data-orion-region="blueprint-plan-workspace"
     >
-      <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain">
-      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border-subtle)] bg-white px-4 py-3 sm:px-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-            <FileText size={18} aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-base font-bold text-[var(--color-text-primary)]">{document.fileName}</p>
-            <p className="truncate text-xs text-[var(--color-text-secondary)]">
-              {projectName} · Revision {document.revision} · {document.discipline}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href={document.fileUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-9 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-white px-3 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"
+      {is3d ? (
+        <>
+          <Blueprint3dViewer
+            fileUrl={document.fileUrl}
+            fileName={document.fileName}
+            format={previewType}
+            companyId={companyId}
+            projectId={projectId}
+            versionId={document.versionId}
+            userId={userId}
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="secondary"
+            onClick={onClose}
+            aria-label="Exit full-page plan workspace"
+            title="Exit full-page plan workspace"
+            className="fixed bottom-4 right-4 z-[130] shadow-xl"
           >
-            <ExternalLink size={14} aria-hidden="true" />
-            <span className="hidden sm:inline">Original file</span>
-          </a>
-          <Button type="button" size="icon" variant="ghost" onClick={onClose} aria-label="Close plan workspace">
-            <X size={18} aria-hidden="true" />
+            <Minimize2 size={18} aria-hidden="true" />
           </Button>
-        </div>
-      </div>
-
-      <div className="h-[clamp(28rem,calc(100dvh-9rem),64rem)] shrink-0 bg-slate-900 p-2 sm:p-3" data-orion-region="blueprint-plan-workspace">
-        {previewType === "ifc" || previewType === "gltf" ? <Blueprint3dViewer fileUrl={document.fileUrl} fileName={document.fileName} format={previewType} companyId={companyId} projectId={projectId} versionId={document.versionId} userId={userId} /> : <Blueprint2dViewer
+        </>
+      ) : (
+        <Blueprint2dViewer
           key={`workspace:${document.versionId}`}
           fileUrl={document.fileUrl}
           fileName={document.fileName}
@@ -88,16 +89,13 @@ export function BlueprintPlanWorkspace({
           expanded
           initialPage={initialPage}
           initialAnnotationId={initialAnnotationId}
-        />}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] bg-white px-4 py-2 text-[11px] text-[var(--color-text-secondary)]">
-        <span>Large Plan Workspace · Markups save to Revision {document.revision}</span>
-        <BlueprintExportActions companyId={companyId} projectId={projectId} versionId={document.versionId} userId={userId} projectName={projectName} document={{ fileName: document.fileName, revision: document.revision, discipline: document.discipline, originalFileName: document.originalFileName || document.fileName, revisionHistory: document.revisionHistory }} />
-      </div>
-      <BlueprintFieldTools companyId={companyId} projectId={projectId} versionId={document.versionId}/>
-      <BlueprintOrionIntelligence companyId={companyId} projectId={projectId} versionId={document.versionId}/>
-      </div>
-    </Dialog>
+          onClose={onClose}
+        />
+      )}
+    </div>
   );
+}
+
+function documentBodyOverflow() {
+  return typeof document === "undefined" ? "" : document.body.style.overflow;
 }
