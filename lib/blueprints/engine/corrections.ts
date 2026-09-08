@@ -9,6 +9,13 @@ export type BosGraphCorrection =
   | { id: string; type: "update_room"; roomId: string; patch: Partial<Pick<BosRoom, "name" | "polygon">>; actorId?: string; createdAt: string }
   | { id: string; type: "set_scale"; drawingUnitsPerMeter: number; actorId?: string; createdAt: string };
 
+export type BosGraphCorrectionConflict = {
+  correctionId: string;
+  type: BosGraphCorrection["type"];
+  objectId?: string;
+  reason: string;
+};
+
 function corrected<T extends { correction?: { corrected: boolean; correctionId?: string; correctedAt?: string; correctedBy?: string }; provenance: { createdBy: "deterministic" | "ai_assisted" | "manual"; algorithm: string; algorithmVersion: string; evidenceIds: string[] } }>(value: T, correction: BosGraphCorrection): T {
   return {
     ...value,
@@ -46,10 +53,50 @@ export function applyBosGraphCorrection(graph: BosBuildingGraph, correction: Bos
     next.scale = { source: "manual", drawingUnitsPerMeter: correction.drawingUnitsPerMeter, confidence: 1 };
   }
   next.reconstructionVersion = `${graph.reconstructionVersion}+corrected`;
-  next.metadata.algorithms = { ...next.metadata.algorithms, corrections: "manual-correction-1.0.0" };
+  next.metadata.algorithms = { ...next.metadata.algorithms, corrections: "manual-correction-1.1.0" };
   return next;
 }
 
+function correctionTarget(graph: BosBuildingGraph, correction: BosGraphCorrection) {
+  if (correction.type === "move_wall" || correction.type === "remove_wall" || correction.type === "classify_wall") {
+    return { exists: graph.walls.some((wall) => wall.id === correction.wallId), objectId: correction.wallId };
+  }
+  if (correction.type === "update_opening") {
+    const exists = graph.openings.some((opening) => opening.id === correction.openingId)
+      || graph.doors.some((opening) => opening.id === correction.openingId)
+      || graph.windows.some((opening) => opening.id === correction.openingId);
+    return { exists, objectId: correction.openingId };
+  }
+  if (correction.type === "update_room") {
+    return { exists: graph.rooms.some((room) => room.id === correction.roomId), objectId: correction.roomId };
+  }
+  if (correction.type === "add_wall") {
+    return { exists: !graph.walls.some((wall) => wall.id === correction.wall.id), objectId: correction.wall.id };
+  }
+  return { exists: true, objectId: undefined };
+}
+
+export function replayBosGraphCorrectionsWithConflicts(graph: BosBuildingGraph, corrections: BosGraphCorrection[]) {
+  let current = graph;
+  const conflicts: BosGraphCorrectionConflict[] = [];
+  for (const correction of [...corrections].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))) {
+    const target = correctionTarget(current, correction);
+    if (!target.exists) {
+      conflicts.push({
+        correctionId: correction.id,
+        type: correction.type,
+        objectId: target.objectId,
+        reason: correction.type === "add_wall"
+          ? "The corrected wall ID already exists in the regenerated graph."
+          : "The corrected object could not be matched in the regenerated graph and the correction was not applied.",
+      });
+      continue;
+    }
+    current = applyBosGraphCorrection(current, correction);
+  }
+  return { graph: current, conflicts };
+}
+
 export function replayBosGraphCorrections(graph: BosBuildingGraph, corrections: BosGraphCorrection[]) {
-  return corrections.reduce((current, correction) => applyBosGraphCorrection(current, correction), graph);
+  return replayBosGraphCorrectionsWithConflicts(graph, corrections).graph;
 }
