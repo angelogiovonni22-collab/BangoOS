@@ -57,11 +57,13 @@ export function BlueprintAuto3dControl({ source, projectName, companyId, project
     return () => window.clearInterval(timer);
   }, [load, payload.status]);
 
-  const generate = async () => {
+  const generate = async (force = false) => {
     setGenerating(true);
+    setViewerOpen(false);
     setPayload((current) => ({ ...current, status: "processing", error: undefined }));
     try {
-      const response = await fetch(`/api/blueprints/${encodeURIComponent(source.versionId)}/generate-3d`, { method: "POST" });
+      const suffix = force ? "?force=1" : "";
+      const response = await fetch(`/api/blueprints/${encodeURIComponent(source.versionId)}/generate-3d${suffix}`, { method: "POST" });
       const next = await response.json() as GeneratedModelPayload;
       if (!response.ok && next.status !== "needs_input") {
         setPayload({ status: "failed", model: next.model || null, error: next.error || "Automatic 3D generation failed." });
@@ -99,13 +101,19 @@ export function BlueprintAuto3dControl({ source, projectName, companyId, project
               <Sparkles size={14} aria-hidden="true" /> Automatic Blueprint-to-3D
             </p>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              B.O.S. can reconstruct this 2D sheet into a conceptual GLB model. Generated dimensions must be verified before construction use.
+              B.O.S. reconstructs the registered sheet into a conceptual GLB model. On multi-page PDFs it targets the drawing that matches this sheet title instead of modeling the first page. Generated dimensions must be verified before construction use.
             </p>
           </div>
           {ready ? (
-            <Button type="button" size="sm" onClick={() => setViewerOpen(true)} data-orion-action="blueprints.view-generated-3d">
-              <Box size={15} aria-hidden="true" /> View 3D
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => void generate(true)} data-orion-action="blueprints.regenerate-3d">
+                {busy ? <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={15} aria-hidden="true" />}
+                {busy ? "Regenerating…" : "Regenerate 3D"}
+              </Button>
+              <Button type="button" size="sm" onClick={() => setViewerOpen(true)} data-orion-action="blueprints.view-generated-3d">
+                <Box size={15} aria-hidden="true" /> View 3D
+              </Button>
+            </div>
           ) : (
             <Button type="button" size="sm" disabled={busy} onClick={() => void generate()} data-orion-action="blueprints.generate-3d">
               {busy ? <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> : failed || needsInput ? <RefreshCw size={15} aria-hidden="true" /> : <Box size={15} aria-hidden="true" />}
