@@ -145,7 +145,7 @@ Legend:
 ## Current release branch
 
 - Branch: `feat/blueprint-engine-junction-annotation-hardening`
-- PR: pending — harden diagonal corner recovery and remaining Phase B junction/annotation behavior
+- PR: `#529 — Harden Blueprint diagonal corner recovery`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
