@@ -30,6 +30,13 @@ Legend:
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
+### Merged Phase A release checkpoint
+
+- Branch: `feat/blueprint-engine-native`
+- PR: `#524 — Add B.O.S. Native Blueprint Engine foundation`
+- Merge commit: `6adfee4a28c589c2ead71f29ae3902a1d21b87a2`
+- Production migration and deployment verification completed; authenticated visual verification remains tracked separately.
+
 ## Phase B — Architectural Reconstruction
 
 - [x] Gap-based opening association
