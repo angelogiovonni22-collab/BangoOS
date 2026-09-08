@@ -15,12 +15,19 @@ const preview = fs.readFileSync(path.join(root, "components/plans/plans-preview.
 const upload = fs.readFileSync(path.join(root, "components/plans/blueprint-upload-panel.tsx"), "utf8");
 const revision = fs.readFileSync(path.join(root, "components/plans/blueprint-revision-panel.tsx"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260908004500_automatic_blueprint_to_3d.sql"), "utf8");
+const correctionMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260908040000_blueprint_engine_corrections.sql"), "utf8");
 
 assert(migration.includes("create table if not exists public.blueprint_generated_models"), "Generated 3D models must have a tenant-scoped persistence record");
 assert(migration.includes("enable row level security") && migration.includes("blueprint_member_of_company"), "Generated model records must remain behind company RLS");
 assert(migration.includes("blueprints_generated_model_storage_select"), "Generated GLB storage must be authorized through its generated-model record");
+assert(correctionMigration.includes("blueprint_model_corrections") && correctionMigration.includes("Append-only user corrections"), "Native graph corrections must have append-only persistence");
+assert(correctionMigration.includes("enable row level security") && correctionMigration.includes("blueprint_member_of_company"), "Persisted graph corrections must remain behind company RLS");
 assert(route.includes("OPENAI_API_KEY") && route.includes("input_file"), "PDF reconstruction must retain server-side multimodal fallback support");
 assert(route.includes("reconstructNativeBlueprint") && route.includes("buildBosBuildingGraphGlb"), "Registered PDFs must route through the native B.O.S. Building Graph reconstruction path");
+assert(route.includes("blueprint_model_corrections") && route.includes("replayPersistedBosGraphCorrections"), "Native regeneration must load and replay persisted graph corrections");
+assert(route.includes("latestPersistedManualScale") && route.includes("manualDrawingUnitsPerMeter"), "A persisted manual scale must be applied before deterministic native geometry conversion");
+assert(route.indexOf("replayPersistedBosGraphCorrections") < route.indexOf("buildBosBuildingGraphGlb(graph)"), "Corrections must replay before native GLB generation");
+assert(route.includes("correction_history") && route.includes("correctionHistory"), "Generated model persistence must retain correction history across regeneration");
 assert(route.includes("model/gltf-binary") && route.includes("buildBlueprintGlb"), "Automatic reconstruction must emit a GLB consumable by the existing 3D viewer");
 assert(route.includes("needs_input"), "Low-information plans must fail safely instead of pretending to be construction-authoritative");
 assert(route.includes("blueprint_sheet_id") && route.includes("sheet_number,title,discipline"), "3D generation must load the registered Blueprint sheet metadata");
