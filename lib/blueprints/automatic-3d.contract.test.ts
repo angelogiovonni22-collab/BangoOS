@@ -20,8 +20,12 @@ assert(migration.includes("blueprints_generated_model_storage_select"), "Generat
 assert(route.includes("OPENAI_API_KEY") && route.includes("input_file"), "PDF reconstruction must use server-side multimodal Blueprint analysis");
 assert(route.includes("model/gltf-binary") && route.includes("buildBlueprintGlb"), "Automatic reconstruction must emit a GLB consumable by the existing 3D viewer");
 assert(route.includes("needs_input"), "Low-information plans must fail safely instead of pretending to be construction-authoritative");
+assert(route.includes("blueprint_sheet_id") && route.includes("sheet_number,title,discipline"), "3D generation must load the registered Blueprint sheet metadata");
+assert(route.includes("Reconstruct ONLY that matching drawing") && route.includes("Do not simplify a house into a generic rectangle"), "Multi-page 3D generation must target the registered drawing instead of defaulting to another PDF page");
+assert(route.includes('searchParams.get("force") === "1"'), "Ready 3D models must support intentional regeneration after reconstruction improvements");
 assert(service.includes("B.O.S. Automatic Blueprint-to-3D") && service.includes("Generated Floor"), "The generated GLB must identify its B.O.S. conceptual origin and include spatial geometry");
 assert(control.includes("Generate 3D") && control.includes("View 3D") && control.includes("3D Ready"), "The Blueprint UI must expose generation, readiness, and 3D viewing states");
+assert(control.includes("Regenerate 3D") && control.includes("?force=1"), "Ready Blueprint models must expose a regeneration control");
 assert(control.includes("verify dimensions") || control.includes("verified before construction use"), "Generated models must disclose that dimensions require verification");
 assert(preview.includes("BlueprintAuto3dControl"), "2D Blueprint previews must surface Automatic Blueprint-to-3D");
 assert(upload.includes("generate-3d") && upload.includes("keepalive: true"), "New 2D Blueprint uploads must automatically start 3D generation");
