@@ -9,6 +9,14 @@ export type WallDetectionOptions = {
   minOverlapRatio: number;
 };
 
+export type WallAnnotationZone = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  padding?: number;
+};
+
 export const DEFAULT_WALL_DETECTION_OPTIONS: WallDetectionOptions = {
   minWallLength: 0.45,
   minWallThickness: 0.07,
@@ -82,6 +90,29 @@ function wallDetectionPreference(segment: BosRawSegment) {
   const standardThickness = 0.1524;
   const thicknessPenalty = Math.abs((segment.strokeWidth || standardThickness) - standardThickness);
   return (segment.confidence || 0) * 2 + Math.min(1, length(segment) / 8) - thicknessPenalty * 2;
+}
+
+function pointInsideAnnotationZone(point: { x: number; y: number }, zone: WallAnnotationZone) {
+  const padding = zone.padding ?? 0.3;
+  const minX = zone.x - padding;
+  const maxX = zone.x + Math.max(0, zone.width) + padding;
+  const minY = zone.y - padding;
+  const maxY = zone.y + Math.max(0, zone.height) + padding;
+  return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
+}
+
+export function suppressDimensionAnnotationDetections(
+  input: BosRawSegment[],
+  zones: readonly WallAnnotationZone[],
+) {
+  if (!zones.length) return input;
+  const maxAnnotationCandidateLength = 1.2;
+  return input.filter((segment) => {
+    if (length(segment) > maxAnnotationCandidateLength) return true;
+    return !zones.some((zone) =>
+      pointInsideAnnotationZone(segment.start, zone) && pointInsideAnnotationZone(segment.end, zone),
+    );
+  });
 }
 
 export function suppressNestedWallDetections(

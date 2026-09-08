@@ -26,7 +26,7 @@ Legend:
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
-- [~] Full CI green on current branch
+- [x] Full CI green through merged Phase B junction hardening
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
@@ -36,6 +36,13 @@ Legend:
 - PR: `#524 — Add B.O.S. Native Blueprint Engine foundation`
 - Merge commit: `6adfee4a28c589c2ead71f29ae3902a1d21b87a2`
 - Production migration and deployment verification completed; authenticated visual verification remains tracked separately.
+
+### Merged Phase B junction checkpoint
+
+- Branch: `feat/blueprint-engine-reconstruction-hardening`
+- PR: `#525 — Harden Blueprint room junction recovery`
+- Merge commit: `0bab47a5a8cfa84aa519dff193db00a07a432bd8`
+- Required CI and Vercel Production deployment completed green.
 
 ## Phase B — Architectural Reconstruction
 
@@ -55,7 +62,7 @@ Legend:
 - [ ] Door swing/symbol recognition
 - [ ] Window symbol/type recognition
 - [~] Better wall junction/corner recovery
-- [~] Nested/duplicate annotation-line filtering (nested paired-wall duplicate suppression implemented; broader annotation filtering remains)
+- [~] Nested/duplicate annotation-line filtering (nested paired-wall duplicate suppression plus dimension-evidence-zone filtering implemented; broader witness/dimension-line filtering remains)
 - [ ] Slab/foundation recognition
 - [ ] Roof geometry recognition
 
@@ -122,8 +129,8 @@ Legend:
 
 ## Current release branch
 
-- Branch: `feat/blueprint-engine-reconstruction-hardening`
-- PR: `#525 — Harden Blueprint room junction recovery`
+- Branch: `feat/blueprint-engine-annotation-filtering`
+- PR: `#526 — Filter Blueprint dimension annotation linework`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
