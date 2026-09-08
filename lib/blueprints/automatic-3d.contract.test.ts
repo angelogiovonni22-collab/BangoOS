@@ -9,6 +9,8 @@ function assert(condition: boolean, message: string) {
 
 const root = process.cwd();
 const route = fs.readFileSync(path.join(root, "app/api/blueprints/[versionId]/generate-3d/route.ts"), "utf8");
+const reconstruct = fs.readFileSync(path.join(root, "lib/blueprints/engine/reconstruct.ts"), "utf8");
+const raster = fs.readFileSync(path.join(root, "lib/blueprints/engine/raster.ts"), "utf8");
 const service = fs.readFileSync(path.join(root, "lib/blueprints/automatic-3d.ts"), "utf8");
 const control = fs.readFileSync(path.join(root, "components/plans/blueprint-auto-3d-control.tsx"), "utf8");
 const preview = fs.readFileSync(path.join(root, "components/plans/plans-preview.tsx"), "utf8");
@@ -28,6 +30,10 @@ assert(route.includes("blueprint_model_corrections") && route.includes("replayPe
 assert(route.includes("latestPersistedManualScale") && route.includes("manualDrawingUnitsPerMeter"), "A persisted manual scale must be applied before deterministic native geometry conversion");
 assert(route.indexOf("replayPersistedBosGraphCorrections") < route.indexOf("buildBosBuildingGraphGlb(graph)"), "Corrections must replay before native GLB generation");
 assert(route.includes("correction_history") && route.includes("correctionHistory"), "Generated model persistence must retain correction history across regeneration");
+assert(reconstruct.includes("extractRasterLineSegments") && reconstruct.includes("summary.rasterRequired || wallCandidates.length < 8"), "Vector-poor PDFs must attempt the deterministic raster fallback before being withheld");
+assert(reconstruct.includes("sourceWidth: summary.page.width") && reconstruct.includes("sourceHeight: summary.page.height"), "Raster fallback must map the selected raster page back to deterministic PDF coordinates");
+assert(raster.includes("page: Math.max(0, page - 1)") && raster.includes("density: options.density"), "Raster decoding must target the selected PDF page instead of implicitly rendering page one");
+assert(raster.includes("sourcePerPixelX") && raster.includes("drawingToMeters"), "Raster candidate coordinates must normalize through PDF drawing units before entering wall detection");
 assert(route.includes("model/gltf-binary") && route.includes("buildBlueprintGlb"), "Automatic reconstruction must emit a GLB consumable by the existing 3D viewer");
 assert(route.includes("needs_input"), "Low-information plans must fail safely instead of pretending to be construction-authoritative");
 assert(route.includes("blueprint_sheet_id") && route.includes("sheet_number,title,discipline"), "3D generation must load the registered Blueprint sheet metadata");
