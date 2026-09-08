@@ -26,7 +26,7 @@ Legend:
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
-- [x] Full CI green through merged Phase B junction hardening
+- [x] Full CI green through merged Phase B annotation hardening
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
@@ -44,6 +44,13 @@ Legend:
 - Merge commit: `0bab47a5a8cfa84aa519dff193db00a07a432bd8`
 - Required CI and Vercel Production deployment completed green.
 
+### Merged Phase B annotation checkpoint
+
+- Branch: `feat/blueprint-engine-annotation-filtering`
+- PR: `#526 — Filter Blueprint dimension annotation linework`
+- Merge commit: `b809b1bbe20f42682aa5010c55eb99ec41b8dd74`
+- Required CI completed green, including the production dependency audit after patching Next.js to 16.3.4.
+
 ## Phase B — Architectural Reconstruction
 
 - [x] Gap-based opening association
@@ -59,8 +66,8 @@ Legend:
 - [~] Wall-bounded room tracing and room polygon foundation
 - [x] Room tracing recovers T/cross junctions where partitions terminate into unsplit wall runs
 - [x] Room tracing bridges near-miss partition endpoints within snap tolerance without bridging larger gaps
-- [ ] Door swing/symbol recognition
-- [ ] Window symbol/type recognition
+- [x] Door swing/symbol recognition from gap-anchored vector leaf/slider evidence
+- [x] Window symbol/type recognition from gap-overlapping vector line evidence
 - [~] Better wall junction/corner recovery
 - [~] Nested/duplicate annotation-line filtering (nested paired-wall duplicate suppression plus dimension-evidence-zone filtering implemented; broader witness/dimension-line filtering remains)
 - [ ] Slab/foundation recognition
@@ -129,8 +136,8 @@ Legend:
 
 ## Current release branch
 
-- Branch: `feat/blueprint-engine-annotation-filtering`
-- PR: `#526 — Filter Blueprint dimension annotation linework`
+- Branch: `feat/blueprint-engine-opening-symbols`
+- PR: pending — deterministic door/window symbol recognition
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
