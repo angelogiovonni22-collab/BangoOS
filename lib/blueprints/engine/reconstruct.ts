@@ -7,7 +7,7 @@ import { parsePdfVectorPlan } from "./pdf-vector-parser";
 import { extractRasterLineSegments } from "./raster";
 import { traceWallBoundedRooms } from "./room-tracing";
 import { applyBosValidation } from "./validation";
-import { detectWallCenterlines, scaleSegmentsToMeters } from "./wall-detector";
+import { detectWallCenterlines, scaleSegmentsToMeters, suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
 
 export type NativeBlueprintSource = {
   buffer: Buffer;
@@ -63,6 +63,22 @@ function classifyExteriorWalls(walls: BosWall[]) {
   });
 }
 
+function dimensionAnnotationZones(graph: BosBuildingGraph): WallAnnotationZone[] {
+  const unitsPerMeter = graph.scale.drawingUnitsPerMeter;
+  if (!unitsPerMeter || unitsPerMeter <= 0) return [];
+  const factor = 1 / unitsPerMeter;
+  return graph.dimensions.flatMap((dimension) => dimension.evidence.flatMap((evidence) => {
+    if (!evidence.bbox) return [];
+    return [{
+      x: evidence.bbox.x * factor,
+      y: evidence.bbox.y * factor,
+      width: evidence.bbox.width * factor,
+      height: evidence.bbox.height * factor,
+      padding: 0.3,
+    }];
+  }));
+}
+
 export async function reconstructNativeBlueprint(source: NativeBlueprintSource): Promise<NativeBlueprintReconstruction> {
   if (source.mimeType !== "application/pdf") {
     throw new Error("Native vector reconstruction currently requires a PDF source; raster fallback must handle image-only plans.");
@@ -92,9 +108,10 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   graph.metadata.algorithms = {
     parser: "pdfjs-vector-1.0.0",
     sheetTargeting: "deterministic-title-sheet-1.0.0",
-    wallDetection: "paired-line-1.1.0",
+    wallDetection: "paired-line-1.2.0",
+    annotationFiltering: "dimension-evidence-zone-1.0.0",
     openings: "wall-gap-openings-1.0.0",
-    rooms: "wall-bounded-face-tracing-1.1.0",
+    rooms: "wall-bounded-face-tracing-1.2.0",
     semantics: "plan-label-semantics-1.0.0",
     validation: "building-graph-validation-1.0.0",
   };
@@ -128,8 +145,9 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     };
   }
 
+  const annotationZones = dimensionAnnotationZones(graph);
   const meterSegments = scaleSegmentsToMeters(summary.page.vectorSegments, graph.scale.drawingUnitsPerMeter);
-  let wallCandidates = detectWallCenterlines(meterSegments);
+  let wallCandidates = suppressDimensionAnnotationDetections(detectWallCenterlines(meterSegments), annotationZones);
   let rasterRequired = summary.rasterRequired;
 
   if (summary.rasterRequired || wallCandidates.length < 8) {
@@ -141,7 +159,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
         sourceHeight: summary.page.height,
       });
       diagnostics.push(...raster.diagnostics);
-      const rasterWallCandidates = detectWallCenterlines(raster.segments);
+      const rasterWallCandidates = suppressDimensionAnnotationDetections(detectWallCenterlines(raster.segments), annotationZones);
       if (rasterWallCandidates.length > wallCandidates.length) {
         wallCandidates = rasterWallCandidates;
         graph.metadata.algorithms = {
