@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import "./engine/control.contract.test";
 import "./engine/engine.contract.test";
+import "./engine/openings.contract.test";
 import "./engine/room-tracing.contract.test";
 import "./engine/wall-detector.contract.test";
 
