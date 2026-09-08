@@ -47,7 +47,7 @@ Legend:
 - [ ] Door swing/symbol recognition
 - [ ] Window symbol/type recognition
 - [~] Better wall junction/corner recovery
-- [ ] Nested/duplicate annotation-line filtering
+- [~] Nested/duplicate annotation-line filtering (nested paired-wall duplicate suppression implemented; broader annotation filtering remains)
 - [ ] Slab/foundation recognition
 - [ ] Roof geometry recognition
 
