@@ -3,6 +3,7 @@ import path from "node:path";
 import "./engine/control.contract.test";
 import "./engine/engine.contract.test";
 import "./engine/room-tracing.contract.test";
+import "./engine/wall-detector.contract.test";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
