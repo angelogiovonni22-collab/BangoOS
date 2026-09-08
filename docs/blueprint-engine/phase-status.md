@@ -43,9 +43,10 @@ Legend:
 - [x] Raster fallback integrated into the reconstruction orchestrator
 - [x] Selected PDF-page raster decoding/render fallback for vector-poor PDFs when scale is verified
 - [~] Wall-bounded room tracing and room polygon foundation
+- [x] Room tracing recovers T/cross junctions where partitions terminate into unsplit wall runs
 - [ ] Door swing/symbol recognition
 - [ ] Window symbol/type recognition
-- [ ] Better wall junction/corner recovery
+- [~] Better wall junction/corner recovery
 - [ ] Nested/duplicate annotation-line filtering
 - [ ] Slab/foundation recognition
 - [ ] Roof geometry recognition
