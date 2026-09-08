@@ -18,11 +18,15 @@ export type Blueprint3dAnalysis = {
   notes?: string[];
 };
 
+export type NormalizedBlueprint3dWall = Required<
+  Pick<Blueprint3dWall, "x1" | "y1" | "x2" | "y2" | "thickness" | "height">
+> & { label?: string };
+
 export type NormalizedBlueprint3dAnalysis = {
   units: "m";
   ceilingHeight: number;
   floorThickness: number;
-  walls: Required<Pick<Blueprint3dWall, "x1" | "y1" | "x2" | "y2" | "thickness" | "height">> & { label?: string }[];
+  walls: NormalizedBlueprint3dWall[];
   confidence: number;
   assumptions: string[];
   notes: string[];
@@ -58,7 +62,7 @@ export function normalizeBlueprint3dAnalysis(raw: unknown): NormalizedBlueprint3
 
   const walls = wallsSource
     .slice(0, MAX_WALLS)
-    .map((wall): NormalizedBlueprint3dAnalysis["walls"][number] | null => {
+    .map((wall): NormalizedBlueprint3dWall | null => {
       if (!wall || typeof wall !== "object") return null;
       const item = wall as Record<string, unknown>;
       const x1 = finite(item.x1, Number.NaN);
@@ -77,7 +81,7 @@ export function normalizeBlueprint3dAnalysis(raw: unknown): NormalizedBlueprint3
         label: typeof item.label === "string" ? item.label.trim().slice(0, 120) || undefined : undefined,
       };
     })
-    .filter((wall): wall is NonNullable<typeof wall> => Boolean(wall));
+    .filter((wall): wall is NormalizedBlueprint3dWall => wall !== null);
 
   const assumptions = Array.isArray(source.assumptions)
     ? source.assumptions.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim().slice(0, 300)).slice(0, 30)
