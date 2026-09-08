@@ -57,8 +57,11 @@ Legend:
 - [x] Tenant-scoped correction migration/table
 - [x] Correction read/write API
 - [x] Building Graph exposed through correction API
-- [~] Regeneration replay plumbing (engine implemented; generation-route persistence integration still pending)
+- [x] Regeneration replay plumbing with tenant-scoped persisted correction loading
+- [x] Persisted manual scale applied before deterministic geometry conversion
+- [x] Correction history retained on regenerated model records
 - [x] Correction conflict detection when object IDs no longer match
+- [x] Correction replay/conflict contract regression
 - [~] Native reconstruction/validation metadata surfaced in Blueprint control UI
 - [ ] 2D wall selection/edit controls
 - [ ] Move/add/remove/classify wall UI
@@ -102,7 +105,7 @@ Legend:
 - [ ] Add scanned-plan benchmark fixture
 - [ ] Add conflicting-dimension fixture
 - [ ] Add sparse-plan `needs_input` fixture
-- [ ] Add correction-regeneration fixture
+- [x] Add correction-regeneration fixture
 - [ ] Add multi-floor fixture
 - [ ] Performance budget tests for dense/large PDFs
 - [ ] Production telemetry for engine status/failure codes/confidence
@@ -117,12 +120,11 @@ Legend:
 ## Immediate execution order
 
 1. Keep the control documents synchronized with implementation.
-2. Complete persisted correction replay integration in native regeneration.
-3. Integrate deterministic raster fallback where scale can be verified safely.
-4. Extend tests for corrections, IFC, openings, dimensions, and export UI.
-5. Resolve all CI failures automatically.
-6. Merge only when gates are green.
-7. Apply required Supabase migrations.
-8. Verify Production.
-9. Run strongest safe real-plan/visual benchmark.
-10. Continue to the next incomplete phase automatically.
+2. Integrate deterministic raster fallback where scale can be verified safely.
+3. Extend tests for corrections, IFC, openings, dimensions, and export UI.
+4. Resolve all CI failures automatically.
+5. Merge only when gates are green.
+6. Apply required Supabase migrations.
+7. Verify Production.
+8. Run strongest safe real-plan/visual benchmark.
+9. Continue to the next incomplete phase automatically.
