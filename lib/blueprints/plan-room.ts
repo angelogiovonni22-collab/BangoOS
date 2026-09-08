@@ -81,6 +81,9 @@ export async function uploadBlueprint(params: { supabase: SupabaseClient; input:
       source_file_size: input.file.size,
     });
     if (versionResponse.error) throw new Error(`Could not register the Blueprint revision: ${versionResponse.error.message}`);
+    const versionId = Array.isArray(versionResponse.data) ? versionResponse.data[0] : versionResponse.data;
+    if (!versionId) throw new Error("BOS could not resolve the uploaded Blueprint revision.");
+    return { versionId: String(versionId), sheetId };
   } catch (error) {
     if (storagePath) await supabase.storage.from(BLUEPRINTS_BUCKET).remove([storagePath]);
     if (sheetId) await db.from("blueprint_sheets").delete().eq("id", sheetId).eq("company_id", input.companyId);
@@ -125,6 +128,9 @@ export async function uploadBlueprintRevision(params: {
     await params.supabase.storage.from(BLUEPRINTS_BUCKET).remove([storagePath]);
     throw new Error(revisionResponse.error.message);
   }
+  const versionId = Array.isArray(revisionResponse.data) ? revisionResponse.data[0] : revisionResponse.data;
+  if (!versionId) throw new Error("BOS could not resolve the new Blueprint revision.");
+  return { versionId: String(versionId) };
 }
 
 export async function loadProjectBlueprints(params: {
