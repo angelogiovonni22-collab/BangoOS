@@ -17,6 +17,7 @@ type Blueprint2dViewerProps = {
   expanded?: boolean;
   initialPage?: number;
   initialAnnotationId?: string | null;
+  onClose?: () => void;
 };
 
 const MIN_ZOOM = 20;
@@ -24,8 +25,10 @@ const MAX_ZOOM = 300;
 const ZOOM_STEP = 25;
 const TRACKPAD_ZOOM_STEP = 5;
 const TRACKPAD_ZOOM_THROTTLE_MS = 70;
+const FULL_PAGE_TRACKPAD_ZOOM_STEP = 10;
+const FULL_PAGE_TRACKPAD_ZOOM_THROTTLE_MS = 40;
 
-export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, projectId, versionId, userId, discipline, expanded = false, initialPage = 1, initialAnnotationId }: Blueprint2dViewerProps) {
+export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, projectId, versionId, userId, discipline, expanded = false, initialPage = 1, initialAnnotationId, onClose }: Blueprint2dViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number; originX: number; originY: number } | null>(null);
   const lastTrackpadZoomAtRef = useRef(0);
@@ -49,11 +52,6 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
     if (media instanceof HTMLCanvasElement && (media.width <= 300 || media.height <= 150)) return false;
     if (media instanceof HTMLImageElement && (!media.complete || media.naturalWidth <= 0 || media.naturalHeight <= 0)) return false;
 
-    // The workspace now has an explicit viewport height. The canvas/image is
-    // already constrained by max-h-full/max-w-full, so fit from its actual
-    // laid-out frame rather than its high-resolution intrinsic render buffer.
-    // Using canvas.width here would double-apply the PDF render scale and make
-    // an otherwise fitted sheet appear tiny.
     const baseWidth = frame.offsetWidth;
     const baseHeight = frame.offsetHeight;
     const availableWidth = viewport.clientWidth;
@@ -169,13 +167,16 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
     if (!event.ctrlKey) return;
     event.preventDefault();
 
+    const fullPageMode = expanded || isFullscreen;
+    const throttle = fullPageMode ? FULL_PAGE_TRACKPAD_ZOOM_THROTTLE_MS : TRACKPAD_ZOOM_THROTTLE_MS;
+    const step = fullPageMode ? FULL_PAGE_TRACKPAD_ZOOM_STEP : TRACKPAD_ZOOM_STEP;
     const now = performance.now();
-    if (now - lastTrackpadZoomAtRef.current < TRACKPAD_ZOOM_THROTTLE_MS) return;
+    if (now - lastTrackpadZoomAtRef.current < throttle) return;
     lastTrackpadZoomAtRef.current = now;
     autoFitAppliedRef.current = true;
 
     const direction = event.deltaY < 0 ? 1 : -1;
-    setZoom((currentZoom) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentZoom + direction * TRACKPAD_ZOOM_STEP)));
+    setZoom((currentZoom) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentZoom + direction * step)));
   };
 
   const toggleFullscreen = async () => {
@@ -195,7 +196,7 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
   return (
     <div
       ref={viewerRef}
-      className={`overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-950 shadow-inner ${fillsAvailableHeight ? "flex h-full min-h-0 flex-col" : ""} ${isFullscreen ? "h-screen w-screen rounded-none border-0" : ""}`}
+      className={`overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-950 shadow-inner ${fillsAvailableHeight ? "flex h-full min-h-0 flex-col" : ""} ${expanded || isFullscreen ? "rounded-none border-0" : ""}`}
       data-orion-region="blueprint-2d-viewer"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-slate-900 px-2.5 py-2 text-white">
@@ -227,9 +228,15 @@ export function Blueprint2dViewer({ fileUrl, fileName, previewType, companyId, p
             <Hand size={13} aria-hidden="true" />
             Drag to pan · pinch to zoom
           </span>
-          <ToolButton label={isFullscreen ? "Exit fullscreen" : "View fullscreen"} onClick={() => void toggleFullscreen()}>
-            {isFullscreen ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
-          </ToolButton>
+          {expanded && onClose ? (
+            <ToolButton label="Exit full-page workspace" onClick={onClose}>
+              <Minimize2 size={15} aria-hidden="true" />
+            </ToolButton>
+          ) : (
+            <ToolButton label={isFullscreen ? "Exit fullscreen" : "View fullscreen"} onClick={() => void toggleFullscreen()}>
+              {isFullscreen ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
+            </ToolButton>
+          )}
         </div>
       </div>
 
