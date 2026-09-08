@@ -1,0 +1,57 @@
+name: Blueprint Engine Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        if: always()
+        run: npm run typecheck
+
+      - name: Automatic Blueprint-to-3D contract
+        if: always()
+        run: npm run automatic-3d:contract
+
+      - name: Schedule contract
+        if: always()
+        run: npm run schedule:contract
+
+      - name: Project Intelligence contract
+        if: always()
+        run: npm run project-intelligence:contract
+
+      - name: Sitemap contract
+        if: always()
+        run: npm run sitemap:contract
+
+      - name: Build
+        if: always()
+        run: npm run build
