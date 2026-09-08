@@ -92,13 +92,20 @@ function wallDetectionPreference(segment: BosRawSegment) {
   return (segment.confidence || 0) * 2 + Math.min(1, length(segment) / 8) - thicknessPenalty * 2;
 }
 
-function pointInsideAnnotationZone(point: { x: number; y: number }, zone: WallAnnotationZone) {
-  const padding = zone.padding ?? 0.3;
+function pointInsideAnnotationZone(point: { x: number; y: number }, zone: WallAnnotationZone, extraPadding = 0) {
+  const padding = (zone.padding ?? 0.3) + extraPadding;
   const minX = zone.x - padding;
   const maxX = zone.x + Math.max(0, zone.width) + padding;
   const minY = zone.y - padding;
   const maxY = zone.y + Math.max(0, zone.height) + padding;
   return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
+}
+
+function segmentMidpoint(segment: BosRawSegment) {
+  return {
+    x: (segment.start.x + segment.end.x) / 2,
+    y: (segment.start.y + segment.end.y) / 2,
+  };
 }
 
 export function suppressDimensionAnnotationDetections(
@@ -107,11 +114,34 @@ export function suppressDimensionAnnotationDetections(
 ) {
   if (!zones.length) return input;
   const maxAnnotationCandidateLength = 1.2;
+  const maxWitnessCandidateLength = 2.4;
+  const maxWitnessThickness = 0.08;
+
   return input.filter((segment) => {
-    if (length(segment) > maxAnnotationCandidateLength) return true;
-    return !zones.some((zone) =>
-      pointInsideAnnotationZone(segment.start, zone) && pointInsideAnnotationZone(segment.end, zone),
+    const candidateLength = length(segment);
+    if (
+      candidateLength <= maxAnnotationCandidateLength
+      && zones.some((zone) => pointInsideAnnotationZone(segment.start, zone) && pointInsideAnnotationZone(segment.end, zone))
+    ) {
+      return false;
+    }
+
+    // Dimension witness/extension pairs can survive the label-box filter because one endpoint sits
+    // just outside the text bbox. Only suppress a second, deliberately narrow class: short paired
+    // lines whose inferred separation is thinner than a plausible standard wall and whose midpoint
+    // and one endpoint remain anchored to the dimension-label evidence corridor. This avoids using
+    // label proximity alone to erase normal-thickness or long architectural walls.
+    if (candidateLength > maxWitnessCandidateLength) return true;
+    if (segment.strokeWidth === undefined || segment.strokeWidth > maxWitnessThickness) return true;
+    const midpoint = segmentMidpoint(segment);
+    const witnessArtifact = zones.some((zone) =>
+      pointInsideAnnotationZone(midpoint, zone, 0.35)
+      && (
+        pointInsideAnnotationZone(segment.start, zone, 0.15)
+        || pointInsideAnnotationZone(segment.end, zone, 0.15)
+      ),
     );
+    return !witnessArtifact;
   });
 }
 
