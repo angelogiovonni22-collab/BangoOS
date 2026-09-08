@@ -87,7 +87,7 @@ function projectPointToWall(point: BosPoint2, wall: BosWall) {
   return { point: projected, parameter, distance: Math.hypot(point.x - projected.x, point.y - projected.y) };
 }
 
-function nearMissJunction(a: BosWall, b: BosWall, tolerance: number) {
+function nonParallelWalls(a: BosWall, b: BosWall, tolerance: number) {
   const aDelta = {
     x: a.centerline.end.x - a.centerline.start.x,
     y: a.centerline.end.y - a.centerline.start.y,
@@ -97,7 +97,11 @@ function nearMissJunction(a: BosWall, b: BosWall, tolerance: number) {
     y: b.centerline.end.y - b.centerline.start.y,
   };
   const scale = Math.max(Math.hypot(aDelta.x, aDelta.y), Math.hypot(bDelta.x, bDelta.y), 1);
-  if (Math.abs(cross(aDelta, bDelta)) <= tolerance / scale) return null;
+  return Math.abs(cross(aDelta, bDelta)) > tolerance / scale;
+}
+
+function nearMissJunction(a: BosWall, b: BosWall, tolerance: number) {
+  if (!nonParallelWalls(a, b, tolerance)) return null;
 
   const candidates: Array<{ point: BosPoint2; t: number; u: number; distance: number }> = [];
   const aEndpoints = [
@@ -119,6 +123,36 @@ function nearMissJunction(a: BosWall, b: BosWall, tolerance: number) {
     const projection = projectPointToWall(endpoint.point, a);
     if (projection && projection.distance <= tolerance) {
       candidates.push({ point: projection.point, t: projection.parameter, u: endpoint.parameter, distance: projection.distance });
+    }
+  }
+  candidates.sort((left, right) => left.distance - right.distance);
+  return candidates[0] || null;
+}
+
+function nearMissEndpointJunction(a: BosWall, b: BosWall, tolerance: number) {
+  if (!nonParallelWalls(a, b, tolerance)) return null;
+  const aEndpoints = [
+    { point: a.centerline.start, parameter: 0 },
+    { point: a.centerline.end, parameter: 1 },
+  ];
+  const bEndpoints = [
+    { point: b.centerline.start, parameter: 0 },
+    { point: b.centerline.end, parameter: 1 },
+  ];
+  const candidates: Array<{ point: BosPoint2; t: number; u: number; distance: number }> = [];
+  for (const left of aEndpoints) {
+    for (const right of bEndpoints) {
+      const distance = Math.hypot(left.point.x - right.point.x, left.point.y - right.point.y);
+      if (distance > tolerance) continue;
+      candidates.push({
+        point: {
+          x: (left.point.x + right.point.x) / 2,
+          y: (left.point.y + right.point.y) / 2,
+        },
+        t: left.parameter,
+        u: right.parameter,
+        distance,
+      });
     }
   }
   candidates.sort((left, right) => left.distance - right.distance);
@@ -153,12 +187,13 @@ function buildNodes(walls: BosWall[], tolerance: number) {
   // extraction commonly leaves a long exterior run intact while an interior partition ends on
   // it, so endpoint-only topology would miss otherwise valid bounded rooms. Also bridge a
   // near-miss endpoint when it falls within the configured snap tolerance of a non-parallel wall.
-  // Endpoint projections replace the original endpoint so the topology does not retain a tiny
-  // dangling stub beside the recovered junction.
+  // Endpoint-to-endpoint recovery closes tiny diagonal corner gaps that cannot project back onto
+  // either finite segment. Recovered endpoints replace the originals so no dangling stubs remain.
   for (let i = 0; i < walls.length; i += 1) {
     for (let j = i + 1; j < walls.length; j += 1) {
       const intersection = segmentIntersection(walls[i], walls[j], tolerance)
-        || nearMissJunction(walls[i], walls[j], tolerance);
+        || nearMissJunction(walls[i], walls[j], tolerance)
+        || nearMissEndpointJunction(walls[i], walls[j], tolerance);
       if (!intersection) continue;
       addSplitPoint(walls[i].id, { ...intersection.point, parameter: intersection.t });
       addSplitPoint(walls[j].id, { ...intersection.point, parameter: intersection.u });
@@ -296,7 +331,7 @@ export function traceWallBoundedRooms(
         provenance: {
           createdBy: "deterministic",
           algorithm: "wall-bounded-face-tracing",
-          algorithmVersion: "1.2.0",
+          algorithmVersion: "1.3.0",
           evidenceIds: [],
         },
       });
