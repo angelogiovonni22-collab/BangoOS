@@ -14,6 +14,8 @@ export const DEFAULT_ROOM_TRACING_OPTIONS: RoomTracingOptions = {
 
 type Node = { id: string; point: BosPoint2; outgoing: Array<{ to: string; wallId: string; angle: number }> };
 
+type SplitPoint = BosPoint2 & { parameter: number };
+
 function key(point: BosPoint2, tolerance: number) {
   return `${Math.round(point.x / tolerance)}:${Math.round(point.y / tolerance)}`;
 }
@@ -36,8 +38,61 @@ function polygonKey(points: BosPoint2[]) {
   return rotations.sort()[0];
 }
 
+function cross(a: BosPoint2, b: BosPoint2) {
+  return a.x * b.y - a.y * b.x;
+}
+
+function segmentIntersection(a: BosWall, b: BosWall, tolerance: number) {
+  const p = a.centerline.start;
+  const q = b.centerline.start;
+  const r = {
+    x: a.centerline.end.x - a.centerline.start.x,
+    y: a.centerline.end.y - a.centerline.start.y,
+  };
+  const s = {
+    x: b.centerline.end.x - b.centerline.start.x,
+    y: b.centerline.end.y - b.centerline.start.y,
+  };
+  const denominator = cross(r, s);
+  const scale = Math.max(Math.hypot(r.x, r.y), Math.hypot(s.x, s.y), 1);
+  if (Math.abs(denominator) <= tolerance / scale) return null;
+
+  const qMinusP = { x: q.x - p.x, y: q.y - p.y };
+  const t = cross(qMinusP, s) / denominator;
+  const u = cross(qMinusP, r) / denominator;
+  const endpointTolerance = Math.min(0.02, tolerance / scale);
+  if (t < -endpointTolerance || t > 1 + endpointTolerance || u < -endpointTolerance || u > 1 + endpointTolerance) return null;
+
+  return {
+    point: { x: p.x + Math.max(0, Math.min(1, t)) * r.x, y: p.y + Math.max(0, Math.min(1, t)) * r.y },
+    t: Math.max(0, Math.min(1, t)),
+    u: Math.max(0, Math.min(1, u)),
+  };
+}
+
 function buildNodes(walls: BosWall[], tolerance: number) {
   const nodes = new Map<string, Node>();
+  const splitPoints = new Map<string, SplitPoint[]>();
+
+  for (const wall of walls) {
+    splitPoints.set(wall.id, [
+      { ...wall.centerline.start, parameter: 0 },
+      { ...wall.centerline.end, parameter: 1 },
+    ]);
+  }
+
+  // Split centerlines where reconstructed walls meet in the middle of another wall. PDF
+  // extraction commonly leaves a long exterior run intact while an interior partition ends on
+  // it, so endpoint-only topology would miss otherwise valid bounded rooms.
+  for (let i = 0; i < walls.length; i += 1) {
+    for (let j = i + 1; j < walls.length; j += 1) {
+      const intersection = segmentIntersection(walls[i], walls[j], tolerance);
+      if (!intersection) continue;
+      splitPoints.get(walls[i].id)?.push({ ...intersection.point, parameter: intersection.t });
+      splitPoints.get(walls[j].id)?.push({ ...intersection.point, parameter: intersection.u });
+    }
+  }
+
   const ensure = (point: BosPoint2) => {
     const id = key(point, tolerance);
     const existing = nodes.get(id);
@@ -48,19 +103,28 @@ function buildNodes(walls: BosWall[], tolerance: number) {
   };
 
   for (const wall of walls) {
-    const start = ensure(wall.centerline.start);
-    const end = ensure(wall.centerline.end);
-    if (start.id === end.id) continue;
-    start.outgoing.push({
-      to: end.id,
-      wallId: wall.id,
-      angle: Math.atan2(end.point.y - start.point.y, end.point.x - start.point.x),
-    });
-    end.outgoing.push({
-      to: start.id,
-      wallId: wall.id,
-      angle: Math.atan2(start.point.y - end.point.y, start.point.x - end.point.x),
-    });
+    const unique = new Map<string, SplitPoint>();
+    for (const point of splitPoints.get(wall.id) || []) {
+      const pointKey = key(point, tolerance);
+      const previous = unique.get(pointKey);
+      if (!previous || point.parameter < previous.parameter) unique.set(pointKey, point);
+    }
+    const ordered = [...unique.values()].sort((a, b) => a.parameter - b.parameter);
+    for (let index = 0; index < ordered.length - 1; index += 1) {
+      const start = ensure(ordered[index]);
+      const end = ensure(ordered[index + 1]);
+      if (start.id === end.id) continue;
+      start.outgoing.push({
+        to: end.id,
+        wallId: wall.id,
+        angle: Math.atan2(end.point.y - start.point.y, end.point.x - start.point.x),
+      });
+      end.outgoing.push({
+        to: start.id,
+        wallId: wall.id,
+        angle: Math.atan2(start.point.y - end.point.y, start.point.x - end.point.x),
+      });
+    }
   }
   for (const node of nodes.values()) node.outgoing.sort((a, b) => a.angle - b.angle);
   return nodes;
@@ -118,7 +182,7 @@ export function traceWallBoundedRooms(
         let from = node.id;
         let to = edge.to;
         let guard = 0;
-        while (guard < Math.max(16, walls.length * 4)) {
+        while (guard < Math.max(16, walls.length * 8)) {
           guard += 1;
           const half = `${from}->${to}`;
           if (visited.has(half) && half !== initial) break;
@@ -160,7 +224,7 @@ export function traceWallBoundedRooms(
         provenance: {
           createdBy: "deterministic",
           algorithm: "wall-bounded-face-tracing",
-          algorithmVersion: "1.0.0",
+          algorithmVersion: "1.1.0",
           evidenceIds: [],
         },
       });
