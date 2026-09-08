@@ -12,10 +12,6 @@ jobs:
   diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,25 +25,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Blueprint control contract
-        run: npx -y tsx lib/blueprints/engine/control.contract.test.ts
+      - name: Base parsing and geometry
+        run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts base
 
-      - name: Native engine contract
+      - name: Mitchell benchmark
         if: always()
-        run: npx -y tsx lib/blueprints/engine/engine.contract.test.ts
+        run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts benchmark
 
-      - name: Room tracing contract
+      - name: Opening detection
         if: always()
-        run: npx -y tsx lib/blueprints/engine/room-tracing.contract.test.ts
+        run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts openings
 
-      - name: Wall detector contract
+      - name: Dimension association
         if: always()
-        run: npx -y tsx lib/blueprints/engine/wall-detector.contract.test.ts
+        run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts dimension
 
-      - name: Automatic Blueprint-to-3D contract
+      - name: IFC serialization
         if: always()
-        run: npx -y tsx lib/blueprints/automatic-3d.contract.test.ts
+        run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts ifc
 
-      - name: Build
+      - name: Persisted corrections
         if: always()
-        run: npm run build
+        run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts corrections
+
+      - name: Rectangle rejection
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts rectangle
