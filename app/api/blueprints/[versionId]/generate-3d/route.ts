@@ -28,6 +28,8 @@ type SourceVersion = {
   file_size_bytes: number;
 };
 
+type ResponsesCreate = (body: Record<string, unknown>) => Promise<{ output_text?: string }>;
+
 function dbClient(supabase: SupabaseClient<Database>) {
   // Migration-backed tables intentionally remain usable before generated Supabase types refresh.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -215,7 +217,11 @@ async function analyzePlan(buffer: Buffer, mimeType: string, filename: string): 
     });
     rawText = completion.choices[0]?.message?.content || "{}";
   } else {
-    const response = await client.responses.create({
+    // The installed OpenAI SDK's generated TypeScript union lags the Responses API's
+    // input_file item even though the endpoint accepts it. Cast the callable boundary,
+    // not the request payload, so the rest of this route remains type checked.
+    const createResponse = client.responses.create.bind(client.responses) as unknown as ResponsesCreate;
+    const response = await createResponse({
       model: modelName,
       instructions: "You reconstruct architectural floor-plan geometry for B.O.S. Return only strict JSON and clearly report assumptions.",
       input: [{
@@ -226,7 +232,7 @@ async function analyzePlan(buffer: Buffer, mimeType: string, filename: string): 
         ],
       }],
       store: false,
-    } as never);
+    });
     rawText = response.output_text || "{}";
   }
 
