@@ -29,28 +29,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: Blueprint foundation contract
+        run: npx -y tsx components/plans/blueprints-foundation.contract.test.ts
 
-      - name: Typecheck
+      - name: Blueprint release contract
         if: always()
-        run: npm run typecheck
+        run: npx -y tsx components/plans/blueprints-release.contract.test.ts
+
+      - name: Blueprint operations contract
+        if: always()
+        run: npx -y tsx lib/blueprints/operations.contract.test.ts
 
       - name: Automatic Blueprint-to-3D contract
         if: always()
-        run: npm run automatic-3d:contract
-
-      - name: Schedule contract
-        if: always()
-        run: npm run schedule:contract
-
-      - name: Project Intelligence contract
-        if: always()
-        run: npm run project-intelligence:contract
-
-      - name: Sitemap contract
-        if: always()
-        run: npm run sitemap:contract
+        run: npx -y tsx lib/blueprints/automatic-3d.contract.test.ts
 
       - name: Build
         if: always()
