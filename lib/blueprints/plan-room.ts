@@ -128,6 +128,9 @@ export async function uploadBlueprintRevision(params: {
     await params.supabase.storage.from(BLUEPRINTS_BUCKET).remove([storagePath]);
     throw new Error(revisionResponse.error.message);
   }
+  const versionId = Array.isArray(revisionResponse.data) ? revisionResponse.data[0] : revisionResponse.data;
+  if (!versionId) throw new Error("BOS could not resolve the new Blueprint revision.");
+  return { versionId: String(versionId) };
 }
 
 export async function loadProjectBlueprints(params: {
