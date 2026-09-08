@@ -1,10 +1,11 @@
 "use client";
 
-import { ExternalLink, FileText, X } from "lucide-react";
-import { Button, Dialog } from "@/components/ui";
+import { useEffect, useState } from "react";
+import { ExternalLink, Minimize2, Settings2, X } from "lucide-react";
+import { Button } from "@/components/ui";
 import { Blueprint2dViewer } from "./blueprint-2d-viewer";
-import { BlueprintExportActions } from "./blueprint-export-actions";
 import { Blueprint3dViewer } from "./blueprint-3d-viewer";
+import { BlueprintExportActions } from "./blueprint-export-actions";
 import { BlueprintFieldTools } from "./blueprint-field-tools";
 import { BlueprintOrionIntelligence } from "./blueprint-orion-intelligence";
 import type { PlanDocument } from "./types";
@@ -25,7 +26,7 @@ type BlueprintPlanWorkspaceProps = {
 export function BlueprintPlanWorkspace({
   open,
   onClose,
-  document,
+  document: planDocument,
   projectName,
   companyId,
   projectId,
@@ -34,70 +35,140 @@ export function BlueprintPlanWorkspace({
   initialPage = 1,
   initialAnnotationId,
 }: BlueprintPlanWorkspaceProps) {
-  if (!document.fileUrl) return null;
+  const [toolsOpen, setToolsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  if (!open || !planDocument.fileUrl) return null;
+
+  const is3d = previewType === "ifc" || previewType === "gltf";
+  const handleClose = () => {
+    setToolsOpen(false);
+    onClose();
+  };
+  // The prior Dialog used closeOnBackdrop={false}. The direct full-page overlay has no backdrop,
+  // so drawing interactions can only be dismissed through the explicit exit controls below.
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      ariaLabel={`Plan workspace for ${document.fileName}`}
-      closeOnBackdrop={false}
-      className="p-2 sm:p-4"
-      panelClassName="flex h-[calc(100dvh-1rem)] max-w-[min(96rem,calc(100vw-1rem))] flex-col overflow-hidden p-0 sm:h-[calc(100dvh-2rem)]"
+    <div
+      className="fixed inset-0 z-[120] h-dvh w-screen overflow-hidden bg-slate-950"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Plan workspace for ${planDocument.fileName}`}
+      data-orion-region="blueprint-plan-workspace"
     >
-      <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain">
-      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border-subtle)] bg-white px-4 py-3 sm:px-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-            <FileText size={18} aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-base font-bold text-[var(--color-text-primary)]">{document.fileName}</p>
-            <p className="truncate text-xs text-[var(--color-text-secondary)]">
-              {projectName} · Revision {document.revision} · {document.discipline}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href={document.fileUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-9 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-white px-3 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"
-          >
-            <ExternalLink size={14} aria-hidden="true" />
-            <span className="hidden sm:inline">Original file</span>
-          </a>
-          <Button type="button" size="icon" variant="ghost" onClick={onClose} aria-label="Close plan workspace">
-            <X size={18} aria-hidden="true" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="h-[clamp(28rem,calc(100dvh-9rem),64rem)] shrink-0 bg-slate-900 p-2 sm:p-3" data-orion-region="blueprint-plan-workspace">
-        {previewType === "ifc" || previewType === "gltf" ? <Blueprint3dViewer fileUrl={document.fileUrl} fileName={document.fileName} format={previewType} companyId={companyId} projectId={projectId} versionId={document.versionId} userId={userId} /> : <Blueprint2dViewer
-          key={`workspace:${document.versionId}`}
-          fileUrl={document.fileUrl}
-          fileName={document.fileName}
+      {is3d ? (
+        <Blueprint3dViewer
+          fileUrl={planDocument.fileUrl}
+          fileName={planDocument.fileName}
+          format={previewType === "ifc" ? "ifc" : "gltf"}
+          companyId={companyId}
+          projectId={projectId}
+          versionId={planDocument.versionId}
+          userId={userId}
+        />
+      ) : (
+        <Blueprint2dViewer
+          key={`workspace:${planDocument.versionId}`}
+          fileUrl={planDocument.fileUrl}
+          fileName={planDocument.fileName}
           previewType={previewType}
           companyId={companyId}
           projectId={projectId}
-          versionId={document.versionId}
+          versionId={planDocument.versionId}
           userId={userId}
-          discipline={document.discipline}
+          discipline={planDocument.discipline}
           expanded
           initialPage={initialPage}
           initialAnnotationId={initialAnnotationId}
-        />}
+          onClose={handleClose}
+        />
+      )}
+
+      <div className="fixed bottom-4 right-4 z-[130] flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={() => setToolsOpen(true)}
+          aria-expanded={toolsOpen}
+          aria-controls="blueprint-full-page-tools"
+          className="shadow-xl"
+        >
+          <Settings2 size={16} aria-hidden="true" /> Tools
+        </Button>
+        {is3d ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="secondary"
+            onClick={handleClose}
+            aria-label="Exit full-page plan workspace"
+            title="Exit full-page plan workspace"
+            className="shadow-xl"
+          >
+            <Minimize2 size={18} aria-hidden="true" />
+          </Button>
+        ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] bg-white px-4 py-2 text-[11px] text-[var(--color-text-secondary)]">
-        <span>Large Plan Workspace · Markups save to Revision {document.revision}</span>
-        <BlueprintExportActions companyId={companyId} projectId={projectId} versionId={document.versionId} userId={userId} projectName={projectName} document={{ fileName: document.fileName, revision: document.revision, discipline: document.discipline, originalFileName: document.originalFileName || document.fileName, revisionHistory: document.revisionHistory }} />
-      </div>
-      <BlueprintFieldTools companyId={companyId} projectId={projectId} versionId={document.versionId}/>
-      <BlueprintOrionIntelligence companyId={companyId} projectId={projectId} versionId={document.versionId}/>
-      </div>
-    </Dialog>
+      {toolsOpen ? (
+        <aside
+          id="blueprint-full-page-tools"
+          className="fixed bottom-3 right-3 top-3 z-[140] w-[min(30rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-white/15 bg-slate-950/[0.98] text-white shadow-2xl backdrop-blur"
+          data-orion-region="blueprint-full-page-tools"
+          aria-label="Blueprint tools"
+        >
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold">{planDocument.fileName}</p>
+              <p className="truncate text-[11px] text-slate-400">Revision {planDocument.revision} · {planDocument.discipline}</p>
+            </div>
+            <button type="button" onClick={() => setToolsOpen(false)} aria-label="Close Blueprint tools" className="rounded-md p-2 text-slate-300 hover:bg-white/10 hover:text-white">
+              <X size={17} aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="space-y-4 p-4">
+            <a
+              href={planDocument.fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 text-xs font-semibold text-white hover:bg-white/15"
+            >
+              <ExternalLink size={14} aria-hidden="true" /> Original file
+            </a>
+
+            <section className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-300">Export & share</p>
+              <BlueprintExportActions
+                companyId={companyId}
+                projectId={projectId}
+                versionId={planDocument.versionId}
+                userId={userId}
+                projectName={projectName}
+                document={{
+                  fileName: planDocument.fileName,
+                  revision: planDocument.revision,
+                  discipline: planDocument.discipline,
+                  originalFileName: planDocument.originalFileName || planDocument.fileName,
+                  revisionHistory: planDocument.revisionHistory,
+                }}
+              />
+            </section>
+
+            <BlueprintFieldTools companyId={companyId} projectId={projectId} versionId={planDocument.versionId} />
+            <BlueprintOrionIntelligence companyId={companyId} projectId={projectId} versionId={planDocument.versionId} />
+          </div>
+        </aside>
+      ) : null}
+    </div>
   );
 }

@@ -28,6 +28,26 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
   const [deepLinkDismissed, setDeepLinkDismissed] = useState(false);
   const effectiveWorkspaceOpen = workspaceOpen || (initialWorkspaceOpen && !deepLinkDismissed);
 
+  const openWorkspace = () => {
+    setDeepLinkDismissed(false);
+    setWorkspaceOpen(true);
+    if (typeof document !== "undefined" && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+      void document.documentElement.requestFullscreen().catch(() => {
+        // App-level full-page mode still opens if the browser blocks native fullscreen.
+      });
+    }
+  };
+
+  const closeWorkspace = () => {
+    setWorkspaceOpen(false);
+    setDeepLinkDismissed(true);
+    if (typeof document !== "undefined" && document.fullscreenElement && document.exitFullscreen) {
+      void document.exitFullscreen().catch(() => {
+        // Closing the app-level workspace is sufficient if the browser denies exit.
+      });
+    }
+  };
+
   useEffect(() => {
     if (!initialWorkspaceOpen || typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -57,7 +77,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{selectedDocument.fileName}</h3>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Revision {selectedDocument.revision}</p>
           </div>
-          <Button type="button" size="sm" disabled={!selectedDocument.fileUrl || previewType === "unsupported"} onClick={() => { setDeepLinkDismissed(false); setWorkspaceOpen(true); }} data-orion-action="blueprints.open-workspace">
+          <Button type="button" size="sm" disabled={!selectedDocument.fileUrl || previewType === "unsupported"} onClick={openWorkspace} data-orion-action="blueprints.open-workspace">
             <Maximize2 size={15} aria-hidden="true" /> Open workspace
           </Button>
         </div>
@@ -66,7 +86,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
       <div className="space-y-5 p-5">
         {effectiveWorkspaceOpen && selectedDocument.fileUrl && previewType !== "unsupported" ? (
           <div className="flex h-72 items-center justify-center rounded-[var(--radius-xl)] border border-[var(--color-border-strong)] bg-slate-900 px-6 text-center text-sm font-semibold text-slate-200">
-            The interactive plan is open in the large workspace. The inline preview is paused while the workspace is active to avoid loading the same 2D/3D plan twice.
+            The interactive plan is open in the full-page workspace. The inline preview is paused while the workspace is active to avoid loading the same 2D/3D plan twice.
           </div>
         ) : selectedDocument.fileUrl && (previewType === "ifc" || previewType === "gltf") ? (
           <div className="h-[38rem]"><Blueprint3dViewer fileUrl={selectedDocument.fileUrl} fileName={selectedDocument.fileName} format={previewType} companyId={companyId} projectId={projectId} versionId={selectedDocument.versionId} userId={userId}/></div>
@@ -114,7 +134,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
 
       {selectedDocument.fileUrl && previewType !== "unsupported" ? (
         <BlueprintWorkspaceBoundary resetKey={workspaceBoundaryKey}>
-          <BlueprintPlanWorkspace open={effectiveWorkspaceOpen} onClose={() => { setWorkspaceOpen(false); setDeepLinkDismissed(true); }} document={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} previewType={previewType} initialPage={initialPage} initialAnnotationId={initialAnnotationId} />
+          <BlueprintPlanWorkspace open={effectiveWorkspaceOpen} onClose={closeWorkspace} document={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} previewType={previewType} initialPage={initialPage} initialAnnotationId={initialAnnotationId} />
         </BlueprintWorkspaceBoundary>
       ) : null}
     </section>
@@ -151,7 +171,7 @@ class BlueprintWorkspaceBoundary extends Component<BlueprintWorkspaceBoundaryPro
     if (this.state.hasError) {
       return (
         <div className="mx-5 mb-5 rounded-[var(--radius-xl)] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
-          The large plan workspace could not render. The project plan room remains available, and reopening the workspace will retry it without taking down the entire project page.
+          The full-page plan workspace could not render. The project plan room remains available, and reopening the workspace will retry it without taking down the entire project page.
         </div>
       );
     }
