@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { ExternalLink, Minimize2, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui";
 import { Blueprint2dViewer } from "./blueprint-2d-viewer";
@@ -46,7 +47,7 @@ export function BlueprintPlanWorkspace({
     };
   }, [open]);
 
-  if (!open || !planDocument.fileUrl) return null;
+  if (!open || !planDocument.fileUrl || typeof document === "undefined") return null;
 
   const is3d = previewType === "ifc" || previewType === "gltf";
   const handleClose = () => {
@@ -56,9 +57,9 @@ export function BlueprintPlanWorkspace({
   // The prior Dialog used closeOnBackdrop={false}. The direct full-page overlay has no backdrop,
   // so drawing interactions can only be dismissed through the explicit exit controls below.
 
-  return (
+  const workspace = (
     <div
-      className="fixed inset-0 z-[120] h-dvh w-screen overflow-hidden bg-slate-950"
+      className="fixed inset-0 z-[2147483000] h-dvh w-screen overflow-hidden bg-slate-950"
       role="dialog"
       aria-modal="true"
       aria-label={`Plan workspace for ${planDocument.fileName}`}
@@ -92,7 +93,7 @@ export function BlueprintPlanWorkspace({
         />
       )}
 
-      <div className="fixed bottom-4 right-4 z-[130] flex items-center gap-2">
+      <div className="fixed bottom-4 right-4 z-[2147483010] flex items-center gap-2">
         <Button
           type="button"
           size="sm"
@@ -122,7 +123,7 @@ export function BlueprintPlanWorkspace({
       {toolsOpen ? (
         <aside
           id="blueprint-full-page-tools"
-          className="fixed bottom-3 right-3 top-3 z-[140] w-[min(30rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-white/15 bg-slate-950/[0.98] text-white shadow-2xl backdrop-blur"
+          className="fixed bottom-3 right-3 top-3 z-[2147483020] w-[min(30rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-white/15 bg-slate-950/[0.98] text-white shadow-2xl backdrop-blur"
           data-orion-region="blueprint-full-page-tools"
           aria-label="Blueprint tools"
         >
@@ -171,4 +172,6 @@ export function BlueprintPlanWorkspace({
       ) : null}
     </div>
   );
+
+  return createPortal(workspace, document.body);
 }
