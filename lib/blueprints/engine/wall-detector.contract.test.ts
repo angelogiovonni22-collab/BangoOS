@@ -33,6 +33,30 @@ const annotationFiltered = suppressDimensionAnnotationDetections([
   },
   {
     sourcePage: 2,
+    sourceObjectId: "thin-dimension-witness-pair",
+    start: { x: 10.75, y: 3.1 },
+    end: { x: 10.75, y: 4.15 },
+    strokeWidth: 0.075,
+    confidence: 0.9,
+  },
+  {
+    sourcePage: 2,
+    sourceObjectId: "normal-thickness-short-wall-near-label",
+    start: { x: 10.7, y: 3.1 },
+    end: { x: 10.7, y: 4.2 },
+    strokeWidth: 0.15,
+    confidence: 0.93,
+  },
+  {
+    sourcePage: 2,
+    sourceObjectId: "long-thin-wall-crossing-label-zone",
+    start: { x: 10.5, y: 1 },
+    end: { x: 10.5, y: 5 },
+    strokeWidth: 0.075,
+    confidence: 0.94,
+  },
+  {
+    sourcePage: 2,
     sourceObjectId: "long-wall-crossing-label-zone",
     start: { x: 8, y: 3.1 },
     end: { x: 12, y: 3.1 },
@@ -47,13 +71,25 @@ const annotationFiltered = suppressDimensionAnnotationDetections([
     strokeWidth: 0.15,
     confidence: 0.92,
   },
+  {
+    sourcePage: 2,
+    sourceObjectId: "thin-short-wall-away-from-label",
+    start: { x: 15, y: 7 },
+    end: { x: 15.9, y: 7 },
+    strokeWidth: 0.075,
+    confidence: 0.9,
+  },
 ], [
   { x: 10, y: 3, width: 0.9, height: 0.2, padding: 0.2 },
 ]);
 
-assert.equal(annotationFiltered.length, 2, "Short wall-like detections fully contained in a dimension-label zone must be suppressed");
+assert.equal(annotationFiltered.length, 5, "Dimension-label glyphs and thin witness-line pairs anchored to the evidence corridor must be suppressed without deleting protected wall geometry");
 assert(!annotationFiltered.some((segment) => segment.sourceObjectId === "dimension-glyph-pair"), "Dimension-label linework must not survive as wall geometry");
+assert(!annotationFiltered.some((segment) => segment.sourceObjectId === "thin-dimension-witness-pair"), "Thin witness-line pairs anchored to dimension evidence must not survive as wall geometry");
+assert(annotationFiltered.some((segment) => segment.sourceObjectId === "normal-thickness-short-wall-near-label"), "Normal-thickness short wall geometry near a dimension label must survive filtering");
+assert(annotationFiltered.some((segment) => segment.sourceObjectId === "long-thin-wall-crossing-label-zone"), "Long thin architectural geometry must not be removed solely because it crosses a dimension-label corridor");
 assert(annotationFiltered.some((segment) => segment.sourceObjectId === "long-wall-crossing-label-zone"), "A real long wall crossing a dimension-label zone must survive filtering");
 assert(annotationFiltered.some((segment) => segment.sourceObjectId === "short-wall-away-from-label"), "Short wall geometry outside annotation zones must survive filtering");
+assert(annotationFiltered.some((segment) => segment.sourceObjectId === "thin-short-wall-away-from-label"), "Thin geometry away from annotation evidence must survive filtering");
 
 console.log("B.O.S. wall detector nested/annotation filtering regression: PASS");
