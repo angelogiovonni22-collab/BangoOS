@@ -144,7 +144,7 @@ Legend:
 ## Current release branch
 
 - Branch: `feat/blueprint-engine-slab-foundation`
-- PR: pending — bounded slab/foundation recognition
+- PR: `#528 — Recognize Blueprint slab and foundation semantics`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
