@@ -100,10 +100,15 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   };
 
   graph.scale = summary.scale;
-  if (Number.isFinite(source.manualDrawingUnitsPerMeter) && (source.manualDrawingUnitsPerMeter || 0) > 0) {
+  const manualDrawingUnitsPerMeter = source.manualDrawingUnitsPerMeter;
+  if (
+    typeof manualDrawingUnitsPerMeter === "number" &&
+    Number.isFinite(manualDrawingUnitsPerMeter) &&
+    manualDrawingUnitsPerMeter > 0
+  ) {
     graph.scale = {
       source: "manual",
-      drawingUnitsPerMeter: source.manualDrawingUnitsPerMeter,
+      drawingUnitsPerMeter: manualDrawingUnitsPerMeter,
       confidence: 1,
     };
     graph.metadata.algorithms = { ...graph.metadata.algorithms, manualScale: "persisted-correction-1.0.0" };
