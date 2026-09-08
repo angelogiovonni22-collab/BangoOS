@@ -88,6 +88,7 @@ export function recognizeArchitecturalSemantics(graph: BosBuildingGraph, tokens:
   const levelId = graph.levels[0]?.id;
   if (!levelId) return graph;
   let rooms: BosRoom[] = [...graph.rooms];
+  const slabs: BosSlab[] = [...graph.slabs];
   const decksPorches: BosSlab[] = [...graph.decksPorches];
   const stairs: BosStair[] = [...graph.stairs];
   const seen = new Set<string>();
@@ -110,7 +111,7 @@ export function recognizeArchitecturalSemantics(graph: BosBuildingGraph, tokens:
       provenance: {
         createdBy: "deterministic" as const,
         algorithm: "bos-plan-label-semantics",
-        algorithmVersion: "1.1.0",
+        algorithmVersion: "1.2.0",
         evidenceIds: [`semantic-${kind}-${token.page}-${Math.round(point.x * 100)}-${Math.round(point.y * 100)}`],
       },
     });
@@ -158,6 +159,26 @@ export function recognizeArchitecturalSemantics(graph: BosBuildingGraph, tokens:
         ...semantic(kind, 0.72),
       });
     }
+
+    const isFoundation = /\b(foundation|footing|foundation wall)\b/.test(text);
+    const isSlab = /\b(concrete slab|slab on grade|floor slab|sog)\b/.test(text);
+    if ((isFoundation || isSlab) && !seen.has(isFoundation ? "foundation" : "slab")) {
+      const containingRoom = rooms.find((room) => room.levelId === levelId && pointInBosPolygon(point, room.polygon));
+      const nearbyPoints = nearbyWallPoints(graph.walls, point, 5.5);
+      if (containingRoom || nearbyPoints.length >= 4) {
+        const kind = isFoundation ? "foundation" : "floor";
+        seen.add(isFoundation ? "foundation" : "slab");
+        slabs.push({
+          id: `${kind}-${levelId}-${slabs.length + 1}`,
+          levelId,
+          type: kind,
+          polygon: containingRoom?.polygon || bboxPolygon(nearbyPoints, { center: point, width: 4, height: 4 }),
+          thickness: isFoundation ? 0.2 : 0.1,
+          elevation: 0,
+          ...semantic(kind, containingRoom ? 0.82 : 0.68),
+        });
+      }
+    }
   }
 
   const stairTokens = tokens.filter((token) => {
@@ -183,5 +204,5 @@ export function recognizeArchitecturalSemantics(graph: BosBuildingGraph, tokens:
     }
   }
 
-  return { ...graph, rooms, decksPorches, stairs } satisfies BosBuildingGraph;
+  return { ...graph, rooms, slabs, decksPorches, stairs } satisfies BosBuildingGraph;
 }

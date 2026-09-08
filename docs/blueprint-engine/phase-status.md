@@ -26,7 +26,7 @@ Legend:
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
-- [x] Full CI green through merged Phase B annotation hardening
+- [x] Full CI green through merged Phase B opening-symbol hardening
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
@@ -51,6 +51,13 @@ Legend:
 - Merge commit: `b809b1bbe20f42682aa5010c55eb99ec41b8dd74`
 - Required CI completed green, including the production dependency audit after patching Next.js to 16.3.4.
 
+### Merged Phase B opening-symbol checkpoint
+
+- Branch: `feat/blueprint-engine-opening-symbols`
+- PR: `#527 — Recognize Blueprint door and window symbols`
+- Merge commit: `0570fa486dba597579671f68a3ed47507ca2849f`
+- Required CI and Vercel Production deployment completed green.
+
 ## Phase B — Architectural Reconstruction
 
 - [x] Gap-based opening association
@@ -70,7 +77,7 @@ Legend:
 - [x] Window symbol/type recognition from gap-overlapping vector line evidence
 - [~] Better wall junction/corner recovery
 - [~] Nested/duplicate annotation-line filtering (nested paired-wall duplicate suppression plus dimension-evidence-zone filtering implemented; broader witness/dimension-line filtering remains)
-- [ ] Slab/foundation recognition
+- [~] Slab/foundation recognition (explicit bounded label semantics implemented; validation in active branch)
 - [ ] Roof geometry recognition
 
 ## Phase C — Correction and Review Workspace
@@ -136,8 +143,8 @@ Legend:
 
 ## Current release branch
 
-- Branch: `feat/blueprint-engine-opening-symbols`
-- PR: `#527 — Recognize Blueprint door and window symbols`
+- Branch: `feat/blueprint-engine-slab-foundation`
+- PR: `#528 — Recognize Blueprint slab and foundation semantics`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
