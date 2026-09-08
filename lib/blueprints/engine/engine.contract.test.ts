@@ -7,6 +7,11 @@ import { footprintComplexity, mergeCollinearSegments, topologyMetrics, type BosR
 import { buildBosBuildingGraphIfc } from "./graph-to-ifc";
 import { detectWallGapOpenings } from "./openings";
 import { selectTargetPage, type BosParsedPage } from "./plan-parser";
+import {
+  latestPersistedManualScale,
+  replayPersistedBosGraphCorrections,
+  type PersistedBosGraphCorrectionRow,
+} from "./persisted-corrections";
 import { applyBosValidation } from "./validation";
 
 const scale = parsePrintedScale(`1/4\" = 1'-0\"`);
@@ -105,6 +110,40 @@ assert(associateDimensionsToWalls(graph).some((item) => item.wallId === "wall-1"
 const ifc = buildBosBuildingGraphIfc(validated);
 assert(ifc.startsWith("ISO-10303-21;"), "IFC export must emit a STEP header");
 assert(ifc.includes("IFCWALLSTANDARDCASE") && ifc.includes("FILE_SCHEMA(('IFC4'))"), "IFC export must contain IFC4 wall entities");
+
+const persistedRows: PersistedBosGraphCorrectionRow[] = [
+  {
+    id: "00000000-0000-0000-0000-000000000001",
+    correction_type: "set_scale",
+    payload: { type: "set_scale", drawingUnitsPerMeter: 144, createdAt: "2026-09-08T09:00:00.000Z" },
+    created_by: "user-1",
+    created_at: "2026-09-08T09:00:00.000Z",
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000002",
+    correction_type: "classify_wall",
+    payload: { type: "classify_wall", wallId: "wall-1", wallType: "interior", createdAt: "2026-09-08T09:01:00.000Z" },
+    created_by: "user-1",
+    created_at: "2026-09-08T09:01:00.000Z",
+  },
+];
+assert.equal(latestPersistedManualScale(persistedRows), 144, "Latest persisted set_scale correction must be available before native geometry conversion");
+const persistedReplay = replayPersistedBosGraphCorrections(validated, persistedRows);
+assert.equal(persistedReplay.graph.scale.source, "manual", "Persisted manual scale must survive correction replay");
+assert.equal(persistedReplay.graph.walls.find((wall) => wall.id === "wall-1")?.type, "interior", "Persisted wall classification must replay after regeneration");
+assert.equal(persistedReplay.graph.walls.find((wall) => wall.id === "wall-1")?.provenance.createdBy, "manual", "Replayed corrections must retain human provenance");
+assert.equal(persistedReplay.conflicts.length, 0, "Matching persisted corrections must replay without conflicts");
+
+const conflictReplay = replayPersistedBosGraphCorrections(validated, [{
+  id: "00000000-0000-0000-0000-000000000003",
+  correction_type: "move_wall",
+  payload: { type: "move_wall", wallId: "missing-wall", start: { x: 0, y: 0 }, end: { x: 1, y: 0 }, createdAt: "2026-09-08T09:02:00.000Z" },
+  created_by: "user-1",
+  created_at: "2026-09-08T09:02:00.000Z",
+}]);
+assert.equal(conflictReplay.conflicts.length, 1, "Unmatched persisted corrections must surface a conflict instead of being silently dropped");
+assert.equal(conflictReplay.graph.validation.status, "needs_review", "Correction conflicts must prevent a regenerated graph from being presented as reconstructed");
+assert(conflictReplay.graph.validation.issues.some((issue) => issue.code === "CORRECTION_CONFLICT"), "Correction conflict must be visible in validation issues");
 
 const rectangle = createEmptyBosBuildingGraph({ buildingId: "bad", sourcePage: 2, sourceSheetTitle: "FIRST FLOOR PLAN" });
 rectangle.scale = scale;
