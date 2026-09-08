@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { GitCompareArrows, X } from "lucide-react";
+import { GitCompareArrows, Sparkles, X } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { uploadBlueprintRevision, validateBlueprintFile } from "@/lib/blueprints/plan-room";
@@ -50,7 +50,12 @@ export function BlueprintRevisionPanel({ companyId, projectId, document, onUploa
     setSubmitting(true);
     setMessage(null);
     try {
-      await uploadBlueprintRevision({ supabase, companyId, projectId, sheetId: document.id, revisionLabel, notes, file });
+      const uploaded = await uploadBlueprintRevision({ supabase, companyId, projectId, sheetId: document.id, revisionLabel, notes, file });
+      if (file.type === "application/pdf" || file.type.startsWith("image/")) {
+        void fetch(`/api/blueprints/${encodeURIComponent(uploaded.versionId)}/generate-3d`, { method: "POST", keepalive: true }).catch(() => {
+          // Revision upload remains successful if conceptual 3D generation needs a manual retry.
+        });
+      }
       onUploaded();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The revision could not be uploaded.");
@@ -65,6 +70,9 @@ export function BlueprintRevisionPanel({ companyId, projectId, document, onUploa
         <div>
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Upload new revision</h2>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{document.fileName} · Current revision {document.revision}</p>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-700">
+            <Sparkles size={14} aria-hidden="true" /> PDF and image revisions automatically rebuild their conceptual 3D model.
+          </p>
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={onClose} aria-label="Close revision upload"><X size={17} /></Button>
       </div>
