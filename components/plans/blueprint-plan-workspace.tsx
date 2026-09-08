@@ -46,13 +46,13 @@ export function BlueprintPlanWorkspace({
     };
   }, [open]);
 
-  useEffect(() => {
-    if (!open) setToolsOpen(false);
-  }, [open]);
-
   if (!open || !planDocument.fileUrl) return null;
 
   const is3d = previewType === "ifc" || previewType === "gltf";
+  const handleClose = () => {
+    setToolsOpen(false);
+    onClose();
+  };
   // The prior Dialog used closeOnBackdrop={false}. The direct full-page overlay has no backdrop,
   // so drawing interactions can only be dismissed through the explicit exit controls below.
 
@@ -68,7 +68,7 @@ export function BlueprintPlanWorkspace({
         <Blueprint3dViewer
           fileUrl={planDocument.fileUrl}
           fileName={planDocument.fileName}
-          format={previewType}
+          format={previewType === "ifc" ? "ifc" : "gltf"}
           companyId={companyId}
           projectId={projectId}
           versionId={planDocument.versionId}
@@ -88,7 +88,7 @@ export function BlueprintPlanWorkspace({
           expanded
           initialPage={initialPage}
           initialAnnotationId={initialAnnotationId}
-          onClose={onClose}
+          onClose={handleClose}
         />
       )}
 
@@ -109,7 +109,7 @@ export function BlueprintPlanWorkspace({
             type="button"
             size="icon"
             variant="secondary"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Exit full-page plan workspace"
             title="Exit full-page plan workspace"
             className="shadow-xl"
@@ -122,7 +122,7 @@ export function BlueprintPlanWorkspace({
       {toolsOpen ? (
         <aside
           id="blueprint-full-page-tools"
-          className="fixed bottom-3 right-3 top-3 z-[140] w-[min(30rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-white/15 bg-slate-950/98 text-white shadow-2xl backdrop-blur"
+          className="fixed bottom-3 right-3 top-3 z-[140] w-[min(30rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-white/15 bg-slate-950/[0.98] text-white shadow-2xl backdrop-blur"
           data-orion-region="blueprint-full-page-tools"
           aria-label="Blueprint tools"
         >
