@@ -130,7 +130,7 @@ Legend:
 ## Current release branch
 
 - Branch: `feat/blueprint-engine-annotation-filtering`
-- PR: pending — dimension-evidence annotation filtering hardening
+- PR: `#526 — Filter Blueprint dimension annotation linework`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
