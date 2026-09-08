@@ -17,6 +17,7 @@ export type NativeBlueprintSource = {
   sheetNumber?: string;
   sheetTitle?: string;
   discipline?: string;
+  manualDrawingUnitsPerMeter?: number;
 };
 
 export type NativeBlueprintReconstruction = {
@@ -96,6 +97,14 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   };
 
   graph.scale = summary.scale;
+  if (Number.isFinite(source.manualDrawingUnitsPerMeter) && (source.manualDrawingUnitsPerMeter || 0) > 0) {
+    graph.scale = {
+      source: "manual",
+      drawingUnitsPerMeter: source.manualDrawingUnitsPerMeter,
+      confidence: 1,
+    };
+    graph.metadata.algorithms = { ...graph.metadata.algorithms, manualScale: "persisted-correction-1.0.0" };
+  }
   graph.dimensions = summary.dimensions;
   if (!graph.scale.drawingUnitsPerMeter || graph.scale.confidence < 0.55) {
     diagnostics.push("Printed drawing scale could not be verified strongly enough for deterministic geometry conversion.");
