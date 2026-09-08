@@ -16,7 +16,7 @@ export function parseArchitecturalLength(text: string): number | null {
   const normalized = text.trim().replace(/[’′]/g, "'").replace(/[”″]/g, '"');
   if (!normalized) return null;
 
-  const feetInches = normalized.match(/^(-?\d+(?:\.\d+)?)\s*'\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in)?)?$/i);
+  const feetInches = normalized.match(/^(-?\d+(?:\.\d+)?)\s*'\s*-?\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in)?)?$/i);
   if (feetInches) {
     const feet = Number(feetInches[1]);
     const inches = feetInches[2] ? Number(feetInches[2]) : 0;
