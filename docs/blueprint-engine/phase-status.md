@@ -137,7 +137,7 @@ Legend:
 ## Current release branch
 
 - Branch: `feat/blueprint-engine-opening-symbols`
-- PR: pending — deterministic door/window symbol recognition
+- PR: `#527 — Recognize Blueprint door and window symbols`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
