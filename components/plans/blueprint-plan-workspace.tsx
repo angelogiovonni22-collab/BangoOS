@@ -53,6 +53,8 @@ export function BlueprintPlanWorkspace({
   if (!open || !planDocument.fileUrl) return null;
 
   const is3d = previewType === "ifc" || previewType === "gltf";
+  // The prior Dialog used closeOnBackdrop={false}. The direct full-page overlay has no backdrop,
+  // so drawing interactions can only be dismissed through the explicit exit controls below.
 
   return (
     <div
