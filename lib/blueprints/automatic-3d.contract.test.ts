@@ -30,6 +30,7 @@ assert(migration.includes("blueprints_generated_model_storage_select"), "Generat
 assert(correctionMigration.includes("blueprint_model_corrections") && correctionMigration.includes("Append-only user corrections"), "Native graph corrections must have append-only persistence");
 assert(correctionMigration.includes("enable row level security") && correctionMigration.includes("blueprint_member_of_company"), "Persisted graph corrections must remain behind company RLS");
 assert(nextConfig.includes('serverExternalPackages: ["@napi-rs/canvas", "pdfjs-dist"]'), "Production must load pdfjs and its sibling worker from the installed server package");
+assert(nextConfig.includes('"/api/blueprints/*/generate-3d"') && nextConfig.includes('pdfjs-dist/legacy/build/pdf.worker.mjs'), "The deployed Blueprint route must trace the dynamically loaded pdfjs worker");
 assert(route.includes("OPENAI_API_KEY") && route.includes("input_file"), "PDF reconstruction must retain server-side multimodal fallback support");
 assert(route.includes("reconstructNativeBlueprint") && route.includes("buildBosBuildingGraphGlb"), "Registered PDFs must route through the native B.O.S. Building Graph reconstruction path");
 assert(route.includes("blueprint_model_corrections") && route.includes("replayPersistedBosGraphCorrections"), "Native regeneration must load and replay persisted graph corrections");
