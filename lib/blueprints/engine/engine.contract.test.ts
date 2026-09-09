@@ -37,6 +37,16 @@ const raw: BosRawSegment[] = [
 const merged = mergeCollinearSegments(raw);
 assert.equal(merged.length, 2, "Collinear connected wall segments should merge deterministically");
 assert.equal(topologyMetrics(merged).nodes, 3, "Topology metrics should preserve snapped graph endpoints");
+const junctionTopology = topologyMetrics([
+  { start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+  { start: { x: 2, y: -2 }, end: { x: 2, y: 0.06 } },
+]);
+assert(junctionTopology.junctions >= 1, "Topology metrics must recognize T-junctions and near-miss endpoints instead of counting both wall runs as disconnected");
+const separatedTopology = topologyMetrics([
+  { start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+  { start: { x: 2, y: -2 }, end: { x: 2, y: -0.3 } },
+]);
+assert.equal(separatedTopology.junctions, 0, "Topology metrics must not bridge wall endpoints beyond junction tolerance");
 
 const graph = createEmptyBosBuildingGraph({
   buildingId: "benchmark-house",
