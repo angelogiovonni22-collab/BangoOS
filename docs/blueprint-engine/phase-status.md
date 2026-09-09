@@ -26,7 +26,7 @@ Legend:
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
-- [x] Full CI green through merged Phase B diagonal-corner hardening
+- [x] Full CI green through merged Phase B completion
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
@@ -64,6 +64,13 @@ Legend:
 - PR: `#529 — Harden Blueprint diagonal corner recovery`
 - Merge commit: `99ac86664cd5785bd13dfc87d879fb564fffc3f4`
 - Required CI and Vercel Production deployment completed green.
+
+### Merged Phase B completion checkpoint
+
+- Branch: `feat/blueprint-engine-witness-filtering`
+- PR: `#530 — Filter Blueprint dimension witness linework`
+- Merge commit: `c95e4fe1b2de5487f03f0c6fa2c8561aa4e6e4f0`
+- Master Plan Phase B is complete; required CI and Vercel Production deployment completed green.
 
 ## Phase B — Architectural Reconstruction
 
@@ -105,14 +112,14 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 - [x] Correction history retained on regenerated model records
 - [x] Correction conflict detection when object IDs no longer match
 - [x] Correction replay/conflict contract regression
-- [~] Native reconstruction/validation metadata surfaced in Blueprint control UI
-- [ ] 2D wall selection/edit controls
-- [ ] Move/add/remove/classify wall UI
-- [ ] Opening correction UI
-- [ ] Room correction UI
-- [ ] Manual scale confirmation UI
-- [ ] Object confidence/provenance inspector
-- [ ] Validation issue panel linked to graph objects
+- [x] Native reconstruction/validation metadata surfaced in Blueprint control UI
+- [x] 2D wall selection/edit controls
+- [x] Move/add/remove/classify wall UI
+- [x] Opening correction UI
+- [x] Room correction UI
+- [x] Manual scale confirmation UI
+- [x] Object confidence/provenance inspector
+- [x] Validation issue panel linked to graph objects
 
 ## Phase D — Multi-floor Reconstruction
 
@@ -156,17 +163,16 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 
 ## Current release branch
 
-- Branch: `feat/blueprint-engine-witness-filtering`
-- PR: `#530 — Filter Blueprint dimension witness linework`
+- Branch: `feat/blueprint-engine-review-workspace`
+- PR: `#531 — Add Blueprint Building Graph review workspace`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
 
-1. Finish and merge the remaining Phase B witness-filter hardening only when all required gates are green.
-2. Verify Vercel Production for the merged Phase B completion commit.
-3. Continue Phase C by wiring the existing correction API/Building Graph into the Blueprint review workspace instead of duplicating correction logic.
-4. Add focused correction UI contracts during development and run full validation before merge.
+1. Finish Phase C validation and merge only when all required gates are green.
+2. Verify Vercel Production; no Supabase migration is expected because Phase C reuses the existing append-only correction schema/API.
+3. Continue Phase D with deterministic level-sheet discovery and per-level reconstruction orchestration over existing Blueprint sheet/version records.
+4. Add alignment conflict validation, multi-level GLB/IFC regressions, and level controls without introducing a parallel model store.
 5. Resolve CI failures automatically and merge only when gates are green.
-6. Apply required Supabase migrations only if a phase genuinely introduces schema changes.
-7. Verify Production and run the strongest safe real-plan/visual benchmark available.
-8. Continue to the next incomplete phase automatically.
+6. Verify Production and run the strongest safe real-plan/visual benchmark available.
+7. Continue to the next incomplete phase automatically.
