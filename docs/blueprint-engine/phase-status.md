@@ -26,7 +26,7 @@ Legend:
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Exact Mitchell Dewitt source is registered in Production and its historical generated-model record was inspected; a forced Production native regeneration is still required because that record predates persisted Building Graph output
-- [x] Full CI green through merged Phase F production hardening
+- [x] Full CI green through merged Mitchell benchmark fixes
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
@@ -99,6 +99,14 @@ Legend:
 - PR: `#534 — Harden Blueprint production benchmarks and telemetry`
 - Merge commit: `b316b85f27eb82d56d2502312f2637d1c8ba5d5c`
 - Sparse/conflicting/scanned-plan fixtures, dense performance budget, tenant-scoped telemetry, full required CI, dependency audit, and Vercel Production deployment completed green.
+
+### Merged Mitchell real-source benchmark checkpoint
+
+- Branch: `fix/blueprint-pdf-raster-benchmark`
+- PR: `#535 — Fix native raster reconstruction for Mitchell benchmark`
+- Merge commit: `8a45c59ab396338a365209b59078f2e7fb9d6a9b`
+- Exact private Mitchell source passed the permanent native benchmark locally against the merged engine: page 2 selected, 80 walls, 16 exterior walls, footprint complexity 1.0, topology closure 0.6875, scale confidence 0.98, garage/deck/stair semantics present, rectangle rejection intact, and validation not failed.
+- All required CI gates and the Vercel Production deployment completed green.
 
 ## Phase B — Architectural Reconstruction
 
@@ -180,7 +188,7 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 - [x] Four-wall rectangle rejection rule
 - [x] Topology/scale/semantic benchmark metrics
 - [x] Control-document regression protecting the source-of-truth structure
-- [x] Execute the exact private Mitchell Dewitt source through the current native engine runtime and inspect the resulting graph; after the PDF-raster/topology fixes in PR #535 the permanent benchmark passes locally on page 2 with 80 walls, 16 exterior walls, 0.6875 topology closure, 0.98 scale confidence, garage/deck/stair semantics present, and validation not failed
+- [x] Execute the exact private Mitchell Dewitt source through the current native engine runtime and inspect the resulting graph; the permanent benchmark passes locally on page 2 with 80 walls, 16 exterior walls, footprint complexity 1.0, 0.6875 topology closure, 0.98 scale confidence, garage/deck/stair semantics present, and validation not failed
 - [x] Add scanned-plan-like raster benchmark fixture with scale-normalized orthogonal extraction
 - [x] Add conflicting-dimension fixture that refuses incompatible scale correction
 - [x] Add sparse-plan `needs_input`/withholding fixture
@@ -191,17 +199,16 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 - [ ] Forced native regeneration of the registered Mitchell Dewitt Production revision and persisted Building Graph verification
 - [ ] Authenticated Production visual walkthrough
 
-## Current release branch
+## Current release state
 
-- Branch: `fix/blueprint-pdf-raster-benchmark`
-- PR: `#535 — Fix native raster reconstruction for Mitchell benchmark`
-- Merge policy: do not merge until required CI gates are green.
+- Engine implementation and real-source benchmark fixes are merged through PR #535.
+- Production deployment for merge commit `8a45c59ab396338a365209b59078f2e7fb9d6a9b` is green.
+- No active product-development PR remains for the current Blueprint Engine Definition of Done.
+- Remaining release checks require an authenticated B.O.S. Production browser session.
 
 ## Immediate execution order
 
-1. Finish PR #535 required CI and merge only when all gates are green.
-2. Verify the #535 Vercel Production deployment.
-3. Force the exact registered Mitchell Dewitt Production revision through the native engine using the authenticated Generate/Regenerate route and inspect the persisted Building Graph against the permanent benchmark.
-4. Complete authenticated Production visual verification when Opera is available.
-5. Resolve only defects exposed by those release checks; do not add unrelated or post-release semantics.
-6. Mark the current Blueprint Engine Definition of Done complete when the persisted Production benchmark and visual walkthrough both pass.
+1. Force the exact registered Mitchell Dewitt Production revision through the authenticated Generate/Regenerate route and inspect the persisted Building Graph against the permanent benchmark.
+2. Complete the authenticated Production visual Blueprint/3D walkthrough.
+3. Resolve only defects exposed by those two release checks; do not add unrelated or post-release semantics.
+4. Mark the current Blueprint Engine Definition of Done complete when both Production checks pass.
