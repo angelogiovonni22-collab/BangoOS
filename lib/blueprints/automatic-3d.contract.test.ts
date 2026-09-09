@@ -22,12 +22,14 @@ const upload = fs.readFileSync(path.join(root, "components/plans/blueprint-uploa
 const revision = fs.readFileSync(path.join(root, "components/plans/blueprint-revision-panel.tsx"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260908004500_automatic_blueprint_to_3d.sql"), "utf8");
 const correctionMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260908040000_blueprint_engine_corrections.sql"), "utf8");
+const nextConfig = fs.readFileSync(path.join(root, "next.config.ts"), "utf8");
 
 assert(migration.includes("create table if not exists public.blueprint_generated_models"), "Generated 3D models must have a tenant-scoped persistence record");
 assert(migration.includes("enable row level security") && migration.includes("blueprint_member_of_company"), "Generated model records must remain behind company RLS");
 assert(migration.includes("blueprints_generated_model_storage_select"), "Generated GLB storage must be authorized through its generated-model record");
 assert(correctionMigration.includes("blueprint_model_corrections") && correctionMigration.includes("Append-only user corrections"), "Native graph corrections must have append-only persistence");
 assert(correctionMigration.includes("enable row level security") && correctionMigration.includes("blueprint_member_of_company"), "Persisted graph corrections must remain behind company RLS");
+assert(nextConfig.includes('serverExternalPackages: ["@napi-rs/canvas", "pdfjs-dist"]'), "Production must load pdfjs and its sibling worker from the installed server package");
 assert(route.includes("OPENAI_API_KEY") && route.includes("input_file"), "PDF reconstruction must retain server-side multimodal fallback support");
 assert(route.includes("reconstructNativeBlueprint") && route.includes("buildBosBuildingGraphGlb"), "Registered PDFs must route through the native B.O.S. Building Graph reconstruction path");
 assert(route.includes("blueprint_model_corrections") && route.includes("replayPersistedBosGraphCorrections"), "Native regeneration must load and replay persisted graph corrections");
