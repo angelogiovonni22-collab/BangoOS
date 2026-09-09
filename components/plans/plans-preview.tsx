@@ -8,6 +8,7 @@ import { Blueprint2dViewer } from "./blueprint-2d-viewer";
 import { BlueprintPlanWorkspace } from "./blueprint-plan-workspace";
 import { Blueprint3dViewer } from "./blueprint-3d-viewer";
 import { BlueprintAuto3dControl } from "./blueprint-auto-3d-control";
+import { BlueprintMultiFloorControl } from "./blueprint-multi-floor-control";
 import type { PlanDocument } from "./types";
 import { formatBlueprintDate } from "@/lib/blueprints/format";
 import { BlueprintRevisionGovernance } from "./blueprint-revision-governance";
@@ -105,7 +106,10 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
         )}
 
         {previewType === "pdf" || previewType === "image" ? (
-          <BlueprintAuto3dControl source={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} />
+          <>
+            <BlueprintAuto3dControl source={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} />
+            <BlueprintMultiFloorControl source={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} />
+          </>
         ) : null}
 
         <div className="grid gap-2 sm:grid-cols-2">
