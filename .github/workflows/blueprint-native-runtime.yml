@@ -1,0 +1,35 @@
+name: Blueprint Native Benchmark Runtime
+
+on:
+  push:
+    branches:
+      - diag/blueprint-native-benchmark-runtime
+
+permissions:
+  contents: read
+
+jobs:
+  package-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install production/test runtime
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts tsx
+      - name: Package current engine runtime
+        run: tar -czf /tmp/bos-blueprint-runtime.tgz --exclude=.git --exclude=.next .
+      - name: Upload runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bos-blueprint-runtime
+          path: /tmp/bos-blueprint-runtime.tgz
+          retention-days: 1
+          compression-level: 0
