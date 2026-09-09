@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import "../../components/plans/blueprint-graph-review.contract.test";
 import "./engine/control.contract.test";
 import "./engine/engine.contract.test";
 import "./engine/openings.contract.test";

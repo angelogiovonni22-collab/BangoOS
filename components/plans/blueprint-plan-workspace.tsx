@@ -8,6 +8,7 @@ import { Blueprint2dViewer } from "./blueprint-2d-viewer";
 import { Blueprint3dViewer } from "./blueprint-3d-viewer";
 import { BlueprintExportActions } from "./blueprint-export-actions";
 import { BlueprintFieldTools } from "./blueprint-field-tools";
+import { BlueprintGraphReviewPanel } from "./blueprint-graph-review-panel";
 import { BlueprintOrionIntelligence } from "./blueprint-orion-intelligence";
 import type { PlanDocument } from "./types";
 
@@ -163,6 +164,12 @@ export function BlueprintPlanWorkspace({
                   revisionHistory: planDocument.revisionHistory,
                 }}
               />
+            </section>
+
+            <section className="rounded-xl border border-cyan-300/20 bg-cyan-950/10 p-3" data-orion-region="blueprint-reconstruction-review">
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-cyan-200">Reconstruction review</p>
+              <p className="mb-3 text-[11px] text-slate-400">Inspect the canonical Building Graph, save evidence-backed corrections, then regenerate 3D to replay them. Corrections never overwrite the original source evidence.</p>
+              <BlueprintGraphReviewPanel versionId={planDocument.versionId} />
             </section>
 
             <BlueprintFieldTools companyId={companyId} projectId={projectId} versionId={planDocument.versionId} />
