@@ -31,6 +31,15 @@ type SharpImage = {
 
 type SharpFactory = (buffer: Buffer, options: { failOn: "none"; page?: number; density?: number }) => SharpImage;
 
+type CanvasSurface = {
+  getContext(type: "2d"): unknown;
+  toBuffer(type: "image/png"): Buffer;
+};
+
+type CanvasModule = {
+  createCanvas?: (width: number, height: number) => CanvasSurface;
+};
+
 async function loadSharp(): Promise<SharpFactory> {
   // Next.js installs sharp as an optional server dependency in production builds. Keep the
   // module name indirect so TypeScript does not require a direct application dependency while
@@ -46,11 +55,45 @@ async function loadSharp(): Promise<SharpFactory> {
   }
 }
 
+async function renderPdfPage(buffer: Buffer, options: RasterLineOptions, pageNumber: number): Promise<Buffer> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // pdfjs-dist already carries @napi-rs/canvas as its optional Node renderer. Keep this indirect
+  // so B.O.S. does not introduce a second PDF renderer or dependency merely for raster fallback.
+  const canvasModuleName = "@napi-rs/canvas";
+  let canvasModule: CanvasModule;
+  try {
+    canvasModule = await import(canvasModuleName) as CanvasModule;
+  } catch {
+    throw new Error("PDF raster rendering is unavailable on this deployment.");
+  }
+  if (typeof canvasModule.createCanvas !== "function") throw new Error("PDF raster rendering is unavailable on this deployment.");
+
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+  const document = await loadingTask.promise;
+  try {
+    if (pageNumber < 1 || pageNumber > document.numPages) throw new Error("Selected Blueprint PDF page is out of range.");
+    const page = await document.getPage(pageNumber);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const longest = Math.max(baseViewport.width, baseViewport.height);
+    const scale = Math.max(1, Math.min(4, options.maxDimension / Math.max(1, longest)));
+    const viewport = page.getViewport({ scale });
+    const canvas = canvasModule.createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+    const canvasContext = canvas.getContext("2d");
+    await page.render({ canvasContext, viewport } as never).promise;
+    page.cleanup();
+    return canvas.toBuffer("image/png");
+  } finally {
+    await document.destroy();
+  }
+}
+
 async function decodeGray(buffer: Buffer, options: RasterLineOptions, page: number): Promise<GrayImage> {
   const sharp = await loadSharp();
-  const image = sharp(buffer, {
+  const isPdf = buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+  const sourceBuffer = isPdf ? await renderPdfPage(buffer, options, page) : buffer;
+  const image = sharp(sourceBuffer, {
     failOn: "none",
-    page: Math.max(0, page - 1),
+    page: isPdf ? undefined : Math.max(0, page - 1),
     density: options.density,
   }).greyscale().normalize();
   const metadata = await image.metadata();
