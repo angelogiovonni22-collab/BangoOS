@@ -1,0 +1,38 @@
+name: Blueprint 534 Diagnostic
+
+on:
+  push:
+    branches:
+      - feat/blueprint-engine-production-hardening
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Phase F hardening contract
+        run: npx -y tsx lib/blueprints/engine/production-hardening.contract.test.ts
+      - name: Blueprint aggregate contract
+        run: npx -y tsx lib/blueprints/automatic-3d.contract.test.ts
+      - name: Repository lint
+        run: npm run lint
+      - name: Production build
+        run: npm run build
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
