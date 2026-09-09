@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/20260909193303_bos_intelligence_usage_metering.sql"), "utf8");
+const privilegeHardening = readFileSync(resolve(process.cwd(), "supabase/migrations/20260909202039_bos_intelligence_usage_ledger_privilege_hardening.sql"), "utf8");
 
 assert.match(migration, /create table if not exists public\.bos_intelligence_usage_ledger/);
 assert.match(migration, /unique \(company_id, idempotency_key\)/, "Usage retries must be idempotent per tenant");
@@ -17,5 +18,12 @@ assert.match(migration, /grant select on public\.bos_intelligence_usage_ledger t
 assert.doesNotMatch(migration, /grant (?:insert|update|delete|all).*bos_intelligence_usage_ledger to authenticated/i);
 assert.match(migration, /grant select, insert on public\.bos_intelligence_usage_ledger to service_role/);
 assert.doesNotMatch(migration, /insert into public\.bos_intelligence_usage_ledger/, "A schema migration must not grant or consume real customer credits");
+
+assert.match(privilegeHardening, /revoke all privileges on table public\.bos_intelligence_usage_ledger from anon/i);
+assert.match(privilegeHardening, /revoke all privileges on table public\.bos_intelligence_usage_ledger from authenticated/i);
+assert.match(privilegeHardening, /revoke all privileges on table public\.bos_intelligence_usage_ledger from service_role/i);
+assert.match(privilegeHardening, /grant select on table public\.bos_intelligence_usage_ledger to authenticated/i);
+assert.match(privilegeHardening, /grant select, insert on table public\.bos_intelligence_usage_ledger to service_role/i);
+assert.doesNotMatch(privilegeHardening, /grant .*\b(?:update|delete|truncate)\b.*bos_intelligence_usage_ledger/i, "No application role may receive destructive ledger privileges");
 
 console.log("B.O.S. Intelligence append-only ledger contract checks passed.");
