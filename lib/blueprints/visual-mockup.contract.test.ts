@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { BLUEPRINT_VISUAL_DISCLAIMER, BLUEPRINT_VISUAL_PROMPT_VERSION, buildBlueprintVisualPrompt, normalizeBlueprintVisualOptions } from "./visual-mockup";
 import { createEmptyBosBuildingGraph } from "./engine/building-graph";
+import { BLUEPRINT_GEOMETRY_LOCK_VERSION, assessBlueprintFidelity, renderBlueprintGeometryLock } from "./geometry-lock";
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
@@ -19,7 +20,7 @@ graph.rooms.push({ id: "garage", levelId: "level-1", type: "room", name: "Garage
 const prompt = buildBlueprintVisualPrompt({ sheetIdentity: "A1 · FIRST FLOOR PLAN", sourcePage: 2, options: normalizeBlueprintVisualOptions({ furnished: false, style: "monochrome" }), graph });
 assert(prompt.includes("selected source page: 2") && prompt.includes('"garagePresent":true'), "Locked prompt must bind the selected page and include Building Graph facts");
 assert(prompt.includes("Do not invent another floor") && prompt.includes("No roof, labels, dimensions, people"), "Locked prompt must prohibit unsupported geometry and presentation artifacts");
-assert.equal(BLUEPRINT_VISUAL_PROMPT_VERSION, "bos-blueprint-visual-v1");
+assert.equal(BLUEPRINT_VISUAL_PROMPT_VERSION, "bos-blueprint-visual-v2-geometry-lock");
 assert.equal(BLUEPRINT_VISUAL_DISCLAIMER, "Conceptual AI visualization — verify against the source plans before construction use.");
 
 assert(route.includes("createClient") && route.includes("resolveWorkspaceContext") && route.includes('.eq("company_id", workspace.context.companyId)'), "Visual API must authenticate and tenant-scope source access");
@@ -28,6 +29,25 @@ assert(route.includes("building_graph") && route.includes("buildBlueprintVisualP
 assert(route.includes("randomUUID") && route.includes("blueprint_visual_mockups") && route.includes("visual-mockups"), "Each regeneration must create an immutable record and unique private object");
 assert(route.includes("createSignedUrl") && !control.includes("OPENAI_API_KEY"), "The UI must receive a signed private URL and no provider credential");
 assert(service.includes("process.env.OPENAI_API_KEY") && service.includes("/v1/images/edits") && service.includes("AbortSignal.timeout"), "Image generation must run server-side with a bounded provider call");
+assert(service.includes('input_fidelity", "high"') && service.includes("geometryLockImage") && service.includes("gpt-image-2.5-sunburst"), "Generation must use the geometry lock and highest-fidelity current image editor");
+assert(route.includes("assessBlueprintFidelity") && route.includes("renderBlueprintGeometryLock") && route.includes("geometryLocked: true"), "Generation must fail closed and persist geometry-lock evidence");
+assert.equal(assessBlueprintFidelity(graph, 2).allowed, false, "A needs-review graph must be blocked from layout-faithful generation");
+assert.equal(BLUEPRINT_GEOMETRY_LOCK_VERSION, "bos-geometry-lock-v1");
+
+const readyGraph = createEmptyBosBuildingGraph({ buildingId: "geometry-lock-test", sourcePage: 2 });
+const wallPoints = [
+  [{ x: 0, y: 0 }, { x: 5, y: 0 }], [{ x: 5, y: 0 }, { x: 10, y: 0 }],
+  [{ x: 10, y: 0 }, { x: 10, y: 4 }], [{ x: 10, y: 4 }, { x: 10, y: 8 }],
+  [{ x: 10, y: 8 }, { x: 5, y: 8 }], [{ x: 5, y: 8 }, { x: 0, y: 8 }],
+  [{ x: 0, y: 8 }, { x: 0, y: 4 }], [{ x: 0, y: 4 }, { x: 0, y: 0 }],
+] as const;
+readyGraph.walls = wallPoints.map(([start, end], index) => ({ id: `wall-${index}`, levelId: "level-1", type: "exterior", centerline: { start, end }, thickness: 0.15, height: 2.7, confidence: 0.95, sourcePage: 2, evidence: [], provenance: { createdBy: "deterministic", algorithm: "test", algorithmVersion: "1", evidenceIds: [] } }));
+readyGraph.scale = { source: "printed", drawingUnitsPerMeter: 100, confidence: 0.95 };
+readyGraph.validation = { version: 1, score: 0.9, status: "reconstructed", metrics: { exteriorClosure: 1, footprintComplexity: 0.8, wallTopology: 1, scaleConfidence: 0.95, semanticCoverage: 0.8 }, issues: [] };
+assert.equal(assessBlueprintFidelity(readyGraph, 2).allowed, true, "A validated closed graph must pass the fidelity gate");
+const geometryLockCheck = renderBlueprintGeometryLock(readyGraph).then((geometryLock) => {
+  assert(geometryLock.length > 1000 && geometryLock.subarray(1, 4).toString() === "PNG", "Geometry lock must render as a non-empty PNG");
+});
 assert(nextConfig.includes('"/api/blueprints/*/visual-mockup"') && nextConfig.includes("pdf.worker.mjs"), "Production output tracing must include the selected-page PDF worker");
 
 assert(migration.includes("create table public.blueprint_visual_mockups") && migration.includes("enable row level security"), "Visual mockups require tenant-scoped persistence with RLS");
@@ -40,4 +60,4 @@ assert(control.includes("Generate Visual Mockup") && control.includes("Regenerat
 assert(control.includes(BLUEPRINT_VISUAL_DISCLAIMER) && control.includes('data-orion-region="blueprint-ai-visual-mockup"'), "UI must expose the safety boundary and Orion semantics");
 assert(control.includes("architectural") && control.includes("warm-modern") && control.includes("monochrome") && control.includes("Furnished for scale"), "UI must provide only the scoped presentation options");
 
-console.log("Blueprint AI Visual Mockup contract passed");
+geometryLockCheck.then(() => console.log("Blueprint AI Visual Mockup contract passed"));
