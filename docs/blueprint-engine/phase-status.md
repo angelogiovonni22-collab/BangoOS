@@ -26,7 +26,7 @@ Legend:
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
-- [x] Full CI green through merged Phase C review workspace
+- [x] Full CI green through merged Phase D multi-floor orchestration
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
@@ -78,6 +78,13 @@ Legend:
 - PR: `#531 — Add Blueprint Building Graph review workspace`
 - Merge commit: `c856d1d58696a328414daaa7396e136260bcb737`
 - Master Plan Phase C is complete; focused contracts, full required CI, and Vercel Production deployment completed green.
+
+### Merged Phase D multi-floor checkpoint
+
+- Branch: `feat/blueprint-engine-multifloor-orchestration`
+- PR: `#532 — Add Blueprint multi-floor reconstruction orchestration`
+- Merge commit: `bc0714f67ae19c6c1533cf17f6c7e01c52b334a5`
+- Master Plan Phase D is complete; deterministic level discovery, per-level orchestration, alignment validation, multi-level GLB/IFC regression coverage, full required CI, and Production deployment validation are tracked through this checkpoint.
 
 ## Phase B — Architectural Reconstruction
 
@@ -146,11 +153,12 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 - [x] Native IFC graph serializer foundation
 - [x] Authenticated IFC export endpoint
 - [x] Native IFC export control in Blueprint UI
-- [ ] IFC schema/validator regression
-- [ ] Graph query helpers for Orion
-- [ ] Validated quantity/takeoff derivation
-- [ ] Job-cost/material integration contract
-- [ ] Reality Engine alignment contract
+- [x] IFC schema/reference validator regression for STEP header/footer, IFC4, required spatial entities, reference integrity, storey count, and wall count
+- [x] Graph query helpers for Orion with level/object/room filtering and compact graph summary
+- [x] Validated quantity/takeoff derivation that fails closed unless the graph is reconstructed with >=70% validation score
+- [x] Job-cost/material integration contract that remains unpriced and requires existing cost-code/category review
+- [x] Reality Engine alignment contract using blueprint version identity, metric plan coordinates, levels, and evidence-backed anchors
+- [x] Tenant-scoped downstream intelligence API over the authoritative persisted `building_graph`
 
 ## Phase F — Benchmark and Production Hardening
 
@@ -170,16 +178,16 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 
 ## Current release branch
 
-- Branch: `feat/blueprint-engine-multifloor-orchestration`
-- PR: `#532 — Add Blueprint multi-floor reconstruction orchestration`
+- Branch: `feat/blueprint-engine-downstream-intelligence`
+- PR: `#533 — Add Blueprint downstream graph intelligence`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
 
-1. Finish Phase D validation and merge only when all required gates are green.
-2. Verify Vercel Production; no Supabase migration is expected because Phase D reuses existing Blueprint sheet/version/generated-model records.
-3. Continue Phase E with IFC schema validation, graph query helpers, validated quantities/takeoffs, job-cost/material integration, and Reality Engine alignment.
-4. Add focused downstream-intelligence contracts during development and run full validation before merge.
-5. Resolve CI failures automatically and merge only when gates are green.
-6. Verify Production and run the strongest safe real-plan/visual benchmark available.
-7. Continue to Phase F and remaining post-Phase-B architectural semantics automatically.
+1. Finish Phase E validation and merge only when all required gates are green.
+2. Verify Vercel Production; no Supabase migration is expected because Phase E reads the existing authoritative Building Graph and existing operational identities.
+3. Continue Phase F with the exact Mitchell Dewitt source, scanned/conflicting/sparse fixtures, performance budgets, and production telemetry.
+4. Complete authenticated Production visual verification when Opera is available; do not block nonvisual hardening on the connector.
+5. Resolve all CI failures automatically and merge only when gates are green.
+6. Finish evidence-backed slab/foundation and roof semantic promotion after the release-hardening gates without inferring hidden construction data.
+7. Repeat the real-source benchmark until the engine meets the documented Definition of Done.
