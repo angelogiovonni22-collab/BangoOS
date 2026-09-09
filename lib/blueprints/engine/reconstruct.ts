@@ -109,7 +109,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     parser: "pdfjs-vector-1.0.0",
     sheetTargeting: "deterministic-title-sheet-1.0.0",
     wallDetection: "paired-line-1.2.0",
-    annotationFiltering: "dimension-evidence-zone-1.0.0",
+    annotationFiltering: "dimension-evidence-zone-1.1.0",
     openings: "wall-gap-openings-1.1.0",
     openingSymbols: "anchored-vector-symbols-1.0.0",
     rooms: "wall-bounded-face-tracing-1.3.0",
