@@ -25,8 +25,8 @@ Legend:
 - [x] Permanent Mitchell Dewitt first-floor executable benchmark
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
-- [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
-- [x] Full CI green through merged Phase D multi-floor orchestration
+- [~] Exact Mitchell Dewitt source is registered in Production and its existing generated-model record was inspected; a forced native regeneration is still required because the historical ready record predates persisted Building Graph output
+- [x] Full CI green through merged Phase E downstream intelligence
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
@@ -84,7 +84,14 @@ Legend:
 - Branch: `feat/blueprint-engine-multifloor-orchestration`
 - PR: `#532 — Add Blueprint multi-floor reconstruction orchestration`
 - Merge commit: `bc0714f67ae19c6c1533cf17f6c7e01c52b334a5`
-- Master Plan Phase D is complete; deterministic level discovery, per-level orchestration, alignment validation, multi-level GLB/IFC regression coverage, full required CI, and Production deployment validation are tracked through this checkpoint.
+- Master Plan Phase D is complete; deterministic level discovery, per-level orchestration, alignment validation, multi-level GLB/IFC regression coverage, and full required CI completed green.
+
+### Merged Phase E downstream-intelligence checkpoint
+
+- Branch: `feat/blueprint-engine-downstream-intelligence`
+- PR: `#533 — Add Blueprint downstream graph intelligence`
+- Merge commit: `264e3041de06bcbbec76eb339f1eddc4d8f9660d`
+- Master Plan Phase E is complete; IFC integrity validation, Orion graph queries, validated quantities, safe costing/material adapters, Reality Engine alignment, full required CI, and production dependency audit completed green.
 
 ## Phase B — Architectural Reconstruction
 
@@ -166,28 +173,27 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 - [x] Four-wall rectangle rejection rule
 - [x] Topology/scale/semantic benchmark metrics
 - [x] Control-document regression protecting the source-of-truth structure
-- [ ] Execute Mitchell Dewitt source through native parser and inspect resulting graph
-- [ ] Add scanned-plan benchmark fixture
-- [ ] Add conflicting-dimension fixture
-- [ ] Add sparse-plan `needs_input` fixture
+- [~] Execute Mitchell Dewitt source through native parser and inspect resulting graph (exact Production source identified; forced native regeneration remains)
+- [x] Add scanned-plan-like raster benchmark fixture with scale-normalized orthogonal extraction
+- [x] Add conflicting-dimension fixture that refuses incompatible scale correction
+- [x] Add sparse-plan `needs_input`/withholding fixture
 - [x] Add correction-regeneration fixture
 - [x] Add multi-floor fixture
-- [ ] Performance budget tests for dense/large PDFs
-- [ ] Production telemetry for engine status/failure codes/confidence
+- [x] Performance budget test for a dense 3,200-segment vector fixture
+- [x] Production telemetry endpoint for tenant-scoped engine status, failure codes, confidence, validation score, reconstruction versions, and latest update time
 - [ ] Authenticated Production visual walkthrough
 
 ## Current release branch
 
-- Branch: `feat/blueprint-engine-downstream-intelligence`
-- PR: `#533 — Add Blueprint downstream graph intelligence`
+- Branch: `feat/blueprint-engine-production-hardening`
+- PR: `#534 — Harden Blueprint production benchmarks and telemetry`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
 
-1. Finish Phase E validation and merge only when all required gates are green.
-2. Verify Vercel Production; no Supabase migration is expected because Phase E reads the existing authoritative Building Graph and existing operational identities.
-3. Continue Phase F with the exact Mitchell Dewitt source, scanned/conflicting/sparse fixtures, performance budgets, and production telemetry.
-4. Complete authenticated Production visual verification when Opera is available; do not block nonvisual hardening on the connector.
-5. Resolve all CI failures automatically and merge only when gates are green.
-6. Finish evidence-backed slab/foundation and roof semantic promotion after the release-hardening gates without inferring hidden construction data.
-7. Repeat the real-source benchmark until the engine meets the documented Definition of Done.
+1. Finish Phase F corpus/telemetry validation and merge only when all required gates are green.
+2. Force the exact registered Mitchell Dewitt Production revision through the native engine using an authenticated/safe execution route, then inspect its persisted Building Graph against the permanent benchmark.
+3. Complete authenticated Production visual verification when Opera is available; do not block nonvisual hardening on the connector.
+4. Resolve all CI failures automatically and merge only when gates are green.
+5. Finish evidence-backed slab/foundation and roof semantic promotion without inferring hidden construction data.
+6. Repeat the real-source benchmark and Production verification until the documented Definition of Done is satisfied.
