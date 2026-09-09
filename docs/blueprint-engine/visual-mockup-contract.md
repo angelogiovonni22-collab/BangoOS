@@ -5,10 +5,11 @@ The AI Visual Mockup is a presentation artifact that complements the canonical B
 ## Source and generation boundary
 
 - A mockup is bound to one tenant, project, registered Blueprint revision and deterministic selected source page.
-- The server securely renders only that selected page and includes the persisted Building Graph and correction-derived context when available.
-- The locked prompt template is versioned as `bos-blueprint-visual-v1`.
-- The source page remains authoritative when the graph is incomplete or conflicting.
-- A technical model in `needs_review` may support a visual mockup, but the mockup is also marked `needs_review`; technical takeoff, costing and construction gates remain unchanged.
+- The server securely renders only that selected page and includes the persisted Building Graph and correction-derived context.
+- The locked prompt template is versioned as `bos-blueprint-visual-v2-geometry-lock`.
+- Layout-faithful generation fails closed unless the Building Graph is `reconstructed`, scores at least 78%, has verified scale, at least 70% exterior closure and wall topology, at least eight walls, and no structural errors.
+- B.O.S. renders a deterministic geometry-lock PNG from the approved graph and supplies it beside the authoritative source page to the image editor at high input fidelity. The image model may style the structure but must not define it.
+- A technical model in `needs_review`, `needs_input` or `failed` must be corrected before another layout-faithful visual can be generated; technical takeoff, costing and construction gates remain unchanged.
 
 ## Persistence and security
 
@@ -24,4 +25,4 @@ Every record and UI surface carries this exact warning:
 
 > Conceptual AI visualization — verify against the source plans before construction use.
 
-The result is not dimension-certified, pixel-faithful or construction-ready. Visual comparison and conceptual review remain required.
+The result is not dimension-certified, pixel-perfect or construction-ready. Visual comparison and conceptual review remain required, even after the geometry gate passes.
