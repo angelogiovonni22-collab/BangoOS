@@ -9,6 +9,17 @@ Legend:
 
 ## AI Visual Mockup — complementary presentation phase
 
+### Geometry-lock fidelity hardening
+
+- [x] Fail-closed structural fidelity gate for source page, validation, closure, topology, scale and structural errors
+- [x] Deterministic geometry-lock render from the approved Building Graph
+- [x] Dual-image source-plan plus geometry-lock conditioning
+- [x] High input fidelity with the current precision-focused image model
+- [x] Legacy conceptual-output warning and actionable gate blockers
+- [x] Focused render/gate regression, Blueprint regressions, UI audit, full repository check and dependency audit
+- [ ] Required CI, merge and Vercel Production closeout
+- [ ] Authenticated Production verification that Mitchell regeneration is blocked until structural review passes
+
 - [x] Separate append-only tenant-scoped visual mockup persistence
 - [x] Private Blueprint storage authorization and signed preview access
 - [x] Deterministic selected-page rendering
