@@ -8,6 +8,7 @@ import { Blueprint2dViewer } from "./blueprint-2d-viewer";
 import { BlueprintPlanWorkspace } from "./blueprint-plan-workspace";
 import { Blueprint3dViewer } from "./blueprint-3d-viewer";
 import { BlueprintAuto3dControl } from "./blueprint-auto-3d-control";
+import { BlueprintVisualMockupControl } from "./blueprint-visual-mockup-control";
 import { BlueprintMultiFloorControl } from "./blueprint-multi-floor-control";
 import type { PlanDocument } from "./types";
 import { formatBlueprintDate } from "@/lib/blueprints/format";
@@ -108,6 +109,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
         {previewType === "pdf" || previewType === "image" ? (
           <>
             <BlueprintAuto3dControl source={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} />
+            <BlueprintVisualMockupControl source={selectedDocument} />
             <BlueprintMultiFloorControl source={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} />
           </>
         ) : null}

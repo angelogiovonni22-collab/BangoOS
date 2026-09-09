@@ -10,6 +10,7 @@ This directory is the persistent repository-level source of truth for the B.O.S.
 - [`workstream-boundaries.md`](./workstream-boundaries.md) — ownership boundaries between parsing, reconstruction, semantics, validation, corrections, UI, persistence, export, and release work.
 - [`phase-status.md`](./phase-status.md) — live phase checklist and current implementation state.
 - [`execution-merge-rules.md`](./execution-merge-rules.md) — mandatory development, CI, migration, merge, deployment, and Production-verification rules.
+- [`visual-mockup-contract.md`](./visual-mockup-contract.md) — source binding, locked prompt, persistence, security, lifecycle, presentation and non-authoritative boundaries for AI Visual Mockups.
 
 ## Governing principle
 
