@@ -20,9 +20,19 @@ Legend:
 - [x] Furnished/unfurnished and restrained presentation presets
 - [x] Persistent and visible construction-use disclaimer
 - [x] Focused contract coverage and existing Blueprint regression integration
-- [ ] Supabase migration applied and verified in Production
-- [ ] Authenticated Mitchell page-2 Production generation and visual review
-- [ ] Required CI, merge and Vercel Production closeout
+- [x] Supabase migration applied and verified in Production
+- [x] Authenticated Mitchell page-2 Production generation and visual review
+- [x] Required CI, merge and Vercel Production closeout
+
+### Merged AI Visual Mockup checkpoint
+
+- Branch: `feat/blueprint-ai-visual-mockups`
+- PR: `#541 — Add Blueprint AI visual mockups`
+- Merge commit: `9ae9e2df408f97d5ba4a98418666edc1b6ad362d`
+- The Production migration, tenant RLS and private-storage policy were verified after application.
+- An authenticated Mitchell generation used registered revision `1d7fb860-1ff9-4295-88b4-4501661e9153`, selected source page 2 and generated-model context `db696c3e-c20f-4b93-abfc-9336aa335d3c`.
+- The generated presentation was persisted as `needs_review`, matching the source Building Graph review state, and visually verified for the first-floor footprint, garage, deck/porch, stair and furnished scale.
+- All six required CI workflows and the Vercel Production deployment completed green.
 
 ## Phase A — Foundation
 
