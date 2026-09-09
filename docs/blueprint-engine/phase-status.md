@@ -26,7 +26,7 @@ Legend:
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
 - [~] Real benchmark-source execution against the uploaded Mitchell Dewitt PDF
-- [x] Full CI green through merged Phase B completion
+- [x] Full CI green through merged Phase C review workspace
 - [x] Production migration application and verification
 - [ ] Production visual verification
 
@@ -71,6 +71,13 @@ Legend:
 - PR: `#530 — Filter Blueprint dimension witness linework`
 - Merge commit: `c95e4fe1b2de5487f03f0c6fa2c8561aa4e6e4f0`
 - Master Plan Phase B is complete; required CI and Vercel Production deployment completed green.
+
+### Merged Phase C review-workspace checkpoint
+
+- Branch: `feat/blueprint-engine-review-workspace`
+- PR: `#531 — Add Blueprint Building Graph review workspace`
+- Merge commit: `c856d1d58696a328414daaa7396e136260bcb737`
+- Master Plan Phase C is complete; focused contracts, full required CI, and Vercel Production deployment completed green.
 
 ## Phase B — Architectural Reconstruction
 
@@ -127,12 +134,12 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 - [x] Stair-centroid alignment foundation
 - [x] Exterior-centroid fallback alignment
 - [x] Manual translation anchor support
-- [ ] Automatic level-sheet discovery/registration
-- [ ] Per-level reconstruction orchestration
-- [ ] Alignment validation/conflict handling
-- [ ] Multi-level GLB verification
-- [ ] Multi-level IFC verification
-- [ ] Production UI level controls
+- [x] Automatic level-sheet discovery/registration over existing registered Blueprint sheets
+- [x] Per-level reconstruction orchestration through the existing native Generate 3D endpoint
+- [x] Alignment validation/conflict handling with confidence and implausible-translation withholding
+- [x] Multi-level GLB verification including level elevation
+- [x] Multi-level IFC verification with one IFC building storey per level
+- [x] Production UI level controls for full-building or individual-floor viewing
 
 ## Phase E — Export and Downstream Intelligence
 
@@ -156,23 +163,23 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 - [ ] Add conflicting-dimension fixture
 - [ ] Add sparse-plan `needs_input` fixture
 - [x] Add correction-regeneration fixture
-- [ ] Add multi-floor fixture
+- [x] Add multi-floor fixture
 - [ ] Performance budget tests for dense/large PDFs
 - [ ] Production telemetry for engine status/failure codes/confidence
 - [ ] Authenticated Production visual walkthrough
 
 ## Current release branch
 
-- Branch: `feat/blueprint-engine-review-workspace`
-- PR: `#531 — Add Blueprint Building Graph review workspace`
+- Branch: `feat/blueprint-engine-multifloor-orchestration`
+- PR: `#532 — Add Blueprint multi-floor reconstruction orchestration`
 - Merge policy: do not merge until required CI gates are green and the active phase acceptance criteria are satisfied.
 
 ## Immediate execution order
 
-1. Finish Phase C validation and merge only when all required gates are green.
-2. Verify Vercel Production; no Supabase migration is expected because Phase C reuses the existing append-only correction schema/API.
-3. Continue Phase D with deterministic level-sheet discovery and per-level reconstruction orchestration over existing Blueprint sheet/version records.
-4. Add alignment conflict validation, multi-level GLB/IFC regressions, and level controls without introducing a parallel model store.
+1. Finish Phase D validation and merge only when all required gates are green.
+2. Verify Vercel Production; no Supabase migration is expected because Phase D reuses existing Blueprint sheet/version/generated-model records.
+3. Continue Phase E with IFC schema validation, graph query helpers, validated quantities/takeoffs, job-cost/material integration, and Reality Engine alignment.
+4. Add focused downstream-intelligence contracts during development and run full validation before merge.
 5. Resolve CI failures automatically and merge only when gates are green.
 6. Verify Production and run the strongest safe real-plan/visual benchmark available.
-7. Continue to the next incomplete phase automatically.
+7. Continue to Phase F and remaining post-Phase-B architectural semantics automatically.
