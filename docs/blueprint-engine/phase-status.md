@@ -17,8 +17,10 @@ Legend:
 - [x] High input fidelity with the current precision-focused image model
 - [x] Legacy conceptual-output warning and actionable gate blockers
 - [x] Focused render/gate regression, Blueprint regressions, UI audit, full repository check and dependency audit
-- [ ] Required CI, merge and Vercel Production closeout
-- [ ] Authenticated Production verification that Mitchell regeneration is blocked until structural review passes
+- [x] Required CI, merge and Vercel Production closeout
+- [x] Authenticated Production verification that Mitchell regeneration is blocked until structural review passes
+
+Merged in PR `#543 — Lock Blueprint visual mockups to validated geometry` at `bf9fdb66e27bd4cd958abf2678c563cea3f4625b`. All five required workflows and Vercel Production completed green. The authenticated Mitchell page-2 test retained the prior image as a visibly labeled legacy conceptual output and refused a new generation because its Building Graph remains `needs_review`.
 
 - [x] Separate append-only tenant-scoped visual mockup persistence
 - [x] Private Blueprint storage authorization and signed preview access
