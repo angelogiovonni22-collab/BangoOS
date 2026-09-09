@@ -7,6 +7,23 @@ Legend:
 - `[~]` partially implemented or present but not fully integrated/validated
 - `[ ]` not yet implemented
 
+## AI Visual Mockup — complementary presentation phase
+
+- [x] Separate append-only tenant-scoped visual mockup persistence
+- [x] Private Blueprint storage authorization and signed preview access
+- [x] Deterministic selected-page rendering
+- [x] Persisted Building Graph/correction context in locked prompt template
+- [x] Roofless isometric visual-generation service with server-only credentials
+- [x] Queued, processing, ready, needs-review and failed lifecycle
+- [x] Source/revision/floor/garage/deck/stair/orientation review metadata
+- [x] Blueprint workspace Generate, Regenerate, View, Download and source-plan controls
+- [x] Furnished/unfurnished and restrained presentation presets
+- [x] Persistent and visible construction-use disclaimer
+- [x] Focused contract coverage and existing Blueprint regression integration
+- [ ] Supabase migration applied and verified in Production
+- [ ] Authenticated Mitchell page-2 Production generation and visual review
+- [ ] Required CI, merge and Vercel Production closeout
+
 ## Phase A — Foundation
 
 - [x] Canonical `BosBuildingGraph` schema

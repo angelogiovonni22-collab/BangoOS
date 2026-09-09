@@ -55,7 +55,7 @@ async function loadSharp(): Promise<SharpFactory> {
   }
 }
 
-async function renderPdfPage(buffer: Buffer, options: RasterLineOptions, pageNumber: number): Promise<Buffer> {
+export async function renderBlueprintPdfPage(buffer: Buffer, options: RasterLineOptions, pageNumber: number): Promise<Buffer> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   // pdfjs-dist already carries @napi-rs/canvas as its optional Node renderer. Keep this indirect
   // so B.O.S. does not introduce a second PDF renderer or dependency merely for raster fallback.
@@ -90,7 +90,7 @@ async function renderPdfPage(buffer: Buffer, options: RasterLineOptions, pageNum
 async function decodeGray(buffer: Buffer, options: RasterLineOptions, page: number): Promise<GrayImage> {
   const sharp = await loadSharp();
   const isPdf = buffer.subarray(0, 5).toString("ascii") === "%PDF-";
-  const sourceBuffer = isPdf ? await renderPdfPage(buffer, options, page) : buffer;
+  const sourceBuffer = isPdf ? await renderBlueprintPdfPage(buffer, options, page) : buffer;
   const image = sharp(sourceBuffer, {
     failOn: "none",
     page: isPdf ? undefined : Math.max(0, page - 1),
