@@ -458,3 +458,14 @@ function shouldRunFidelityPass(source: SourceVersion, analysis: NormalizedBluepr
 
 function isObviouslyUnderTracedFloorPlan(source: SourceVersion, analysis: NormalizedBlueprint3dAnalysis) {
   const title = `${source.sheet_number} ${source.sheet_title}`.toLowerCase();
+  const isFloorPlan = title.includes("floor") && title.includes("plan");
+  if (!isFloorPlan) return false;
+  const exteriorWalls = analysis.walls.filter((wall) => wall.label?.toLowerCase().startsWith("exterior")).length;
+  return analysis.walls.length < 10 || exteriorWalls < 4;
+}
+
+function stripJsonFence(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("```")) return trimmed;
+  return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+}
