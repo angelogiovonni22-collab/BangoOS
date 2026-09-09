@@ -287,7 +287,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
       const graph = replay.graph;
       const targetSafe = native.targetScore >= 0.45;
       const geometrySafe = graph.walls.length >= 8 && !native.rasterRequired;
-      const validated = graph.validation.status === "reconstructed";
+      const validated = graph.validation.status === "reconstructed" || graph.validation.status === "needs_review";
       const correctionHistory = replay.corrections.map((correction) => ({
         id: correction.id,
         type: correction.type,
@@ -332,7 +332,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
         confidence: graph.confidence,
         assumptions: graph.validation.issues.map((item) => item.message),
         generationModel: "bos-native-blueprint-engine",
-        engineStatus: "reconstructed",
+        engineStatus: graph.validation.status === "needs_review" ? "needs_review" : "reconstructed",
         sourcePage: native.selectedPage,
         reconstructionVersion: graph.reconstructionVersion,
         algorithmVersions: graph.metadata.algorithms,

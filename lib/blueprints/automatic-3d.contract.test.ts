@@ -46,6 +46,7 @@ assert(raster.includes("renderPdfPage") && raster.includes("@napi-rs/canvas"), "
 assert(reconstruct.includes("dominantRasterWallCluster") && reconstruct.includes("Raster structural clustering retained"), "Raster fallback must discard disconnected sheet/title-block wall clusters before graph promotion");
 assert(route.includes("model/gltf-binary") && route.includes("buildBlueprintGlb"), "Automatic reconstruction must emit a GLB consumable by the existing 3D viewer");
 assert(route.includes("needs_input"), "Low-information plans must fail safely instead of pretending to be construction-authoritative");
+assert(route.includes('graph.validation.status === "reconstructed" || graph.validation.status === "needs_review"') && route.includes('engineStatus: graph.validation.status === "needs_review" ? "needs_review" : "reconstructed"'), "Safe conceptual graphs that need review must remain viewable with their review status instead of being withheld");
 assert(route.includes("blueprint_sheet_id") && route.includes("sheet_number,title,discipline"), "3D generation must load the registered Blueprint sheet metadata");
 assert(route.includes("Reconstruct ONLY that matching drawing") && route.includes("do not replace these with a four-wall bounding rectangle"), "Multi-page fallback generation must target the registered drawing and preserve its real footprint");
 assert(route.includes("shouldRunFidelityPass") && route.includes("FIRST PASS JSON"), "Complex fallback floor plans must receive a second fidelity pass when the first trace is too simple");
