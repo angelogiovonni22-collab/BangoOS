@@ -57,7 +57,6 @@ export function BlueprintVisualMockupControl({ source }: { source: PlanDocument 
     const priorPayload = payload;
     setGenerating(true);
     setViewerOpen(false);
-    setPayload((current) => ({ ...current, status: "processing", error: undefined }));
     try {
       const response = await fetch(`/api/blueprints/${encodeURIComponent(source.versionId)}/visual-mockup`, {
         method: "POST",
