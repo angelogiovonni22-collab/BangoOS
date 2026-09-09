@@ -10,9 +10,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // pdfjs-dist uses @napi-rs/canvas for Node-side PDF rendering. Keep its native binding external
-  // to Turbopack's ESM chunks so the server runtime loads the installed platform package directly.
-  serverExternalPackages: ["@napi-rs/canvas"],
+  // Keep pdfjs and its native canvas binding external so pdfjs can resolve its sibling worker
+  // from the installed package instead of a Turbopack server chunk at runtime.
+  serverExternalPackages: ["@napi-rs/canvas", "pdfjs-dist"],
   async headers() {
     return [
       {
