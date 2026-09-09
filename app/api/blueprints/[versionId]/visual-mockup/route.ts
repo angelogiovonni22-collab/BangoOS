@@ -6,6 +6,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { BLUEPRINTS_BUCKET } from "@/lib/blueprints/plan-room";
 import { DEFAULT_RASTER_LINE_OPTIONS, renderBlueprintPdfPage } from "@/lib/blueprints/engine/raster";
 import type { BosBuildingGraph } from "@/lib/blueprints/engine/building-graph";
+import { BLUEPRINT_GEOMETRY_LOCK_VERSION, assessBlueprintFidelity, renderBlueprintGeometryLock } from "@/lib/blueprints/geometry-lock";
 import {
   BLUEPRINT_VISUAL_DISCLAIMER,
   BLUEPRINT_VISUAL_PROMPT_VERSION,
@@ -150,6 +151,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
     const model = modelResponse.data as { id?: string; building_graph?: BosBuildingGraph | null; source_page?: number | null; engine_status?: string | null; correction_history?: unknown[] | null } | null;
     if (!model?.source_page) return NextResponse.json({ error: "Generate the Interactive 3D Model first so B.O.S. can deterministically select the authoritative source page." }, { status: 409 });
     const sourcePage = Number(model.source_page);
+    const graph = model.building_graph && typeof model.building_graph === "object" ? model.building_graph : null;
+    const fidelity = assessBlueprintFidelity(graph, sourcePage);
+    if (!fidelity.allowed || !graph) {
+      return NextResponse.json({
+        error: "Layout-faithful generation is blocked until the Building Graph passes structural review.",
+        fidelityGate: fidelity,
+      }, { status: 409 });
+    }
     const insert = await db.from("blueprint_visual_mockups").insert({
       company_id: source.company_id,
       project_id: source.project_id,
@@ -174,7 +183,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
       ? await renderBlueprintPdfPage(sourceBuffer, { ...DEFAULT_RASTER_LINE_OPTIONS, maxDimension: 2048 }, sourcePage)
       : sourceBuffer;
     const sourceMimeType = source.mime_type === "application/pdf" ? "image/png" : source.mime_type as "image/png" | "image/jpeg" | "image/webp";
-    const graph = model.building_graph && typeof model.building_graph === "object" ? model.building_graph : null;
+    const geometryLockImage = await renderBlueprintGeometryLock(graph);
     const prompt = buildBlueprintVisualPrompt({
       sheetIdentity: `${source.sheet_number} · ${source.sheet_title}`,
       sourcePage,
@@ -182,7 +191,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
       graph,
       correctionCount: Array.isArray(model.correction_history) ? model.correction_history.length : 0,
     });
-    const generated = await generateBlueprintVisual({ sourceImage, sourceMimeType, prompt });
+    const generated = await generateBlueprintVisual({ sourceImage, sourceMimeType, geometryLockImage, prompt });
     if (!generated.image.length || generated.image.length > 25 * 1024 * 1024) throw new Error("The generated image was empty or exceeded the safe output limit.");
     const storagePath = `${source.company_id}/${source.project_id}/visual-mockups/${source.id}/${randomUUID()}-bos-visual-mockup.png`;
     const upload = await supabase.storage.from(BLUEPRINTS_BUCKET).upload(storagePath, generated.image, { contentType: "image/png", upsert: false });
@@ -210,6 +219,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
         sourceBindingVerified: true,
         selectedPageVerified: true,
         graphContextIncluded: Boolean(graph),
+        geometryLocked: true,
+        geometryLockVersion: BLUEPRINT_GEOMETRY_LOCK_VERSION,
+        fidelityGate: fidelity,
         sourceGraphStatus: model.engine_status || null,
         expectedFacts,
       },

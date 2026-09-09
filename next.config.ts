@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@napi-rs/canvas", "pdfjs-dist"],
   outputFileTracingIncludes: {
     "/api/blueprints/*/generate-3d": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
-    "/api/blueprints/*/visual-mockup": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
+    "/api/blueprints/*/visual-mockup": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs", "./node_modules/sharp/**/*"],
   },
   async headers() {
     return [

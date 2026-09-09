@@ -1,6 +1,6 @@
 import type { BosBuildingGraph } from "./engine/building-graph";
 
-export const BLUEPRINT_VISUAL_PROMPT_VERSION = "bos-blueprint-visual-v1";
+export const BLUEPRINT_VISUAL_PROMPT_VERSION = "bos-blueprint-visual-v2-geometry-lock";
 export const BLUEPRINT_VISUAL_DISCLAIMER = "Conceptual AI visualization — verify against the source plans before construction use.";
 
 export type BlueprintVisualOptions = {
@@ -54,25 +54,29 @@ export function buildBlueprintVisualPrompt(input: {
       ? "refined monochrome architectural model materials"
       : "neutral professional architectural materials";
   return [
-    "Create one polished roofless elevated isometric architectural visualization from the attached authoritative blueprint page.",
+    "Create one polished roofless elevated isometric architectural visualization using both attached images.",
+    "Image 1 is the authoritative source plan. Image 2 is the B.O.S. geometry lock reconstructed and validated from that plan.",
     `Authoritative registered sheet: ${input.sheetIdentity}; selected source page: ${input.sourcePage}. Preserve the blueprint orientation and show the entire footprint.`,
     `Presentation: ${style}; ${input.options.furnished ? "restrained furnishings only where they help communicate scale" : "unfurnished interiors"}; neutral dark B.O.S. presentation background.`,
     "Preserve connected walls, coherent enclosed rooms, consistent wall thickness, attached garage, deck/porch, stairs/core, doors, windows, kitchen and fireplace only where supported by the source.",
     "Do not invent another floor, building wing, room, opening, furnishing layout, or unsupported architectural feature. No disconnected or floating walls.",
     "No roof, labels, dimensions, people, logo, watermark, title block, callouts, legend, or surrounding blueprint sheet in the result.",
-    "This is presentation imagery, not authoritative geometry. The blueprint image overrides any uncertain or conflicting structured context.",
+    "NON-NEGOTIABLE GEOMETRY LOCK: preserve every wall endpoint, wall connection, footprint edge, opening position, room boundary, stair and deck/porch shown in Image 2. Change appearance only. If styling conflicts with geometry, geometry wins.",
+    "This is presentation imagery, not authoritative geometry. Image 1 resolves source meaning; Image 2 controls exact structure.",
     graphContext ? `Existing B.O.S. Building Graph and verified correction context (supporting evidence only): ${JSON.stringify(graphContext)}.` : "No verified Building Graph context is available; rely only on the attached selected source page.",
   ].join("\n");
 }
 
-export async function generateBlueprintVisual(input: { sourceImage: Buffer; sourceMimeType: "image/png" | "image/jpeg" | "image/webp"; prompt: string }) {
+export async function generateBlueprintVisual(input: { sourceImage: Buffer; sourceMimeType: "image/png" | "image/jpeg" | "image/webp"; geometryLockImage: Buffer; prompt: string }) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("AI Visual Mockup generation is not configured on this deployment.");
-  const model = process.env.BANGO_BLUEPRINT_VISUAL_MODEL?.trim() || "gpt-image-1.5";
+  const model = process.env.BANGO_BLUEPRINT_VISUAL_MODEL?.trim() || "gpt-image-2.5-sunburst";
   const form = new FormData();
   form.append("model", model);
   form.append("prompt", input.prompt);
   form.append("image", new Blob([new Uint8Array(input.sourceImage)], { type: input.sourceMimeType }), `selected-blueprint-page.${input.sourceMimeType.split("/")[1]}`);
+  form.append("image", new Blob([new Uint8Array(input.geometryLockImage)], { type: "image/png" }), "bos-geometry-lock.png");
+  form.append("input_fidelity", "high");
   form.append("size", "1536x1024");
   form.append("quality", "high");
   form.append("output_format", "png");

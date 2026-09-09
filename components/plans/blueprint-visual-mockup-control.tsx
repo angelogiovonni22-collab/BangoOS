@@ -16,12 +16,13 @@ type VisualMockupPayload = {
     generationModel: string | null;
     promptTemplateVersion: string;
     options: { furnished?: boolean; style?: VisualStyle };
-    reviewMetadata: { sourceGraphStatus?: string; graphContextIncluded?: boolean } | null;
+    reviewMetadata: { sourceGraphStatus?: string; graphContextIncluded?: boolean; geometryLocked?: boolean; geometryLockVersion?: string } | null;
     disclaimer: string;
     errorMessage: string | null;
     createdAt: string;
   };
   error?: string;
+  fidelityGate?: { allowed: boolean; score: number; blockers: string[] };
 };
 
 export function BlueprintVisualMockupControl({ source }: { source: PlanDocument }) {
@@ -53,6 +54,7 @@ export function BlueprintVisualMockupControl({ source }: { source: PlanDocument 
   }, [load, payload.status]);
 
   const generate = async () => {
+    const priorPayload = payload;
     setGenerating(true);
     setViewerOpen(false);
     setPayload((current) => ({ ...current, status: "processing", error: undefined }));
@@ -63,9 +65,9 @@ export function BlueprintVisualMockupControl({ source }: { source: PlanDocument 
         body: JSON.stringify({ furnished, style }),
       });
       const next = await response.json() as VisualMockupPayload;
-      setPayload(response.ok ? next : { status: "failed", mockup: next.mockup || null, error: next.error || "Visual mockup generation failed." });
+      setPayload(response.ok ? next : { ...priorPayload, error: next.error || "Visual mockup generation failed.", fidelityGate: next.fidelityGate });
     } catch (error) {
-      setPayload({ status: "failed", mockup: null, error: error instanceof Error ? error.message : "Visual mockup generation failed." });
+      setPayload({ ...priorPayload, error: error instanceof Error ? error.message : "Visual mockup generation failed." });
     } finally {
       setGenerating(false);
     }
@@ -138,11 +140,12 @@ export function BlueprintVisualMockupControl({ source }: { source: PlanDocument 
               <p><span className="font-semibold text-[var(--color-text-primary)]">Source:</span> {source.fileName}, page {payload.mockup.sourcePage}</p>
               <p className="mt-1"><span className="font-semibold text-[var(--color-text-primary)]">Context:</span> {payload.mockup.reviewMetadata?.graphContextIncluded ? "Building Graph and saved corrections included" : "source plan only"}</p>
               {payload.status === "needs_review" ? <p className="mt-1 font-semibold text-amber-700">The source Building Graph needs review; this image remains conceptual.</p> : null}
+              {!payload.mockup.reviewMetadata?.geometryLocked ? <p className="mt-1 font-semibold text-red-700">Legacy conceptual output — its layout was not geometry locked.</p> : <p className="mt-1 font-semibold text-emerald-700">Geometry locked to the validated Building Graph.</p>}
             </div>
           </div>
         ) : null}
 
-        {payload.status === "failed" ? <p className="mt-3 inline-flex items-start gap-1.5 text-xs text-red-700" role="alert"><TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{payload.mockup?.errorMessage || payload.error || "Visual mockup generation failed. Retry when ready."}</p> : null}
+        {payload.status === "failed" || payload.error ? <div className="mt-3 text-xs text-red-700" role="alert"><p className="inline-flex items-start gap-1.5 font-semibold"><TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{payload.mockup?.errorMessage || payload.error || "Visual mockup generation failed. Retry when ready."}</p>{payload.fidelityGate?.blockers?.length ? <ul className="mt-1 list-disc pl-6">{payload.fidelityGate.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul> : null}</div> : null}
         <p className="mt-3 text-xs font-semibold text-amber-800" role="note">{disclaimer}</p>
         <button type="button" disabled={!source.fileUrl} onClick={() => source.fileUrl && window.open(source.fileUrl, "_blank", "noopener,noreferrer")} className="mt-2 text-xs font-semibold text-blue-700 underline-offset-2 hover:underline disabled:opacity-50" data-orion-action="blueprints.view-visual-mockup-source">View source plan</button>
       </section>
