@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./multi-floor-orchestration.contract.test";
 import { createEmptyBosBuildingGraph, type BosWall } from "./building-graph";
 import { MITCHELL_DEWITT_FIRST_FLOOR, runBuildingGraphBenchmark } from "./benchmarks";
 import { parseArchitecturalLength, parsePrintedScale } from "./dimensions";
