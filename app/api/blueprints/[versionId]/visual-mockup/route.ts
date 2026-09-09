@@ -191,7 +191,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
       graph,
       correctionCount: Array.isArray(model.correction_history) ? model.correction_history.length : 0,
     });
-    const generated = await generateBlueprintVisual({ sourceImage, sourceMimeType, geometryLockImage, prompt });
+    const generated = await generateBlueprintVisual({
+      sourceImage,
+      sourceMimeType,
+      geometryLockImage,
+      prompt,
+      telemetry: {
+        companyId: source.company_id,
+        actorUserId: workspace.userId,
+        sourceVersionId: source.id,
+      },
+    });
     if (!generated.image.length || generated.image.length > 25 * 1024 * 1024) throw new Error("The generated image was empty or exceeded the safe output limit.");
     const storagePath = `${source.company_id}/${source.project_id}/visual-mockups/${source.id}/${randomUUID()}-bos-visual-mockup.png`;
     const upload = await supabase.storage.from(BLUEPRINTS_BUCKET).upload(storagePath, generated.image, { contentType: "image/png", upsert: false });

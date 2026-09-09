@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { recordBosIntelligenceUsageEvent } from "@/lib/billing/intelligence-usage-events";
 import type { BosBuildingGraph } from "./engine/building-graph";
 
 export const BLUEPRINT_VISUAL_PROMPT_VERSION = "bos-blueprint-visual-v2-geometry-lock";
@@ -6,6 +8,12 @@ export const BLUEPRINT_VISUAL_DISCLAIMER = "Conceptual AI visualization — veri
 export type BlueprintVisualOptions = {
   furnished: boolean;
   style: "architectural" | "warm-modern" | "monochrome";
+};
+
+type BlueprintVisualTelemetry = {
+  companyId: string;
+  actorUserId?: string | null;
+  sourceVersionId?: string | null;
 };
 
 export function normalizeBlueprintVisualOptions(value: unknown): BlueprintVisualOptions {
@@ -67,7 +75,13 @@ export function buildBlueprintVisualPrompt(input: {
   ].join("\n");
 }
 
-export async function generateBlueprintVisual(input: { sourceImage: Buffer; sourceMimeType: "image/png" | "image/jpeg" | "image/webp"; geometryLockImage: Buffer; prompt: string }) {
+export async function generateBlueprintVisual(input: {
+  sourceImage: Buffer;
+  sourceMimeType: "image/png" | "image/jpeg" | "image/webp";
+  geometryLockImage: Buffer;
+  prompt: string;
+  telemetry?: BlueprintVisualTelemetry;
+}) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new Error("AI Visual Mockup generation is not configured on this deployment.");
   const model = process.env.BANGO_BLUEPRINT_VISUAL_MODEL?.trim() || "gpt-image-2.5-sunburst";
@@ -80,15 +94,90 @@ export async function generateBlueprintVisual(input: { sourceImage: Buffer; sour
   form.append("size", "1536x1024");
   form.append("quality", "high");
   form.append("output_format", "png");
-  const response = await fetch("https://api.openai.com/v1/images/edits", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-    signal: AbortSignal.timeout(110_000),
-  });
+
+  const operationKey = `blueprint-visual-${randomUUID()}`;
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/images/edits", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+      signal: AbortSignal.timeout(110_000),
+    });
+  } catch (error) {
+    if (input.telemetry) {
+      await recordBosIntelligenceUsageEvent({
+        companyId: input.telemetry.companyId,
+        actorUserId: input.telemetry.actorUserId,
+        product: "blueprint_visual_mockup",
+        outcome: "provider_failed",
+        operationKey,
+        provider: "openai",
+        providerModel: model,
+        sourceType: "blueprint_version",
+        sourceId: input.telemetry.sourceVersionId,
+        metadata: { providerCostStatus: "unpriced", failureStage: "request" },
+      });
+    }
+    throw error;
+  }
+
+  const providerRequestId = response.headers.get("x-request-id");
   const payload = await response.json() as { data?: Array<{ b64_json?: string }>; error?: { message?: string } };
-  if (!response.ok) throw new Error(`The visual-generation provider could not complete the request (${response.status}).`);
+  if (!response.ok) {
+    if (input.telemetry) {
+      await recordBosIntelligenceUsageEvent({
+        companyId: input.telemetry.companyId,
+        actorUserId: input.telemetry.actorUserId,
+        product: "blueprint_visual_mockup",
+        outcome: "provider_failed",
+        operationKey,
+        provider: "openai",
+        providerModel: model,
+        providerRequestId,
+        sourceType: "blueprint_version",
+        sourceId: input.telemetry.sourceVersionId,
+        metadata: { providerCostStatus: "unpriced", providerStatus: response.status },
+      });
+    }
+    throw new Error(`The visual-generation provider could not complete the request (${response.status}).`);
+  }
+
   const encoded = payload.data?.[0]?.b64_json;
-  if (!encoded) throw new Error("The visual-generation provider returned no image.");
-  return { image: Buffer.from(encoded, "base64"), model, provider: "openai" };
+  if (!encoded) {
+    if (input.telemetry) {
+      await recordBosIntelligenceUsageEvent({
+        companyId: input.telemetry.companyId,
+        actorUserId: input.telemetry.actorUserId,
+        product: "blueprint_visual_mockup",
+        outcome: "provider_failed",
+        operationKey,
+        provider: "openai",
+        providerModel: model,
+        providerRequestId,
+        sourceType: "blueprint_version",
+        sourceId: input.telemetry.sourceVersionId,
+        metadata: { providerCostStatus: "unpriced", failureStage: "empty_output" },
+      });
+    }
+    throw new Error("The visual-generation provider returned no image.");
+  }
+
+  if (input.telemetry) {
+    await recordBosIntelligenceUsageEvent({
+      companyId: input.telemetry.companyId,
+      actorUserId: input.telemetry.actorUserId,
+      product: "blueprint_visual_mockup",
+      outcome: "succeeded",
+      operationKey,
+      provider: "openai",
+      providerModel: model,
+      providerRequestId,
+      sourceType: "blueprint_version",
+      sourceId: input.telemetry.sourceVersionId,
+      metadata: { providerCostStatus: "unpriced", outputFormat: "png", quality: "high", size: "1536x1024" },
+    });
+  }
+
+  return { image: Buffer.from(encoded, "base64"), model, provider: "openai", providerRequestId };
 }
