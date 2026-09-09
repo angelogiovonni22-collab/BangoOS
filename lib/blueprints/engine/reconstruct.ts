@@ -1,6 +1,6 @@
 import { createEmptyBosBuildingGraph, type BosBuildingGraph, type BosWall } from "./building-graph";
 import { scaleTextTokensToMeters, recognizeArchitecturalSemantics } from "./architecture";
-import { segmentsToWalls } from "./geometry";
+import { segmentsToWalls, type BosRawSegment } from "./geometry";
 import { detectWallGapOpenings } from "./openings";
 import { normalizeParsedPlan, summarizeSelectedPlan } from "./plan-parser";
 import { parsePdfVectorPlan } from "./pdf-vector-parser";
@@ -31,6 +31,56 @@ export type NativeBlueprintReconstruction = {
   rasterRequired: boolean;
   diagnostics: string[];
 };
+
+function pointToSegmentDistance(point: { x: number; y: number }, segment: { start: { x: number; y: number }; end: { x: number; y: number } }) {
+  const dx = segment.end.x - segment.start.x;
+  const dy = segment.end.y - segment.start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= Number.EPSILON) return Math.hypot(point.x - segment.start.x, point.y - segment.start.y);
+  const t = Math.max(0, Math.min(1, ((point.x - segment.start.x) * dx + (point.y - segment.start.y) * dy) / lengthSquared));
+  const x = segment.start.x + t * dx;
+  const y = segment.start.y + t * dy;
+  return Math.hypot(point.x - x, point.y - y);
+}
+
+function dominantRasterWallCluster(input: BosRawSegment[]) {
+  if (input.length < 12) return input;
+  const tolerance = 0.22;
+  const parent = input.map((_, index) => index);
+  const find = (index: number): number => {
+    let current = index;
+    while (parent[current] !== current) {
+      parent[current] = parent[parent[current]];
+      current = parent[current];
+    }
+    return current;
+  };
+  const union = (a: number, b: number) => {
+    const left = find(a);
+    const right = find(b);
+    if (left !== right) parent[right] = left;
+  };
+  for (let i = 0; i < input.length; i += 1) {
+    for (let j = i + 1; j < input.length; j += 1) {
+      const a = input[i];
+      const b = input[j];
+      const separation = Math.min(
+        pointToSegmentDistance(a.start, b),
+        pointToSegmentDistance(a.end, b),
+        pointToSegmentDistance(b.start, a),
+        pointToSegmentDistance(b.end, a),
+      );
+      if (separation <= tolerance) union(i, j);
+    }
+  }
+  const groups = new Map<number, BosRawSegment[]>();
+  input.forEach((segment, index) => {
+    const root = find(index);
+    groups.set(root, [...(groups.get(root) || []), segment]);
+  });
+  const largest = [...groups.values()].sort((a, b) => b.length - a.length)[0] || input;
+  return largest.length >= 8 && largest.length / input.length >= 0.3 ? largest : input;
+}
 
 function classifyExteriorWalls(walls: BosWall[]) {
   if (walls.length < 4) return walls;
@@ -162,8 +212,12 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
       });
       diagnostics.push(...raster.diagnostics);
       const rasterWallCandidates = suppressDimensionAnnotationDetections(detectWallCenterlines(raster.segments), annotationZones);
-      if (rasterWallCandidates.length > wallCandidates.length) {
-        wallCandidates = rasterWallCandidates;
+      const structuralRasterCandidates = dominantRasterWallCluster(rasterWallCandidates);
+      if (structuralRasterCandidates.length < rasterWallCandidates.length) {
+        diagnostics.push(`Raster structural clustering retained ${structuralRasterCandidates.length} of ${rasterWallCandidates.length} wall candidates in the dominant connected plan region.`);
+      }
+      if (structuralRasterCandidates.length > wallCandidates.length) {
+        wallCandidates = structuralRasterCandidates;
         graph.metadata.algorithms = {
           ...graph.metadata.algorithms,
           rasterFallback: "selected-pdf-page-orthogonal-lines-1.0.0",

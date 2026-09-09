@@ -37,8 +37,10 @@ assert(route.includes("correction_history") && route.includes("correctionHistory
 assert(reconstruct.includes("extractRasterLineSegments") && reconstruct.includes("summary.rasterRequired || wallCandidates.length < 8"), "Vector-poor PDFs must attempt the deterministic raster fallback before being withheld");
 assert(reconstruct.includes("sourceWidth: summary.page.width") && reconstruct.includes("sourceHeight: summary.page.height"), "Raster fallback must map the selected raster page back to deterministic PDF coordinates");
 assert(reconstruct.includes("traceWallBoundedRooms") && reconstruct.includes("graph.rooms = traceWallBoundedRooms(graph)"), "Native reconstruction must promote closed wall faces into deterministic room polygons");
-assert(raster.includes("page: Math.max(0, page - 1)") && raster.includes("density: options.density"), "Raster decoding must target the selected PDF page instead of implicitly rendering page one");
+assert(raster.includes("page: isPdf ? undefined : Math.max(0, page - 1)") && raster.includes("density: options.density"), "Raster decoding must target the selected image page and avoid re-applying PDF page selection after pdfjs rendering");
 assert(raster.includes("sourcePerPixelX") && raster.includes("drawingToMeters"), "Raster candidate coordinates must normalize through PDF drawing units before entering wall detection");
+assert(raster.includes("renderPdfPage") && raster.includes("@napi-rs/canvas"), "Raster fallback must render the selected PDF page through the pdfjs Node canvas path before Sharp line extraction");
+assert(reconstruct.includes("dominantRasterWallCluster") && reconstruct.includes("Raster structural clustering retained"), "Raster fallback must discard disconnected sheet/title-block wall clusters before graph promotion");
 assert(route.includes("model/gltf-binary") && route.includes("buildBlueprintGlb"), "Automatic reconstruction must emit a GLB consumable by the existing 3D viewer");
 assert(route.includes("needs_input"), "Low-information plans must fail safely instead of pretending to be construction-authoritative");
 assert(route.includes("blueprint_sheet_id") && route.includes("sheet_number,title,discipline"), "3D generation must load the registered Blueprint sheet metadata");
