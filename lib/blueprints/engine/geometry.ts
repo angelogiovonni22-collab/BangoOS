@@ -129,14 +129,120 @@ function nodeKey(point: BosPoint2, tolerance: number) {
   return `${Math.round(point.x / tolerance)}:${Math.round(point.y / tolerance)}`;
 }
 
-export function topologyMetrics(segments: BosLine2[], tolerance = DEFAULT_GEOMETRY_OPTIONS.snapTolerance) {
-  const degree = new Map<string, number>();
-  for (const segment of segments) {
-    const start = nodeKey(segment.start, tolerance);
-    const end = nodeKey(segment.end, tolerance);
-    degree.set(start, (degree.get(start) || 0) + 1);
-    degree.set(end, (degree.get(end) || 0) + 1);
+export function topologyMetrics(segments: BosLine2[], tolerance = 0.12) {
+  if (segments.length === 0) return { nodes: 0, dangling: 0, junctions: 0, closure: 0 };
+
+  type SplitPoint = BosPoint2 & { parameter: number };
+  type Edge = { start: string; end: string; length: number };
+  const splitPoints: SplitPoint[][] = segments.map((segment) => [
+    { ...segment.start, parameter: 0 },
+    { ...segment.end, parameter: 1 },
+  ]);
+
+  const cross = (a: BosPoint2, b: BosPoint2) => a.x * b.y - a.y * b.x;
+  const projectFinite = (point: BosPoint2, line: BosLine2) => {
+    const dx = line.end.x - line.start.x;
+    const dy = line.end.y - line.start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    if (lengthSquared <= Number.EPSILON) return null;
+    const parameter = ((point.x - line.start.x) * dx + (point.y - line.start.y) * dy) / lengthSquared;
+    if (parameter < 0 || parameter > 1) return null;
+    const projected = { x: line.start.x + parameter * dx, y: line.start.y + parameter * dy };
+    return { parameter, projected, distance: distance(point, projected) };
+  };
+
+  for (let i = 0; i < segments.length; i += 1) {
+    const a = segments[i];
+    const r = { x: a.end.x - a.start.x, y: a.end.y - a.start.y };
+    for (let j = i + 1; j < segments.length; j += 1) {
+      const b = segments[j];
+      const s = { x: b.end.x - b.start.x, y: b.end.y - b.start.y };
+      const denominator = cross(r, s);
+      const scale = Math.max(segmentLength(a), segmentLength(b), 1);
+      let junction: { point: BosPoint2; t: number; u: number } | null = null;
+
+      if (Math.abs(denominator) > tolerance / scale) {
+        const qMinusP = { x: b.start.x - a.start.x, y: b.start.y - a.start.y };
+        const t = cross(qMinusP, s) / denominator;
+        const u = cross(qMinusP, r) / denominator;
+        const endpointTolerance = Math.min(0.02, tolerance / scale);
+        if (t >= -endpointTolerance && t <= 1 + endpointTolerance && u >= -endpointTolerance && u <= 1 + endpointTolerance) {
+          const clampedT = Math.max(0, Math.min(1, t));
+          const clampedU = Math.max(0, Math.min(1, u));
+          junction = {
+            point: { x: a.start.x + clampedT * r.x, y: a.start.y + clampedT * r.y },
+            t: clampedT,
+            u: clampedU,
+          };
+        }
+      }
+
+      if (!junction && Math.abs(denominator) > tolerance / scale) {
+        const candidates: Array<{ distance: number; point: BosPoint2; t: number; u: number }> = [];
+        for (const endpoint of [{ point: a.start, parameter: 0 }, { point: a.end, parameter: 1 }]) {
+          const projection = projectFinite(endpoint.point, b);
+          if (projection && projection.distance <= tolerance) candidates.push({ distance: projection.distance, point: projection.projected, t: endpoint.parameter, u: projection.parameter });
+        }
+        for (const endpoint of [{ point: b.start, parameter: 0 }, { point: b.end, parameter: 1 }]) {
+          const projection = projectFinite(endpoint.point, a);
+          if (projection && projection.distance <= tolerance) candidates.push({ distance: projection.distance, point: projection.projected, t: projection.parameter, u: endpoint.parameter });
+        }
+        candidates.sort((left, right) => left.distance - right.distance);
+        const nearest = candidates[0];
+        if (nearest) junction = { point: nearest.point, t: nearest.t, u: nearest.u };
+      }
+
+      if (!junction) continue;
+      splitPoints[i].push({ ...junction.point, parameter: junction.t });
+      splitPoints[j].push({ ...junction.point, parameter: junction.u });
+    }
   }
+
+  const edges: Edge[] = [];
+  for (const points of splitPoints) {
+    const unique = new Map<string, SplitPoint>();
+    for (const point of points) {
+      const key = nodeKey(point, tolerance);
+      const current = unique.get(key);
+      if (!current || point.parameter < current.parameter) unique.set(key, point);
+    }
+    const ordered = [...unique.values()].sort((a, b) => a.parameter - b.parameter);
+    for (let index = 0; index < ordered.length - 1; index += 1) {
+      const start = nodeKey(ordered[index], tolerance);
+      const end = nodeKey(ordered[index + 1], tolerance);
+      if (start === end) continue;
+      edges.push({ start, end, length: distance(ordered[index], ordered[index + 1]) });
+    }
+  }
+
+  // Intersection splitting can leave tiny dangling stubs where raster centerlines cross within a
+  // few pixels of a junction. Ignore only short leaf fragments; do not bridge or delete geometry.
+  const active = edges.map(() => true);
+  const maxDanglingStub = 0.4;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const degree = new Map<string, number>();
+    edges.forEach((edge, index) => {
+      if (!active[index]) return;
+      degree.set(edge.start, (degree.get(edge.start) || 0) + 1);
+      degree.set(edge.end, (degree.get(edge.end) || 0) + 1);
+    });
+    edges.forEach((edge, index) => {
+      if (!active[index] || edge.length >= maxDanglingStub) return;
+      if ((degree.get(edge.start) || 0) === 1 || (degree.get(edge.end) || 0) === 1) {
+        active[index] = false;
+        changed = true;
+      }
+    });
+  }
+
+  const degree = new Map<string, number>();
+  edges.forEach((edge, index) => {
+    if (!active[index]) return;
+    degree.set(edge.start, (degree.get(edge.start) || 0) + 1);
+    degree.set(edge.end, (degree.get(edge.end) || 0) + 1);
+  });
   const nodes = degree.size;
   const dangling = [...degree.values()].filter((value) => value === 1).length;
   const junctions = [...degree.values()].filter((value) => value >= 3).length;
