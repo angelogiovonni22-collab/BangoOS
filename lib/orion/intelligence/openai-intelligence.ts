@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import OpenAI from "openai";
+import { recordBosIntelligenceUsageEvent } from "@/lib/billing/intelligence-usage-events";
 import { buildOrionSystemPolicy, type OrionIntelligenceRoute } from "./orion-tool-router";
 import { buildUniversalBosToolCatalog } from "./universal-command-catalog";
 import { getOrionModelConfig, selectOrionReasoningModel, type OrionReasoningTier } from "./model-config";
@@ -46,15 +48,9 @@ function contextPrompt(context: OrionIntelligenceContext) {
 function parseToolArguments(raw: string) {
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
     const wrapper = parsed as { params?: unknown };
-    if (!wrapper.params || typeof wrapper.params !== "object" || Array.isArray(wrapper.params)) {
-      return {};
-    }
-
+    if (!wrapper.params || typeof wrapper.params !== "object" || Array.isArray(wrapper.params)) return {};
     return wrapper.params as Record<string, unknown>;
   } catch {
     return {};
@@ -84,9 +80,7 @@ export async function resolveOrionWithOpenAI(args: {
   }));
 
   const tools: Array<Record<string, unknown>> = args.conversationOnly ? [] : [...bosTools];
-  if (!args.conversationOnly && config.webSearchEnabled) {
-    tools.push({ type: "web_search" });
-  }
+  if (!args.conversationOnly && config.webSearchEnabled) tools.push({ type: "web_search" });
 
   const conversationGuard = args.conversationOnly
     ? "\nThis turn has already been classified as conversation. Answer the user directly. Do not navigate, execute BOS actions, call BOS tools, infer an operational command, or redirect to an entity."
@@ -105,7 +99,49 @@ export async function resolveOrionWithOpenAI(args: {
     request.tool_choice = "auto";
   }
 
-  const response = await client.responses.create(request as never);
+  const operationKey = `orion-text-${randomUUID()}`;
+  let response: Awaited<ReturnType<typeof client.responses.create>>;
+  try {
+    response = await client.responses.create(request as never);
+  } catch (error) {
+    await recordBosIntelligenceUsageEvent({
+      companyId: args.context.companyId,
+      actorUserId: args.context.userId,
+      product: "orion_text",
+      outcome: "provider_failed",
+      operationKey,
+      provider: "openai",
+      providerModel: model,
+      sourceType: "orion_intelligence",
+      metadata: {
+        tier: args.tier || "balanced",
+        conversationOnly: Boolean(args.conversationOnly),
+        providerCostStatus: "unpriced",
+      },
+    });
+    throw error;
+  }
+
+  const usage = response.usage as { input_tokens?: number; output_tokens?: number; total_tokens?: number } | undefined;
+  await recordBosIntelligenceUsageEvent({
+    companyId: args.context.companyId,
+    actorUserId: args.context.userId,
+    product: "orion_text",
+    outcome: "succeeded",
+    operationKey,
+    provider: "openai",
+    providerModel: model,
+    providerRequestId: response.id,
+    inputUnits: usage?.input_tokens,
+    outputUnits: usage?.output_tokens,
+    totalUnits: usage?.total_tokens,
+    sourceType: "orion_intelligence",
+    metadata: {
+      tier: args.tier || "balanced",
+      conversationOnly: Boolean(args.conversationOnly),
+      providerCostStatus: "unpriced",
+    },
+  });
 
   const functionCall = response.output.find((item) => item.type === "function_call");
   if (!args.conversationOnly && functionCall && functionCall.type === "function_call") {
@@ -131,10 +167,5 @@ export async function resolveOrionWithOpenAI(args: {
     };
   }
 
-  return {
-    handled: false,
-    route: null,
-    responseId: response.id,
-    model,
-  };
+  return { handled: false, route: null, responseId: response.id, model };
 }
