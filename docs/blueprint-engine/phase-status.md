@@ -25,10 +25,10 @@ Legend:
 - [x] Permanent Mitchell Dewitt first-floor executable benchmark
 - [x] Native PDF route integration behind existing Generate 3D endpoint
 - [x] Repo-level Blueprint Engine control structure and control contract
-- [~] Exact Mitchell Dewitt source is registered in Production and its historical generated-model record was inspected; a forced Production native regeneration is still required because that record predates persisted Building Graph output
+- [x] Exact Mitchell Dewitt source was forced through the authenticated Production route; the native Building Graph, validation report, source page, reconstruction version, algorithms, and GLB were persisted
 - [x] Full CI green through merged Mitchell benchmark fixes
 - [x] Production migration application and verification
-- [ ] Production visual verification
+- [x] Authenticated Production visual verification
 
 ### Merged Phase A release checkpoint
 
@@ -196,19 +196,14 @@ Phase B follows `master-plan.md`: wall classification, openings, rooms/architect
 - [x] Add multi-floor fixture
 - [x] Performance budget test for a dense 3,200-segment vector fixture
 - [x] Production telemetry endpoint for tenant-scoped engine status, failure codes, confidence, validation score, reconstruction versions, and latest update time
-- [ ] Forced native regeneration of the registered Mitchell Dewitt Production revision and persisted Building Graph verification
-- [ ] Authenticated Production visual walkthrough
+- [x] Forced native regeneration of the registered Mitchell Dewitt Production revision and persisted Building Graph verification
+- [x] Authenticated Production visual walkthrough
 
 ## Current release state
 
-- Engine implementation and real-source benchmark fixes are merged through PR #535.
-- Production deployment for merge commit `8a45c59ab396338a365209b59078f2e7fb9d6a9b` is green.
-- No active product-development PR remains for the current Blueprint Engine Definition of Done.
-- Remaining release checks require an authenticated B.O.S. Production browser session.
-
-## Immediate execution order
-
-1. Force the exact registered Mitchell Dewitt Production revision through the authenticated Generate/Regenerate route and inspect the persisted Building Graph against the permanent benchmark.
-2. Complete the authenticated Production visual Blueprint/3D walkthrough.
-3. Resolve only defects exposed by those two release checks; do not add unrelated or post-release semantics.
-4. Mark the current Blueprint Engine Definition of Done complete when both Production checks pass.
+- The current Blueprint Engine Definition of Done is complete.
+- Runtime packaging and safe `needs_review` rendering fixes are merged through PR #539; all required CI gates and Vercel Production deployment completed green.
+- The authenticated Mitchell Production regeneration persisted source page 2, reconstruction version `native-1`, algorithm versions, an 80-wall Building Graph with 16 exterior walls, garage/deck/stair semantics, a validation report, and a private GLB model.
+- The authenticated visual walkthrough verified the correct source sheet, Generate/Regenerate behavior, 2D review and correction workspace, 3D viewer, single-floor behavior, and IFC control.
+- The Mitchell output remains correctly labeled `needs_review` because open wall topology is visibly incomplete; it is conceptual and must not be represented as construction-ready.
+- Slab/foundation and roof semantics remain post-release enhancements and are not part of this completed Definition of Done.
