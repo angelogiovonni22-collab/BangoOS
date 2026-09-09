@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./downstream-intelligence.contract.test";
 import { createEmptyBosBuildingGraph, type BosBuildingGraph } from "./building-graph";
 import { buildBosBuildingGraphGlb } from "./graph-to-glb";
 import { buildBosBuildingGraphIfc } from "./graph-to-ifc";
