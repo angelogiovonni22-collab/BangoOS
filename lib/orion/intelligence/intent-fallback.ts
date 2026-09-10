@@ -51,7 +51,7 @@ function money(value: number | null) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 }
 
-async function resolveNativeActiveProjectSummary(args: {
+export async function resolveNativeActiveProjectSummary(args: {
   input: OrionIntentInput;
   workspace: WorkspaceContext;
 }): Promise<OrionIntelligenceIntentFallback | null> {
