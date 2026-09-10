@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
+import { recordBosIntelligenceUsageEvent } from "@/lib/billing/intelligence-usage-events";
 import { createOrionCommandRegistry } from "@/lib/orion/commands";
 import type { OrionIntentInput, OrionIntentResult } from "@/lib/orion/intent-engine";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { WorkspaceContext } from "@/lib/supabase/workspace";
 import { beginEstimateVoiceWorkflowSession } from "@/lib/orion/workflows/estimate-voice-workflow";
 import { isOrionOpenAIEnabled, resolveOrionWithOpenAI } from "./openai-intelligence";
@@ -30,6 +33,85 @@ function conversationSafetyFallback(): OrionIntelligenceIntentFallback {
   };
 }
 
+function projectIdFromRoute(input: OrionIntentInput) {
+  if (input.route.projectId) return input.route.projectId;
+  const match = input.route.pathname.match(/^\/projects\/([^/?#]+)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+function isActiveProjectReadRequest(input: string) {
+  const normalized = input.toLowerCase().replace(/\s+/g, " ").trim();
+  const referencesCurrentProject = /\b(this project|the project|this job|the job|this page|what i have open)\b/.test(normalized);
+  const asksForOverview = /\b(summary|summar(?:y|ize)|summery|overview|tell me about|details?|status)\b/.test(normalized);
+  return referencesCurrentProject && asksForOverview;
+}
+
+function money(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return null;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+}
+
+async function resolveNativeActiveProjectSummary(args: {
+  input: OrionIntentInput;
+  workspace: WorkspaceContext;
+}): Promise<OrionIntelligenceIntentFallback | null> {
+  const projectId = projectIdFromRoute(args.input);
+  if (!projectId || !isActiveProjectReadRequest(args.input.input)) return null;
+
+  try {
+    const admin = createAdminClient();
+    const { data: project, error } = await admin
+      .from("projects")
+      .select("id,name,project_number,project_type,status,description,address_line_1,city,state,postal_code,estimated_cost,contract_amount,estimated_start_date,estimated_end_date,actual_end_date")
+      .eq("company_id", args.workspace.companyId)
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (error || !project) return null;
+
+    const location = [project.address_line_1, project.city, project.state, project.postal_code].filter(Boolean).join(", ");
+    const facts = [
+      project.status ? `Status: ${project.status}.` : null,
+      project.project_type ? `Type: ${project.project_type}.` : null,
+      project.description ? `Scope: ${project.description}.` : null,
+      location ? `Jobsite: ${location}.` : null,
+      money(project.contract_amount) ? `Contract amount: ${money(project.contract_amount)}.` : null,
+      money(project.estimated_cost) ? `Estimated cost: ${money(project.estimated_cost)}.` : null,
+      project.estimated_start_date ? `Estimated start: ${project.estimated_start_date}.` : null,
+      project.estimated_end_date ? `Estimated completion: ${project.estimated_end_date}.` : null,
+      project.actual_end_date ? `Actual completion: ${project.actual_end_date}.` : null,
+    ].filter(Boolean);
+
+    const number = project.project_number ? ` (${project.project_number})` : "";
+    const message = facts.length
+      ? `${project.name}${number}: ${facts.join(" ")}`
+      : `${project.name}${number} is the project currently open in B.O.S.`;
+
+    await recordBosIntelligenceUsageEvent({
+      companyId: args.workspace.companyId,
+      actorUserId: args.workspace.userId,
+      product: "orion_text",
+      outcome: "succeeded",
+      operationKey: `orion-project-context-${randomUUID()}`,
+      internalNonBillable: true,
+      sourceType: "project",
+      sourceId: project.id,
+      metadata: {
+        executionMode: "bos_native_project_context",
+        activeProjectContextLoaded: true,
+        providerCostStatus: "not_applicable",
+      },
+    });
+
+    return {
+      intent: passiveIntent(message),
+      statusCategory: "workflow_complete",
+    };
+  } catch {
+    return null;
+  }
+}
+
 function commandIntentKind(commandId: string): OrionIntentResult["resolvedIntent"] {
   if (commandId.endsWith(".create")) return "create";
   if (commandId.endsWith(".open")) return "open";
@@ -57,6 +139,9 @@ export async function resolveOrionIntelligenceIntentFallback(args: {
   workspace: WorkspaceContext;
   conversationOnly?: boolean;
 }): Promise<OrionIntelligenceIntentFallback | null> {
+  const nativeProjectSummary = await resolveNativeActiveProjectSummary(args);
+  if (nativeProjectSummary) return nativeProjectSummary;
+
   if (!isOrionOpenAIEnabled()) {
     return args.conversationOnly ? conversationSafetyFallback() : null;
   }
