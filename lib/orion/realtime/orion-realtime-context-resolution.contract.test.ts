@@ -20,9 +20,11 @@ function read(relativePath: string) {
 
 function main() {
   const session = read("app/api/orion/realtime/session/route.ts");
+  const contextRoute = read("app/api/orion/realtime/current-context/route.ts");
   const resolverRoute = read("app/api/orion/realtime/resolve-entity/route.ts");
   const resolver = read("lib/orion/realtime/entity-resolution.ts");
   const bridge = read("lib/orion/realtime/tool-bridge.ts");
+  const policy = read("lib/orion/intelligence/orion-tool-router.ts");
   const types = read("lib/orion/realtime/types.ts");
 
   console.log("\nOrion Realtime context and entity resolution contract");
@@ -36,7 +38,16 @@ function main() {
   assert(session.includes("Navigation tools require explicit navigation intent"), "Realtime navigation requires explicit user navigation language");
   assert(session.includes("If you are uncertain whether the user wants a BOS action or conversation"), "ambiguous intent clarifies instead of executing a tool");
   assert(bridge.includes("window.location.href"), "current context is resolved from the live browser route without reconnecting Realtime");
-  assert(bridge.includes('routeEntityId(pathname, "projects")'), "current project id can be inferred from Project Workspace routes");
+  assert(bridge.includes('/api/orion/realtime/current-context'), "Realtime current context is enriched through an authenticated server endpoint");
+  assert(bridge.includes('return await currentBosContext()'), "Realtime waits for enriched current context before returning tool output");
+  assert(contextRoute.includes("resolveWorkspaceContext"), "Realtime current-context enrichment is authenticated");
+  assert(contextRoute.includes('.eq("company_id", workspace.context.companyId)'), "Realtime project context is tenant-scoped");
+  assert(contextRoute.includes('.eq("id", projectId)'), "Realtime project context targets the exact live project route");
+  assert(contextRoute.includes('product: "orion_voice"'), "Realtime current-project context emits non-settling Orion voice usage telemetry");
+  assert(contextRoute.includes("recordBosInternalIntelligenceUsageEvent"), "Realtime context telemetry uses the authenticated internal recorder");
+  assert(contextRoute.includes("activeProjectContextLoaded: Boolean(project)"), "Realtime telemetry records whether active project data was actually loaded");
+  assert(policy.includes("Current-context rule:"), "Orion policy requires live context before asking which current project the user means");
+  assert(policy.includes("do not ask the user to identify the project again"), "Resolved active project details suppress redundant project-name clarification");
   assert(bridge.includes('/api/orion/realtime/resolve-entity'), "spoken entity names are resolved through an authenticated server endpoint");
   assert(resolverRoute.includes("resolveWorkspaceContext") && resolverRoute.includes("resolveOrionEntity"), "entity resolution route is authenticated and delegates to the shared resolver");
   assert(resolver.includes('.eq("company_id", params.companyId)'), "entity candidate queries are company-scoped in the shared resolver");
