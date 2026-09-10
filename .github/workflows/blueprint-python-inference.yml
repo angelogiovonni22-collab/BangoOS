@@ -8,6 +8,8 @@ on:
       - "services/blueprint-inference/**"
       - "lib/blueprints/engine/python-inference.ts"
       - "lib/blueprints/engine/python-inference.contract.test.ts"
+      - "lib/blueprints/engine/learned-consensus.ts"
+      - "lib/blueprints/engine/learned-consensus.contract.test.ts"
       - ".github/workflows/blueprint-python-inference.yml"
 
 permissions:
@@ -43,3 +45,7 @@ jobs:
       - name: Run TypeScript inference boundary contract
         working-directory: .
         run: npx -y tsx lib/blueprints/engine/python-inference.contract.test.ts
+
+      - name: Run learned/deterministic consensus contract
+        working-directory: .
+        run: npx -y tsx lib/blueprints/engine/learned-consensus.contract.test.ts
