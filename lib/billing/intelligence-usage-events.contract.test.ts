@@ -5,6 +5,8 @@ import { resolve } from "node:path";
 const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/20260909203000_bos_intelligence_usage_events.sql"), "utf8");
 const recorder = readFileSync(resolve(process.cwd(), "lib/billing/intelligence-usage-events.ts"), "utf8");
 const orion = readFileSync(resolve(process.cwd(), "lib/orion/intelligence/openai-intelligence.ts"), "utf8");
+const deterministicOrion = readFileSync(resolve(process.cwd(), "lib/orion/intent-engine/metered-service.ts"), "utf8");
+const intentIndex = readFileSync(resolve(process.cwd(), "lib/orion/intent-engine/index.ts"), "utf8");
 const blueprint = readFileSync(resolve(process.cwd(), "lib/blueprints/visual-mockup.ts"), "utf8");
 const blueprintRoute = readFileSync(resolve(process.cwd(), "app/api/blueprints/[versionId]/visual-mockup/route.ts"), "utf8");
 
@@ -29,6 +31,12 @@ assert.match(orion, /outcome: "provider_failed"/);
 assert.match(orion, /outcome: "succeeded"/);
 assert.match(orion, /input_tokens/);
 assert.match(orion, /output_tokens/);
+
+assert.match(deterministicOrion, /recordBosIntelligenceUsageEvent/);
+assert.match(deterministicOrion, /internalNonBillable: true/);
+assert.match(deterministicOrion, /executionMode: "bos_deterministic"/);
+assert.match(deterministicOrion, /if \(result\.suggestedCommand \|\| result\.requiresClarification\)/, "Only deterministic handled turns should emit the internal event; unresolved turns may continue to provider-backed fallback");
+assert.match(intentIndex, /resolveOrionIntent.*metered-service/, "Public Orion command-center imports must use the metered deterministic wrapper");
 
 assert.match(blueprint, /recordBosIntelligenceUsageEvent/);
 assert.match(blueprint, /product: "blueprint_visual_mockup"/);
