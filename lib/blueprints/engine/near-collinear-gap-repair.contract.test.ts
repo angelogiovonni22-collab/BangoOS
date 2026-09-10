@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { BosRawSegment } from "./geometry";
+import { topologyMetrics, type BosRawSegment } from "./geometry";
 import { repairNearCollinearWallGaps } from "./near-collinear-gap-repair";
 
 function segment(id: string, x1: number, y1: number, x2: number, y2: number, strokeWidth = 0.15): BosRawSegment {
@@ -37,5 +37,19 @@ const perpendicular = repairNearCollinearWallGaps([
   segment("vertical", 3.2, 0, 3.2, 3),
 ]);
 assert.equal(perpendicular.length, 2, "corners and returns must not be flattened into one wall");
+
+const graphFixture = [
+  segment("bottom-left", 0, 0, 4, 0),
+  segment("bottom-right", 4.22, 0.01, 8, 0.01),
+  segment("right", 8, 0, 8, 6),
+  segment("top", 8, 6, 0, 6),
+  segment("left", 0, 6, 0, 0),
+  segment("divider", 4, 0, 4, 6),
+];
+const graphRepaired = repairNearCollinearWallGaps(graphFixture);
+const beforeTopology = topologyMetrics(graphFixture);
+const afterTopology = topologyMetrics(graphRepaired);
+assert.ok(afterTopology.closure + 1e-9 >= beforeTopology.closure, "gap repair must never lower topology closure");
+assert.ok(afterTopology.dangling <= beforeTopology.dangling, "gap repair must never increase dangling endpoints");
 
 console.log("Near-collinear wall gap repair contract: passed");
