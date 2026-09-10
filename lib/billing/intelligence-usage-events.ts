@@ -1,5 +1,7 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BosIntelligenceProduct } from "@/lib/billing/intelligence-usage";
+import type { Database } from "@/types/database.types";
 
 export type BosIntelligenceUsageEventOutcome =
   | "succeeded"
@@ -28,14 +30,30 @@ type UsageEventInput = {
   metadata?: Record<string, unknown>;
 };
 
+type InternalUsageEventInput = {
+  companyId: string;
+  product: Extract<BosIntelligenceProduct,
+    | "orion_text"
+    | "orion_voice"
+    | "orion_document"
+    | "orion_autonomous_action"
+    | "blueprint_native_analysis"
+    | "blueprint_3d_reconstruction"
+  >;
+  operationKey: string;
+  sourceType?: string | null;
+  sourceId?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
 function optionalUnit(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return null;
   return Math.max(0, Math.round(value));
 }
 
 /**
- * Best-effort, non-settling provider telemetry.
- * This function intentionally never throws so telemetry cannot break an Orion or Blueprint workflow.
+ * Best-effort provider telemetry. This path is service-role only and is reserved for
+ * external/provider evidence that may later inform cost accounting.
  */
 export async function recordBosIntelligenceUsageEvent(input: UsageEventInput) {
   try {
@@ -64,13 +82,48 @@ export async function recordBosIntelligenceUsageEvent(input: UsageEventInput) {
       metadata: input.metadata || {},
     });
     if (error) {
-      console.warn("B.O.S. Intelligence usage telemetry was not recorded:", error.message);
+      console.warn("B.O.S. Intelligence provider telemetry was not recorded:", error.message);
       return false;
     }
     return true;
   } catch (error) {
     console.warn(
-      "B.O.S. Intelligence usage telemetry was not recorded:",
+      "B.O.S. Intelligence provider telemetry was not recorded:",
+      error instanceof Error ? error.message : "unknown telemetry error",
+    );
+    return false;
+  }
+}
+
+/**
+ * Reliable authenticated path for native/internal B.O.S. intelligence only.
+ * The database RPC independently verifies auth, membership and project ownership and
+ * always forces the event to non-billable with zero provider cost.
+ */
+export async function recordBosInternalIntelligenceUsageEvent(
+  supabase: SupabaseClient<Database>,
+  input: InternalUsageEventInput,
+) {
+  try {
+    // Generated database types intentionally lag the migration until the next type refresh.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any;
+    const { error } = await db.rpc("record_bos_internal_intelligence_usage_event", {
+      p_company_id: input.companyId,
+      p_product: input.product,
+      p_operation_key: input.operationKey,
+      p_source_type: input.sourceType || null,
+      p_source_id: input.sourceId || null,
+      p_metadata: input.metadata || {},
+    });
+    if (error) {
+      console.warn("B.O.S. internal Intelligence telemetry was not recorded:", error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn(
+      "B.O.S. internal Intelligence telemetry was not recorded:",
       error instanceof Error ? error.message : "unknown telemetry error",
     );
     return false;
