@@ -32,6 +32,10 @@ jobs:
         if: always()
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts benchmark
 
+      - name: Mitchell topology accuracy
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/mitchell-topology-accuracy.contract.test.ts
+
       - name: Opening detection
         if: always()
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts openings

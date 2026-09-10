@@ -164,6 +164,86 @@ export function suppressNestedWallDetections(
   return selected;
 }
 
+/**
+ * Rasterized plan sheets often turn stair treads, railings and framing hatch into dense families
+ * of short parallel paired-line detections. A real wall can be short or thick, but it should not
+ * normally appear as four or more almost-identical thick centerlines packed into one narrow band.
+ * Keep this deliberately conservative and raster-only so repeated real partitions remain intact.
+ */
+export function suppressRepetitiveRasterWallArtifacts(
+  input: BosRawSegment[],
+  options: WallDetectionOptions = DEFAULT_WALL_DETECTION_OPTIONS,
+) {
+  if (input.length < 4) return input;
+  const minArtifactThickness = 0.2;
+  const maxArtifactLength = 1.9;
+  const maxFamilySeparation = 1.15;
+  const minFamilySize = 4;
+
+  return input.filter((candidate, candidateIndex) => {
+    const candidateLength = length(candidate);
+    const rasterDerived = (candidate.sourceObjectId || "").includes("raster-");
+    if (!rasterDerived || candidateLength > maxArtifactLength || (candidate.strokeWidth || 0) < minArtifactThickness) return true;
+
+    let familySize = 1;
+    for (let index = 0; index < input.length; index += 1) {
+      if (index === candidateIndex) continue;
+      const other = input[index];
+      const otherLength = length(other);
+      if (!(other.sourceObjectId || "").includes("raster-")) continue;
+      if (otherLength > maxArtifactLength || (other.strokeWidth || 0) < minArtifactThickness) continue;
+      if (angleDelta(angle(candidate), angle(other)) > options.parallelToleranceRadians * 1.75) continue;
+      const lengthRatio = otherLength / Math.max(candidateLength, 0.0001);
+      if (lengthRatio < 0.62 || lengthRatio > 1.62) continue;
+      const metrics = pairMetrics(candidate, other);
+      if (metrics.overlapRatio < 0.55 || metrics.separation > maxFamilySeparation) continue;
+      familySize += 1;
+      if (familySize >= minFamilySize) return false;
+    }
+    return true;
+  });
+}
+
+function finiteProjection(point: { x: number; y: number }, line: BosLine2) {
+  const dx = line.end.x - line.start.x;
+  const dy = line.end.y - line.start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= Number.EPSILON) return null;
+  const parameter = ((point.x - line.start.x) * dx + (point.y - line.start.y) * dy) / lengthSquared;
+  if (parameter < 0 || parameter > 1) return null;
+  const projected = { x: line.start.x + parameter * dx, y: line.start.y + parameter * dy };
+  return { projected, distance: Math.hypot(projected.x - point.x, projected.y - point.y) };
+}
+
+/**
+ * Close small raster/vector endpoint misses at clear non-parallel wall junctions. This only moves
+ * a dangling endpoint onto an existing finite wall segment and never bridges empty space between
+ * unrelated parallel walls.
+ */
+export function repairDetectedWallJunctions(input: BosRawSegment[], tolerance = 0.18) {
+  if (input.length < 2) return input;
+  return input.map((segment, segmentIndex) => {
+    const repairEndpoint = (point: { x: number; y: number }) => {
+      let best: { x: number; y: number; distance: number } | null = null;
+      for (let index = 0; index < input.length; index += 1) {
+        if (index === segmentIndex) continue;
+        const other = input[index];
+        const orientationDelta = angleDelta(angle(segment), angle(other));
+        if (orientationDelta < Math.PI / 6) continue;
+        const projected = finiteProjection(point, other);
+        if (!projected || projected.distance <= 0.005 || projected.distance > tolerance) continue;
+        if (!best || projected.distance < best.distance) best = { ...projected.projected, distance: projected.distance };
+      }
+      return best ? { x: best.x, y: best.y } : point;
+    };
+    return {
+      ...segment,
+      start: repairEndpoint(segment.start),
+      end: repairEndpoint(segment.end),
+    };
+  }).filter((segment) => length(segment) >= DEFAULT_WALL_DETECTION_OPTIONS.minWallLength);
+}
+
 export function detectWallCenterlines(
   source: BosRawSegment[],
   options: WallDetectionOptions = DEFAULT_WALL_DETECTION_OPTIONS,
@@ -221,13 +301,16 @@ export function detectWallCenterlines(
     }
   }
 
-  return mergeCollinearSegments(suppressNestedWallDetections(detections, options), {
+  const deduplicated = suppressNestedWallDetections(detections, options);
+  const structural = suppressRepetitiveRasterWallArtifacts(deduplicated, options);
+  const merged = mergeCollinearSegments(structural, {
     snapTolerance: 0.08,
     collinearToleranceRadians: Math.PI / 180 * 2,
     minLength: options.minWallLength,
     wallThickness: 0.1524,
     wallHeight: 2.4384,
   });
+  return repairDetectedWallJunctions(merged);
 }
 
 export function scaleSegmentsToMeters(segments: BosRawSegment[], drawingUnitsPerMeter: number): BosRawSegment[] {
