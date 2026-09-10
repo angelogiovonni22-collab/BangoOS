@@ -36,6 +36,10 @@ jobs:
         if: always()
         run: npx -y tsx lib/blueprints/engine/mitchell-topology-accuracy.contract.test.ts
 
+      - name: Validation topology separation
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/validation-topology-separation.contract.test.ts
+
       - name: Opening detection
         if: always()
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts openings

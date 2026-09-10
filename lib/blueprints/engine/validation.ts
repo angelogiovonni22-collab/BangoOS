@@ -30,7 +30,8 @@ export function validateBosBuildingGraph(
   const issues: BosValidationIssue[] = [];
   const exterior = graph.walls.filter((wall) => wall.type === "exterior");
   const perimeterSource = exterior.length >= 3 ? exterior : graph.walls;
-  const topology = topologyMetrics(perimeterSource.map((wall) => wall.centerline));
+  const fullTopology = topologyMetrics(graph.walls.map((wall) => wall.centerline));
+  const perimeterTopology = topologyMetrics(perimeterSource.map((wall) => wall.centerline));
   const complexity = footprintComplexity(perimeterSource.map((wall) => wall.centerline));
 
   if (graph.levels.length === 0) issues.push(issue("NO_LEVEL", "error", "No reconstructed building level is present."));
@@ -40,7 +41,7 @@ export function validateBosBuildingGraph(
   if (exterior.length > 0 && exterior.length < thresholds.minExteriorWalls) {
     issues.push(issue("EXTERIOR_UNDERTRACE", "error", `Only ${exterior.length} exterior wall segments were reconstructed.`));
   }
-  if (topology.closure < thresholds.minClosure) {
+  if (fullTopology.closure < thresholds.minClosure) {
     issues.push(issue("OPEN_TOPOLOGY", "warning", "The reconstructed wall topology contains too many dangling endpoints."));
   }
   if (graph.scale.confidence < thresholds.minScaleConfidence || !graph.scale.drawingUnitsPerMeter) {
@@ -52,9 +53,9 @@ export function validateBosBuildingGraph(
 
   const semanticCount = graph.doors.length + graph.windows.length + graph.stairs.length + graph.rooms.length + graph.decksPorches.length;
   const semanticCoverage = clampBosConfidence(semanticCount / Math.max(5, Math.ceil(graph.walls.length / 3)));
-  const wallTopology = clampBosConfidence(topology.closure);
+  const wallTopology = clampBosConfidence(fullTopology.closure);
   const scaleConfidence = clampBosConfidence(graph.scale.confidence);
-  const exteriorClosure = exterior.length ? clampBosConfidence(topologyMetrics(exterior.map((wall) => wall.centerline)).closure) : wallTopology * 0.75;
+  const exteriorClosure = exterior.length ? clampBosConfidence(perimeterTopology.closure) : wallTopology * 0.75;
   const footprint = clampBosConfidence(complexity);
   const score = clampBosConfidence(
     exteriorClosure * 0.3 +
