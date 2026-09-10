@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Protocol
 
-from .schemas import Evidence, InferenceRequest, InferenceResponse, ModelRun, RoomPolygon
+from .schemas import Evidence, InferenceRequest, InferenceResponse, ModelRun, RoomPolygon, WallCandidate
 
 
 R2G_LABELS: dict[int, str] = {
@@ -123,6 +123,14 @@ def _to_meters(
     )
 
 
+def _edge_key(a: tuple[float, float], b: tuple[float, float]) -> tuple[tuple[int, int], tuple[int, int]]:
+    # 2 cm quantization collapses the same shared room boundary while retaining
+    # distinct construction edges for consensus scoring.
+    left = (round(a[0] * 50), round(a[1] * 50))
+    right = (round(b[0] * 50), round(b[1] * 50))
+    return (left, right) if left <= right else (right, left)
+
+
 class Raster2SeqAdapter:
     capability = "room_polygons"
     model = "raster2seq"
@@ -152,23 +160,43 @@ class Raster2SeqAdapter:
         try:
             prediction = self._backend.predict(str(request.image_url))
             rooms: list[RoomPolygon] = []
+            walls_by_edge: dict[tuple[tuple[int, int], tuple[int, int]], WallCandidate] = {}
+            model_name = f"raster2seq:{prediction.checkpoint}"
             for polygon in prediction.polygons:
+                confidence = max(0.0, min(1.0, polygon.confidence))
                 points = [_to_meters(point, request=request, prediction=prediction) for point in polygon.points]
+                evidence = [Evidence(
+                    source="model",
+                    page=request.source_page,
+                    confidence=confidence,
+                    model=model_name,
+                )]
                 rooms.append(RoomPolygon(
                     points=points,
                     label=R2G_LABELS.get(polygon.category_id, "unknown"),
-                    confidence=max(0.0, min(1.0, polygon.confidence)),
-                    evidence=[Evidence(
-                        source="model",
-                        page=request.source_page,
-                        confidence=max(0.0, min(1.0, polygon.confidence)),
-                        model=f"raster2seq:{prediction.checkpoint}",
-                    )],
+                    confidence=confidence,
+                    evidence=evidence,
                 ))
+                for index, start in enumerate(points):
+                    end = points[(index + 1) % len(points)]
+                    if ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2) ** 0.5 < 0.12:
+                        continue
+                    key = _edge_key(start, end)
+                    candidate = WallCandidate(
+                        start=start,
+                        end=end,
+                        confidence=confidence,
+                        evidence=evidence,
+                    )
+                    previous = walls_by_edge.get(key)
+                    if previous is None or candidate.confidence > previous.confidence:
+                        walls_by_edge[key] = candidate
             confidence = sum(room.confidence for room in rooms) / len(rooms) if rooms else 0.0
+            walls = list(walls_by_edge.values())
             return InferenceResponse(
                 source_version_id=request.source_version_id,
                 source_page=request.source_page,
+                walls=walls,
                 rooms=rooms,
                 consensus_confidence=confidence,
                 warnings=[] if rooms else ["Raster2Seq completed but returned no room polygons."],
@@ -179,7 +207,7 @@ class Raster2SeqAdapter:
                     status="succeeded",
                     latency_ms=int((perf_counter() - started) * 1000),
                     confidence=confidence,
-                    detail=prediction.checkpoint,
+                    detail=f"{prediction.checkpoint}; derived_walls={len(walls)}",
                 )],
             )
         except Exception as exc:
