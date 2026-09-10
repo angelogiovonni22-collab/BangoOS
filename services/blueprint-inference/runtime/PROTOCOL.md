@@ -1,0 +1,1 @@
+Bridge stdin: `{ "image_url": "https://..." }`. Bridge stdout: JSON with `image_width_px`, `image_height_px`, `model_size_px`, `checkpoint`, and `polygons[]` containing `points`, `category_id`, and `confidence`.
