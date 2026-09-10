@@ -41,7 +41,7 @@ function routeEntityId(pathname: string, entity: string) {
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
 
-function currentBosContext(): OrionRealtimeToolExecutionResult {
+function localBosContext(): OrionRealtimeToolExecutionResult {
   if (typeof window === "undefined") {
     return { ok: false, statusCategory: "context_unavailable", userMessage: "Current BOS page context is unavailable." };
   }
@@ -59,6 +59,36 @@ function currentBosContext(): OrionRealtimeToolExecutionResult {
   };
 
   return { ok: true, statusCategory: "context_resolved", userMessage: "Current BOS page context resolved.", details };
+}
+
+async function currentBosContext(): Promise<OrionRealtimeToolExecutionResult> {
+  if (typeof window === "undefined") {
+    return { ok: false, statusCategory: "context_unavailable", userMessage: "Current BOS page context is unavailable." };
+  }
+
+  try {
+    const response = await fetch("/api/orion/realtime/current-context", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ href: window.location.href }),
+    });
+    const payload = await response.json() as Partial<OrionRealtimeToolExecutionResult> & { error?: string };
+    if (response.ok && payload.ok) {
+      return {
+        ok: true,
+        statusCategory: payload.statusCategory || "context_resolved",
+        userMessage: payload.userMessage || "Current BOS page context resolved.",
+        href: null,
+        confirmationRequired: false,
+        confirmationToken: null,
+        details: payload.details,
+      };
+    }
+  } catch {
+    // Fall back to browser-derived identifiers so Orion context never fails closed because enrichment is unavailable.
+  }
+
+  return localBosContext();
 }
 
 export function extractOrionRealtimeFunctionCall(event: OrionRealtimeServerEvent): OrionRealtimeFunctionCall | null {
@@ -145,7 +175,7 @@ async function executeAutonomySafeRead(call: OrionRealtimeFunctionCall): Promise
 }
 
 export async function executeOrionRealtimeTool(call: OrionRealtimeFunctionCall, options?: { confirmationTranscript?: string | null }): Promise<OrionRealtimeToolExecutionResult> {
-  if (call.toolName === ORION_REALTIME_CONTEXT_TOOL) return currentBosContext();
+  if (call.toolName === ORION_REALTIME_CONTEXT_TOOL) return await currentBosContext();
   if (call.toolName === ORION_REALTIME_RESEARCH_TOOL) return executeRealtimeResearch(call);
   if (call.toolName === ORION_REALTIME_RESOLVE_ENTITY_TOOL) return executeEntityResolution(call);
   if (call.toolName === ORION_AUTONOMY_SAFE_READ_TOOL) return executeAutonomySafeRead(call);
