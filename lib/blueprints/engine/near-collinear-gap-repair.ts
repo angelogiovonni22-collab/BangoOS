@@ -1,5 +1,5 @@
 import type { BosLine2 } from "./building-graph";
-import type { BosRawSegment } from "./geometry";
+import { topologyMetrics, type BosRawSegment } from "./geometry";
 
 export type NearCollinearGapRepairOptions = {
   maxGap: number;
@@ -95,7 +95,18 @@ function merge(a: BosRawSegment, b: BosRawSegment): BosRawSegment {
   };
 }
 
-/** Repairs only small collinear centerline misses between already-detected wall runs. */
+function topologyIsNotWorse(before: BosRawSegment[], after: BosRawSegment[]) {
+  const baseline = topologyMetrics(before);
+  const candidate = topologyMetrics(after);
+  if (candidate.closure + 1e-9 < baseline.closure) return false;
+  if (candidate.dangling > baseline.dangling) return false;
+  return true;
+}
+
+/**
+ * Repairs only small collinear centerline misses between already-detected wall runs.
+ * The completed candidate is accepted only when graph topology does not regress.
+ */
 export function repairNearCollinearWallGaps(
   input: BosRawSegment[],
   options: NearCollinearGapRepairOptions = DEFAULT_NEAR_COLLINEAR_GAP_REPAIR_OPTIONS,
@@ -108,6 +119,10 @@ export function repairNearCollinearWallGaps(
       for (let j = i + 1; j < output.length; j += 1) {
         if (!canRepair(output[i], output[j], options)) continue;
         const merged = merge(output[i], output[j]);
+        const candidate = [...output];
+        candidate.splice(j, 1);
+        candidate.splice(i, 1, merged);
+        if (!topologyIsNotWorse(output, candidate)) continue;
         output.splice(j, 1);
         output.splice(i, 1, merged);
         changed = true;
