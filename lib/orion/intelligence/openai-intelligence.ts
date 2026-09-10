@@ -1,9 +1,28 @@
 import { randomUUID } from "node:crypto";
 import OpenAI from "openai";
 import { recordBosIntelligenceUsageEvent } from "@/lib/billing/intelligence-usage-events";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { buildOrionSystemPolicy, type OrionIntelligenceRoute } from "./orion-tool-router";
 import { buildUniversalBosToolCatalog } from "./universal-command-catalog";
 import { getOrionModelConfig, selectOrionReasoningModel, type OrionReasoningTier } from "./model-config";
+
+export type OrionActiveProjectContext = {
+  id: string;
+  name: string;
+  projectNumber: string | null;
+  projectType: string | null;
+  status: string | null;
+  description: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  estimatedCost: number | null;
+  contractAmount: number | null;
+  estimatedStartDate: string | null;
+  estimatedEndDate: string | null;
+  actualEndDate: string | null;
+};
 
 export type OrionIntelligenceContext = {
   pathname: string;
@@ -13,6 +32,7 @@ export type OrionIntelligenceContext = {
   customerId?: string | null;
   estimateId?: string | null;
   invoiceId?: string | null;
+  activeProject?: OrionActiveProjectContext | null;
 };
 
 export type OrionOpenAIResult = {
@@ -31,6 +51,48 @@ export function isOrionOpenAIEnabled() {
   return Boolean(openAIKey()) && process.env.ORION_OPENAI_ENABLED !== "0";
 }
 
+function projectIdFromPath(pathname: string) {
+  const match = pathname.match(/^\/projects\/([^/?#]+)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+async function loadActiveProjectContext(context: OrionIntelligenceContext): Promise<OrionActiveProjectContext | null> {
+  const projectId = context.projectId || projectIdFromPath(context.pathname);
+  if (!projectId) return null;
+
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("projects")
+      .select("id,name,project_number,project_type,status,description,address_line_1,city,state,postal_code,estimated_cost,contract_amount,estimated_start_date,estimated_end_date,actual_end_date")
+      .eq("company_id", context.companyId)
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      name: data.name,
+      projectNumber: data.project_number,
+      projectType: data.project_type,
+      status: data.status,
+      description: data.description,
+      address: data.address_line_1,
+      city: data.city,
+      state: data.state,
+      postalCode: data.postal_code,
+      estimatedCost: data.estimated_cost,
+      contractAmount: data.contract_amount,
+      estimatedStartDate: data.estimated_start_date,
+      estimatedEndDate: data.estimated_end_date,
+      actualEndDate: data.actual_end_date,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function contextPrompt(context: OrionIntelligenceContext) {
   const known = [
     `route=${context.pathname}`,
@@ -42,7 +104,11 @@ function contextPrompt(context: OrionIntelligenceContext) {
     context.invoiceId ? `invoiceId=${context.invoiceId}` : null,
   ].filter(Boolean);
 
-  return `Current BOS context: ${known.join(", ")}. Use this context when it removes the need for a follow-up question.`;
+  const activeProject = context.activeProject
+    ? `\nActive project page data: ${JSON.stringify(context.activeProject)}. Treat this as authoritative B.O.S. project context for phrases such as “this project”, “the project”, “this page”, or “what I have open”. Do not claim you cannot see the current project when this object is present.`
+    : "";
+
+  return `Current BOS context: ${known.join(", ")}. Use this context when it removes the need for a follow-up question.${activeProject}`;
 }
 
 function parseToolArguments(raw: string) {
@@ -68,6 +134,14 @@ export async function resolveOrionWithOpenAI(args: {
     return { handled: false, route: null, responseId: null, model: null };
   }
 
+  const activeProject = args.context.activeProject ?? await loadActiveProjectContext(args.context);
+  const resolvedProjectId = args.context.projectId || activeProject?.id || projectIdFromPath(args.context.pathname);
+  const enrichedContext: OrionIntelligenceContext = {
+    ...args.context,
+    projectId: resolvedProjectId,
+    activeProject,
+  };
+
   const config = getOrionModelConfig();
   const model = selectOrionReasoningModel(args.tier || "balanced", config);
   const client = new OpenAI({ apiKey: key });
@@ -89,7 +163,7 @@ export async function resolveOrionWithOpenAI(args: {
   const request: Record<string, unknown> = {
     model,
     reasoning: { effort: args.tier === "deep" ? "medium" : "low" },
-    instructions: `${buildOrionSystemPolicy()}\n${contextPrompt(args.context)}${conversationGuard}`,
+    instructions: `${buildOrionSystemPolicy()}\n${contextPrompt(enrichedContext)}${conversationGuard}`,
     input: args.input,
     store: false,
   };
@@ -112,11 +186,13 @@ export async function resolveOrionWithOpenAI(args: {
       operationKey,
       provider: "openai",
       providerModel: model,
-      sourceType: "orion_intelligence",
+      sourceType: resolvedProjectId ? "project" : "orion_intelligence",
+      sourceId: resolvedProjectId,
       metadata: {
         tier: args.tier || "balanced",
         conversationOnly: Boolean(args.conversationOnly),
         providerCostStatus: "unpriced",
+        activeProjectContextLoaded: Boolean(activeProject),
       },
     });
     throw error;
@@ -135,11 +211,13 @@ export async function resolveOrionWithOpenAI(args: {
     inputUnits: usage?.input_tokens,
     outputUnits: usage?.output_tokens,
     totalUnits: usage?.total_tokens,
-    sourceType: "orion_intelligence",
+    sourceType: resolvedProjectId ? "project" : "orion_intelligence",
+    sourceId: resolvedProjectId,
     metadata: {
       tier: args.tier || "balanced",
       conversationOnly: Boolean(args.conversationOnly),
       providerCostStatus: "unpriced",
+      activeProjectContextLoaded: Boolean(activeProject),
     },
   });
 
