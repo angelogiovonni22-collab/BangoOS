@@ -1,16 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { recordBosInternalIntelligenceUsageEvent } from "@/lib/billing/intelligence-usage-events";
+import { resolveNativeActiveProjectSummary } from "@/lib/orion/intelligence/intent-fallback";
 import { resolveOrionIntent as resolveOrionIntentRaw } from "./service";
 
 /**
  * Meter deterministic Orion intent resolution without double-counting provider-backed fallbacks.
- * If the deterministic engine produces no actionable/clarifying result, the command-center route
- * may continue into OpenAI, whose provider telemetry is recorded separately.
+ * Active-page project reads are resolved first so Orion never asks for a project name when the
+ * current project is already present in route context.
  */
 export async function resolveOrionIntent(
   ...args: Parameters<typeof resolveOrionIntentRaw>
 ): ReturnType<typeof resolveOrionIntentRaw> {
   const [params] = args;
+
+  const activeProjectSummary = await resolveNativeActiveProjectSummary({
+    input: params.input,
+    workspace: params.workspace,
+  });
+  if (activeProjectSummary) {
+    return activeProjectSummary.intent;
+  }
+
   const result = await resolveOrionIntentRaw(...args);
 
   if (result.suggestedCommand || result.requiresClarification) {
