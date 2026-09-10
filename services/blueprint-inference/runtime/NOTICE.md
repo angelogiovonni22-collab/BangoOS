@@ -1,0 +1,1 @@
+Raster2Seq is an external MIT-licensed project and is not vendored into B.O.S. Model code and checkpoints remain outside this repository; the B.O.S. bridge calls an independently deployed runtime.
