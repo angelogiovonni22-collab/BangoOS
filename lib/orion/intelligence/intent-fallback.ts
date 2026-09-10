@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { recordBosIntelligenceUsageEvent } from "@/lib/billing/intelligence-usage-events";
+import { recordBosInternalIntelligenceUsageEvent } from "@/lib/billing/intelligence-usage-events";
 import { createOrionCommandRegistry } from "@/lib/orion/commands";
 import type { OrionIntentInput, OrionIntentResult } from "@/lib/orion/intent-engine";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type { WorkspaceContext } from "@/lib/supabase/workspace";
 import { beginEstimateVoiceWorkflowSession } from "@/lib/orion/workflows/estimate-voice-workflow";
 import { isOrionOpenAIEnabled, resolveOrionWithOpenAI } from "./openai-intelligence";
@@ -59,8 +59,10 @@ async function resolveNativeActiveProjectSummary(args: {
   if (!projectId || !isActiveProjectReadRequest(args.input.input)) return null;
 
   try {
-    const admin = createAdminClient();
-    const { data: project, error } = await admin
+    const supabase = await createClient();
+    if (!supabase) return null;
+
+    const { data: project, error } = await supabase
       .from("projects")
       .select("id,name,project_number,project_type,status,description,address_line_1,city,state,postal_code,estimated_cost,contract_amount,estimated_start_date,estimated_end_date,actual_end_date")
       .eq("company_id", args.workspace.companyId)
@@ -87,13 +89,10 @@ async function resolveNativeActiveProjectSummary(args: {
       ? `${project.name}${number}: ${facts.join(" ")}`
       : `${project.name}${number} is the project currently open in B.O.S.`;
 
-    await recordBosIntelligenceUsageEvent({
+    await recordBosInternalIntelligenceUsageEvent(supabase, {
       companyId: args.workspace.companyId,
-      actorUserId: args.workspace.userId,
       product: "orion_text",
-      outcome: "succeeded",
       operationKey: `orion-project-context-${randomUUID()}`,
-      internalNonBillable: true,
       sourceType: "project",
       sourceId: project.id,
       metadata: {
