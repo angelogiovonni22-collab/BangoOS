@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bos-blueprint-inference"
+version = "0.1.0"
+description = "GPU-capable floor-plan inference service for the B.O.S. native Blueprint Engine"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "pydantic>=2.10,<3",
+  "python-multipart>=0.0.20,<1",
+  "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+ml = [
+  "huggingface-hub>=0.30,<1",
+  "networkx>=3.4,<4",
+  "numpy>=2.0,<3",
+  "opencv-python-headless>=4.10,<5",
+  "pillow>=11,<13",
+  "safetensors>=0.5,<1",
+  "shapely>=2.0,<3",
+  "torch>=2.6,<3",
+  "torchvision>=0.21,<1",
+  "transformers>=4.50,<6",
+]
+test = [
+  "httpx>=0.28,<1",
+  "pytest>=8.3,<9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bos_blueprint_inference"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
