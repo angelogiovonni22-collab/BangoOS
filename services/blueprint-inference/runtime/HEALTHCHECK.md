@@ -1,0 +1,1 @@
+The GPU runtime is considered healthy only when CUDA is available, the Raster2Seq checkout is present, the configured checkpoint resolves, and the bridge can return valid JSON within the API timeout. Failure must leave learned inference disabled or fail closed.
