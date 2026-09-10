@@ -45,6 +45,8 @@ class InferenceRequest(BaseModel):
     source_page: int = Field(ge=1)
     image_url: HttpUrl
     drawing_units_per_meter: float | None = Field(default=None, gt=0)
+    source_width_units: float | None = Field(default=None, gt=0)
+    source_height_units: float | None = Field(default=None, gt=0)
     requested_capabilities: list[
         Literal["room_polygons", "wall_mask", "wall_edges", "openings", "segmentation"]
     ] = Field(default_factory=lambda: ["room_polygons", "wall_edges", "openings"])
