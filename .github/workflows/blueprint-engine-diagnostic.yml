@@ -40,6 +40,10 @@ jobs:
         if: always()
         run: npx -y tsx lib/blueprints/engine/validation-topology-separation.contract.test.ts
 
+      - name: Room-aware exterior classification
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/exterior-classifier.contract.test.ts
+
       - name: Opening detection
         if: always()
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts openings
