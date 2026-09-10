@@ -1,1 +1,0 @@
-The Raster2Seq bridge in this directory runs only inside the isolated GPU runtime. It is not imported by the Next.js application or the lightweight FastAPI control service.
