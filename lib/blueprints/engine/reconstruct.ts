@@ -7,6 +7,7 @@ import { parsePdfVectorPlan } from "./pdf-vector-parser";
 import { extractRasterLineSegments } from "./raster";
 import { traceWallBoundedRooms } from "./room-tracing";
 import { classifyExteriorWalls } from "./exterior-classifier";
+import { repairNearCollinearWallGaps } from "./near-collinear-gap-repair";
 import { applyBosValidation } from "./validation";
 import { detectWallCenterlines, scaleSegmentsToMeters, suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
 
@@ -99,6 +100,10 @@ function dimensionAnnotationZones(graph: BosBuildingGraph): WallAnnotationZone[]
   }));
 }
 
+function repairWallCandidates(input: BosRawSegment[]) {
+  return repairNearCollinearWallGaps(input);
+}
+
 export async function reconstructNativeBlueprint(source: NativeBlueprintSource): Promise<NativeBlueprintReconstruction> {
   if (source.mimeType !== "application/pdf") {
     throw new Error("Native vector reconstruction currently requires a PDF source; raster fallback must handle image-only plans.");
@@ -129,6 +134,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     parser: "pdfjs-vector-1.0.0",
     sheetTargeting: "deterministic-title-sheet-1.0.0",
     wallDetection: "paired-line-1.2.0",
+    wallGapRepair: "near-collinear-centerline-1.0.0",
     annotationFiltering: "dimension-evidence-zone-1.1.0",
     exteriorClassification: "room-adjacency-perimeter-1.0.0",
     openings: "wall-gap-openings-1.1.0",
@@ -170,7 +176,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   const annotationZones = dimensionAnnotationZones(graph);
   const meterSegments = scaleSegmentsToMeters(summary.page.vectorSegments, graph.scale.drawingUnitsPerMeter);
   const symbolSegments = suppressDimensionAnnotationDetections(meterSegments, annotationZones);
-  let wallCandidates = suppressDimensionAnnotationDetections(detectWallCenterlines(meterSegments), annotationZones);
+  let wallCandidates = repairWallCandidates(suppressDimensionAnnotationDetections(detectWallCenterlines(meterSegments), annotationZones));
   let rasterRequired = summary.rasterRequired;
 
   if (summary.rasterRequired || wallCandidates.length < 8) {
@@ -182,7 +188,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
         sourceHeight: summary.page.height,
       });
       diagnostics.push(...raster.diagnostics);
-      const rasterWallCandidates = suppressDimensionAnnotationDetections(detectWallCenterlines(raster.segments), annotationZones);
+      const rasterWallCandidates = repairWallCandidates(suppressDimensionAnnotationDetections(detectWallCenterlines(raster.segments), annotationZones));
       const structuralRasterCandidates = dominantRasterWallCluster(rasterWallCandidates);
       if (structuralRasterCandidates.length < rasterWallCandidates.length) {
         diagnostics.push(`Raster structural clustering retained ${structuralRasterCandidates.length} of ${rasterWallCandidates.length} wall candidates in the dominant connected plan region.`);
