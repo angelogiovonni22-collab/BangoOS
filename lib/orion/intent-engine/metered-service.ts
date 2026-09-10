@@ -1,27 +1,35 @@
 import { randomUUID } from "node:crypto";
 import { recordBosInternalIntelligenceUsageEvent } from "@/lib/billing/intelligence-usage-events";
-import { resolveNativeActiveProjectSummary } from "@/lib/orion/intelligence/intent-fallback";
 import { resolveOrionIntent as resolveOrionIntentRaw } from "./service";
+
+function shouldDeferActiveProjectReadToServerContext(input: Parameters<typeof resolveOrionIntentRaw>[0]["input"]) {
+  const projectId = input.route.projectId || input.route.pathname.match(/^\/projects\/([^/?#]+)/)?.[1] || null;
+  if (!projectId) return false;
+
+  const normalized = input.input.toLowerCase().replace(/\s+/g, " ").trim();
+  const referencesCurrentProject = /\b(this project|the project|this job|the job|this page|what i have open)\b/.test(normalized);
+  const asksForOverview = /\b(summary|summar(?:y|ize)|summery|overview|tell me about|details?|status)\b/.test(normalized);
+  return referencesCurrentProject && asksForOverview;
+}
 
 /**
  * Meter deterministic Orion intent resolution without double-counting provider-backed fallbacks.
- * Active-page project reads are resolved first so Orion never asks for a project name when the
- * current project is already present in route context.
+ * When generic resolution asks which project but the route already identifies the active project,
+ * defer that turn to the server-side active-project context fallback instead of clarifying again.
  */
 export async function resolveOrionIntent(
   ...args: Parameters<typeof resolveOrionIntentRaw>
 ): ReturnType<typeof resolveOrionIntentRaw> {
   const [params] = args;
-
-  const activeProjectSummary = await resolveNativeActiveProjectSummary({
-    input: params.input,
-    workspace: params.workspace,
-  });
-  if (activeProjectSummary) {
-    return activeProjectSummary.intent;
-  }
-
   const result = await resolveOrionIntentRaw(...args);
+
+  if (!result.suggestedCommand && result.requiresClarification && shouldDeferActiveProjectReadToServerContext(params.input)) {
+    return {
+      ...result,
+      requiresClarification: false,
+      message: "",
+    };
+  }
 
   if (result.suggestedCommand || result.requiresClarification) {
     await recordBosInternalIntelligenceUsageEvent(params.supabase, {
