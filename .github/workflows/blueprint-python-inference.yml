@@ -1,0 +1,45 @@
+name: Blueprint Python Inference
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "services/blueprint-inference/**"
+      - "lib/blueprints/engine/python-inference.ts"
+      - "lib/blueprints/engine/python-inference.contract.test.ts"
+      - ".github/workflows/blueprint-python-inference.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: services/blueprint-inference
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/blueprint-inference/pyproject.toml
+
+      - name: Install service test dependencies
+        run: python -m pip install -e '.[test]'
+
+      - name: Compile Python service
+        run: python -m compileall -q src
+
+      - name: Run Python contracts
+        run: pytest
+
+      - name: Run TypeScript inference boundary contract
+        working-directory: .
+        run: npx -y tsx lib/blueprints/engine/python-inference.contract.test.ts
