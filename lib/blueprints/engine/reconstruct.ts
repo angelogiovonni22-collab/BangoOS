@@ -1,4 +1,4 @@
-import { createEmptyBosBuildingGraph, type BosBuildingGraph, type BosWall } from "./building-graph";
+import { createEmptyBosBuildingGraph, type BosBuildingGraph } from "./building-graph";
 import { scaleTextTokensToMeters, recognizeArchitecturalSemantics } from "./architecture";
 import { segmentsToWalls, type BosRawSegment } from "./geometry";
 import { detectWallGapOpenings } from "./openings";
@@ -6,6 +6,7 @@ import { normalizeParsedPlan, summarizeSelectedPlan } from "./plan-parser";
 import { parsePdfVectorPlan } from "./pdf-vector-parser";
 import { extractRasterLineSegments } from "./raster";
 import { traceWallBoundedRooms } from "./room-tracing";
+import { classifyExteriorWalls } from "./exterior-classifier";
 import { applyBosValidation } from "./validation";
 import { detectWallCenterlines, scaleSegmentsToMeters, suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
 
@@ -82,37 +83,6 @@ function dominantRasterWallCluster(input: BosRawSegment[]) {
   return largest.length >= 8 && largest.length / input.length >= 0.3 ? largest : input;
 }
 
-function classifyExteriorWalls(walls: BosWall[]) {
-  if (walls.length < 4) return walls;
-  const xs = walls.flatMap((wall) => [wall.centerline.start.x, wall.centerline.end.x]);
-  const ys = walls.flatMap((wall) => [wall.centerline.start.y, wall.centerline.end.y]);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const width = Math.max(0.01, maxX - minX);
-  const height = Math.max(0.01, maxY - minY);
-  const envelopeTolerance = Math.max(0.28, Math.min(width, height) * 0.035);
-
-  return walls.map((wall) => {
-    const points = [wall.centerline.start, wall.centerline.end];
-    const nearEnvelope = points.some((point) =>
-      Math.abs(point.x - minX) <= envelopeTolerance ||
-      Math.abs(point.x - maxX) <= envelopeTolerance ||
-      Math.abs(point.y - minY) <= envelopeTolerance ||
-      Math.abs(point.y - maxY) <= envelopeTolerance,
-    );
-    const wallLength = Math.hypot(
-      wall.centerline.end.x - wall.centerline.start.x,
-      wall.centerline.end.y - wall.centerline.start.y,
-    );
-    return {
-      ...wall,
-      type: nearEnvelope && wallLength >= 0.75 ? "exterior" : "interior",
-    } satisfies BosWall;
-  });
-}
-
 function dimensionAnnotationZones(graph: BosBuildingGraph): WallAnnotationZone[] {
   const unitsPerMeter = graph.scale.drawingUnitsPerMeter;
   if (!unitsPerMeter || unitsPerMeter <= 0) return [];
@@ -160,6 +130,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     sheetTargeting: "deterministic-title-sheet-1.0.0",
     wallDetection: "paired-line-1.2.0",
     annotationFiltering: "dimension-evidence-zone-1.1.0",
+    exteriorClassification: "room-adjacency-perimeter-1.0.0",
     openings: "wall-gap-openings-1.1.0",
     openingSymbols: "anchored-vector-symbols-1.0.0",
     rooms: "wall-bounded-face-tracing-1.3.0",
@@ -232,7 +203,9 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   }
 
   let walls = segmentsToWalls(wallCandidates, { levelId, type: "unknown" });
-  walls = classifyExteriorWalls(walls);
+  graph.walls = walls;
+  const preliminaryRooms = traceWallBoundedRooms(graph);
+  walls = classifyExteriorWalls(walls, preliminaryRooms);
   graph.walls = walls;
   const openings = detectWallGapOpenings(walls, { symbolSegments });
   graph.openings = openings.openings;
