@@ -30,6 +30,12 @@ function main() {
   assert(adapter.includes('client.responses.create'), "Orion general intelligence uses the Responses API");
   assert(adapter.includes('{ type: "web_search" }'), "Orion can use OpenAI web search for current external information");
   assert(adapter.includes('buildUniversalBosToolCatalog()'), "Orion exposes canonical BOS commands as model tools");
+  assert(adapter.includes('createAdminClient()'), "Orion can enrich active page context server-side without trusting client-provided project facts");
+  assert(adapter.includes('.eq("company_id", context.companyId)') && adapter.includes('.eq("id", projectId)'), "active project enrichment is tenant- and project-scoped");
+  assert(adapter.includes('projectIdFromPath(context.pathname)'), "project context can recover from the active /projects/:id route when the explicit id is absent");
+  assert(adapter.includes('Active project page data:'), "Orion receives authoritative active project page facts in its intelligence context");
+  assert(adapter.includes('Do not claim you cannot see the current project'), "Orion is explicitly instructed to use loaded active-project context");
+  assert(adapter.includes('activeProjectContextLoaded'), "usage evidence records whether active project context was loaded");
   assert(route.includes('resolveBosActionFromIntelligenceRoute'), "AI tool selections are resolved back to canonical BOS commands");
   assert(!route.includes('.from("') && !route.includes(".insert(") && !route.includes(".update("), "intelligence route cannot mutate BOS tables directly");
   assert(policy.includes("Never bypass BOS permissions, validation, confirmation levels, or audit logging."), "BOS execution safety remains outside model discretion");
