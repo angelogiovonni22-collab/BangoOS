@@ -9,5 +9,7 @@ def test_runtime_bridge_pins_high_resolution_raster2graph_path():
     assert '"--poly2seq"' in text
     assert '"--save_pred"' in text
     assert '"--device", "cuda"' in text
-    assert 'url.startswith("https://")' in text
-    assert "30 * 1024 * 1024" in text
+    assert 'source.startswith("https://")' in text
+    assert 'PNG_DATA_URI_PREFIX = "data:image/png;base64,"' in text
+    assert "base64.b64decode(encoded, validate=True)" in text
+    assert "MAX_IMAGE_BYTES = 30 * 1024 * 1024" in text
