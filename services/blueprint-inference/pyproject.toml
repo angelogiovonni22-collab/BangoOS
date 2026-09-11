@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "bos-blueprint-inference"
 version = "0.1.0"
 description = "GPU-capable floor-plan inference service for the B.O.S. native Blueprint Engine"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.10,<3.14"
 dependencies = [
   "fastapi>=0.115,<1",
   "pydantic>=2.10,<3",
