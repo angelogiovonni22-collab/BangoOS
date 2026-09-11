@@ -10,6 +10,7 @@ app = modal.App(APP_NAME)
 image = modal.Image.from_dockerfile(
     "services/blueprint-inference/Dockerfile.modal",
     context_dir=".",
+    add_python="3.10",
 )
 
 
