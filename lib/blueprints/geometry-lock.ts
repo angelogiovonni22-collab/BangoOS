@@ -17,10 +17,12 @@ export function assessBlueprintFidelity(graph: BosBuildingGraph | null, sourcePa
   const metrics = graph.validation.metrics;
   if (graph.metadata.sourcePage !== sourcePage) blockers.push("The Building Graph is not bound to the selected source page.");
   if (graph.validation.status !== "reconstructed") blockers.push("The Building Graph has not passed structural review.");
-  if (graph.validation.score < 0.78) blockers.push("The structural validation score is below 78%.");
-  if (metrics.exteriorClosure < 0.7) blockers.push("The exterior footprint is not sufficiently closed.");
-  if (metrics.wallTopology < 0.7) blockers.push("The wall topology contains too many open connections.");
-  if (metrics.scaleConfidence < 0.55 || !graph.scale.drawingUnitsPerMeter) blockers.push("The drawing scale is not verified.");
+  if (graph.confidence < 0.82) blockers.push("The Building Graph confidence is below the 82% production standard.");
+  if (graph.validation.score < 0.82) blockers.push("The structural validation score is below the 82% production standard.");
+  if (metrics.exteriorClosure < 0.75) blockers.push("The exterior footprint closure is below the 75% production standard.");
+  if (metrics.wallTopology < 0.8) blockers.push("The wall topology closure is below the 80% production standard.");
+  if (metrics.scaleConfidence < 0.9 || !graph.scale.drawingUnitsPerMeter) blockers.push("The drawing scale confidence is below the 90% production standard.");
+  if (metrics.semanticCoverage < 0.7) blockers.push("The semantic coverage is below the 70% production standard.");
   if (graph.walls.length < 8) blockers.push("Too few walls were reconstructed for a faithful mockup.");
   if (graph.validation.issues.some((issue) => issue.severity === "error")) blockers.push("The Building Graph contains unresolved structural errors.");
   return { allowed: blockers.length === 0, score: graph.validation.score, blockers, metrics };

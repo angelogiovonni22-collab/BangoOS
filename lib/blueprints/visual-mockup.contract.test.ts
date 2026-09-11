@@ -42,9 +42,21 @@ const wallPoints = [
   [{ x: 0, y: 8 }, { x: 0, y: 4 }], [{ x: 0, y: 4 }, { x: 0, y: 0 }],
 ] as const;
 readyGraph.walls = wallPoints.map(([start, end], index) => ({ id: `wall-${index}`, levelId: "level-1", type: "exterior", centerline: { start, end }, thickness: 0.15, height: 2.7, confidence: 0.95, sourcePage: 2, evidence: [], provenance: { createdBy: "deterministic", algorithm: "test", algorithmVersion: "1", evidenceIds: [] } }));
+readyGraph.confidence = 0.9;
 readyGraph.scale = { source: "printed", drawingUnitsPerMeter: 100, confidence: 0.95 };
 readyGraph.validation = { version: 1, score: 0.9, status: "reconstructed", metrics: { exteriorClosure: 1, footprintComplexity: 0.8, wallTopology: 1, scaleConfidence: 0.95, semanticCoverage: 0.8 }, issues: [] };
 assert.equal(assessBlueprintFidelity(readyGraph, 2).allowed, true, "A validated closed graph must pass the fidelity gate");
+const underStandard = structuredClone(readyGraph);
+underStandard.validation.metrics.wallTopology = 0.79;
+underStandard.validation.metrics.exteriorClosure = 0.74;
+underStandard.validation.metrics.scaleConfidence = 0.89;
+underStandard.validation.metrics.semanticCoverage = 0.69;
+const underStandardGate = assessBlueprintFidelity(underStandard, 2);
+assert.equal(underStandardGate.allowed, false, "A graph below production thresholds must not generate a geometry-locked visual");
+assert(underStandardGate.blockers.some((blocker) => blocker.includes("80% production standard")), "Topology blocker must expose the production threshold");
+assert(underStandardGate.blockers.some((blocker) => blocker.includes("75% production standard")), "Exterior blocker must expose the production threshold");
+assert(underStandardGate.blockers.some((blocker) => blocker.includes("90% production standard")), "Scale blocker must expose the production threshold");
+assert(underStandardGate.blockers.some((blocker) => blocker.includes("70% production standard")), "Semantic blocker must expose the production threshold");
 const geometryLockCheck = renderBlueprintGeometryLock(readyGraph).then((geometryLock) => {
   assert(geometryLock.length > 1000 && geometryLock.subarray(1, 4).toString() === "PNG", "Geometry lock must render as a non-empty PNG");
 });
