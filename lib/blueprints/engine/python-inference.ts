@@ -49,6 +49,8 @@ type BlueprintInferenceRequest = {
   sourcePage: number;
   imageUrl: string;
   drawingUnitsPerMeter?: number | null;
+  sourceWidthUnits?: number | null;
+  sourceHeightUnits?: number | null;
 };
 
 function configuredEndpoint() {
@@ -111,6 +113,8 @@ export async function requestBlueprintLearnedInference(input: BlueprintInference
         source_page: input.sourcePage,
         image_url: input.imageUrl,
         drawing_units_per_meter: input.drawingUnitsPerMeter || null,
+        source_width_units: input.sourceWidthUnits || null,
+        source_height_units: input.sourceHeightUnits || null,
         requested_capabilities: ["room_polygons", "wall_mask", "wall_edges", "openings", "segmentation"],
       }),
       cache: "no-store",

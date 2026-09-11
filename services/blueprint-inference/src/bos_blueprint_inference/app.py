@@ -3,10 +3,21 @@ from __future__ import annotations
 from fastapi import FastAPI, Header, HTTPException
 
 from .pipeline import InferencePipeline
+from .raster2seq_adapter import raster2seq_adapter_from_env
 from .schemas import InferenceRequest, InferenceResponse
 
-app = FastAPI(title="B.O.S. Blueprint Inference", version="0.1.0")
-pipeline = InferencePipeline()
+app = FastAPI(title="B.O.S. Blueprint Inference", version="0.2.0")
+
+
+def build_pipeline() -> InferencePipeline:
+    adapters = []
+    raster2seq = raster2seq_adapter_from_env()
+    if raster2seq is not None:
+        adapters.append(raster2seq)
+    return InferencePipeline(adapters)
+
+
+pipeline = build_pipeline()
 
 
 @app.get("/healthz")

@@ -10,6 +10,8 @@ on:
       - "lib/blueprints/engine/python-inference.contract.test.ts"
       - "lib/blueprints/engine/learned-consensus.ts"
       - "lib/blueprints/engine/learned-consensus.contract.test.ts"
+      - "lib/blueprints/engine/learned-repair.ts"
+      - "lib/blueprints/engine/learned-repair.contract.test.ts"
       - ".github/workflows/blueprint-python-inference.yml"
 
 permissions:
@@ -37,7 +39,7 @@ jobs:
         run: python -m pip install -e '.[test]'
 
       - name: Compile Python service
-        run: python -m compileall -q src
+        run: python -m compileall -q src runtime
 
       - name: Run Python contracts
         run: pytest
@@ -49,3 +51,7 @@ jobs:
       - name: Run learned/deterministic consensus contract
         working-directory: .
         run: npx -y tsx lib/blueprints/engine/learned-consensus.contract.test.ts
+
+      - name: Run learned topology repair contract
+        working-directory: .
+        run: npx -y tsx lib/blueprints/engine/learned-repair.contract.test.ts
