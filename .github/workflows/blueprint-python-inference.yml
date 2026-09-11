@@ -14,6 +14,8 @@ on:
       - "lib/blueprints/engine/learned-repair.contract.test.ts"
       - "lib/blueprints/engine/learned-assist.ts"
       - "lib/blueprints/engine/learned-assist.contract.test.ts"
+      - "lib/blueprints/engine/acceptance.ts"
+      - "lib/blueprints/engine/acceptance.contract.test.ts"
       - "lib/blueprints/engine/reconstruct.ts"
       - ".github/workflows/blueprint-python-inference.yml"
 
@@ -62,3 +64,7 @@ jobs:
       - name: Run learned assistance integration contract
         working-directory: .
         run: npx -y tsx lib/blueprints/engine/learned-assist.contract.test.ts
+
+      - name: Run Blueprint production acceptance contract
+        working-directory: .
+        run: npx -y tsx lib/blueprints/engine/acceptance.contract.test.ts
