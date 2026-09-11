@@ -1,6 +1,7 @@
 import { createEmptyBosBuildingGraph, type BosBuildingGraph } from "./building-graph";
 import { scaleTextTokensToMeters, recognizeArchitecturalSemantics } from "./architecture";
 import { segmentsToWalls, type BosRawSegment } from "./geometry";
+import { applyLearnedBlueprintAssist } from "./learned-assist";
 import { detectWallGapOpenings } from "./openings";
 import { normalizeParsedPlan, summarizeSelectedPlan } from "./plan-parser";
 import { parsePdfVectorPlan } from "./pdf-vector-parser";
@@ -216,7 +217,21 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
 
   const scaledText = scaleTextTokensToMeters(summary.page.text, graph.scale.drawingUnitsPerMeter);
   const semanticGraph = recognizeArchitecturalSemantics(graph, scaledText);
-  const validated = applyBosValidation(semanticGraph);
+  let validated = applyBosValidation(semanticGraph);
+
+  const learned = await applyLearnedBlueprintAssist({
+    graph: validated,
+    pdfBuffer: source.buffer,
+    companyId: source.companyId,
+    projectId: source.projectId,
+    sourceVersionId: source.sourceVersionId,
+    sourcePage: parsed.selectedPage,
+    sourceWidthUnits: summary.page.width,
+    sourceHeightUnits: summary.page.height,
+  });
+  validated = learned.graph;
+  diagnostics.push(...learned.diagnostics);
+
   if (parsed.targetScore < 0.45) diagnostics.push("Registered sheet targeting confidence is low; B.O.S. should request review before accepting geometry.");
   if (rasterRequired) diagnostics.push("The selected page does not yet contain enough verified vector or raster linework for native reconstruction.");
   if (wallCandidates.length < 8) diagnostics.push("Deterministic paired-line detection found too few wall candidates for a faithful floor-plan reconstruction.");
