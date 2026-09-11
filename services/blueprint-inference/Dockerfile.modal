@@ -7,7 +7,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     BOS_RASTER2SEQ_REPO_PATH=/opt/Raster2Seq \
     BOS_RASTER2SEQ_CHECKPOINT=hf:raster2graph-512 \
-    BOS_RASTER2SEQ_IMAGE_SIZE=512
+    BOS_RASTER2SEQ_IMAGE_SIZE=512 \
+    BOS_RASTER2SEQ_BRIDGE_COMMAND="python3.10 /opt/bos-blueprint-inference/runtime/raster2seq_bridge.py"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -20,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.10 \
     python3.10-dev \
     python3-pip \
+    python-is-python3 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3.10 -m pip install --upgrade pip setuptools wheel ninja packaging
