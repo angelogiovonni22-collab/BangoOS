@@ -23,9 +23,9 @@ The endpoint still requires the existing `x-bos-inference-token` application-lev
 2. Create a Modal API token and store its values as GitHub repository Actions secrets:
    - `MODAL_TOKEN_ID`
    - `MODAL_TOKEN_SECRET`
-3. In Modal, create a secret named `bos-blueprint-inference` containing:
-   - `BOS_BLUEPRINT_INFERENCE_TOKEN=<random server-only token>`
-4. Run the GitHub Actions workflow `Blueprint Modal Deploy` manually.
+3. Create one strong random server-only token and store it as the GitHub Actions secret:
+   - `BOS_BLUEPRINT_INFERENCE_TOKEN`
+4. Run the GitHub Actions workflow `Blueprint Modal Deploy` manually. The workflow automatically creates/updates the Modal secret named `bos-blueprint-inference` with the server-only inference token, then deploys the service.
 5. Copy the deployed Modal HTTPS endpoint into the B.O.S./Vercel server environment as `BOS_BLUEPRINT_INFERENCE_URL`.
 6. Put the same server-only token from step 3 into B.O.S./Vercel as `BOS_BLUEPRINT_INFERENCE_TOKEN`.
 
