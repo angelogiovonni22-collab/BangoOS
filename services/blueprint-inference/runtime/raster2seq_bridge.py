@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import os
 import subprocess
@@ -10,20 +12,35 @@ from pathlib import Path
 
 from PIL import Image
 
+MAX_IMAGE_BYTES = 30 * 1024 * 1024
+PNG_DATA_URI_PREFIX = "data:image/png;base64,"
 
-def _download_image(url: str, destination: Path) -> tuple[int, int]:
-    if not url.startswith("https://"):
-        raise ValueError("Raster2Seq image URL must use HTTPS")
-    request = urllib.request.Request(url, headers={"User-Agent": "BOS-Blueprint-Inference/1.0"})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        content_type = (response.headers.get("content-type") or "").lower()
-        if content_type and not content_type.startswith("image/"):
-            raise ValueError(f"Expected image content, received {content_type}")
-        data = response.read(30 * 1024 * 1024 + 1)
-    if len(data) > 30 * 1024 * 1024:
-        raise ValueError("Blueprint inference image exceeded 30 MB")
+
+def _read_image(source: str, destination: Path) -> tuple[int, int]:
+    if source.startswith(PNG_DATA_URI_PREFIX):
+        encoded = source[len(PNG_DATA_URI_PREFIX) :]
+        try:
+            data = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError("Invalid Blueprint PNG data URI") from exc
+        if len(data) > MAX_IMAGE_BYTES:
+            raise ValueError("Blueprint inference image exceeded 30 MB")
+    elif source.startswith("https://"):
+        request = urllib.request.Request(source, headers={"User-Agent": "BOS-Blueprint-Inference/1.0"})
+        with urllib.request.urlopen(request, timeout=30) as response:
+            content_type = (response.headers.get("content-type") or "").lower()
+            if content_type and not content_type.startswith("image/"):
+                raise ValueError(f"Expected image content, received {content_type}")
+            data = response.read(MAX_IMAGE_BYTES + 1)
+        if len(data) > MAX_IMAGE_BYTES:
+            raise ValueError("Blueprint inference image exceeded 30 MB")
+    else:
+        raise ValueError("Raster2Seq image source must use HTTPS or a PNG data URI")
+
     destination.write_bytes(data)
     with Image.open(destination) as image:
+        if image.format != "PNG":
+            image.convert("RGB").save(destination, format="PNG")
         width, height = image.size
     if width <= 0 or height <= 0:
         raise ValueError("Invalid blueprint inference image dimensions")
@@ -57,7 +74,7 @@ def main() -> None:
         input_dir.mkdir()
         output_dir.mkdir()
         image_path = input_dir / "sheet.png"
-        width, height = _download_image(image_url, image_path)
+        width, height = _read_image(image_url, image_path)
 
         command = [
             sys.executable,

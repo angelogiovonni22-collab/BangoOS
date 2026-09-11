@@ -12,6 +12,9 @@ on:
       - "lib/blueprints/engine/learned-consensus.contract.test.ts"
       - "lib/blueprints/engine/learned-repair.ts"
       - "lib/blueprints/engine/learned-repair.contract.test.ts"
+      - "lib/blueprints/engine/learned-assist.ts"
+      - "lib/blueprints/engine/learned-assist.contract.test.ts"
+      - "lib/blueprints/engine/reconstruct.ts"
       - ".github/workflows/blueprint-python-inference.yml"
 
 permissions:
@@ -55,3 +58,7 @@ jobs:
       - name: Run learned topology repair contract
         working-directory: .
         run: npx -y tsx lib/blueprints/engine/learned-repair.contract.test.ts
+
+      - name: Run learned assistance integration contract
+        working-directory: .
+        run: npx -y tsx lib/blueprints/engine/learned-assist.contract.test.ts

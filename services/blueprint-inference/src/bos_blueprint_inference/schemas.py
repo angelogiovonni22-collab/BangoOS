@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 Point = tuple[float, float]
+MAX_INLINE_IMAGE_URI_CHARS = 42_000_000
 
 
 class Evidence(BaseModel):
@@ -43,13 +44,22 @@ class InferenceRequest(BaseModel):
     project_id: UUID | None = None
     source_version_id: UUID
     source_page: int = Field(ge=1)
-    image_url: HttpUrl
+    image_url: str = Field(min_length=1, max_length=MAX_INLINE_IMAGE_URI_CHARS)
     drawing_units_per_meter: float | None = Field(default=None, gt=0)
     source_width_units: float | None = Field(default=None, gt=0)
     source_height_units: float | None = Field(default=None, gt=0)
     requested_capabilities: list[
         Literal["room_polygons", "wall_mask", "wall_edges", "openings", "segmentation"]
     ] = Field(default_factory=lambda: ["room_polygons", "wall_edges", "openings"])
+
+    @field_validator("image_url")
+    @classmethod
+    def validate_image_source(cls, value: str) -> str:
+        if value.startswith("https://"):
+            return value
+        if value.startswith("data:image/png;base64,"):
+            return value
+        raise ValueError("image_url must be HTTPS or a PNG data URI")
 
 
 class ModelRun(BaseModel):

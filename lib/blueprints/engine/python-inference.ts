@@ -62,6 +62,16 @@ function configuredToken() {
   return process.env.BOS_BLUEPRINT_INFERENCE_TOKEN?.trim() || null;
 }
 
+function configuredTimeoutMs() {
+  const raw = Number(process.env.BOS_BLUEPRINT_INFERENCE_TIMEOUT_MS || 180_000);
+  if (!Number.isFinite(raw)) return 180_000;
+  return Math.max(10_000, Math.min(240_000, Math.round(raw)));
+}
+
+export function isBlueprintLearnedInferenceConfigured() {
+  return Boolean(configuredEndpoint() && configuredToken());
+}
+
 function isFinitePoint(value: unknown): value is [number, number] {
   return Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number" && Number.isFinite(item));
 }
@@ -91,8 +101,9 @@ export function validateBlueprintInferenceResponse(value: unknown): value is Blu
 }
 
 /**
- * Requests learned floor-plan proposals. This is deliberately optional and fail-open:
- * deterministic B.O.S. reconstruction remains available when the GPU service is absent.
+ * Requests learned floor-plan proposals. This is optional and fail-open:
+ * deterministic B.O.S. reconstruction remains authoritative when the model service
+ * is absent, slow, malformed, or unavailable.
  */
 export async function requestBlueprintLearnedInference(input: BlueprintInferenceRequest): Promise<BlueprintInferenceResponse | null> {
   const endpoint = configuredEndpoint();
@@ -118,7 +129,7 @@ export async function requestBlueprintLearnedInference(input: BlueprintInference
         requested_capabilities: ["room_polygons", "wall_mask", "wall_edges", "openings", "segmentation"],
       }),
       cache: "no-store",
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(configuredTimeoutMs()),
     });
     if (!response.ok) return null;
     const payload: unknown = await response.json();
