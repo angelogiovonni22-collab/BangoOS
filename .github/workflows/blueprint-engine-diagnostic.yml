@@ -40,6 +40,10 @@ jobs:
         if: always()
         run: npx -y tsx lib/blueprints/engine/source-alignment.contract.test.ts
 
+      - name: Production dimension reconciliation
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/production-hardening.contract.test.ts
+
       - name: Validation topology separation
         if: always()
         run: npx -y tsx lib/blueprints/engine/validation-topology-separation.contract.test.ts
