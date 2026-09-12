@@ -52,6 +52,10 @@ jobs:
         if: always()
         run: npx -y tsx lib/blueprints/engine/semantic-support-bounds.contract.test.ts
 
+      - name: Opening-aware topology
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/opening-aware-topology.contract.test.ts
+
       - name: Production dimension reconciliation
         if: always()
         run: npx -y tsx lib/blueprints/engine/production-hardening.contract.test.ts
