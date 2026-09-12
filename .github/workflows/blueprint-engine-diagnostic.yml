@@ -43,6 +43,9 @@ jobs:
       - name: Raster evidence benchmark
         run: npx -y tsx lib/blueprints/engine/raster-evidence-benchmark.contract.test.ts
 
+      - name: Raster structural selector
+        run: npx -y tsx lib/blueprints/engine/raster-structural-selector.contract.test.ts
+
       - name: Base parsing and geometry
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts base
 
