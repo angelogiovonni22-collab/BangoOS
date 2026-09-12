@@ -10,6 +10,12 @@ export type BosValidationThresholds = {
   minClosure: number;
 };
 
+type FidelityMetrics = BosValidationReport["metrics"] & {
+  sourceAlignment?: number;
+  sourceSupportedWalls?: number;
+  sourceTotalWalls?: number;
+};
+
 export const DEFAULT_VALIDATION_THRESHOLDS: BosValidationThresholds = {
   reconstructedScore: 0.78,
   reviewScore: 0.52,
@@ -33,6 +39,10 @@ export function validateBosBuildingGraph(
   const fullTopology = topologyMetrics(graph.walls.map((wall) => wall.centerline));
   const perimeterTopology = topologyMetrics(perimeterSource.map((wall) => wall.centerline));
   const complexity = footprintComplexity(perimeterSource.map((wall) => wall.centerline));
+  const fidelityMetrics = graph.validation.metrics as FidelityMetrics;
+  const sourceAlignment = typeof fidelityMetrics.sourceAlignment === "number"
+    ? clampBosConfidence(fidelityMetrics.sourceAlignment)
+    : null;
 
   if (graph.levels.length === 0) issues.push(issue("NO_LEVEL", "error", "No reconstructed building level is present."));
   if (graph.walls.length < thresholds.minTotalWalls) {
@@ -50,6 +60,11 @@ export function validateBosBuildingGraph(
   if (graph.walls.length === 4 && complexity < 0.12) {
     issues.push(issue("RECTANGLE_SIMPLIFICATION", "error", "The reconstruction collapsed to a four-wall rectangle and must be reviewed against the source plan."));
   }
+  if (sourceAlignment !== null && sourceAlignment < 0.45) {
+    issues.push(issue("SOURCE_ALIGNMENT_FAILURE", "error", "The reconstructed wall geometry diverges too far from the selected source sheet to be accepted as faithful."));
+  } else if (sourceAlignment !== null && sourceAlignment < 0.72) {
+    issues.push(issue("LOW_SOURCE_ALIGNMENT", "warning", "The reconstructed wall geometry requires review because source-sheet alignment is below the commercial fidelity target."));
+  }
 
   const semanticCount = graph.doors.length + graph.windows.length + graph.stairs.length + graph.rooms.length + graph.decksPorches.length;
   const semanticCoverage = clampBosConfidence(semanticCount / Math.max(5, Math.ceil(graph.walls.length / 3)));
@@ -57,32 +72,40 @@ export function validateBosBuildingGraph(
   const scaleConfidence = clampBosConfidence(graph.scale.confidence);
   const exteriorClosure = exterior.length ? clampBosConfidence(perimeterTopology.closure) : wallTopology * 0.75;
   const footprint = clampBosConfidence(complexity);
-  const score = clampBosConfidence(
+  const baseScore = clampBosConfidence(
     exteriorClosure * 0.3 +
     wallTopology * 0.25 +
     scaleConfidence * 0.2 +
     semanticCoverage * 0.15 +
     Math.min(1, graph.walls.length / 16) * 0.1,
   );
+  const score = sourceAlignment === null
+    ? baseScore
+    : clampBosConfidence(baseScore * 0.85 + sourceAlignment * 0.15);
 
   const hasError = issues.some((item) => item.severity === "error");
   let status: BosValidationReport["status"];
   if (graph.walls.length === 0) status = "failed";
-  else if (!hasError && score >= thresholds.reconstructedScore) status = "reconstructed";
+  else if (!hasError && score >= thresholds.reconstructedScore && (sourceAlignment === null || sourceAlignment >= 0.72)) status = "reconstructed";
   else if (score >= thresholds.reviewScore) status = "needs_review";
   else status = "needs_input";
+
+  const metrics: FidelityMetrics = {
+    exteriorClosure,
+    footprintComplexity: footprint,
+    wallTopology,
+    scaleConfidence,
+    semanticCoverage,
+  };
+  if (sourceAlignment !== null) metrics.sourceAlignment = sourceAlignment;
+  if (typeof fidelityMetrics.sourceSupportedWalls === "number") metrics.sourceSupportedWalls = fidelityMetrics.sourceSupportedWalls;
+  if (typeof fidelityMetrics.sourceTotalWalls === "number") metrics.sourceTotalWalls = fidelityMetrics.sourceTotalWalls;
 
   return {
     version: 1,
     score,
     status,
-    metrics: {
-      exteriorClosure,
-      footprintComplexity: footprint,
-      wallTopology,
-      scaleConfidence,
-      semanticCoverage,
-    },
+    metrics,
     issues,
   };
 }

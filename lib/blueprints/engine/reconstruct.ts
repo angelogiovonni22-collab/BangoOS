@@ -9,6 +9,7 @@ import { parsePdfVectorPlan } from "./pdf-vector-parser";
 import { extractRasterLineSegments } from "./raster";
 import { traceWallBoundedRooms } from "./room-tracing";
 import { classifyExteriorWalls } from "./exterior-classifier";
+import { assessSourceGeometryAlignment } from "./source-alignment";
 import { solveArchitecturalTopology } from "./topology-solver";
 import { applyBosValidation } from "./validation";
 import { detectWallCenterlines, scaleSegmentsToMeters, suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
@@ -34,6 +35,12 @@ export type NativeBlueprintReconstruction = {
   wallCandidateCount: number;
   rasterRequired: boolean;
   diagnostics: string[];
+};
+
+type FidelityMetrics = BosBuildingGraph["validation"]["metrics"] & {
+  sourceAlignment?: number;
+  sourceSupportedWalls?: number;
+  sourceTotalWalls?: number;
 };
 
 function pointToSegmentDistance(point: { x: number; y: number }, segment: { start: { x: number; y: number }; end: { x: number; y: number } }) {
@@ -142,6 +149,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     wallDetection: "paired-line-1.2.0",
     topologySolver: "architectural-junction-solver-1.0.0",
     sourceSelection: "topology-scored-vector-first-1.0.0",
+    sourceAlignment: "length-weighted-source-geometry-1.0.0",
     dimensionConstraints: "printed-dimension-wall-constraints-1.0.0",
     wallGapRepair: "disabled-after-production-regression-1.0.0",
     annotationFiltering: "dimension-evidence-zone-1.1.0",
@@ -150,7 +158,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     openingSymbols: "anchored-vector-symbols-1.0.0",
     rooms: "wall-bounded-face-tracing-1.3.0",
     semantics: "plan-label-semantics-1.0.0",
-    validation: "building-graph-validation-1.0.0",
+    validation: "building-graph-validation-1.1.0",
   };
 
   graph.scale = summary.scale;
@@ -189,6 +197,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   const vectorTopology = solveArchitecturalTopology(vectorDetected);
   diagnostics.push(...vectorTopology.diagnostics);
   let wallCandidates = vectorTopology.segments;
+  let selectedEvidence = vectorDetected;
   let selectedSource: "vector" | "raster" = "vector";
   let selectedQuality = candidateQuality(wallCandidates);
   let rasterRequired = summary.rasterRequired && wallCandidates.length < 8;
@@ -217,6 +226,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
         : rasterQuality >= selectedQuality + 0.08;
       if (rasterMateriallyBetter) {
         wallCandidates = rasterTopology.segments;
+        selectedEvidence = structuralRasterCandidates;
         selectedQuality = rasterQuality;
         selectedSource = "raster";
         graph.metadata.algorithms = {
@@ -238,6 +248,21 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   walls = dimensionConstraints.walls;
   graph.dimensions = dimensionConstraints.dimensions;
   diagnostics.push(...dimensionConstraints.diagnostics);
+
+  const finalWallSegments: BosRawSegment[] = walls.map((wall) => ({
+    start: wall.centerline.start,
+    end: wall.centerline.end,
+    sourcePage: wall.sourcePage,
+    sourceObjectId: wall.evidence[0]?.sourceObjectId,
+    strokeWidth: wall.thickness,
+    confidence: wall.confidence,
+  }));
+  const alignment = assessSourceGeometryAlignment(finalWallSegments, selectedEvidence);
+  diagnostics.push(...alignment.diagnostics);
+  const fidelityMetrics = graph.validation.metrics as FidelityMetrics;
+  fidelityMetrics.sourceAlignment = alignment.score;
+  fidelityMetrics.sourceSupportedWalls = alignment.supported;
+  fidelityMetrics.sourceTotalWalls = alignment.total;
 
   graph.walls = walls;
   const preliminaryRooms = traceWallBoundedRooms(graph);
@@ -264,6 +289,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     sourceHeightUnits: summary.page.height,
   });
   validated = learned.graph;
+  validated = applyBosValidation(validated);
   diagnostics.push(...learned.diagnostics);
 
   if (parsed.targetScore < 0.45) diagnostics.push("Registered sheet targeting confidence is low; B.O.S. should request review before accepting geometry.");
