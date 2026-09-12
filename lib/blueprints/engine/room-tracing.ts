@@ -1,4 +1,5 @@
 import type { BosBuildingGraph, BosPoint2, BosPolygon2, BosRoom, BosWall } from "./building-graph";
+import { buildOpeningTopologyClosures } from "./opening-topology";
 
 export type RoomTracingOptions = {
   snapTolerance: number;
@@ -13,7 +14,6 @@ export const DEFAULT_ROOM_TRACING_OPTIONS: RoomTracingOptions = {
 };
 
 type Node = { id: string; point: BosPoint2; outgoing: Array<{ to: string; wallId: string; angle: number }> };
-
 type SplitPoint = BosPoint2 & { parameter: number };
 
 function key(point: BosPoint2, tolerance: number) {
@@ -183,12 +183,6 @@ function buildNodes(walls: BosWall[], tolerance: number) {
     points.push(point);
   };
 
-  // Split centerlines where reconstructed walls meet in the middle of another wall. PDF
-  // extraction commonly leaves a long exterior run intact while an interior partition ends on
-  // it, so endpoint-only topology would miss otherwise valid bounded rooms. Also bridge a
-  // near-miss endpoint when it falls within the configured snap tolerance of a non-parallel wall.
-  // Endpoint-to-endpoint recovery closes tiny diagonal corner gaps that cannot project back onto
-  // either finite segment. Recovered endpoints replace the originals so no dangling stubs remain.
   for (let i = 0; i < walls.length; i += 1) {
     for (let j = i + 1; j < walls.length; j += 1) {
       const intersection = segmentIntersection(walls[i], walls[j], tolerance)
@@ -276,7 +270,8 @@ export function traceWallBoundedRooms(
   const rooms: BosRoom[] = [];
   for (const level of graph.levels) {
     const walls = graph.walls.filter((wall) => wall.levelId === level.id);
-    const nodes = buildNodes(walls, options.snapTolerance);
+    const topologyWalls = [...walls, ...buildOpeningTopologyClosures(graph, level.id)];
+    const nodes = buildNodes(topologyWalls, options.snapTolerance);
     const visited = new Set<string>();
     const faces = new Map<string, { points: BosPoint2[]; wallIds: string[]; area: number }>();
 
@@ -289,7 +284,7 @@ export function traceWallBoundedRooms(
         let from = node.id;
         let to = edge.to;
         let guard = 0;
-        while (guard < Math.max(16, walls.length * 8)) {
+        while (guard < Math.max(16, topologyWalls.length * 8)) {
           guard += 1;
           const half = `${from}->${to}`;
           if (visited.has(half) && half !== initial) break;
@@ -331,7 +326,7 @@ export function traceWallBoundedRooms(
         provenance: {
           createdBy: "deterministic",
           algorithm: "wall-bounded-face-tracing",
-          algorithmVersion: "1.3.0",
+          algorithmVersion: "1.4.0",
           evidenceIds: [],
         },
       });
