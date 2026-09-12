@@ -8,8 +8,21 @@ export type BosSourceWallFaceMaskOptions = {
   sheetFrameSpanRatio?: number;
 };
 
+export type BosSourceWallFacePair = {
+  id: string;
+  orientation: "horizontal" | "vertical";
+  faceAFixedPixel: number;
+  faceBFixedPixel: number;
+  startPixel: number;
+  endPixel: number;
+  centerFixedPixel: number;
+  lengthMeters: number;
+  separationMeters: number;
+};
+
 export type BosSourceWallFaceMaskReport = {
   mask: Uint8Array;
+  wallFacePairs: BosSourceWallFacePair[];
   wallFacePixelCount: number;
   pairedRunCount: number;
   horizontalPairCount: number;
@@ -33,9 +46,7 @@ function extractRuns(image: GrayImage, horizontal: boolean, threshold: number, m
   for (let fixed = 0; fixed < fixedCount; fixed += 1) {
     let start = -1;
     for (let moving = 0; moving <= movingCount; moving += 1) {
-      const ink = moving < movingCount && (horizontal
-        ? isInk(image, moving, fixed, threshold)
-        : isInk(image, fixed, moving, threshold));
+      const ink = moving < movingCount && (horizontal ? isInk(image, moving, fixed, threshold) : isInk(image, fixed, moving, threshold));
       if (ink && start < 0) start = moving;
       if ((!ink || moving === movingCount) && start >= 0) {
         const end = moving - 1;
@@ -54,13 +65,7 @@ function overlap(a: Run, b: Run) {
   return { start, end, length: Math.max(0, end - start + 1) };
 }
 
-function isSheetFrameRun(
-  run: Run,
-  horizontal: boolean,
-  image: GrayImage,
-  edgeRatio: number,
-  spanRatio: number,
-) {
+function isSheetFrameRun(run: Run, horizontal: boolean, image: GrayImage, edgeRatio: number, spanRatio: number) {
   if (horizontal) {
     const nearEdge = run.fixed <= image.height * edgeRatio || run.fixed >= image.height * (1 - edgeRatio);
     return nearEdge && run.length >= image.width * spanRatio;
@@ -69,12 +74,17 @@ function isSheetFrameRun(
   return nearEdge && run.length >= image.height * spanRatio;
 }
 
-function paint(mask: Uint8Array, image: GrayImage, run: Run, horizontal: boolean, start: number, end: number) {
-  for (let moving = start; moving <= end; moving += 1) {
-    const index = horizontal
-      ? run.fixed * image.width + moving
-      : moving * image.width + run.fixed;
-    mask[index] = 1;
+export function paintSourceWallFacePairs(mask: Uint8Array, image: GrayImage, pairs: readonly BosSourceWallFacePair[]) {
+  for (const pair of pairs) {
+    for (let moving = pair.startPixel; moving <= pair.endPixel; moving += 1) {
+      if (pair.orientation === "horizontal") {
+        mask[pair.faceAFixedPixel * image.width + moving] = 1;
+        mask[pair.faceBFixedPixel * image.width + moving] = 1;
+      } else {
+        mask[moving * image.width + pair.faceAFixedPixel] = 1;
+        mask[moving * image.width + pair.faceBFixedPixel] = 1;
+      }
+    }
   }
 }
 
@@ -82,28 +92,24 @@ function pairRuns(input: {
   image: GrayImage;
   runs: Run[][];
   horizontal: boolean;
-  mask: Uint8Array;
   minSeparation: number;
   maxSeparation: number;
   minOverlapRatio: number;
   minRun: number;
   edgeRatio: number;
   spanRatio: number;
+  pixelsPerMeterMoving: number;
+  pixelsPerMeterFixed: number;
 }) {
-  let pairCount = 0;
+  const pairs: BosSourceWallFacePair[] = [];
   let candidateRunCount = 0;
   let rejectedSheetFrameRunCount = 0;
   const frameRejected = new Set<string>();
-
   for (let fixed = 0; fixed < input.runs.length; fixed += 1) {
-    for (let runIndex = 0; runIndex < input.runs[fixed].length; runIndex += 1) {
-      const run = input.runs[fixed][runIndex];
+    for (const run of input.runs[fixed]) {
       if (isSheetFrameRun(run, input.horizontal, input.image, input.edgeRatio, input.spanRatio)) {
         const key = `${fixed}:${run.start}:${run.end}`;
-        if (!frameRejected.has(key)) {
-          frameRejected.add(key);
-          rejectedSheetFrameRunCount += 1;
-        }
+        if (!frameRejected.has(key)) { frameRejected.add(key); rejectedSheetFrameRunCount += 1; }
         continue;
       }
       candidateRunCount += 1;
@@ -115,22 +121,26 @@ function pairRuns(input: {
           if (shared.length < input.minRun) continue;
           const overlapRatio = shared.length / Math.max(1, Math.min(run.length, other.length));
           if (overlapRatio < input.minOverlapRatio) continue;
-          paint(input.mask, input.image, run, input.horizontal, shared.start, shared.end);
-          paint(input.mask, input.image, other, input.horizontal, shared.start, shared.end);
-          pairCount += 1;
+          const orientation = input.horizontal ? "horizontal" : "vertical";
+          pairs.push({
+            id: `source-${orientation}-${fixed}-${targetFixed}-${shared.start}-${shared.end}`,
+            orientation,
+            faceAFixedPixel: fixed,
+            faceBFixedPixel: targetFixed,
+            startPixel: shared.start,
+            endPixel: shared.end,
+            centerFixedPixel: (fixed + targetFixed) / 2,
+            lengthMeters: shared.length / input.pixelsPerMeterMoving,
+            separationMeters: (targetFixed - fixed) / input.pixelsPerMeterFixed,
+          });
         }
       }
     }
   }
-  return { pairCount, candidateRunCount, rejectedSheetFrameRunCount };
+  return { pairs, candidateRunCount, rejectedSheetFrameRunCount };
 }
 
-/**
- * Builds an independent source-wall evidence mask directly from rendered pixels. A source run is
- * treated as wall-face evidence only when it has a parallel partner within the configured real-world
- * wall-thickness range and meaningful overlap. It never consults reconstructed walls or extracted
- * raster segments, so it remains an independent fidelity check.
- */
+/** Independent rendered-pixel two-face wall evidence. */
 export function buildSourceWallFaceMask(input: {
   image: GrayImage;
   sourceWidthMeters: number;
@@ -144,60 +154,41 @@ export function buildSourceWallFaceMask(input: {
   const minOverlapRatio = input.options?.minOverlapRatio ?? 0.45;
   const edgeRatio = input.options?.sheetFrameEdgeRatio ?? 0.07;
   const spanRatio = input.options?.sheetFrameSpanRatio ?? 0.55;
-  if (!(input.sourceWidthMeters > 0) || !(input.sourceHeightMeters > 0)) {
-    throw new Error("Source wall-face masking requires positive source dimensions in meters.");
-  }
-  if (!input.image.width || !input.image.height || input.image.data.length !== input.image.width * input.image.height) {
-    throw new Error("Source wall-face masking requires a valid grayscale source image.");
-  }
+  if (!(input.sourceWidthMeters > 0) || !(input.sourceHeightMeters > 0)) throw new Error("Source wall-face masking requires positive source dimensions in meters.");
+  if (!input.image.width || !input.image.height || input.image.data.length !== input.image.width * input.image.height) throw new Error("Source wall-face masking requires a valid grayscale source image.");
 
   const pixelsPerMeterX = input.image.width / input.sourceWidthMeters;
   const pixelsPerMeterY = input.image.height / input.sourceHeightMeters;
-  const horizontalMinSeparation = Math.max(2, Math.round(minThicknessMeters * pixelsPerMeterY));
-  const horizontalMaxSeparation = Math.max(horizontalMinSeparation, Math.round(maxThicknessMeters * pixelsPerMeterY));
-  const verticalMinSeparation = Math.max(2, Math.round(minThicknessMeters * pixelsPerMeterX));
-  const verticalMaxSeparation = Math.max(verticalMinSeparation, Math.round(maxThicknessMeters * pixelsPerMeterX));
-
   const horizontalRuns = extractRuns(input.image, true, threshold, minRun);
   const verticalRuns = extractRuns(input.image, false, threshold, minRun);
-  const mask = new Uint8Array(input.image.width * input.image.height);
   const horizontal = pairRuns({
-    image: input.image,
-    runs: horizontalRuns,
-    horizontal: true,
-    mask,
-    minSeparation: horizontalMinSeparation,
-    maxSeparation: horizontalMaxSeparation,
-    minOverlapRatio,
-    minRun,
-    edgeRatio,
-    spanRatio,
+    image: input.image, runs: horizontalRuns, horizontal: true,
+    minSeparation: Math.max(2, Math.round(minThicknessMeters * pixelsPerMeterY)),
+    maxSeparation: Math.max(2, Math.round(maxThicknessMeters * pixelsPerMeterY)),
+    minOverlapRatio, minRun, edgeRatio, spanRatio,
+    pixelsPerMeterMoving: pixelsPerMeterX, pixelsPerMeterFixed: pixelsPerMeterY,
   });
   const vertical = pairRuns({
-    image: input.image,
-    runs: verticalRuns,
-    horizontal: false,
-    mask,
-    minSeparation: verticalMinSeparation,
-    maxSeparation: verticalMaxSeparation,
-    minOverlapRatio,
-    minRun,
-    edgeRatio,
-    spanRatio,
+    image: input.image, runs: verticalRuns, horizontal: false,
+    minSeparation: Math.max(2, Math.round(minThicknessMeters * pixelsPerMeterX)),
+    maxSeparation: Math.max(2, Math.round(maxThicknessMeters * pixelsPerMeterX)),
+    minOverlapRatio, minRun, edgeRatio, spanRatio,
+    pixelsPerMeterMoving: pixelsPerMeterY, pixelsPerMeterFixed: pixelsPerMeterX,
   });
-
+  const wallFacePairs = [...horizontal.pairs, ...vertical.pairs];
+  const mask = new Uint8Array(input.image.width * input.image.height);
+  paintSourceWallFacePairs(mask, input.image, wallFacePairs);
   let wallFacePixelCount = 0;
   for (const value of mask) if (value) wallFacePixelCount += 1;
   return {
-    mask,
-    wallFacePixelCount,
-    pairedRunCount: horizontal.pairCount + vertical.pairCount,
-    horizontalPairCount: horizontal.pairCount,
-    verticalPairCount: vertical.pairCount,
+    mask, wallFacePairs, wallFacePixelCount,
+    pairedRunCount: wallFacePairs.length,
+    horizontalPairCount: horizontal.pairs.length,
+    verticalPairCount: vertical.pairs.length,
     candidateRunCount: horizontal.candidateRunCount + vertical.candidateRunCount,
     rejectedSheetFrameRunCount: horizontal.rejectedSheetFrameRunCount + vertical.rejectedSheetFrameRunCount,
     diagnostics: [
-      `Rendered-source wall-face mask identified ${wallFacePixelCount} pixels across ${horizontal.pairCount + vertical.pairCount} parallel run pairs.`,
+      `Rendered-source wall-face mask identified ${wallFacePixelCount} pixels across ${wallFacePairs.length} parallel run pairs.`,
       `Wall-face pairing used ${minThicknessMeters.toFixed(2)}–${maxThicknessMeters.toFixed(2)} m real-world separation and ${(minOverlapRatio * 100).toFixed(0)}% minimum overlap.`,
       `${horizontal.rejectedSheetFrameRunCount + vertical.rejectedSheetFrameRunCount} majority-page perimeter runs were excluded before wall-face pairing.`,
       "Rendered-source wall-face evidence is derived directly from source pixels and does not reuse reconstructed wall geometry or raster segment IDs.",
