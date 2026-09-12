@@ -91,7 +91,7 @@ export function evaluateRasterEvidenceStages(input: {
     `Raster evidence stage counts: raw ${rawSegments.length}, annotation-filtered ${annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${explicitSystems.length}, constrained-systems ${constrained.wallSystems.length}.`,
     `Raster topology closure: raw ${topologyMetrics(rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
     ...solved.diagnostics,
-    ...constrained.diagnostics,
+    `Explicit raster global constraints retained ${constrained.wallSystems.length} wall systems with ${constrained.junctionCount} junctions and ${constrained.snappedEndpointCount} snapped endpoints; ${constrained.matchedDimensionCount} printed dimensions matched and ${constrained.unresolvedDimensionIds.length} remain unresolved.`,
   ];
   return {
     rawSegmentCount: rawSegments.length,
