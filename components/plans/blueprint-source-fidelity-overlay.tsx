@@ -1,0 +1,125 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2, LoaderCircle } from "lucide-react";
+import type { BosBuildingGraph } from "@/lib/blueprints/engine/building-graph";
+
+type Props = { versionId: string };
+
+type GraphResponse = {
+  graph?: BosBuildingGraph | null;
+  engineStatus?: string | null;
+  error?: string;
+};
+
+type SourcePreview = {
+  url: string;
+  page: number;
+  width: number;
+  height: number;
+};
+
+type FidelityMetrics = BosBuildingGraph["validation"]["metrics"] & {
+  sourceAlignment?: number;
+  sourceSupportedWalls?: number;
+  sourceTotalWalls?: number;
+};
+
+function percent(value: number | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value * 100)}%` : "—";
+}
+
+export function BlueprintSourceFidelityOverlay({ versionId }: Props) {
+  const [graph, setGraph] = useState<BosBuildingGraph | null>(null);
+  const [engineStatus, setEngineStatus] = useState<string | null>(null);
+  const [preview, setPreview] = useState<SourcePreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [graphResponse, previewResponse] = await Promise.all([
+          fetch(`/api/blueprints/${encodeURIComponent(versionId)}/generated-3d/corrections`, { cache: "no-store" }),
+          fetch(`/api/blueprints/${encodeURIComponent(versionId)}/source-page-preview`, { cache: "no-store" }),
+        ]);
+        const graphPayload = await graphResponse.json() as GraphResponse;
+        if (!graphResponse.ok || !graphPayload.graph) throw new Error(graphPayload.error || "Generate the native Building Graph before opening source fidelity review.");
+        if (!previewResponse.ok) {
+          const previewPayload = await previewResponse.json().catch(() => null) as { error?: string } | null;
+          throw new Error(previewPayload?.error || "Unable to render the selected source page.");
+        }
+        const blob = await previewResponse.blob();
+        objectUrl = URL.createObjectURL(blob);
+        const width = Number(previewResponse.headers.get("X-BOS-Source-Width"));
+        const height = Number(previewResponse.headers.get("X-BOS-Source-Height"));
+        const page = Number(previewResponse.headers.get("X-BOS-Source-Page"));
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error("B.O.S. could not resolve the source-page coordinate frame.");
+        if (cancelled) return;
+        setGraph(graphPayload.graph);
+        setEngineStatus(graphPayload.engineStatus || graphPayload.graph.validation.status);
+        setPreview({ url: objectUrl, width, height, page: Number.isFinite(page) ? page : graphPayload.graph.metadata.sourcePage });
+      } catch (caught) {
+        if (!cancelled) setError(caught instanceof Error ? caught.message : "Unable to load Blueprint source fidelity review.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [versionId]);
+
+  const overlay = useMemo(() => {
+    if (!graph || !preview || !graph.scale.drawingUnitsPerMeter) return null;
+    const units = graph.scale.drawingUnitsPerMeter;
+    const rasterCoordinates = Boolean(graph.metadata.algorithms.rasterFallback);
+    return {
+      x: (meters: number) => meters * units,
+      y: (meters: number) => rasterCoordinates ? meters * units : preview.height - meters * units,
+    };
+  }, [graph, preview]);
+
+  if (loading) return <p className="inline-flex items-center gap-2 text-xs text-slate-300"><LoaderCircle size={14} className="animate-spin" /> Loading source fidelity overlay…</p>;
+  if (error || !graph || !preview || !overlay) return <p className="inline-flex items-start gap-2 text-xs text-amber-200"><AlertTriangle size={14} className="mt-0.5 shrink-0" />{error || "Source overlay is unavailable until the plan scale and Building Graph are verified."}</p>;
+
+  const metrics = graph.validation.metrics as FidelityMetrics;
+  const sourceAlignment = metrics.sourceAlignment;
+  const passed = typeof sourceAlignment === "number" && sourceAlignment >= 0.72 && graph.validation.status === "reconstructed";
+  const supported = typeof metrics.sourceSupportedWalls === "number" ? metrics.sourceSupportedWalls : null;
+  const total = typeof metrics.sourceTotalWalls === "number" ? metrics.sourceTotalWalls : graph.walls.length;
+
+  return (
+    <div className="space-y-3" data-orion-region="blueprint-source-fidelity-overlay">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="rounded-lg border border-white/10 bg-slate-950/70 p-2"><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Source alignment</p><p className="mt-1 text-sm font-bold text-white">{percent(sourceAlignment)}</p></div>
+        <div className="rounded-lg border border-white/10 bg-slate-950/70 p-2"><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Wall topology</p><p className="mt-1 text-sm font-bold text-white">{percent(metrics.wallTopology)}</p></div>
+        <div className="rounded-lg border border-white/10 bg-slate-950/70 p-2"><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Scale confidence</p><p className="mt-1 text-sm font-bold text-white">{percent(metrics.scaleConfidence)}</p></div>
+        <div className="rounded-lg border border-white/10 bg-slate-950/70 p-2"><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Supported walls</p><p className="mt-1 text-sm font-bold text-white">{supported === null ? "—" : `${supported}/${total}`}</p></div>
+      </div>
+
+      <div className={`flex items-start gap-2 rounded-lg border p-2 text-[11px] ${passed ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100" : "border-amber-400/30 bg-amber-400/10 text-amber-100"}`}>
+        {passed ? <CheckCircle2 size={14} className="mt-0.5 shrink-0" /> : <AlertTriangle size={14} className="mt-0.5 shrink-0" />}
+        <span>{passed ? "Source geometry, topology, and validation have cleared the reconstruction gate." : `Engine ${engineStatus || graph.validation.status}. White/cyan reconstruction lines are shown directly over source page ${preview.page}; unresolved divergence remains review-gated.`}</span>
+      </div>
+
+      <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white" style={{ aspectRatio: `${preview.width} / ${preview.height}` }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={preview.url} alt={`Blueprint source page ${preview.page}`} className="absolute inset-0 h-full w-full object-contain" />
+        <svg viewBox={`0 0 ${preview.width} ${preview.height}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full" role="img" aria-label="Reconstructed wall geometry overlaid on the selected Blueprint source page">
+          {graph.walls.map((wall) => {
+            const strong = wall.confidence >= 0.9;
+            return <line key={wall.id} x1={overlay.x(wall.centerline.start.x)} y1={overlay.y(wall.centerline.start.y)} x2={overlay.x(wall.centerline.end.x)} y2={overlay.y(wall.centerline.end.y)} stroke={strong ? "#06b6d4" : "#f59e0b"} strokeWidth={Math.max(1.6, wall.thickness * graph.scale.drawingUnitsPerMeter * 0.32)} strokeLinecap="round" opacity="0.86" />;
+          })}
+        </svg>
+      </div>
+      <p className="text-[10px] text-slate-400">Cyan = high-confidence reconstructed wall · amber = lower-confidence wall. The source drawing remains unchanged; corrections are stored separately and replayed on regeneration.</p>
+    </div>
+  );
+}
