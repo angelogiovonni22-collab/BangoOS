@@ -1,3 +1,4 @@
+import { formatBlueprintFeetInches } from "../imperial-length";
 import type { BosBuildingGraph, BosWall } from "./building-graph";
 
 function pad4(buffer: Buffer, byte = 0) {
@@ -36,7 +37,15 @@ function wallNode(wall: BosWall, levelElevation: number) {
     translation: [(wall.centerline.start.x + wall.centerline.end.x) / 2, levelElevation + wall.height / 2, (wall.centerline.start.y + wall.centerline.end.y) / 2],
     rotation: [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)],
     scale: [length, wall.height, wall.thickness],
-    extras: { bosObjectId: wall.id, bosType: "wall", wallType: wall.type, confidence: wall.confidence, sourcePage: wall.sourcePage },
+    extras: {
+      bosObjectId: wall.id,
+      bosType: "wall",
+      wallType: wall.type,
+      confidence: wall.confidence,
+      sourcePage: wall.sourcePage,
+      wallLengthMeters: length,
+      wallLengthImperial: formatBlueprintFeetInches(length),
+    },
   };
 }
 
@@ -80,6 +89,7 @@ export function buildBosBuildingGraphGlb(graph: BosBuildingGraph): Buffer {
         confidence: graph.confidence,
         validationStatus: graph.validation.status,
         validationScore: graph.validation.score,
+        displayLengthUnit: "ft-in",
       },
     },
   };
