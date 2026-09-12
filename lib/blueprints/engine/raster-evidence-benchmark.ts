@@ -3,6 +3,7 @@ import type { BosRawSegment } from "./geometry";
 import { topologyMetrics } from "./geometry";
 import { dominantRasterWallCluster } from "./reconstruct";
 import { buildRasterArchitecturalCandidate } from "./raster-architectural-candidate";
+import { diagnoseRasterDimensions, type BosRasterDimensionDiagnostic, type BosRasterDimensionDiagnosticReason } from "./raster-dimension-unresolved-diagnostic";
 import { solveArchitecturalTopology } from "./topology-solver";
 import { detectWallCenterlines, suppressDimensionAnnotationDetections } from "./wall-detector";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
@@ -26,10 +27,14 @@ export type BosRasterEvidenceBenchmark = {
   sourceDimensionEvidenceMatchedCount: number;
   sourceDimensionSingleSegmentCount: number;
   sourceDimensionLabelGapChainCount: number;
+  sourceDimensionFragmentChainCount: number;
   matchedDimensionCount: number;
   boundarySpanDimensionCount: number;
   singleWallDimensionCount: number;
   unresolvedDimensionCount: number;
+  dimensionDiagnosticCounts: Record<BosRasterDimensionDiagnosticReason, number>;
+  dimensionDiagnostics: BosRasterDimensionDiagnostic[];
+  dominantUnresolvedDimensionReason: BosRasterDimensionDiagnosticReason | null;
   rawTopology: ReturnType<typeof topologyMetrics>;
   legacyPairedTopology: ReturnType<typeof topologyMetrics>;
   structuralTopology: ReturnType<typeof topologyMetrics>;
@@ -59,6 +64,14 @@ export function evaluateRasterEvidenceStages(input: {
   const explicitSegments = systemSegments(candidate.explicitSystems);
   const selectedSegments = systemSegments(candidate.structuralSelection.wallSystems);
   const constrainedSegments = systemSegments(candidate.constrained.wallSystems);
+  const matchedDimensionIds = new Set(candidate.constrained.constraints.flatMap((constraint) => constraint.relation === "dimension" && constraint.dimensionId ? [constraint.dimensionId] : []));
+  const dimensionDiagnostic = diagnoseRasterDimensions({
+    segments: candidate.rawSegments,
+    dimensions: input.dimensions,
+    drawingUnitsPerMeter: input.drawingUnitsPerMeter,
+    associations: candidate.dimensionEvidence.associations,
+    matchedDimensionIds,
+  });
   const diagnostics = [
     `Raster evidence stage counts: raw ${candidate.rawSegments.length}, annotation-filtered ${candidate.annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${candidate.explicitSystems.length}, sheet-frame-rejected ${candidate.sheetFrameSelection.rejectedSystemIds.length}, structural-selected ${candidate.structuralSelection.wallSystems.length}, constrained-systems ${candidate.constrained.wallSystems.length}.`,
     `Raster topology closure: raw ${topologyMetrics(candidate.rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, selected ${topologyMetrics(selectedSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
@@ -66,6 +79,7 @@ export function evaluateRasterEvidenceStages(input: {
     ...candidate.sheetFrameSelection.diagnostics,
     ...candidate.structuralSelection.diagnostics,
     ...candidate.dimensionEvidence.diagnostics,
+    ...dimensionDiagnostic.diagnostics,
     `Explicit raster global constraints retained ${candidate.constrained.wallSystems.length} wall systems with ${candidate.constrained.junctionCount} junctions and ${candidate.constrained.snappedEndpointCount} snapped endpoints; ${candidate.constrained.matchedDimensionCount} printed dimensions matched (${candidate.constrained.boundarySpanDimensionCount} boundary spans, ${candidate.constrained.singleWallDimensionCount} single-wall lengths) and ${candidate.constrained.unresolvedDimensionIds.length} remain unresolved.`,
   ];
   return {
@@ -87,10 +101,14 @@ export function evaluateRasterEvidenceStages(input: {
     sourceDimensionEvidenceMatchedCount: candidate.dimensionEvidence.associations.length,
     sourceDimensionSingleSegmentCount: candidate.dimensionEvidence.singleSegmentAssociationCount,
     sourceDimensionLabelGapChainCount: candidate.dimensionEvidence.labelGapChainAssociationCount,
+    sourceDimensionFragmentChainCount: candidate.dimensionEvidence.fragmentChainAssociationCount,
     matchedDimensionCount: candidate.constrained.matchedDimensionCount,
     boundarySpanDimensionCount: candidate.constrained.boundarySpanDimensionCount,
     singleWallDimensionCount: candidate.constrained.singleWallDimensionCount,
     unresolvedDimensionCount: candidate.constrained.unresolvedDimensionIds.length,
+    dimensionDiagnosticCounts: dimensionDiagnostic.reasonCounts,
+    dimensionDiagnostics: dimensionDiagnostic.dimensions,
+    dominantUnresolvedDimensionReason: dimensionDiagnostic.dominantUnresolvedReason,
     rawTopology: topologyMetrics(candidate.rawSegments),
     legacyPairedTopology: topologyMetrics(legacyPaired),
     structuralTopology: topologyMetrics(structural),
