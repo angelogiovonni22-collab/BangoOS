@@ -31,6 +31,9 @@ jobs:
       - name: Architectural primitive classifier
         run: npx -y tsx lib/blueprints/engine/primitive-classifier.contract.test.ts
 
+      - name: Explicit wall system builder
+        run: npx -y tsx lib/blueprints/engine/wall-system-builder.contract.test.ts
+
       - name: Base parsing and geometry
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts base
 
