@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { recordBosIntelligenceUsageEvent } from "@/lib/billing/intelligence-usage-events";
 import type { BosBuildingGraph } from "./engine/building-graph";
+import { formatBlueprintFeetInches } from "./imperial-length";
 
 export const BLUEPRINT_VISUAL_PROMPT_VERSION = "bos-blueprint-visual-v2-geometry-lock";
 export const BLUEPRINT_VISUAL_DISCLAIMER = "Conceptual AI visualization — verify against the source plans before construction use.";
@@ -64,14 +65,12 @@ function wallLengthMeters(wall: BosBuildingGraph["walls"][number]) {
 }
 
 export function formatMetersAsFeetInches(meters: number) {
-  const totalInches = Math.max(0, Math.round(meters * 39.3700787402));
-  return `${Math.floor(totalInches / 12)}′ ${totalInches % 12}″`;
+  return formatBlueprintFeetInches(meters);
 }
 
 export function buildBlueprintWallDistanceSchedule(graph: BosBuildingGraph | null) {
   const scaleTrusted = Boolean(
     graph
-    && graph.validation.status === "reconstructed"
     && graph.validation.metrics.scaleConfidence >= 0.9
     && graph.scale.source !== "unknown"
     && graph.scale.confidence >= 0.9,
@@ -79,6 +78,7 @@ export function buildBlueprintWallDistanceSchedule(graph: BosBuildingGraph | nul
   if (!graph || !scaleTrusted) {
     return {
       available: false as const,
+      reviewRequired: true,
       unit: "ft-in" as const,
       reason: "Wall distances are unavailable until the blueprint scale passes verification.",
       walls: [] as BlueprintWallDistance[],
@@ -94,7 +94,7 @@ export function buildBlueprintWallDistanceSchedule(graph: BosBuildingGraph | nul
         label: `${wall.type === "unknown" ? "Wall" : `${wall.type[0].toUpperCase()}${wall.type.slice(1)} wall`} ${counts[wall.type]}`,
         type: wall.type,
         lengthMeters: Math.round(lengthMeters * 1000) / 1000,
-        lengthImperial: formatMetersAsFeetInches(lengthMeters),
+        lengthImperial: formatBlueprintFeetInches(lengthMeters),
       } satisfies BlueprintWallDistance;
     })
     .filter((wall) => wall.lengthMeters > 0)
@@ -102,7 +102,14 @@ export function buildBlueprintWallDistanceSchedule(graph: BosBuildingGraph | nul
       const rank = { exterior: 0, interior: 1, unknown: 2 };
       return rank[left.type] - rank[right.type] || left.label.localeCompare(right.label, undefined, { numeric: true });
     });
-  return { available: true as const, unit: "ft-in" as const, reason: null, walls };
+  const reviewRequired = graph.validation.status !== "reconstructed";
+  return {
+    available: true as const,
+    reviewRequired,
+    unit: "ft-in" as const,
+    reason: reviewRequired ? "Scale is verified, but wall topology still requires Blueprint review before construction use." : null,
+    walls,
+  };
 }
 
 export function buildBlueprintVisualPrompt(input: {
