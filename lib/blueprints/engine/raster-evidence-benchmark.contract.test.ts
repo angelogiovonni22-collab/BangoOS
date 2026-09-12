@@ -10,6 +10,9 @@ const segment = (id: string, x1: number, y1: number, x2: number, y2: number): Bo
   confidence: 0.62,
 });
 
+// The right-hand wall intentionally straddles the legacy detector's 2 m spatial bucket boundary
+// (x=3.85 and x=4.00). A valid wall must not disappear because its two faces index to adjacent
+// buckets; the explicit raster wall-system builder expands its search by wall-thickness bounds.
 const source: BosRawSegment[] = [
   segment("raster-h-1", 0, 0, 4, 0),
   segment("raster-h-2", 0, 0.15, 4, 0.15),
@@ -29,9 +32,10 @@ const report = evaluateRasterEvidenceStages({
 
 assert.equal(report.rawSegmentCount, source.length, "raster benchmark must preserve the raw evidence count");
 assert(report.annotationFilteredSegmentCount > 0, "raster benchmark must expose annotation-filtered evidence");
-assert(report.pairedWallCount >= 4, "paired-face detection should recover the four rectangular wall systems");
-assert(report.topologyWallCount >= 4, "topology solving must retain supported wall geometry");
-assert(report.solvedTopology.closure >= report.pairedTopology.closure - 0.01, "topology solving must not materially degrade closure");
+assert(report.explicitWallSystemCount >= 4, "bucket-safe explicit pairing must recover all four rectangular wall systems");
+assert(report.constrainedWallSystemCount >= 4, "global constraints must retain supported explicit raster wall systems");
+assert(report.explicitWallSystemTopology.closure > 0.9, "explicit raster wall systems must form the supported rectangular enclosure");
+assert(report.constrainedWallSystemTopology.closure >= report.explicitWallSystemTopology.closure - 0.01, "global constraints must not materially degrade explicit raster closure");
 assert(report.diagnostics.some((item) => item.includes("Raster evidence stage counts")), "benchmark must emit auditable stage diagnostics");
 
 console.log("Blueprint raster evidence benchmark contract passed.");
