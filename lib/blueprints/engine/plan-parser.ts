@@ -2,12 +2,31 @@ import type { BosSourceEvidence } from "./building-graph";
 import type { BosRawSegment } from "./geometry";
 import { detectPrintedDimensions, detectScale, type BosTextToken } from "./dimensions";
 
+export type BosPdfPathCommand =
+  | { kind: "moveTo"; point: { x: number; y: number } }
+  | { kind: "lineTo"; point: { x: number; y: number } }
+  | { kind: "rectangle"; points: [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }] }
+  | { kind: "curveTo"; control1: { x: number; y: number }; control2: { x: number; y: number }; point: { x: number; y: number } }
+  | { kind: "curveTo2"; control: { x: number; y: number }; point: { x: number; y: number } }
+  | { kind: "curveTo3"; control: { x: number; y: number }; point: { x: number; y: number } }
+  | { kind: "closePath" };
+
+export type BosPdfVectorPrimitive = {
+  id: string;
+  page: number;
+  commands: BosPdfPathCommand[];
+  lineWidth?: number;
+  dashArray?: number[];
+  dashPhase?: number;
+};
+
 export type BosParsedPage = {
   pageNumber: number;
   width: number;
   height: number;
   text: BosTextToken[];
   vectorSegments: BosRawSegment[];
+  vectorPrimitives?: BosPdfVectorPrimitive[];
   rasterRequired: boolean;
 };
 
@@ -59,7 +78,6 @@ export function scoreTargetPage(page: BosParsedPage, target: { sheetNumber?: str
   const discipline = normalize(target.discipline || "");
   if (discipline && normalizedPage.includes(discipline)) score += 0.08;
 
-  // Floor-plan title words carry strong targeting information even when a title block is noisy.
   const floorWords = ["first floor", "second floor", "basement", "foundation", "roof plan", "floor plan"];
   for (const phrase of floorWords) {
     if (title.includes(phrase) && normalizedPage.includes(phrase)) score += 0.15;
@@ -105,6 +123,7 @@ export function summarizeSelectedPlan(plan: BosParsedPlan, levelId: string) {
     scale: detectScale(page.text),
     dimensions: detectPrintedDimensions(page.text, levelId),
     vectorCount: page.vectorSegments.length,
+    vectorPrimitiveCount: page.vectorPrimitives?.length || 0,
     rasterRequired: page.rasterRequired || page.vectorSegments.length < 8,
   };
 }
