@@ -5,7 +5,7 @@ import { detectPrintedDimensions, detectScale, type BosTextToken } from "./dimen
 export type BosPdfPathCommand =
   | { kind: "moveTo"; point: { x: number; y: number } }
   | { kind: "lineTo"; point: { x: number; y: number } }
-  | { kind: "rectangle"; x: number; y: number; width: number; height: number }
+  | { kind: "rectangle"; points: [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }] }
   | { kind: "curveTo"; control1: { x: number; y: number }; control2: { x: number; y: number }; point: { x: number; y: number } }
   | { kind: "curveTo2"; control: { x: number; y: number }; point: { x: number; y: number } }
   | { kind: "curveTo3"; control: { x: number; y: number }; point: { x: number; y: number } }
