@@ -10,6 +10,7 @@ import { BlueprintExportActions } from "./blueprint-export-actions";
 import { BlueprintFieldTools } from "./blueprint-field-tools";
 import { BlueprintGraphReviewPanel } from "./blueprint-graph-review-panel";
 import { BlueprintOrionIntelligence } from "./blueprint-orion-intelligence";
+import { BlueprintSourceFidelityOverlay } from "./blueprint-source-fidelity-overlay";
 import type { PlanDocument } from "./types";
 
 type BlueprintPlanWorkspaceProps = {
@@ -164,6 +165,12 @@ export function BlueprintPlanWorkspace({
                   revisionHistory: planDocument.revisionHistory,
                 }}
               />
+            </section>
+
+            <section className="rounded-xl border border-cyan-300/20 bg-cyan-950/10 p-3" data-orion-region="blueprint-source-fidelity-review">
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-cyan-200">Source fidelity</p>
+              <p className="mb-3 text-[11px] text-slate-400">Compare reconstructed wall geometry directly against the selected source sheet before accepting or correcting the model.</p>
+              <BlueprintSourceFidelityOverlay versionId={planDocument.versionId} />
             </section>
 
             <section className="rounded-xl border border-cyan-300/20 bg-cyan-950/10 p-3" data-orion-region="blueprint-reconstruction-review">
