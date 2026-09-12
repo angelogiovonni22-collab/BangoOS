@@ -3,6 +3,7 @@ import type { BosRawSegment } from "./geometry";
 import { topologyMetrics } from "./geometry";
 import { solveGlobalWallConstraints } from "./global-constraint-solver";
 import { dominantRasterWallCluster } from "./reconstruct";
+import { selectStructuralRasterWallSystems } from "./raster-structural-selector";
 import { buildWallSystemsFromRasterFaces } from "./raster-wall-system-builder";
 import { solveArchitecturalTopology } from "./topology-solver";
 import { detectWallCenterlines, suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
@@ -14,6 +15,11 @@ export type BosRasterEvidenceBenchmark = {
   dominantStructuralWallCount: number;
   topologyWallCount: number;
   explicitWallSystemCount: number;
+  selectedWallSystemCount: number;
+  rejectedWallSystemCount: number;
+  structuralComponentCount: number;
+  retainedStructuralComponentCount: number;
+  repetitiveArtifactCount: number;
   constrainedWallSystemCount: number;
   constrainedJunctionCount: number;
   constrainedSnappedEndpointCount: number;
@@ -24,6 +30,7 @@ export type BosRasterEvidenceBenchmark = {
   structuralTopology: ReturnType<typeof topologyMetrics>;
   solvedTopology: ReturnType<typeof topologyMetrics>;
   explicitWallSystemTopology: ReturnType<typeof topologyMetrics>;
+  selectedWallSystemTopology: ReturnType<typeof topologyMetrics>;
   constrainedWallSystemTopology: ReturnType<typeof topologyMetrics>;
   dimensionsWithBoxes: number;
   diagnostics: string[];
@@ -59,8 +66,8 @@ function systemSegments(systems: ReturnType<typeof buildWallSystemsFromRasterFac
 
 /**
  * Measures raster evidence stage-by-stage without mutating the canonical Building Graph. It keeps
- * the legacy detector visible for comparison while also running the new explicit two-face wall
- * system architecture with bucket-boundary-safe pairing and global constraints.
+ * the legacy detector visible for comparison while also running explicit two-face wall systems,
+ * structural network selection, and global constraints as separate auditable stages.
  */
 export function evaluateRasterEvidenceStages(input: {
   segments: readonly BosRawSegment[];
@@ -83,14 +90,17 @@ export function evaluateRasterEvidenceStages(input: {
   const solved = solveArchitecturalTopology(structural);
 
   const explicitSystems = buildWallSystemsFromRasterFaces(annotationFiltered);
-  const constrained = solveGlobalWallConstraints(explicitSystems, input.dimensions);
+  const structuralSelection = selectStructuralRasterWallSystems(explicitSystems);
+  const constrained = solveGlobalWallConstraints(structuralSelection.wallSystems, input.dimensions);
   const explicitSegments = systemSegments(explicitSystems);
+  const selectedSegments = systemSegments(structuralSelection.wallSystems);
   const constrainedSegments = systemSegments(constrained.wallSystems);
 
   const diagnostics = [
-    `Raster evidence stage counts: raw ${rawSegments.length}, annotation-filtered ${annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${explicitSystems.length}, constrained-systems ${constrained.wallSystems.length}.`,
-    `Raster topology closure: raw ${topologyMetrics(rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
+    `Raster evidence stage counts: raw ${rawSegments.length}, annotation-filtered ${annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${explicitSystems.length}, structural-selected ${structuralSelection.wallSystems.length}, constrained-systems ${constrained.wallSystems.length}.`,
+    `Raster topology closure: raw ${topologyMetrics(rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, selected ${topologyMetrics(selectedSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
     ...solved.diagnostics,
+    ...structuralSelection.diagnostics,
     `Explicit raster global constraints retained ${constrained.wallSystems.length} wall systems with ${constrained.junctionCount} junctions and ${constrained.snappedEndpointCount} snapped endpoints; ${constrained.matchedDimensionCount} printed dimensions matched and ${constrained.unresolvedDimensionIds.length} remain unresolved.`,
   ];
   return {
@@ -100,6 +110,11 @@ export function evaluateRasterEvidenceStages(input: {
     dominantStructuralWallCount: structural.length,
     topologyWallCount: solved.segments.length,
     explicitWallSystemCount: explicitSystems.length,
+    selectedWallSystemCount: structuralSelection.wallSystems.length,
+    rejectedWallSystemCount: structuralSelection.rejectedSystemIds.length,
+    structuralComponentCount: structuralSelection.componentCount,
+    retainedStructuralComponentCount: structuralSelection.retainedComponentCount,
+    repetitiveArtifactCount: structuralSelection.repetitiveArtifactCount,
     constrainedWallSystemCount: constrained.wallSystems.length,
     constrainedJunctionCount: constrained.junctionCount,
     constrainedSnappedEndpointCount: constrained.snappedEndpointCount,
@@ -110,6 +125,7 @@ export function evaluateRasterEvidenceStages(input: {
     structuralTopology: topologyMetrics(structural),
     solvedTopology: topologyMetrics(solved.segments),
     explicitWallSystemTopology: topologyMetrics(explicitSegments),
+    selectedWallSystemTopology: topologyMetrics(selectedSegments),
     constrainedWallSystemTopology: topologyMetrics(constrainedSegments),
     dimensionsWithBoxes: input.dimensions.filter((dimension) => dimension.evidence.some((evidence) => evidence.bbox)).length,
     diagnostics,
