@@ -48,6 +48,10 @@ jobs:
         if: always()
         run: npx -y tsx lib/blueprints/engine/raster-structural-cluster.contract.test.ts
 
+      - name: Semantic support bounds
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/semantic-support-bounds.contract.test.ts
+
       - name: Production dimension reconciliation
         if: always()
         run: npx -y tsx lib/blueprints/engine/production-hardening.contract.test.ts
