@@ -1,20 +1,30 @@
-import type { BosBuildingGraph, BosDimension } from "./building-graph";
+import type { BosDimension } from "./building-graph";
 import type { BosRawSegment } from "./geometry";
 import { topologyMetrics } from "./geometry";
+import { solveGlobalWallConstraints } from "./global-constraint-solver";
 import { dominantRasterWallCluster } from "./reconstruct";
+import { buildWallSystemsFromRasterFaces } from "./raster-wall-system-builder";
 import { solveArchitecturalTopology } from "./topology-solver";
 import { detectWallCenterlines, suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
 
 export type BosRasterEvidenceBenchmark = {
   rawSegmentCount: number;
   annotationFilteredSegmentCount: number;
-  pairedWallCount: number;
+  legacyPairedWallCount: number;
   dominantStructuralWallCount: number;
   topologyWallCount: number;
+  explicitWallSystemCount: number;
+  constrainedWallSystemCount: number;
+  constrainedJunctionCount: number;
+  constrainedSnappedEndpointCount: number;
+  matchedDimensionCount: number;
+  unresolvedDimensionCount: number;
   rawTopology: ReturnType<typeof topologyMetrics>;
-  pairedTopology: ReturnType<typeof topologyMetrics>;
+  legacyPairedTopology: ReturnType<typeof topologyMetrics>;
   structuralTopology: ReturnType<typeof topologyMetrics>;
   solvedTopology: ReturnType<typeof topologyMetrics>;
+  explicitWallSystemTopology: ReturnType<typeof topologyMetrics>;
+  constrainedWallSystemTopology: ReturnType<typeof topologyMetrics>;
   dimensionsWithBoxes: number;
   diagnostics: string[];
 };
@@ -36,10 +46,21 @@ function dimensionAnnotationZones(
   }));
 }
 
+function systemSegments(systems: ReturnType<typeof buildWallSystemsFromRasterFaces>): BosRawSegment[] {
+  return systems.map((wall) => ({
+    start: { ...wall.centerline.start },
+    end: { ...wall.centerline.end },
+    sourcePage: wall.sourcePage,
+    sourceObjectId: wall.id,
+    strokeWidth: wall.thickness,
+    confidence: wall.confidence,
+  }));
+}
+
 /**
- * Measures the existing raster evidence pipeline stage-by-stage without mutating the canonical
- * Building Graph. This is diagnostic evidence for the raster-backed architectural path, not a
- * reconstruction acceptance score.
+ * Measures raster evidence stage-by-stage without mutating the canonical Building Graph. It keeps
+ * the legacy detector visible for comparison while also running the new explicit two-face wall
+ * system architecture with bucket-boundary-safe pairing and global constraints.
  */
 export function evaluateRasterEvidenceStages(input: {
   segments: readonly BosRawSegment[];
@@ -56,24 +77,40 @@ export function evaluateRasterEvidenceStages(input: {
   }));
   const zones = dimensionAnnotationZones(input.dimensions, input.drawingUnitsPerMeter);
   const annotationFiltered = suppressDimensionAnnotationDetections(rawSegments, zones);
-  const paired = suppressDimensionAnnotationDetections(detectWallCenterlines(rawSegments), zones);
-  const structural = dominantRasterWallCluster(paired);
+
+  const legacyPaired = suppressDimensionAnnotationDetections(detectWallCenterlines(rawSegments), zones);
+  const structural = dominantRasterWallCluster(legacyPaired);
   const solved = solveArchitecturalTopology(structural);
+
+  const explicitSystems = buildWallSystemsFromRasterFaces(annotationFiltered);
+  const constrained = solveGlobalWallConstraints(explicitSystems, input.dimensions);
+  const explicitSegments = systemSegments(explicitSystems);
+  const constrainedSegments = systemSegments(constrained.wallSystems);
+
   const diagnostics = [
-    `Raster evidence stage counts: raw ${rawSegments.length}, annotation-filtered ${annotationFiltered.length}, paired ${paired.length}, structural ${structural.length}, topology-solved ${solved.segments.length}.`,
-    `Raster topology closure: raw ${topologyMetrics(rawSegments).closure.toFixed(3)}, paired ${topologyMetrics(paired).closure.toFixed(3)}, structural ${topologyMetrics(structural).closure.toFixed(3)}, solved ${topologyMetrics(solved.segments).closure.toFixed(3)}.`,
+    `Raster evidence stage counts: raw ${rawSegments.length}, annotation-filtered ${annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${explicitSystems.length}, constrained-systems ${constrained.wallSystems.length}.`,
+    `Raster topology closure: raw ${topologyMetrics(rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
     ...solved.diagnostics,
+    ...constrained.diagnostics,
   ];
   return {
     rawSegmentCount: rawSegments.length,
     annotationFilteredSegmentCount: annotationFiltered.length,
-    pairedWallCount: paired.length,
+    legacyPairedWallCount: legacyPaired.length,
     dominantStructuralWallCount: structural.length,
     topologyWallCount: solved.segments.length,
+    explicitWallSystemCount: explicitSystems.length,
+    constrainedWallSystemCount: constrained.wallSystems.length,
+    constrainedJunctionCount: constrained.junctionCount,
+    constrainedSnappedEndpointCount: constrained.snappedEndpointCount,
+    matchedDimensionCount: constrained.matchedDimensionCount,
+    unresolvedDimensionCount: constrained.unresolvedDimensionIds.length,
     rawTopology: topologyMetrics(rawSegments),
-    pairedTopology: topologyMetrics(paired),
+    legacyPairedTopology: topologyMetrics(legacyPaired),
     structuralTopology: topologyMetrics(structural),
     solvedTopology: topologyMetrics(solved.segments),
+    explicitWallSystemTopology: topologyMetrics(explicitSegments),
+    constrainedWallSystemTopology: topologyMetrics(constrainedSegments),
     dimensionsWithBoxes: input.dimensions.filter((dimension) => dimension.evidence.some((evidence) => evidence.bbox)).length,
     diagnostics,
   };
