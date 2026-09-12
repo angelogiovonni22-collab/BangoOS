@@ -7,7 +7,9 @@ import { parsePdfVectorPlan } from "@/lib/blueprints/engine/pdf-vector-parser";
 import { normalizeParsedPlan, summarizeSelectedPlan } from "@/lib/blueprints/engine/plan-parser";
 import { evaluateVectorFirstCandidatePlan } from "@/lib/blueprints/engine/vector-first-benchmark";
 import { extractRasterLineSegments } from "@/lib/blueprints/engine/raster";
+import { buildRasterArchitecturalCandidate } from "@/lib/blueprints/engine/raster-architectural-candidate";
 import { evaluateRasterEvidenceStages } from "@/lib/blueprints/engine/raster-evidence-benchmark";
+import { assessSourcePixelOverlay, renderBlueprintGraySource } from "@/lib/blueprints/engine/source-pixel-overlay";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -88,10 +90,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWidth: selected.page.width,
         sourceHeight: selected.page.height,
       });
+      const architecturalCandidate = buildRasterArchitecturalCandidate({
+        segments: raster.segments,
+        dimensions: selected.dimensions,
+        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
+      });
+      const sourceImage = await renderBlueprintGraySource(buffer, plan.selectedPage);
+      const sourcePixelOverlay = assessSourcePixelOverlay({
+        image: sourceImage,
+        wallSystems: architecturalCandidate.constrained.wallSystems,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
+      });
       rasterEvidence = {
         extraction: {
           widthMeters: raster.width,
           heightMeters: raster.height,
+          sourcePixelWidth: sourceImage.width,
+          sourcePixelHeight: sourceImage.height,
           diagnostics: raster.diagnostics,
         },
         stages: evaluateRasterEvidenceStages({
@@ -99,6 +115,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
           dimensions: selected.dimensions,
           drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
         }),
+        sourcePixelOverlay,
       };
     }
 
