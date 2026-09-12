@@ -1,12 +1,11 @@
 import type { BosDimension } from "./building-graph";
 import type { BosRawSegment } from "./geometry";
 import { topologyMetrics } from "./geometry";
-import { solveGlobalWallConstraints } from "./global-constraint-solver";
 import { dominantRasterWallCluster } from "./reconstruct";
-import { selectStructuralRasterWallSystems } from "./raster-structural-selector";
-import { buildWallSystemsFromRasterFaces } from "./raster-wall-system-builder";
+import { buildRasterArchitecturalCandidate } from "./raster-architectural-candidate";
 import { solveArchitecturalTopology } from "./topology-solver";
-import { detectWallCenterlines, suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
+import { detectWallCenterlines, suppressDimensionAnnotationDetections } from "./wall-detector";
+import type { BosWallSystemCandidate } from "./wall-system-builder";
 
 export type BosRasterEvidenceBenchmark = {
   rawSegmentCount: number;
@@ -36,24 +35,7 @@ export type BosRasterEvidenceBenchmark = {
   diagnostics: string[];
 };
 
-function dimensionAnnotationZones(
-  dimensions: readonly BosDimension[],
-  drawingUnitsPerMeter: number,
-): WallAnnotationZone[] {
-  const factor = 1 / drawingUnitsPerMeter;
-  return dimensions.flatMap((dimension) => dimension.evidence.flatMap((evidence) => {
-    if (!evidence.bbox) return [];
-    return [{
-      x: evidence.bbox.x * factor,
-      y: evidence.bbox.y * factor,
-      width: evidence.bbox.width * factor,
-      height: evidence.bbox.height * factor,
-      padding: 0.3,
-    }];
-  }));
-}
-
-function systemSegments(systems: ReturnType<typeof buildWallSystemsFromRasterFaces>): BosRawSegment[] {
+function systemSegments(systems: readonly BosWallSystemCandidate[]): BosRawSegment[] {
   return systems.map((wall) => ({
     start: { ...wall.centerline.start },
     end: { ...wall.centerline.end },
@@ -64,63 +46,45 @@ function systemSegments(systems: ReturnType<typeof buildWallSystemsFromRasterFac
   }));
 }
 
-/**
- * Measures raster evidence stage-by-stage without mutating the canonical Building Graph. It keeps
- * the legacy detector visible for comparison while also running explicit two-face wall systems,
- * structural network selection, and global constraints as separate auditable stages.
- */
+/** Measures legacy and new raster architecture stages without mutating the canonical Building Graph. */
 export function evaluateRasterEvidenceStages(input: {
   segments: readonly BosRawSegment[];
   dimensions: readonly BosDimension[];
   drawingUnitsPerMeter: number;
 }): BosRasterEvidenceBenchmark {
-  if (!Number.isFinite(input.drawingUnitsPerMeter) || input.drawingUnitsPerMeter <= 0) {
-    throw new Error("A verified drawing scale is required before raster evidence can be benchmarked.");
-  }
-  const rawSegments = input.segments.map((segment) => ({
-    ...segment,
-    start: { ...segment.start },
-    end: { ...segment.end },
-  }));
-  const zones = dimensionAnnotationZones(input.dimensions, input.drawingUnitsPerMeter);
-  const annotationFiltered = suppressDimensionAnnotationDetections(rawSegments, zones);
-
-  const legacyPaired = suppressDimensionAnnotationDetections(detectWallCenterlines(rawSegments), zones);
+  const candidate = buildRasterArchitecturalCandidate(input);
+  const legacyPaired = suppressDimensionAnnotationDetections(detectWallCenterlines(candidate.rawSegments), candidate.zones);
   const structural = dominantRasterWallCluster(legacyPaired);
   const solved = solveArchitecturalTopology(structural);
-
-  const explicitSystems = buildWallSystemsFromRasterFaces(annotationFiltered);
-  const structuralSelection = selectStructuralRasterWallSystems(explicitSystems);
-  const constrained = solveGlobalWallConstraints(structuralSelection.wallSystems, input.dimensions);
-  const explicitSegments = systemSegments(explicitSystems);
-  const selectedSegments = systemSegments(structuralSelection.wallSystems);
-  const constrainedSegments = systemSegments(constrained.wallSystems);
+  const explicitSegments = systemSegments(candidate.explicitSystems);
+  const selectedSegments = systemSegments(candidate.structuralSelection.wallSystems);
+  const constrainedSegments = systemSegments(candidate.constrained.wallSystems);
 
   const diagnostics = [
-    `Raster evidence stage counts: raw ${rawSegments.length}, annotation-filtered ${annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${explicitSystems.length}, structural-selected ${structuralSelection.wallSystems.length}, constrained-systems ${constrained.wallSystems.length}.`,
-    `Raster topology closure: raw ${topologyMetrics(rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, selected ${topologyMetrics(selectedSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
+    `Raster evidence stage counts: raw ${candidate.rawSegments.length}, annotation-filtered ${candidate.annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${candidate.explicitSystems.length}, structural-selected ${candidate.structuralSelection.wallSystems.length}, constrained-systems ${candidate.constrained.wallSystems.length}.`,
+    `Raster topology closure: raw ${topologyMetrics(candidate.rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, selected ${topologyMetrics(selectedSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
     ...solved.diagnostics,
-    ...structuralSelection.diagnostics,
-    `Explicit raster global constraints retained ${constrained.wallSystems.length} wall systems with ${constrained.junctionCount} junctions and ${constrained.snappedEndpointCount} snapped endpoints; ${constrained.matchedDimensionCount} printed dimensions matched and ${constrained.unresolvedDimensionIds.length} remain unresolved.`,
+    ...candidate.structuralSelection.diagnostics,
+    `Explicit raster global constraints retained ${candidate.constrained.wallSystems.length} wall systems with ${candidate.constrained.junctionCount} junctions and ${candidate.constrained.snappedEndpointCount} snapped endpoints; ${candidate.constrained.matchedDimensionCount} printed dimensions matched and ${candidate.constrained.unresolvedDimensionIds.length} remain unresolved.`,
   ];
   return {
-    rawSegmentCount: rawSegments.length,
-    annotationFilteredSegmentCount: annotationFiltered.length,
+    rawSegmentCount: candidate.rawSegments.length,
+    annotationFilteredSegmentCount: candidate.annotationFiltered.length,
     legacyPairedWallCount: legacyPaired.length,
     dominantStructuralWallCount: structural.length,
     topologyWallCount: solved.segments.length,
-    explicitWallSystemCount: explicitSystems.length,
-    selectedWallSystemCount: structuralSelection.wallSystems.length,
-    rejectedWallSystemCount: structuralSelection.rejectedSystemIds.length,
-    structuralComponentCount: structuralSelection.componentCount,
-    retainedStructuralComponentCount: structuralSelection.retainedComponentCount,
-    repetitiveArtifactCount: structuralSelection.repetitiveArtifactCount,
-    constrainedWallSystemCount: constrained.wallSystems.length,
-    constrainedJunctionCount: constrained.junctionCount,
-    constrainedSnappedEndpointCount: constrained.snappedEndpointCount,
-    matchedDimensionCount: constrained.matchedDimensionCount,
-    unresolvedDimensionCount: constrained.unresolvedDimensionIds.length,
-    rawTopology: topologyMetrics(rawSegments),
+    explicitWallSystemCount: candidate.explicitSystems.length,
+    selectedWallSystemCount: candidate.structuralSelection.wallSystems.length,
+    rejectedWallSystemCount: candidate.structuralSelection.rejectedSystemIds.length,
+    structuralComponentCount: candidate.structuralSelection.componentCount,
+    retainedStructuralComponentCount: candidate.structuralSelection.retainedComponentCount,
+    repetitiveArtifactCount: candidate.structuralSelection.repetitiveArtifactCount,
+    constrainedWallSystemCount: candidate.constrained.wallSystems.length,
+    constrainedJunctionCount: candidate.constrained.junctionCount,
+    constrainedSnappedEndpointCount: candidate.constrained.snappedEndpointCount,
+    matchedDimensionCount: candidate.constrained.matchedDimensionCount,
+    unresolvedDimensionCount: candidate.constrained.unresolvedDimensionIds.length,
+    rawTopology: topologyMetrics(candidate.rawSegments),
     legacyPairedTopology: topologyMetrics(legacyPaired),
     structuralTopology: topologyMetrics(structural),
     solvedTopology: topologyMetrics(solved.segments),
