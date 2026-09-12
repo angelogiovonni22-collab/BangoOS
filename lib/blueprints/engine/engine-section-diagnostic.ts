@@ -13,13 +13,13 @@ import { applyBosValidation } from "./validation";
 const mode = process.argv[2] || "base";
 const scale = parsePrintedScale(`1/4\" = 1'-0\"`);
 assert(scale);
-const graph = createEmptyBosBuildingGraph({ buildingId: "benchmark-house", sourcePage: 2, levelName: "First Floor", sourceSheetTitle: "EXISTING FIRST FLOOR PLAN" });
+const graph = createEmptyBosBuildingGraph({ buildingId: "benchmark-house", sourcePage: 1, levelName: "First Floor", sourceSheetNumber: "A4", sourceSheetTitle: "First Floor Plan" });
 graph.scale = scale;
 const perimeter = [[0,0,12,0],[12,0,12,4],[12,4,15,4],[15,4,15,11],[15,11,11,11],[11,11,11,14],[11,14,5,14],[5,14,5,11],[5,11,0,11],[0,11,0,7],[-5,7,-5,0],[-5,0,0,0]] as const;
-graph.walls = perimeter.map(([x1,y1,x2,y2], index): BosWall => ({ id:`wall-${index+1}`, levelId:"level-1", type:"exterior", centerline:{start:{x:x1,y:y1},end:{x:x2,y:y2}}, thickness:0.1524, height:2.4384, confidence:0.92, sourcePage:2, evidence:[], provenance:{createdBy:"deterministic",algorithm:"benchmark-fixture",algorithmVersion:"1",evidenceIds:[]} }));
-graph.rooms.push({ id:"room-garage",levelId:"level-1",type:"room",name:"2-Car Garage",polygon:{points:[{x:-5,y:0},{x:0,y:0},{x:0,y:7},{x:-5,y:7}]},confidence:0.9,sourcePage:2,evidence:[],provenance:{createdBy:"deterministic",algorithm:"benchmark-fixture",algorithmVersion:"1",evidenceIds:[]} });
-graph.decksPorches.push({ id:"deck-1",levelId:"level-1",type:"deck",polygon:{points:[{x:5,y:14},{x:11,y:14},{x:11,y:17},{x:5,y:17}]},thickness:0.15,elevation:0,confidence:0.9,sourcePage:2,evidence:[],provenance:{createdBy:"deterministic",algorithm:"benchmark-fixture",algorithmVersion:"1",evidenceIds:[]} });
-graph.stairs.push({ id:"stair-1",levelId:"level-1",type:"stair",polygon:{points:[{x:6,y:5},{x:8,y:5},{x:8,y:8},{x:6,y:8}]},direction:"up",confidence:0.85,sourcePage:2,evidence:[],provenance:{createdBy:"deterministic",algorithm:"benchmark-fixture",algorithmVersion:"1",evidenceIds:[]} });
+graph.walls = perimeter.map(([x1,y1,x2,y2], index): BosWall => ({ id:`wall-${index+1}`, levelId:"level-1", type:"exterior", centerline:{start:{x:x1,y:y1},end:{x:x2,y:y2}}, thickness:0.1524, height:2.4384, confidence:0.92, sourcePage:1, evidence:[], provenance:{createdBy:"deterministic",algorithm:"benchmark-fixture",algorithmVersion:"1",evidenceIds:[]} }));
+graph.rooms.push({ id:"room-garage",levelId:"level-1",type:"room",name:"2-Car Garage",polygon:{points:[{x:-5,y:0},{x:0,y:0},{x:0,y:7},{x:-5,y:7}]},confidence:0.9,sourcePage:1,evidence:[],provenance:{createdBy:"deterministic",algorithm:"benchmark-fixture",algorithmVersion:"1",evidenceIds:[]} });
+graph.decksPorches.push({ id:"deck-1",levelId:"level-1",type:"deck",polygon:{points:[{x:5,y:14},{x:11,y:14},{x:11,y:17},{x:5,y:17}]},thickness:0.15,elevation:0,confidence:0.9,sourcePage:1,evidence:[],provenance:{createdBy:"deterministic",algorithm:"benchmark-fixture",algorithmVersion:"1",evidenceIds:[]} });
+graph.stairs.push({ id:"stair-1",levelId:"level-1",type:"stair",polygon:{points:[{x:6,y:5},{x:8,y:5},{x:8,y:8},{x:6,y:8}]},direction:"up",confidence:0.85,sourcePage:1,evidence:[],provenance:{createdBy:"deterministic",algorithm:"benchmark-fixture",algorithmVersion:"1",evidenceIds:[]} });
 const validated = applyBosValidation(graph);
 
 if (mode === "base") {
@@ -44,7 +44,7 @@ if (mode === "openings") {
   const result=detectWallGapOpenings(walls); assert.equal(result.doors.length,1); assert.equal(result.doors[0].wallId,"opening-b");
 }
 if (mode === "dimension") {
-  graph.dimensions.push({id:"dimension-wall-1",levelId:"level-1",page:2,start:{x:0,y:-0.4},end:{x:12,y:-0.4},value:12,unit:"m",confidence:0.95,evidence:[]});
+  graph.dimensions.push({id:"dimension-wall-1",levelId:"level-1",page:1,start:{x:0,y:-0.4},end:{x:12,y:-0.4},value:12,unit:"m",confidence:0.95,evidence:[]});
   assert(associateDimensionsToWalls(graph).some(item=>item.wallId==="wall-1"));
 }
 if (mode === "ifc") {
@@ -60,8 +60,8 @@ if (mode === "corrections") {
   assert.equal(conflict.conflicts.length,1); assert.equal(conflict.graph.validation.status,"needs_review"); assert(conflict.graph.validation.issues.some(issue=>issue.code==="CORRECTION_CONFLICT"));
 }
 if (mode === "rectangle") {
-  const rectangle=createEmptyBosBuildingGraph({buildingId:"bad",sourcePage:2,sourceSheetTitle:"FIRST FLOOR PLAN"}); rectangle.scale=scale;
-  rectangle.walls=[[0,0,10,0],[10,0,10,10],[10,10,0,10],[0,10,0,0]].map(([x1,y1,x2,y2],index):BosWall=>({id:`rectangle-${index}`,levelId:"level-1",type:"exterior",centerline:{start:{x:x1,y:y1},end:{x:x2,y:y2}},thickness:0.15,height:2.44,confidence:0.99,sourcePage:2,evidence:[],provenance:{createdBy:"deterministic",algorithm:"bad-fixture",algorithmVersion:"1",evidenceIds:[]}}));
+  const rectangle=createEmptyBosBuildingGraph({buildingId:"bad",sourcePage:1,sourceSheetNumber:"A4",sourceSheetTitle:"First Floor Plan"}); rectangle.scale=scale;
+  rectangle.walls=[[0,0,10,0],[10,0,10,10],[10,10,0,10],[0,10,0,0]].map(([x1,y1,x2,y2],index):BosWall=>({id:`rectangle-${index}`,levelId:"level-1",type:"exterior",centerline:{start:{x:x1,y:y1},end:{x:x2,y:y2}},thickness:0.15,height:2.44,confidence:0.99,sourcePage:1,evidence:[],provenance:{createdBy:"deterministic",algorithm:"bad-fixture",algorithmVersion:"1",evidenceIds:[]}}));
   const result=runBuildingGraphBenchmark(applyBosValidation(rectangle),MITCHELL_DEWITT_FIRST_FLOOR); assert.equal(result.passed,false); assert.equal(result.checks.footprintNotRectangle,false);
 }
 console.log(`engine diagnostic ${mode}: PASS`);

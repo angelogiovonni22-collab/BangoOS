@@ -24,8 +24,10 @@ Synthetic output is written outside source control. Generated samples and model 
 
 ## Acceptance boundary
 
-Training metrics alone never authorize a model for Production. A candidate must pass the automated Blueprint Production Acceptance Standard, preserve deterministic source evidence, and pass a human source-versus-model review on held-out plans including Mitchell page 2. Failed or ambiguous learned inference must leave the deterministic Building Graph unchanged.
+Training metrics alone never authorize a model for Production. A candidate must pass the automated Blueprint Production Acceptance Standard, preserve deterministic source evidence, and pass a human source-versus-model review on held-out plans including the authoritative Mitchell `A4 / First Floor Plan`. Failed or ambiguous learned inference must leave the deterministic Building Graph unchanged.
 
 ## Checkpoint authorization
 
-Production requires a checkpoint manifest that separately records the architecture code revision and license, exact checkpoint SHA-256, every training dataset manifest and its commercial rights, a negative customer-data declaration, a named and dated commercial approval, and the Mitchell page 2 holdout declaration. Missing or invalid evidence fails closed. Published Raster2Seq weights are not approved merely because the Raster2Seq source repository uses the MIT license.
+Production requires a checkpoint manifest that separately records the architecture code revision and license, exact checkpoint SHA-256, every training dataset manifest and its commercial rights, a negative customer-data declaration, a named and dated commercial approval, and the `mitchell-a4-first-floor` holdout declaration. Missing or invalid evidence fails closed. Published Raster2Seq weights are not approved merely because the Raster2Seq source repository uses the MIT license.
+
+The retired Mitchell page-2/A1 source must not substitute for A4 in checkpoint approval or Production acceptance.

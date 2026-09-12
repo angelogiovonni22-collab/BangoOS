@@ -9,8 +9,9 @@ function provenance(algorithm: string) {
 function passingGraph(): BosBuildingGraph {
   const graph = createEmptyBosBuildingGraph({
     buildingId: "mitchell-test",
-    sourcePage: 2,
-    sourceSheetTitle: "EXISTING FIRST FLOOR PLAN",
+    sourcePage: 1,
+    sourceSheetNumber: "A4",
+    sourceSheetTitle: "First Floor Plan",
   });
   graph.confidence = 0.9;
   graph.scale = { source: "printed", drawingUnitsPerMeter: 100, confidence: 0.98 };
@@ -28,7 +29,7 @@ function passingGraph(): BosBuildingGraph {
     thickness: 0.15,
     height: 2.7,
     confidence: 0.9,
-    sourcePage: 2,
+    sourcePage: 1,
     evidence: [],
     provenance: provenance("test-wall"),
   }));
@@ -41,7 +42,7 @@ function passingGraph(): BosBuildingGraph {
     name,
     polygon: { points: [{ x: index, y: 0 }, { x: index + 0.8, y: 0 }, { x: index + 0.8, y: 0.8 }, { x: index, y: 0.8 }] },
     confidence: 0.9,
-    sourcePage: 2,
+    sourcePage: 1,
     evidence: [],
     provenance: provenance("test-room"),
   }));
@@ -55,22 +56,22 @@ function passingGraph(): BosBuildingGraph {
     width: 0.9,
     height: 2.0,
     confidence: 0.9,
-    sourcePage: 2,
+    sourcePage: 1,
     evidence: [],
     provenance: provenance("test-opening"),
   }));
 
   graph.stairs = [{
     id: "stair-1", levelId: "level-1", type: "stair", polygon: { points: [{ x: 5, y: 4 }, { x: 6, y: 4 }, { x: 6, y: 5 }, { x: 5, y: 5 }] },
-    confidence: 0.9, sourcePage: 2, evidence: [], provenance: provenance("test-stair"),
+    confidence: 0.9, sourcePage: 1, evidence: [], provenance: provenance("test-stair"),
   }];
   const deck = {
     id: "deck-1", levelId: "level-1", type: "deck" as const, polygon: { points: [{ x: 3, y: 9 }, { x: 6, y: 9 }, { x: 6, y: 11 }, { x: 3, y: 11 }] },
-    thickness: 0.15, elevation: 0, confidence: 0.9, sourcePage: 2, evidence: [], provenance: provenance("test-deck"),
+    thickness: 0.15, elevation: 0, confidence: 0.9, sourcePage: 1, evidence: [], provenance: provenance("test-deck"),
   };
   graph.slabs = [deck, {
     id: "garage-slab", levelId: "level-1", type: "floor" as const, polygon: { points: [{ x: 0, y: 0 }, { x: 3, y: 0 }, { x: 3, y: 4 }, { x: 0, y: 4 }] },
-    thickness: 0.15, elevation: 0, confidence: 0.9, sourcePage: 2, evidence: [], provenance: provenance("garage-semantic"),
+    thickness: 0.15, elevation: 0, confidence: 0.9, sourcePage: 1, evidence: [], provenance: provenance("garage-semantic"),
   }];
   graph.decksPorches = [deck];
   graph.validation = {
@@ -85,6 +86,12 @@ function passingGraph(): BosBuildingGraph {
 
 const passing = evaluateMitchellDewittProductionAcceptance(passingGraph());
 assert.equal(passing.passed, true, `expected production fixture to pass: ${passing.failures.join(", ")}`);
+
+const wrongSheet = passingGraph();
+wrongSheet.metadata.sourceSheetNumber = "A1";
+const wrongSheetResult = evaluateMitchellDewittProductionAcceptance(wrongSheet);
+assert.equal(wrongSheetResult.passed, false, "The Mitchell acceptance gate must reject the former A1/basement benchmark identity");
+assert.equal(wrongSheetResult.checks.legacyBenchmark, false);
 
 const weak = passingGraph();
 weak.validation.metrics.exteriorClosure = 0.6;

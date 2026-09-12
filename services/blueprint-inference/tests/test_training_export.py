@@ -34,7 +34,7 @@ def test_export_is_integrity_checked_and_training_ready() -> None:
         assert job["dataset_manifest_sha256"] == receipt["source_manifest_sha256"]
         assert job["paid_gpu_enabled"] is False
         assert job["epochs"] == 0
-        assert job["held_out_benchmarks"] == ["mitchell-page-2"]
+        assert job["held_out_benchmarks"] == ["mitchell-a4-first-floor"]
 
 
 def test_export_refuses_tampered_source() -> None:

@@ -15,7 +15,7 @@ def test_foundation_fails_closed_without_model_adapters() -> None:
         company_id=uuid4(),
         project_id=uuid4(),
         source_version_id=uuid4(),
-        source_page=2,
+        source_page=1,
         image_url="https://example.com/signed-plan.png",
     )
     result = pipeline.infer(request)
@@ -72,7 +72,7 @@ def approved_manifest() -> dict[str, object]:
             "approved_by": "Bango Construction LLC",
             "approved_at": "2026-09-12T00:00:00Z",
         },
-        "held_out_benchmarks": ["mitchell-page-2"],
+        "held_out_benchmarks": ["mitchell-a4-first-floor"],
     }
 
 
@@ -85,7 +85,7 @@ def test_checkpoint_governance_requires_complete_approved_provenance() -> None:
     assert "commercial_approval_missing" in checkpoint_manifest_errors("raster2seq", manifest)
 
 
-def test_mitchell_cannot_enter_training_data() -> None:
+def test_mitchell_a4_cannot_enter_training_data() -> None:
     manifest = approved_manifest()
-    manifest["training_datasets"][0]["id"] = "mitchell-page-2"  # type: ignore[index]
+    manifest["training_datasets"][0]["id"] = "mitchell-a4-first-floor"  # type: ignore[index]
     assert "held_out_benchmark_in_training_data" in checkpoint_manifest_errors("raster2seq", manifest)

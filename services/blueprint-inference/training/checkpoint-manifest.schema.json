@@ -28,7 +28,7 @@
     },
     "held_out_benchmarks": {
       "type": "array",
-      "contains": { "const": "mitchell-page-2" }
+      "contains": { "const": "mitchell-a4-first-floor" }
     }
   },
   "additionalProperties": true

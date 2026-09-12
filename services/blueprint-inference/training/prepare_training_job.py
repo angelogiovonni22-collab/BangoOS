@@ -29,7 +29,7 @@ def prepare_job(export_root: Path, destination: Path, architecture_revision: str
         "epochs": 0,
         "paid_gpu_enabled": False,
         "output_checkpoint": "bos-raster2seq-v1",
-        "held_out_benchmarks": ["mitchell-page-2"],
+        "held_out_benchmarks": ["mitchell-a4-first-floor"],
     }
     destination.write_text(json.dumps(job, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return job
