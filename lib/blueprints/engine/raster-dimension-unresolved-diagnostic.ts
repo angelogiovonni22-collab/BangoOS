@@ -45,9 +45,28 @@ export type BosRasterDimensionDiagnosticOptions = {
   witnessAngleToleranceRadians?: number;
 };
 
+type AxisOrientation = "horizontal" | "vertical";
+type SegmentMeta = {
+  source: BosRawSegment;
+  line: BosRawSegment;
+  orientation: AxisOrientation;
+  angle: number;
+  length: number;
+  fixed: number;
+  minAlong: number;
+  maxAlong: number;
+};
+type PageIndex = {
+  all: SegmentMeta[];
+  horizontal: SegmentMeta[];
+  vertical: SegmentMeta[];
+  horizontalBuckets: Map<number, SegmentMeta[]>;
+  verticalBuckets: Map<number, SegmentMeta[]>;
+};
+
 function distance(a: BosPoint2, b: BosPoint2) { return Math.hypot(a.x - b.x, a.y - b.y); }
 function length(line: BosLine2) { return distance(line.start, line.end); }
-function orientation(line: BosLine2): "horizontal" | "vertical" {
+function orientation(line: BosLine2): AxisOrientation {
   return Math.abs(line.end.x - line.start.x) >= Math.abs(line.end.y - line.start.y) ? "horizontal" : "vertical";
 }
 function angle(line: BosLine2) {
@@ -64,11 +83,58 @@ function pointLineDistance(point: BosPoint2, line: BosLine2) {
   if (denom <= Number.EPSILON) return distance(point, line.start);
   return Math.abs(dy * point.x - dx * point.y + line.end.x * line.start.y - line.end.y * line.start.x) / denom;
 }
-function nearestEndpointDistance(point: BosPoint2, line: BosLine2) { return Math.min(distance(point, line.start), distance(point, line.end)); }
 function normalizedSegment(segment: BosRawSegment): BosRawSegment {
   const horizontal = orientation(segment) === "horizontal";
   if (horizontal) return segment.start.x <= segment.end.x ? segment : { ...segment, start: { ...segment.end }, end: { ...segment.start } };
   return segment.start.y <= segment.end.y ? segment : { ...segment, start: { ...segment.end }, end: { ...segment.start } };
+}
+function segmentMeta(source: BosRawSegment): SegmentMeta {
+  const line = normalizedSegment(source);
+  const axis = orientation(line);
+  return {
+    source,
+    line,
+    orientation: axis,
+    angle: angle(line),
+    length: length(line),
+    fixed: axis === "horizontal" ? (line.start.y + line.end.y) / 2 : (line.start.x + line.end.x) / 2,
+    minAlong: axis === "horizontal" ? Math.min(line.start.x, line.end.x) : Math.min(line.start.y, line.end.y),
+    maxAlong: axis === "horizontal" ? Math.max(line.start.x, line.end.x) : Math.max(line.start.y, line.end.y),
+  };
+}
+function bucketKey(value: number, bucketSize: number) { return Math.floor(value / bucketSize); }
+function addBucket(map: Map<number, SegmentMeta[]>, key: number, segment: SegmentMeta) {
+  const list = map.get(key);
+  if (list) list.push(segment);
+  else map.set(key, [segment]);
+}
+function buildPageIndexes(segments: readonly BosRawSegment[], bucketSize: number) {
+  const pages = new Map<number, PageIndex>();
+  for (const source of segments) {
+    const page = source.sourcePage ?? 1;
+    let index = pages.get(page);
+    if (!index) {
+      index = { all: [], horizontal: [], vertical: [], horizontalBuckets: new Map(), verticalBuckets: new Map() };
+      pages.set(page, index);
+    }
+    const meta = segmentMeta(source);
+    index.all.push(meta);
+    if (meta.orientation === "horizontal") {
+      index.horizontal.push(meta);
+      addBucket(index.horizontalBuckets, bucketKey(meta.fixed, bucketSize), meta);
+    } else {
+      index.vertical.push(meta);
+      addBucket(index.verticalBuckets, bucketKey(meta.fixed, bucketSize), meta);
+    }
+  }
+  return pages;
+}
+function nearbyFixedCandidates(map: Map<number, SegmentMeta[]>, fixed: number, tolerance: number, bucketSize: number) {
+  const first = bucketKey(fixed - tolerance, bucketSize);
+  const last = bucketKey(fixed + tolerance, bucketSize);
+  const result: SegmentMeta[] = [];
+  for (let key = first; key <= last; key += 1) result.push(...(map.get(key) ?? []));
+  return result;
 }
 
 function dimensionLabel(dimension: BosDimension, drawingUnitsPerMeter: number) {
@@ -85,25 +151,24 @@ function dimensionLabel(dimension: BosDimension, drawingUnitsPerMeter: number) {
 function witnessSupport(input: {
   endpoint: BosPoint2;
   dimensionAngle: number;
-  segments: readonly BosRawSegment[];
-  sourcePage: number;
+  dimensionOrientation: AxisOrientation;
+  pageIndex: PageIndex;
   endpointTolerance: number;
   angleTolerance: number;
-  excludedSegment?: BosRawSegment;
+  bucketSize: number;
+  excludedSource?: BosRawSegment;
 }) {
-  for (const source of input.segments) {
-    if (source === input.excludedSegment || source.sourcePage !== input.sourcePage) continue;
-    const segment = normalizedSegment(source);
-    const delta = angleDelta(angle(segment), input.dimensionAngle);
+  const witnessOrientation: AxisOrientation = input.dimensionOrientation === "horizontal" ? "vertical" : "horizontal";
+  const fixed = input.dimensionOrientation === "horizontal" ? input.endpoint.x : input.endpoint.y;
+  const along = input.dimensionOrientation === "horizontal" ? input.endpoint.y : input.endpoint.x;
+  const buckets = witnessOrientation === "vertical" ? input.pageIndex.verticalBuckets : input.pageIndex.horizontalBuckets;
+  const candidates = nearbyFixedCandidates(buckets, fixed, input.endpointTolerance, input.bucketSize);
+  for (const candidate of candidates) {
+    if (candidate.source === input.excludedSource) continue;
+    const delta = angleDelta(candidate.angle, input.dimensionAngle);
     if (Math.abs(delta - Math.PI / 2) > input.angleTolerance) continue;
-    if (nearestEndpointDistance(input.endpoint, segment) <= input.endpointTolerance) return true;
-    if (pointLineDistance(input.endpoint, segment) <= input.endpointTolerance) {
-      const minX = Math.min(segment.start.x, segment.end.x) - input.endpointTolerance;
-      const maxX = Math.max(segment.start.x, segment.end.x) + input.endpointTolerance;
-      const minY = Math.min(segment.start.y, segment.end.y) - input.endpointTolerance;
-      const maxY = Math.max(segment.start.y, segment.end.y) + input.endpointTolerance;
-      if (input.endpoint.x >= minX && input.endpoint.x <= maxX && input.endpoint.y >= minY && input.endpoint.y <= maxY) return true;
-    }
+    if (Math.abs(candidate.fixed - fixed) > input.endpointTolerance) continue;
+    if (along >= candidate.minAlong - input.endpointTolerance && along <= candidate.maxAlong + input.endpointTolerance) return true;
   }
   return false;
 }
@@ -142,6 +207,8 @@ export function diagnoseRasterDimensions(input: {
   const maxLabelDistanceMeters = input.options?.maxLabelDistanceMeters ?? 0.9;
   const witnessEndpointToleranceMeters = input.options?.witnessEndpointToleranceMeters ?? 0.24;
   const witnessAngleToleranceRadians = input.options?.witnessAngleToleranceRadians ?? Math.PI / 180 * 7;
+  const witnessBucketSize = Math.max(witnessEndpointToleranceMeters, 0.05);
+  const pageIndexes = buildPageIndexes(input.segments, witnessBucketSize);
   const associationByDimension = new Map(input.associations.map((association) => [association.dimensionId, association]));
 
   const dimensions = input.dimensions.map((dimension): BosRasterDimensionDiagnostic => {
@@ -161,15 +228,14 @@ export function diagnoseRasterDimensions(input: {
       return { dimensionId: dimension.id, rawText: dimension.rawText, value: dimension.value, page: dimension.page, reason: "missing_label_bbox", orientationCompatibleSegmentCount: 0, nearbyOrientationSegmentCount: 0, lengthCompatibleSegmentCount: 0, lengthAndLabelCompatibleSegmentCount: 0, twoWitnessSegmentCount: 0 };
     }
 
-    const pageSegments = input.segments.filter((segment) => segment.sourcePage === dimension.page).map(normalizedSegment);
-    const oriented = pageSegments.filter((segment) => label.aspectRatio < 1.35 || orientation(segment) === label.orientation);
-    const nearby = oriented.filter((segment) => pointLineDistance(label.center, segment) <= maxLabelDistanceMeters);
-    const lengthCompatible = oriented.filter((segment) => Math.abs(length(segment) - dimension.value) / Math.max(dimension.value, 0.001) <= maxRelativeLengthError);
-    const joint = lengthCompatible.filter((segment) => pointLineDistance(label.center, segment) <= maxLabelDistanceMeters);
+    const pageIndex = pageIndexes.get(dimension.page) ?? { all: [], horizontal: [], vertical: [], horizontalBuckets: new Map(), verticalBuckets: new Map() };
+    const oriented = label.aspectRatio < 1.35 ? pageIndex.all : label.orientation === "horizontal" ? pageIndex.horizontal : pageIndex.vertical;
+    const nearby = oriented.filter((segment) => pointLineDistance(label.center, segment.line) <= maxLabelDistanceMeters);
+    const lengthCompatible = oriented.filter((segment) => Math.abs(segment.length - dimension.value) / Math.max(dimension.value, 0.001) <= maxRelativeLengthError);
+    const joint = lengthCompatible.filter((segment) => pointLineDistance(label.center, segment.line) <= maxLabelDistanceMeters);
     const witnessStates = joint.map((segment) => {
-      const dimensionAngle = angle(segment);
-      const start = witnessSupport({ endpoint: segment.start, dimensionAngle, segments: input.segments, sourcePage: dimension.page, endpointTolerance: witnessEndpointToleranceMeters, angleTolerance: witnessAngleToleranceRadians, excludedSegment: segment });
-      const end = witnessSupport({ endpoint: segment.end, dimensionAngle, segments: input.segments, sourcePage: dimension.page, endpointTolerance: witnessEndpointToleranceMeters, angleTolerance: witnessAngleToleranceRadians, excludedSegment: segment });
+      const start = witnessSupport({ endpoint: segment.line.start, dimensionAngle: segment.angle, dimensionOrientation: segment.orientation, pageIndex, endpointTolerance: witnessEndpointToleranceMeters, angleTolerance: witnessAngleToleranceRadians, bucketSize: witnessBucketSize, excludedSource: segment.source });
+      const end = witnessSupport({ endpoint: segment.line.end, dimensionAngle: segment.angle, dimensionOrientation: segment.orientation, pageIndex, endpointTolerance: witnessEndpointToleranceMeters, angleTolerance: witnessAngleToleranceRadians, bucketSize: witnessBucketSize, excludedSource: segment.source });
       return { start, end };
     });
     const twoWitnessSegmentCount = witnessStates.filter((state) => state.start && state.end).length;
@@ -219,6 +285,7 @@ export function diagnoseRasterDimensions(input: {
       dominantUnresolvedReason && reasonCounts[dominantUnresolvedReason] > 0
         ? `Dominant unresolved dimension class is ${dominantUnresolvedReason} (${reasonCounts[dominantUnresolvedReason]} dimensions).`
         : "No unresolved dimension class remains.",
+      "Witness probes use page-local fixed-coordinate buckets so read-only diagnostics remain bounded on dense raster drawings.",
       "Direct single-span probe counts are diagnostic evidence only; chain association remains governed by the production raster dimension associator.",
     ],
   };
