@@ -1,6 +1,7 @@
 import type { BosDimension } from "./building-graph";
 import type { BosRawSegment } from "./geometry";
 import { solveGlobalWallConstraints } from "./global-constraint-solver";
+import { associateRasterDimensionEvidence } from "./raster-dimension-evidence-associator";
 import { excludeRasterSheetFrameSystems } from "./raster-sheet-frame";
 import { selectStructuralRasterWallSystems } from "./raster-structural-selector";
 import { buildWallSystemsFromRasterFaces } from "./raster-wall-system-builder";
@@ -39,6 +40,11 @@ export function buildRasterArchitecturalCandidate(input: {
     end: { ...segment.end },
   }));
   const zones = dimensionAnnotationZones(input.dimensions, input.drawingUnitsPerMeter);
+  const dimensionEvidence = associateRasterDimensionEvidence({
+    segments: rawSegments,
+    dimensions: input.dimensions,
+    drawingUnitsPerMeter: input.drawingUnitsPerMeter,
+  });
   const annotationFiltered = suppressDimensionAnnotationDetections(rawSegments, zones);
   const explicitSystems = buildWallSystemsFromRasterFaces(annotationFiltered);
   const sheetFrameSelection = excludeRasterSheetFrameSystems(
@@ -47,11 +53,12 @@ export function buildRasterArchitecturalCandidate(input: {
     input.sourceHeightMeters,
   );
   const structuralSelection = selectStructuralRasterWallSystems(sheetFrameSelection.wallSystems);
-  const constrained = solveGlobalWallConstraints(structuralSelection.wallSystems, input.dimensions);
+  const constrained = solveGlobalWallConstraints(structuralSelection.wallSystems, dimensionEvidence.dimensions);
   return {
     rawSegments,
     annotationFiltered,
     zones,
+    dimensionEvidence,
     explicitSystems,
     sheetFrameSelection,
     structuralSelection,
