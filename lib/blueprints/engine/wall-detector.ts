@@ -115,7 +115,7 @@ export function suppressDimensionAnnotationDetections(
   if (!zones.length) return input;
   const maxAnnotationCandidateLength = 1.2;
   const maxWitnessCandidateLength = 2.4;
-  const maxWitnessThickness = 0.08;
+  const maxWitnessThickness = 0.12;
 
   return input.filter((segment) => {
     const candidateLength = length(segment);
@@ -128,9 +128,9 @@ export function suppressDimensionAnnotationDetections(
 
     // Dimension witness/extension pairs can survive the label-box filter because one endpoint sits
     // just outside the text bbox. Only suppress a second, deliberately narrow class: short paired
-    // lines whose inferred separation is thinner than a plausible standard wall and whose midpoint
-    // and one endpoint remain anchored to the dimension-label evidence corridor. This avoids using
-    // label proximity alone to erase normal-thickness or long architectural walls.
+    // lines whose inferred separation remains at or below a light partition thickness and whose
+    // midpoint plus one endpoint stay anchored to dimension-label evidence. This keeps normal long
+    // architectural walls while removing A4-style dimension witnesses that otherwise become walls.
     if (candidateLength > maxWitnessCandidateLength) return true;
     if (segment.strokeWidth === undefined || segment.strokeWidth > maxWitnessThickness) return true;
     const midpoint = segmentMidpoint(segment);
@@ -167,7 +167,7 @@ export function suppressNestedWallDetections(
 /**
  * Rasterized plan sheets often turn stair treads, railings and framing hatch into dense families
  * of short parallel paired-line detections. A real wall can be short or thick, but it should not
- * normally appear as four or more almost-identical thick centerlines packed into one narrow band.
+ * normally appear as four or more almost-identical centerlines packed into one narrow band.
  * Keep this deliberately conservative and raster-only so repeated real partitions remain intact.
  */
 export function suppressRepetitiveRasterWallArtifacts(
@@ -175,9 +175,9 @@ export function suppressRepetitiveRasterWallArtifacts(
   options: WallDetectionOptions = DEFAULT_WALL_DETECTION_OPTIONS,
 ) {
   if (input.length < 4) return input;
-  const minArtifactThickness = 0.2;
-  const maxArtifactLength = 1.9;
-  const maxFamilySeparation = 1.15;
+  const minArtifactThickness = 0.07;
+  const maxArtifactLength = 1.5;
+  const maxFamilySeparation = 1.05;
   const minFamilySize = 4;
 
   return input.filter((candidate, candidateIndex) => {
@@ -213,6 +213,31 @@ function finiteProjection(point: { x: number; y: number }, line: BosLine2) {
   if (parameter < 0 || parameter > 1) return null;
   const projected = { x: line.start.x + parameter * dx, y: line.start.y + parameter * dy };
   return { projected, distance: Math.hypot(projected.x - point.x, projected.y - point.y) };
+}
+
+/**
+ * Reject very short raster-only fragments that do not touch a credible longer wall run. This runs
+ * after collinear merging, so a real wall drawn as several short pieces first gets a chance to
+ * become a structural segment. The filter is intentionally limited to sub-780 mm fragments;
+ * short exterior jogs or partitions that meet a longer wall are preserved.
+ */
+export function suppressUnsupportedShortRasterFragments(input: BosRawSegment[]) {
+  if (input.length < 2) return input;
+  const maxFragmentLength = 0.78;
+  const anchorMinLength = 1.5;
+  const supportTolerance = 0.22;
+  const anchors = input.filter((segment) => length(segment) >= anchorMinLength);
+  if (!anchors.length) return input;
+
+  return input.filter((candidate) => {
+    const rasterDerived = (candidate.sourceObjectId || "").includes("raster-");
+    if (!rasterDerived || length(candidate) >= maxFragmentLength) return true;
+    return [candidate.start, candidate.end].some((endpoint) => anchors.some((anchor) => {
+      if (anchor === candidate) return false;
+      const projected = finiteProjection(endpoint, anchor);
+      return Boolean(projected && projected.distance <= supportTolerance);
+    }));
+  });
 }
 
 /**
@@ -310,7 +335,8 @@ export function detectWallCenterlines(
     wallThickness: 0.1524,
     wallHeight: 2.4384,
   });
-  return repairDetectedWallJunctions(merged);
+  const anchored = suppressUnsupportedShortRasterFragments(merged);
+  return repairDetectedWallJunctions(anchored);
 }
 
 export function scaleSegmentsToMeters(segments: BosRawSegment[], drawingUnitsPerMeter: number): BosRawSegment[] {
