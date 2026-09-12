@@ -12,22 +12,49 @@ export type BosTextToken = {
   height?: number;
 };
 
+function parseMixedNumber(value: string | undefined) {
+  if (!value) return 0;
+  const normalized = value.trim();
+  if (!normalized) return 0;
+  const mixed = normalized.match(/^(-?\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) {
+    const whole = Number(mixed[1]);
+    const numerator = Number(mixed[2]);
+    const denominator = Number(mixed[3]);
+    if (Number.isFinite(whole) && Number.isFinite(numerator) && Number.isFinite(denominator) && denominator !== 0) {
+      const fraction = numerator / denominator;
+      return whole < 0 ? whole - fraction : whole + fraction;
+    }
+  }
+  const fraction = normalized.match(/^(-?\d+)\s*\/\s*(\d+)$/);
+  if (fraction) {
+    const numerator = Number(fraction[1]);
+    const denominator = Number(fraction[2]);
+    if (Number.isFinite(numerator) && Number.isFinite(denominator) && denominator !== 0) return numerator / denominator;
+  }
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? numeric : Number.NaN;
+}
+
 export function parseArchitecturalLength(text: string): number | null {
-  const normalized = text.trim().replace(/[’′]/g, "'").replace(/[”″]/g, '"');
+  const normalized = text.trim().replace(/[’′]/g, "'").replace(/[”″]/g, '"').replace(/\s+/g, " ");
   if (!normalized) return null;
 
-  const feetInches = normalized.match(/^(-?\d+(?:\.\d+)?)\s*'\s*-?\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in)?)?$/i);
+  const feetInches = normalized.match(/^(-?\d+(?:\.\d+)?)\s*'\s*-?\s*(?:(\d+(?:\.\d+)?|\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+)\s*(?:"|in)?)?$/i);
   if (feetInches) {
     const feet = Number(feetInches[1]);
-    const inches = feetInches[2] ? Number(feetInches[2]) : 0;
+    const inches = parseMixedNumber(feetInches[2]);
     if (Number.isFinite(feet) && Number.isFinite(inches)) return feet * FEET_TO_METERS + inches * INCH_TO_METERS;
   }
 
   const feetOnly = normalized.match(/^(-?\d+(?:\.\d+)?)\s*(?:ft|feet)$/i);
   if (feetOnly) return Number(feetOnly[1]) * FEET_TO_METERS;
 
-  const inchesOnly = normalized.match(/^(-?\d+(?:\.\d+)?)\s*(?:"|in|inch|inches)$/i);
-  if (inchesOnly) return Number(inchesOnly[1]) * INCH_TO_METERS;
+  const inchesOnly = normalized.match(/^(-?\d+(?:\.\d+)?|\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+)\s*(?:"|in|inch|inches)$/i);
+  if (inchesOnly) {
+    const inches = parseMixedNumber(inchesOnly[1]);
+    return Number.isFinite(inches) ? inches * INCH_TO_METERS : null;
+  }
 
   const meters = normalized.match(/^(-?\d+(?:\.\d+)?)\s*m$/i);
   if (meters) return Number(meters[1]);
@@ -42,7 +69,6 @@ export function parsePrintedScale(text: string): BosScale | null {
     const drawingInches = parseFraction(architectural[1]);
     const realFeet = Number(architectural[2]);
     if (drawingInches > 0 && realFeet > 0) {
-      // PDF drawing coordinates are normally points (72 points per drawing inch).
       const realMetersPerPoint = realFeet * FEET_TO_METERS / (drawingInches * 72);
       return {
         source: "printed",
@@ -57,7 +83,6 @@ export function parsePrintedScale(text: string): BosScale | null {
   if (metric) {
     const ratio = Number(metric[1]);
     if (ratio > 0) {
-      // PDF coordinates are points; one point = 1/72 inch on the drawing.
       const drawingMetersPerPoint = INCH_TO_METERS / 72;
       const realMetersPerPoint = drawingMetersPerPoint * ratio;
       return { source: "printed", drawingUnitsPerMeter: 1 / realMetersPerPoint, printedLabel: normalized, confidence: 0.96 };
