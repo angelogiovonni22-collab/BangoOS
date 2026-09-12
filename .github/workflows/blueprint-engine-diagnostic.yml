@@ -37,6 +37,9 @@ jobs:
       - name: Global wall constraints
         run: npx -y tsx lib/blueprints/engine/global-constraint-solver.contract.test.ts
 
+      - name: Vector-first candidate benchmark
+        run: npx -y tsx lib/blueprints/engine/vector-first-benchmark.contract.test.ts
+
       - name: Base parsing and geometry
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts base
 
