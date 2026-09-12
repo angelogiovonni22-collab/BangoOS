@@ -19,25 +19,16 @@ function distance(a: BosPoint2, b: BosPoint2) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function bboxPolygon(points: BosPoint2[], fallback: { center: BosPoint2; width: number; height: number }): BosPolygon2 {
-  if (points.length >= 2) {
-    const xs = points.map((point) => point.x);
-    const ys = points.map((point) => point.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    if (maxX - minX >= 0.5 && maxY - minY >= 0.5) {
-      return { points: [{ x: minX, y: minY }, { x: maxX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }] };
-    }
-  }
-  const { center: c, width, height } = fallback;
-  return { points: [
-    { x: c.x - width / 2, y: c.y - height / 2 },
-    { x: c.x + width / 2, y: c.y - height / 2 },
-    { x: c.x + width / 2, y: c.y + height / 2 },
-    { x: c.x - width / 2, y: c.y + height / 2 },
-  ] };
+function bboxPolygon(points: BosPoint2[]): BosPolygon2 | null {
+  if (points.length < 2) return null;
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  if (maxX - minX < 0.5 || maxY - minY < 0.5) return null;
+  return { points: [{ x: minX, y: minY }, { x: maxX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }] };
 }
 
 function nearbyWallPoints(walls: BosWall[], point: BosPoint2, radius: number) {
@@ -110,7 +101,7 @@ export function recognizeArchitecturalSemantics(graph: BosBuildingGraph, tokens:
       provenance: {
         createdBy: "deterministic" as const,
         algorithm: "bos-plan-label-semantics",
-        algorithmVersion: "1.1.0",
+        algorithmVersion: "1.2.0",
         evidenceIds: [`semantic-${kind}-${token.page}-${Math.round(point.x * 100)}-${Math.round(point.y * 100)}`],
       },
     });
@@ -134,29 +125,35 @@ export function recognizeArchitecturalSemantics(graph: BosBuildingGraph, tokens:
     }
 
     if (/\bgarage\b/.test(text) && !seen.has("garage")) {
-      seen.add("garage");
-      rooms.push({
-        id: `room-garage-${levelId}`,
-        levelId,
-        type: "room",
-        name: token.text,
-        polygon: bboxPolygon(nearbyWallPoints(graph.walls, point, 6.5), { center: point, width: 5.8, height: 6.2 }),
-        ...semantic("garage", 0.86),
-      });
+      const polygon = bboxPolygon(nearbyWallPoints(graph.walls, point, 6.5));
+      if (polygon) {
+        seen.add("garage");
+        rooms.push({
+          id: `room-garage-${levelId}`,
+          levelId,
+          type: "room",
+          name: token.text,
+          polygon,
+          ...semantic("garage", 0.86),
+        });
+      }
     }
 
     if (/\b(deck|porch|patio)\b/.test(text) && !seen.has("deck-porch")) {
-      seen.add("deck-porch");
-      const kind = /porch/.test(text) ? "porch" : "deck";
-      decksPorches.push({
-        id: `${kind}-${levelId}`,
-        levelId,
-        type: kind,
-        polygon: bboxPolygon(nearbyWallPoints(graph.walls, point, 5.5), { center: point, width: 6, height: 3.5 }),
-        thickness: 0.15,
-        elevation: 0,
-        ...semantic(kind, 0.72),
-      });
+      const polygon = bboxPolygon(nearbyWallPoints(graph.walls, point, 5.5));
+      if (polygon) {
+        seen.add("deck-porch");
+        const kind = /porch/.test(text) ? "porch" : "deck";
+        decksPorches.push({
+          id: `${kind}-${levelId}`,
+          levelId,
+          type: kind,
+          polygon,
+          thickness: 0.15,
+          elevation: 0,
+          ...semantic(kind, 0.72),
+        });
+      }
     }
   }
 
@@ -169,17 +166,20 @@ export function recognizeArchitecturalSemantics(graph: BosBuildingGraph, tokens:
     const selected = stairTokens[0];
     const point = tokenPoint(selected);
     if (point) {
-      stairs.push({
-        id: `stair-${levelId}-1`,
-        levelId,
-        type: "stair",
-        polygon: bboxPolygon(nearbyWallPoints(graph.walls, point, 2.5), { center: point, width: 1.4, height: 3.2 }),
-        direction: normalized(selected.text) === "up" ? "up" : "down",
-        confidence: 0.58,
-        sourcePage: selected.page,
-        evidence: [{ id: `semantic-stair-${selected.page}`, page: selected.page, kind: "pdf_text", text: selected.text, score: 0.58 }],
-        provenance: { createdBy: "deterministic", algorithm: "bos-stair-direction-label", algorithmVersion: "1.0.0", evidenceIds: [`semantic-stair-${selected.page}`] },
-      });
+      const polygon = bboxPolygon(nearbyWallPoints(graph.walls, point, 2.5));
+      if (polygon) {
+        stairs.push({
+          id: `stair-${levelId}-1`,
+          levelId,
+          type: "stair",
+          polygon,
+          direction: normalized(selected.text) === "up" ? "up" : "down",
+          confidence: 0.58,
+          sourcePage: selected.page,
+          evidence: [{ id: `semantic-stair-${selected.page}`, page: selected.page, kind: "pdf_text", text: selected.text, score: 0.58 }],
+          provenance: { createdBy: "deterministic", algorithm: "bos-stair-direction-label", algorithmVersion: "1.1.0", evidenceIds: [`semantic-stair-${selected.page}`] },
+        });
+      }
     }
   }
 
