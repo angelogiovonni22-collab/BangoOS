@@ -52,6 +52,9 @@ jobs:
       - name: Source pixel overlay
         run: npx -y tsx lib/blueprints/engine/source-pixel-overlay.contract.test.ts
 
+      - name: Source wall pair consolidator
+        run: npx -y tsx lib/blueprints/engine/source-wall-pair-consolidator.contract.test.ts
+
       - name: Source wall network selector
         run: npx -y tsx lib/blueprints/engine/source-wall-network-selector.contract.test.ts
 
