@@ -79,6 +79,7 @@ assert(result.unresolvedDimensionIds.includes("dimension-missing-witness"), "a c
 assert.equal(result.singleSegmentAssociationCount, 1);
 assert.equal(result.labelGapChainAssociationCount, 1);
 assert.equal(result.fragmentChainAssociationCount, 1);
+assert.equal(result.witnessSpanAssociationCount, 0, "baseline-supported synthetic dimensions should retain their stronger existing modes");
 assert(result.diagnostics.some((item) => item.includes("Arbitrary geometric gaps are never bridged")), "diagnostics must make fail-closed chain behavior explicit");
 assert(result.diagnostics.some((item) => item.includes("do not move wall geometry")), "diagnostics must make the read-only evidence stage explicit");
 
@@ -98,4 +99,30 @@ assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimensio
 assert.equal(diagnostic.reasonCounts.matched_global_constraint, 1);
 assert.equal(diagnostic.reasonCounts.source_axis_resolved_global_unmatched, 2);
 assert(diagnostic.diagnostics.some((item) => item.includes("without changing source or candidate geometry")), "diagnostic phase must remain read only");
+
+const witnessOnlyDimension = dimension("dimension-witness-only", 8, { x: 460, y: 1190, width: 80, height: 20 });
+const witnessOnlySegments: BosRawSegment[] = [
+  { sourcePage: 1, sourceObjectId: "witness-only-left", start: { x: 1, y: 12 }, end: { x: 1, y: 13 }, confidence: 0.9 },
+  { sourcePage: 1, sourceObjectId: "witness-only-right", start: { x: 9, y: 12.05 }, end: { x: 9, y: 13.05 }, confidence: 0.9 },
+];
+const witnessOnlyResult = associateRasterDimensionEvidence({
+  segments: witnessOnlySegments,
+  dimensions: [witnessOnlyDimension],
+  drawingUnitsPerMeter: 100,
+});
+const witnessOnly = witnessOnlyResult.associations[0];
+assert(witnessOnly, "two aligned extension lines separated by the printed value should resolve a witness span without a baseline rule");
+assert.equal(witnessOnly.evidenceMode, "witness_span");
+assert.deepEqual(new Set(witnessOnly.sourceSegmentIds), new Set(["witness-only-left", "witness-only-right"]));
+assert.equal(witnessOnly.start.x, 1);
+assert.equal(witnessOnly.end.x, 9);
+assert.equal(witnessOnlyResult.witnessSpanAssociationCount, 1);
+
+const farLabelResult = associateRasterDimensionEvidence({
+  segments: witnessOnlySegments,
+  dimensions: [dimension("dimension-witness-far", 8, { x: 460, y: 1900, width: 80, height: 20 })],
+  drawingUnitsPerMeter: 100,
+});
+assert.equal(farLabelResult.associations.length, 0, "witness separation alone must not infer a dimension when aligned endpoints are not near the printed label");
+assert(farLabelResult.unresolvedDimensionIds.includes("dimension-witness-far"));
 console.log("Blueprint raster dimension evidence associator contract passed.");
