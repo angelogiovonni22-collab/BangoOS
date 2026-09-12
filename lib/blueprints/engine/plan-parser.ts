@@ -26,7 +26,7 @@ export type BosParsedPage = {
   height: number;
   text: BosTextToken[];
   vectorSegments: BosRawSegment[];
-  vectorPrimitives: BosPdfVectorPrimitive[];
+  vectorPrimitives?: BosPdfVectorPrimitive[];
   rasterRequired: boolean;
 };
 
@@ -123,7 +123,7 @@ export function summarizeSelectedPlan(plan: BosParsedPlan, levelId: string) {
     scale: detectScale(page.text),
     dimensions: detectPrintedDimensions(page.text, levelId),
     vectorCount: page.vectorSegments.length,
-    vectorPrimitiveCount: page.vectorPrimitives.length,
+    vectorPrimitiveCount: page.vectorPrimitives?.length || 0,
     rasterRequired: page.rasterRequired || page.vectorSegments.length < 8,
   };
 }
