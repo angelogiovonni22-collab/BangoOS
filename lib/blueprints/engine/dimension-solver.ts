@@ -87,7 +87,7 @@ export function solveDimensionScaleCorrection(graph: BosBuildingGraph, associati
     ...wall,
     centerline: { start: scalePoint(wall.centerline.start), end: scalePoint(wall.centerline.end) },
     thickness: wall.thickness * factor,
-    provenance: { ...wall.provenance, algorithm: `${wall.provenance.algorithm}+dimension-reconcile`, algorithmVersion: "1.0.0" },
+    provenance: { ...wall.provenance, algorithm: `${wall.provenance.algorithm}+dimension-reconcile`, algorithmVersion: "1.1.0" },
   }));
   next.rooms = next.rooms.map((room) => ({ ...room, polygon: { points: room.polygon.points.map(scalePoint) } }));
   next.stairs = next.stairs.map((stair) => ({ ...stair, polygon: { points: stair.polygon.points.map(scalePoint) } }));
@@ -96,8 +96,13 @@ export function solveDimensionScaleCorrection(graph: BosBuildingGraph, associati
   next.openings = next.openings.map((opening) => ({ ...opening, offset: opening.offset * factor, width: opening.width * factor, height: opening.height * factor, sillHeight: opening.sillHeight === undefined ? undefined : opening.sillHeight * factor }));
   next.doors = next.doors.map((opening) => ({ ...opening, offset: opening.offset * factor, width: opening.width * factor, height: opening.height * factor, sillHeight: opening.sillHeight === undefined ? undefined : opening.sillHeight * factor }));
   next.windows = next.windows.map((opening) => ({ ...opening, offset: opening.offset * factor, width: opening.width * factor, height: opening.height * factor, sillHeight: opening.sillHeight === undefined ? undefined : opening.sillHeight * factor }));
+  next.dimensions = next.dimensions.map((dimension) => ({
+    ...dimension,
+    start: dimension.start ? scalePoint(dimension.start) : undefined,
+    end: dimension.end ? scalePoint(dimension.end) : undefined,
+  }));
   if (next.scale.drawingUnitsPerMeter) next.scale.drawingUnitsPerMeter /= factor;
   next.scale = { ...next.scale, source: "dimension_solved", confidence: Math.max(next.scale.confidence, 0.9 * (1 - relativeSpread)) };
-  next.metadata.algorithms = { ...next.metadata.algorithms, dimensionSolver: "median-dimension-reconcile-1.0.0" };
+  next.metadata.algorithms = { ...next.metadata.algorithms, dimensionSolver: "median-dimension-reconcile-1.1.0" };
   return { graph: next, associations, applied: true, factor, conflict: false };
 }

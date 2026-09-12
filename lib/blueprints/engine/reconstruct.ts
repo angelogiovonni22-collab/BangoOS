@@ -1,6 +1,7 @@
 import { createEmptyBosBuildingGraph, type BosBuildingGraph } from "./building-graph";
 import { scaleTextTokensToMeters, recognizeArchitecturalSemantics } from "./architecture";
 import { applyDimensionWallConstraints } from "./dimension-constraints";
+import { solveDimensionScaleCorrection } from "./dimension-solver";
 import { segmentsToWalls, topologyMetrics, type BosRawSegment } from "./geometry";
 import { applyLearnedBlueprintAssist } from "./learned-assist";
 import { detectWallGapOpenings } from "./openings";
@@ -52,6 +53,15 @@ function pointToSegmentDistance(point: { x: number; y: number }, segment: { star
   const x = segment.start.x + t * dx;
   const y = segment.start.y + t * dy;
   return Math.hypot(point.x - x, point.y - y);
+}
+
+function scaleRawSegments(segments: readonly BosRawSegment[], factor: number): BosRawSegment[] {
+  return segments.map((segment) => ({
+    ...segment,
+    start: { x: segment.start.x * factor, y: segment.start.y * factor },
+    end: { x: segment.end.x * factor, y: segment.end.y * factor },
+    strokeWidth: segment.strokeWidth === undefined ? undefined : segment.strokeWidth * factor,
+  }));
 }
 
 function dominantRasterWallCluster(input: BosRawSegment[]) {
@@ -132,7 +142,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   const summary = summarizeSelectedPlan(parsed, levelId);
   const diagnostics: string[] = [];
 
-  const graph = createEmptyBosBuildingGraph({
+  let graph = createEmptyBosBuildingGraph({
     buildingId: source.buildingId,
     sourcePage: parsed.selectedPage,
     levelName: source.sheetTitle || "Level 1",
@@ -151,6 +161,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     sourceSelection: "topology-scored-vector-first-1.0.0",
     sourceAlignment: "length-weighted-source-geometry-1.0.0",
     dimensionConstraints: "printed-dimension-wall-constraints-1.0.0",
+    dimensionReconciliation: "median-dimension-reconcile-1.1.0",
     wallGapRepair: "disabled-after-production-regression-1.0.0",
     annotationFiltering: "dimension-evidence-zone-1.1.0",
     exteriorClassification: "room-adjacency-perimeter-1.0.0",
@@ -192,7 +203,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
 
   const annotationZones = dimensionAnnotationZones(graph);
   const meterSegments = scaleSegmentsToMeters(summary.page.vectorSegments, graph.scale.drawingUnitsPerMeter);
-  const symbolSegments = suppressDimensionAnnotationDetections(meterSegments, annotationZones);
+  let symbolSegments = suppressDimensionAnnotationDetections(meterSegments, annotationZones);
   const vectorDetected = suppressDimensionAnnotationDetections(detectWallCenterlines(meterSegments), annotationZones);
   const vectorTopology = solveArchitecturalTopology(vectorDetected);
   diagnostics.push(...vectorTopology.diagnostics);
@@ -247,7 +258,23 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   const dimensionConstraints = applyDimensionWallConstraints(walls, graph.dimensions, graph.scale.drawingUnitsPerMeter);
   walls = dimensionConstraints.walls;
   graph.dimensions = dimensionConstraints.dimensions;
+  graph.walls = walls;
   diagnostics.push(...dimensionConstraints.diagnostics);
+
+  if (graph.scale.source !== "manual") {
+    const reconciliation = solveDimensionScaleCorrection(graph);
+    if (reconciliation.conflict) {
+      diagnostics.push("Printed Blueprint dimensions disagree beyond the safe global reconciliation tolerance; B.O.S. preserved the current scale and requires review.");
+    } else if (reconciliation.applied) {
+      graph = reconciliation.graph;
+      walls = graph.walls;
+      selectedEvidence = scaleRawSegments(selectedEvidence, reconciliation.factor);
+      symbolSegments = scaleRawSegments(symbolSegments, reconciliation.factor);
+      diagnostics.push(`B.O.S. reconciled the selected source scale from ${reconciliation.associations.length} dimension associations (factor ${reconciliation.factor.toFixed(4)}).`);
+    }
+  } else {
+    diagnostics.push("Manual scale correction is authoritative; automatic global dimension reconciliation was not applied.");
+  }
 
   const finalWallSegments: BosRawSegment[] = walls.map((wall) => ({
     start: wall.centerline.start,
@@ -274,7 +301,11 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   graph.windows = openings.windows;
   graph.rooms = traceWallBoundedRooms(graph);
 
-  const scaledText = scaleTextTokensToMeters(summary.page.text, graph.scale.drawingUnitsPerMeter);
+  const resolvedDrawingUnitsPerMeter = graph.scale.drawingUnitsPerMeter;
+  if (!resolvedDrawingUnitsPerMeter || resolvedDrawingUnitsPerMeter <= 0) {
+    throw new Error("B.O.S. lost the verified Blueprint scale during dimension reconciliation.");
+  }
+  const scaledText = scaleTextTokensToMeters(summary.page.text, resolvedDrawingUnitsPerMeter);
   const semanticGraph = recognizeArchitecturalSemantics(graph, scaledText);
   let validated = applyBosValidation(semanticGraph);
 
