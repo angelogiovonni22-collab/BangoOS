@@ -1,5 +1,6 @@
 import type { BosLine2 } from "./building-graph";
 import { DEFAULT_RASTER_LINE_OPTIONS, renderBlueprintPdfPage } from "./raster";
+import { buildSourceWallFaceMask } from "./source-wall-face-mask";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 
 export type BosGraySourceImage = { data: Uint8Array; width: number; height: number };
@@ -12,6 +13,9 @@ export type BosSourcePixelOverlayOptions = {
   sampleStepPixels?: number;
   sheetFrameEdgeRatio?: number;
   sheetFrameSpanRatio?: number;
+  minWallThicknessMeters?: number;
+  maxWallThicknessMeters?: number;
+  minWallFaceOverlapRatio?: number;
 };
 
 export type BosSourcePixelOverlayReport = {
@@ -22,6 +26,13 @@ export type BosSourcePixelOverlayReport = {
   coveredArchitecturalInkPixelCount: number;
   architecturalRecall: number;
   f1: number;
+  sourceWallFacePixelCount: number;
+  coveredSourceWallFacePixelCount: number;
+  sourceWallFaceRecall: number;
+  sourceWallFaceF1: number;
+  sourceWallFacePairCount: number;
+  sourceWallFaceCandidateRunCount: number;
+  sourceWallFaceRejectedSheetFrameRunCount: number;
   excludedSheetFramePixelCount: number;
   unsupportedWallSystemCount: number;
   unsupportedWallSystemIds: string[];
@@ -127,6 +138,16 @@ function candidateCoverageMask(systems: readonly BosWallSystemCandidate[], image
   return mask;
 }
 
+function coverage(mask: Uint8Array, candidateCoverage: Uint8Array) {
+  let total = 0;
+  let covered = 0;
+  for (let index = 0; index < mask.length; index += 1) if (mask[index]) {
+    total += 1;
+    if (candidateCoverage[index]) covered += 1;
+  }
+  return { total, covered, recall: total ? covered / total : 0 };
+}
+
 export function assessSourcePixelOverlay(input: { image: BosGraySourceImage; wallSystems: readonly BosWallSystemCandidate[]; sourceWidthMeters: number; sourceHeightMeters: number; options?: BosSourcePixelOverlayOptions }): BosSourcePixelOverlayReport {
   const threshold = input.options?.threshold ?? 184;
   const supportRadius = input.options?.supportRadiusPixels ?? 2;
@@ -135,6 +156,9 @@ export function assessSourcePixelOverlay(input: { image: BosGraySourceImage; wal
   const sampleStep = input.options?.sampleStepPixels ?? 3;
   const sheetFrameEdgeRatio = input.options?.sheetFrameEdgeRatio ?? 0.07;
   const sheetFrameSpanRatio = input.options?.sheetFrameSpanRatio ?? 0.55;
+  const minWallThicknessMeters = input.options?.minWallThicknessMeters ?? 0.07;
+  const maxWallThicknessMeters = input.options?.maxWallThicknessMeters ?? 0.45;
+  const minWallFaceOverlapRatio = input.options?.minWallFaceOverlapRatio ?? 0.45;
   if (!input.image.width || !input.image.height || input.image.data.length !== input.image.width * input.image.height) throw new Error("Source pixel overlay requires a valid grayscale source image.");
   if (!(input.sourceWidthMeters > 0) || !(input.sourceHeightMeters > 0)) throw new Error("Source pixel overlay requires positive source dimensions in meters.");
 
@@ -151,21 +175,52 @@ export function assessSourcePixelOverlay(input: { image: BosGraySourceImage; wal
 
   const predictedPrecision = predictedFaceSampleCount ? supportedFaceSampleCount / predictedFaceSampleCount : 0;
   const architectural = sourceArchitecturalInkMask(input.image, threshold, architecturalRunPixels, sheetFrameEdgeRatio, sheetFrameSpanRatio);
+  const sourceWallFaces = buildSourceWallFaceMask({
+    image: input.image,
+    sourceWidthMeters: input.sourceWidthMeters,
+    sourceHeightMeters: input.sourceHeightMeters,
+    options: {
+      threshold,
+      minRunPixels: architecturalRunPixels,
+      minWallThicknessMeters,
+      maxWallThicknessMeters,
+      minOverlapRatio: minWallFaceOverlapRatio,
+      sheetFrameEdgeRatio,
+      sheetFrameSpanRatio,
+    },
+  });
   const coverageMask = candidateCoverageMask(input.wallSystems, input.image, input.sourceWidthMeters, input.sourceHeightMeters, coverageRadius);
-  let architecturalInkPixelCount = 0; let coveredArchitecturalInkPixelCount = 0;
-  for (let index = 0; index < architectural.mask.length; index += 1) if (architectural.mask[index]) {
-    architecturalInkPixelCount += 1; if (coverageMask[index]) coveredArchitecturalInkPixelCount += 1;
-  }
-  const architecturalRecall = architecturalInkPixelCount ? coveredArchitecturalInkPixelCount / architecturalInkPixelCount : 0;
+  const rawCoverage = coverage(architectural.mask, coverageMask);
+  const wallFaceCoverage = coverage(sourceWallFaces.mask, coverageMask);
+  const architecturalRecall = rawCoverage.recall;
+  const sourceWallFaceRecall = wallFaceCoverage.recall;
   const f1 = predictedPrecision + architecturalRecall > 0 ? 2 * predictedPrecision * architecturalRecall / (predictedPrecision + architecturalRecall) : 0;
+  const sourceWallFaceF1 = predictedPrecision + sourceWallFaceRecall > 0 ? 2 * predictedPrecision * sourceWallFaceRecall / (predictedPrecision + sourceWallFaceRecall) : 0;
   const unsupportedWallSystemIds = perWallSupport.filter((item) => item.support < 0.7).map((item) => item.wallSystemId);
   return {
-    predictedFaceSampleCount, supportedFaceSampleCount, predictedPrecision: clamp(predictedPrecision, 0, 1), architecturalInkPixelCount, coveredArchitecturalInkPixelCount,
-    architecturalRecall: clamp(architecturalRecall, 0, 1), f1: clamp(f1, 0, 1), excludedSheetFramePixelCount: architectural.excludedSheetFramePixelCount,
-    unsupportedWallSystemCount: unsupportedWallSystemIds.length, unsupportedWallSystemIds, perWallSupport,
+    predictedFaceSampleCount,
+    supportedFaceSampleCount,
+    predictedPrecision: clamp(predictedPrecision, 0, 1),
+    architecturalInkPixelCount: rawCoverage.total,
+    coveredArchitecturalInkPixelCount: rawCoverage.covered,
+    architecturalRecall: clamp(architecturalRecall, 0, 1),
+    f1: clamp(f1, 0, 1),
+    sourceWallFacePixelCount: wallFaceCoverage.total,
+    coveredSourceWallFacePixelCount: wallFaceCoverage.covered,
+    sourceWallFaceRecall: clamp(sourceWallFaceRecall, 0, 1),
+    sourceWallFaceF1: clamp(sourceWallFaceF1, 0, 1),
+    sourceWallFacePairCount: sourceWallFaces.pairedRunCount,
+    sourceWallFaceCandidateRunCount: sourceWallFaces.candidateRunCount,
+    sourceWallFaceRejectedSheetFrameRunCount: sourceWallFaces.rejectedSheetFrameRunCount,
+    excludedSheetFramePixelCount: architectural.excludedSheetFramePixelCount,
+    unsupportedWallSystemCount: unsupportedWallSystemIds.length,
+    unsupportedWallSystemIds,
+    perWallSupport,
     diagnostics: [
       `Source-pixel overlay supports ${(predictedPrecision * 100).toFixed(1)}% of predicted wall-face samples directly on rendered source ink.`,
-      `Candidate wall faces cover ${(architecturalRecall * 100).toFixed(1)}% of long horizontal/vertical source-ink pixels after excluding drawing-frame runs (F1 ${f1.toFixed(3)}).`,
+      `Candidate wall faces cover ${(architecturalRecall * 100).toFixed(1)}% of all long orthogonal source-ink pixels after drawing-frame exclusion (legacy audit F1 ${f1.toFixed(3)}).`,
+      `Candidate wall faces cover ${(sourceWallFaceRecall * 100).toFixed(1)}% of independently paired rendered-source wall-face pixels (wall-face F1 ${sourceWallFaceF1.toFixed(3)}).`,
+      ...sourceWallFaces.diagnostics,
       `${architectural.excludedSheetFramePixelCount} source pixels were excluded as majority-page drawing-frame runs near the sheet perimeter.`,
       `${unsupportedWallSystemIds.length} wall systems have less than 70% direct source-pixel support.`,
       "Source-pixel overlay is computed from the rendered Blueprint page, not from extracted raster segments or canonical Building Graph evidence.",
