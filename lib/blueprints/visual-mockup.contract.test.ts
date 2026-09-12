@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { BLUEPRINT_VISUAL_DISCLAIMER, BLUEPRINT_VISUAL_PROMPT_VERSION, buildBlueprintVisualPrompt, buildBlueprintWallDistanceSchedule, formatMetersAsFeetInches, normalizeBlueprintVisualOptions } from "./visual-mockup";
 import { createEmptyBosBuildingGraph } from "./engine/building-graph";
+import { buildBosBuildingGraphGlb } from "./engine/graph-to-glb";
 import { BLUEPRINT_GEOMETRY_LOCK_VERSION, assessBlueprintFidelity, renderBlueprintGeometryLock } from "./geometry-lock";
 
 const root = process.cwd();
@@ -48,9 +49,19 @@ readyGraph.validation = { version: 1, score: 0.9, status: "reconstructed", metri
 assert.equal(assessBlueprintFidelity(readyGraph, 2).allowed, true, "A validated closed graph must pass the fidelity gate");
 const wallDistances = buildBlueprintWallDistanceSchedule(readyGraph);
 assert.equal(wallDistances.available, true, "A reconstructed graph with verified scale must expose wall distances");
+assert.equal(wallDistances.reviewRequired, false);
 assert.equal(wallDistances.walls.length, 8);
-assert.equal(wallDistances.walls[0]?.lengthImperial, "16′ 5″");
-assert.equal(formatMetersAsFeetInches(3.048), "10′ 0″");
+assert.equal(wallDistances.walls[0]?.lengthImperial, "16'-4 7/8\"");
+assert.equal(formatMetersAsFeetInches(3.048), "10'-0\"");
+
+const reviewGraph = structuredClone(readyGraph);
+reviewGraph.validation.status = "needs_review";
+reviewGraph.validation.score = 0.7;
+const reviewDistances = buildBlueprintWallDistanceSchedule(reviewGraph);
+assert.equal(reviewDistances.available, true, "A needs-review graph with independently verified scale must still expose provisional wall distances for correction review");
+assert.equal(reviewDistances.reviewRequired, true, "Needs-review wall distances must remain explicitly review-gated");
+assert(reviewDistances.reason?.includes("topology"), "Review-gated wall distances must explain the topology safety boundary");
+
 const untrustedScale = structuredClone(readyGraph);
 untrustedScale.scale.source = "unknown";
 untrustedScale.scale.confidence = 0;
@@ -66,6 +77,13 @@ assert(underStandardGate.blockers.some((blocker) => blocker.includes("80% produc
 assert(underStandardGate.blockers.some((blocker) => blocker.includes("75% production standard")), "Exterior blocker must expose the production threshold");
 assert(underStandardGate.blockers.some((blocker) => blocker.includes("90% production standard")), "Scale blocker must expose the production threshold");
 assert(underStandardGate.blockers.some((blocker) => blocker.includes("70% production standard")), "Semantic blocker must expose the production threshold");
+
+const nativeGlb = buildBosBuildingGraphGlb(readyGraph);
+const jsonChunkLength = nativeGlb.readUInt32LE(12);
+const nativeGlbJson = JSON.parse(nativeGlb.subarray(20, 20 + jsonChunkLength).toString("utf8").trim()) as { nodes: Array<{ extras?: Record<string, unknown> }>; extras?: { bosBuildingGraph?: Record<string, unknown> } };
+assert.equal(nativeGlbJson.nodes[0]?.extras?.wallLengthImperial, "16'-4 7/8\"", "Native GLB wall nodes must carry construction-style feet/inches dimensions for model inspection");
+assert.equal(nativeGlbJson.extras?.bosBuildingGraph?.displayLengthUnit, "ft-in", "Native GLB metadata must declare the feet/inches display unit");
+
 const geometryLockCheck = renderBlueprintGeometryLock(readyGraph).then((geometryLock) => {
   assert(geometryLock.length > 1000 && geometryLock.subarray(1, 4).toString() === "PNG", "Geometry lock must render as a non-empty PNG");
 });
