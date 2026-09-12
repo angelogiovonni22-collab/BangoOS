@@ -139,7 +139,7 @@ def checkpoint_manifest_errors(model: str, manifest: Mapping[str, Any] | None) -
     elif not approval.get("approved_by") or not approval.get("approved_at"):
         errors.append("commercial_approval_incomplete")
     held_out = manifest.get("held_out_benchmarks")
-    if not isinstance(held_out, list) or "mitchell-page-2" not in held_out:
+    if not isinstance(held_out, list) or "mitchell-a4-first-floor" not in held_out:
         errors.append("mitchell_holdout_not_declared")
     return sorted(set(errors))
 
