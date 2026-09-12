@@ -10,15 +10,14 @@ import { extractRasterLineSegments } from "@/lib/blueprints/engine/raster";
 import { buildRasterArchitecturalCandidate } from "@/lib/blueprints/engine/raster-architectural-candidate";
 import { evaluateRasterEvidenceStages } from "@/lib/blueprints/engine/raster-evidence-benchmark";
 import { assessSourcePixelOverlay, renderBlueprintGraySource } from "@/lib/blueprints/engine/source-pixel-overlay";
+import { assessSourceWallNetworkOverlay } from "@/lib/blueprints/engine/source-wall-network-overlay";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
-
 const MAX_SOURCE_BYTES = 45 * 1024 * 1024;
 
 function dbClient(supabase: SupabaseClient<Database>) {
-  // Migration-backed Blueprint tables can lead generated Supabase types between refreshes.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return supabase as any;
 }
@@ -40,13 +39,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       .maybeSingle();
     if (versionResponse.error) throw new Error(versionResponse.error.message);
     if (!versionResponse.data) throw new Error("Blueprint revision not found.");
-    if (versionResponse.data.mime_type !== "application/pdf") {
-      return NextResponse.json({ error: "Blueprint engine benchmark currently requires a PDF Blueprint." }, { status: 415 });
-    }
+    if (versionResponse.data.mime_type !== "application/pdf") return NextResponse.json({ error: "Blueprint engine benchmark currently requires a PDF Blueprint." }, { status: 415 });
     const fileSize = Number(versionResponse.data.file_size_bytes || 0);
-    if (fileSize <= 0 || fileSize > MAX_SOURCE_BYTES) {
-      return NextResponse.json({ error: "Blueprint source is outside the safe read-only benchmark size limit." }, { status: 413 });
-    }
+    if (fileSize <= 0 || fileSize > MAX_SOURCE_BYTES) return NextResponse.json({ error: "Blueprint source is outside the safe read-only benchmark size limit." }, { status: 413 });
 
     const sheetResponse = await db.from("blueprint_sheets")
       .select("sheet_number,title,discipline")
@@ -57,9 +52,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     if (!sheetResponse.data) throw new Error("Blueprint sheet metadata not found.");
 
     const sourceDownload = await typed.storage.from(BLUEPRINTS_BUCKET).download(versionResponse.data.storage_path);
-    if (sourceDownload.error || !sourceDownload.data) {
-      throw new Error(sourceDownload.error?.message || "Unable to read the source Blueprint.");
-    }
+    if (sourceDownload.error || !sourceDownload.data) throw new Error(sourceDownload.error?.message || "Unable to read the source Blueprint.");
     const buffer = Buffer.from(await sourceDownload.data.arrayBuffer());
     const pages = await parsePdfVectorPlan(buffer);
     const plan = normalizeParsedPlan({
@@ -79,11 +72,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const selected = summarizeSelectedPlan(plan, "level-1");
 
     let rasterEvidence = null;
-    if (
-      (selected.rasterRequired || selected.vectorCount === 0)
-      && selected.scale.drawingUnitsPerMeter
-      && selected.scale.confidence >= 0.55
-    ) {
+    if ((selected.rasterRequired || selected.vectorCount === 0) && selected.scale.drawingUnitsPerMeter && selected.scale.confidence >= 0.55) {
       const raster = await extractRasterLineSegments(buffer, {
         page: plan.selectedPage,
         drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
@@ -104,14 +93,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWidthMeters: raster.width,
         sourceHeightMeters: raster.height,
       });
+      const sourceWallNetworkOverlay = assessSourceWallNetworkOverlay({
+        image: sourceImage,
+        wallSystems: architecturalCandidate.constrained.wallSystems,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
+        predictedPrecision: sourcePixelOverlay.predictedPrecision,
+      });
       rasterEvidence = {
-        extraction: {
-          widthMeters: raster.width,
-          heightMeters: raster.height,
-          sourcePixelWidth: sourceImage.width,
-          sourcePixelHeight: sourceImage.height,
-          diagnostics: raster.diagnostics,
-        },
+        extraction: { widthMeters: raster.width, heightMeters: raster.height, sourcePixelWidth: sourceImage.width, sourcePixelHeight: sourceImage.height, diagnostics: raster.diagnostics },
         stages: evaluateRasterEvidenceStages({
           segments: raster.segments,
           dimensions: selected.dimensions,
@@ -120,6 +110,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
           sourceHeightMeters: raster.height,
         }),
         sourcePixelOverlay,
+        sourceWallNetworkOverlay,
       };
     }
 
@@ -130,22 +121,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       .maybeSingle();
     if (canonicalResponse.error) throw new Error(canonicalResponse.error.message);
     const canonical = canonicalResponse.data as Record<string, unknown> | null;
-    const graph = canonical?.building_graph && typeof canonical.building_graph === "object"
-      ? canonical.building_graph as Record<string, unknown>
-      : null;
-    const canonicalWalls = Array.isArray(graph?.walls) ? graph.walls.length : null;
-    const canonicalRooms = Array.isArray(graph?.rooms) ? graph.rooms.length : null;
-    const canonicalOpenings = Array.isArray(graph?.openings) ? graph.openings.length : null;
+    const graph = canonical?.building_graph && typeof canonical.building_graph === "object" ? canonical.building_graph as Record<string, unknown> : null;
 
     return NextResponse.json({
       mode: "read_only_architectural_candidate",
-      source: {
-        versionId,
-        sheetNumber: String(sheetResponse.data.sheet_number || ""),
-        sheetTitle: String(sheetResponse.data.title || ""),
-        originalFilename: String(versionResponse.data.original_filename || ""),
-        expectedPage: expectedPage ?? null,
-      },
+      source: { versionId, sheetNumber: String(sheetResponse.data.sheet_number || ""), sheetTitle: String(sheetResponse.data.title || ""), originalFilename: String(versionResponse.data.original_filename || ""), expectedPage: expectedPage ?? null },
       candidate: benchmark,
       rasterEvidence,
       canonical: canonical ? {
@@ -154,20 +134,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         engineStatus: canonical.engine_status || null,
         reconstructionVersion: canonical.reconstruction_version || null,
         sourcePage: canonical.source_page || null,
-        wallCount: canonicalWalls,
-        roomCount: canonicalRooms,
-        openingCount: canonicalOpenings,
+        wallCount: Array.isArray(graph?.walls) ? graph.walls.length : null,
+        roomCount: Array.isArray(graph?.rooms) ? graph.rooms.length : null,
+        openingCount: Array.isArray(graph?.openings) ? graph.openings.length : null,
         validation: canonical.validation_report || null,
         updatedAt: canonical.updated_at || null,
       } : null,
-      safety: {
-        writesPerformed: false,
-        canonicalGeometryChanged: false,
-        generated3d: false,
-      },
-    }, {
-      headers: { "Cache-Control": "no-store" },
-    });
+      safety: { writesPerformed: false, canonicalGeometryChanged: false, generated3d: false },
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to run Blueprint engine benchmark." }, { status: 400 });
   }
