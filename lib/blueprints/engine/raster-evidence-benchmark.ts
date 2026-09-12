@@ -24,6 +24,8 @@ export type BosRasterEvidenceBenchmark = {
   constrainedJunctionCount: number;
   constrainedSnappedEndpointCount: number;
   sourceDimensionEvidenceMatchedCount: number;
+  sourceDimensionSingleSegmentCount: number;
+  sourceDimensionLabelGapChainCount: number;
   matchedDimensionCount: number;
   boundarySpanDimensionCount: number;
   singleWallDimensionCount: number;
@@ -83,6 +85,8 @@ export function evaluateRasterEvidenceStages(input: {
     constrainedJunctionCount: candidate.constrained.junctionCount,
     constrainedSnappedEndpointCount: candidate.constrained.snappedEndpointCount,
     sourceDimensionEvidenceMatchedCount: candidate.dimensionEvidence.associations.length,
+    sourceDimensionSingleSegmentCount: candidate.dimensionEvidence.singleSegmentAssociationCount,
+    sourceDimensionLabelGapChainCount: candidate.dimensionEvidence.labelGapChainAssociationCount,
     matchedDimensionCount: candidate.constrained.matchedDimensionCount,
     boundarySpanDimensionCount: candidate.constrained.boundarySpanDimensionCount,
     singleWallDimensionCount: candidate.constrained.singleWallDimensionCount,
