@@ -87,8 +87,9 @@ export function BlueprintSourceFidelityOverlay({ versionId }: Props) {
   }, [graph, preview]);
 
   if (loading) return <p className="inline-flex items-center gap-2 text-xs text-slate-300"><LoaderCircle size={14} className="animate-spin" /> Loading source fidelity overlay…</p>;
-  if (error || !graph || !preview || !overlay) return <p className="inline-flex items-start gap-2 text-xs text-amber-200"><AlertTriangle size={14} className="mt-0.5 shrink-0" />{error || "Source overlay is unavailable until the plan scale and Building Graph are verified."}</p>;
+  if (error || !graph || !preview || !overlay || !graph.scale.drawingUnitsPerMeter) return <p className="inline-flex items-start gap-2 text-xs text-amber-200"><AlertTriangle size={14} className="mt-0.5 shrink-0" />{error || "Source overlay is unavailable until the plan scale and Building Graph are verified."}</p>;
 
+  const unitsPerMeter = graph.scale.drawingUnitsPerMeter;
   const metrics = graph.validation.metrics as FidelityMetrics;
   const sourceAlignment = metrics.sourceAlignment;
   const passed = typeof sourceAlignment === "number" && sourceAlignment >= 0.72 && graph.validation.status === "reconstructed";
@@ -115,7 +116,7 @@ export function BlueprintSourceFidelityOverlay({ versionId }: Props) {
         <svg viewBox={`0 0 ${preview.width} ${preview.height}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full" role="img" aria-label="Reconstructed wall geometry overlaid on the selected Blueprint source page">
           {graph.walls.map((wall) => {
             const strong = wall.confidence >= 0.9;
-            return <line key={wall.id} x1={overlay.x(wall.centerline.start.x)} y1={overlay.y(wall.centerline.start.y)} x2={overlay.x(wall.centerline.end.x)} y2={overlay.y(wall.centerline.end.y)} stroke={strong ? "#06b6d4" : "#f59e0b"} strokeWidth={Math.max(1.6, wall.thickness * graph.scale.drawingUnitsPerMeter * 0.32)} strokeLinecap="round" opacity="0.86" />;
+            return <line key={wall.id} x1={overlay.x(wall.centerline.start.x)} y1={overlay.y(wall.centerline.start.y)} x2={overlay.x(wall.centerline.end.x)} y2={overlay.y(wall.centerline.end.y)} stroke={strong ? "#06b6d4" : "#f59e0b"} strokeWidth={Math.max(1.6, wall.thickness * unitsPerMeter * 0.32)} strokeLinecap="round" opacity="0.86" />;
           })}
         </svg>
       </div>
