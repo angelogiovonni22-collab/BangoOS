@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, LoaderCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, LoaderCircle, Ruler } from "lucide-react";
 import type { BosBuildingGraph } from "@/lib/blueprints/engine/building-graph";
+import { formatBlueprintFeetInches } from "@/lib/blueprints/imperial-length";
 
 type Props = { versionId: string };
 
@@ -29,12 +30,20 @@ function percent(value: number | undefined) {
   return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value * 100)}%` : "—";
 }
 
+function wallLength(wall: BosBuildingGraph["walls"][number]) {
+  return Math.hypot(
+    wall.centerline.end.x - wall.centerline.start.x,
+    wall.centerline.end.y - wall.centerline.start.y,
+  );
+}
+
 export function BlueprintSourceFidelityOverlay({ versionId }: Props) {
   const [graph, setGraph] = useState<BosBuildingGraph | null>(null);
   const [engineStatus, setEngineStatus] = useState<string | null>(null);
   const [preview, setPreview] = useState<SourcePreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDimensions, setShowDimensions] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +95,18 @@ export function BlueprintSourceFidelityOverlay({ versionId }: Props) {
     };
   }, [graph, preview]);
 
+  const dimensionWalls = useMemo(() => {
+    if (!graph) return [];
+    return graph.walls
+      .map((wall) => ({ wall, length: wallLength(wall) }))
+      .filter(({ length }) => length >= 1.2192)
+      .sort((left, right) => {
+        const rank = { exterior: 0, interior: 1, unknown: 2 };
+        return rank[left.wall.type] - rank[right.wall.type] || right.length - left.length;
+      })
+      .slice(0, 36);
+  }, [graph]);
+
   if (loading) return <p className="inline-flex items-center gap-2 text-xs text-slate-300"><LoaderCircle size={14} className="animate-spin" /> Loading source fidelity overlay…</p>;
   if (error || !graph || !preview || !overlay || !graph.scale.drawingUnitsPerMeter) return <p className="inline-flex items-start gap-2 text-xs text-amber-200"><AlertTriangle size={14} className="mt-0.5 shrink-0" />{error || "Source overlay is unavailable until the plan scale and Building Graph are verified."}</p>;
 
@@ -95,6 +116,7 @@ export function BlueprintSourceFidelityOverlay({ versionId }: Props) {
   const passed = typeof sourceAlignment === "number" && sourceAlignment >= 0.72 && graph.validation.status === "reconstructed";
   const supported = typeof metrics.sourceSupportedWalls === "number" ? metrics.sourceSupportedWalls : null;
   const total = typeof metrics.sourceTotalWalls === "number" ? metrics.sourceTotalWalls : graph.walls.length;
+  const scaleVerified = metrics.scaleConfidence >= 0.9 && graph.scale.confidence >= 0.9 && graph.scale.source !== "unknown";
 
   return (
     <div className="space-y-3" data-orion-region="blueprint-source-fidelity-overlay">
@@ -110,6 +132,21 @@ export function BlueprintSourceFidelityOverlay({ versionId }: Props) {
         <span>{passed ? "Source geometry, topology, and validation have cleared the reconstruction gate." : `Engine ${engineStatus || graph.validation.status}. White/cyan reconstruction lines are shown directly over source page ${preview.page}; unresolved divergence remains review-gated.`}</span>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-300"><Ruler size={13} aria-hidden="true" /> Construction dimensions</p>
+        <button
+          type="button"
+          aria-pressed={showDimensions}
+          disabled={!scaleVerified}
+          onClick={() => setShowDimensions((current) => !current)}
+          className="rounded-md border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          data-orion-action="blueprints.toggle-source-dimensions"
+        >
+          {showDimensions ? "Hide feet & inches" : "Show feet & inches"}
+        </button>
+      </div>
+      {!scaleVerified ? <p className="text-[10px] font-semibold text-amber-200">Dimensions remain hidden until the registered Blueprint scale reaches the 90% verification gate.</p> : graph.validation.status !== "reconstructed" ? <p className="text-[10px] font-semibold text-amber-200">Feet/inches are scale-verified review measurements. Wall topology still requires review before construction use.</p> : null}
+
       <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white" style={{ aspectRatio: `${preview.width} / ${preview.height}` }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={preview.url} alt={`Blueprint source page ${preview.page}`} className="absolute inset-0 h-full w-full object-contain" />
@@ -118,9 +155,26 @@ export function BlueprintSourceFidelityOverlay({ versionId }: Props) {
             const strong = wall.confidence >= 0.9;
             return <line key={wall.id} x1={overlay.x(wall.centerline.start.x)} y1={overlay.y(wall.centerline.start.y)} x2={overlay.x(wall.centerline.end.x)} y2={overlay.y(wall.centerline.end.y)} stroke={strong ? "#06b6d4" : "#f59e0b"} strokeWidth={Math.max(1.6, wall.thickness * unitsPerMeter * 0.32)} strokeLinecap="round" opacity="0.86" />;
           })}
+          {showDimensions && scaleVerified ? dimensionWalls.map(({ wall, length }) => {
+            const x1 = overlay.x(wall.centerline.start.x);
+            const y1 = overlay.y(wall.centerline.start.y);
+            const x2 = overlay.x(wall.centerline.end.x);
+            const y2 = overlay.y(wall.centerline.end.y);
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            let angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            if (angle > 90 || angle < -90) angle += 180;
+            const label = formatBlueprintFeetInches(length);
+            return (
+              <g key={`dimension-${wall.id}`} transform={`translate(${midX} ${midY}) rotate(${angle})`} pointerEvents="none" data-wall-dimension={wall.id}>
+                <text x="0" y="-7" textAnchor="middle" dominantBaseline="central" fontSize="15" fontWeight="800" fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#ffffff" stroke="#0f172a" strokeWidth="5" paintOrder="stroke" strokeLinejoin="round">{label}</text>
+                <text x="0" y="-7" textAnchor="middle" dominantBaseline="central" fontSize="15" fontWeight="800" fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#ffffff">{label}</text>
+              </g>
+            );
+          }) : null}
         </svg>
       </div>
-      <p className="text-[10px] text-slate-400">Cyan = high-confidence reconstructed wall · amber = lower-confidence wall. The source drawing remains unchanged; corrections are stored separately and replayed on regeneration.</p>
+      <p className="text-[10px] text-slate-400">Cyan = high-confidence reconstructed wall · amber = lower-confidence wall · feet/inches = deterministic Building Graph wall length. Dimension labels are limited to wall runs 4 ft or longer to keep the source readable. The source drawing remains unchanged; corrections are stored separately and replayed on regeneration.</p>
     </div>
   );
 }
