@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { applyDimensionWallConstraints } from "./dimension-constraints";
+import { parseArchitecturalLength } from "./dimensions";
 import { topologyMetrics, type BosRawSegment } from "./geometry";
 import { solveArchitecturalTopology } from "./topology-solver";
 import type { BosDimension, BosWall } from "./building-graph";
@@ -26,6 +27,10 @@ const metrics = topologyMetrics(solved.segments);
 assert.equal(solved.segments.length, 4, "topology solver must preserve the four structural wall runs");
 assert(metrics.closure >= 0.99, "near-miss rectangle endpoints must become a closed architectural loop");
 assert(solved.snappedEndpointCount > 0 || solved.repairedJunctionCount > 0, "solver must record the junction work it performed");
+
+const fractionalLength = parseArchitecturalLength("9'-10 1/8\"");
+assert(fractionalLength !== null, "fractional architectural dimensions must parse");
+assert(Math.abs((fractionalLength || 0) - ((9 * 12 + 10.125) * 0.0254)) < 1e-9, "fractional feet/inches must retain exact construction-plan length");
 
 const wall: BosWall = {
   id: "wall-1",
