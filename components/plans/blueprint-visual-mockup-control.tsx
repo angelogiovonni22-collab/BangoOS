@@ -17,6 +17,12 @@ type VisualMockupPayload = {
     promptTemplateVersion: string;
     options: { furnished?: boolean; style?: VisualStyle };
     reviewMetadata: { sourceGraphStatus?: string; graphContextIncluded?: boolean; geometryLocked?: boolean; geometryLockVersion?: string } | null;
+    wallDistances?: {
+      available: boolean;
+      unit: "ft-in";
+      reason: string | null;
+      walls: Array<{ wallId: string; label: string; type: "exterior" | "interior" | "unknown"; lengthMeters: number; lengthImperial: string }>;
+    };
     disclaimer: string;
     errorMessage: string | null;
     createdAt: string;
@@ -75,6 +81,7 @@ export function BlueprintVisualMockupControl({ source }: { source: PlanDocument 
   const ready = (payload.status === "ready" || payload.status === "needs_review") && Boolean(payload.mockup?.signedUrl);
   const busy = generating || payload.status === "queued" || payload.status === "processing";
   const disclaimer = payload.mockup?.disclaimer || "Conceptual AI visualization — verify against the source plans before construction use.";
+  const wallDistances = payload.mockup?.wallDistances;
   const download = () => {
     if (!payload.mockup?.signedUrl) return;
     const anchor = document.createElement("a");
@@ -144,6 +151,27 @@ export function BlueprintVisualMockupControl({ source }: { source: PlanDocument 
           </div>
         ) : null}
 
+        {ready && wallDistances ? (
+          <details className="mt-3 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-muted)] p-3" data-orion-region="blueprint-wall-distances">
+            <summary className="cursor-pointer text-sm font-bold text-[var(--color-text-primary)]">
+              Wall distances {wallDistances.available ? `(${wallDistances.walls.length})` : ""}
+            </summary>
+            {wallDistances.available ? (
+              <>
+                <p className="mt-2 text-xs text-[var(--color-text-secondary)]">Calculated from the verified Building Graph scale. Confirm against stamped plans before construction.</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {wallDistances.walls.map((wall) => (
+                    <div key={wall.wallId} className="flex items-center justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-2 text-sm">
+                      <span className="min-w-0 truncate font-semibold text-[var(--color-text-primary)]">{wall.label}</span>
+                      <span className="shrink-0 font-bold tabular-nums text-blue-700">{wall.lengthImperial}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : <p className="mt-2 text-xs font-semibold text-amber-800">{wallDistances.reason}</p>}
+          </details>
+        ) : null}
+
         {payload.status === "failed" || payload.error ? <div className="mt-3 text-xs text-red-700" role="alert"><p className="inline-flex items-start gap-1.5 font-semibold"><TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{payload.mockup?.errorMessage || payload.error || "Visual mockup generation failed. Retry when ready."}</p>{payload.fidelityGate?.blockers?.length ? <ul className="mt-1 list-disc pl-6">{payload.fidelityGate.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul> : null}</div> : null}
         <p className="mt-3 text-xs font-semibold text-amber-800" role="note">{disclaimer}</p>
         <button type="button" disabled={!source.fileUrl} onClick={() => source.fileUrl && window.open(source.fileUrl, "_blank", "noopener,noreferrer")} className="mt-2 text-xs font-semibold text-blue-700 underline-offset-2 hover:underline disabled:opacity-50" data-orion-action="blueprints.view-visual-mockup-source">View source plan</button>
@@ -154,6 +182,14 @@ export function BlueprintVisualMockupControl({ source }: { source: PlanDocument 
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={payload.mockup?.signedUrl || ""} alt={`Roofless isometric conceptual AI visualization for ${source.fileName}`} className="max-h-[68vh] w-full object-contain" />
         </div>
+        {wallDistances?.available ? (
+          <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] p-3">
+            <p className="text-sm font-bold text-[var(--color-text-primary)]">Verified wall distances</p>
+            <div className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+              {wallDistances.walls.map((wall) => <p key={wall.wallId} className="flex justify-between gap-3 text-xs"><span>{wall.label}</span><span className="font-bold tabular-nums">{wall.lengthImperial}</span></p>)}
+            </div>
+          </div>
+        ) : null}
         <p className="mt-3 text-xs font-semibold text-amber-800">{disclaimer}</p>
         <div className="mt-4 flex flex-wrap justify-end gap-2"><Button type="button" variant="secondary" onClick={download}><Download size={15} aria-hidden="true" /> Download</Button><Button type="button" onClick={() => setViewerOpen(false)}>Close</Button></div>
       </Dialog>
