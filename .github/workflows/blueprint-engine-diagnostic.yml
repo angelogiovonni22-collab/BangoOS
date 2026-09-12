@@ -40,6 +40,9 @@ jobs:
       - name: Vector-first candidate benchmark
         run: npx -y tsx lib/blueprints/engine/vector-first-benchmark.contract.test.ts
 
+      - name: Raster evidence benchmark
+        run: npx -y tsx lib/blueprints/engine/raster-evidence-benchmark.contract.test.ts
+
       - name: Base parsing and geometry
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts base
 

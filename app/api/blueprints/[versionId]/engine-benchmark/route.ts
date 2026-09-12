@@ -4,8 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { BLUEPRINTS_BUCKET } from "@/lib/blueprints/plan-room";
 import { parsePdfVectorPlan } from "@/lib/blueprints/engine/pdf-vector-parser";
-import { normalizeParsedPlan } from "@/lib/blueprints/engine/plan-parser";
+import { normalizeParsedPlan, summarizeSelectedPlan } from "@/lib/blueprints/engine/plan-parser";
 import { evaluateVectorFirstCandidatePlan } from "@/lib/blueprints/engine/vector-first-benchmark";
+import { extractRasterLineSegments } from "@/lib/blueprints/engine/raster";
+import { evaluateRasterEvidenceStages } from "@/lib/blueprints/engine/raster-evidence-benchmark";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -37,7 +39,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     if (versionResponse.error) throw new Error(versionResponse.error.message);
     if (!versionResponse.data) throw new Error("Blueprint revision not found.");
     if (versionResponse.data.mime_type !== "application/pdf") {
-      return NextResponse.json({ error: "Vector-first engine benchmark currently requires a PDF Blueprint." }, { status: 415 });
+      return NextResponse.json({ error: "Blueprint engine benchmark currently requires a PDF Blueprint." }, { status: 415 });
     }
     const fileSize = Number(versionResponse.data.file_size_bytes || 0);
     if (fileSize <= 0 || fileSize > MAX_SOURCE_BYTES) {
@@ -72,6 +74,33 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const expectedPageParam = Number(url.searchParams.get("expectedPage"));
     const expectedPage = Number.isInteger(expectedPageParam) && expectedPageParam > 0 ? expectedPageParam : undefined;
     const benchmark = evaluateVectorFirstCandidatePlan(plan, { expectedPage });
+    const selected = summarizeSelectedPlan(plan, "level-1");
+
+    let rasterEvidence = null;
+    if (
+      (selected.rasterRequired || selected.vectorCount === 0)
+      && selected.scale.drawingUnitsPerMeter
+      && selected.scale.confidence >= 0.55
+    ) {
+      const raster = await extractRasterLineSegments(buffer, {
+        page: plan.selectedPage,
+        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
+        sourceWidth: selected.page.width,
+        sourceHeight: selected.page.height,
+      });
+      rasterEvidence = {
+        extraction: {
+          widthMeters: raster.width,
+          heightMeters: raster.height,
+          diagnostics: raster.diagnostics,
+        },
+        stages: evaluateRasterEvidenceStages({
+          segments: raster.segments,
+          dimensions: selected.dimensions,
+          drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
+        }),
+      };
+    }
 
     const canonicalResponse = await db.from("blueprint_generated_models")
       .select("id,engine_status,status,reconstruction_version,source_page,validation_report,building_graph,updated_at")
@@ -88,7 +117,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const canonicalOpenings = Array.isArray(graph?.openings) ? graph.openings.length : null;
 
     return NextResponse.json({
-      mode: "read_only_vector_first_candidate",
+      mode: "read_only_architectural_candidate",
       source: {
         versionId,
         sheetNumber: String(sheetResponse.data.sheet_number || ""),
@@ -97,6 +126,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         expectedPage: expectedPage ?? null,
       },
       candidate: benchmark,
+      rasterEvidence,
       canonical: canonical ? {
         modelId: canonical.id || null,
         status: canonical.status || null,
