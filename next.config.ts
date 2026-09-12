@@ -9,6 +9,42 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
 ];
 
+const appShellNoStoreHeaders = [
+  { key: "Cache-Control", value: "private, no-store, no-cache, max-age=0, must-revalidate" },
+  { key: "CDN-Cache-Control", value: "no-store" },
+  { key: "Vercel-CDN-Cache-Control", value: "no-store" },
+];
+
+const appShellNoStoreSources = [
+  "/app-entry/:path*",
+  "/dashboard/:path*",
+  "/operations/:path*",
+  "/timeline/:path*",
+  "/dispatch/:path*",
+  "/daily-reports/:path*",
+  "/schedule/:path*",
+  "/projects/:path*",
+  "/blueprints/:path*",
+  "/estimates/:path*",
+  "/invoices/:path*",
+  "/change-orders/:path*",
+  "/labor-rates/:path*",
+  "/customers/:path*",
+  "/materials/:path*",
+  "/units-of-measure/:path*",
+  "/equipment/:path*",
+  "/vendors/:path*",
+  "/employees/:path*",
+  "/crews/:path*",
+  "/settings/:path*",
+  "/trade-partner-messages/:path*",
+  "/platform-admin/:path*",
+  "/cost-codes/:path*",
+  "/customer-portal/:path*",
+  "/team/:path*",
+  "/onboarding/:path*",
+];
+
 const nextConfig: NextConfig = {
   // Keep pdfjs and its native canvas binding external so pdfjs can resolve its sibling worker
   // from the installed package instead of a Turbopack server chunk at runtime.
@@ -23,14 +59,10 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
-      {
-        source: "/projects/:path*",
-        headers: [
-          { key: "Cache-Control", value: "private, no-store, no-cache, max-age=0, must-revalidate" },
-          { key: "CDN-Cache-Control", value: "no-store" },
-          { key: "Vercel-CDN-Cache-Control", value: "no-store" },
-        ],
-      },
+      ...appShellNoStoreSources.map((source) => ({
+        source,
+        headers: appShellNoStoreHeaders,
+      })),
       {
         source: "/orion-sw.js",
         headers: [
