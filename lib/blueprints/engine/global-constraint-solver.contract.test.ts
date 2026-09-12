@@ -41,6 +41,8 @@ const result = solveGlobalWallConstraints([horizontal, vertical, parallel, colli
 assert.equal(result.junctionCount, 1, "Only the near-coincident horizontal/vertical/collinear endpoint cluster should become a junction");
 assert.equal(result.snappedEndpointCount, 3);
 assert.equal(result.matchedDimensionCount, 1);
+assert.equal(result.singleWallDimensionCount, 1, "legacy same-axis wall-length dimensions should remain supported when no two-boundary span exists");
+assert.equal(result.boundarySpanDimensionCount, 0);
 assert.deepEqual(result.unresolvedDimensionIds, []);
 assert.ok(result.constraints.some((constraint) => constraint.relation === "junction"));
 assert.ok(result.constraints.some((constraint) => constraint.relation === "orthogonal"));
@@ -57,6 +59,31 @@ const junctionDistance = Math.hypot(
   solvedHorizontal.centerline.end.y - solvedVertical.centerline.start.y,
 );
 assert.ok(junctionDistance < 1e-12, "Global endpoint cluster must resolve to one exact junction node");
+
+const spanDimension: BosDimension = {
+  id: "dim-boundary-span",
+  levelId: "level-1",
+  page: 1,
+  start: { x: 1, y: -1 },
+  end: { x: 9, y: -1 },
+  value: 8,
+  unit: "m",
+  confidence: 0.95,
+  evidence: [],
+};
+const spanResult = solveGlobalWallConstraints([
+  wall("left-boundary-a", { x: 1.00, y: 0 }, { x: 1.00, y: 5 }),
+  wall("left-boundary-b", { x: 1.03, y: 5 }, { x: 1.03, y: 8 }),
+  wall("right-boundary", { x: 9.02, y: 0 }, { x: 9.02, y: 8 }),
+  wall("horizontal-decoy", { x: 1, y: 2 }, { x: 9, y: 2 }),
+], [spanDimension]);
+assert.equal(spanResult.matchedDimensionCount, 1);
+assert.equal(spanResult.boundarySpanDimensionCount, 1, "a horizontal printed dimension must resolve between vertical boundary-wall coordinate families");
+assert.equal(spanResult.singleWallDimensionCount, 0, "boundary span evidence should win before same-axis wall-length fallback");
+const spanConstraint = spanResult.constraints.find((constraint) => constraint.relation === "dimension" && constraint.dimensionId === "dim-boundary-span");
+assert(spanConstraint, "boundary span must emit a dimension constraint");
+assert(spanConstraint.wallIds.includes("left-boundary-a") && spanConstraint.wallIds.includes("right-boundary"), "boundary span must retain source wall family IDs on both measured sides");
+assert(Math.abs(spanConstraint.residual || 0) < 0.05, "boundary span residual should reflect the measured wall-coordinate separation");
 
 const noBridge = solveGlobalWallConstraints([
   wall("left", { x: 0, y: 0 }, { x: 2, y: 0 }),

@@ -23,7 +23,10 @@ export type BosRasterEvidenceBenchmark = {
   constrainedWallSystemCount: number;
   constrainedJunctionCount: number;
   constrainedSnappedEndpointCount: number;
+  sourceDimensionEvidenceMatchedCount: number;
   matchedDimensionCount: number;
+  boundarySpanDimensionCount: number;
+  singleWallDimensionCount: number;
   unresolvedDimensionCount: number;
   rawTopology: ReturnType<typeof topologyMetrics>;
   legacyPairedTopology: ReturnType<typeof topologyMetrics>;
@@ -60,7 +63,8 @@ export function evaluateRasterEvidenceStages(input: {
     ...solved.diagnostics,
     ...candidate.sheetFrameSelection.diagnostics,
     ...candidate.structuralSelection.diagnostics,
-    `Explicit raster global constraints retained ${candidate.constrained.wallSystems.length} wall systems with ${candidate.constrained.junctionCount} junctions and ${candidate.constrained.snappedEndpointCount} snapped endpoints; ${candidate.constrained.matchedDimensionCount} printed dimensions matched and ${candidate.constrained.unresolvedDimensionIds.length} remain unresolved.`,
+    ...candidate.dimensionEvidence.diagnostics,
+    `Explicit raster global constraints retained ${candidate.constrained.wallSystems.length} wall systems with ${candidate.constrained.junctionCount} junctions and ${candidate.constrained.snappedEndpointCount} snapped endpoints; ${candidate.constrained.matchedDimensionCount} printed dimensions matched (${candidate.constrained.boundarySpanDimensionCount} boundary spans, ${candidate.constrained.singleWallDimensionCount} single-wall lengths) and ${candidate.constrained.unresolvedDimensionIds.length} remain unresolved.`,
   ];
   return {
     rawSegmentCount: candidate.rawSegments.length,
@@ -78,7 +82,10 @@ export function evaluateRasterEvidenceStages(input: {
     constrainedWallSystemCount: candidate.constrained.wallSystems.length,
     constrainedJunctionCount: candidate.constrained.junctionCount,
     constrainedSnappedEndpointCount: candidate.constrained.snappedEndpointCount,
+    sourceDimensionEvidenceMatchedCount: candidate.dimensionEvidence.associations.length,
     matchedDimensionCount: candidate.constrained.matchedDimensionCount,
+    boundarySpanDimensionCount: candidate.constrained.boundarySpanDimensionCount,
+    singleWallDimensionCount: candidate.constrained.singleWallDimensionCount,
     unresolvedDimensionCount: candidate.constrained.unresolvedDimensionIds.length,
     rawTopology: topologyMetrics(candidate.rawSegments),
     legacyPairedTopology: topologyMetrics(legacyPaired),
