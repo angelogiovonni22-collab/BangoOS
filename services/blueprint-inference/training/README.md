@@ -11,4 +11,4 @@ These tools prepare commercially controlled training input without starting a GP
 
 The prepared job always has `epochs: 0` and `paid_gpu_enabled: false`. A later, separately approved training runner must set paid parameters explicitly.
 
-The initial 1,000 simple synthetic plans exercise the pipeline; they are not sufficient evidence for Production accuracy. Expand synthetic diversity and volume before the first candidate checkpoint. Keep all generated plans, exports, jobs, and weights outside source control.
+Version 2 varies wall weights, ink and paper intensity, scan noise, exterior windows, dimensions, room grids, and attached-garage footprints. Even so, 1,000 plans exercise the pipeline rather than proving Production accuracy. Expand volume and add licensed real-world style distributions before a final candidate checkpoint. Keep all generated plans, exports, jobs, and weights outside source control.

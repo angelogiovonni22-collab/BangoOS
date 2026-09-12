@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 CANVAS_SIZE = 512
-DATASET_VERSION = "bos-synthetic-floorplans-v1"
+DATASET_VERSION = "bos-synthetic-floorplans-v2"
 
 
 @dataclass(frozen=True)
@@ -55,6 +55,23 @@ def _line(pixels: bytearray, start: tuple[int, int], end: tuple[int, int], value
         _paint(pixels, round(x1 + (x2 - x1) * ratio), round(y1 + (y2 - y1) * ratio), value, radius)
 
 
+def _dimension_line(pixels: bytearray, start: tuple[int, int], end: tuple[int, int], value: int) -> None:
+    _line(pixels, start, end, value=value, radius=0)
+    if start[1] == end[1]:
+        for x in (start[0], end[0]):
+            _line(pixels, (x, start[1] - 4), (x, start[1] + 4), value=value, radius=0)
+    else:
+        for y in (start[1], end[1]):
+            _line(pixels, (start[0] - 4, y), (start[0] + 4, y), value=value, radius=0)
+
+
+def _add_scan_artifacts(pixels: bytearray, rng: random.Random, probability: float) -> None:
+    for index, value in enumerate(pixels):
+        if rng.random() < probability:
+            drift = rng.randint(-22, 22)
+            pixels[index] = max(0, min(255, value + drift))
+
+
 def _split(value: int) -> str:
     bucket = int(hashlib.sha256(f"{DATASET_VERSION}:{value}".encode()).hexdigest()[:8], 16) % 100
     return "train" if bucket < 80 else "validation" if bucket < 90 else "test"
@@ -96,7 +113,12 @@ def generate_sample(output_root: Path, sample_index: int, seed: int) -> dict[str
     directory = output_root / split / sample_id
     directory.mkdir(parents=True, exist_ok=False)
 
-    pixels = bytearray([248]) * (CANVAS_SIZE * CANVAS_SIZE)
+    background = rng.randint(238, 255)
+    ink = rng.randint(5, 42)
+    exterior_radius = rng.choice([2, 3, 3, 4])
+    interior_radius = rng.choice([1, 2, 2, 3])
+    scan_noise = rng.choice([0.0, 0.001, 0.003, 0.007, 0.012])
+    pixels = bytearray([background]) * (CANVAS_SIZE * CANVAS_SIZE)
     wall_segments: set[tuple[int, int, int, int]] = set()
     for room in rooms + ([garage] if garage else []):
         assert room is not None
@@ -109,15 +131,45 @@ def generate_sample(output_root: Path, sample_index: int, seed: int) -> dict[str
             canonical = (x1, y1, x2, y2) if (x1, y1) <= (x2, y2) else (x2, y2, x1, y1)
             wall_segments.add(canonical)
     for x1, y1, x2, y2 in wall_segments:
-        _line(pixels, (x1, y1), (x2, y2), radius=3 if x1 in (footprint.x, footprint.right) or y1 in (footprint.y, footprint.bottom) else 2)
+        exterior = x1 in (footprint.x, footprint.right) or y1 in (footprint.y, footprint.bottom)
+        _line(pixels, (x1, y1), (x2, y2), value=ink, radius=exterior_radius if exterior else interior_radius)
 
     openings: list[dict[str, object]] = []
     for index, room in enumerate(rooms[: max(2, len(rooms) // 2)]):
         width = min(24, max(14, room.width // 5))
         x1 = room.x + room.width // 2 - width // 2
         y1 = room.bottom
-        _line(pixels, (x1, y1), (x1 + width, y1), value=248, radius=4)
+        _line(pixels, (x1, y1), (x1 + width, y1), value=background, radius=exterior_radius + 1)
         openings.append({"id": f"opening-{index + 1}", "type": "door", "segment": [[x1 / CANVAS_SIZE, y1 / CANVAS_SIZE], [(x1 + width) / CANVAS_SIZE, y1 / CANVAS_SIZE]]})
+
+    window_count = rng.randint(2, 6)
+    for index in range(window_count):
+        horizontal = rng.random() < 0.65
+        if horizontal:
+            y1 = footprint.y if rng.random() < 0.5 else footprint.bottom
+            width = rng.randint(18, 38)
+            x1 = rng.randint(footprint.x + 18, footprint.right - width - 18)
+            start, end = (x1, y1), (x1 + width, y1)
+            _line(pixels, start, end, value=background, radius=exterior_radius + 1)
+            _line(pixels, start, end, value=min(120, ink + 55), radius=0)
+        else:
+            x1 = footprint.x if rng.random() < 0.5 else footprint.right
+            height = rng.randint(18, 38)
+            y1 = rng.randint(footprint.y + 18, footprint.bottom - height - 18)
+            start, end = (x1, y1), (x1, y1 + height)
+            _line(pixels, start, end, value=background, radius=exterior_radius + 1)
+            _line(pixels, start, end, value=min(120, ink + 55), radius=0)
+        openings.append({
+            "id": f"opening-{len(openings) + 1}",
+            "type": "window",
+            "segment": [[start[0] / CANVAS_SIZE, start[1] / CANVAS_SIZE], [end[0] / CANVAS_SIZE, end[1] / CANVAS_SIZE]],
+        })
+
+    dimensions = rng.random() < 0.78
+    if dimensions:
+        _dimension_line(pixels, (footprint.x, footprint.y - 18), (footprint.right, footprint.y - 18), min(155, ink + 85))
+        _dimension_line(pixels, (footprint.x - 18, footprint.y), (footprint.x - 18, footprint.bottom), min(155, ink + 85))
+    _add_scan_artifacts(pixels, rng, scan_noise)
 
     image_path = directory / "plan.png"
     _write_grayscale_png(image_path, pixels)
@@ -131,6 +183,15 @@ def generate_sample(output_root: Path, sample_index: int, seed: int) -> dict[str
         "attached_garage": None if garage is None else {"label": garage.label, "polygon": _normalized_polygon(garage)},
         "openings": openings,
         "walls": [{"start": [x1 / CANVAS_SIZE, y1 / CANVAS_SIZE], "end": [x2 / CANVAS_SIZE, y2 / CANVAS_SIZE]} for x1, y1, x2, y2 in sorted(wall_segments)],
+        "render_style": {
+            "background": background,
+            "ink": ink,
+            "exterior_wall_radius": exterior_radius,
+            "interior_wall_radius": interior_radius,
+            "scan_noise_probability": scan_noise,
+            "dimension_lines": dimensions,
+            "footprint": "attached_garage" if garage else "rectangle",
+        },
         "provenance": {"generator": DATASET_VERSION, "seed": seed, "sample_index": sample_index, "license": "B.O.S.-owned synthetic data", "contains_customer_data": False},
     }
     geometry_path = directory / "geometry.json"
