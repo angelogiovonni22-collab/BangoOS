@@ -301,7 +301,11 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   graph.windows = openings.windows;
   graph.rooms = traceWallBoundedRooms(graph);
 
-  const scaledText = scaleTextTokensToMeters(summary.page.text, graph.scale.drawingUnitsPerMeter);
+  const resolvedDrawingUnitsPerMeter = graph.scale.drawingUnitsPerMeter;
+  if (!resolvedDrawingUnitsPerMeter || resolvedDrawingUnitsPerMeter <= 0) {
+    throw new Error("B.O.S. lost the verified Blueprint scale during dimension reconciliation.");
+  }
+  const scaledText = scaleTextTokensToMeters(summary.page.text, resolvedDrawingUnitsPerMeter);
   const semanticGraph = recognizeArchitecturalSemantics(graph, scaledText);
   let validated = applyBosValidation(semanticGraph);
 
