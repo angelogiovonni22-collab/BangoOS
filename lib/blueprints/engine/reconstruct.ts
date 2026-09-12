@@ -1,5 +1,6 @@
 import { createEmptyBosBuildingGraph, type BosBuildingGraph } from "./building-graph";
 import { scaleTextTokensToMeters, recognizeArchitecturalSemantics } from "./architecture";
+import { applyDimensionWallConstraints } from "./dimension-constraints";
 import { segmentsToWalls, topologyMetrics, type BosRawSegment } from "./geometry";
 import { applyLearnedBlueprintAssist } from "./learned-assist";
 import { detectWallGapOpenings } from "./openings";
@@ -141,6 +142,7 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     wallDetection: "paired-line-1.2.0",
     topologySolver: "architectural-junction-solver-1.0.0",
     sourceSelection: "topology-scored-vector-first-1.0.0",
+    dimensionConstraints: "printed-dimension-wall-constraints-1.0.0",
     wallGapRepair: "disabled-after-production-regression-1.0.0",
     annotationFiltering: "dimension-evidence-zone-1.1.0",
     exteriorClassification: "room-adjacency-perimeter-1.0.0",
@@ -210,8 +212,6 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
       diagnostics.push(...rasterTopology.diagnostics);
       const rasterQuality = candidateQuality(rasterTopology.segments);
 
-      // Do not replace deterministic PDF vectors merely because rasterization generated more lines.
-      // Raster must materially improve topology quality, or rescue a vector extraction that is too sparse.
       const rasterMateriallyBetter = wallCandidates.length < 8
         ? rasterTopology.segments.length >= 8
         : rasterQuality >= selectedQuality + 0.08;
@@ -234,6 +234,11 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   diagnostics.push(`B.O.S. selected ${selectedSource} wall geometry after topology scoring (${selectedQuality.toFixed(3)}).`);
 
   let walls = segmentsToWalls(wallCandidates, { levelId, type: "unknown" });
+  const dimensionConstraints = applyDimensionWallConstraints(walls, graph.dimensions, graph.scale.drawingUnitsPerMeter);
+  walls = dimensionConstraints.walls;
+  graph.dimensions = dimensionConstraints.dimensions;
+  diagnostics.push(...dimensionConstraints.diagnostics);
+
   graph.walls = walls;
   const preliminaryRooms = traceWallBoundedRooms(graph);
   walls = classifyExteriorWalls(walls, preliminaryRooms);
