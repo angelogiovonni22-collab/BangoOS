@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Protocol
 
+from .model_governance import load_checkpoint_manifest
 from .schemas import Evidence, InferenceRequest, InferenceResponse, ModelRun, RoomPolygon, WallCandidate
 
 
@@ -136,8 +137,9 @@ class Raster2SeqAdapter:
     model = "raster2seq"
     model_version = "siggraph-2026"
 
-    def __init__(self, backend: Raster2SeqBackend) -> None:
+    def __init__(self, backend: Raster2SeqBackend, checkpoint_manifest: object | None = None) -> None:
         self._backend = backend
+        self.checkpoint_manifest = checkpoint_manifest
 
     def infer(self, request: InferenceRequest) -> InferenceResponse:
         started = perf_counter()
@@ -231,4 +233,9 @@ def raster2seq_adapter_from_env() -> Raster2SeqAdapter | None:
     command = os.environ.get("BOS_RASTER2SEQ_BRIDGE_COMMAND", "").strip()
     if not command:
         return None
-    return Raster2SeqAdapter(SubprocessRaster2SeqBackend(command))
+    manifest_path = os.environ.get("BOS_RASTER2SEQ_CHECKPOINT_MANIFEST", "").strip()
+    try:
+        manifest = load_checkpoint_manifest(manifest_path) if manifest_path else None
+    except (OSError, ValueError, json.JSONDecodeError):
+        manifest = None
+    return Raster2SeqAdapter(SubprocessRaster2SeqBackend(command), manifest)

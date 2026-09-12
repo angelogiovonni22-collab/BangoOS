@@ -63,6 +63,7 @@ class ModelAdapter(Protocol):
     capability: str
     model: str
     model_version: str
+    checkpoint_manifest: object
 
     def infer(self, request: InferenceRequest) -> InferenceResponse:
         ...
@@ -82,7 +83,13 @@ class InferencePipeline:
                 "priority": spec.priority,
                 "purpose": spec.purpose,
                 "installed": (spec.capability, spec.model, spec.model_version) in installed,
-                "available": (spec.capability, spec.model, spec.model_version) in installed and production_model_allowed(spec.model),
+                "available": any(
+                    item.capability == spec.capability
+                    and item.model == spec.model
+                    and item.model_version == spec.model_version
+                    and production_model_allowed(item.model, getattr(item, "checkpoint_manifest", None))
+                    for item in self._adapters
+                ),
                 "license": governance_for(spec.model).license_name,
                 "commercial_status": governance_for(spec.model).commercial_status,
                 "governance_note": governance_for(spec.model).note,
@@ -95,12 +102,14 @@ class InferencePipeline:
         selected = [
             adapter
             for adapter in self._adapters
-            if adapter.capability in requested and production_model_allowed(adapter.model)
+            if adapter.capability in requested
+            and production_model_allowed(adapter.model, getattr(adapter, "checkpoint_manifest", None))
         ]
         blocked_installed = [
             adapter
             for adapter in self._adapters
-            if adapter.capability in requested and not production_model_allowed(adapter.model)
+            if adapter.capability in requested
+            and not production_model_allowed(adapter.model, getattr(adapter, "checkpoint_manifest", None))
         ]
         if not selected:
             warnings = [
