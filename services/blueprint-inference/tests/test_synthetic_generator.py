@@ -34,6 +34,11 @@ class SyntheticGeneratorTest(unittest.TestCase):
                 self.assertEqual(payload["provenance"]["license"], "B.O.S.-owned synthetic data")
                 self.assertGreaterEqual(len(payload["rooms"]), 4)
                 self.assertGreaterEqual(len(payload["walls"]), 8)
+                self.assertGreaterEqual(
+                    len([opening for opening in payload["openings"] if opening["type"] == "window"]),
+                    2,
+                )
+                self.assertIn("scan_noise_probability", payload["render_style"])
 
     def test_refuses_to_overwrite_a_nonempty_dataset(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -41,6 +46,20 @@ class SyntheticGeneratorTest(unittest.TestCase):
             (root / "keep.txt").write_text("preserve", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "must be empty"):
                 generate_dataset(root, count=1, seed=1)
+
+    def test_dataset_contains_multiple_blueprint_render_styles(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = generate_dataset(root, count=80, seed=20260912)
+            styles = []
+            for sample in manifest["samples"]:
+                geometry = json.loads((root / sample["geometry"]).read_text(encoding="utf-8"))
+                styles.append(geometry["render_style"])
+            self.assertGreaterEqual(len({style["ink"] for style in styles}), 10)
+            self.assertEqual({style["footprint"] for style in styles}, {"rectangle", "attached_garage"})
+            self.assertIn(True, {style["dimension_lines"] for style in styles})
+            self.assertIn(False, {style["dimension_lines"] for style in styles})
+            self.assertGreaterEqual(len({style["scan_noise_probability"] for style in styles}), 4)
 
 
 if __name__ == "__main__":
