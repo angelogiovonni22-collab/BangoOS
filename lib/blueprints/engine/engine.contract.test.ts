@@ -21,18 +21,18 @@ assert(scale.drawingUnitsPerMeter && scale.drawingUnitsPerMeter > 0, "Architectu
 assert.equal(Math.round((parseArchitecturalLength(`10'-6\"`) || 0) * 1000), 3200, "10 ft 6 in should resolve to 3.2004m within rounding");
 
 const pages: BosParsedPage[] = [
-  { pageNumber: 1, width: 1000, height: 700, text: [{ text: "EXISTING BASEMENT FLOOR PLAN", page: 1 }], vectorSegments: [], rasterRequired: false },
-  { pageNumber: 2, width: 1000, height: 700, text: [{ text: "EXISTING FIRST FLOOR PLAN 1/4\" = 1'-0\" OUTSIDE DECK 2-CAR GARAGE", page: 2 }], vectorSegments: [], rasterRequired: false },
-  { pageNumber: 3, width: 1000, height: 700, text: [{ text: "EXISTING SECOND FLOOR PLAN", page: 3 }], vectorSegments: [], rasterRequired: false },
+  { pageNumber: 1, width: 1000, height: 700, text: [{ text: "A4 FIRST FLOOR PLAN 1/4\" = 1'-0\" OUTSIDE DECK 2-CAR GARAGE", page: 1 }], vectorSegments: [], rasterRequired: false },
+  { pageNumber: 2, width: 1000, height: 700, text: [{ text: "A1 BASEMENT FLOOR PLAN", page: 2 }], vectorSegments: [], rasterRequired: false },
+  { pageNumber: 3, width: 1000, height: 700, text: [{ text: "A5 SECOND FLOOR PLAN", page: 3 }], vectorSegments: [], rasterRequired: false },
 ];
-const selected = selectTargetPage(pages, { title: "EXISTING FIRST FLOOR PLAN", discipline: "Architectural" });
-assert.equal(selected.page.pageNumber, 2, "Registered first-floor sheet must target page 2 rather than page 1");
+const selected = selectTargetPage(pages, { sheetNumber: "A4", title: "FIRST FLOOR PLAN", discipline: "Architectural" });
+assert.equal(selected.page.pageNumber, 1, "Registered A4 first-floor sheet must target page 1 in this fixture");
 assert(selected.score > 0.5, "Target page should have a strong deterministic match");
 
 const raw: BosRawSegment[] = [
-  { sourcePage: 2, start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
-  { sourcePage: 2, start: { x: 4, y: 0 }, end: { x: 8, y: 0 } },
-  { sourcePage: 2, start: { x: 8, y: 0 }, end: { x: 8, y: 4 } },
+  { sourcePage: 1, start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+  { sourcePage: 1, start: { x: 4, y: 0 }, end: { x: 8, y: 0 } },
+  { sourcePage: 1, start: { x: 8, y: 0 }, end: { x: 8, y: 4 } },
 ];
 const merged = mergeCollinearSegments(raw);
 assert.equal(merged.length, 2, "Collinear connected wall segments should merge deterministically");
@@ -50,9 +50,10 @@ assert.equal(separatedTopology.junctions, 0, "Topology metrics must not bridge w
 
 const graph = createEmptyBosBuildingGraph({
   buildingId: "benchmark-house",
-  sourcePage: 2,
+  sourcePage: 1,
   levelName: "First Floor",
-  sourceSheetTitle: "EXISTING FIRST FLOOR PLAN",
+  sourceSheetNumber: "A4",
+  sourceSheetTitle: "First Floor Plan",
 });
 graph.scale = scale;
 
@@ -69,7 +70,7 @@ graph.walls = perimeter.map(([x1, y1, x2, y2], index): BosWall => ({
   thickness: 0.1524,
   height: 2.4384,
   confidence: 0.92,
-  sourcePage: 2,
+  sourcePage: 1,
   evidence: [],
   provenance: { createdBy: "deterministic", algorithm: "benchmark-fixture", algorithmVersion: "1", evidenceIds: [] },
 }));
@@ -78,19 +79,19 @@ assert(footprintComplexity(graph.walls.map((wall) => wall.centerline)) >= MITCHE
 graph.rooms.push({
   id: "room-garage", levelId: "level-1", type: "room", name: "2-Car Garage",
   polygon: { points: [{ x: -5, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 7 }, { x: -5, y: 7 }] },
-  confidence: 0.9, sourcePage: 2, evidence: [],
+  confidence: 0.9, sourcePage: 1, evidence: [],
   provenance: { createdBy: "deterministic", algorithm: "benchmark-fixture", algorithmVersion: "1", evidenceIds: [] },
 });
 graph.decksPorches.push({
   id: "deck-1", levelId: "level-1", type: "deck",
   polygon: { points: [{ x: 5, y: 14 }, { x: 11, y: 14 }, { x: 11, y: 17 }, { x: 5, y: 17 }] },
-  thickness: 0.15, elevation: 0, confidence: 0.9, sourcePage: 2, evidence: [],
+  thickness: 0.15, elevation: 0, confidence: 0.9, sourcePage: 1, evidence: [],
   provenance: { createdBy: "deterministic", algorithm: "benchmark-fixture", algorithmVersion: "1", evidenceIds: [] },
 });
 graph.stairs.push({
   id: "stair-1", levelId: "level-1", type: "stair",
   polygon: { points: [{ x: 6, y: 5 }, { x: 8, y: 5 }, { x: 8, y: 8 }, { x: 6, y: 8 }] },
-  direction: "up", confidence: 0.85, sourcePage: 2, evidence: [],
+  direction: "up", confidence: 0.85, sourcePage: 1, evidence: [],
   provenance: { createdBy: "deterministic", algorithm: "benchmark-fixture", algorithmVersion: "1", evidenceIds: [] },
 });
 const validated = applyBosValidation(graph);
@@ -108,7 +109,7 @@ assert.equal(detectedOpenings.doors[0].wallId, "opening-b", "Detected opening mu
 graph.dimensions.push({
   id: "dimension-wall-1",
   levelId: "level-1",
-  page: 2,
+  page: 1,
   start: { x: 0, y: -0.4 },
   end: { x: 12, y: -0.4 },
   value: 12,
@@ -156,7 +157,7 @@ assert.equal(conflictReplay.conflicts.length, 1, "Unmatched persisted correction
 assert.equal(conflictReplay.graph.validation.status, "needs_review", "Correction conflicts must prevent a regenerated graph from being presented as reconstructed");
 assert(conflictReplay.graph.validation.issues.some((issue) => issue.code === "CORRECTION_CONFLICT"), "Correction conflict must be visible in validation issues");
 
-const rectangle = createEmptyBosBuildingGraph({ buildingId: "bad", sourcePage: 2, sourceSheetTitle: "FIRST FLOOR PLAN" });
+const rectangle = createEmptyBosBuildingGraph({ buildingId: "bad", sourcePage: 1, sourceSheetNumber: "A4", sourceSheetTitle: "First Floor Plan" });
 rectangle.scale = scale;
 rectangle.walls = [
   [0, 0, 10, 0], [10, 0, 10, 10], [10, 10, 0, 10], [0, 10, 0, 0],
@@ -168,7 +169,7 @@ rectangle.walls = [
   thickness: 0.15,
   height: 2.44,
   confidence: 0.99,
-  sourcePage: 2,
+  sourcePage: 1,
   evidence: [],
   provenance: { createdBy: "deterministic", algorithm: "bad-fixture", algorithmVersion: "1", evidenceIds: [] },
 }));
