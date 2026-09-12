@@ -1,4 +1,5 @@
 import type { BosLine2 } from "./building-graph";
+import { DEFAULT_RASTER_LINE_OPTIONS, renderBlueprintPdfPage } from "./raster";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 
 export type BosGraySourceImage = {
@@ -28,6 +29,33 @@ export type BosSourcePixelOverlayReport = {
   perWallSupport: Array<{ wallSystemId: string; support: number; samples: number }>;
   diagnostics: string[];
 };
+
+type SharpImage = {
+  greyscale(): SharpImage;
+  normalize(): SharpImage;
+  raw(): SharpImage;
+  toBuffer(options: { resolveWithObject: true }): Promise<{ data: Uint8Array; info: { width: number; height: number } }>;
+};
+type SharpFactory = (buffer: Buffer, options: { failOn: "none" }) => SharpImage;
+
+async function loadSharp(): Promise<SharpFactory> {
+  const moduleName = "sharp";
+  try {
+    const sharpModule = await import(moduleName) as { default?: SharpFactory } & Partial<SharpFactory>;
+    const factory = sharpModule.default || (sharpModule as unknown as SharpFactory);
+    if (typeof factory !== "function") throw new Error("invalid sharp module");
+    return factory;
+  } catch {
+    throw new Error("Source-pixel Blueprint validation is unavailable on this deployment.");
+  }
+}
+
+export async function renderBlueprintGraySource(buffer: Buffer, pageNumber: number): Promise<BosGraySourceImage> {
+  const png = await renderBlueprintPdfPage(buffer, DEFAULT_RASTER_LINE_OPTIONS, pageNumber);
+  const sharp = await loadSharp();
+  const { data, info } = await sharp(png, { failOn: "none" }).greyscale().normalize().raw().toBuffer({ resolveWithObject: true });
+  return { data: new Uint8Array(data), width: info.width, height: info.height };
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
