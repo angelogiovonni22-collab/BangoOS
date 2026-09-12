@@ -28,6 +28,9 @@ jobs:
       - name: Native PDF vector fidelity
         run: npx -y tsx lib/blueprints/engine/pdf-vector-fidelity.contract.test.ts
 
+      - name: Architectural primitive classifier
+        run: npx -y tsx lib/blueprints/engine/primitive-classifier.contract.test.ts
+
       - name: Base parsing and geometry
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts base
 
