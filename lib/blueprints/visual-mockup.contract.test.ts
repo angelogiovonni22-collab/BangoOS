@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { BLUEPRINT_VISUAL_DISCLAIMER, BLUEPRINT_VISUAL_PROMPT_VERSION, buildBlueprintVisualPrompt, normalizeBlueprintVisualOptions } from "./visual-mockup";
+import { BLUEPRINT_VISUAL_DISCLAIMER, BLUEPRINT_VISUAL_PROMPT_VERSION, buildBlueprintVisualPrompt, buildBlueprintWallDistanceSchedule, formatMetersAsFeetInches, normalizeBlueprintVisualOptions } from "./visual-mockup";
 import { createEmptyBosBuildingGraph } from "./engine/building-graph";
 import { BLUEPRINT_GEOMETRY_LOCK_VERSION, assessBlueprintFidelity, renderBlueprintGeometryLock } from "./geometry-lock";
 
@@ -46,6 +46,15 @@ readyGraph.confidence = 0.9;
 readyGraph.scale = { source: "printed", drawingUnitsPerMeter: 100, confidence: 0.95 };
 readyGraph.validation = { version: 1, score: 0.9, status: "reconstructed", metrics: { exteriorClosure: 1, footprintComplexity: 0.8, wallTopology: 1, scaleConfidence: 0.95, semanticCoverage: 0.8 }, issues: [] };
 assert.equal(assessBlueprintFidelity(readyGraph, 2).allowed, true, "A validated closed graph must pass the fidelity gate");
+const wallDistances = buildBlueprintWallDistanceSchedule(readyGraph);
+assert.equal(wallDistances.available, true, "A reconstructed graph with verified scale must expose wall distances");
+assert.equal(wallDistances.walls.length, 8);
+assert.equal(wallDistances.walls[0]?.lengthImperial, "16′ 5″");
+assert.equal(formatMetersAsFeetInches(3.048), "10′ 0″");
+const untrustedScale = structuredClone(readyGraph);
+untrustedScale.scale.source = "unknown";
+untrustedScale.scale.confidence = 0;
+assert.equal(buildBlueprintWallDistanceSchedule(untrustedScale).available, false, "Unverified scale must never produce wall distances");
 const underStandard = structuredClone(readyGraph);
 underStandard.validation.metrics.wallTopology = 0.79;
 underStandard.validation.metrics.exteriorClosure = 0.74;
@@ -69,6 +78,8 @@ assert(migration.includes(BLUEPRINT_VISUAL_DISCLAIMER), "The construction-use di
 
 assert(preview.includes("BlueprintVisualMockupControl"), "The selected Blueprint preview must surface the visual mockup control");
 assert(control.includes("Generate Visual Mockup") && control.includes("Regenerate") && control.includes("Download") && control.includes("View source plan"), "UI must expose the complete visual mockup workflow");
+assert(control.includes("Wall distances") && control.includes("lengthImperial") && control.includes("blueprint-wall-distances"), "The visual mockup must expose verified wall distances in feet and inches");
+assert(route.includes("buildBlueprintWallDistanceSchedule") && route.includes("generated_model_id"), "Wall distances must be derived server-side from the bound Building Graph");
 assert(control.includes(BLUEPRINT_VISUAL_DISCLAIMER) && control.includes('data-orion-region="blueprint-ai-visual-mockup"'), "UI must expose the safety boundary and Orion semantics");
 assert(control.includes("architectural") && control.includes("warm-modern") && control.includes("monochrome") && control.includes("Furnished for scale"), "UI must provide only the scoped presentation options");
 

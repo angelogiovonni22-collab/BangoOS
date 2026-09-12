@@ -48,6 +48,63 @@ export function summarizeBlueprintGraph(graph: BosBuildingGraph | null, correcti
   };
 }
 
+export type BlueprintWallDistance = {
+  wallId: string;
+  label: string;
+  type: "exterior" | "interior" | "unknown";
+  lengthMeters: number;
+  lengthImperial: string;
+};
+
+function wallLengthMeters(wall: BosBuildingGraph["walls"][number]) {
+  return Math.hypot(
+    wall.centerline.end.x - wall.centerline.start.x,
+    wall.centerline.end.y - wall.centerline.start.y,
+  );
+}
+
+export function formatMetersAsFeetInches(meters: number) {
+  const totalInches = Math.max(0, Math.round(meters * 39.3700787402));
+  return `${Math.floor(totalInches / 12)}′ ${totalInches % 12}″`;
+}
+
+export function buildBlueprintWallDistanceSchedule(graph: BosBuildingGraph | null) {
+  const scaleTrusted = Boolean(
+    graph
+    && graph.validation.status === "reconstructed"
+    && graph.validation.metrics.scaleConfidence >= 0.9
+    && graph.scale.source !== "unknown"
+    && graph.scale.confidence >= 0.9,
+  );
+  if (!graph || !scaleTrusted) {
+    return {
+      available: false as const,
+      unit: "ft-in" as const,
+      reason: "Wall distances are unavailable until the blueprint scale passes verification.",
+      walls: [] as BlueprintWallDistance[],
+    };
+  }
+  const counts = { exterior: 0, interior: 0, unknown: 0 };
+  const walls = graph.walls
+    .map((wall) => {
+      counts[wall.type] += 1;
+      const lengthMeters = wallLengthMeters(wall);
+      return {
+        wallId: wall.id,
+        label: `${wall.type === "unknown" ? "Wall" : `${wall.type[0].toUpperCase()}${wall.type.slice(1)} wall`} ${counts[wall.type]}`,
+        type: wall.type,
+        lengthMeters: Math.round(lengthMeters * 1000) / 1000,
+        lengthImperial: formatMetersAsFeetInches(lengthMeters),
+      } satisfies BlueprintWallDistance;
+    })
+    .filter((wall) => wall.lengthMeters > 0)
+    .sort((left, right) => {
+      const rank = { exterior: 0, interior: 1, unknown: 2 };
+      return rank[left.type] - rank[right.type] || left.label.localeCompare(right.label, undefined, { numeric: true });
+    });
+  return { available: true as const, unit: "ft-in" as const, reason: null, walls };
+}
+
 export function buildBlueprintVisualPrompt(input: {
   sheetIdentity: string;
   sourcePage: number;

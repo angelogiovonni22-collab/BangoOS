@@ -10,6 +10,7 @@ import { BLUEPRINT_GEOMETRY_LOCK_VERSION, assessBlueprintFidelity, renderBluepri
 import {
   BLUEPRINT_VISUAL_DISCLAIMER,
   BLUEPRINT_VISUAL_PROMPT_VERSION,
+  buildBlueprintWallDistanceSchedule,
   buildBlueprintVisualPrompt,
   generateBlueprintVisual,
   normalizeBlueprintVisualOptions,
@@ -85,6 +86,19 @@ async function mockupPayload(supabase: SupabaseClient<Database>, db: ReturnType<
   if (response.error) throw new Error(response.error.message);
   if (!response.data) return { status: "not_generated", mockup: null };
   const row = response.data as Record<string, unknown>;
+  let wallDistances = buildBlueprintWallDistanceSchedule(null);
+  if (typeof row.generated_model_id === "string") {
+    const modelResponse = await db.from("blueprint_generated_models")
+      .select("building_graph")
+      .eq("id", row.generated_model_id)
+      .eq("company_id", source.company_id)
+      .eq("project_id", source.project_id)
+      .eq("source_version_id", source.id)
+      .maybeSingle();
+    if (!modelResponse.error && modelResponse.data?.building_graph) {
+      wallDistances = buildBlueprintWallDistanceSchedule(modelResponse.data.building_graph as BosBuildingGraph);
+    }
+  }
   let signedUrl: string | null = null;
   if ((row.status === "ready" || row.status === "needs_review") && typeof row.storage_path === "string") {
     const signed = await supabase.storage.from(BLUEPRINTS_BUCKET).createSignedUrl(row.storage_path, 60 * 30);
@@ -107,6 +121,7 @@ async function mockupPayload(supabase: SupabaseClient<Database>, db: ReturnType<
       errorMessage: typeof row.error_message === "string" ? row.error_message : null,
       createdAt: String(row.created_at),
       updatedAt: String(row.updated_at),
+      wallDistances,
     },
   };
 }
