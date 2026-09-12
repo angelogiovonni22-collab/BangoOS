@@ -93,8 +93,8 @@ assert.equal(diagnostic.dimensions.length, allDimensions.length, "diagnostics sh
 assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-single")?.reason, "matched_global_constraint");
 assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-split")?.reason, "source_axis_resolved_global_unmatched");
 assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-fragment")?.reason, "source_axis_resolved_global_unmatched");
-assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-unrelated-gap")?.reason, "no_single_span_length_match");
-assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-missing-witness")?.reason, "no_single_span_length_match");
+assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-unrelated-gap")?.reason, "length_match_not_near_label");
+assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-missing-witness")?.reason, "length_match_not_near_label");
 assert.equal(diagnostic.reasonCounts.matched_global_constraint, 1);
 assert.equal(diagnostic.reasonCounts.source_axis_resolved_global_unmatched, 2);
 assert(diagnostic.diagnostics.some((item) => item.includes("without changing source or candidate geometry")), "diagnostic phase must remain read only");
