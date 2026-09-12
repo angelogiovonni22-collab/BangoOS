@@ -52,6 +52,9 @@ jobs:
       - name: Source pixel overlay
         run: npx -y tsx lib/blueprints/engine/source-pixel-overlay.contract.test.ts
 
+      - name: Source wall network selector
+        run: npx -y tsx lib/blueprints/engine/source-wall-network-selector.contract.test.ts
+
       - name: Base parsing and geometry
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts base
 
