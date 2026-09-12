@@ -1,6 +1,6 @@
 import { createEmptyBosBuildingGraph, type BosBuildingGraph } from "./building-graph";
 import { scaleTextTokensToMeters, recognizeArchitecturalSemantics } from "./architecture";
-import { segmentsToWalls, type BosRawSegment } from "./geometry";
+import { segmentsToWalls, topologyMetrics, type BosRawSegment } from "./geometry";
 import { applyLearnedBlueprintAssist } from "./learned-assist";
 import { detectWallGapOpenings } from "./openings";
 import { normalizeParsedPlan, summarizeSelectedPlan } from "./plan-parser";
@@ -8,6 +8,7 @@ import { parsePdfVectorPlan } from "./pdf-vector-parser";
 import { extractRasterLineSegments } from "./raster";
 import { traceWallBoundedRooms } from "./room-tracing";
 import { classifyExteriorWalls } from "./exterior-classifier";
+import { solveArchitecturalTopology } from "./topology-solver";
 import { applyBosValidation } from "./validation";
 import { detectWallCenterlines, scaleSegmentsToMeters, suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
 
@@ -100,6 +101,14 @@ function dimensionAnnotationZones(graph: BosBuildingGraph): WallAnnotationZone[]
   }));
 }
 
+function candidateQuality(segments: BosRawSegment[]) {
+  if (!segments.length) return 0;
+  const topology = topologyMetrics(segments);
+  const confidence = segments.reduce((sum, segment) => sum + (segment.confidence ?? 0.75), 0) / segments.length;
+  const coverage = Math.min(1, segments.length / 32);
+  return topology.closure * 0.6 + confidence * 0.25 + coverage * 0.15;
+}
+
 export async function reconstructNativeBlueprint(source: NativeBlueprintSource): Promise<NativeBlueprintReconstruction> {
   if (source.mimeType !== "application/pdf") {
     throw new Error("Native vector reconstruction currently requires a PDF source; raster fallback must handle image-only plans.");
@@ -130,6 +139,8 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
     parser: "pdfjs-vector-1.0.0",
     sheetTargeting: "deterministic-title-sheet-1.0.0",
     wallDetection: "paired-line-1.2.0",
+    topologySolver: "architectural-junction-solver-1.0.0",
+    sourceSelection: "topology-scored-vector-first-1.0.0",
     wallGapRepair: "disabled-after-production-regression-1.0.0",
     annotationFiltering: "dimension-evidence-zone-1.1.0",
     exteriorClassification: "room-adjacency-perimeter-1.0.0",
@@ -172,10 +183,16 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
   const annotationZones = dimensionAnnotationZones(graph);
   const meterSegments = scaleSegmentsToMeters(summary.page.vectorSegments, graph.scale.drawingUnitsPerMeter);
   const symbolSegments = suppressDimensionAnnotationDetections(meterSegments, annotationZones);
-  let wallCandidates = suppressDimensionAnnotationDetections(detectWallCenterlines(meterSegments), annotationZones);
-  let rasterRequired = summary.rasterRequired;
+  const vectorDetected = suppressDimensionAnnotationDetections(detectWallCenterlines(meterSegments), annotationZones);
+  const vectorTopology = solveArchitecturalTopology(vectorDetected);
+  diagnostics.push(...vectorTopology.diagnostics);
+  let wallCandidates = vectorTopology.segments;
+  let selectedSource: "vector" | "raster" = "vector";
+  let selectedQuality = candidateQuality(wallCandidates);
+  let rasterRequired = summary.rasterRequired && wallCandidates.length < 8;
 
-  if (summary.rasterRequired || wallCandidates.length < 8) {
+  const shouldEvaluateRaster = summary.rasterRequired || wallCandidates.length < 8 || selectedQuality < 0.62;
+  if (shouldEvaluateRaster) {
     try {
       const raster = await extractRasterLineSegments(source.buffer, {
         page: parsed.selectedPage,
@@ -189,20 +206,32 @@ export async function reconstructNativeBlueprint(source: NativeBlueprintSource):
       if (structuralRasterCandidates.length < rasterWallCandidates.length) {
         diagnostics.push(`Raster structural clustering retained ${structuralRasterCandidates.length} of ${rasterWallCandidates.length} wall candidates in the dominant connected plan region.`);
       }
-      if (structuralRasterCandidates.length > wallCandidates.length) {
-        wallCandidates = structuralRasterCandidates;
+      const rasterTopology = solveArchitecturalTopology(structuralRasterCandidates);
+      diagnostics.push(...rasterTopology.diagnostics);
+      const rasterQuality = candidateQuality(rasterTopology.segments);
+
+      // Do not replace deterministic PDF vectors merely because rasterization generated more lines.
+      // Raster must materially improve topology quality, or rescue a vector extraction that is too sparse.
+      const rasterMateriallyBetter = wallCandidates.length < 8
+        ? rasterTopology.segments.length >= 8
+        : rasterQuality >= selectedQuality + 0.08;
+      if (rasterMateriallyBetter) {
+        wallCandidates = rasterTopology.segments;
+        selectedQuality = rasterQuality;
+        selectedSource = "raster";
         graph.metadata.algorithms = {
           ...graph.metadata.algorithms,
-          rasterFallback: "selected-pdf-page-orthogonal-lines-1.0.0",
+          rasterFallback: "selected-pdf-page-orthogonal-lines-1.1.0",
         };
       }
       rasterRequired = wallCandidates.length < 8;
-      if (rasterRequired) diagnostics.push("Raster fallback still found too few paired wall candidates for a faithful floor-plan reconstruction.");
+      if (rasterRequired) diagnostics.push("Raster fallback still found too few topology-validated wall candidates for a faithful floor-plan reconstruction.");
     } catch (error) {
-      rasterRequired = true;
+      rasterRequired = wallCandidates.length < 8;
       diagnostics.push(error instanceof Error ? error.message : "Raster Blueprint fallback failed closed.");
     }
   }
+  diagnostics.push(`B.O.S. selected ${selectedSource} wall geometry after topology scoring (${selectedQuality.toFixed(3)}).`);
 
   let walls = segmentsToWalls(wallCandidates, { levelId, type: "unknown" });
   graph.walls = walls;
