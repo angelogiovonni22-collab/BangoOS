@@ -21,7 +21,7 @@ def test_modal_runtime_is_cost_bounded_and_pinned():
     assert "torch==2.3.1" in dockerfile
     assert "torchvision==0.18.1" in dockerfile
     assert "https://download.pytorch.org/whl/cu118" in dockerfile
-    assert "hf:raster2graph-512" in dockerfile
+    assert "hf:raster2graph-512" not in dockerfile
     assert "BOS_RASTER2SEQ_IMAGE_SIZE=512" in dockerfile
 
     assert "workflow_dispatch:" in workflow

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 import json
 import os
 import subprocess
@@ -62,7 +63,20 @@ def main() -> None:
     if not predict_path.is_file():
         raise RuntimeError(f"Raster2Seq predict.py not found at {predict_path}")
 
-    checkpoint = os.environ.get("BOS_RASTER2SEQ_CHECKPOINT", "hf:raster2graph-512")
+    checkpoint_value = os.environ.get("BOS_RASTER2SEQ_CHECKPOINT", "").strip()
+    manifest_value = os.environ.get("BOS_RASTER2SEQ_CHECKPOINT_MANIFEST", "").strip()
+    if not checkpoint_value or not manifest_value:
+        raise RuntimeError("approved checkpoint and checkpoint manifest are required")
+    checkpoint_path = Path(checkpoint_value).resolve()
+    manifest_path = Path(manifest_value).resolve()
+    if not checkpoint_path.is_file() or not manifest_path.is_file():
+        raise RuntimeError("checkpoint and checkpoint manifest must be readable files")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    expected_sha = str(manifest.get("checkpoint", {}).get("sha256", "")).lower()
+    actual_sha = hashlib.sha256(checkpoint_path.read_bytes()).hexdigest()
+    if not expected_sha or actual_sha != expected_sha:
+        raise RuntimeError("checkpoint SHA-256 does not match its approved manifest")
+    checkpoint = str(checkpoint_path)
     model_size = int(os.environ.get("BOS_RASTER2SEQ_IMAGE_SIZE", "512"))
     if model_size not in (256, 512):
         raise ValueError("BOS_RASTER2SEQ_IMAGE_SIZE must be 256 or 512")
@@ -124,7 +138,7 @@ def main() -> None:
             "image_width_px": width,
             "image_height_px": height,
             "model_size_px": model_size,
-            "checkpoint": checkpoint.removeprefix("hf:"),
+            "checkpoint": str(manifest["checkpoint"]["id"]),
             "polygons": polygons,
         }))
 

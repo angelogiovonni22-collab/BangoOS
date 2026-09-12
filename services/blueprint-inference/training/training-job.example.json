@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "model": "raster2seq",
+  "architecture_source": "https://github.com/Cornell-VAILab/Raster2Seq",
+  "architecture_revision": "PIN_EXACT_COMMIT_BEFORE_TRAINING",
+  "dataset_manifest_sha256": "GENERATED_BY_EXPORT_RECEIPT",
+  "dataset_export_receipt_sha256": "GENERATED_AFTER_EXPORT",
+  "image_size": 512,
+  "seed": 20260912,
+  "epochs": 0,
+  "paid_gpu_enabled": false,
+  "output_checkpoint": "bos-raster2seq-v1",
+  "notes": "Template only. Set epochs and enable paid GPU only after cost approval."
+}

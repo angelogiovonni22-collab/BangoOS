@@ -12,7 +12,7 @@ This deployment keeps B.O.S. on its existing Next.js/Vercel/Supabase stack. Moda
 - Request timeout: 300 seconds
 - Container startup timeout: 600 seconds
 - Raster2Seq upstream revision: `a6c4e27a68d11d7a459f6e4a2601fd887227dd1a`
-- Default checkpoint: `hf:raster2graph-512`
+- Checkpoint: no default; deployment remains unavailable until a B.O.S.-owned checkpoint and its approved manifest are mounted
 - Raster2Seq image size: 512
 
 The endpoint still requires the existing `x-bos-inference-token` application-level authentication enforced by `bos_blueprint_inference.app`.
