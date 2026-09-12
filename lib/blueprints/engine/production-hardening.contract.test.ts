@@ -42,6 +42,22 @@ async function main() {
   assert.equal(conflictSolve.applied, false, "Conflicting dimensions must not alter geometry");
   assert.deepEqual(conflictSolve.graph.walls.map((item) => item.centerline), conflicting.walls.map((item) => item.centerline), "Conflicting-dimension fixture must preserve original wall coordinates");
 
+  // Consistent printed dimensions may safely reconcile a small global scale error.
+  const consistent = createEmptyBosBuildingGraph({ buildingId: "consistent-dimensions", sourcePage: 1, sourceSheetTitle: "A4 FIRST FLOOR PLAN" });
+  consistent.scale = { source: "printed", drawingUnitsPerMeter: 50, confidence: 0.88 };
+  consistent.walls = [wall("c1", 0, 0, 10, 0), wall("c2", 0, 5, 10, 5)];
+  consistent.dimensions = [
+    { id: "cd1", levelId: "level-1", page: 1, start: { x: 0, y: -0.5 }, end: { x: 10, y: -0.5 }, value: 10.5, unit: "m", rawText: "34'-5 3/8\"", confidence: 0.96, evidence: [] },
+    { id: "cd2", levelId: "level-1", page: 1, start: { x: 0, y: 5.5 }, end: { x: 10, y: 5.5 }, value: 10.52, unit: "m", rawText: "34'-6 1/8\"", confidence: 0.96, evidence: [] },
+  ];
+  const consistentSolve = solveDimensionScaleCorrection(consistent);
+  assert.equal(consistentSolve.conflict, false, "Consistent printed dimensions must not be reported as conflicting");
+  assert.equal(consistentSolve.applied, true, "A safe consistent global scale mismatch must be corrected");
+  assert(Math.abs(consistentSolve.factor - 1.052) < 0.002, "The median printed-dimension scale factor must drive reconciliation");
+  assert(Math.abs(consistentSolve.graph.walls[0].centerline.end.x - 10.52) < 0.03, "Reconciled wall geometry must match the printed dimension scale");
+  assert(Math.abs((consistentSolve.graph.dimensions[0].end?.x || 0) - 10.52) < 0.03, "Dimension anchors must stay registered with the rescaled Building Graph");
+  assert.equal(consistentSolve.graph.scale.source, "dimension_solved", "Successful reconciliation must record dimension-solved scale provenance");
+
   // Scanned-plan-like raster fixture: deterministic dark wall runs on a noisy paper background.
   const rasterFixture = Buffer.from(`
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="650" viewBox="0 0 900 650">
