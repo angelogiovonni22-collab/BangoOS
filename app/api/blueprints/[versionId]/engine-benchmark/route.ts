@@ -94,6 +94,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         segments: raster.segments,
         dimensions: selected.dimensions,
         drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
       });
       const sourceImage = await renderBlueprintGraySource(buffer, plan.selectedPage);
       const sourcePixelOverlay = assessSourcePixelOverlay({
@@ -114,6 +116,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
           segments: raster.segments,
           dimensions: selected.dimensions,
           drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
+          sourceWidthMeters: raster.width,
+          sourceHeightMeters: raster.height,
         }),
         sourcePixelOverlay,
       };

@@ -22,8 +22,8 @@ function wall(id: string, y: number): BosWallSystemCandidate {
 const width = 100;
 const height = 100;
 const data = new Uint8Array(width * height).fill(255);
-const inkHorizontal = (y: number) => {
-  for (let x = 10; x <= 90; x += 1) data[y * width + x] = 0;
+const inkHorizontal = (y: number, start = 10, end = 90) => {
+  for (let x = start; x <= end; x += 1) data[y * width + x] = 0;
 };
 const inkVertical = (x: number) => {
   for (let y = 50; y <= 90; y += 1) data[y * width + x] = 0;
@@ -31,6 +31,7 @@ const inkVertical = (x: number) => {
 inkHorizontal(20);
 inkHorizontal(22);
 inkVertical(50); // real architectural source line intentionally omitted by the candidate
+inkHorizontal(3, 1, 98); // majority-page sheet frame that must not count against architectural recall
 const image: BosGraySourceImage = { data, width, height };
 
 const supported = assessSourcePixelOverlay({
@@ -43,6 +44,18 @@ const supported = assessSourcePixelOverlay({
 assert(supported.predictedPrecision > 0.95, "predicted faces directly on source ink must have high precision");
 assert(supported.architecturalRecall < 0.9, "a missing real source wall must lower architectural recall");
 assert(supported.architecturalRecall > 0.4, "covered source walls must still contribute recall");
+assert(supported.excludedSheetFramePixelCount >= 90, "majority-page edge frame ink must be excluded from the architectural recall denominator");
+
+const noFrameData = new Uint8Array(data);
+for (let x = 1; x <= 98; x += 1) noFrameData[3 * width + x] = 255;
+const withoutFrame = assessSourcePixelOverlay({
+  image: { data: noFrameData, width, height },
+  wallSystems: [wall("supported", 2)],
+  sourceWidthMeters: 10,
+  sourceHeightMeters: 10,
+  options: { architecturalRunPixels: 20, supportRadiusPixels: 1, coverageRadiusPixels: 2, sampleStepPixels: 2 },
+});
+assert(Math.abs(supported.architecturalRecall - withoutFrame.architecturalRecall) < 0.01, "sheet-frame ink must not materially change architectural recall");
 
 const withUnsupported = assessSourcePixelOverlay({
   image,

@@ -1,6 +1,7 @@
 import type { BosDimension } from "./building-graph";
 import type { BosRawSegment } from "./geometry";
 import { solveGlobalWallConstraints } from "./global-constraint-solver";
+import { excludeRasterSheetFrameSystems } from "./raster-sheet-frame";
 import { selectStructuralRasterWallSystems } from "./raster-structural-selector";
 import { buildWallSystemsFromRasterFaces } from "./raster-wall-system-builder";
 import { suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
@@ -26,6 +27,8 @@ export function buildRasterArchitecturalCandidate(input: {
   segments: readonly BosRawSegment[];
   dimensions: readonly BosDimension[];
   drawingUnitsPerMeter: number;
+  sourceWidthMeters?: number | null;
+  sourceHeightMeters?: number | null;
 }) {
   if (!Number.isFinite(input.drawingUnitsPerMeter) || input.drawingUnitsPerMeter <= 0) {
     throw new Error("A verified drawing scale is required before raster architectural candidates can be built.");
@@ -38,13 +41,19 @@ export function buildRasterArchitecturalCandidate(input: {
   const zones = dimensionAnnotationZones(input.dimensions, input.drawingUnitsPerMeter);
   const annotationFiltered = suppressDimensionAnnotationDetections(rawSegments, zones);
   const explicitSystems = buildWallSystemsFromRasterFaces(annotationFiltered);
-  const structuralSelection = selectStructuralRasterWallSystems(explicitSystems);
+  const sheetFrameSelection = excludeRasterSheetFrameSystems(
+    explicitSystems,
+    input.sourceWidthMeters,
+    input.sourceHeightMeters,
+  );
+  const structuralSelection = selectStructuralRasterWallSystems(sheetFrameSelection.wallSystems);
   const constrained = solveGlobalWallConstraints(structuralSelection.wallSystems, input.dimensions);
   return {
     rawSegments,
     annotationFiltered,
     zones,
     explicitSystems,
+    sheetFrameSelection,
     structuralSelection,
     constrained,
   };

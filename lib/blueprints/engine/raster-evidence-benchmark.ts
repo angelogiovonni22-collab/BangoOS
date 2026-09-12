@@ -14,6 +14,7 @@ export type BosRasterEvidenceBenchmark = {
   dominantStructuralWallCount: number;
   topologyWallCount: number;
   explicitWallSystemCount: number;
+  sheetFrameRejectedWallSystemCount: number;
   selectedWallSystemCount: number;
   rejectedWallSystemCount: number;
   structuralComponentCount: number;
@@ -36,21 +37,15 @@ export type BosRasterEvidenceBenchmark = {
 };
 
 function systemSegments(systems: readonly BosWallSystemCandidate[]): BosRawSegment[] {
-  return systems.map((wall) => ({
-    start: { ...wall.centerline.start },
-    end: { ...wall.centerline.end },
-    sourcePage: wall.sourcePage,
-    sourceObjectId: wall.id,
-    strokeWidth: wall.thickness,
-    confidence: wall.confidence,
-  }));
+  return systems.map((wall) => ({ start: { ...wall.centerline.start }, end: { ...wall.centerline.end }, sourcePage: wall.sourcePage, sourceObjectId: wall.id, strokeWidth: wall.thickness, confidence: wall.confidence }));
 }
 
-/** Measures legacy and new raster architecture stages without mutating the canonical Building Graph. */
 export function evaluateRasterEvidenceStages(input: {
   segments: readonly BosRawSegment[];
   dimensions: readonly BosDimension[];
   drawingUnitsPerMeter: number;
+  sourceWidthMeters?: number | null;
+  sourceHeightMeters?: number | null;
 }): BosRasterEvidenceBenchmark {
   const candidate = buildRasterArchitecturalCandidate(input);
   const legacyPaired = suppressDimensionAnnotationDetections(detectWallCenterlines(candidate.rawSegments), candidate.zones);
@@ -59,11 +54,11 @@ export function evaluateRasterEvidenceStages(input: {
   const explicitSegments = systemSegments(candidate.explicitSystems);
   const selectedSegments = systemSegments(candidate.structuralSelection.wallSystems);
   const constrainedSegments = systemSegments(candidate.constrained.wallSystems);
-
   const diagnostics = [
-    `Raster evidence stage counts: raw ${candidate.rawSegments.length}, annotation-filtered ${candidate.annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${candidate.explicitSystems.length}, structural-selected ${candidate.structuralSelection.wallSystems.length}, constrained-systems ${candidate.constrained.wallSystems.length}.`,
+    `Raster evidence stage counts: raw ${candidate.rawSegments.length}, annotation-filtered ${candidate.annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${candidate.explicitSystems.length}, sheet-frame-rejected ${candidate.sheetFrameSelection.rejectedSystemIds.length}, structural-selected ${candidate.structuralSelection.wallSystems.length}, constrained-systems ${candidate.constrained.wallSystems.length}.`,
     `Raster topology closure: raw ${topologyMetrics(candidate.rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, selected ${topologyMetrics(selectedSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
     ...solved.diagnostics,
+    ...candidate.sheetFrameSelection.diagnostics,
     ...candidate.structuralSelection.diagnostics,
     `Explicit raster global constraints retained ${candidate.constrained.wallSystems.length} wall systems with ${candidate.constrained.junctionCount} junctions and ${candidate.constrained.snappedEndpointCount} snapped endpoints; ${candidate.constrained.matchedDimensionCount} printed dimensions matched and ${candidate.constrained.unresolvedDimensionIds.length} remain unresolved.`,
   ];
@@ -74,6 +69,7 @@ export function evaluateRasterEvidenceStages(input: {
     dominantStructuralWallCount: structural.length,
     topologyWallCount: solved.segments.length,
     explicitWallSystemCount: candidate.explicitSystems.length,
+    sheetFrameRejectedWallSystemCount: candidate.sheetFrameSelection.rejectedSystemIds.length,
     selectedWallSystemCount: candidate.structuralSelection.wallSystems.length,
     rejectedWallSystemCount: candidate.structuralSelection.rejectedSystemIds.length,
     structuralComponentCount: candidate.structuralSelection.componentCount,

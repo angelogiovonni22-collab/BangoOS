@@ -46,6 +46,9 @@ jobs:
       - name: Raster structural selector
         run: npx -y tsx lib/blueprints/engine/raster-structural-selector.contract.test.ts
 
+      - name: Raster sheet frame exclusion
+        run: npx -y tsx lib/blueprints/engine/raster-sheet-frame.contract.test.ts
+
       - name: Source pixel overlay
         run: npx -y tsx lib/blueprints/engine/source-pixel-overlay.contract.test.ts
 
