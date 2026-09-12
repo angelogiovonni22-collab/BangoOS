@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { BosDimension } from "./building-graph";
 import type { BosRawSegment } from "./geometry";
 import { associateRasterDimensionEvidence } from "./raster-dimension-evidence-associator";
+import { diagnoseRasterDimensions } from "./raster-dimension-unresolved-diagnostic";
 
 function dimension(id: string, value: number, bbox: { x: number; y: number; width: number; height: number }): BosDimension {
   return {
@@ -21,6 +22,7 @@ const splitDimension = dimension("dimension-split", 8, { x: 460, y: 385, width: 
 const unrelatedGapDimension = dimension("dimension-unrelated-gap", 8, { x: 700, y: 585, width: 80, height: 20 });
 const missingWitnessDimension = dimension("dimension-missing-witness", 8, { x: 460, y: 785, width: 80, height: 20 });
 const fragmentDimension = dimension("dimension-fragment", 8, { x: 460, y: 985, width: 80, height: 20 });
+const allDimensions = [singleDimension, splitDimension, unrelatedGapDimension, missingWitnessDimension, fragmentDimension];
 
 const segments: BosRawSegment[] = [
   { sourcePage: 1, sourceObjectId: "single-line", start: { x: 1, y: 2 }, end: { x: 9, y: 2 }, confidence: 0.9 },
@@ -51,7 +53,7 @@ const segments: BosRawSegment[] = [
 
 const result = associateRasterDimensionEvidence({
   segments,
-  dimensions: [singleDimension, splitDimension, unrelatedGapDimension, missingWitnessDimension, fragmentDimension],
+  dimensions: allDimensions,
   drawingUnitsPerMeter: 100,
 });
 
@@ -79,4 +81,21 @@ assert.equal(result.labelGapChainAssociationCount, 1);
 assert.equal(result.fragmentChainAssociationCount, 1);
 assert(result.diagnostics.some((item) => item.includes("Arbitrary geometric gaps are never bridged")), "diagnostics must make fail-closed chain behavior explicit");
 assert(result.diagnostics.some((item) => item.includes("do not move wall geometry")), "diagnostics must make the read-only evidence stage explicit");
+
+const diagnostic = diagnoseRasterDimensions({
+  segments,
+  dimensions: allDimensions,
+  drawingUnitsPerMeter: 100,
+  associations: result.associations,
+  matchedDimensionIds: new Set(["dimension-single"]),
+});
+assert.equal(diagnostic.dimensions.length, allDimensions.length, "diagnostics should classify every printed dimension");
+assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-single")?.reason, "matched_global_constraint");
+assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-split")?.reason, "source_axis_resolved_global_unmatched");
+assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-fragment")?.reason, "source_axis_resolved_global_unmatched");
+assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-unrelated-gap")?.reason, "length_match_not_near_label");
+assert.equal(diagnostic.dimensions.find((item) => item.dimensionId === "dimension-missing-witness")?.reason, "length_match_not_near_label");
+assert.equal(diagnostic.reasonCounts.matched_global_constraint, 1);
+assert.equal(diagnostic.reasonCounts.source_axis_resolved_global_unmatched, 2);
+assert(diagnostic.diagnostics.some((item) => item.includes("without changing source or candidate geometry")), "diagnostic phase must remain read only");
 console.log("Blueprint raster dimension evidence associator contract passed.");
