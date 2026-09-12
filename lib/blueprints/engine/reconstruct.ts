@@ -64,9 +64,13 @@ function scaleRawSegments(segments: readonly BosRawSegment[], factor: number): B
   }));
 }
 
-function dominantRasterWallCluster(input: BosRawSegment[]) {
+export function dominantRasterWallCluster(input: BosRawSegment[]) {
   if (input.length < 12) return input;
-  const tolerance = 0.22;
+  // This is a selection radius, not a geometry snap. Architectural wall runs can be separated
+  // by doors, cased openings and short connector gaps while still belonging to one building.
+  // Keeping the radius above a typical residential opening prevents valid wings/suites from
+  // being discarded before topology solving, while distant title-block/annotation noise stays out.
+  const tolerance = 1.2;
   const parent = input.map((_, index) => index);
   const find = (index: number): number => {
     let current = index;

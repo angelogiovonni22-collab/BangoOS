@@ -44,6 +44,10 @@ jobs:
         if: always()
         run: npx -y tsx components/plans/blueprint-graph-review.contract.test.ts
 
+      - name: Raster connected-wing selection
+        if: always()
+        run: npx -y tsx lib/blueprints/engine/raster-structural-cluster.contract.test.ts
+
       - name: Production dimension reconciliation
         if: always()
         run: npx -y tsx lib/blueprints/engine/production-hardening.contract.test.ts
