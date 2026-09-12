@@ -34,6 +34,9 @@ jobs:
       - name: Explicit wall system builder
         run: npx -y tsx lib/blueprints/engine/wall-system-builder.contract.test.ts
 
+      - name: Global wall constraints
+        run: npx -y tsx lib/blueprints/engine/global-constraint-solver.contract.test.ts
+
       - name: Base parsing and geometry
         run: npx -y tsx lib/blueprints/engine/engine-section-diagnostic.ts base
 
