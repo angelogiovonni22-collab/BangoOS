@@ -3,6 +3,7 @@ import type { BosRawSegment } from "./geometry";
 import { topologyMetrics } from "./geometry";
 import { diagnoseBoundaryFamilyProvenance, type BosBoundaryFamilyProvenanceDiagnostic } from "./boundary-family-provenance-diagnostic";
 import { diagnoseDimensionBackedBoundaryRecovery, type BosDimensionBackedBoundaryRecoveryDiagnostic } from "./dimension-backed-boundary-recovery-diagnostic";
+import { diagnoseDimensionChainBoundaries } from "./dimension-chain-boundary-diagnostic";
 import { diagnoseGlobalDimensionBoundaries, type BosGlobalDimensionBoundaryDiagnostic, type BosGlobalDimensionBoundaryDiagnosticReason } from "./global-dimension-boundary-diagnostic";
 import { diagnoseMissingBoundaryProvenance, type BosMissingBoundaryProbe } from "./missing-boundary-provenance-diagnostic";
 import { dominantRasterWallCluster } from "./reconstruct";
@@ -51,6 +52,8 @@ export type BosRasterEvidenceBenchmark = {
   missingBoundaryAbsentExplicitCount: number;
   dimensionBackedBoundaryRecovery: BosDimensionBackedBoundaryRecoveryDiagnostic[];
   dimensionBackedRecommendedRecoveryCount: number;
+  dimensionChainBoundaries: ReturnType<typeof diagnoseDimensionChainBoundaries>["chains"];
+  dimensionChainUniqueBoundaryCount: number;
   rawTopology: ReturnType<typeof topologyMetrics>;
   legacyPairedTopology: ReturnType<typeof topologyMetrics>;
   structuralTopology: ReturnType<typeof topologyMetrics>;
@@ -115,6 +118,10 @@ export function evaluateRasterEvidenceStages(input: {
     explicitSystems: candidate.explicitSystems,
     selectedWallSystems: candidate.structuralSelection.wallSystems,
   });
+  const dimensionChainBoundaryDiagnostic = diagnoseDimensionChainBoundaries({
+    dimensions: candidate.dimensionEvidence.dimensions,
+    provenance: boundaryFamilyProvenance.dimensions,
+  });
   const diagnostics = [
     `Raster evidence stage counts: raw ${candidate.rawSegments.length}, annotation-filtered ${candidate.annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${candidate.explicitSystems.length}, sheet-frame-rejected ${candidate.sheetFrameSelection.rejectedSystemIds.length}, structural-selected ${candidate.structuralSelection.wallSystems.length}, constrained-systems ${candidate.constrained.wallSystems.length}.`,
     `Raster topology closure: raw ${topologyMetrics(candidate.rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, selected ${topologyMetrics(selectedSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
@@ -127,6 +134,7 @@ export function evaluateRasterEvidenceStages(input: {
     ...boundaryFamilyProvenance.diagnostics,
     ...missingBoundaryProvenance.diagnostics,
     ...dimensionBackedBoundaryRecovery.diagnostics,
+    ...dimensionChainBoundaryDiagnostic.diagnostics,
     `Explicit raster global constraints retained ${candidate.constrained.wallSystems.length} wall systems with ${candidate.constrained.junctionCount} junctions and ${candidate.constrained.snappedEndpointCount} snapped endpoints; ${candidate.constrained.matchedDimensionCount} printed dimensions matched (${candidate.constrained.boundarySpanDimensionCount} boundary spans, ${candidate.constrained.singleWallDimensionCount} single-wall lengths) and ${candidate.constrained.unresolvedDimensionIds.length} remain unresolved.`,
   ];
   return {
@@ -168,6 +176,8 @@ export function evaluateRasterEvidenceStages(input: {
     missingBoundaryAbsentExplicitCount: missingBoundaryProvenance.absentExplicitBoundaryCount,
     dimensionBackedBoundaryRecovery: dimensionBackedBoundaryRecovery.dimensions,
     dimensionBackedRecommendedRecoveryCount: dimensionBackedBoundaryRecovery.recommendedRecoveryCount,
+    dimensionChainBoundaries: dimensionChainBoundaryDiagnostic.chains,
+    dimensionChainUniqueBoundaryCount: dimensionChainBoundaryDiagnostic.uniqueChainBoundaryCount,
     rawTopology: topologyMetrics(candidate.rawSegments),
     legacyPairedTopology: topologyMetrics(legacyPaired),
     structuralTopology: topologyMetrics(structural),
