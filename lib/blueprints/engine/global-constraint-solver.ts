@@ -164,6 +164,31 @@ function nearestUniqueBoundaryCluster(input: {
   return ranked[0];
 }
 
+function jointlyUniqueBoundaryPair(input: {
+  clusters: readonly BoundaryCluster[];
+  startCoordinate: number;
+  endCoordinate: number;
+  dimensionValue: number;
+  maxDistance: number;
+  maxRelativeError: number;
+}) {
+  const starts = input.clusters.map((cluster) => ({ cluster, distance: Math.abs(cluster.coordinate - input.startCoordinate) }))
+    .filter((item) => item.distance <= input.maxDistance);
+  const ends = input.clusters.map((cluster) => ({ cluster, distance: Math.abs(cluster.coordinate - input.endCoordinate) }))
+    .filter((item) => item.distance <= input.maxDistance);
+  const pairs = starts.flatMap((start) => ends.flatMap((end) => {
+    if (start.cluster === end.cluster) return [];
+    const measuredSpan = Math.abs(end.cluster.coordinate - start.cluster.coordinate);
+    const relativeError = Math.abs(measuredSpan - input.dimensionValue) / Math.max(input.dimensionValue, 0.001);
+    if (relativeError > input.maxRelativeError) return [];
+    const endpointPenalty = (start.distance + end.distance) / Math.max(input.maxDistance * 2, 0.001);
+    return [{ start, end, measuredSpan, relativeError, score: relativeError * 2 + endpointPenalty }];
+  })).sort((a, b) => a.score - b.score);
+  if (!pairs.length) return null;
+  if (pairs[1] && pairs[1].score - pairs[0].score < 0.05) return null;
+  return pairs[0];
+}
+
 /**
  * Solves only constraints supported by existing geometry. Nearby endpoint clusters are consolidated
  * into one global junction node; the solver never bridges endpoints outside the tight snap tolerance.
@@ -262,21 +287,34 @@ export function solveGlobalWallConstraints(
     const endCoordinate = dimensionAxis === "horizontal" ? dimension.end.x : dimension.end.y;
     const startBoundary = nearestUniqueBoundaryCluster({ clusters: boundaryClusters, coordinate: startCoordinate, maxDistance: dimensionBoundaryAlignmentTolerance, ambiguityGap: dimensionBoundaryAmbiguityGap });
     const endBoundary = nearestUniqueBoundaryCluster({ clusters: boundaryClusters, coordinate: endCoordinate, maxDistance: dimensionBoundaryAlignmentTolerance, ambiguityGap: dimensionBoundaryAmbiguityGap });
+    let matchedBoundaryPair: { start: { cluster: BoundaryCluster }; end: { cluster: BoundaryCluster }; measuredSpan: number; relativeError: number } | null = null;
     if (startBoundary && endBoundary && startBoundary.cluster !== endBoundary.cluster) {
       const measuredSpan = Math.abs(endBoundary.cluster.coordinate - startBoundary.cluster.coordinate);
       const relativeError = Math.abs(measuredSpan - dimension.value) / Math.max(dimension.value, 0.001);
-      if (relativeError <= dimensionMaxRelativeError) {
-        matchedDimensionCount += 1;
-        boundarySpanDimensionCount += 1;
-        constraints.push({
-          relation: "dimension",
-          wallIds: [...startBoundary.cluster.wallIds, ...endBoundary.cluster.wallIds],
-          dimensionId: dimension.id,
-          confidence: Math.min(dimension.confidence, Math.max(0, 1 - relativeError)),
-          residual: measuredSpan - dimension.value,
-        });
-        continue;
-      }
+      if (relativeError <= dimensionMaxRelativeError) matchedBoundaryPair = { start: startBoundary, end: endBoundary, measuredSpan, relativeError };
+    }
+    if (!matchedBoundaryPair) {
+      const joint = jointlyUniqueBoundaryPair({
+        clusters: boundaryClusters,
+        startCoordinate,
+        endCoordinate,
+        dimensionValue: dimension.value,
+        maxDistance: dimensionBoundaryAlignmentTolerance,
+        maxRelativeError: dimensionMaxRelativeError,
+      });
+      if (joint) matchedBoundaryPair = joint;
+    }
+    if (matchedBoundaryPair) {
+      matchedDimensionCount += 1;
+      boundarySpanDimensionCount += 1;
+      constraints.push({
+        relation: "dimension",
+        wallIds: [...matchedBoundaryPair.start.cluster.wallIds, ...matchedBoundaryPair.end.cluster.wallIds],
+        dimensionId: dimension.id,
+        confidence: Math.min(dimension.confidence, Math.max(0, 1 - matchedBoundaryPair.relativeError)),
+        residual: matchedBoundaryPair.measuredSpan - dimension.value,
+      });
+      continue;
     }
 
     const candidates = wallSystems.flatMap((wall) => {
