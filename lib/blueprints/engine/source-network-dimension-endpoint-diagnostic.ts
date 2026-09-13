@@ -2,10 +2,19 @@ import type { BosDimension } from "./building-graph";
 import type { BosRasterDimensionEvidenceAssociation } from "./raster-dimension-evidence-associator";
 import type { BosSourceWallFacePair } from "./source-wall-face-mask";
 
+export type BosIndependentBoundaryFamilyMember = {
+  pairId: string;
+  coordinate: number;
+  separationMeters: number;
+  endpointDistanceMeters: number;
+};
+
 export type BosIndependentBoundaryFamily = {
   coordinate: number;
   nearestEndpointDistanceMeters: number;
   pairIds: string[];
+  representativePairId: string;
+  members: BosIndependentBoundaryFamilyMember[];
 };
 
 export type BosIndependentDimensionBoundaryReason =
@@ -53,11 +62,11 @@ function pairCoordinate(input: {
 }
 
 function clusterFamilies(input: {
-  coordinates: Array<{ coordinate: number; distance: number; pairId: string }>;
+  coordinates: BosIndependentBoundaryFamilyMember[];
   clusterToleranceMeters: number;
 }) {
   const sorted = [...input.coordinates].sort((a, b) => a.coordinate - b.coordinate);
-  const groups: Array<Array<{ coordinate: number; distance: number; pairId: string }>> = [];
+  const groups: BosIndependentBoundaryFamilyMember[][] = [];
   for (const candidate of sorted) {
     const current = groups[groups.length - 1];
     if (!current || Math.abs(candidate.coordinate - current[current.length - 1].coordinate) > input.clusterToleranceMeters) {
@@ -67,11 +76,14 @@ function clusterFamilies(input: {
     }
   }
   return groups.map((group): BosIndependentBoundaryFamily => {
-    const representative = [...group].sort((a, b) => a.distance - b.distance || a.coordinate - b.coordinate)[0];
+    const members = [...group].sort((a, b) => a.coordinate - b.coordinate || a.pairId.localeCompare(b.pairId));
+    const representative = [...group].sort((a, b) => a.endpointDistanceMeters - b.endpointDistanceMeters || a.coordinate - b.coordinate)[0];
     return {
       coordinate: representative.coordinate,
-      nearestEndpointDistanceMeters: representative.distance,
-      pairIds: group.map((item) => item.pairId),
+      nearestEndpointDistanceMeters: representative.endpointDistanceMeters,
+      pairIds: members.map((item) => item.pairId),
+      representativePairId: representative.pairId,
+      members,
     };
   }).sort((a, b) => a.nearestEndpointDistanceMeters - b.nearestEndpointDistanceMeters);
 }
@@ -79,7 +91,9 @@ function clusterFamilies(input: {
 /**
  * Read-only diagnostic that asks whether the independently rendered source-wall network supports
  * the measured endpoints of source-resolved dimensions. It uses only retained source wall-face pairs,
- * never reconstructed wall IDs, and does not move or create geometry.
+ * never reconstructed wall IDs, and does not move or create geometry. Each clustered boundary family
+ * also preserves its retained source-pair member coordinates and separations so later fidelity checks
+ * can distinguish a representative-coordinate artifact from a true reconstructed-wall mismatch.
  */
 export function diagnoseIndependentSourceDimensionBoundaries(input: {
   dimensions: readonly BosDimension[];
@@ -121,8 +135,13 @@ export function diagnoseIndependentSourceDimensionBoundaries(input: {
           sourceWidthMeters: input.sourceWidthMeters,
           sourceHeightMeters: input.sourceHeightMeters,
         });
-        const distance = Math.abs(coordinate - endpointCoordinate);
-        return distance <= probeRadiusMeters ? [{ coordinate, distance, pairId: pair.id }] : [];
+        const endpointDistanceMeters = Math.abs(coordinate - endpointCoordinate);
+        return endpointDistanceMeters <= probeRadiusMeters ? [{
+          pairId: pair.id,
+          coordinate,
+          separationMeters: pair.separationMeters,
+          endpointDistanceMeters,
+        }] : [];
       }),
       clusterToleranceMeters: familyClusterToleranceMeters,
     });
@@ -175,6 +194,7 @@ export function diagnoseIndependentSourceDimensionBoundaries(input: {
     diagnostics: [
       `Independent source-network boundary diagnostic inspected ${diagnostics.length} source-resolved unmatched dimensions.`,
       `${uniquePairCount} have exactly one rendered-source boundary pair within the existing ${endpointAlignmentMeters.toFixed(2)} m endpoint and ${(maximumRelativeSpanError * 100).toFixed(1)}% span gates.`,
+      "Clustered boundary families retain every source-pair member coordinate and separation while preserving the existing representative used by downstream matching.",
       "Read-only: retained source-wall evidence is reported without moving, promoting, or creating geometry.",
     ],
   };
