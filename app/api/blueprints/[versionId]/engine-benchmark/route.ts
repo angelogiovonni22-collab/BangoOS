@@ -14,6 +14,7 @@ import { assessSourceWallNetworkOverlay, buildIndependentSourceWallNetworkEviden
 import { diagnoseIndependentSourceDimensionBoundaries } from "@/lib/blueprints/engine/source-network-dimension-endpoint-diagnostic";
 import { diagnoseCrossEvidenceBoundaryConvergence } from "@/lib/blueprints/engine/cross-evidence-boundary-convergence-diagnostic";
 import { diagnoseCrossEvidenceConstraintReadiness } from "@/lib/blueprints/engine/cross-evidence-constraint-readiness-diagnostic";
+import { simulateReadOnlyDimensionConstraints } from "@/lib/blueprints/engine/read-only-dimension-constraint-simulation";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -137,6 +138,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         wallSystems: architecturalCandidate.constrained.wallSystems,
         sourcePixelOverlay,
       });
+      const readOnlyDimensionConstraintSimulation = simulateReadOnlyDimensionConstraints({
+        dimensions: architecturalCandidate.dimensionEvidence.dimensions,
+        readiness: crossEvidenceConstraintReadiness.dimensions,
+        convergence: crossEvidenceBoundaryConvergence.dimensions,
+        wallSystems: architecturalCandidate.constrained.wallSystems,
+      });
       rasterEvidence = {
         extraction: { widthMeters: raster.width, heightMeters: raster.height, sourcePixelWidth: sourceImage.width, sourcePixelHeight: sourceImage.height, diagnostics: raster.diagnostics },
         stages,
@@ -145,6 +152,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         independentDimensionBoundaryEvidence,
         crossEvidenceBoundaryConvergence,
         crossEvidenceConstraintReadiness,
+        readOnlyDimensionConstraintSimulation,
       };
     }
 
