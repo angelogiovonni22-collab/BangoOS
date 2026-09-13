@@ -2,16 +2,16 @@ import assert from "node:assert/strict";
 import { diagnoseIndependentSourceDimensionBoundaries } from "./source-network-dimension-endpoint-diagnostic";
 import type { BosSourceWallFacePair } from "./source-wall-face-mask";
 
-const pair = (id: string, xMeters: number): BosSourceWallFacePair => ({
+const pair = (id: string, xMeters: number, separationMeters = 0.1): BosSourceWallFacePair => ({
   id,
   orientation: "vertical",
-  faceAFixedPixel: Math.round((xMeters - 0.05) * 100),
-  faceBFixedPixel: Math.round((xMeters + 0.05) * 100),
+  faceAFixedPixel: Math.round((xMeters - separationMeters / 2) * 100),
+  faceBFixedPixel: Math.round((xMeters + separationMeters / 2) * 100),
   startPixel: 0,
   endPixel: 400,
   centerFixedPixel: Math.round(xMeters * 100),
   lengthMeters: 4,
-  separationMeters: 0.1,
+  separationMeters,
 });
 
 const dimensions = [
@@ -25,7 +25,7 @@ const unique = diagnoseIndependentSourceDimensionBoundaries({
   dimensions,
   associations,
   dimensionIds: new Set(["d1"]),
-  wallFacePairs: [pair("left", 10.04), pair("right-a", 14.02), pair("right-b", 14.06)],
+  wallFacePairs: [pair("left", 10.04, 0.12), pair("right-a", 14.02, 0.1), pair("right-b", 14.06, 0.18)],
   sourcePixelWidth: 3000,
   sourcePixelHeight: 2000,
   sourceWidthMeters: 30,
@@ -34,6 +34,12 @@ const unique = diagnoseIndependentSourceDimensionBoundaries({
 assert.equal(unique.uniquePairCount, 1);
 assert.equal(unique.dimensions[0].reason, "unique_independent_boundary_pair");
 assert.equal(unique.dimensions[0].endFamilies.length, 1, "near-duplicate source pairs should cluster into one boundary family");
+assert.equal(unique.dimensions[0].endFamilies[0].representativePairId, "right-a", "existing nearest-endpoint representative behavior must be preserved");
+assert.deepEqual(unique.dimensions[0].endFamilies[0].pairIds, ["right-a", "right-b"]);
+assert.deepEqual(unique.dimensions[0].endFamilies[0].members.map((member) => member.pairId), ["right-a", "right-b"]);
+assert.deepEqual(unique.dimensions[0].endFamilies[0].members.map((member) => member.coordinate), [14.02, 14.06]);
+assert.deepEqual(unique.dimensions[0].endFamilies[0].members.map((member) => member.separationMeters), [0.1, 0.18]);
+assert(unique.diagnostics.some((item) => item.includes("preserving the existing representative")));
 
 const ambiguous = diagnoseIndependentSourceDimensionBoundaries({
   dimensions,
