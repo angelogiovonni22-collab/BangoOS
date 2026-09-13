@@ -1,0 +1,23 @@
+name: Blueprint Read Only Constraint Simulation
+
+on:
+  pull_request:
+    paths:
+      - "lib/blueprints/engine/read-only-dimension-constraint-simulation.ts"
+      - "lib/blueprints/engine/read-only-dimension-constraint-simulation.contract.test.ts"
+      - "app/api/blueprints/[versionId]/engine-benchmark/route.ts"
+      - ".github/workflows/blueprint-read-only-constraint-simulation.yml"
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Read-only dimension constraint simulation
+        run: npx -y tsx lib/blueprints/engine/read-only-dimension-constraint-simulation.contract.test.ts
