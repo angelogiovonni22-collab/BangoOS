@@ -399,7 +399,7 @@ export function associateRasterDimensionEvidence(input: {
       ...buildFragmentChainCandidates({ segments: input.segments, dimension, label, maxRelativeLengthError, maxLabelDistanceMeters, collinearToleranceMeters: chainCollinearToleranceMeters, labelGapPaddingMeters: chainLabelGapPaddingMeters, fragmentGapToleranceMeters, maxSegments: maxFragmentChainSegments }),
       ...buildWitnessSpanCandidates({ segments: input.segments, dimension, label, maxRelativeLengthError, maxLabelDistanceMeters, minWitnessLengthMeters: witnessSpanMinWitnessLengthMeters, maxWitnessLengthMeters: witnessSpanMaxWitnessLengthMeters, baselineAlignmentToleranceMeters: witnessSpanBaselineAlignmentToleranceMeters, labelPaddingMeters: witnessSpanLabelPaddingMeters }),
     ];
-    const candidates = rawCandidates.flatMap((candidate): Array<AxisCandidate & { startWitnessSupport: boolean; endWitnessSupport: boolean }> => {
+    const supportedCandidates = rawCandidates.flatMap((candidate): Array<AxisCandidate & { startWitnessSupport: boolean; endWitnessSupport: boolean }> => {
       if (candidate.evidenceMode === "witness_span") {
         return [{ ...candidate, startWitnessSupport: true, endWitnessSupport: true }];
       }
@@ -409,7 +409,12 @@ export function associateRasterDimensionEvidence(input: {
       const endWitnessSupport = witnessSupport({ endpoint: candidate.segment.end, dimensionAngle, segments: input.segments, sourcePage: dimension.page, endpointTolerance: witnessEndpointToleranceMeters, angleTolerance: witnessAngleToleranceRadians, excludedSourceSegmentIds: excluded });
       if (!startWitnessSupport || !endWitnessSupport) return [];
       return [{ ...candidate, startWitnessSupport, endWitnessSupport }];
-    }).sort((a, b) => a.score - b.score);
+    });
+    const strongerBaselineCandidates = supportedCandidates.filter((candidate) => candidate.evidenceMode !== "witness_span");
+    const candidates = (strongerBaselineCandidates.length
+      ? strongerBaselineCandidates
+      : supportedCandidates.filter((candidate) => candidate.evidenceMode === "witness_span"))
+      .sort((a, b) => a.score - b.score);
 
     if (!candidates.length || (candidates[1] && candidates[1].sourceSegmentId !== candidates[0].sourceSegmentId && candidates[1].score - candidates[0].score < ambiguityScoreGap)) {
       unresolvedDimensionIds.push(dimension.id);
@@ -457,6 +462,7 @@ export function associateRasterDimensionEvidence(input: {
       `${unresolvedDimensionIds.length} dimensions remain unresolved rather than being inferred from text position alone.`,
       `Fragment chains allow at most ${maxFragmentChainSegments} collinear source pieces, tiny breaks up to ${fragmentGapToleranceMeters.toFixed(2)} m, and one larger gap only where the printed label occupies it.`,
       `Witness spans require two perpendicular source extension lines ${witnessSpanMinWitnessLengthMeters.toFixed(2)}–${witnessSpanMaxWitnessLengthMeters.toFixed(2)} m long with aligned endpoints within ${witnessSpanBaselineAlignmentToleranceMeters.toFixed(2)} m and printed-value spacing.`,
+      "Witness spans are a fallback only when no stronger source-supported baseline rule or bounded chain survives validation.",
       "Arbitrary geometric gaps are never bridged and resolved dimension axes do not move wall geometry in this stage.",
     ],
   };
