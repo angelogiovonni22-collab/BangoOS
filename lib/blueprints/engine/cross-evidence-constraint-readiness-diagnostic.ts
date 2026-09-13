@@ -7,6 +7,7 @@ export type BosCrossEvidenceConstraintReadinessReason =
   | "not_uniquely_converged"
   | "missing_candidate_wall"
   | "insufficient_source_pixel_support"
+  | "boundary_coordinate_mismatch"
   | "span_residual_too_high";
 
 export type BosCrossEvidenceConstraintReadinessDiagnostic = {
@@ -14,6 +15,9 @@ export type BosCrossEvidenceConstraintReadinessDiagnostic = {
   rawText: string;
   candidateWallIds: string[];
   minimumWallSourceSupport: number | null;
+  startBoundaryOffsetMeters: number | null;
+  endBoundaryOffsetMeters: number | null;
+  maximumBoundaryOffsetMeters: number | null;
   independentRelativeSpanError: number | null;
   candidateRelativeSpanError: number | null;
   ready: boolean;
@@ -23,17 +27,20 @@ export type BosCrossEvidenceConstraintReadinessDiagnostic = {
 /**
  * Read-only gate between evidence convergence and any later constraint-consumption simulation.
  * It verifies that the converged pair refers only to retained candidate walls, that every referenced
- * wall remains directly supported by rendered source pixels, and that both independent and candidate
- * spans stay inside the strict fidelity residual. No constraints or geometry are changed here.
+ * wall remains directly supported by rendered source pixels, that candidate boundary coordinates stay
+ * within the strict source-coordinate fidelity target, and that both independent and candidate spans
+ * stay inside the strict fidelity residual. No constraints or geometry are changed here.
  */
 export function diagnoseCrossEvidenceConstraintReadiness(input: {
   convergence: readonly BosCrossEvidenceBoundaryConvergenceDiagnostic[];
   wallSystems: readonly BosWallSystemCandidate[];
   sourcePixelOverlay: BosSourcePixelOverlayReport;
   minimumWallSourceSupport?: number;
+  maximumBoundaryOffsetMeters?: number;
   maximumRelativeSpanError?: number;
 }) {
   const minimumWallSourceSupport = input.minimumWallSourceSupport ?? 0.95;
+  const maximumBoundaryOffsetMeters = input.maximumBoundaryOffsetMeters ?? 0.02;
   const maximumRelativeSpanError = input.maximumRelativeSpanError ?? 0.015;
   const wallIds = new Set(input.wallSystems.map((wall) => wall.id));
   const supportById = new Map(input.sourcePixelOverlay.perWallSupport.map((item) => [item.wallSystemId, item.support]));
@@ -47,6 +54,9 @@ export function diagnoseCrossEvidenceConstraintReadiness(input: {
         rawText: item.rawText,
         candidateWallIds: [],
         minimumWallSourceSupport: null,
+        startBoundaryOffsetMeters: null,
+        endBoundaryOffsetMeters: null,
+        maximumBoundaryOffsetMeters: null,
         independentRelativeSpanError: null,
         candidateRelativeSpanError: null,
         ready: false,
@@ -59,10 +69,14 @@ export function diagnoseCrossEvidenceConstraintReadiness(input: {
     const supports = candidateWallIds.map((id) => supportById.get(id)).filter((value): value is number => typeof value === "number");
     const minimumObservedSupport = supports.length ? Math.min(...supports) : null;
     const supportComplete = supports.length === candidateWallIds.length;
+    const startBoundaryOffsetMeters = Math.abs(candidate.candidateStartCoordinate - candidate.independentStartCoordinate);
+    const endBoundaryOffsetMeters = Math.abs(candidate.candidateEndCoordinate - candidate.independentEndCoordinate);
+    const maximumObservedBoundaryOffsetMeters = Math.max(startBoundaryOffsetMeters, endBoundaryOffsetMeters);
 
     let reason: BosCrossEvidenceConstraintReadinessReason = "ready_for_read_only_constraint_simulation";
     if (missingWall) reason = "missing_candidate_wall";
     else if (!supportComplete || minimumObservedSupport === null || minimumObservedSupport < minimumWallSourceSupport) reason = "insufficient_source_pixel_support";
+    else if (maximumObservedBoundaryOffsetMeters > maximumBoundaryOffsetMeters) reason = "boundary_coordinate_mismatch";
     else if (candidate.independentRelativeSpanError > maximumRelativeSpanError || candidate.candidateRelativeSpanError > maximumRelativeSpanError) reason = "span_residual_too_high";
 
     return {
@@ -70,6 +84,9 @@ export function diagnoseCrossEvidenceConstraintReadiness(input: {
       rawText: item.rawText,
       candidateWallIds,
       minimumWallSourceSupport: minimumObservedSupport,
+      startBoundaryOffsetMeters,
+      endBoundaryOffsetMeters,
+      maximumBoundaryOffsetMeters: maximumObservedBoundaryOffsetMeters,
       independentRelativeSpanError: candidate.independentRelativeSpanError,
       candidateRelativeSpanError: candidate.candidateRelativeSpanError,
       ready: reason === "ready_for_read_only_constraint_simulation",
@@ -83,7 +100,7 @@ export function diagnoseCrossEvidenceConstraintReadiness(input: {
     readyCount,
     diagnostics: [
       `Cross-evidence constraint readiness inspected ${diagnostics.length} convergence result(s).`,
-      `${readyCount} are eligible for a later read-only constraint-consumption simulation with ${(minimumWallSourceSupport * 100).toFixed(0)}% minimum direct source-pixel wall support and ${(maximumRelativeSpanError * 100).toFixed(1)}% span residual.`,
+      `${readyCount} are eligible for a later read-only constraint-consumption simulation with ${(minimumWallSourceSupport * 100).toFixed(0)}% minimum direct source-pixel wall support, ${(maximumBoundaryOffsetMeters * 100).toFixed(0)} cm maximum candidate-to-source boundary offset, and ${(maximumRelativeSpanError * 100).toFixed(1)}% span residual.`,
       "Read-only: this gate does not add constraints, move walls, alter topology, persist geometry, or change the canonical model.",
     ],
   };
