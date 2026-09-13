@@ -4,12 +4,12 @@ import type { BosSourcePixelOverlayReport } from "./source-pixel-overlay";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 import { diagnoseCrossEvidenceConstraintReadiness } from "./cross-evidence-constraint-readiness-diagnostic";
 
-function wall(id: string): BosWallSystemCandidate {
+function wall(id: string, x: number, thickness = 0.15): BosWallSystemCandidate {
   return {
     id,
     sourcePage: 1,
-    centerline: { start: { x: 0, y: 0 }, end: { x: 0, y: 3 } },
-    thickness: 0.15,
+    centerline: { start: { x, y: 0 }, end: { x, y: 3 } },
+    thickness,
     length: 3,
     orientationRadians: Math.PI / 2,
     confidence: 0.95,
@@ -19,14 +19,14 @@ function wall(id: string): BosWallSystemCandidate {
       primitiveId: `${id}-a`,
       sourcePage: 1,
       confidence: 0.95,
-      line: { start: { x: -0.075, y: 0 }, end: { x: -0.075, y: 3 } },
+      line: { start: { x: x - thickness / 2, y: 0 }, end: { x: x - thickness / 2, y: 3 } },
     },
     faceB: {
       id: `${id}-face-b`,
       primitiveId: `${id}-b`,
       sourcePage: 1,
       confidence: 0.95,
-      line: { start: { x: 0.075, y: 0 }, end: { x: 0.075, y: 3 } },
+      line: { start: { x: x + thickness / 2, y: 0 }, end: { x: x + thickness / 2, y: 3 } },
     },
   };
 }
@@ -77,7 +77,7 @@ function overlay(entries: Array<{ wallSystemId: string; support: number }>): Bos
   };
 }
 
-const walls = [wall("wall-start"), wall("wall-end-a"), wall("wall-end-b")];
+const walls = [wall("wall-start", 21.342, 0.293), wall("wall-end-a", 28.35, 0.11), wall("wall-end-b", 28.352, 0.09)];
 const fullSupport = overlay([
   { wallSystemId: "wall-start", support: 1 },
   { wallSystemId: "wall-end-a", support: 0.99 },
@@ -93,6 +93,12 @@ assert.equal(ready.readyCount, 1);
 assert.equal(ready.dimensions[0].reason, "ready_for_read_only_constraint_simulation");
 assert.equal(ready.dimensions[0].minimumWallSourceSupport, 0.98);
 assert(Math.abs((ready.dimensions[0].maximumBoundaryOffsetMeters || 0) - 0.012) < 1e-9);
+assert.equal(ready.dimensions[0].startCandidateWalls[0].centerCoordinate, 21.342);
+assert.equal(ready.dimensions[0].startCandidateWalls[0].thicknessMeters, 0.293);
+assert.deepEqual(ready.dimensions[0].startCandidateWalls[0].facePrimitiveIds, ["wall-start-a", "wall-start-b"]);
+assert.equal(ready.dimensions[0].startCandidateWalls[0].sourcePixelSupport, 1);
+assert.equal(ready.dimensions[0].endCandidateWalls.length, 2);
+assert(ready.diagnostics.some((item) => item.includes("primitive IDs")));
 assert(ready.diagnostics.some((item) => item.includes("2 cm")));
 assert(ready.diagnostics.some((item) => item.includes("does not add constraints")));
 
@@ -123,6 +129,7 @@ const coordinateMismatch = diagnoseCrossEvidenceConstraintReadiness({
 assert.equal(coordinateMismatch.readyCount, 0);
 assert.equal(coordinateMismatch.dimensions[0].reason, "boundary_coordinate_mismatch");
 assert((coordinateMismatch.dimensions[0].startBoundaryOffsetMeters || 0) > 0.02);
+assert.equal(coordinateMismatch.dimensions[0].startCandidateWalls[0].thicknessMeters, 0.293);
 
 const notConverged = diagnoseCrossEvidenceConstraintReadiness({
   convergence: [{ ...convergence, reason: "ambiguous_cross_evidence_pair", recommendedStartCoordinate: null, recommendedEndCoordinate: null }],
@@ -130,5 +137,6 @@ const notConverged = diagnoseCrossEvidenceConstraintReadiness({
   sourcePixelOverlay: overlay(walls.map((item) => ({ wallSystemId: item.id, support: 1 }))),
 });
 assert.equal(notConverged.dimensions[0].reason, "not_uniquely_converged");
+assert.deepEqual(notConverged.dimensions[0].startCandidateWalls, []);
 
 console.log("Blueprint cross-evidence constraint readiness diagnostic contract passed.");
