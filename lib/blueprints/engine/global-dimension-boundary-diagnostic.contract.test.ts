@@ -36,13 +36,13 @@ function dimension(id: string, startX: number, endX: number, value: number): Bos
   };
 }
 
-function association(dimensionId: string): BosRasterDimensionEvidenceAssociation {
+function association(dimensionId: string, startX: number, endX: number): BosRasterDimensionEvidenceAssociation {
   return {
     dimensionId,
     sourceSegmentId: `${dimensionId}-source`,
     sourceSegmentIds: [`${dimensionId}-source`],
-    start: { x: 0, y: -1 },
-    end: { x: 8, y: -1 },
+    start: { x: startX, y: -1 },
+    end: { x: endX, y: -1 },
     orientation: "horizontal",
     evidenceMode: "single_segment",
     relativeLengthError: 0,
@@ -54,23 +54,44 @@ function association(dimensionId: string): BosRasterDimensionEvidenceAssociation
 }
 
 const matched = dimension("matched", 0, 8, 8);
-const missingStart = dimension("missing-start", 2, 8, 6);
-const ambiguousStart = dimension("ambiguous-start", 0.02, 8, 7.98);
-const residual = dimension("residual", 0, 7, 8);
-
-const result = diagnoseGlobalDimensionBoundaries({
-  wallSystems: [wall("left", 0), wall("left-neighbor", 0.05), wall("right", 8), wall("residual-right", 7)],
-  dimensions: [matched, missingStart, ambiguousStart, residual],
-  associations: [association("matched"), association("missing-start"), association("ambiguous-start"), association("residual")],
+const matchedResult = diagnoseGlobalDimensionBoundaries({
+  wallSystems: [wall("left", 0), wall("right", 8)],
+  dimensions: [matched],
+  associations: [association("matched", 0, 8)],
   matchedDimensionIds: new Set(["matched"]),
 });
+assert.equal(matchedResult.dimensions[0]?.reason, "matched_global_constraint");
+assert.equal(matchedResult.reasonCounts.matched_global_constraint, 1);
 
-assert.equal(result.dimensions.length, 4);
-assert.equal(result.dimensions.find((item) => item.dimensionId === "matched")?.reason, "matched_global_constraint");
-assert.equal(result.dimensions.find((item) => item.dimensionId === "missing-start")?.reason, "no_boundary_near_start");
-assert.equal(result.dimensions.find((item) => item.dimensionId === "ambiguous-start")?.reason, "ambiguous_boundary_at_start");
-assert.equal(result.dimensions.find((item) => item.dimensionId === "residual")?.reason, "boundary_span_residual_too_high");
-assert.equal(result.reasonCounts.matched_global_constraint, 1);
-assert(result.diagnostics.some((item) => item.includes("without changing candidate or canonical geometry")));
-assert(result.diagnostics.some((item) => item.includes("0.32 m endpoint alignment")));
+const missingStart = dimension("missing-start", 2, 8, 6);
+const missingStartResult = diagnoseGlobalDimensionBoundaries({
+  wallSystems: [wall("right", 8), wall("decoy", 5)],
+  dimensions: [missingStart],
+  associations: [association("missing-start", 2, 8)],
+  matchedDimensionIds: new Set(),
+});
+assert.equal(missingStartResult.dimensions[0]?.reason, "no_boundary_near_start");
+
+const ambiguousStart = dimension("ambiguous-start", 0, 8, 8);
+const ambiguousStartResult = diagnoseGlobalDimensionBoundaries({
+  wallSystems: [wall("left-a", -0.05), wall("left-b", 0.05), wall("right", 8)],
+  dimensions: [ambiguousStart],
+  associations: [association("ambiguous-start", 0, 8)],
+  matchedDimensionIds: new Set(),
+});
+assert.equal(ambiguousStartResult.dimensions[0]?.reason, "ambiguous_boundary_at_start");
+assert.equal(ambiguousStartResult.dimensions[0]?.startCandidateCount, 2);
+
+const residual = dimension("residual", 0, 7, 8);
+const residualResult = diagnoseGlobalDimensionBoundaries({
+  wallSystems: [wall("left", 0), wall("right", 7)],
+  dimensions: [residual],
+  associations: [association("residual", 0, 7)],
+  matchedDimensionIds: new Set(),
+});
+assert.equal(residualResult.dimensions[0]?.reason, "boundary_span_residual_too_high");
+assert((residualResult.dimensions[0]?.relativeSpanError || 0) > 0.08);
+
+assert(matchedResult.diagnostics.some((item) => item.includes("without changing candidate or canonical geometry")));
+assert(matchedResult.diagnostics.some((item) => item.includes("0.32 m endpoint alignment")));
 console.log("Blueprint global dimension boundary diagnostic contract passed.");
