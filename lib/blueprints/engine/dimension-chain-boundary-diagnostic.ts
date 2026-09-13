@@ -1,6 +1,23 @@
 import type { BosDimension } from "./building-graph";
 import type { BosBoundaryFamilyProvenanceDiagnostic } from "./boundary-family-provenance-diagnostic";
 
+type Candidate = { coordinate: number; endpointDistanceMeters: number };
+
+function cluster(items: readonly Candidate[]) {
+  const sorted = [...items].sort((a, b) => a.coordinate - b.coordinate);
+  const groups: Candidate[][] = [];
+  for (const item of sorted) {
+    const current = groups[groups.length - 1];
+    const center = current ? current.reduce((sum, value) => sum + value.coordinate, 0) / current.length : null;
+    if (!current || center === null || Math.abs(item.coordinate - center) > 0.08) groups.push([item]);
+    else current.push(item);
+  }
+  return groups.map((group) => ({
+    coordinate: group.reduce((sum, value) => sum + value.coordinate, 0) / group.length,
+    endpointDistanceMeters: Math.min(...group.map((value) => value.endpointDistanceMeters)),
+  }));
+}
+
 export function diagnoseDimensionChainBoundaries(input: { dimensions: readonly BosDimension[]; provenance: readonly BosBoundaryFamilyProvenanceDiagnostic[] }) {
   const dimensions = new Map(input.dimensions.map((d) => [d.id, d]));
   const endpoints = input.provenance.flatMap((p) => [
@@ -9,8 +26,8 @@ export function diagnoseDimensionChainBoundaries(input: { dimensions: readonly B
   ]);
   const chains: Array<{ axis: "horizontal" | "vertical"; sharedEndpoint: "start" | "end"; sourceCoordinate: number; dimensionIds: string[]; candidateCoordinates: number[]; recommendedCoordinate: number | null; reason: string }> = [];
   const seen = new Set<number>();
-  const unique = (items: readonly { coordinate: number; endpointDistanceMeters: number }[]) => {
-    const ranked = items.filter((x) => x.endpointDistanceMeters <= 0.32).sort((a, b) => a.endpointDistanceMeters - b.endpointDistanceMeters);
+  const unique = (items: readonly Candidate[]) => {
+    const ranked = cluster(items.filter((x) => x.endpointDistanceMeters <= 0.32)).sort((a, b) => a.endpointDistanceMeters - b.endpointDistanceMeters);
     return !ranked[0] || (ranked[1] && ranked[1].endpointDistanceMeters - ranked[0].endpointDistanceMeters < 0.06) ? null : ranked[0];
   };
   endpoints.forEach((e, i) => {
@@ -19,7 +36,7 @@ export function diagnoseDimensionChainBoundaries(input: { dimensions: readonly B
     const ids = [...new Set(group.map(({ x }) => x.p.dimensionId))];
     if (ids.length < 2) return;
     group.forEach(({ j }) => seen.add(j));
-    const coords = [...new Set(group.flatMap(({ x }) => x.here.filter((w) => w.endpointDistanceMeters <= 0.32).map((w) => Number(w.coordinate.toFixed(3)))))];
+    const coords = cluster(group.flatMap(({ x }) => x.here.filter((w) => w.endpointDistanceMeters <= 0.32))).map((item) => item.coordinate);
     const valid = coords.filter((coordinate) => group.every(({ x }) => {
       const d = dimensions.get(x.p.dimensionId); const opposite = unique(x.other);
       if (!d || !opposite || !(d.value > 0)) return false;
