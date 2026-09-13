@@ -11,7 +11,7 @@ export type BosSourceFamilyMemberAgreementReason =
 
 export type BosSourceFamilyMemberAgreementMatch = {
   wallId: string;
-  pairId: string;
+  pairIds: string[];
   candidateCoordinate: number;
   sourceCoordinate: number;
   coordinateErrorMeters: number;
@@ -60,6 +60,7 @@ function diagnoseEndpoint(input: {
   wallById: ReadonlyMap<string, BosWallSystemCandidate>;
   maximumCoordinateErrorMeters: number;
   maximumThicknessErrorMeters: number;
+  equivalentSourceGeometryToleranceMeters: number;
 }): BosSourceFamilyMemberEndpointAgreement {
   const family = selectedFamily(input.families, input.independentCoordinate);
   const base = {
@@ -72,7 +73,7 @@ function diagnoseEndpoint(input: {
   const walls = input.candidateWallIds.map((id) => input.wallById.get(id)).filter((wall): wall is BosWallSystemCandidate => Boolean(wall));
   if (walls.length !== input.candidateWallIds.length) return { ...base, eligibleMatches: [], recommendedMatch: null, reason: "missing_candidate_wall" };
 
-  const eligibleMatches = walls.flatMap((wall) => family.members.flatMap((member) => {
+  const rawMatches = walls.flatMap((wall) => family.members.flatMap((member) => {
     const candidateCoordinate = fixedCoordinate(wall);
     const coordinateErrorMeters = Math.abs(candidateCoordinate - member.coordinate);
     const thicknessErrorMeters = Math.abs(wall.thickness - member.separationMeters);
@@ -92,6 +93,33 @@ function diagnoseEndpoint(input: {
     || a.wallId.localeCompare(b.wallId)
     || a.pairId.localeCompare(b.pairId));
 
+  const eligibleMatches: BosSourceFamilyMemberAgreementMatch[] = [];
+  for (const raw of rawMatches) {
+    const equivalent = eligibleMatches.find((match) =>
+      match.wallId === raw.wallId
+      && Math.abs(match.sourceCoordinate - raw.sourceCoordinate) <= input.equivalentSourceGeometryToleranceMeters
+      && Math.abs(match.sourceSeparationMeters - raw.sourceSeparationMeters) <= input.equivalentSourceGeometryToleranceMeters);
+    if (equivalent) {
+      equivalent.pairIds.push(raw.pairId);
+      continue;
+    }
+    eligibleMatches.push({
+      wallId: raw.wallId,
+      pairIds: [raw.pairId],
+      candidateCoordinate: raw.candidateCoordinate,
+      sourceCoordinate: raw.sourceCoordinate,
+      coordinateErrorMeters: raw.coordinateErrorMeters,
+      candidateThicknessMeters: raw.candidateThicknessMeters,
+      sourceSeparationMeters: raw.sourceSeparationMeters,
+      thicknessErrorMeters: raw.thicknessErrorMeters,
+    });
+  }
+  for (const match of eligibleMatches) match.pairIds.sort();
+  eligibleMatches.sort((a, b) =>
+    (a.coordinateErrorMeters + a.thicknessErrorMeters) - (b.coordinateErrorMeters + b.thicknessErrorMeters)
+    || a.wallId.localeCompare(b.wallId)
+    || a.pairIds[0].localeCompare(b.pairIds[0]));
+
   if (!eligibleMatches.length) return { ...base, eligibleMatches, recommendedMatch: null, reason: "no_member_within_fidelity_targets" };
   if (eligibleMatches.length > 1) return { ...base, eligibleMatches, recommendedMatch: null, reason: "ambiguous_member_agreement" };
   return { ...base, eligibleMatches, recommendedMatch: eligibleMatches[0], reason: "unique_member_agreement" };
@@ -99,9 +127,9 @@ function diagnoseEndpoint(input: {
 
 /**
  * Read-only diagnostic that checks whether a uniquely converged reconstructed boundary agrees with
- * one retained member of the already-selected independent source family in both center coordinate
- * and two-face separation. It does not change the family representative, thresholds, constraints,
- * wall geometry, or canonical model.
+ * one retained source-family geometry in both center coordinate and two-face separation. Multiple
+ * retained source pairs with the same fixed coordinate and separation are treated as one boundary
+ * geometry rather than false ambiguity; materially different source geometries still fail closed.
  */
 export function diagnoseSourceFamilyMemberAgreement(input: {
   convergence: readonly BosCrossEvidenceBoundaryConvergenceDiagnostic[];
@@ -109,9 +137,11 @@ export function diagnoseSourceFamilyMemberAgreement(input: {
   wallSystems: readonly BosWallSystemCandidate[];
   maximumCoordinateErrorMeters?: number;
   maximumThicknessErrorMeters?: number;
+  equivalentSourceGeometryToleranceMeters?: number;
 }) {
   const maximumCoordinateErrorMeters = input.maximumCoordinateErrorMeters ?? 0.02;
   const maximumThicknessErrorMeters = input.maximumThicknessErrorMeters ?? 0.02;
+  const equivalentSourceGeometryToleranceMeters = input.equivalentSourceGeometryToleranceMeters ?? 0.001;
   const independentById = new Map(input.independentDiagnostics.map((item) => [item.dimensionId, item]));
   const wallById = new Map(input.wallSystems.map((wall) => [wall.id, wall]));
   const dimensions: BosSourceFamilyMemberAgreementDiagnostic[] = [];
@@ -129,6 +159,7 @@ export function diagnoseSourceFamilyMemberAgreement(input: {
       wallById,
       maximumCoordinateErrorMeters,
       maximumThicknessErrorMeters,
+      equivalentSourceGeometryToleranceMeters,
     });
     const end = diagnoseEndpoint({
       endpoint: "end",
@@ -138,6 +169,7 @@ export function diagnoseSourceFamilyMemberAgreement(input: {
       wallById,
       maximumCoordinateErrorMeters,
       maximumThicknessErrorMeters,
+      equivalentSourceGeometryToleranceMeters,
     });
     const ready = start.reason === "unique_member_agreement" && end.reason === "unique_member_agreement";
     dimensions.push({
@@ -156,7 +188,8 @@ export function diagnoseSourceFamilyMemberAgreement(input: {
     readyCount,
     diagnostics: [
       `Source-family member agreement inspected ${dimensions.length} uniquely converged dimension(s).`,
-      `${readyCount} agree with exactly one retained source-family member at both endpoints within ${(maximumCoordinateErrorMeters * 100).toFixed(0)} cm coordinate and ${(maximumThicknessErrorMeters * 100).toFixed(0)} cm thickness targets.`,
+      `${readyCount} agree with exactly one retained source-family boundary geometry at both endpoints within ${(maximumCoordinateErrorMeters * 100).toFixed(0)} cm coordinate and ${(maximumThicknessErrorMeters * 100).toFixed(0)} cm thickness targets.`,
+      `Equivalent source pairs are collapsed only when fixed coordinate and separation agree within ${(equivalentSourceGeometryToleranceMeters * 1000).toFixed(0)} mm.`,
       "Read-only: the existing source-family representative and all reconstruction, constraint, and canonical geometry remain unchanged.",
     ],
   };
