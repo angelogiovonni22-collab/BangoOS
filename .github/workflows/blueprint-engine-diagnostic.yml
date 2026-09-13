@@ -61,6 +61,9 @@ jobs:
       - name: Boundary family provenance diagnostic
         run: npx -y tsx lib/blueprints/engine/boundary-family-provenance-diagnostic.contract.test.ts
 
+      - name: Missing boundary provenance diagnostic
+        run: npx -y tsx lib/blueprints/engine/missing-boundary-provenance-diagnostic.contract.test.ts
+
       - name: Source wall pair consolidator
         run: npx -y tsx lib/blueprints/engine/source-wall-pair-consolidator.contract.test.ts
 
