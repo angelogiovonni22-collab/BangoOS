@@ -85,6 +85,28 @@ assert(spanConstraint, "boundary span must emit a dimension constraint");
 assert(spanConstraint.wallIds.includes("left-boundary-a") && spanConstraint.wallIds.includes("right-boundary"), "boundary span must retain source wall family IDs on both measured sides");
 assert(Math.abs(spanConstraint.residual || 0) < 0.05, "boundary span residual should reflect the measured wall-coordinate separation");
 
+const ambiguousEndpointDimension: BosDimension = {
+  id: "dim-joint-pair",
+  levelId: "level-1",
+  page: 1,
+  start: { x: 0, y: -1 },
+  end: { x: 4.09, y: -1 },
+  value: 4,
+  unit: "m",
+  confidence: 0.95,
+  evidence: [],
+};
+const jointPairResult = solveGlobalWallConstraints([
+  wall("joint-left", { x: 0, y: 0 }, { x: 0, y: 5 }),
+  wall("joint-right-correct", { x: 4.00, y: 0 }, { x: 4.00, y: 5 }),
+  wall("joint-right-decoy", { x: 4.18, y: 0 }, { x: 4.18, y: 5 }),
+], [ambiguousEndpointDimension]);
+assert.equal(jointPairResult.matchedDimensionCount, 1, "printed span residual may disambiguate an endpoint only when one joint boundary pair is clearly best");
+assert.equal(jointPairResult.boundarySpanDimensionCount, 1);
+const jointPairConstraint = jointPairResult.constraints.find((constraint) => constraint.relation === "dimension" && constraint.dimensionId === "dim-joint-pair");
+assert(jointPairConstraint?.wallIds.includes("joint-right-correct"), "joint pair selection should retain the span-consistent boundary family");
+assert(!jointPairConstraint?.wallIds.includes("joint-right-decoy"), "a nearby but dimension-inconsistent boundary family must remain excluded");
+
 const noBridge = solveGlobalWallConstraints([
   wall("left", { x: 0, y: 0 }, { x: 2, y: 0 }),
   wall("right", { x: 2.2, y: 0 }, { x: 4, y: 0 }),
