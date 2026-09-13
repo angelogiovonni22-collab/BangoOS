@@ -1,6 +1,7 @@
 import type { BosDimension } from "./building-graph";
 import type { BosRawSegment } from "./geometry";
 import { topologyMetrics } from "./geometry";
+import { diagnoseGlobalDimensionBoundaries, type BosGlobalDimensionBoundaryDiagnostic, type BosGlobalDimensionBoundaryDiagnosticReason } from "./global-dimension-boundary-diagnostic";
 import { dominantRasterWallCluster } from "./reconstruct";
 import { buildRasterArchitecturalCandidate } from "./raster-architectural-candidate";
 import { diagnoseRasterDimensions, type BosRasterDimensionDiagnostic, type BosRasterDimensionDiagnosticReason } from "./raster-dimension-unresolved-diagnostic";
@@ -36,6 +37,9 @@ export type BosRasterEvidenceBenchmark = {
   dimensionDiagnosticCounts: Record<BosRasterDimensionDiagnosticReason, number>;
   dimensionDiagnostics: BosRasterDimensionDiagnostic[];
   dominantUnresolvedDimensionReason: BosRasterDimensionDiagnosticReason | null;
+  globalBoundaryDiagnosticCounts: Record<BosGlobalDimensionBoundaryDiagnosticReason, number>;
+  globalBoundaryDiagnostics: BosGlobalDimensionBoundaryDiagnostic[];
+  dominantGlobalBoundaryFailureReason: BosGlobalDimensionBoundaryDiagnosticReason | null;
   rawTopology: ReturnType<typeof topologyMetrics>;
   legacyPairedTopology: ReturnType<typeof topologyMetrics>;
   structuralTopology: ReturnType<typeof topologyMetrics>;
@@ -73,6 +77,12 @@ export function evaluateRasterEvidenceStages(input: {
     associations: candidate.dimensionEvidence.associations,
     matchedDimensionIds,
   });
+  const globalBoundaryDiagnostic = diagnoseGlobalDimensionBoundaries({
+    wallSystems: candidate.constrained.wallSystems,
+    dimensions: candidate.dimensionEvidence.dimensions,
+    associations: candidate.dimensionEvidence.associations,
+    matchedDimensionIds,
+  });
   const diagnostics = [
     `Raster evidence stage counts: raw ${candidate.rawSegments.length}, annotation-filtered ${candidate.annotationFiltered.length}, legacy-paired ${legacyPaired.length}, structural ${structural.length}, legacy-topology ${solved.segments.length}, explicit-systems ${candidate.explicitSystems.length}, sheet-frame-rejected ${candidate.sheetFrameSelection.rejectedSystemIds.length}, structural-selected ${candidate.structuralSelection.wallSystems.length}, constrained-systems ${candidate.constrained.wallSystems.length}.`,
     `Raster topology closure: raw ${topologyMetrics(candidate.rawSegments).closure.toFixed(3)}, legacy-paired ${topologyMetrics(legacyPaired).closure.toFixed(3)}, legacy-solved ${topologyMetrics(solved.segments).closure.toFixed(3)}, explicit ${topologyMetrics(explicitSegments).closure.toFixed(3)}, selected ${topologyMetrics(selectedSegments).closure.toFixed(3)}, constrained ${topologyMetrics(constrainedSegments).closure.toFixed(3)}.`,
@@ -81,6 +91,7 @@ export function evaluateRasterEvidenceStages(input: {
     ...candidate.structuralSelection.diagnostics,
     ...candidate.dimensionEvidence.diagnostics,
     ...dimensionDiagnostic.diagnostics,
+    ...globalBoundaryDiagnostic.diagnostics,
     `Explicit raster global constraints retained ${candidate.constrained.wallSystems.length} wall systems with ${candidate.constrained.junctionCount} junctions and ${candidate.constrained.snappedEndpointCount} snapped endpoints; ${candidate.constrained.matchedDimensionCount} printed dimensions matched (${candidate.constrained.boundarySpanDimensionCount} boundary spans, ${candidate.constrained.singleWallDimensionCount} single-wall lengths) and ${candidate.constrained.unresolvedDimensionIds.length} remain unresolved.`,
   ];
   return {
@@ -111,6 +122,9 @@ export function evaluateRasterEvidenceStages(input: {
     dimensionDiagnosticCounts: dimensionDiagnostic.reasonCounts,
     dimensionDiagnostics: dimensionDiagnostic.dimensions,
     dominantUnresolvedDimensionReason: dimensionDiagnostic.dominantUnresolvedReason,
+    globalBoundaryDiagnosticCounts: globalBoundaryDiagnostic.reasonCounts,
+    globalBoundaryDiagnostics: globalBoundaryDiagnostic.dimensions,
+    dominantGlobalBoundaryFailureReason: globalBoundaryDiagnostic.dominantUnmatchedReason,
     rawTopology: topologyMetrics(candidate.rawSegments),
     legacyPairedTopology: topologyMetrics(legacyPaired),
     structuralTopology: topologyMetrics(structural),
