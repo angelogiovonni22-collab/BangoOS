@@ -10,7 +10,8 @@ import { extractRasterLineSegments } from "@/lib/blueprints/engine/raster";
 import { buildRasterArchitecturalCandidate } from "@/lib/blueprints/engine/raster-architectural-candidate";
 import { evaluateRasterEvidenceStages } from "@/lib/blueprints/engine/raster-evidence-benchmark";
 import { assessSourcePixelOverlay, renderBlueprintGraySource } from "@/lib/blueprints/engine/source-pixel-overlay";
-import { assessSourceWallNetworkOverlay } from "@/lib/blueprints/engine/source-wall-network-overlay";
+import { assessSourceWallNetworkOverlay, buildIndependentSourceWallNetworkEvidence } from "@/lib/blueprints/engine/source-wall-network-overlay";
+import { diagnoseIndependentSourceDimensionBoundaries } from "@/lib/blueprints/engine/source-network-dimension-endpoint-diagnostic";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -86,10 +87,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWidthMeters: raster.width,
         sourceHeightMeters: raster.height,
       });
+      const stages = evaluateRasterEvidenceStages({
+        segments: raster.segments,
+        dimensions: selected.dimensions,
+        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
+      });
       const sourceImage = await renderBlueprintGraySource(buffer, plan.selectedPage);
       const sourcePixelOverlay = assessSourcePixelOverlay({
         image: sourceImage,
         wallSystems: architecturalCandidate.constrained.wallSystems,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
+      });
+      const independentSourceWallNetwork = buildIndependentSourceWallNetworkEvidence({
+        image: sourceImage,
         sourceWidthMeters: raster.width,
         sourceHeightMeters: raster.height,
       });
@@ -99,18 +112,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWidthMeters: raster.width,
         sourceHeightMeters: raster.height,
         predictedPrecision: sourcePixelOverlay.predictedPrecision,
+        evidence: independentSourceWallNetwork,
+      });
+      const independentDimensionBoundaryEvidence = diagnoseIndependentSourceDimensionBoundaries({
+        dimensions: architecturalCandidate.dimensionEvidence.dimensions,
+        associations: architecturalCandidate.dimensionEvidence.associations,
+        dimensionIds: new Set(stages.globalBoundaryDiagnostics.filter((diagnostic) => diagnostic.reason !== "matched_global_constraint").map((diagnostic) => diagnostic.dimensionId)),
+        wallFacePairs: independentSourceWallNetwork.network.wallFacePairs,
+        sourcePixelWidth: sourceImage.width,
+        sourcePixelHeight: sourceImage.height,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
       });
       rasterEvidence = {
         extraction: { widthMeters: raster.width, heightMeters: raster.height, sourcePixelWidth: sourceImage.width, sourcePixelHeight: sourceImage.height, diagnostics: raster.diagnostics },
-        stages: evaluateRasterEvidenceStages({
-          segments: raster.segments,
-          dimensions: selected.dimensions,
-          drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
-          sourceWidthMeters: raster.width,
-          sourceHeightMeters: raster.height,
-        }),
+        stages,
         sourcePixelOverlay,
         sourceWallNetworkOverlay,
+        independentDimensionBoundaryEvidence,
       };
     }
 
