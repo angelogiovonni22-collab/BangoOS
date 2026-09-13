@@ -10,10 +10,24 @@ function wall(id: string): BosWallSystemCandidate {
     sourcePage: 1,
     centerline: { start: { x: 0, y: 0 }, end: { x: 0, y: 3 } },
     thickness: 0.15,
+    length: 3,
+    orientationRadians: Math.PI / 2,
     confidence: 0.95,
     overlapRatio: 1,
-    faceA: { primitiveId: `${id}-a`, line: { start: { x: -0.075, y: 0 }, end: { x: -0.075, y: 3 } } },
-    faceB: { primitiveId: `${id}-b`, line: { start: { x: 0.075, y: 0 }, end: { x: 0.075, y: 3 } } },
+    faceA: {
+      id: `${id}-face-a`,
+      primitiveId: `${id}-a`,
+      sourcePage: 1,
+      confidence: 0.95,
+      line: { start: { x: -0.075, y: 0 }, end: { x: -0.075, y: 3 } },
+    },
+    faceB: {
+      id: `${id}-face-b`,
+      primitiveId: `${id}-b`,
+      sourcePage: 1,
+      confidence: 0.95,
+      line: { start: { x: 0.075, y: 0 }, end: { x: 0.075, y: 3 } },
+    },
   };
 }
 
