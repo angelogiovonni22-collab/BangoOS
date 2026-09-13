@@ -26,16 +26,7 @@ const convergence: BosCrossEvidenceBoundaryConvergenceDiagnostic = {
   dominantEndCoordinate: 28.35,
   dominantStartLengthMeters: null,
   dominantEndLengthMeters: 12.9,
-  candidates: [{
-    independentStartCoordinate: 21.319,
-    independentEndCoordinate: 28.355,
-    candidateStartCoordinate: 21.342,
-    candidateEndCoordinate: 28.356,
-    independentRelativeSpanError: 0.0107,
-    candidateRelativeSpanError: 0.014,
-    candidateStartWallIds: ["start-wall"],
-    candidateEndWallIds: ["end-wall"],
-  }],
+  candidates: [{ independentStartCoordinate: 21.319, independentEndCoordinate: 28.355, candidateStartCoordinate: 21.342, candidateEndCoordinate: 28.356, independentRelativeSpanError: 0.0107, candidateRelativeSpanError: 0.014, candidateStartWallIds: ["start-wall"], candidateEndWallIds: ["end-wall"] }],
   recommendedStartCoordinate: 21.342,
   recommendedEndCoordinate: 28.356,
   reason: "unique_cross_evidence_boundary_pair",
@@ -61,9 +52,12 @@ const independent: BosIndependentDimensionBoundaryDiagnostic = {
   endFamilies: [{
     coordinate: 28.355,
     nearestEndpointDistanceMeters: 0.063,
-    pairIds: ["end-match"],
-    representativePairId: "end-match",
-    members: [{ pairId: "end-match", coordinate: 28.355, separationMeters: 0.09, endpointDistanceMeters: 0.063 }],
+    pairIds: ["end-match-a", "end-match-b"],
+    representativePairId: "end-match-a",
+    members: [
+      { pairId: "end-match-a", coordinate: 28.355, separationMeters: 0.09, endpointDistanceMeters: 0.063 },
+      { pairId: "end-match-b", coordinate: 28.355, separationMeters: 0.09, endpointDistanceMeters: 0.063 },
+    ],
   }],
   passingPairs: [],
   recommendedStartCoordinate: null,
@@ -71,41 +65,31 @@ const independent: BosIndependentDimensionBoundaryDiagnostic = {
   reason: "ambiguous_independent_boundary_pair",
 };
 
-const result = diagnoseSourceFamilyMemberAgreement({
-  convergence: [convergence],
-  independentDiagnostics: [independent],
-  wallSystems: [wall("start-wall", 21.342, 0.293), wall("end-wall", 28.356, 0.091)],
-});
+const result = diagnoseSourceFamilyMemberAgreement({ convergence: [convergence], independentDiagnostics: [independent], wallSystems: [wall("start-wall", 21.342, 0.293), wall("end-wall", 28.356, 0.091)] });
 assert.equal(result.readyCount, 1);
 assert.equal(result.dimensions[0].reason, "unique_both_endpoints");
 assert.equal(result.dimensions[0].start.reason, "unique_member_agreement");
-assert.equal(result.dimensions[0].start.recommendedMatch?.pairId, "start-match");
+assert.deepEqual(result.dimensions[0].start.recommendedMatch?.pairIds, ["start-match"]);
 assert((result.dimensions[0].start.recommendedMatch?.coordinateErrorMeters || 1) < 0.01);
 assert((result.dimensions[0].start.recommendedMatch?.thicknessErrorMeters || 1) < 0.02);
-assert.equal(result.dimensions[0].end.recommendedMatch?.pairId, "end-match");
+assert.deepEqual(result.dimensions[0].end.recommendedMatch?.pairIds, ["end-match-a", "end-match-b"], "identical fixed source geometry should collapse without false ambiguity");
+assert(result.diagnostics.some((item) => item.includes("1 mm")));
 assert(result.diagnostics.some((item) => item.includes("remain unchanged")));
 
-const ambiguousIndependent = {
+const ambiguousIndependent: BosIndependentDimensionBoundaryDiagnostic = {
   ...independent,
   startFamilies: [{
     ...independent.startFamilies[0],
-    pairIds: [...independent.startFamilies[0].pairIds, "start-match-duplicate"],
-    members: [...independent.startFamilies[0].members, { pairId: "start-match-duplicate", coordinate: 21.337, separationMeters: 0.304, endpointDistanceMeters: 0.178 }],
+    pairIds: [...independent.startFamilies[0].pairIds, "start-second-geometry"],
+    members: [...independent.startFamilies[0].members, { pairId: "start-second-geometry", coordinate: 21.348, separationMeters: 0.302, endpointDistanceMeters: 0.189 }],
   }],
 };
-const ambiguous = diagnoseSourceFamilyMemberAgreement({
-  convergence: [convergence],
-  independentDiagnostics: [ambiguousIndependent],
-  wallSystems: [wall("start-wall", 21.342, 0.293), wall("end-wall", 28.356, 0.091)],
-});
+const ambiguous = diagnoseSourceFamilyMemberAgreement({ convergence: [convergence], independentDiagnostics: [ambiguousIndependent], wallSystems: [wall("start-wall", 21.342, 0.293), wall("end-wall", 28.356, 0.091)] });
 assert.equal(ambiguous.readyCount, 0);
 assert.equal(ambiguous.dimensions[0].start.reason, "ambiguous_member_agreement");
+assert.equal(ambiguous.dimensions[0].start.eligibleMatches.length, 2);
 
-const noMatch = diagnoseSourceFamilyMemberAgreement({
-  convergence: [convergence],
-  independentDiagnostics: [independent],
-  wallSystems: [wall("start-wall", 21.342, 0.22), wall("end-wall", 28.356, 0.091)],
-});
+const noMatch = diagnoseSourceFamilyMemberAgreement({ convergence: [convergence], independentDiagnostics: [independent], wallSystems: [wall("start-wall", 21.342, 0.22), wall("end-wall", 28.356, 0.091)] });
 assert.equal(noMatch.readyCount, 0);
 assert.equal(noMatch.dimensions[0].start.reason, "no_member_within_fidelity_targets");
 
