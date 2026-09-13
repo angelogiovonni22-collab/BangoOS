@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type { BosDimension } from "./building-graph";
 import type { BosBoundaryFamilyProvenanceDiagnostic } from "./boundary-family-provenance-diagnostic";
 import type { BosSourceWallFacePair } from "./source-wall-face-mask";
-import type { BosIndependentDimensionBoundaryDiagnostic } from "./source-network-dimension-endpoint-diagnostic";
+import type { BosIndependentBoundaryFamily, BosIndependentDimensionBoundaryDiagnostic } from "./source-network-dimension-endpoint-diagnostic";
 import { diagnoseCrossEvidenceBoundaryConvergence } from "./cross-evidence-boundary-convergence-diagnostic";
 
 const dimension: BosDimension = {
@@ -18,6 +18,16 @@ const dimension: BosDimension = {
   evidence: [],
 };
 
+function family(pairId: string, coordinate: number, endpointDistanceMeters: number, separationMeters = 0.15): BosIndependentBoundaryFamily {
+  return {
+    coordinate,
+    nearestEndpointDistanceMeters: endpointDistanceMeters,
+    pairIds: [pairId],
+    representativePairId: pairId,
+    members: [{ pairId, coordinate, separationMeters, endpointDistanceMeters }],
+  };
+}
+
 const independent: BosIndependentDimensionBoundaryDiagnostic = {
   dimensionId: dimension.id,
   rawText: dimension.rawText || "",
@@ -25,12 +35,12 @@ const independent: BosIndependentDimensionBoundaryDiagnostic = {
   startCoordinate: 10,
   endCoordinate: 17,
   startFamilies: [
-    { coordinate: 10.05, nearestEndpointDistanceMeters: 0.05, pairIds: ["start-a"] },
-    { coordinate: 10.20, nearestEndpointDistanceMeters: 0.20, pairIds: ["start-b"] },
+    family("start-a", 10.05, 0.05),
+    family("start-b", 10.20, 0.20),
   ],
   endFamilies: [
-    { coordinate: 17.04, nearestEndpointDistanceMeters: 0.04, pairIds: ["end-long"] },
-    { coordinate: 16.90, nearestEndpointDistanceMeters: 0.10, pairIds: ["end-short"] },
+    family("end-long", 17.04, 0.04),
+    family("end-short", 16.90, 0.10),
   ],
   passingPairs: [
     { startCoordinate: 10.05, endCoordinate: 17.04, measuredSpanMeters: 6.99, relativeSpanError: 0.0014285714285713977 },
