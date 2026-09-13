@@ -7,6 +7,8 @@ import { selectStructuralRasterWallSystems } from "./raster-structural-selector"
 import { buildWallSystemsFromRasterFaces } from "./raster-wall-system-builder";
 import { suppressDimensionAnnotationDetections, type WallAnnotationZone } from "./wall-detector";
 
+const WITNESS_SPAN_MAX_RELATIVE_ERROR = 0.08;
+
 function dimensionAnnotationZones(
   dimensions: readonly BosDimension[],
   drawingUnitsPerMeter: number,
@@ -22,6 +24,42 @@ function dimensionAnnotationZones(
       padding: 0.3,
     }];
   }));
+}
+
+function enforceWitnessSpanEvidenceGate(
+  evidence: ReturnType<typeof associateRasterDimensionEvidence>,
+  sourceDimensions: readonly BosDimension[],
+) {
+  const rejectedIds = new Set(evidence.associations
+    .filter((association) => association.evidenceMode === "witness_span" && association.relativeLengthError > WITNESS_SPAN_MAX_RELATIVE_ERROR)
+    .map((association) => association.dimensionId));
+  if (!rejectedIds.size) return evidence;
+
+  const originalById = new Map(sourceDimensions.map((dimension) => [dimension.id, dimension]));
+  const associations = evidence.associations.filter((association) => !rejectedIds.has(association.dimensionId));
+  const dimensions = evidence.dimensions.map((dimension) => {
+    if (!rejectedIds.has(dimension.id)) return dimension;
+    const original = originalById.get(dimension.id);
+    return original ? {
+      ...dimension,
+      start: original.start ? { ...original.start } : undefined,
+      end: original.end ? { ...original.end } : undefined,
+      confidence: original.confidence,
+    } : { ...dimension, start: undefined, end: undefined };
+  });
+  const unresolvedDimensionIds = [...new Set([...evidence.unresolvedDimensionIds, ...rejectedIds])];
+  return {
+    ...evidence,
+    dimensions,
+    associations,
+    unresolvedDimensionIds,
+    witnessSpanAssociationCount: associations.filter((association) => association.evidenceMode === "witness_span").length,
+    diagnostics: [
+      ...evidence.diagnostics,
+      `Witness-span fidelity gate rejected ${rejectedIds.size} source association(s) above ${(WITNESS_SPAN_MAX_RELATIVE_ERROR * 100).toFixed(1)}% printed-length residual before global wall constraints.`,
+      "Rejected witness spans remain unresolved; no wall geometry is moved or synthesized.",
+    ],
+  };
 }
 
 export function buildRasterArchitecturalCandidate(input: {
@@ -40,11 +78,11 @@ export function buildRasterArchitecturalCandidate(input: {
     end: { ...segment.end },
   }));
   const zones = dimensionAnnotationZones(input.dimensions, input.drawingUnitsPerMeter);
-  const dimensionEvidence = associateRasterDimensionEvidence({
+  const dimensionEvidence = enforceWitnessSpanEvidenceGate(associateRasterDimensionEvidence({
     segments: rawSegments,
     dimensions: input.dimensions,
     drawingUnitsPerMeter: input.drawingUnitsPerMeter,
-  });
+  }), input.dimensions);
   const annotationFiltered = suppressDimensionAnnotationDetections(rawSegments, zones);
   const explicitSystems = buildWallSystemsFromRasterFaces(annotationFiltered);
   const sheetFrameSelection = excludeRasterSheetFrameSystems(
