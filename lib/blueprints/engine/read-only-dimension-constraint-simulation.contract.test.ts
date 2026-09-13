@@ -37,6 +37,8 @@ const readiness: BosCrossEvidenceConstraintReadinessDiagnostic[] = [{
   dimensionId: "dimension-23-4",
   rawText: "23'-4\"",
   candidateWallIds: ["wall-start", "wall-end"],
+  startCandidateWalls: [{ wallId: "wall-start", centerCoordinate: 21.342, thicknessMeters: 0.15, lengthMeters: 3, facePrimitiveIds: ["wall-start-a", "wall-start-b"], sourcePixelSupport: 0.98 }],
+  endCandidateWalls: [{ wallId: "wall-end", centerCoordinate: 28.351, thicknessMeters: 0.15, lengthMeters: 3, facePrimitiveIds: ["wall-end-a", "wall-end-b"], sourcePixelSupport: 0.98 }],
   minimumWallSourceSupport: 0.98,
   startBoundaryOffsetMeters: 0.012,
   endBoundaryOffsetMeters: 0.004,
