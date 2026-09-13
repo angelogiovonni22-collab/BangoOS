@@ -55,6 +55,9 @@ const result = associateRasterDimensionEvidence({
   segments,
   dimensions: allDimensions,
   drawingUnitsPerMeter: 100,
+  options: {
+    witnessSpanMinWitnessLengthMeters: 1.1,
+  },
 });
 
 const single = result.associations.find((item) => item.dimensionId === "dimension-single");
@@ -74,12 +77,12 @@ assert.deepEqual(fragmented.sourceSegmentIds, ["fragment-a", "fragment-b", "frag
 assert.equal(fragmented.start.x, 1);
 assert.equal(fragmented.end.x, 9);
 
-assert(result.unresolvedDimensionIds.includes("dimension-unrelated-gap"), "collinear fragments must not bridge when the printed label does not occupy the larger gap");
+assert(result.unresolvedDimensionIds.includes("dimension-unrelated-gap"), "bounded fragment mode must not bridge a larger gap when the printed label does not occupy it");
 assert(result.unresolvedDimensionIds.includes("dimension-missing-witness"), "a chain missing an outer witness must remain unresolved");
 assert.equal(result.singleSegmentAssociationCount, 1);
 assert.equal(result.labelGapChainAssociationCount, 1);
 assert.equal(result.fragmentChainAssociationCount, 1);
-assert.equal(result.witnessSpanAssociationCount, 0, "baseline-supported synthetic dimensions should retain their stronger existing modes");
+assert.equal(result.witnessSpanAssociationCount, 0, "legacy baseline-chain regression isolates witness-span fallback so prior fail-closed behavior stays covered");
 assert(result.diagnostics.some((item) => item.includes("Arbitrary geometric gaps are never bridged")), "diagnostics must make fail-closed chain behavior explicit");
 assert(result.diagnostics.some((item) => item.includes("do not move wall geometry")), "diagnostics must make the read-only evidence stage explicit");
 
