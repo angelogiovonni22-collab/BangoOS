@@ -13,6 +13,7 @@ import { assessSourcePixelOverlay, renderBlueprintGraySource } from "@/lib/bluep
 import { assessSourceWallNetworkOverlay, buildIndependentSourceWallNetworkEvidence } from "@/lib/blueprints/engine/source-wall-network-overlay";
 import { diagnoseIndependentSourceDimensionBoundaries } from "@/lib/blueprints/engine/source-network-dimension-endpoint-diagnostic";
 import { diagnoseCrossEvidenceBoundaryConvergence } from "@/lib/blueprints/engine/cross-evidence-boundary-convergence-diagnostic";
+import { diagnoseCrossEvidenceConstraintReadiness } from "@/lib/blueprints/engine/cross-evidence-constraint-readiness-diagnostic";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -131,6 +132,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         provenance: stages.boundaryFamilyProvenance,
         wallFacePairs: independentSourceWallNetwork.network.wallFacePairs,
       });
+      const crossEvidenceConstraintReadiness = diagnoseCrossEvidenceConstraintReadiness({
+        convergence: crossEvidenceBoundaryConvergence.dimensions,
+        wallSystems: architecturalCandidate.constrained.wallSystems,
+        sourcePixelOverlay,
+      });
       rasterEvidence = {
         extraction: { widthMeters: raster.width, heightMeters: raster.height, sourcePixelWidth: sourceImage.width, sourcePixelHeight: sourceImage.height, diagnostics: raster.diagnostics },
         stages,
@@ -138,6 +144,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWallNetworkOverlay,
         independentDimensionBoundaryEvidence,
         crossEvidenceBoundaryConvergence,
+        crossEvidenceConstraintReadiness,
       };
     }
 

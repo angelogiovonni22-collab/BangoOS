@@ -1,0 +1,24 @@
+name: Blueprint Cross Evidence Constraint Readiness
+
+on:
+  pull_request:
+    paths:
+      - "lib/blueprints/engine/**"
+      - "app/api/blueprints/**/engine-benchmark/route.ts"
+      - ".github/workflows/blueprint-cross-evidence-constraint-readiness.yml"
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Cross-evidence constraint readiness contract
+        run: npx -y tsx lib/blueprints/engine/cross-evidence-constraint-readiness-diagnostic.contract.test.ts
