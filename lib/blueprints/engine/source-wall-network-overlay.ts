@@ -4,6 +4,12 @@ import { consolidateSourceWallPairs, type BosSourceWallPairConsolidationOptions 
 import { selectSourceWallNetwork, type BosSourceWallNetworkOptions } from "./source-wall-network-selector";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 
+export type BosIndependentSourceWallNetworkEvidence = {
+  faces: ReturnType<typeof buildSourceWallFaceMask>;
+  consolidated: ReturnType<typeof consolidateSourceWallPairs>;
+  network: ReturnType<typeof selectSourceWallNetwork>;
+};
+
 export type BosSourceWallNetworkOverlayReport = {
   rawPairCount: number;
   consolidatedPairCount: number;
@@ -47,18 +53,15 @@ function candidateCoverageMask(input: { image: { width: number; height: number }
   return mask;
 }
 
-/** Independent building-scale source-wall network coverage after duplicate raster-row consolidation. */
-export function assessSourceWallNetworkOverlay(input: {
+/** Builds the independent rendered-source wall network once so multiple read-only diagnostics can reuse it. */
+export function buildIndependentSourceWallNetworkEvidence(input: {
   image: { data: Uint8Array; width: number; height: number };
-  wallSystems: readonly BosWallSystemCandidate[];
   sourceWidthMeters: number;
   sourceHeightMeters: number;
-  predictedPrecision: number;
   faceOptions?: BosSourceWallFaceMaskOptions;
   consolidationOptions?: BosSourceWallPairConsolidationOptions;
   networkOptions?: BosSourceWallNetworkOptions;
-  coverageRadiusPixels?: number;
-}): BosSourceWallNetworkOverlayReport {
+}): BosIndependentSourceWallNetworkEvidence {
   const faces = buildSourceWallFaceMask({ image: input.image, sourceWidthMeters: input.sourceWidthMeters, sourceHeightMeters: input.sourceHeightMeters, options: input.faceOptions });
   const consolidated = consolidateSourceWallPairs({
     wallFacePairs: faces.wallFacePairs,
@@ -76,6 +79,24 @@ export function assessSourceWallNetworkOverlay(input: {
     sourceHeightMeters: input.sourceHeightMeters,
     options: input.networkOptions,
   });
+  return { faces, consolidated, network };
+}
+
+/** Independent building-scale source-wall network coverage after duplicate raster-row consolidation. */
+export function assessSourceWallNetworkOverlay(input: {
+  image: { data: Uint8Array; width: number; height: number };
+  wallSystems: readonly BosWallSystemCandidate[];
+  sourceWidthMeters: number;
+  sourceHeightMeters: number;
+  predictedPrecision: number;
+  faceOptions?: BosSourceWallFaceMaskOptions;
+  consolidationOptions?: BosSourceWallPairConsolidationOptions;
+  networkOptions?: BosSourceWallNetworkOptions;
+  coverageRadiusPixels?: number;
+  evidence?: BosIndependentSourceWallNetworkEvidence;
+}): BosSourceWallNetworkOverlayReport {
+  const evidence = input.evidence ?? buildIndependentSourceWallNetworkEvidence(input);
+  const { faces, consolidated, network } = evidence;
   const sourceMask = new Uint8Array(input.image.width * input.image.height);
   paintSourceWallFacePairs(sourceMask, input.image, network.wallFacePairs);
   const candidateMask = candidateCoverageMask({ image: input.image, wallSystems: input.wallSystems, sourceWidthMeters: input.sourceWidthMeters, sourceHeightMeters: input.sourceHeightMeters, radiusPixels: input.coverageRadiusPixels ?? 3 });
