@@ -12,6 +12,7 @@ import { evaluateRasterEvidenceStages } from "@/lib/blueprints/engine/raster-evi
 import { assessSourcePixelOverlay, renderBlueprintGraySource } from "@/lib/blueprints/engine/source-pixel-overlay";
 import { assessSourceWallNetworkOverlay, buildIndependentSourceWallNetworkEvidence } from "@/lib/blueprints/engine/source-wall-network-overlay";
 import { diagnoseIndependentSourceDimensionBoundaries } from "@/lib/blueprints/engine/source-network-dimension-endpoint-diagnostic";
+import { diagnoseCrossEvidenceBoundaryConvergence } from "@/lib/blueprints/engine/cross-evidence-boundary-convergence-diagnostic";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -124,12 +125,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWidthMeters: raster.width,
         sourceHeightMeters: raster.height,
       });
+      const crossEvidenceBoundaryConvergence = diagnoseCrossEvidenceBoundaryConvergence({
+        dimensions: architecturalCandidate.dimensionEvidence.dimensions,
+        independentDiagnostics: independentDimensionBoundaryEvidence.dimensions,
+        provenance: stages.boundaryFamilyProvenance,
+        wallFacePairs: independentSourceWallNetwork.network.wallFacePairs,
+      });
       rasterEvidence = {
         extraction: { widthMeters: raster.width, heightMeters: raster.height, sourcePixelWidth: sourceImage.width, sourcePixelHeight: sourceImage.height, diagnostics: raster.diagnostics },
         stages,
         sourcePixelOverlay,
         sourceWallNetworkOverlay,
         independentDimensionBoundaryEvidence,
+        crossEvidenceBoundaryConvergence,
       };
     }
 
