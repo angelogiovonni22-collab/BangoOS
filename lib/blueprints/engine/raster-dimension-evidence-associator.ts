@@ -1,7 +1,7 @@
 import type { BosDimension, BosLine2, BosPoint2 } from "./building-graph";
 import type { BosRawSegment } from "./geometry";
 
-export type BosRasterDimensionEvidenceMode = "single_segment" | "label_gap_chain" | "fragment_chain";
+export type BosRasterDimensionEvidenceMode = "single_segment" | "label_gap_chain" | "fragment_chain" | "witness_span";
 
 export type BosRasterDimensionEvidenceAssociation = {
   dimensionId: string;
@@ -25,6 +25,7 @@ export type BosRasterDimensionEvidenceAssociationResult = {
   singleSegmentAssociationCount: number;
   labelGapChainAssociationCount: number;
   fragmentChainAssociationCount: number;
+  witnessSpanAssociationCount: number;
   diagnostics: string[];
 };
 
@@ -38,6 +39,10 @@ export type BosRasterDimensionEvidenceAssociationOptions = {
   chainLabelGapPaddingMeters?: number;
   fragmentGapToleranceMeters?: number;
   maxFragmentChainSegments?: number;
+  witnessSpanMinWitnessLengthMeters?: number;
+  witnessSpanMaxWitnessLengthMeters?: number;
+  witnessSpanBaselineAlignmentToleranceMeters?: number;
+  witnessSpanLabelPaddingMeters?: number;
 };
 
 type AxisCandidate = {
@@ -266,10 +271,99 @@ function buildFragmentChainCandidates(input: {
   return output;
 }
 
+function endpointAlongValues(line: BosLine2, witnessOrientation: "horizontal" | "vertical") {
+  return witnessOrientation === "vertical" ? [line.start.y, line.end.y] : [line.start.x, line.end.x];
+}
+
+function buildWitnessSpanCandidates(input: {
+  segments: readonly BosRawSegment[];
+  dimension: BosDimension;
+  label: NonNullable<ReturnType<typeof dimensionLabel>>;
+  maxRelativeLengthError: number;
+  maxLabelDistanceMeters: number;
+  minWitnessLengthMeters: number;
+  maxWitnessLengthMeters: number;
+  baselineAlignmentToleranceMeters: number;
+  labelPaddingMeters: number;
+}) {
+  const pageItems = pageSegments({ segments: input.segments, page: input.dimension.page });
+  const output: AxisCandidate[] = [];
+  const allowedDimensionAxes: Array<"horizontal" | "vertical"> = input.label.aspectRatio >= 1.35
+    ? [input.label.orientation]
+    : ["horizontal", "vertical"];
+
+  for (const dimensionAxis of allowedDimensionAxes) {
+    const witnessOrientation = dimensionAxis === "horizontal" ? "vertical" : "horizontal";
+    const witnesses = pageItems.filter((item) => {
+      if (orientation(item.segment) !== witnessOrientation) return false;
+      const witnessLength = length(item.segment);
+      return witnessLength >= input.minWitnessLengthMeters && witnessLength <= input.maxWitnessLengthMeters;
+    }).sort((a, b) => fixedCoordinateOfLine(a.segment, witnessOrientation) - fixedCoordinateOfLine(b.segment, witnessOrientation));
+    const minSpacing = input.dimension.value * (1 - input.maxRelativeLengthError);
+    const maxSpacing = input.dimension.value * (1 + input.maxRelativeLengthError);
+
+    for (let leftIndex = 0; leftIndex < witnesses.length; leftIndex += 1) {
+      const left = witnesses[leftIndex];
+      const leftFixed = fixedCoordinateOfLine(left.segment, witnessOrientation);
+      for (let rightIndex = leftIndex + 1; rightIndex < witnesses.length; rightIndex += 1) {
+        const right = witnesses[rightIndex];
+        const rightFixed = fixedCoordinateOfLine(right.segment, witnessOrientation);
+        const spacing = rightFixed - leftFixed;
+        if (spacing < minSpacing) continue;
+        if (spacing > maxSpacing) break;
+        const labelAxis = axisCoordinate(input.label.center, dimensionAxis);
+        if (labelAxis < leftFixed - input.labelPaddingMeters || labelAxis > rightFixed + input.labelPaddingMeters) continue;
+
+        const leftEndpoints = endpointAlongValues(left.segment, witnessOrientation);
+        const rightEndpoints = endpointAlongValues(right.segment, witnessOrientation);
+        let baseline: number | null = null;
+        let baselineError = Number.POSITIVE_INFINITY;
+        for (const leftEndpoint of leftEndpoints) for (const rightEndpoint of rightEndpoints) {
+          const alignmentError = Math.abs(leftEndpoint - rightEndpoint);
+          if (alignmentError > input.baselineAlignmentToleranceMeters) continue;
+          const candidateBaseline = (leftEndpoint + rightEndpoint) / 2;
+          const labelPerpendicular = fixedCoordinate(input.label.center, dimensionAxis);
+          const labelDistance = Math.abs(candidateBaseline - labelPerpendicular);
+          if (labelDistance > input.maxLabelDistanceMeters) continue;
+          const combinedError = alignmentError + labelDistance * 0.2;
+          if (combinedError < baselineError) {
+            baselineError = combinedError;
+            baseline = candidateBaseline;
+          }
+        }
+        if (baseline === null) continue;
+
+        const segment: BosLine2 = dimensionAxis === "horizontal"
+          ? { start: { x: leftFixed, y: baseline }, end: { x: rightFixed, y: baseline } }
+          : { start: { x: baseline, y: leftFixed }, end: { x: baseline, y: rightFixed } };
+        const scored = scoreCandidate({
+          segment,
+          dimension: input.dimension,
+          label: input.label,
+          maxRelativeLengthError: input.maxRelativeLengthError,
+          maxLabelDistanceMeters: input.maxLabelDistanceMeters,
+          modePenalty: 0.045 + Math.min(0.04, baselineError * 0.05),
+        });
+        if (!scored) continue;
+        const ids = [left.id, right.id];
+        output.push({
+          segment,
+          sourceSegmentId: ids.join("+"),
+          sourceSegmentIds: ids,
+          segmentOrientation: dimensionAxis,
+          evidenceMode: "witness_span",
+          ...scored,
+        });
+      }
+    }
+  }
+  return output;
+}
+
 /**
- * Resolves printed dimension text to source raster axes only when both measured ends have perpendicular
- * witness evidence. Rules interrupted by the printed label and small raster/arrowhead breaks may be
- * reconstructed from bounded collinear source fragments; arbitrary unsupported gaps are never bridged.
+ * Resolves printed dimension text to source raster axes only when source evidence supports both measured ends.
+ * Baseline rules may be intact or bounded fragments, while witness-span mode can derive the measured span from
+ * two aligned source extension-line endpoints when no baseline segment itself carries the full printed length.
  */
 export function associateRasterDimensionEvidence(input: {
   segments: readonly BosRawSegment[];
@@ -287,6 +381,10 @@ export function associateRasterDimensionEvidence(input: {
   const chainLabelGapPaddingMeters = input.options?.chainLabelGapPaddingMeters ?? 0.35;
   const fragmentGapToleranceMeters = input.options?.fragmentGapToleranceMeters ?? 0.18;
   const maxFragmentChainSegments = Math.max(3, Math.min(5, input.options?.maxFragmentChainSegments ?? 4));
+  const witnessSpanMinWitnessLengthMeters = input.options?.witnessSpanMinWitnessLengthMeters ?? 0.18;
+  const witnessSpanMaxWitnessLengthMeters = input.options?.witnessSpanMaxWitnessLengthMeters ?? 3;
+  const witnessSpanBaselineAlignmentToleranceMeters = input.options?.witnessSpanBaselineAlignmentToleranceMeters ?? 0.24;
+  const witnessSpanLabelPaddingMeters = input.options?.witnessSpanLabelPaddingMeters ?? 0.35;
   const dimensions = input.dimensions.map((dimension) => ({ ...dimension, start: dimension.start ? { ...dimension.start } : undefined, end: dimension.end ? { ...dimension.end } : undefined, evidence: [...dimension.evidence] }));
   const associations: BosRasterDimensionEvidenceAssociation[] = [];
   const unresolvedDimensionIds: string[] = [];
@@ -299,15 +397,24 @@ export function associateRasterDimensionEvidence(input: {
       ...buildSingleCandidates({ segments: input.segments, dimension, label, maxRelativeLengthError, maxLabelDistanceMeters }),
       ...buildLabelGapChainCandidates({ segments: input.segments, dimension, label, maxRelativeLengthError, maxLabelDistanceMeters, collinearToleranceMeters: chainCollinearToleranceMeters, labelGapPaddingMeters: chainLabelGapPaddingMeters }),
       ...buildFragmentChainCandidates({ segments: input.segments, dimension, label, maxRelativeLengthError, maxLabelDistanceMeters, collinearToleranceMeters: chainCollinearToleranceMeters, labelGapPaddingMeters: chainLabelGapPaddingMeters, fragmentGapToleranceMeters, maxSegments: maxFragmentChainSegments }),
+      ...buildWitnessSpanCandidates({ segments: input.segments, dimension, label, maxRelativeLengthError, maxLabelDistanceMeters, minWitnessLengthMeters: witnessSpanMinWitnessLengthMeters, maxWitnessLengthMeters: witnessSpanMaxWitnessLengthMeters, baselineAlignmentToleranceMeters: witnessSpanBaselineAlignmentToleranceMeters, labelPaddingMeters: witnessSpanLabelPaddingMeters }),
     ];
-    const candidates = rawCandidates.flatMap((candidate): Array<AxisCandidate & { startWitnessSupport: boolean; endWitnessSupport: boolean }> => {
+    const supportedCandidates = rawCandidates.flatMap((candidate): Array<AxisCandidate & { startWitnessSupport: boolean; endWitnessSupport: boolean }> => {
+      if (candidate.evidenceMode === "witness_span") {
+        return [{ ...candidate, startWitnessSupport: true, endWitnessSupport: true }];
+      }
       const dimensionAngle = angle(candidate.segment);
       const excluded = new Set(candidate.sourceSegmentIds);
       const startWitnessSupport = witnessSupport({ endpoint: candidate.segment.start, dimensionAngle, segments: input.segments, sourcePage: dimension.page, endpointTolerance: witnessEndpointToleranceMeters, angleTolerance: witnessAngleToleranceRadians, excludedSourceSegmentIds: excluded });
       const endWitnessSupport = witnessSupport({ endpoint: candidate.segment.end, dimensionAngle, segments: input.segments, sourcePage: dimension.page, endpointTolerance: witnessEndpointToleranceMeters, angleTolerance: witnessAngleToleranceRadians, excludedSourceSegmentIds: excluded });
       if (!startWitnessSupport || !endWitnessSupport) return [];
       return [{ ...candidate, startWitnessSupport, endWitnessSupport }];
-    }).sort((a, b) => a.score - b.score);
+    });
+    const strongerBaselineCandidates = supportedCandidates.filter((candidate) => candidate.evidenceMode !== "witness_span");
+    const candidates = (strongerBaselineCandidates.length
+      ? strongerBaselineCandidates
+      : supportedCandidates.filter((candidate) => candidate.evidenceMode === "witness_span"))
+      .sort((a, b) => a.score - b.score);
 
     if (!candidates.length || (candidates[1] && candidates[1].sourceSegmentId !== candidates[0].sourceSegmentId && candidates[1].score - candidates[0].score < ambiguityScoreGap)) {
       unresolvedDimensionIds.push(dimension.id);
@@ -316,7 +423,10 @@ export function associateRasterDimensionEvidence(input: {
     const best = candidates[0];
     dimension.start = { ...best.segment.start };
     dimension.end = { ...best.segment.end };
-    const modeFactor = best.evidenceMode === "single_segment" ? 0.96 : best.evidenceMode === "label_gap_chain" ? 0.93 : 0.9;
+    const modeFactor = best.evidenceMode === "single_segment" ? 0.96
+      : best.evidenceMode === "label_gap_chain" ? 0.93
+        : best.evidenceMode === "fragment_chain" ? 0.9
+          : 0.88;
     const confidence = Math.min(dimension.confidence, Math.max(0, 1 - best.relativeLengthError * 2) * modeFactor);
     dimension.confidence = confidence;
     associations.push({
@@ -338,6 +448,7 @@ export function associateRasterDimensionEvidence(input: {
   const singleSegmentAssociationCount = associations.filter((item) => item.evidenceMode === "single_segment").length;
   const labelGapChainAssociationCount = associations.filter((item) => item.evidenceMode === "label_gap_chain").length;
   const fragmentChainAssociationCount = associations.filter((item) => item.evidenceMode === "fragment_chain").length;
+  const witnessSpanAssociationCount = associations.filter((item) => item.evidenceMode === "witness_span").length;
   return {
     dimensions,
     associations,
@@ -345,10 +456,13 @@ export function associateRasterDimensionEvidence(input: {
     singleSegmentAssociationCount,
     labelGapChainAssociationCount,
     fragmentChainAssociationCount,
+    witnessSpanAssociationCount,
     diagnostics: [
-      `Raster dimension evidence associator resolved ${associations.length} of ${dimensions.length} printed dimensions (${singleSegmentAssociationCount} single source lines, ${labelGapChainAssociationCount} label-gap chains, ${fragmentChainAssociationCount} bounded fragment chains) with two-ended witness support.`,
+      `Raster dimension evidence associator resolved ${associations.length} of ${dimensions.length} printed dimensions (${singleSegmentAssociationCount} single source lines, ${labelGapChainAssociationCount} label-gap chains, ${fragmentChainAssociationCount} bounded fragment chains, ${witnessSpanAssociationCount} witness spans) with source-supported measured ends.`,
       `${unresolvedDimensionIds.length} dimensions remain unresolved rather than being inferred from text position alone.`,
       `Fragment chains allow at most ${maxFragmentChainSegments} collinear source pieces, tiny breaks up to ${fragmentGapToleranceMeters.toFixed(2)} m, and one larger gap only where the printed label occupies it.`,
+      `Witness spans require two perpendicular source extension lines ${witnessSpanMinWitnessLengthMeters.toFixed(2)}–${witnessSpanMaxWitnessLengthMeters.toFixed(2)} m long with aligned endpoints within ${witnessSpanBaselineAlignmentToleranceMeters.toFixed(2)} m and printed-value spacing.`,
+      "Witness spans are a fallback only when no stronger source-supported baseline rule or bounded chain survives validation.",
       "Arbitrary geometric gaps are never bridged and resolved dimension axes do not move wall geometry in this stage.",
     ],
   };
