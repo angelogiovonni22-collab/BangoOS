@@ -55,6 +55,9 @@ jobs:
       - name: Raster dimension evidence association
         run: npx -y tsx lib/blueprints/engine/raster-dimension-evidence-associator.contract.test.ts
 
+      - name: Global dimension boundary diagnostic
+        run: npx -y tsx lib/blueprints/engine/global-dimension-boundary-diagnostic.contract.test.ts
+
       - name: Source wall pair consolidator
         run: npx -y tsx lib/blueprints/engine/source-wall-pair-consolidator.contract.test.ts
 
