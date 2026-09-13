@@ -1,0 +1,23 @@
+name: Blueprint Witness Span Fidelity
+
+on:
+  pull_request:
+    paths:
+      - "lib/blueprints/engine/**"
+      - ".github/workflows/blueprint-witness-span-fidelity.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Witness-span fidelity contract
+        run: npx -y tsx lib/blueprints/engine/raster-witness-span-fidelity.contract.test.ts
