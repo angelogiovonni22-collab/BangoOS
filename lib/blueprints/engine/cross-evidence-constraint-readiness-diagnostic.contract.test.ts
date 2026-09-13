@@ -39,11 +39,11 @@ const convergence: BosCrossEvidenceBoundaryConvergenceDiagnostic = {
   dominantStartLengthMeters: null,
   dominantEndLengthMeters: 12.9,
   candidates: [{
-    independentStartCoordinate: 21.319,
+    independentStartCoordinate: 21.33,
     independentEndCoordinate: 28.355,
     candidateStartCoordinate: 21.342,
     candidateEndCoordinate: 28.351,
-    independentRelativeSpanError: 0.0107,
+    independentRelativeSpanError: 0.0122,
     candidateRelativeSpanError: 0.0145,
     candidateStartWallIds: ["wall-start"],
     candidateEndWallIds: ["wall-end-a", "wall-end-b"],
@@ -78,18 +78,22 @@ function overlay(entries: Array<{ wallSystemId: string; support: number }>): Bos
 }
 
 const walls = [wall("wall-start"), wall("wall-end-a"), wall("wall-end-b")];
+const fullSupport = overlay([
+  { wallSystemId: "wall-start", support: 1 },
+  { wallSystemId: "wall-end-a", support: 0.99 },
+  { wallSystemId: "wall-end-b", support: 0.98 },
+]);
+
 const ready = diagnoseCrossEvidenceConstraintReadiness({
   convergence: [convergence],
   wallSystems: walls,
-  sourcePixelOverlay: overlay([
-    { wallSystemId: "wall-start", support: 1 },
-    { wallSystemId: "wall-end-a", support: 0.99 },
-    { wallSystemId: "wall-end-b", support: 0.98 },
-  ]),
+  sourcePixelOverlay: fullSupport,
 });
 assert.equal(ready.readyCount, 1);
 assert.equal(ready.dimensions[0].reason, "ready_for_read_only_constraint_simulation");
 assert.equal(ready.dimensions[0].minimumWallSourceSupport, 0.98);
+assert(Math.abs((ready.dimensions[0].maximumBoundaryOffsetMeters || 0) - 0.012) < 1e-9);
+assert(ready.diagnostics.some((item) => item.includes("2 cm")));
 assert(ready.diagnostics.some((item) => item.includes("does not add constraints")));
 
 const weakSupport = diagnoseCrossEvidenceConstraintReadiness({
@@ -103,6 +107,22 @@ const weakSupport = diagnoseCrossEvidenceConstraintReadiness({
 });
 assert.equal(weakSupport.readyCount, 0);
 assert.equal(weakSupport.dimensions[0].reason, "insufficient_source_pixel_support");
+
+const coordinateMismatch = diagnoseCrossEvidenceConstraintReadiness({
+  convergence: [{
+    ...convergence,
+    candidates: [{
+      ...convergence.candidates[0],
+      independentStartCoordinate: 21.319,
+      candidateStartCoordinate: 21.342,
+    }],
+  }],
+  wallSystems: walls,
+  sourcePixelOverlay: fullSupport,
+});
+assert.equal(coordinateMismatch.readyCount, 0);
+assert.equal(coordinateMismatch.dimensions[0].reason, "boundary_coordinate_mismatch");
+assert((coordinateMismatch.dimensions[0].startBoundaryOffsetMeters || 0) > 0.02);
 
 const notConverged = diagnoseCrossEvidenceConstraintReadiness({
   convergence: [{ ...convergence, reason: "ambiguous_cross_evidence_pair", recommendedStartCoordinate: null, recommendedEndCoordinate: null }],
