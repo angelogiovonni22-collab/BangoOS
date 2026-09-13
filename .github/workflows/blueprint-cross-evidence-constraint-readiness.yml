@@ -22,3 +22,5 @@ jobs:
         run: npm ci
       - name: Cross-evidence constraint readiness contract
         run: npx -y tsx lib/blueprints/engine/cross-evidence-constraint-readiness-diagnostic.contract.test.ts
+      - name: Source family member agreement contract
+        run: npx -y tsx lib/blueprints/engine/source-family-member-agreement-diagnostic.contract.test.ts
