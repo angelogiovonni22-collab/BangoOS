@@ -50,6 +50,7 @@ assert(!retained.has("isolated"), "small isolated wall-like evidence must not be
 assert(selection.repetitiveArtifactCount >= 4, "dense repetitive short parallel families must be auditable");
 assert.equal(selection.retainedComponentCount, 1, "the synthetic building should resolve as one retained architectural component");
 assert.equal(selection.retainedComponents.length, 1, "retained component summaries must match retained component count");
+assert.equal(selection.retainedComponents[0].componentId, "source-component-1", "component identity must be deterministic within sorted retained evidence");
 assert.deepEqual(selection.retainedComponents[0].bounds, { minX: 2, minY: 2, maxX: 10, maxY: 8 }, "component bounds must describe only retained source-wall evidence");
 assert.equal(selection.retainedComponents[0].pairCount, building.length);
 assert.deepEqual(new Set(selection.retainedComponents[0].pairIds), new Set(building.map((item) => item.id)));
