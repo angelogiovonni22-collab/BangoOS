@@ -28,3 +28,5 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-pair-family-agreement-diagnostic.contract.test.ts
       - name: Source pair coordinate offset diagnostic
         run: npx -y tsx lib/blueprints/engine/source-pair-coordinate-offset-diagnostic.contract.test.ts
+      - name: Complete-link family split diagnostic
+        run: npx -y tsx lib/blueprints/engine/source-pair-complete-link-split-diagnostic.contract.test.ts
