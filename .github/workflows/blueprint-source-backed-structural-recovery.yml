@@ -1,0 +1,31 @@
+name: Blueprint Source Backed Structural Recovery
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "lib/blueprints/engine/source-backed-structural-recovery-diagnostic.ts"
+      - "lib/blueprints/engine/source-backed-structural-recovery-diagnostic.contract.test.ts"
+      - "app/api/blueprints/[versionId]/engine-benchmark/route.ts"
+      - ".github/workflows/blueprint-source-backed-structural-recovery.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Source-backed structural recovery diagnostic
+        run: npx -y tsx lib/blueprints/engine/source-backed-structural-recovery-diagnostic.contract.test.ts
