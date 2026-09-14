@@ -58,6 +58,26 @@ assert.equal(segmentedCoverage.agreements[0]?.recommendedMemberPairId, "member-m
 assert.equal(segmentedCoverage.agreements[0]?.members.find((item) => item.memberPairId === "member-match")?.sourceSpanCoverageRatio, 1);
 assert.equal(segmentedCoverage.agreements[0]?.reason, "unique_family_member_agreement");
 
+const supportVariantA = pair("support-variant-a", 6.00, 0.20, 1, 9);
+const supportVariantB = pair("support-variant-b", 6.015, 0.215, 1, 9);
+const sameSupportVariants = diagnoseSourcePairFamilyAgreement({
+  retainedSourcePairs: [supportVariantA],
+  consolidationClusters: [{
+    representativePairId: supportVariantA.id,
+    memberPairIds: [supportVariantA.id, supportVariantB.id],
+    members: [supportVariantA, supportVariantB],
+  }],
+  explicitWallSystems: [wall("shared-wall", 6.01, 0.21, 1, 9)],
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+});
+assert.equal(sameSupportVariants.uniqueAgreementCount, 1, "raster variants that independently pass the hard gates against the same explicit wall must be one agreement");
+assert.equal(sameSupportVariants.agreements[0]?.passingMemberCount, 2);
+assert.equal(sameSupportVariants.agreements[0]?.equivalentPassingGeometryCount, 1, "same explicit-wall support must collapse variant raster hypotheses without relaxing fidelity gates");
+assert.equal(sameSupportVariants.agreements[0]?.reason, "unique_family_member_agreement");
+
 const noAgreement = diagnoseSourcePairFamilyAgreement({
   retainedSourcePairs: [representative],
   consolidationClusters: [family],
@@ -84,7 +104,8 @@ const ambiguous = diagnoseSourcePairFamilyAgreement({
   sourceWidthMeters: 20,
   sourceHeightMeters: 20,
 });
-assert.equal(ambiguous.ambiguousAgreementCount, 1, "materially different passing source-member geometries must remain ambiguous");
+assert.equal(ambiguous.ambiguousAgreementCount, 1, "members resolving to materially different explicit-wall support must remain ambiguous");
+assert.equal(ambiguous.agreements[0]?.equivalentPassingGeometryCount, 2);
 assert.equal(ambiguous.agreements[0]?.recommendedMemberPairId, null);
 
 const missing = diagnoseSourcePairFamilyAgreement({
