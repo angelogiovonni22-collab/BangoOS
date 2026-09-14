@@ -39,6 +39,36 @@ export type BosSourcePairCoordinateOffsetBucket = {
   maxSignedOffsetMeters: number;
 };
 
+export type BosSourcePairCoordinateOffsetSimulationCandidate = {
+  orientation: Orientation;
+  offsetMeters: number;
+  sourceObservationCount: number;
+  sourceFamilyCount: number;
+  sourceWallCount: number;
+  recoveredObservationCount: number;
+  recoveredFamilyCount: number;
+  uniquelySupportedRecoveredFamilyCount: number;
+  ambiguousSupportRecoveredFamilyCount: number;
+  recoveredWallCount: number;
+  coverageRejectedObservationCount: number;
+  coordinateRejectedObservationCount: number;
+  maximumRecoveredCoordinateResidualMeters: number | null;
+  medianRecoveredCoordinateResidualMeters: number | null;
+};
+
+export type BosSourcePairCoordinateOffsetSimulation = {
+  mode: "read_only_coordinate_offset_candidate_simulation";
+  coordinateGateMeters: number;
+  thicknessGateMeters: number;
+  minimumCoverageRatio: number;
+  candidates: BosSourcePairCoordinateOffsetSimulationCandidate[];
+  bestCandidateByOrientation: {
+    horizontal: BosSourcePairCoordinateOffsetSimulationCandidate | null;
+    vertical: BosSourcePairCoordinateOffsetSimulationCandidate | null;
+  };
+  diagnostics: string[];
+};
+
 export type BosSourcePairCoordinateOffsetDiagnostic = {
   observationCount: number;
   familyCount: number;
@@ -47,6 +77,7 @@ export type BosSourcePairCoordinateOffsetDiagnostic = {
   medianSignedOffsetMeters: { horizontal: number | null; vertical: number | null };
   buckets: BosSourcePairCoordinateOffsetBucket[];
   observations: BosSourcePairCoordinateOffsetObservation[];
+  simulation: BosSourcePairCoordinateOffsetSimulation;
   diagnostics: string[];
 };
 
@@ -135,6 +166,79 @@ function bucketize(observations: BosSourcePairCoordinateOffsetObservation[], tol
   return buckets.sort((a, b) => b.observationCount - a.observationCount || b.familyCount - a.familyCount || a.offsetMeters - b.offsetMeters);
 }
 
+function simulateOffsetCandidates(input: {
+  observations: readonly BosSourcePairCoordinateOffsetObservation[];
+  buckets: readonly BosSourcePairCoordinateOffsetBucket[];
+  coordinateGateMeters: number;
+  thicknessGateMeters: number;
+  minimumCoverageRatio: number;
+  minimumSourceFamilyCount: number;
+  minimumSourceWallCount: number;
+}): BosSourcePairCoordinateOffsetSimulation {
+  const candidates = input.buckets
+    .filter((bucket) => bucket.familyCount >= input.minimumSourceFamilyCount && bucket.wallCount >= input.minimumSourceWallCount)
+    .map((bucket): BosSourcePairCoordinateOffsetSimulationCandidate => {
+      const sameOrientation = input.observations.filter((observation) => observation.orientation === bucket.orientation);
+      const recovered = sameOrientation.filter((observation) =>
+        Math.abs(observation.signedOffsetMeters - bucket.offsetMeters) <= input.coordinateGateMeters
+        && observation.thicknessErrorMeters <= input.thicknessGateMeters
+        && observation.overlapRatio >= input.minimumCoverageRatio);
+      const coverageRejectedObservationCount = sameOrientation.filter((observation) =>
+        Math.abs(observation.signedOffsetMeters - bucket.offsetMeters) <= input.coordinateGateMeters
+        && observation.thicknessErrorMeters <= input.thicknessGateMeters
+        && observation.overlapRatio < input.minimumCoverageRatio).length;
+      const coordinateRejectedObservationCount = sameOrientation.filter((observation) =>
+        Math.abs(observation.signedOffsetMeters - bucket.offsetMeters) > input.coordinateGateMeters).length;
+      const supportByFamily = new Map<string, Set<string>>();
+      for (const observation of recovered) {
+        const supports = supportByFamily.get(observation.representativePairId) ?? new Set<string>();
+        supports.add(observation.wallId);
+        supportByFamily.set(observation.representativePairId, supports);
+      }
+      const residuals = recovered.map((observation) => Math.abs(observation.signedOffsetMeters - bucket.offsetMeters));
+      return {
+        orientation: bucket.orientation,
+        offsetMeters: bucket.offsetMeters,
+        sourceObservationCount: bucket.observationCount,
+        sourceFamilyCount: bucket.familyCount,
+        sourceWallCount: bucket.wallCount,
+        recoveredObservationCount: recovered.length,
+        recoveredFamilyCount: supportByFamily.size,
+        uniquelySupportedRecoveredFamilyCount: [...supportByFamily.values()].filter((supports) => supports.size === 1).length,
+        ambiguousSupportRecoveredFamilyCount: [...supportByFamily.values()].filter((supports) => supports.size > 1).length,
+        recoveredWallCount: new Set(recovered.map((observation) => observation.wallId)).size,
+        coverageRejectedObservationCount,
+        coordinateRejectedObservationCount,
+        maximumRecoveredCoordinateResidualMeters: residuals.length ? Math.max(...residuals) : null,
+        medianRecoveredCoordinateResidualMeters: median(residuals),
+      };
+    })
+    .sort((a, b) =>
+      b.uniquelySupportedRecoveredFamilyCount - a.uniquelySupportedRecoveredFamilyCount
+      || b.recoveredFamilyCount - a.recoveredFamilyCount
+      || b.recoveredObservationCount - a.recoveredObservationCount
+      || a.ambiguousSupportRecoveredFamilyCount - b.ambiguousSupportRecoveredFamilyCount
+      || Math.abs(a.offsetMeters) - Math.abs(b.offsetMeters));
+
+  const bestFor = (orientation: Orientation) => candidates.find((candidate) => candidate.orientation === orientation) ?? null;
+  return {
+    mode: "read_only_coordinate_offset_candidate_simulation",
+    coordinateGateMeters: input.coordinateGateMeters,
+    thicknessGateMeters: input.thicknessGateMeters,
+    minimumCoverageRatio: input.minimumCoverageRatio,
+    candidates,
+    bestCandidateByOrientation: {
+      horizontal: bestFor("horizontal"),
+      vertical: bestFor("vertical"),
+    },
+    diagnostics: [
+      "Each repeated offset bucket is simulated against every same-orientation no-agreement observation using the original 2 cm coordinate gate, original 2 cm thickness gate, and 90% source-span coverage requirement.",
+      "Recovered families are separated into unique-support and multi-support outcomes so a lower residual cannot hide support ambiguity.",
+      "Candidate offsets are diagnostic only. They are never applied to source evidence, explicit walls, topology, thresholds, persistence, canonical geometry, or 3D output.",
+    ],
+  };
+}
+
 /**
  * Read-only coordinate registration diagnostic. It inspects only source-family members that have no
  * current hard-gate agreement and pairs them with overlapping existing explicit walls that already
@@ -153,10 +257,16 @@ export function diagnoseSourcePairCoordinateOffsets(input: {
   maximumThicknessErrorMeters?: number;
   minimumOverlapRatio?: number;
   offsetBucketToleranceMeters?: number;
+  simulationCoordinateGateMeters?: number;
+  simulationMinimumCoverageRatio?: number;
+  simulationMinimumSourceFamilyCount?: number;
+  simulationMinimumSourceWallCount?: number;
 }): BosSourcePairCoordinateOffsetDiagnostic {
   const maxThicknessError = input.maximumThicknessErrorMeters ?? 0.02;
   const minOverlap = input.minimumOverlapRatio ?? 0.5;
   const bucketTolerance = input.offsetBucketToleranceMeters ?? 0.02;
+  const simulationCoordinateGate = input.simulationCoordinateGateMeters ?? 0.02;
+  const simulationMinimumCoverage = input.simulationMinimumCoverageRatio ?? 0.9;
   const clusterByRepresentative = new Map(input.consolidationClusters.map((cluster) => [cluster.representativePairId, cluster]));
   const walls = input.explicitWallSystems.map((wall) => ({ wall, geometry: wallGeometry(wall) }));
   const observations: BosSourcePairCoordinateOffsetObservation[] = [];
@@ -204,6 +314,7 @@ export function diagnoseSourcePairCoordinateOffsets(input: {
 
   const horizontal = observations.filter((item) => item.orientation === "horizontal");
   const vertical = observations.filter((item) => item.orientation === "vertical");
+  const buckets = bucketize(observations, bucketTolerance);
   return {
     observationCount: observations.length,
     familyCount: new Set(observations.map((item) => item.representativePairId)).size,
@@ -213,8 +324,17 @@ export function diagnoseSourcePairCoordinateOffsets(input: {
       horizontal: median(horizontal.map((item) => item.signedOffsetMeters)),
       vertical: median(vertical.map((item) => item.signedOffsetMeters)),
     },
-    buckets: bucketize(observations, bucketTolerance),
+    buckets,
     observations,
+    simulation: simulateOffsetCandidates({
+      observations,
+      buckets,
+      coordinateGateMeters: simulationCoordinateGate,
+      thicknessGateMeters: maxThicknessError,
+      minimumCoverageRatio: simulationMinimumCoverage,
+      minimumSourceFamilyCount: input.simulationMinimumSourceFamilyCount ?? 2,
+      minimumSourceWallCount: input.simulationMinimumSourceWallCount ?? 2,
+    }),
     diagnostics: [
       `Inspected ${observations.length} no-agreement rendered-source member(s) with an overlapping existing explicit wall that independently satisfies the ${(maxThicknessError * 100).toFixed(0)} cm thickness gate and at least ${(minOverlap * 100).toFixed(0)}% source-span overlap.`,
       `Signed fixed-axis offsets are grouped within ${(bucketTolerance * 100).toFixed(0)} cm only for read-only registration diagnosis; the original coordinate gate is not changed or bypassed.`,
