@@ -73,6 +73,9 @@ jobs:
       - name: Source wall network selector
         run: npx -y tsx lib/blueprints/engine/source-wall-network-selector.contract.test.ts
 
+      - name: Source network coverage gaps
+        run: npx -y tsx lib/blueprints/engine/source-network-coverage-gap-diagnostic.contract.test.ts
+
       - name: Phase fidelity audit
         run: npx -y tsx lib/blueprints/engine/phase-fidelity-audit.contract.test.ts
 
