@@ -6,10 +6,17 @@ export type BosSourceWallPairConsolidationOptions = {
   thicknessToleranceMeters?: number;
 };
 
+export type BosSourceWallPairConsolidationCluster = {
+  representativePairId: string;
+  memberPairIds: string[];
+  members: BosSourceWallFacePair[];
+};
+
 export type BosSourceWallPairConsolidation = {
   wallFacePairs: BosSourceWallFacePair[];
   rejectedDuplicatePairIds: string[];
   clusterCount: number;
+  clusters: BosSourceWallPairConsolidationCluster[];
   diagnostics: string[];
 };
 
@@ -45,6 +52,7 @@ function median(values: number[]) {
 /**
  * Collapses near-identical rendered-pixel wall-pair candidates that describe the same physical wall.
  * It selects an existing evidence pair as the representative; it never invents or averages geometry.
+ * Every original pair remains exposed inside its read-only evidence family for downstream diagnostics.
  */
 export function consolidateSourceWallPairs(input: {
   wallFacePairs: readonly BosSourceWallFacePair[];
@@ -55,7 +63,7 @@ export function consolidateSourceWallPairs(input: {
   options?: BosSourceWallPairConsolidationOptions;
 }): BosSourceWallPairConsolidation {
   if (!input.wallFacePairs.length) {
-    return { wallFacePairs: [], rejectedDuplicatePairIds: [], clusterCount: 0, diagnostics: ["Source wall-pair consolidator received no pairs."] };
+    return { wallFacePairs: [], rejectedDuplicatePairIds: [], clusterCount: 0, clusters: [], diagnostics: ["Source wall-pair consolidator received no pairs."] };
   }
   const centerlineToleranceMeters = input.options?.centerlineToleranceMeters ?? 0.06;
   const minimumOverlapRatio = input.options?.minimumOverlapRatio ?? 0.72;
@@ -93,8 +101,10 @@ export function consolidateSourceWallPairs(input: {
     groups.set(root, [...(groups.get(root) || []), pair]);
   });
 
+  const originalById = new Map(input.wallFacePairs.map((pair) => [pair.id, pair]));
   const retainedIds = new Set<string>();
   const representatives: BosSourceWallFacePair[] = [];
+  const clusters: BosSourceWallPairConsolidationCluster[] = [];
   for (const group of groups.values()) {
     const targetThickness = median(group.map((pair) => pair.separationMeters));
     const representative = [...group].sort((a, b) => {
@@ -102,18 +112,27 @@ export function consolidateSourceWallPairs(input: {
       if (Math.abs(thicknessDelta) > 1e-9) return thicknessDelta;
       return b.lengthMeters - a.lengthMeters;
     })[0];
+    const representativePair = originalById.get(representative.id) || representative;
+    const members = group.map((member) => originalById.get(member.id) || member);
     retainedIds.add(representative.id);
-    representatives.push(input.wallFacePairs.find((pair) => pair.id === representative.id) || representative);
+    representatives.push(representativePair);
+    clusters.push({
+      representativePairId: representative.id,
+      memberPairIds: members.map((member) => member.id),
+      members,
+    });
   }
   const rejectedDuplicatePairIds = input.wallFacePairs.filter((pair) => !retainedIds.has(pair.id)).map((pair) => pair.id);
   return {
     wallFacePairs: representatives,
     rejectedDuplicatePairIds,
     clusterCount: groups.size,
+    clusters,
     diagnostics: [
       `Source wall-pair consolidation retained ${representatives.length} of ${input.wallFacePairs.length} rendered-source pairs across ${groups.size} evidence clusters.`,
       `${rejectedDuplicatePairIds.length} near-identical raster-row pair combinations were removed without moving or synthesizing source geometry.`,
       `Duplicate clustering requires centerlines within ${centerlineToleranceMeters.toFixed(2)} m, thickness within ${thicknessToleranceMeters.toFixed(2)} m, and ${(minimumOverlapRatio * 100).toFixed(0)}% span overlap.`,
+      "Every original source-pair member remains available inside its consolidation family for read-only fidelity diagnostics.",
     ],
   };
 }
