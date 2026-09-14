@@ -32,3 +32,5 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-pair-complete-link-split-diagnostic.contract.test.ts
       - name: Raster pairing gap diagnostic
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-pairing-gap-diagnostic.contract.test.ts
+      - name: Raster pairing conflict provenance diagnostic
+        run: npx -y tsx lib/blueprints/engine/source-pair-raster-conflict-diagnostic.contract.test.ts

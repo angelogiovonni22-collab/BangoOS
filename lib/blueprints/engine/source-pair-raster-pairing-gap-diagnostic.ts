@@ -1,6 +1,7 @@
 import type { BosRawSegment } from "./geometry";
 import type { BosSourceWallPairConsolidationCluster } from "./source-wall-pair-consolidator";
 import type { BosSourcePairFamilyAgreementDiagnostic } from "./source-pair-family-agreement-diagnostic";
+import { diagnoseSourcePairRasterConflicts, type BosRasterPairingConflictDiagnostic } from "./source-pair-raster-conflict-diagnostic";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 
 type Orientation = "horizontal" | "vertical";
@@ -48,6 +49,7 @@ export type BosRasterPairingGapDiagnostic = {
   reasonFamilyCounts: Record<BosRasterPairingGapReason, number>;
   members: BosRasterPairingGapMember[];
   diagnostics: string[];
+  conflictProvenance?: BosRasterPairingConflictDiagnostic;
 };
 
 function segmentLength(segment: BosRawSegment) {
@@ -234,7 +236,7 @@ export function diagnoseSourcePairRasterPairingGaps(input: {
   const reasonFamilyCounts = emptyReasonCounts();
   for (const reasons of familyReasons.values()) for (const reason of reasons) reasonFamilyCounts[reason] += 1;
 
-  return {
+  const baseReport: BosRasterPairingGapDiagnostic = {
     familyCount: familyReasons.size,
     memberCount: members.length,
     reasonMemberCounts,
@@ -248,4 +250,10 @@ export function diagnoseSourcePairRasterPairingGaps(input: {
       "Read-only pairing audit: no candidate is promoted and production pairing, source selection, geometry, thresholds, topology, persistence, canonical data, and 3D output are unchanged.",
     ],
   };
+  const conflictProvenance = diagnoseSourcePairRasterConflicts({
+    familyAgreement: input.familyAgreement,
+    rasterPairingGapDiagnostic: baseReport,
+    explicitWallSystems: input.explicitWallSystems,
+  });
+  return { ...baseReport, conflictProvenance };
 }
