@@ -140,6 +140,15 @@ function pairRuns(input: {
   return { pairs, candidateRunCount, rejectedSheetFrameRunCount };
 }
 
+function physicalPixelBounds(minMeters: number, maxMeters: number, pixelsPerMeter: number) {
+  // A pixel-quantized pair must remain inside the requested physical interval. Rounding the
+  // minimum down or maximum up silently admits source pairs outside the configured wall bounds.
+  return {
+    minSeparation: Math.max(2, Math.ceil(minMeters * pixelsPerMeter - 1e-9)),
+    maxSeparation: Math.floor(maxMeters * pixelsPerMeter + 1e-9),
+  };
+}
+
 /** Independent rendered-pixel two-face wall evidence. */
 export function buildSourceWallFaceMask(input: {
   image: GrayImage;
@@ -156,22 +165,25 @@ export function buildSourceWallFaceMask(input: {
   const spanRatio = input.options?.sheetFrameSpanRatio ?? 0.55;
   if (!(input.sourceWidthMeters > 0) || !(input.sourceHeightMeters > 0)) throw new Error("Source wall-face masking requires positive source dimensions in meters.");
   if (!input.image.width || !input.image.height || input.image.data.length !== input.image.width * input.image.height) throw new Error("Source wall-face masking requires a valid grayscale source image.");
+  if (!(minThicknessMeters > 0) || !(maxThicknessMeters > 0) || maxThicknessMeters < minThicknessMeters) throw new Error("Source wall-face masking requires a valid positive wall-thickness interval.");
 
   const pixelsPerMeterX = input.image.width / input.sourceWidthMeters;
   const pixelsPerMeterY = input.image.height / input.sourceHeightMeters;
+  const horizontalBounds = physicalPixelBounds(minThicknessMeters, maxThicknessMeters, pixelsPerMeterY);
+  const verticalBounds = physicalPixelBounds(minThicknessMeters, maxThicknessMeters, pixelsPerMeterX);
   const horizontalRuns = extractRuns(input.image, true, threshold, minRun);
   const verticalRuns = extractRuns(input.image, false, threshold, minRun);
   const horizontal = pairRuns({
     image: input.image, runs: horizontalRuns, horizontal: true,
-    minSeparation: Math.max(2, Math.round(minThicknessMeters * pixelsPerMeterY)),
-    maxSeparation: Math.max(2, Math.round(maxThicknessMeters * pixelsPerMeterY)),
+    minSeparation: horizontalBounds.minSeparation,
+    maxSeparation: horizontalBounds.maxSeparation,
     minOverlapRatio, minRun, edgeRatio, spanRatio,
     pixelsPerMeterMoving: pixelsPerMeterX, pixelsPerMeterFixed: pixelsPerMeterY,
   });
   const vertical = pairRuns({
     image: input.image, runs: verticalRuns, horizontal: false,
-    minSeparation: Math.max(2, Math.round(minThicknessMeters * pixelsPerMeterX)),
-    maxSeparation: Math.max(2, Math.round(maxThicknessMeters * pixelsPerMeterX)),
+    minSeparation: verticalBounds.minSeparation,
+    maxSeparation: verticalBounds.maxSeparation,
     minOverlapRatio, minRun, edgeRatio, spanRatio,
     pixelsPerMeterMoving: pixelsPerMeterY, pixelsPerMeterFixed: pixelsPerMeterX,
   });
