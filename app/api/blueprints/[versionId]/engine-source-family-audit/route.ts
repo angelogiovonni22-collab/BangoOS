@@ -12,6 +12,7 @@ import { buildIndependentSourceWallNetworkEvidence } from "@/lib/blueprints/engi
 import { diagnoseSourcePairFamilyAgreement } from "@/lib/blueprints/engine/source-pair-family-agreement-diagnostic";
 import { diagnoseSourcePairFamilyGaps } from "@/lib/blueprints/engine/source-pair-family-gap-diagnostic";
 import { diagnoseSourcePairCoordinateOffsets } from "@/lib/blueprints/engine/source-pair-coordinate-offset-diagnostic";
+import { diagnoseCompleteLinkFamilySplits } from "@/lib/blueprints/engine/source-pair-complete-link-split-diagnostic";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -133,6 +134,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: raster.width,
       sourceHeightMeters: raster.height,
     });
+    const completeLinkFamilySplitDiagnostic = diagnoseCompleteLinkFamilySplits({
+      singleLinkClusters: sourceEvidence.consolidated.clusters,
+      completeLinkClusters: completeLinkEvidence.consolidated.clusters,
+      completeLinkFamilyAgreement,
+    });
 
     return NextResponse.json({
       mode: "read_only_source_pair_family_audit",
@@ -171,6 +177,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
           retainedComponentCount: completeLinkEvidence.network.retainedComponentCount,
         },
         familyAgreement: completeLinkFamilyAgreement,
+        familySplitDiagnostic: completeLinkFamilySplitDiagnostic,
         delta: {
           retainedPairCount: completeLinkEvidence.network.wallFacePairs.length - sourceEvidence.network.wallFacePairs.length,
           uniqueAgreementCount: completeLinkFamilyAgreement.uniqueAgreementCount - familyAgreement.uniqueAgreementCount,
