@@ -117,5 +117,11 @@ const boundedMask = buildSourceWallFaceMask({
 });
 assert(boundedMask.wallFacePairs.some((pair) => Math.abs(pair.separationMeters - 0.5) < 1e-9), "in-range physical wall thickness must remain eligible");
 assert(boundedMask.wallFacePairs.every((pair) => pair.separationMeters >= 0.45 - 1e-9 && pair.separationMeters <= 0.55 + 1e-9), "pixel quantization must not admit source wall pairs outside configured physical thickness bounds");
+assert.throws(() => buildSourceWallFaceMask({
+  image: { data: boundedData, width, height },
+  sourceWidthMeters: 10,
+  sourceHeightMeters: 10,
+  options: { minWallThicknessMeters: 0.55, maxWallThicknessMeters: 0.45 },
+}), /valid positive wall-thickness interval/, "an inverted physical thickness interval must fail closed rather than silently widening evidence");
 
 console.log("Blueprint source pixel overlay contract passed.");
