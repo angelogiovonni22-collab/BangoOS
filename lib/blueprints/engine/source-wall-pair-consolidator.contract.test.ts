@@ -46,6 +46,32 @@ assert.deepEqual(new Set(duplicateCluster.members.map((item) => item.id)), new S
 assert(result.diagnostics.some((item) => item.includes("without moving or synthesizing source geometry")), "diagnostics must make evidence-preserving consolidation explicit");
 assert(result.diagnostics.some((item) => item.includes("consolidation family")), "diagnostics must disclose member preservation");
 
+const chainA = pair("chain-a", 8.00, 1, 9, 0.20);
+const chainB = pair("chain-b", 8.05, 1, 9, 0.25);
+const chainC = pair("chain-c", 8.10, 1, 9, 0.30);
+const singleLinkChain = consolidateSourceWallPairs({
+  wallFacePairs: [chainA, chainB, chainC],
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+});
+assert.equal(singleLinkChain.clusterCount, 1, "default production single-link behavior must remain unchanged for a transitive compatibility chain");
+const completeLinkChain = consolidateSourceWallPairs({
+  wallFacePairs: [chainA, chainB, chainC],
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+  options: { clusteringMode: "complete_link" },
+});
+assert.equal(completeLinkChain.clusterCount, 2, "complete-link simulation must not place endpoints in one family when they violate the original pairwise tolerances");
+assert(completeLinkChain.clusters.every((cluster) => cluster.members.every((left) => cluster.members.every((right) => {
+  const fixedDelta = Math.abs(left.centerFixedPixel - right.centerFixedPixel) / scale;
+  return fixedDelta <= 0.06 + 1e-9 && Math.abs(left.separationMeters - right.separationMeters) <= 0.08 + 1e-9;
+}))), "every complete-link family must remain bounded by the existing centerline and thickness tolerances");
+assert(completeLinkChain.diagnostics.some((item) => item.includes("Complete-link simulation")), "simulation diagnostics must disclose the bounded clustering mode");
+
 const empty = consolidateSourceWallPairs({
   wallFacePairs: [],
   sourcePixelWidth: 2000,

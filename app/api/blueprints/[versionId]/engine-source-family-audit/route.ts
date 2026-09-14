@@ -98,6 +98,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: raster.width,
       sourceHeightMeters: raster.height,
     });
+    const completeLinkEvidence = buildIndependentSourceWallNetworkEvidence({
+      image: sourceImage,
+      sourceWidthMeters: raster.width,
+      sourceHeightMeters: raster.height,
+      consolidationOptions: { clusteringMode: "complete_link" },
+    });
+    const completeLinkFamilyAgreement = diagnoseSourcePairFamilyAgreement({
+      retainedSourcePairs: completeLinkEvidence.network.wallFacePairs,
+      consolidationClusters: completeLinkEvidence.consolidated.clusters,
+      explicitWallSystems: architecturalCandidate.sheetFrameSelection.wallSystems,
+      sourcePixelWidth: sourceImage.width,
+      sourcePixelHeight: sourceImage.height,
+      sourceWidthMeters: raster.width,
+      sourceHeightMeters: raster.height,
+    });
 
     return NextResponse.json({
       mode: "read_only_source_pair_family_audit",
@@ -124,6 +139,29 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         explicitWallSystemCount: architecturalCandidate.sheetFrameSelection.wallSystems.length,
       },
       familyAgreement,
+      completeLinkSimulation: {
+        mode: "read_only_complete_link_source_pair_simulation",
+        evidence: {
+          rawPairCount: completeLinkEvidence.faces.wallFacePairs.length,
+          consolidatedPairCount: completeLinkEvidence.consolidated.wallFacePairs.length,
+          consolidationClusterCount: completeLinkEvidence.consolidated.clusterCount,
+          retainedPairCount: completeLinkEvidence.network.wallFacePairs.length,
+          retainedComponentCount: completeLinkEvidence.network.retainedComponentCount,
+        },
+        familyAgreement: completeLinkFamilyAgreement,
+        delta: {
+          retainedPairCount: completeLinkEvidence.network.wallFacePairs.length - sourceEvidence.network.wallFacePairs.length,
+          uniqueAgreementCount: completeLinkFamilyAgreement.uniqueAgreementCount - familyAgreement.uniqueAgreementCount,
+          ambiguousAgreementCount: completeLinkFamilyAgreement.ambiguousAgreementCount - familyAgreement.ambiguousAgreementCount,
+          noAgreementCount: completeLinkFamilyAgreement.noAgreementCount - familyAgreement.noAgreementCount,
+          missingFamilyCount: completeLinkFamilyAgreement.missingFamilyCount - familyAgreement.missingFamilyCount,
+        },
+        diagnostics: [
+          "Complete-link simulation reuses the same rendered-source extraction, source-network selector, explicit wall systems, and hard family-agreement gates.",
+          "Only source-pair family clustering changes: every member of a complete-link family must satisfy the existing consolidation tolerances with every other family member.",
+          "Read-only simulation: production source selection, reconstructed geometry, thresholds, persistence, and canonical data are unchanged.",
+        ],
+      },
       safety: { writesPerformed: false, sourceSelectionChanged: false, canonicalGeometryChanged: false, generated3d: false },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
