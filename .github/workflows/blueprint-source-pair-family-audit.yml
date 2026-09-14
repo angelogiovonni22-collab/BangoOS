@@ -1,0 +1,28 @@
+name: Blueprint Source Pair Family Audit
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Preserve source pair families
+        run: npx -y tsx lib/blueprints/engine/source-wall-pair-consolidator.contract.test.ts
+      - name: Source pair family agreement
+        run: npx -y tsx lib/blueprints/engine/source-pair-family-agreement-diagnostic.contract.test.ts
