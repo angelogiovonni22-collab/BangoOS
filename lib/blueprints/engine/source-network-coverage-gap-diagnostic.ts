@@ -1,14 +1,23 @@
 import type { BosSourceWallFacePair } from "./source-wall-face-mask";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 
+export type BosSourceNetworkCoverageGapSegment = {
+  startMeters: number;
+  endMeters: number;
+  lengthMeters: number;
+};
+
 export type BosSourceNetworkCoverageGap = {
   pairId: string;
   orientation: "horizontal" | "vertical";
   sourceCoordinateMeters: number;
   sourceSeparationMeters: number;
+  sourceStartMeters: number;
+  sourceEndMeters: number;
   sourceLengthMeters: number;
   uncoveredLengthMeters: number;
   uncoveredRatio: number;
+  uncoveredSegments: BosSourceNetworkCoverageGapSegment[];
   nearestCandidateFaceDistanceMeters: number | null;
   nearestCandidateWallIds: string[];
 };
@@ -45,6 +54,20 @@ function mergeIntervals(intervals: Array<[number, number]>) {
   return merged;
 }
 
+function uncoveredSegments(sourceStart: number, sourceEnd: number, covered: readonly [number, number][]) {
+  const output: BosSourceNetworkCoverageGapSegment[] = [];
+  let cursor = sourceStart;
+  for (const [rawStart, rawEnd] of covered) {
+    const start = Math.max(sourceStart, rawStart);
+    const end = Math.min(sourceEnd, rawEnd);
+    if (end <= sourceStart || start >= sourceEnd) continue;
+    if (start > cursor + 0.001) output.push({ startMeters: cursor, endMeters: start, lengthMeters: start - cursor });
+    cursor = Math.max(cursor, end);
+  }
+  if (cursor < sourceEnd - 0.001) output.push({ startMeters: cursor, endMeters: sourceEnd, lengthMeters: sourceEnd - cursor });
+  return output;
+}
+
 /**
  * Reports where independently retained rendered-source wall systems are not represented by
  * existing reconstructed wall faces. This is diagnostic only: it does not create, extend,
@@ -79,8 +102,10 @@ export function diagnoseSourceNetworkCoverageGaps(input: {
     const fixedScale = horizontal ? pxPerMeterY : pxPerMeterX;
     const movingScale = horizontal ? pxPerMeterX : pxPerMeterY;
     const sourceCoordinate = pair.centerFixedPixel / fixedScale;
-    const sourceStart = pair.startPixel / movingScale;
-    const sourceEnd = pair.endPixel / movingScale;
+    const rawStart = pair.startPixel / movingScale;
+    const rawEnd = pair.endPixel / movingScale;
+    const sourceStart = Math.min(rawStart, rawEnd);
+    const sourceEnd = Math.max(rawStart, rawEnd);
     const sourceLength = Math.max(0, sourceEnd - sourceStart);
     totalSourceLengthMeters += sourceLength;
 
@@ -110,8 +135,9 @@ export function diagnoseSourceNetworkCoverageGaps(input: {
     }
 
     const merged = mergeIntervals(coverageIntervals);
-    const coveredLength = merged.reduce((sum, [start, end]) => sum + Math.max(0, end - start), 0);
-    const uncoveredLength = Math.max(0, sourceLength - coveredLength);
+    const uncovered = uncoveredSegments(sourceStart, sourceEnd, merged);
+    const coveredLength = merged.reduce((sum, [start, end]) => sum + Math.max(0, Math.min(sourceEnd, end) - Math.max(sourceStart, start)), 0);
+    const uncoveredLength = uncovered.reduce((sum, segment) => sum + segment.lengthMeters, 0);
     const uncoveredRatio = sourceLength > 0 ? uncoveredLength / sourceLength : 0;
     uncoveredLengthMeters += uncoveredLength;
 
@@ -125,9 +151,12 @@ export function diagnoseSourceNetworkCoverageGaps(input: {
         orientation: pair.orientation,
         sourceCoordinateMeters: sourceCoordinate,
         sourceSeparationMeters: pair.separationMeters,
+        sourceStartMeters: sourceStart,
+        sourceEndMeters: sourceEnd,
         sourceLengthMeters: sourceLength,
         uncoveredLengthMeters: uncoveredLength,
         uncoveredRatio,
+        uncoveredSegments: uncovered,
         nearestCandidateFaceDistanceMeters: Number.isFinite(nearestDistance) ? nearestDistance : null,
         nearestCandidateWallIds: [...nearestWallIds],
       });
@@ -151,7 +180,7 @@ export function diagnoseSourceNetworkCoverageGaps(input: {
       `Source-network gap diagnostic inspected ${input.wallFacePairs.length} retained rendered-source wall pairs.`,
       `${fullyCoveredPairCount} are fully represented, ${partiallyCoveredPairCount} are partially represented, and ${uncoveredPairCount} have no reconstructed face within ${(tolerance * 100).toFixed(0)} cm.`,
       `${(uncoveredLengthRatio * 100).toFixed(1)}% of retained source-wall pair length remains uncovered geometrically.`,
-      `Reporting the ${gaps.length} largest of ${allGaps.length} source-wall gaps at or above ${minimumGap.toFixed(2)} m to keep benchmark evidence bounded.`,
+      `Reporting the ${gaps.length} largest of ${allGaps.length} source-wall gaps at or above ${minimumGap.toFixed(2)} m with exact source-axis uncovered spans.`,
       "Read-only: this report never creates, extends, bridges, snaps, promotes, deletes, or persists geometry.",
     ],
   };
