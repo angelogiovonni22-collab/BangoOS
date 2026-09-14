@@ -152,7 +152,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     async function runExtractionSimulation(options: { minRunPixels: number; gapPixels?: number }) {
       const simulatedRaster = await extractRasterLineSegments(buffer, {
         page: plan.selectedPage,
-        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
+        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter!,
         sourceWidth: selected.page.width,
         sourceHeight: selected.page.height,
         options,
@@ -160,7 +160,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       const simulatedCandidate = buildRasterArchitecturalCandidate({
         segments: simulatedRaster.segments,
         dimensions: selected.dimensions,
-        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
+        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter!,
         sourceWidthMeters: simulatedRaster.width,
         sourceHeightMeters: simulatedRaster.height,
       });
