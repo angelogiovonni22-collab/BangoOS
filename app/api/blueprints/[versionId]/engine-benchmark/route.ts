@@ -14,6 +14,7 @@ import { assessSourceWallNetworkOverlay, buildIndependentSourceWallNetworkEviden
 import { diagnoseIndependentSourceDimensionBoundaries } from "@/lib/blueprints/engine/source-network-dimension-endpoint-diagnostic";
 import { diagnoseCrossEvidenceBoundaryConvergence } from "@/lib/blueprints/engine/cross-evidence-boundary-convergence-diagnostic";
 import { diagnoseCrossEvidenceConstraintReadiness } from "@/lib/blueprints/engine/cross-evidence-constraint-readiness-diagnostic";
+import { diagnoseSourceFamilyMemberAgreement } from "@/lib/blueprints/engine/source-family-member-agreement-diagnostic";
 import { simulateReadOnlyDimensionConstraints } from "@/lib/blueprints/engine/read-only-dimension-constraint-simulation";
 import type { Database } from "@/types/database.types";
 
@@ -133,6 +134,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         provenance: stages.boundaryFamilyProvenance,
         wallFacePairs: independentSourceWallNetwork.network.wallFacePairs,
       });
+      const sourceFamilyMemberAgreement = diagnoseSourceFamilyMemberAgreement({
+        convergence: crossEvidenceBoundaryConvergence.dimensions,
+        independentDiagnostics: independentDimensionBoundaryEvidence.dimensions,
+        wallSystems: architecturalCandidate.constrained.wallSystems,
+      });
       const crossEvidenceConstraintReadiness = diagnoseCrossEvidenceConstraintReadiness({
         convergence: crossEvidenceBoundaryConvergence.dimensions,
         wallSystems: architecturalCandidate.constrained.wallSystems,
@@ -151,6 +157,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWallNetworkOverlay,
         independentDimensionBoundaryEvidence,
         crossEvidenceBoundaryConvergence,
+        sourceFamilyMemberAgreement,
         crossEvidenceConstraintReadiness,
         readOnlyDimensionConstraintSimulation,
       };
