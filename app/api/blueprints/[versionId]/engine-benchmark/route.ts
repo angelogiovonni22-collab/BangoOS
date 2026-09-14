@@ -143,6 +143,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         convergence: crossEvidenceBoundaryConvergence.dimensions,
         wallSystems: architecturalCandidate.constrained.wallSystems,
         sourcePixelOverlay,
+        sourceFamilyMemberAgreement: sourceFamilyMemberAgreement.dimensions,
+        dimensions: architecturalCandidate.dimensionEvidence.dimensions,
       });
       const readOnlyDimensionConstraintSimulation = simulateReadOnlyDimensionConstraints({
         dimensions: architecturalCandidate.dimensionEvidence.dimensions,
