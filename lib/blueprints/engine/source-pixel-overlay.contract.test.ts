@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 import { assessSourcePixelOverlay, type BosGraySourceImage } from "./source-pixel-overlay";
+import { buildSourceWallFaceMask } from "./source-wall-face-mask";
 
 function wall(id: string, y: number): BosWallSystemCandidate {
   const faceA = { start: { x: 1, y }, end: { x: 9, y } };
@@ -100,5 +101,21 @@ assert(withUnsupported.predictedPrecision < supported.predictedPrecision - 0.25,
 assert(withUnsupported.unsupportedWallSystemIds.includes("unsupported"), "unsupported wall systems must be individually auditable");
 assert(withUnsupported.diagnostics.some((item) => item.includes("independently paired rendered-source wall-face pixels")), "overlay diagnostics must expose the independent wall-face recall basis");
 assert(withUnsupported.diagnostics.some((item) => item.includes("rendered Blueprint page")), "overlay diagnostics must state the independent rendered-source basis");
+
+// Pixel quantization must never widen configured physical wall-thickness bounds. At 10 px/m,
+// only the 5 px (0.50 m) pair is valid inside the requested 0.45–0.55 m interval.
+const boundedData = new Uint8Array(width * height).fill(255);
+const boundedInk = (y: number) => { for (let x = 10; x <= 90; x += 1) boundedData[y * width + x] = 0; };
+boundedInk(20); boundedInk(24); // 0.40 m: below minimum
+boundedInk(40); boundedInk(45); // 0.50 m: valid
+boundedInk(60); boundedInk(66); // 0.60 m: above maximum
+const boundedMask = buildSourceWallFaceMask({
+  image: { data: boundedData, width, height },
+  sourceWidthMeters: 10,
+  sourceHeightMeters: 10,
+  options: { minRunPixels: 20, minWallThicknessMeters: 0.45, maxWallThicknessMeters: 0.55, minOverlapRatio: 0.9, sheetFrameEdgeRatio: 0.01 },
+});
+assert(boundedMask.wallFacePairs.some((pair) => Math.abs(pair.separationMeters - 0.5) < 1e-9), "in-range physical wall thickness must remain eligible");
+assert(boundedMask.wallFacePairs.every((pair) => pair.separationMeters >= 0.45 - 1e-9 && pair.separationMeters <= 0.55 + 1e-9), "pixel quantization must not admit source wall pairs outside configured physical thickness bounds");
 
 console.log("Blueprint source pixel overlay contract passed.");
