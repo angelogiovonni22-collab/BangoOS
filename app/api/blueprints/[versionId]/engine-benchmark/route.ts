@@ -128,6 +128,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         predictedPrecision: sourcePixelOverlay.predictedPrecision,
         evidence: independentSourceWallNetwork,
       });
+      const preselectionOverlay = assessSourceWallNetworkOverlay({
+        image: sourceImage,
+        wallSystems: architecturalCandidate.sheetFrameSelection.wallSystems,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
+        predictedPrecision: sourcePixelOverlay.predictedPrecision,
+        evidence: independentSourceWallNetwork,
+      });
+      const sourceWallNetworkPreselectionCoverage = {
+        explicitWallSystemCount: architecturalCandidate.sheetFrameSelection.wallSystems.length,
+        retainedSourcePairCount: preselectionOverlay.retainedPairCount,
+        recall: preselectionOverlay.recall,
+        f1: preselectionOverlay.f1,
+        fullyCoveredPairCount: preselectionOverlay.coverageGaps.fullyCoveredPairCount,
+        partiallyCoveredPairCount: preselectionOverlay.coverageGaps.partiallyCoveredPairCount,
+        uncoveredPairCount: preselectionOverlay.coverageGaps.uncoveredPairCount,
+        uncoveredLengthRatio: preselectionOverlay.coverageGaps.uncoveredLengthRatio,
+        diagnostics: [
+          `Preselection explicit wall systems cover ${(preselectionOverlay.recall * 100).toFixed(1)}% of retained independent source-wall pixels before structural component filtering.`,
+          "Read-only comparison: this does not change source-network selection, structural selection, reconstructed geometry, or canonical data.",
+        ],
+      };
       const independentDimensionBoundaryEvidence = diagnoseIndependentSourceDimensionBoundaries({
         dimensions: architecturalCandidate.dimensionEvidence.dimensions,
         associations: architecturalCandidate.dimensionEvidence.associations,
@@ -167,6 +189,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         stages,
         sourcePixelOverlay,
         sourceWallNetworkOverlay,
+        sourceWallNetworkPreselectionCoverage,
         independentDimensionBoundaryEvidence,
         crossEvidenceBoundaryConvergence,
         sourceFamilyMemberAgreement,
