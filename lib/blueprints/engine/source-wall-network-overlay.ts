@@ -2,6 +2,7 @@ import type { BosLine2 } from "./building-graph";
 import { buildSourceWallFaceMask, paintSourceWallFacePairs, type BosSourceWallFaceMaskOptions } from "./source-wall-face-mask";
 import { consolidateSourceWallPairs, type BosSourceWallPairConsolidationOptions } from "./source-wall-pair-consolidator";
 import { selectSourceWallNetwork, type BosSourceWallNetworkOptions } from "./source-wall-network-selector";
+import { diagnoseSourceNetworkCoverageGaps, type BosSourceNetworkCoverageGapDiagnostic } from "./source-network-coverage-gap-diagnostic";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 
 export type BosIndependentSourceWallNetworkEvidence = {
@@ -24,6 +25,7 @@ export type BosSourceWallNetworkOverlayReport = {
   recall: number;
   f1: number;
   totalRetainedLengthMeters: number;
+  coverageGaps: BosSourceNetworkCoverageGapDiagnostic;
   diagnostics: string[];
 };
 
@@ -108,6 +110,14 @@ export function assessSourceWallNetworkOverlay(input: {
   }
   const recall = sourceNetworkPixelCount ? coveredSourceNetworkPixelCount / sourceNetworkPixelCount : 0;
   const f1 = input.predictedPrecision + recall > 0 ? 2 * input.predictedPrecision * recall / (input.predictedPrecision + recall) : 0;
+  const coverageGaps = diagnoseSourceNetworkCoverageGaps({
+    wallFacePairs: network.wallFacePairs,
+    wallSystems: input.wallSystems,
+    sourcePixelWidth: input.image.width,
+    sourcePixelHeight: input.image.height,
+    sourceWidthMeters: input.sourceWidthMeters,
+    sourceHeightMeters: input.sourceHeightMeters,
+  });
   return {
     rawPairCount: faces.wallFacePairs.length,
     consolidatedPairCount: consolidated.wallFacePairs.length,
@@ -122,8 +132,10 @@ export function assessSourceWallNetworkOverlay(input: {
     recall,
     f1,
     totalRetainedLengthMeters: network.totalRetainedLengthMeters,
+    coverageGaps,
     diagnostics: [
       `Candidate wall faces cover ${(recall * 100).toFixed(1)}% of consolidated, building-scale independent source-wall pixels (network F1 ${f1.toFixed(3)}).`,
+      ...coverageGaps.diagnostics,
       ...consolidated.diagnostics,
       ...network.diagnostics,
       "Source-wall consolidation and network selection use only rendered-source wall-face pairs and never consult reconstructed candidate topology.",
