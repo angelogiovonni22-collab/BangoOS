@@ -14,6 +14,7 @@ import { diagnoseSourcePairFamilyGaps } from "@/lib/blueprints/engine/source-pai
 import { diagnoseSourcePairCoordinateOffsets } from "@/lib/blueprints/engine/source-pair-coordinate-offset-diagnostic";
 import { diagnoseCompleteLinkFamilySplits } from "@/lib/blueprints/engine/source-pair-complete-link-split-diagnostic";
 import { diagnoseSourcePairRasterPairingGaps } from "@/lib/blueprints/engine/source-pair-raster-pairing-gap-diagnostic";
+import { diagnoseNoMatchingRasterStages } from "@/lib/blueprints/engine/source-pair-raster-stage-gap-diagnostic";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -131,6 +132,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: raster.width,
       sourceHeightMeters: raster.height,
     });
+    const noMatchingRasterStageDiagnostic = diagnoseNoMatchingRasterStages({
+      consolidationClusters: sourceEvidence.consolidated.clusters,
+      rasterPairingGapDiagnostic,
+      rawSegments: architecturalCandidate.rawSegments,
+      annotationFilteredSegments: architecturalCandidate.annotationFiltered,
+      sourcePixelWidth: sourceImage.width,
+      sourcePixelHeight: sourceImage.height,
+      sourceWidthMeters: raster.width,
+      sourceHeightMeters: raster.height,
+    });
     const completeLinkEvidence = buildIndependentSourceWallNetworkEvidence({
       image: sourceImage,
       sourceWidthMeters: raster.width,
@@ -180,6 +191,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       noAgreementGapDiagnostic,
       coordinateOffsetDiagnostic,
       rasterPairingGapDiagnostic,
+      noMatchingRasterStageDiagnostic,
       completeLinkSimulation: {
         mode: "read_only_complete_link_source_pair_simulation",
         evidence: {
