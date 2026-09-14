@@ -3,6 +3,7 @@ import type { BosSourceWallFacePair } from "./source-wall-face-mask";
 import type { BosSourceWallPairConsolidationCluster } from "./source-wall-pair-consolidator";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 import { diagnoseSourcePairFamilyAgreement } from "./source-pair-family-agreement-diagnostic";
+import { diagnoseSourcePairFamilyGaps } from "./source-pair-family-gap-diagnostic";
 
 const scale = 100;
 function pair(id: string, y: number, thickness: number, start = 1, end = 5): BosSourceWallFacePair {
@@ -78,16 +79,59 @@ assert.equal(sameSupportVariants.agreements[0]?.passingMemberCount, 2);
 assert.equal(sameSupportVariants.agreements[0]?.equivalentPassingGeometryCount, 1, "same explicit-wall support must collapse variant raster hypotheses without relaxing fidelity gates");
 assert.equal(sameSupportVariants.agreements[0]?.reason, "unique_family_member_agreement");
 
+const noAgreementWalls = [wall("far", 4.05, 0.22, 1, 9)];
 const noAgreement = diagnoseSourcePairFamilyAgreement({
   retainedSourcePairs: [representative],
   consolidationClusters: [family],
-  explicitWallSystems: [wall("far", 4.05, 0.22, 1, 9)],
+  explicitWallSystems: noAgreementWalls,
   sourcePixelWidth: 2000,
   sourcePixelHeight: 2000,
   sourceWidthMeters: 20,
   sourceHeightMeters: 20,
 });
 assert.equal(noAgreement.noAgreementCount, 1, "walls outside the 2 cm coordinate gate must fail closed");
+const coordinateGap = diagnoseSourcePairFamilyGaps({
+  familyAgreement: noAgreement,
+  consolidationClusters: [family],
+  explicitWallSystems: noAgreementWalls,
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+});
+assert.equal(coordinateGap.familyCount, 1);
+assert.equal(coordinateGap.memberCount, 2);
+assert.equal(coordinateGap.reasonMemberCounts.coordinate_gate, 2, "gap diagnostics must identify coordinate-only blockers without relaxing the gate");
+assert.equal(coordinateGap.reasonFamilyCounts.coordinate_gate, 1);
+
+const coverageRepresentative = pair("coverage-rep", 8, 0.20, 1, 9);
+const coverageFamily: BosSourceWallPairConsolidationCluster = {
+  representativePairId: coverageRepresentative.id,
+  memberPairIds: [coverageRepresentative.id],
+  members: [coverageRepresentative],
+};
+const shortWall = [wall("short", 8, 0.20, 1, 5)];
+const coverageAgreement = diagnoseSourcePairFamilyAgreement({
+  retainedSourcePairs: [coverageRepresentative],
+  consolidationClusters: [coverageFamily],
+  explicitWallSystems: shortWall,
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+});
+assert.equal(coverageAgreement.noAgreementCount, 1, "insufficient source-span coverage must fail closed");
+const coverageGap = diagnoseSourcePairFamilyGaps({
+  familyAgreement: coverageAgreement,
+  consolidationClusters: [coverageFamily],
+  explicitWallSystems: shortWall,
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+});
+assert.equal(coverageGap.reasonMemberCounts.coverage_gate, 1, "gap diagnostics must distinguish coverage blockers after coordinate and thickness gates pass");
+assert.equal(coverageGap.families[0]?.members[0]?.maximumJointGeometryCoverageRatio, 0.5);
 
 const alternateA = pair("alt-a", 4.00, 0.20, 1, 9);
 const alternateB = pair("alt-b", 4.04, 0.24, 1, 9);
