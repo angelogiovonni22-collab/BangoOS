@@ -102,17 +102,17 @@ function coverageRatio(source: AxisGeometry, intervals: Array<[number, number]>)
   return Math.min(1, covered / sourceLength);
 }
 
-function equivalentGeometry(left: BosSourcePairFamilyMemberAgreement, right: BosSourcePairFamilyMemberAgreement, toleranceMeters: number) {
-  return Math.abs(left.sourceCoordinateMeters - right.sourceCoordinateMeters) <= toleranceMeters
-    && Math.abs(left.sourceThicknessMeters - right.sourceThicknessMeters) <= toleranceMeters;
+function supportSignature(member: BosSourcePairFamilyMemberAgreement) {
+  return [...new Set(member.supportingWallIds)].sort().join("|");
 }
 
 /**
  * Tests each retained source-network representative against every original rendered-source pair in
  * its source-only consolidation family. Candidate walls may cover a long source member in multiple
  * collinear segments, but every supporting segment must independently satisfy the existing 2 cm
- * coordinate and thickness gates. This diagnostic never changes the independently selected source
- * representative or reconstruction geometry.
+ * coordinate and thickness gates. Passing raster variants are equivalent only when they resolve to
+ * the same existing explicit two-face wall support. This never relaxes the hard fidelity gates and
+ * never changes the independently selected source representative or reconstruction geometry.
  */
 export function diagnoseSourcePairFamilyAgreement(input: {
   retainedSourcePairs: readonly BosSourceWallFacePair[];
@@ -125,12 +125,10 @@ export function diagnoseSourcePairFamilyAgreement(input: {
   maximumCoordinateErrorMeters?: number;
   maximumThicknessErrorMeters?: number;
   minimumSourceSpanCoverageRatio?: number;
-  equivalentMemberToleranceMeters?: number;
 }): BosSourcePairFamilyAgreementDiagnostic {
   const maxCoordinateError = input.maximumCoordinateErrorMeters ?? 0.02;
   const maxThicknessError = input.maximumThicknessErrorMeters ?? 0.02;
   const minCoverage = input.minimumSourceSpanCoverageRatio ?? 0.9;
-  const equivalentTolerance = input.equivalentMemberToleranceMeters ?? 0.001;
   const clusterByRepresentative = new Map(input.consolidationClusters.map((cluster) => [cluster.representativePairId, cluster]));
   const wallGeometries = input.explicitWallSystems.map((wall) => ({ wall, geometry: wallGeometry(wall) }));
   const agreements: BosSourcePairFamilyAgreement[] = [];
@@ -179,27 +177,30 @@ export function diagnoseSourcePairFamilyAgreement(input: {
     });
 
     const passing = members.filter((member) => member.passed);
-    const geometryGroups: BosSourcePairFamilyMemberAgreement[][] = [];
+    const geometryGroups = new Map<string, BosSourcePairFamilyMemberAgreement[]>();
     for (const member of passing) {
-      const group = geometryGroups.find((candidate) => equivalentGeometry(candidate[0], member, equivalentTolerance));
-      if (group) group.push(member);
-      else geometryGroups.push([member]);
+      const signature = supportSignature(member);
+      if (!signature) continue;
+      geometryGroups.set(signature, [...(geometryGroups.get(signature) || []), member]);
     }
-    const reason = geometryGroups.length === 1
+    const groupedPassing = [...geometryGroups.values()];
+    const reason = groupedPassing.length === 1
       ? "unique_family_member_agreement" as const
-      : geometryGroups.length > 1
+      : groupedPassing.length > 1
         ? "ambiguous_family_member_agreement" as const
         : "no_family_member_agreement" as const;
     const recommended = reason === "unique_family_member_agreement"
-      ? [...geometryGroups[0]].sort((a, b) =>
+      ? [...groupedPassing[0]].sort((a, b) =>
           b.sourceSpanCoverageRatio - a.sourceSpanCoverageRatio
-          || b.sourceLengthMeters - a.sourceLengthMeters)[0]
+          || b.sourceLengthMeters - a.sourceLengthMeters
+          || (a.coordinateErrorMeters ?? Number.POSITIVE_INFINITY) - (b.coordinateErrorMeters ?? Number.POSITIVE_INFINITY)
+          || (a.thicknessErrorMeters ?? Number.POSITIVE_INFINITY) - (b.thicknessErrorMeters ?? Number.POSITIVE_INFINITY))[0]
       : null;
     agreements.push({
       representativePairId: representative.id,
       memberCount: members.length,
       passingMemberCount: passing.length,
-      equivalentPassingGeometryCount: geometryGroups.length,
+      equivalentPassingGeometryCount: groupedPassing.length,
       recommendedMemberPairId: recommended?.memberPairId ?? null,
       reason,
       members,
@@ -219,8 +220,9 @@ export function diagnoseSourcePairFamilyAgreement(input: {
     agreements,
     diagnostics: [
       `Source-pair family agreement inspected ${input.retainedSourcePairs.length} independently retained source-wall representative(s) without changing source selection.`,
-      `${uniqueAgreementCount} representative family/families have one equivalent source-member geometry covered >= ${(minCoverage * 100).toFixed(0)}% by existing explicit two-face walls within ${(maxCoordinateError * 100).toFixed(0)} cm coordinate and ${(maxThicknessError * 100).toFixed(0)} cm thickness gates.`,
-      `${ambiguousAgreementCount} family/families have materially different passing source members and remain ambiguous; ${noAgreementCount} have no passing member; ${missingFamilyCount} are missing consolidation provenance.`,
+      `${uniqueAgreementCount} representative family/families resolve to one existing explicit-wall support set with every passing member covered >= ${(minCoverage * 100).toFixed(0)}% and independently inside the ${(maxCoordinateError * 100).toFixed(0)} cm coordinate and ${(maxThicknessError * 100).toFixed(0)} cm thickness gates.`,
+      `${ambiguousAgreementCount} family/families resolve to multiple materially different explicit-wall support sets and remain ambiguous; ${noAgreementCount} have no passing member; ${missingFamilyCount} are missing consolidation provenance.`,
+      "Raster variants supported by the same existing two-face wall IDs are treated as one agreement; hard coordinate, thickness, and coverage gates are unchanged.",
       "Read-only: source-family members are diagnostic evidence only; no source representative, wall, topology, threshold, or canonical data is changed.",
     ],
   };
