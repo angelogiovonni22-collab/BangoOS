@@ -18,6 +18,7 @@ export type BosSourceNetworkCoverageGapDiagnostic = {
   fullyCoveredPairCount: number;
   partiallyCoveredPairCount: number;
   uncoveredPairCount: number;
+  reportedGapCount: number;
   totalSourceLengthMeters: number;
   uncoveredLengthMeters: number;
   uncoveredLengthRatio: number;
@@ -58,18 +59,20 @@ export function diagnoseSourceNetworkCoverageGaps(input: {
   sourceHeightMeters: number;
   faceDistanceToleranceMeters?: number;
   minimumReportedGapMeters?: number;
+  maximumReportedGaps?: number;
 }): BosSourceNetworkCoverageGapDiagnostic {
   const pxPerMeterX = input.sourcePixelWidth / input.sourceWidthMeters;
   const pxPerMeterY = input.sourcePixelHeight / input.sourceHeightMeters;
   const tolerance = input.faceDistanceToleranceMeters ?? 0.08;
   const minimumGap = input.minimumReportedGapMeters ?? 0.20;
+  const maximumReportedGaps = Math.max(1, Math.min(100, input.maximumReportedGaps ?? 40));
 
   let totalSourceLengthMeters = 0;
   let uncoveredLengthMeters = 0;
   let fullyCoveredPairCount = 0;
   let partiallyCoveredPairCount = 0;
   let uncoveredPairCount = 0;
-  const gaps: BosSourceNetworkCoverageGap[] = [];
+  const allGaps: BosSourceNetworkCoverageGap[] = [];
 
   for (const pair of input.wallFacePairs) {
     const horizontal = pair.orientation === "horizontal";
@@ -117,7 +120,7 @@ export function diagnoseSourceNetworkCoverageGaps(input: {
     else uncoveredPairCount += 1;
 
     if (uncoveredLength >= minimumGap) {
-      gaps.push({
+      allGaps.push({
         pairId: pair.id,
         orientation: pair.orientation,
         sourceCoordinateMeters: sourceCoordinate,
@@ -131,13 +134,15 @@ export function diagnoseSourceNetworkCoverageGaps(input: {
     }
   }
 
-  gaps.sort((a, b) => b.uncoveredLengthMeters - a.uncoveredLengthMeters || b.uncoveredRatio - a.uncoveredRatio);
+  allGaps.sort((a, b) => b.uncoveredLengthMeters - a.uncoveredLengthMeters || b.uncoveredRatio - a.uncoveredRatio);
+  const gaps = allGaps.slice(0, maximumReportedGaps);
   const uncoveredLengthRatio = totalSourceLengthMeters > 0 ? uncoveredLengthMeters / totalSourceLengthMeters : 0;
   return {
     pairCount: input.wallFacePairs.length,
     fullyCoveredPairCount,
     partiallyCoveredPairCount,
     uncoveredPairCount,
+    reportedGapCount: allGaps.length,
     totalSourceLengthMeters,
     uncoveredLengthMeters,
     uncoveredLengthRatio,
@@ -146,6 +151,7 @@ export function diagnoseSourceNetworkCoverageGaps(input: {
       `Source-network gap diagnostic inspected ${input.wallFacePairs.length} retained rendered-source wall pairs.`,
       `${fullyCoveredPairCount} are fully represented, ${partiallyCoveredPairCount} are partially represented, and ${uncoveredPairCount} have no reconstructed face within ${(tolerance * 100).toFixed(0)} cm.`,
       `${(uncoveredLengthRatio * 100).toFixed(1)}% of retained source-wall pair length remains uncovered geometrically.`,
+      `Reporting the ${gaps.length} largest of ${allGaps.length} source-wall gaps at or above ${minimumGap.toFixed(2)} m to keep benchmark evidence bounded.`,
       "Read-only: this report never creates, extends, bridges, snaps, promotes, deletes, or persists geometry.",
     ],
   };
