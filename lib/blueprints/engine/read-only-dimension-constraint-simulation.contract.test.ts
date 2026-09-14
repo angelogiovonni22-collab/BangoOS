@@ -44,7 +44,9 @@ const readiness: BosCrossEvidenceConstraintReadinessDiagnostic[] = [{
   endBoundaryOffsetMeters: 0.004,
   maximumBoundaryOffsetMeters: 0.012,
   independentRelativeSpanError: 0.0107,
+  memberRelativeSpanError: null,
   candidateRelativeSpanError: 0.0145,
+  boundaryComparisonBasis: "family_representative",
   ready: true,
   reason: "ready_for_read_only_constraint_simulation",
 }];
