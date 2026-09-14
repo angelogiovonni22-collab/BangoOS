@@ -16,12 +16,14 @@ import { diagnoseCompleteLinkFamilySplits } from "@/lib/blueprints/engine/source
 import { diagnoseSourcePairRasterPairingGaps } from "@/lib/blueprints/engine/source-pair-raster-pairing-gap-diagnostic";
 import { diagnoseNoMatchingRasterStages } from "@/lib/blueprints/engine/source-pair-raster-stage-gap-diagnostic";
 import { summarizeRasterMinRunParitySimulation } from "@/lib/blueprints/engine/source-pair-raster-minrun-simulation";
+import { summarizeRasterRunParitySimulation } from "@/lib/blueprints/engine/source-pair-raster-run-parity-simulation";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 const MAX_SOURCE_BYTES = 45 * 1024 * 1024;
 const PARITY_MIN_RUN_PIXELS = 24;
+const PARITY_GAP_PIXELS = 0;
 
 function dbClient(supabase: SupabaseClient<Database>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,6 +76,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const expectedPageParam = Number(url.searchParams.get("expectedPage"));
     const expectedPage = Number.isInteger(expectedPageParam) && expectedPageParam > 0 ? expectedPageParam : undefined;
     const runMinRunSimulation = url.searchParams.get("minRunSimulation") === "1";
+    const runRasterRunParitySimulation = url.searchParams.get("runParitySimulation") === "1";
     if (expectedPage && plan.selectedPage !== expectedPage) throw new Error(`Expected Blueprint page ${expectedPage}, but parser selected page ${plan.selectedPage}.`);
     const selected = summarizeSelectedPlan(plan, "level-1");
     if (!selected.scale.drawingUnitsPerMeter || selected.scale.confidence < 0.55) throw new Error("Verified Blueprint scale is required for source-family auditing.");
@@ -146,61 +149,83 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceHeightMeters: raster.height,
     });
 
-    let rasterMinRunParitySimulation = null;
-    if (runMinRunSimulation) {
-      const parityRaster = await extractRasterLineSegments(buffer, {
+    async function runExtractionSimulation(options: { minRunPixels: number; gapPixels?: number }) {
+      const simulatedRaster = await extractRasterLineSegments(buffer, {
         page: plan.selectedPage,
-        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
+        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter!,
         sourceWidth: selected.page.width,
         sourceHeight: selected.page.height,
-        options: { minRunPixels: PARITY_MIN_RUN_PIXELS },
+        options,
       });
-      const parityArchitecturalCandidate = buildRasterArchitecturalCandidate({
-        segments: parityRaster.segments,
+      const simulatedCandidate = buildRasterArchitecturalCandidate({
+        segments: simulatedRaster.segments,
         dimensions: selected.dimensions,
-        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
-        sourceWidthMeters: parityRaster.width,
-        sourceHeightMeters: parityRaster.height,
+        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter!,
+        sourceWidthMeters: simulatedRaster.width,
+        sourceHeightMeters: simulatedRaster.height,
       });
-      const parityFamilyAgreement = diagnoseSourcePairFamilyAgreement({
+      const simulatedAgreement = diagnoseSourcePairFamilyAgreement({
         retainedSourcePairs: sourceEvidence.network.wallFacePairs,
         consolidationClusters: sourceEvidence.consolidated.clusters,
-        explicitWallSystems: parityArchitecturalCandidate.sheetFrameSelection.wallSystems,
+        explicitWallSystems: simulatedCandidate.sheetFrameSelection.wallSystems,
         sourcePixelWidth: sourceImage.width,
         sourcePixelHeight: sourceImage.height,
-        sourceWidthMeters: parityRaster.width,
-        sourceHeightMeters: parityRaster.height,
+        sourceWidthMeters: simulatedRaster.width,
+        sourceHeightMeters: simulatedRaster.height,
       });
-      const parityPairingGapDiagnostic = diagnoseSourcePairRasterPairingGaps({
-        familyAgreement: parityFamilyAgreement,
+      const simulatedPairingGap = diagnoseSourcePairRasterPairingGaps({
+        familyAgreement: simulatedAgreement,
         consolidationClusters: sourceEvidence.consolidated.clusters,
-        annotationFilteredSegments: parityArchitecturalCandidate.annotationFiltered,
-        explicitWallSystems: parityArchitecturalCandidate.explicitSystems,
-        sheetFrameWallSystems: parityArchitecturalCandidate.sheetFrameSelection.wallSystems,
+        annotationFilteredSegments: simulatedCandidate.annotationFiltered,
+        explicitWallSystems: simulatedCandidate.explicitSystems,
+        sheetFrameWallSystems: simulatedCandidate.sheetFrameSelection.wallSystems,
         sourcePixelWidth: sourceImage.width,
         sourcePixelHeight: sourceImage.height,
-        sourceWidthMeters: parityRaster.width,
-        sourceHeightMeters: parityRaster.height,
+        sourceWidthMeters: simulatedRaster.width,
+        sourceHeightMeters: simulatedRaster.height,
       });
-      const parityStageDiagnostic = diagnoseNoMatchingRasterStages({
+      const simulatedStage = diagnoseNoMatchingRasterStages({
         consolidationClusters: sourceEvidence.consolidated.clusters,
-        rasterPairingGapDiagnostic: parityPairingGapDiagnostic,
-        rawSegments: parityArchitecturalCandidate.rawSegments,
-        annotationFilteredSegments: parityArchitecturalCandidate.annotationFiltered,
+        rasterPairingGapDiagnostic: simulatedPairingGap,
+        rawSegments: simulatedCandidate.rawSegments,
+        annotationFilteredSegments: simulatedCandidate.annotationFiltered,
         sourcePixelWidth: sourceImage.width,
         sourcePixelHeight: sourceImage.height,
-        sourceWidthMeters: parityRaster.width,
-        sourceHeightMeters: parityRaster.height,
+        sourceWidthMeters: simulatedRaster.width,
+        sourceHeightMeters: simulatedRaster.height,
       });
+      return { raster: simulatedRaster, agreement: simulatedAgreement, stage: simulatedStage };
+    }
+
+    let rasterMinRunParitySimulation = null;
+    if (runMinRunSimulation) {
+      const simulated = await runExtractionSimulation({ minRunPixels: PARITY_MIN_RUN_PIXELS });
       rasterMinRunParitySimulation = summarizeRasterMinRunParitySimulation({
         baselineMinRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
         simulatedMinRunPixels: PARITY_MIN_RUN_PIXELS,
         baselineRasterSegmentCount: raster.segments.length,
-        simulatedRasterSegmentCount: parityRaster.segments.length,
+        simulatedRasterSegmentCount: simulated.raster.segments.length,
         beforeAgreement: familyAgreement,
-        afterAgreement: parityFamilyAgreement,
+        afterAgreement: simulated.agreement,
         beforeStageDiagnostic: noMatchingRasterStageDiagnostic,
-        afterStageDiagnostic: parityStageDiagnostic,
+        afterStageDiagnostic: simulated.stage,
+      });
+    }
+
+    let rasterRunParitySimulation = null;
+    if (runRasterRunParitySimulation) {
+      const simulated = await runExtractionSimulation({ minRunPixels: PARITY_MIN_RUN_PIXELS, gapPixels: PARITY_GAP_PIXELS });
+      rasterRunParitySimulation = summarizeRasterRunParitySimulation({
+        baselineMinRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
+        simulatedMinRunPixels: PARITY_MIN_RUN_PIXELS,
+        baselineGapPixels: DEFAULT_RASTER_LINE_OPTIONS.gapPixels,
+        simulatedGapPixels: PARITY_GAP_PIXELS,
+        baselineRasterSegmentCount: raster.segments.length,
+        simulatedRasterSegmentCount: simulated.raster.segments.length,
+        beforeAgreement: familyAgreement,
+        afterAgreement: simulated.agreement,
+        beforeStageDiagnostic: noMatchingRasterStageDiagnostic,
+        afterStageDiagnostic: simulated.stage,
       });
     }
 
@@ -255,6 +280,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       rasterPairingGapDiagnostic,
       noMatchingRasterStageDiagnostic,
       rasterMinRunParitySimulation,
+      rasterRunParitySimulation,
       completeLinkSimulation: {
         mode: "read_only_complete_link_source_pair_simulation",
         evidence: {

@@ -40,3 +40,5 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-stage-gap-diagnostic.contract.test.ts
       - name: Raster min-run parity simulation
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-minrun-simulation.contract.test.ts
+      - name: Raster run parity simulation
+        run: npx -y tsx lib/blueprints/engine/source-pair-raster-run-parity-simulation.contract.test.ts
