@@ -12,7 +12,7 @@ function pair(id: string, centerPx: number, startPx: number, endPx: number): Bos
     startPixel: startPx,
     endPixel: endPx,
     centerFixedPixel: centerPx,
-    lengthMeters: (endPx - startPx) / 10,
+    lengthMeters: Math.abs(endPx - startPx) / 10,
     separationMeters: 0.4,
   };
 }
@@ -23,7 +23,7 @@ function wall(id: string, x: number, y0: number, y1: number): BosWallSystemCandi
     sourcePage: 1,
     centerline: { start: { x, y: y0 }, end: { x, y: y1 } },
     thickness: 0.2,
-    length: y1 - y0,
+    length: Math.abs(y1 - y0),
     orientationRadians: Math.PI / 2,
     confidence: 0.98,
     overlapRatio: 1,
@@ -56,6 +56,25 @@ const partial = diagnoseSourceNetworkCoverageGaps({
 });
 assert.equal(partial.partiallyCoveredPairCount, 1);
 assert(partial.gaps[0].uncoveredLengthMeters > 5.9 && partial.gaps[0].uncoveredLengthMeters < 6.1);
+assert.equal(partial.gaps[0].sourceStartMeters, 0);
+assert.equal(partial.gaps[0].sourceEndMeters, 10);
+assert.equal(partial.gaps[0].uncoveredSegments.length, 1);
+assert(partial.gaps[0].uncoveredSegments[0].startMeters > 3.99 && partial.gaps[0].uncoveredSegments[0].startMeters < 4.01);
+assert.equal(partial.gaps[0].uncoveredSegments[0].endMeters, 10);
+
+const reversed = diagnoseSourceNetworkCoverageGaps({
+  wallFacePairs: [pair("source-reversed", 100, 100, 0)],
+  wallSystems: [wall("wall-reversed", 10.1, 6, 10)],
+  sourcePixelWidth: 200,
+  sourcePixelHeight: 200,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+  faceDistanceToleranceMeters: 0.02,
+});
+assert.equal(reversed.gaps[0].sourceStartMeters, 0);
+assert.equal(reversed.gaps[0].sourceEndMeters, 10);
+assert.equal(reversed.gaps[0].uncoveredSegments[0].startMeters, 0);
+assert(reversed.gaps[0].uncoveredSegments[0].endMeters > 5.99 && reversed.gaps[0].uncoveredSegments[0].endMeters < 6.01);
 
 const missing = diagnoseSourceNetworkCoverageGaps({
   wallFacePairs: [pair("source-missing", 100, 0, 100)],
@@ -68,5 +87,6 @@ const missing = diagnoseSourceNetworkCoverageGaps({
 assert.equal(missing.uncoveredPairCount, 1);
 assert.equal(missing.gaps[0].pairId, "source-missing");
 assert(missing.gaps[0].nearestCandidateFaceDistanceMeters !== null);
+assert.equal(missing.gaps[0].uncoveredSegments[0].lengthMeters, 10);
 
 console.log("Blueprint source-network coverage gap diagnostic contract passed.");
