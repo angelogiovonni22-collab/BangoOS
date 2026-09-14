@@ -2,6 +2,7 @@ import type { BosRawSegment } from "./geometry";
 import type { BosSourceWallPairConsolidationCluster } from "./source-wall-pair-consolidator";
 import type { BosSourcePairFamilyAgreementDiagnostic } from "./source-pair-family-agreement-diagnostic";
 import { diagnoseSourcePairRasterConflicts, type BosRasterPairingConflictDiagnostic } from "./source-pair-raster-conflict-diagnostic";
+import { simulateIsolatedSourceBackedRasterPairReplacements, type BosIsolatedPairReplacementSimulation } from "./source-pair-isolated-replacement-simulation";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 
 type Orientation = "horizontal" | "vertical";
@@ -50,6 +51,7 @@ export type BosRasterPairingGapDiagnostic = {
   members: BosRasterPairingGapMember[];
   diagnostics: string[];
   conflictProvenance?: BosRasterPairingConflictDiagnostic;
+  isolatedReplacementSimulation?: BosIsolatedPairReplacementSimulation;
 };
 
 function segmentLength(segment: BosRawSegment) {
@@ -255,5 +257,17 @@ export function diagnoseSourcePairRasterPairingGaps(input: {
     rasterPairingGapDiagnostic: baseReport,
     explicitWallSystems: input.explicitWallSystems,
   });
-  return { ...baseReport, conflictProvenance };
+  const isolatedReplacementSimulation = simulateIsolatedSourceBackedRasterPairReplacements({
+    familyAgreement: input.familyAgreement,
+    consolidationClusters: input.consolidationClusters,
+    conflictProvenance,
+    gapMembers: members,
+    annotationFilteredSegments: input.annotationFilteredSegments,
+    explicitWallSystems: input.explicitWallSystems,
+    sourcePixelWidth: input.sourcePixelWidth,
+    sourcePixelHeight: input.sourcePixelHeight,
+    sourceWidthMeters: input.sourceWidthMeters,
+    sourceHeightMeters: input.sourceHeightMeters,
+  });
+  return { ...baseReport, conflictProvenance, isolatedReplacementSimulation };
 }
