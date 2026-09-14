@@ -18,6 +18,7 @@ import { diagnoseNoMatchingRasterStages } from "@/lib/blueprints/engine/source-p
 import { diagnoseRasterDedupeGaps } from "@/lib/blueprints/engine/source-pair-raster-dedupe-gap-diagnostic";
 import { summarizeRasterMinRunParitySimulation } from "@/lib/blueprints/engine/source-pair-raster-minrun-simulation";
 import { summarizeRasterRunParitySimulation } from "@/lib/blueprints/engine/source-pair-raster-run-parity-simulation";
+import { summarizeRasterDedupePreservationSimulation } from "@/lib/blueprints/engine/source-pair-raster-dedupe-preservation-simulation";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -78,6 +79,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const expectedPage = Number.isInteger(expectedPageParam) && expectedPageParam > 0 ? expectedPageParam : undefined;
     const runMinRunSimulation = url.searchParams.get("minRunSimulation") === "1";
     const runRasterRunParitySimulation = url.searchParams.get("runParitySimulation") === "1";
+    const runDedupePreservationSimulation = url.searchParams.get("dedupePreservationSimulation") === "1";
     if (expectedPage && plan.selectedPage !== expectedPage) throw new Error(`Expected Blueprint page ${expectedPage}, but parser selected page ${plan.selectedPage}.`);
     const selected = summarizeSelectedPlan(plan, "level-1");
     if (!selected.scale.drawingUnitsPerMeter || selected.scale.confidence < 0.55) throw new Error("Verified Blueprint scale is required for source-family auditing.");
@@ -161,13 +163,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       mergeBandPixels: DEFAULT_RASTER_LINE_OPTIONS.mergeBandPixels,
     });
 
-    async function runExtractionSimulation(options: { minRunPixels: number; gapPixels?: number }) {
+    async function runExtractionSimulation(options: { minRunPixels: number; gapPixels?: number }, dedupeMode?: "longest_per_band" | "keep_all") {
       const simulatedRaster = await extractRasterLineSegments(buffer, {
         page: plan.selectedPage,
         drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter!,
         sourceWidth: selected.page.width,
         sourceHeight: selected.page.height,
         options,
+        dedupeMode,
       });
       const simulatedCandidate = buildRasterArchitecturalCandidate({
         segments: simulatedRaster.segments,
@@ -241,6 +244,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       });
     }
 
+    let rasterDedupePreservationSimulation = null;
+    if (runDedupePreservationSimulation) {
+      const simulated = await runExtractionSimulation({
+        minRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
+        gapPixels: DEFAULT_RASTER_LINE_OPTIONS.gapPixels,
+      }, "keep_all");
+      rasterDedupePreservationSimulation = summarizeRasterDedupePreservationSimulation({
+        rasterMinRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
+        baselineRasterSegmentCount: raster.segments.length,
+        simulatedRasterSegmentCount: simulated.raster.segments.length,
+        beforeAgreement: familyAgreement,
+        afterAgreement: simulated.agreement,
+        beforeStageDiagnostic: noMatchingRasterStageDiagnostic,
+        afterStageDiagnostic: simulated.stage,
+      });
+    }
+
     const completeLinkEvidence = buildIndependentSourceWallNetworkEvidence({
       image: sourceImage,
       sourceWidthMeters: raster.width,
@@ -294,6 +314,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       rasterDedupeGapDiagnostic,
       rasterMinRunParitySimulation,
       rasterRunParitySimulation,
+      rasterDedupePreservationSimulation,
       completeLinkSimulation: {
         mode: "read_only_complete_link_source_pair_simulation",
         evidence: {
