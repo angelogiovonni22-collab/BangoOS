@@ -32,6 +32,26 @@ function diagnosticCounts(value: unknown) {
   };
 }
 
+function simulationSummary(value: unknown) {
+  if (!value) return null;
+  const source = record(value);
+  return {
+    mode: source.mode ?? null,
+    baselineDedupeMode: source.baselineDedupeMode ?? null,
+    simulatedDedupeMode: source.simulatedDedupeMode ?? null,
+    baselineRasterSegmentCount: source.baselineRasterSegmentCount ?? null,
+    simulatedRasterSegmentCount: source.simulatedRasterSegmentCount ?? null,
+    before: source.before ?? null,
+    after: source.after ?? null,
+    delta: source.delta ?? null,
+    previouslyUniqueRegressionFamilyIds: source.previouslyUniqueRegressionFamilyIds ?? null,
+    newlyUniqueFamilyIds: source.newlyUniqueFamilyIds ?? null,
+    noMatchStageBefore: source.noMatchStageBefore ?? null,
+    noMatchStageAfter: source.noMatchStageAfter ?? null,
+    safeToConsiderPromotion: source.safeToConsiderPromotion ?? null,
+  };
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ versionId: string }> }) {
   try {
     const { versionId } = await params;
@@ -39,6 +59,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const auditUrl = new URL(`/api/blueprints/${encodeURIComponent(versionId)}/engine-source-family-audit`, incoming.origin);
     const expectedPage = incoming.searchParams.get("expectedPage");
     if (expectedPage) auditUrl.searchParams.set("expectedPage", expectedPage);
+    if (incoming.searchParams.get("dedupePreservationSimulation") === "1") auditUrl.searchParams.set("dedupePreservationSimulation", "1");
     auditUrl.searchParams.set("summaryProxy", "1");
 
     const cookie = request.headers.get("cookie");
@@ -79,6 +100,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       rasterPairingGapDiagnostic: diagnosticCounts(root.rasterPairingGapDiagnostic),
       noMatchingRasterStageDiagnostic: diagnosticCounts(root.noMatchingRasterStageDiagnostic),
       rasterDedupeGapDiagnostic: diagnosticCounts(root.rasterDedupeGapDiagnostic),
+      rasterDedupePreservationSimulation: simulationSummary(root.rasterDedupePreservationSimulation),
       safety: {
         writesPerformed: safety.writesPerformed ?? null,
         sourceSelectionChanged: safety.sourceSelectionChanged ?? null,
