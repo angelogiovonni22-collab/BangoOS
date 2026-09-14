@@ -30,3 +30,5 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-pair-coordinate-offset-diagnostic.contract.test.ts
       - name: Complete-link family split diagnostic
         run: npx -y tsx lib/blueprints/engine/source-pair-complete-link-split-diagnostic.contract.test.ts
+      - name: Raster pairing gap diagnostic
+        run: npx -y tsx lib/blueprints/engine/source-pair-raster-pairing-gap-diagnostic.contract.test.ts
