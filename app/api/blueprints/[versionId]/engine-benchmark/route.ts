@@ -16,6 +16,7 @@ import { diagnoseCrossEvidenceBoundaryConvergence } from "@/lib/blueprints/engin
 import { diagnoseCrossEvidenceConstraintReadiness } from "@/lib/blueprints/engine/cross-evidence-constraint-readiness-diagnostic";
 import { diagnoseSourceFamilyMemberAgreement } from "@/lib/blueprints/engine/source-family-member-agreement-diagnostic";
 import { simulateReadOnlyDimensionConstraints } from "@/lib/blueprints/engine/read-only-dimension-constraint-simulation";
+import { auditBlueprintPhaseFidelity } from "@/lib/blueprints/engine/phase-fidelity-audit";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -25,6 +26,11 @@ const MAX_SOURCE_BYTES = 45 * 1024 * 1024;
 function dbClient(supabase: SupabaseClient<Database>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return supabase as any;
+}
+
+function numericField(record: Record<string, unknown> | null, key: string) {
+  const value = record?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ versionId: string }> }) {
@@ -77,6 +83,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const selected = summarizeSelectedPlan(plan, "level-1");
 
     let rasterEvidence = null;
+    let unsupportedHighConfidenceWallCount: number | null = null;
     if ((selected.rasterRequired || selected.vectorCount === 0) && selected.scale.drawingUnitsPerMeter && selected.scale.confidence >= 0.55) {
       const raster = await extractRasterLineSegments(buffer, {
         page: plan.selectedPage,
@@ -105,6 +112,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWidthMeters: raster.width,
         sourceHeightMeters: raster.height,
       });
+      const supportByWallId = new Map(sourcePixelOverlay.perWallSupport.map((item) => [item.wallSystemId, item.support]));
+      unsupportedHighConfidenceWallCount = architecturalCandidate.constrained.wallSystems.filter((wall) =>
+        wall.confidence >= 0.8 && (supportByWallId.get(wall.id) ?? 0) < 0.95).length;
       const independentSourceWallNetwork = buildIndependentSourceWallNetworkEvidence({
         image: sourceImage,
         sourceWidthMeters: raster.width,
@@ -173,12 +183,39 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     if (canonicalResponse.error) throw new Error(canonicalResponse.error.message);
     const canonical = canonicalResponse.data as Record<string, unknown> | null;
     const graph = canonical?.building_graph && typeof canonical.building_graph === "object" ? canonical.building_graph as Record<string, unknown> : null;
+    const validation = canonical?.validation_report && typeof canonical.validation_report === "object" ? canonical.validation_report as Record<string, unknown> : null;
+    const validationMetrics = validation?.metrics && typeof validation.metrics === "object" ? validation.metrics as Record<string, unknown> : null;
+
+    const verifiedBoundaryMatches = rasterEvidence?.sourceFamilyMemberAgreement.dimensions.flatMap((dimension) =>
+      [dimension.start.recommendedMatch, dimension.end.recommendedMatch].filter((match): match is NonNullable<typeof match> => Boolean(match))) ?? [];
+    const simulatedDimensions = rasterEvidence?.readOnlyDimensionConstraintSimulation.dimensions.filter((dimension) => dimension.reason === "simulated_dimension_constraint") ?? [];
+    const simulatedDimensionIds = new Set(simulatedDimensions.map((dimension) => dimension.dimensionId));
+    const unresolvedSourceResolvedDimensionCount = rasterEvidence?.stages.dimensionDiagnostics.filter((dimension) =>
+      dimension.reason === "source_axis_resolved_global_unmatched" && !simulatedDimensionIds.has(dimension.dimensionId)).length ?? 0;
+    const maximum = (values: number[]) => values.length ? Math.max(...values) : null;
+    const phaseFidelityAudit = auditBlueprintPhaseFidelity({
+      sourceAlignment: numericField(validationMetrics, "sourceAlignment"),
+      sourceNetworkRecall: rasterEvidence?.sourceWallNetworkOverlay.recall ?? null,
+      wallTopology: numericField(validationMetrics, "wallTopology"),
+      exteriorClosure: numericField(validationMetrics, "exteriorClosure"),
+      verifiedBoundaryCount: rasterEvidence?.sourceFamilyMemberAgreement.readyCount ?? 0,
+      verifiedBoundaryFailureCount: rasterEvidence?.sourceFamilyMemberAgreement.dimensions.filter((dimension) => !dimension.ready).length ?? 0,
+      maximumVerifiedBoundaryCoordinateErrorMeters: maximum(verifiedBoundaryMatches.map((match) => match.coordinateErrorMeters)),
+      maximumVerifiedBoundaryThicknessErrorMeters: maximum(verifiedBoundaryMatches.map((match) => match.thicknessErrorMeters)),
+      simulatedDimensionCount: rasterEvidence?.readOnlyDimensionConstraintSimulation.simulatedConstraintCount ?? 0,
+      maximumSimulatedDimensionResidual: maximum(simulatedDimensions.map((dimension) => dimension.relativeSpanError).filter((value): value is number => typeof value === "number")),
+      unresolvedSourceResolvedDimensionCount,
+      ambiguousDimensionCount: rasterEvidence?.stages.dimensionDiagnosticCounts.ambiguous_source_axis ?? 0,
+      totalDimensionCount: rasterEvidence ? rasterEvidence.stages.matchedDimensionCount + rasterEvidence.stages.unresolvedDimensionCount : 0,
+      unsupportedHighConfidenceWallCount: unsupportedHighConfidenceWallCount ?? 0,
+    });
 
     return NextResponse.json({
       mode: "read_only_architectural_candidate",
       source: { versionId, sheetNumber: String(sheetResponse.data.sheet_number || ""), sheetTitle: String(sheetResponse.data.title || ""), originalFilename: String(versionResponse.data.original_filename || ""), expectedPage: expectedPage ?? null },
       candidate: benchmark,
       rasterEvidence,
+      phaseFidelityAudit,
       canonical: canonical ? {
         modelId: canonical.id || null,
         status: canonical.status || null,
