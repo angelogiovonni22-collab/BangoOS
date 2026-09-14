@@ -17,6 +17,7 @@ import { diagnoseCrossEvidenceConstraintReadiness } from "@/lib/blueprints/engin
 import { diagnoseSourceFamilyMemberAgreement } from "@/lib/blueprints/engine/source-family-member-agreement-diagnostic";
 import { simulateReadOnlyDimensionConstraints } from "@/lib/blueprints/engine/read-only-dimension-constraint-simulation";
 import { diagnoseSourceBackedStructuralRecovery } from "@/lib/blueprints/engine/source-backed-structural-recovery-diagnostic";
+import { auditResidualSourcePairs } from "@/lib/blueprints/engine/residual-source-pair-audit";
 import { auditBlueprintPhaseFidelity } from "@/lib/blueprints/engine/phase-fidelity-audit";
 import type { Database } from "@/types/database.types";
 
@@ -151,6 +152,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
           "Read-only comparison: this does not change source-network selection, structural selection, reconstructed geometry, or canonical data.",
         ],
       };
+      const residualSourcePairAudit = auditResidualSourcePairs({
+        retainedSourcePairs: independentSourceWallNetwork.network.wallFacePairs,
+        explicitWallSystems: architecturalCandidate.sheetFrameSelection.wallSystems,
+        sourcePixelWidth: sourceImage.width,
+        sourcePixelHeight: sourceImage.height,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
+      });
       const preselectionPixelOverlay = assessSourcePixelOverlay({
         image: sourceImage,
         wallSystems: architecturalCandidate.sheetFrameSelection.wallSystems,
@@ -218,6 +227,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourcePixelOverlay,
         sourceWallNetworkOverlay,
         sourceWallNetworkPreselectionCoverage,
+        residualSourcePairAudit,
         sourceBackedStructuralRecovery,
         sourceBackedStructuralRecoverySimulation: {
           recoveredWallCount: recoveredWallSystems.length,
