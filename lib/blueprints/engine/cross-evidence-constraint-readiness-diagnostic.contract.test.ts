@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import type { BosDimension } from "./building-graph";
 import type { BosCrossEvidenceBoundaryConvergenceDiagnostic } from "./cross-evidence-boundary-convergence-diagnostic";
+import type { BosSourceFamilyMemberAgreementDiagnostic } from "./source-family-member-agreement-diagnostic";
 import type { BosSourcePixelOverlayReport } from "./source-pixel-overlay";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 import { diagnoseCrossEvidenceConstraintReadiness } from "./cross-evidence-constraint-readiness-diagnostic";
@@ -93,6 +95,8 @@ assert.equal(ready.readyCount, 1);
 assert.equal(ready.dimensions[0].reason, "ready_for_read_only_constraint_simulation");
 assert.equal(ready.dimensions[0].minimumWallSourceSupport, 0.98);
 assert(Math.abs((ready.dimensions[0].maximumBoundaryOffsetMeters || 0) - 0.012) < 1e-9);
+assert.equal(ready.dimensions[0].boundaryComparisonBasis, "family_representative");
+assert.equal(ready.dimensions[0].memberRelativeSpanError, null);
 assert.equal(ready.dimensions[0].startCandidateWalls[0].centerCoordinate, 21.342);
 assert.equal(ready.dimensions[0].startCandidateWalls[0].thicknessMeters, 0.293);
 assert.deepEqual(ready.dimensions[0].startCandidateWalls[0].facePrimitiveIds, ["wall-start-a", "wall-start-b"]);
@@ -114,15 +118,16 @@ const weakSupport = diagnoseCrossEvidenceConstraintReadiness({
 assert.equal(weakSupport.readyCount, 0);
 assert.equal(weakSupport.dimensions[0].reason, "insufficient_source_pixel_support");
 
-const coordinateMismatch = diagnoseCrossEvidenceConstraintReadiness({
-  convergence: [{
-    ...convergence,
-    candidates: [{
-      ...convergence.candidates[0],
-      independentStartCoordinate: 21.319,
-      candidateStartCoordinate: 21.342,
-    }],
+const coordinateMismatchConvergence: BosCrossEvidenceBoundaryConvergenceDiagnostic = {
+  ...convergence,
+  candidates: [{
+    ...convergence.candidates[0],
+    independentStartCoordinate: 21.319,
+    candidateStartCoordinate: 21.342,
   }],
+};
+const coordinateMismatch = diagnoseCrossEvidenceConstraintReadiness({
+  convergence: [coordinateMismatchConvergence],
   wallSystems: walls,
   sourcePixelOverlay: fullSupport,
 });
@@ -130,6 +135,91 @@ assert.equal(coordinateMismatch.readyCount, 0);
 assert.equal(coordinateMismatch.dimensions[0].reason, "boundary_coordinate_mismatch");
 assert((coordinateMismatch.dimensions[0].startBoundaryOffsetMeters || 0) > 0.02);
 assert.equal(coordinateMismatch.dimensions[0].startCandidateWalls[0].thicknessMeters, 0.293);
+
+const dimension: BosDimension = {
+  id: "dimension-ready",
+  levelId: "level-1",
+  page: 1,
+  start: { x: 0, y: 0 },
+  end: { x: 7.112, y: 0 },
+  value: 7.112,
+  unit: "m",
+  rawText: "23'-4\"",
+  confidence: 1,
+  evidence: [],
+};
+const memberAgreement: BosSourceFamilyMemberAgreementDiagnostic = {
+  dimensionId: "dimension-ready",
+  rawText: "23'-4\"",
+  start: {
+    endpoint: "start",
+    familyRepresentativeCoordinate: 21.319,
+    familyRepresentativePairId: "start-representative",
+    candidateWallIds: ["wall-start"],
+    eligibleMatches: [{
+      wallId: "wall-start",
+      pairIds: ["start-member"],
+      candidateCoordinate: 21.342,
+      sourceCoordinate: 21.336,
+      coordinateErrorMeters: 0.006,
+      candidateThicknessMeters: 0.293,
+      sourceSeparationMeters: 0.305,
+      thicknessErrorMeters: 0.012,
+    }],
+    recommendedMatch: {
+      wallId: "wall-start",
+      pairIds: ["start-member"],
+      candidateCoordinate: 21.342,
+      sourceCoordinate: 21.336,
+      coordinateErrorMeters: 0.006,
+      candidateThicknessMeters: 0.293,
+      sourceSeparationMeters: 0.305,
+      thicknessErrorMeters: 0.012,
+    },
+    reason: "unique_member_agreement",
+  },
+  end: {
+    endpoint: "end",
+    familyRepresentativeCoordinate: 28.355,
+    familyRepresentativePairId: "end-member",
+    candidateWallIds: ["wall-end-a", "wall-end-b"],
+    eligibleMatches: [{
+      wallId: "wall-end-b",
+      pairIds: ["end-member-a", "end-member-b"],
+      candidateCoordinate: 28.352,
+      sourceCoordinate: 28.355,
+      coordinateErrorMeters: 0.003,
+      candidateThicknessMeters: 0.09,
+      sourceSeparationMeters: 0.085,
+      thicknessErrorMeters: 0.005,
+    }],
+    recommendedMatch: {
+      wallId: "wall-end-b",
+      pairIds: ["end-member-a", "end-member-b"],
+      candidateCoordinate: 28.352,
+      sourceCoordinate: 28.355,
+      coordinateErrorMeters: 0.003,
+      candidateThicknessMeters: 0.09,
+      sourceSeparationMeters: 0.085,
+      thicknessErrorMeters: 0.005,
+    },
+    reason: "unique_member_agreement",
+  },
+  ready: true,
+  reason: "unique_both_endpoints",
+};
+const memberResolved = diagnoseCrossEvidenceConstraintReadiness({
+  convergence: [coordinateMismatchConvergence],
+  wallSystems: walls,
+  sourcePixelOverlay: fullSupport,
+  sourceFamilyMemberAgreement: [memberAgreement],
+  dimensions: [dimension],
+});
+assert.equal(memberResolved.readyCount, 1, "a unique source-family member match inside all hard targets should resolve representative-only mismatch");
+assert.equal(memberResolved.dimensions[0].reason, "ready_for_read_only_constraint_simulation");
+assert.equal(memberResolved.dimensions[0].boundaryComparisonBasis, "verified_family_member");
+assert.equal(memberResolved.dimensions[0].startBoundaryOffsetMeters, 0.006);
+assert((memberResolved.dimensions[0].memberRelativeSpanError || 1) < 0.015);
 
 const notConverged = diagnoseCrossEvidenceConstraintReadiness({
   convergence: [{ ...convergence, reason: "ambiguous_cross_evidence_pair", recommendedStartCoordinate: null, recommendedEndCoordinate: null }],
