@@ -10,6 +10,7 @@ import { buildRasterArchitecturalCandidate } from "@/lib/blueprints/engine/raste
 import { renderBlueprintGraySource } from "@/lib/blueprints/engine/source-pixel-overlay";
 import { buildIndependentSourceWallNetworkEvidence } from "@/lib/blueprints/engine/source-wall-network-overlay";
 import { diagnoseSourcePairFamilyAgreement } from "@/lib/blueprints/engine/source-pair-family-agreement-diagnostic";
+import { diagnoseSourcePairFamilyGaps } from "@/lib/blueprints/engine/source-pair-family-gap-diagnostic";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -98,6 +99,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: raster.width,
       sourceHeightMeters: raster.height,
     });
+    const noAgreementGapDiagnostic = diagnoseSourcePairFamilyGaps({
+      familyAgreement,
+      consolidationClusters: sourceEvidence.consolidated.clusters,
+      explicitWallSystems: architecturalCandidate.sheetFrameSelection.wallSystems,
+      sourcePixelWidth: sourceImage.width,
+      sourcePixelHeight: sourceImage.height,
+      sourceWidthMeters: raster.width,
+      sourceHeightMeters: raster.height,
+    });
     const completeLinkEvidence = buildIndependentSourceWallNetworkEvidence({
       image: sourceImage,
       sourceWidthMeters: raster.width,
@@ -139,6 +149,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         explicitWallSystemCount: architecturalCandidate.sheetFrameSelection.wallSystems.length,
       },
       familyAgreement,
+      noAgreementGapDiagnostic,
       completeLinkSimulation: {
         mode: "read_only_complete_link_source_pair_simulation",
         evidence: {
