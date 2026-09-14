@@ -26,3 +26,5 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-wall-pair-consolidator.contract.test.ts
       - name: Source pair family agreement
         run: npx -y tsx lib/blueprints/engine/source-pair-family-agreement-diagnostic.contract.test.ts
+      - name: Source pair coordinate offset diagnostic
+        run: npx -y tsx lib/blueprints/engine/source-pair-coordinate-offset-diagnostic.contract.test.ts
