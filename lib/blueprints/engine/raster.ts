@@ -160,6 +160,7 @@ export async function extractRasterLineSegments(
     sourceWidth?: number | null;
     sourceHeight?: number | null;
     options?: Partial<RasterLineOptions>;
+    dedupeMode?: "longest_per_band" | "keep_all";
   },
 ): Promise<{ segments: BosRawSegment[]; width: number; height: number; diagnostics: string[] }> {
   const options = { ...DEFAULT_RASTER_LINE_OPTIONS, ...(input.options || {}) };
@@ -204,13 +205,18 @@ export async function extractRasterLineSegments(
   }
 
   const bandPixels = Math.max(1, options.mergeBandPixels);
-  const deduped = dedupeBands(segments, bandPixels * factorX, bandPixels * factorY);
+  const retained = input.dedupeMode === "keep_all"
+    ? segments
+    : dedupeBands(segments, bandPixels * factorX, bandPixels * factorY);
   return {
-    segments: deduped,
+    segments: retained,
     width: image.width * factorX,
     height: image.height * factorY,
     diagnostics: [
-      `Raster line extraction produced ${deduped.length} orthogonal candidates from selected page ${input.page} at ${image.width}×${image.height} pixels.`,
+      `Raster line extraction produced ${retained.length} orthogonal candidates from selected page ${input.page} at ${image.width}×${image.height} pixels.`,
+      input.dedupeMode === "keep_all"
+        ? "Read-only extraction simulation retained every post-run raster candidate instead of applying production longest-per-band de-duplication."
+        : "Production raster de-duplication retained the longest candidate in each configured merge band.",
       input.drawingUnitsPerMeter
         ? "Raster coordinates were mapped back to the selected PDF page coordinate space and normalized to meters using the verified drawing scale."
         : "Raster coordinates remain unscaled and cannot be promoted to construction geometry until scale reconciliation succeeds.",
