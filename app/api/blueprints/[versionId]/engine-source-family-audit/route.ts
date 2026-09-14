@@ -11,6 +11,7 @@ import { renderBlueprintGraySource } from "@/lib/blueprints/engine/source-pixel-
 import { buildIndependentSourceWallNetworkEvidence } from "@/lib/blueprints/engine/source-wall-network-overlay";
 import { diagnoseSourcePairFamilyAgreement } from "@/lib/blueprints/engine/source-pair-family-agreement-diagnostic";
 import { diagnoseSourcePairFamilyGaps } from "@/lib/blueprints/engine/source-pair-family-gap-diagnostic";
+import { diagnoseSourcePairCoordinateOffsets } from "@/lib/blueprints/engine/source-pair-coordinate-offset-diagnostic";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 60;
@@ -108,6 +109,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: raster.width,
       sourceHeightMeters: raster.height,
     });
+    const coordinateOffsetDiagnostic = diagnoseSourcePairCoordinateOffsets({
+      familyAgreement,
+      consolidationClusters: sourceEvidence.consolidated.clusters,
+      explicitWallSystems: architecturalCandidate.sheetFrameSelection.wallSystems,
+      sourcePixelWidth: sourceImage.width,
+      sourcePixelHeight: sourceImage.height,
+      sourceWidthMeters: raster.width,
+      sourceHeightMeters: raster.height,
+    });
     const completeLinkEvidence = buildIndependentSourceWallNetworkEvidence({
       image: sourceImage,
       sourceWidthMeters: raster.width,
@@ -150,6 +160,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       },
       familyAgreement,
       noAgreementGapDiagnostic,
+      coordinateOffsetDiagnostic,
       completeLinkSimulation: {
         mode: "read_only_complete_link_source_pair_simulation",
         evidence: {
