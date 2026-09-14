@@ -48,7 +48,13 @@ for (const item of building) assert(retained.has(item.id), `building pair ${item
 for (const item of hatch) assert(!retained.has(item.id), `repetitive hatch pair ${item.id} must be rejected`);
 assert(!retained.has("isolated"), "small isolated wall-like evidence must not become building-scale source truth");
 assert(selection.repetitiveArtifactCount >= 4, "dense repetitive short parallel families must be auditable");
-assert(selection.retainedComponentCount === 1, "the synthetic building should resolve as one retained architectural component");
+assert.equal(selection.retainedComponentCount, 1, "the synthetic building should resolve as one retained architectural component");
+assert.equal(selection.retainedComponents.length, 1, "retained component summaries must match retained component count");
+assert.deepEqual(selection.retainedComponents[0].bounds, { minX: 2, minY: 2, maxX: 10, maxY: 8 }, "component bounds must describe only retained source-wall evidence");
+assert.equal(selection.retainedComponents[0].pairCount, building.length);
+assert.deepEqual(new Set(selection.retainedComponents[0].pairIds), new Set(building.map((item) => item.id)));
+assert(selection.retainedComponents[0].totalLengthMeters > 32.9 && selection.retainedComponents[0].totalLengthMeters < 33.1);
 assert(selection.diagnostics.some((item) => item.includes("never consults reconstructed candidate topology")) === false, "runtime diagnostics should describe evidence rather than implementation comments");
 assert(selection.diagnostics.some((item) => item.includes("opening continuity")), "diagnostics must make opening continuity explicit");
+assert(selection.diagnostics.some((item) => item.includes("component bounds")), "diagnostics must make component audit evidence explicit");
 console.log("Blueprint source wall network selector contract passed.");
