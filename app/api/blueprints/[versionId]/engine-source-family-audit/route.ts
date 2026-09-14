@@ -15,6 +15,7 @@ import { diagnoseSourcePairCoordinateOffsets } from "@/lib/blueprints/engine/sou
 import { diagnoseCompleteLinkFamilySplits } from "@/lib/blueprints/engine/source-pair-complete-link-split-diagnostic";
 import { diagnoseSourcePairRasterPairingGaps } from "@/lib/blueprints/engine/source-pair-raster-pairing-gap-diagnostic";
 import { diagnoseNoMatchingRasterStages } from "@/lib/blueprints/engine/source-pair-raster-stage-gap-diagnostic";
+import { diagnoseRasterDedupeGaps } from "@/lib/blueprints/engine/source-pair-raster-dedupe-gap-diagnostic";
 import { summarizeRasterMinRunParitySimulation } from "@/lib/blueprints/engine/source-pair-raster-minrun-simulation";
 import { summarizeRasterRunParitySimulation } from "@/lib/blueprints/engine/source-pair-raster-run-parity-simulation";
 import type { Database } from "@/types/database.types";
@@ -148,6 +149,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: raster.width,
       sourceHeightMeters: raster.height,
     });
+    const rasterDedupeGapDiagnostic = diagnoseRasterDedupeGaps({
+      stageDiagnostic: noMatchingRasterStageDiagnostic,
+      consolidationClusters: sourceEvidence.consolidated.clusters,
+      rawSegments: architecturalCandidate.rawSegments,
+      sourcePixelWidth: sourceImage.width,
+      sourcePixelHeight: sourceImage.height,
+      sourceWidthMeters: raster.width,
+      sourceHeightMeters: raster.height,
+      rasterMinRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
+      mergeBandPixels: DEFAULT_RASTER_LINE_OPTIONS.mergeBandPixels,
+    });
 
     async function runExtractionSimulation(options: { minRunPixels: number; gapPixels?: number }) {
       const simulatedRaster = await extractRasterLineSegments(buffer, {
@@ -279,6 +291,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       coordinateOffsetDiagnostic,
       rasterPairingGapDiagnostic,
       noMatchingRasterStageDiagnostic,
+      rasterDedupeGapDiagnostic,
       rasterMinRunParitySimulation,
       rasterRunParitySimulation,
       completeLinkSimulation: {
