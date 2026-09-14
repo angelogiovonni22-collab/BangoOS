@@ -13,7 +13,7 @@ export type BosSourceBackedStructuralRecoveryCandidate = {
   thicknessErrorMeters: number;
   candidateLengthMeters: number;
   sourceLengthMeters: number;
-  overlapRatio: number;
+  candidateCoverageRatio: number;
   directSourcePixelSupport: number;
 };
 
@@ -61,10 +61,10 @@ function pairGeometry(pair: BosSourceWallFacePair, input: {
   };
 }
 
-function overlapRatio(a0: number, a1: number, b0: number, b1: number) {
-  const overlap = Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
-  const denominator = Math.max(0.000001, Math.min(a1 - a0, b1 - b0));
-  return overlap / denominator;
+function candidateCoverageRatio(candidateStart: number, candidateEnd: number, sourceStart: number, sourceEnd: number) {
+  const overlap = Math.max(0, Math.min(candidateEnd, sourceEnd) - Math.max(candidateStart, sourceStart));
+  const candidateLength = Math.max(0.000001, candidateEnd - candidateStart);
+  return overlap / candidateLength;
 }
 
 /**
@@ -83,12 +83,12 @@ export function diagnoseSourceBackedStructuralRecovery(input: {
   sourceHeightMeters: number;
   maximumCoordinateErrorMeters?: number;
   maximumThicknessErrorMeters?: number;
-  minimumOverlapRatio?: number;
+  minimumCandidateCoverageRatio?: number;
   minimumDirectSourceSupport?: number;
 }): BosSourceBackedStructuralRecoveryDiagnostic {
   const maxCoordinateError = input.maximumCoordinateErrorMeters ?? 0.02;
   const maxThicknessError = input.maximumThicknessErrorMeters ?? 0.02;
-  const minOverlap = input.minimumOverlapRatio ?? 0.9;
+  const minCoverage = input.minimumCandidateCoverageRatio ?? 0.9;
   const minSupport = input.minimumDirectSourceSupport ?? 0.95;
   const selectedIds = new Set(input.selectedWallSystems.map((wall) => wall.id));
   const rejected = input.preselectionWallSystems.filter((wall) => !selectedIds.has(wall.id));
@@ -110,8 +110,8 @@ export function diagnoseSourceBackedStructuralRecovery(input: {
       if (coordinateError > maxCoordinateError) continue;
       const thicknessError = Math.abs(wall.thickness - pair.separationMeters);
       if (thicknessError > maxThicknessError) continue;
-      const spanOverlap = overlapRatio(wallShape.start, wallShape.end, geometry.start, geometry.end);
-      if (spanOverlap < minOverlap) continue;
+      const coverage = candidateCoverageRatio(wallShape.start, wallShape.end, geometry.start, geometry.end);
+      if (coverage < minCoverage) continue;
       const candidate: BosSourceBackedStructuralRecoveryCandidate = {
         wallId: wall.id,
         pairId: pair.id,
@@ -124,7 +124,7 @@ export function diagnoseSourceBackedStructuralRecovery(input: {
         thicknessErrorMeters: thicknessError,
         candidateLengthMeters: wall.length,
         sourceLengthMeters: pair.lengthMeters,
-        overlapRatio: spanOverlap,
+        candidateCoverageRatio: coverage,
         directSourcePixelSupport: support,
       };
       candidates.push(candidate);
@@ -148,7 +148,7 @@ export function diagnoseSourceBackedStructuralRecovery(input: {
     candidates,
     diagnostics: [
       `Source-backed structural recovery diagnostic inspected ${rejected.length} structurally rejected explicit wall systems against ${input.retainedSourcePairs.length} retained independent source-wall pairs.`,
-      `${matchesByWall.size} rejected wall system(s) have >= ${(minSupport * 100).toFixed(0)}% direct source-pixel support plus <= ${(maxCoordinateError * 100).toFixed(0)} cm coordinate error, <= ${(maxThicknessError * 100).toFixed(0)} cm thickness error, and >= ${(minOverlap * 100).toFixed(0)}% source-span overlap.`,
+      `${matchesByWall.size} rejected wall system(s) have >= ${(minSupport * 100).toFixed(0)}% direct source-pixel support plus <= ${(maxCoordinateError * 100).toFixed(0)} cm coordinate error, <= ${(maxThicknessError * 100).toFixed(0)} cm thickness error, and >= ${(minCoverage * 100).toFixed(0)}% candidate-length coverage by one retained source pair.`,
       `${uniquelyRecoverable.length} rejected wall system(s) have a one-to-one retained source-pair match; ${ambiguousRejectedWallCount} matched wall system(s) remain ambiguous and are not recommended.`,
       "Read-only: no rejected wall is promoted, no selector threshold changes, no geometry is moved or synthesized, and canonical data is untouched.",
     ],
