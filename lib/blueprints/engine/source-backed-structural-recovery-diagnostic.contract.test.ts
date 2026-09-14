@@ -18,16 +18,16 @@ function wall(id: string, y: number, thickness = 0.2): BosWallSystemCandidate {
   };
 }
 
-function pair(id: string, centerY: number, separationMeters = 0.2): BosSourceWallFacePair {
+function pair(id: string, centerY: number, separationMeters = 0.2, startPixel = 10, endPixel = 50): BosSourceWallFacePair {
   return {
     id,
     orientation: "horizontal",
     faceAFixedPixel: Math.round((centerY - separationMeters / 2) * 10),
     faceBFixedPixel: Math.round((centerY + separationMeters / 2) * 10),
-    startPixel: 10,
-    endPixel: 50,
+    startPixel,
+    endPixel,
     centerFixedPixel: centerY * 10,
-    lengthMeters: 4,
+    lengthMeters: Math.abs(endPixel - startPixel) / 10,
     separationMeters,
   };
 }
@@ -49,6 +49,7 @@ assert.equal(report.rejectedWallCount, 2);
 assert.equal(report.strictlyMatchedRejectedWallCount, 1);
 assert.equal(report.uniquelyRecoverableWallCount, 1);
 assert.deepEqual(report.uniquelyRecoverableWallIds, ["recoverable"]);
+assert.equal(report.candidates[0].candidateCoverageRatio, 1);
 
 const thicknessMismatch = diagnoseSourceBackedStructuralRecovery({
   preselectionWallSystems: [wall("mismatch", 4, 0.3)],
@@ -61,6 +62,18 @@ const thicknessMismatch = diagnoseSourceBackedStructuralRecovery({
   sourceHeightMeters: 10,
 });
 assert.equal(thicknessMismatch.uniquelyRecoverableWallCount, 0, "thickness mismatch above 2 cm must fail closed");
+
+const shortSource = diagnoseSourceBackedStructuralRecovery({
+  preselectionWallSystems: [wall("long-candidate", 4, 0.2)],
+  selectedWallSystems: [],
+  retainedSourcePairs: [pair("short-source", 4, 0.2, 20, 30)],
+  directSourceSupportByWallId: new Map([["long-candidate", 1]]),
+  sourcePixelWidth: 100,
+  sourcePixelHeight: 100,
+  sourceWidthMeters: 10,
+  sourceHeightMeters: 10,
+});
+assert.equal(shortSource.uniquelyRecoverableWallCount, 0, "a short retained source pair must not justify most of a longer rejected wall");
 
 const ambiguous = diagnoseSourceBackedStructuralRecovery({
   preselectionWallSystems: [wall("ambiguous", 4, 0.2)],
