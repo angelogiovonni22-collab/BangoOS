@@ -16,6 +16,7 @@ import { diagnoseCrossEvidenceBoundaryConvergence } from "@/lib/blueprints/engin
 import { diagnoseCrossEvidenceConstraintReadiness } from "@/lib/blueprints/engine/cross-evidence-constraint-readiness-diagnostic";
 import { diagnoseSourceFamilyMemberAgreement } from "@/lib/blueprints/engine/source-family-member-agreement-diagnostic";
 import { simulateReadOnlyDimensionConstraints } from "@/lib/blueprints/engine/read-only-dimension-constraint-simulation";
+import { diagnoseSourceBackedStructuralRecovery } from "@/lib/blueprints/engine/source-backed-structural-recovery-diagnostic";
 import { auditBlueprintPhaseFidelity } from "@/lib/blueprints/engine/phase-fidelity-audit";
 import type { Database } from "@/types/database.types";
 
@@ -150,6 +151,33 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
           "Read-only comparison: this does not change source-network selection, structural selection, reconstructed geometry, or canonical data.",
         ],
       };
+      const preselectionPixelOverlay = assessSourcePixelOverlay({
+        image: sourceImage,
+        wallSystems: architecturalCandidate.sheetFrameSelection.wallSystems,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
+      });
+      const preselectionSupportByWallId = new Map(preselectionPixelOverlay.perWallSupport.map((item) => [item.wallSystemId, item.support]));
+      const sourceBackedStructuralRecovery = diagnoseSourceBackedStructuralRecovery({
+        preselectionWallSystems: architecturalCandidate.sheetFrameSelection.wallSystems,
+        selectedWallSystems: architecturalCandidate.structuralSelection.wallSystems,
+        retainedSourcePairs: independentSourceWallNetwork.network.wallFacePairs,
+        directSourceSupportByWallId: preselectionSupportByWallId,
+        sourcePixelWidth: sourceImage.width,
+        sourcePixelHeight: sourceImage.height,
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
+      });
+      const recoveryIds = new Set(sourceBackedStructuralRecovery.uniquelyRecoverableWallIds);
+      const recoveredWallSystems = architecturalCandidate.sheetFrameSelection.wallSystems.filter((wall) => recoveryIds.has(wall.id));
+      const sourceBackedStructuralRecoverySimulation = assessSourceWallNetworkOverlay({
+        image: sourceImage,
+        wallSystems: [...architecturalCandidate.constrained.wallSystems, ...recoveredWallSystems],
+        sourceWidthMeters: raster.width,
+        sourceHeightMeters: raster.height,
+        predictedPrecision: sourcePixelOverlay.predictedPrecision,
+        evidence: independentSourceWallNetwork,
+      });
       const independentDimensionBoundaryEvidence = diagnoseIndependentSourceDimensionBoundaries({
         dimensions: architecturalCandidate.dimensionEvidence.dimensions,
         associations: architecturalCandidate.dimensionEvidence.associations,
@@ -190,6 +218,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourcePixelOverlay,
         sourceWallNetworkOverlay,
         sourceWallNetworkPreselectionCoverage,
+        sourceBackedStructuralRecovery,
+        sourceBackedStructuralRecoverySimulation: {
+          recoveredWallCount: recoveredWallSystems.length,
+          recall: sourceBackedStructuralRecoverySimulation.recall,
+          f1: sourceBackedStructuralRecoverySimulation.f1,
+          fullyCoveredPairCount: sourceBackedStructuralRecoverySimulation.coverageGaps.fullyCoveredPairCount,
+          partiallyCoveredPairCount: sourceBackedStructuralRecoverySimulation.coverageGaps.partiallyCoveredPairCount,
+          uncoveredPairCount: sourceBackedStructuralRecoverySimulation.coverageGaps.uncoveredPairCount,
+          uncoveredLengthRatio: sourceBackedStructuralRecoverySimulation.coverageGaps.uncoveredLengthRatio,
+          diagnostics: [
+            ...sourceBackedStructuralRecoverySimulation.diagnostics,
+            "Simulation only: recovered wall systems are not promoted, constrained, persisted, or added to canonical geometry.",
+          ],
+        },
         independentDimensionBoundaryEvidence,
         crossEvidenceBoundaryConvergence,
         sourceFamilyMemberAgreement,
