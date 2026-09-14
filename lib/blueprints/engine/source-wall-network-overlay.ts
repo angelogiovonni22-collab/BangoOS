@@ -1,7 +1,7 @@
 import type { BosLine2 } from "./building-graph";
 import { buildSourceWallFaceMask, paintSourceWallFacePairs, type BosSourceWallFaceMaskOptions } from "./source-wall-face-mask";
 import { consolidateSourceWallPairs, type BosSourceWallPairConsolidationOptions } from "./source-wall-pair-consolidator";
-import { selectSourceWallNetwork, type BosSourceWallNetworkOptions } from "./source-wall-network-selector";
+import { selectSourceWallNetwork, type BosSourceWallNetworkOptions, type BosSourceWallNetworkComponentSummary } from "./source-wall-network-selector";
 import { diagnoseSourceNetworkCoverageGaps, type BosSourceNetworkCoverageGapDiagnostic } from "./source-network-coverage-gap-diagnostic";
 import type { BosWallSystemCandidate } from "./wall-system-builder";
 
@@ -19,6 +19,7 @@ export type BosSourceWallNetworkOverlayReport = {
   rejectedPairCount: number;
   componentCount: number;
   retainedComponentCount: number;
+  retainedComponents: BosSourceWallNetworkComponentSummary[];
   repetitiveArtifactCount: number;
   sourceNetworkPixelCount: number;
   coveredSourceNetworkPixelCount: number;
@@ -126,6 +127,7 @@ export function assessSourceWallNetworkOverlay(input: {
     rejectedPairCount: consolidated.wallFacePairs.length - network.wallFacePairs.length,
     componentCount: network.componentCount,
     retainedComponentCount: network.retainedComponentCount,
+    retainedComponents: network.retainedComponents,
     repetitiveArtifactCount: network.repetitiveArtifactCount,
     sourceNetworkPixelCount,
     coveredSourceNetworkPixelCount,
