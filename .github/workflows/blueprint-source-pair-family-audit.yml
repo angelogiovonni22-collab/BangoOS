@@ -36,3 +36,5 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-conflict-diagnostic.contract.test.ts
       - name: Isolated raster pair replacement simulation
         run: npx -y tsx lib/blueprints/engine/source-pair-isolated-replacement-simulation.contract.test.ts
+      - name: No-match raster stage diagnostic
+        run: npx -y tsx lib/blueprints/engine/source-pair-raster-stage-gap-diagnostic.contract.test.ts
