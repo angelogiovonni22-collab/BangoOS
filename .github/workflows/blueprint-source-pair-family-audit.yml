@@ -44,3 +44,5 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-minrun-simulation.contract.test.ts
       - name: Raster run parity simulation
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-run-parity-simulation.contract.test.ts
+      - name: Raster de-duplication preservation simulation
+        run: npx -y tsx lib/blueprints/engine/source-pair-raster-dedupe-preservation-simulation.contract.test.ts
