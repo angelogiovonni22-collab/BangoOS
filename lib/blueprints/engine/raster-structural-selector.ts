@@ -7,6 +7,7 @@ export type BosRasterStructuralSelection = {
   componentCount: number;
   retainedComponentCount: number;
   repetitiveArtifactCount: number;
+  protectedWallSystemCount: number;
   diagnostics: string[];
 };
 
@@ -17,6 +18,8 @@ export type BosRasterStructuralSelectorOptions = {
   parallelToleranceRadians?: number;
   minRetainedComponentLengthMeters?: number;
   relativeComponentLengthFloor?: number;
+  /** Existing explicit wall systems that independent source evidence has already proven. */
+  protectedWallSystemIds?: ReadonlySet<string> | readonly string[];
 };
 
 function lineLength(line: BosLine2) {
@@ -132,15 +135,19 @@ function isRepetitiveShortParallelArtifact(
 }
 
 /**
- * Selects building-scale raster wall systems before global constraints. The selector is deliberately
- * network-based: isolated/repetitive paired-line families do not become walls merely because they
- * satisfy local face-pair geometry. Door-sized collinear gaps remain connected as architectural
- * continuity, while unsupported long-distance bridging is prohibited.
+ * Selects building-scale raster wall systems before global constraints. Independent source-backed
+ * protection may retain an existing explicit two-face wall system that ordinary structural selection
+ * would reject. Protection is exact by wall ID: it never retains neighboring rejected systems,
+ * creates geometry, changes component thresholds, or bridges disconnected evidence.
  */
 export function selectStructuralRasterWallSystems(
   input: readonly BosWallSystemCandidate[],
   options: BosRasterStructuralSelectorOptions = {},
 ): BosRasterStructuralSelection {
+  const protectedIds = options.protectedWallSystemIds instanceof Set
+    ? options.protectedWallSystemIds
+    : new Set(options.protectedWallSystemIds ?? []);
+
   if (!input.length) {
     return {
       wallSystems: [],
@@ -148,6 +155,7 @@ export function selectStructuralRasterWallSystems(
       componentCount: 0,
       retainedComponentCount: 0,
       repetitiveArtifactCount: 0,
+      protectedWallSystemCount: 0,
       diagnostics: ["Raster structural selector received no wall systems."],
     };
   }
@@ -158,6 +166,7 @@ export function selectStructuralRasterWallSystems(
   const parallelToleranceRadians = options.parallelToleranceRadians ?? Math.PI / 180 * 2.5;
   const minRetainedComponentLengthMeters = options.minRetainedComponentLengthMeters ?? 4;
   const relativeComponentLengthFloor = options.relativeComponentLengthFloor ?? 0.12;
+  const protectedExistingIds = new Set(input.filter((candidate) => protectedIds.has(candidate.id)).map((candidate) => candidate.id));
 
   const repetitive = new Set(
     input
@@ -165,48 +174,42 @@ export function selectStructuralRasterWallSystems(
       .map((candidate) => candidate.id),
   );
   const systems = input.filter((candidate) => !repetitive.has(candidate.id));
-  if (!systems.length) {
-    return {
-      wallSystems: [],
-      rejectedSystemIds: input.map((item) => item.id),
-      componentCount: 0,
-      retainedComponentCount: 0,
-      repetitiveArtifactCount: repetitive.size,
-      diagnostics: ["Raster structural selector rejected every candidate as repetitive non-building linework."],
+
+  const components: Array<{ wallSystems: BosWallSystemCandidate[]; totalLength: number }> = [];
+  if (systems.length) {
+    const parent = systems.map((_, index) => index);
+    const find = (index: number): number => {
+      let current = index;
+      while (parent[current] !== current) {
+        parent[current] = parent[parent[current]];
+        current = parent[current];
+      }
+      return current;
     };
+    const union = (a: number, b: number) => {
+      const left = find(a);
+      const right = find(b);
+      if (left !== right) parent[right] = left;
+    };
+
+    const connectivityOptions = { junctionToleranceMeters, openingContinuityMeters, collinearToleranceMeters, parallelToleranceRadians };
+    for (let left = 0; left < systems.length; left += 1) {
+      for (let right = left + 1; right < systems.length; right += 1) {
+        if (areArchitecturallyConnected(systems[left], systems[right], connectivityOptions)) union(left, right);
+      }
+    }
+
+    const groups = new Map<number, BosWallSystemCandidate[]>();
+    systems.forEach((system, index) => {
+      const root = find(index);
+      groups.set(root, [...(groups.get(root) || []), system]);
+    });
+    components.push(...[...groups.values()].map((wallSystems) => ({
+      wallSystems,
+      totalLength: wallSystems.reduce((sum, system) => sum + lineLength(system.centerline), 0),
+    })).sort((a, b) => b.totalLength - a.totalLength));
   }
 
-  const parent = systems.map((_, index) => index);
-  const find = (index: number): number => {
-    let current = index;
-    while (parent[current] !== current) {
-      parent[current] = parent[parent[current]];
-      current = parent[current];
-    }
-    return current;
-  };
-  const union = (a: number, b: number) => {
-    const left = find(a);
-    const right = find(b);
-    if (left !== right) parent[right] = left;
-  };
-
-  const connectivityOptions = { junctionToleranceMeters, openingContinuityMeters, collinearToleranceMeters, parallelToleranceRadians };
-  for (let left = 0; left < systems.length; left += 1) {
-    for (let right = left + 1; right < systems.length; right += 1) {
-      if (areArchitecturallyConnected(systems[left], systems[right], connectivityOptions)) union(left, right);
-    }
-  }
-
-  const groups = new Map<number, BosWallSystemCandidate[]>();
-  systems.forEach((system, index) => {
-    const root = find(index);
-    groups.set(root, [...(groups.get(root) || []), system]);
-  });
-  const components = [...groups.values()].map((wallSystems) => ({
-    wallSystems,
-    totalLength: wallSystems.reduce((sum, system) => sum + lineLength(system.centerline), 0),
-  })).sort((a, b) => b.totalLength - a.totalLength);
   const largestLength = components[0]?.totalLength || 0;
   const retained = components.filter((component, index) => {
     if (index === 0) return true;
@@ -214,8 +217,11 @@ export function selectStructuralRasterWallSystems(
       && component.totalLength >= largestLength * relativeComponentLengthFloor;
   });
   const retainedIds = new Set(retained.flatMap((component) => component.wallSystems.map((system) => system.id)));
-  const wallSystems = systems.filter((system) => retainedIds.has(system.id));
+  for (const wallId of protectedExistingIds) retainedIds.add(wallId);
+
+  const wallSystems = input.filter((system) => retainedIds.has(system.id));
   const rejectedSystemIds = input.filter((system) => !retainedIds.has(system.id)).map((system) => system.id);
+  const protectedWallSystemCount = wallSystems.filter((system) => protectedExistingIds.has(system.id)).length;
 
   return {
     wallSystems,
@@ -223,9 +229,11 @@ export function selectStructuralRasterWallSystems(
     componentCount: components.length,
     retainedComponentCount: retained.length,
     repetitiveArtifactCount: repetitive.size,
+    protectedWallSystemCount,
     diagnostics: [
-      `Raster structural selector retained ${wallSystems.length} of ${input.length} explicit wall systems across ${retained.length} of ${components.length} architectural components.`,
-      `Raster structural selector rejected ${repetitive.size} repetitive short parallel systems before component selection.`,
+      `Raster structural selector retained ${wallSystems.length} of ${input.length} explicit wall systems across ${retained.length} ordinary architectural components.`,
+      `Raster structural selector detected ${repetitive.size} repetitive short parallel systems before component selection.`,
+      `Raster structural selector retained ${protectedWallSystemCount} exact existing explicit wall system(s) because independent source evidence protected their IDs; no neighboring rejected systems were promoted implicitly.`,
       `Largest retained architectural component spans ${largestLength.toFixed(2)} m of wall centerline evidence; no unsupported long-distance bridging was used.`,
     ],
   };

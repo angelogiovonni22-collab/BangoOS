@@ -31,7 +31,7 @@ function wall(id: string, x1: number, y1: number, x2: number, y2: number, thickn
 
 const building = [
   wall("top-left", 0, 0, 2.0, 0),
-  wall("top-right", 3.0, 0, 6.0, 0), // one-metre door/opening gap: architectural continuity
+  wall("top-right", 3.0, 0, 6.0, 0),
   wall("right", 6, 0, 6, 4),
   wall("bottom", 0, 4, 6, 4),
   wall("left", 0, 0, 0, 4),
@@ -50,7 +50,8 @@ const isolatedNoise = [
   wall("fixture-b", 18.8, 2, 18.8, 2.8),
 ];
 
-const result = selectStructuralRasterWallSystems([...building, ...repetitiveNoise, ...isolatedNoise]);
+const all = [...building, ...repetitiveNoise, ...isolatedNoise];
+const result = selectStructuralRasterWallSystems(all);
 const kept = new Set(result.wallSystems.map((item) => item.id));
 
 for (const expected of building) assert(kept.has(expected.id), `building system ${expected.id} must survive structural selection`);
@@ -58,6 +59,17 @@ for (const rejected of [...repetitiveNoise, ...isolatedNoise]) assert(!kept.has(
 assert(result.repetitiveArtifactCount >= 4, "repetitive short parallel hatch family must be identified before component selection");
 assert(result.retainedComponentCount >= 1, "the building architectural network must be retained");
 assert(result.rejectedSystemIds.length >= 6, "isolated and repetitive systems must remain auditable as rejected candidates");
+assert.equal(result.protectedWallSystemCount, 0, "ordinary selection must not implicitly protect any candidate");
 assert(result.diagnostics.some((item) => item.includes("no unsupported long-distance bridging")), "selector diagnostics must explicitly preserve the no-bridge invariant");
+
+const protectedIds = new Set(["fixture-a", "hatch-1", "missing-id"]);
+const sourceBacked = selectStructuralRasterWallSystems(all, { protectedWallSystemIds: protectedIds });
+const sourceBackedKept = new Set(sourceBacked.wallSystems.map((item) => item.id));
+assert(sourceBackedKept.has("fixture-a"), "independently source-backed isolated explicit wall must survive component filtering");
+assert(sourceBackedKept.has("hatch-1"), "independently source-backed explicit wall must bypass repetitive-artifact rejection");
+assert(!sourceBackedKept.has("hatch-2"), "unprotected repetitive neighbor must remain rejected");
+assert.equal(sourceBacked.protectedWallSystemCount, 2, "only existing protected explicit wall IDs may be counted");
+assert(sourceBacked.rejectedSystemIds.includes("fixture-b"), "unprotected isolated geometry must remain rejected");
+assert(sourceBacked.diagnostics.some((item) => item.includes("independent source evidence")), "selector must report source-backed protection explicitly");
 
 console.log("Blueprint raster structural selector contract passed.");
