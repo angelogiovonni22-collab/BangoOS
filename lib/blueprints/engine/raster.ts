@@ -41,6 +41,9 @@ type CanvasModule = {
 };
 
 async function loadSharp(): Promise<SharpFactory> {
+  // Next.js installs sharp as an optional server dependency in production builds. Keep the
+  // module name indirect so TypeScript does not require a direct application dependency while
+  // the raster path remains server-only and can fail closed when the optional decoder is absent.
   const moduleName = "sharp";
   try {
     const sharpModule = await import(moduleName) as { default?: SharpFactory } & Partial<SharpFactory>;
@@ -54,6 +57,8 @@ async function loadSharp(): Promise<SharpFactory> {
 
 export async function renderBlueprintPdfPage(buffer: Buffer, options: RasterLineOptions, pageNumber: number): Promise<Buffer> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // pdfjs-dist already carries @napi-rs/canvas as its optional Node renderer. Keep this indirect
+  // so B.O.S. does not introduce a second PDF renderer or dependency merely for raster fallback.
   const canvasModuleName = "@napi-rs/canvas";
   let canvasModule: CanvasModule;
   try {
