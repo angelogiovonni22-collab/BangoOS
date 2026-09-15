@@ -102,6 +102,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         },
         baselineDedupeGapCounts: root.baselineDedupeGapCounts ?? null,
         simulation: simulationSummary(root.simulation),
+        newlyUniqueOnlySimulation: simulationSummary(root.newlyUniqueOnlySimulation),
         safety: {
           writesPerformed: safety.writesPerformed ?? null,
           extractionChanged: safety.extractionChanged ?? null,

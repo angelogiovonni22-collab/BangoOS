@@ -95,11 +95,13 @@ export function selectSourceBackedShortRunSegments(input: {
   sourcePixelHeight: number;
   sourceWidthMeters: number;
   sourceHeightMeters: number;
+  targetRepresentativePairIds?: readonly string[];
   maximumCoordinateErrorMeters?: number;
   minimumSourceSpanCoverageRatio?: number;
 }) {
   const maxCoordinateError = input.maximumCoordinateErrorMeters ?? 0.02;
   const minCoverage = input.minimumSourceSpanCoverageRatio ?? 0.9;
+  const familyFilter = input.targetRepresentativePairIds ? new Set(input.targetRepresentativePairIds) : null;
   const baselineIds = new Set(input.baselineSegments.map((segment) => String(segment.sourceObjectId || "")));
   const addedCandidates = input.paritySegments.filter((segment) => !baselineIds.has(String(segment.sourceObjectId || "")));
   const clusterByRepresentative = new Map(input.consolidationClusters.map((cluster) => [cluster.representativePairId, cluster]));
@@ -109,6 +111,7 @@ export function selectSourceBackedShortRunSegments(input: {
   let recoverableFaceCount = 0;
 
   for (const diagnosticMember of input.dedupeGapDiagnostic.members) {
+    if (familyFilter && !familyFilter.has(diagnosticMember.representativePairId)) continue;
     const cluster = clusterByRepresentative.get(diagnosticMember.representativePairId);
     const member = cluster?.members.find((entry) => entry.id === diagnosticMember.memberPairId);
     if (!member) continue;

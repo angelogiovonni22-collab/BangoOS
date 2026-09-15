@@ -53,6 +53,21 @@ assert.deepEqual(selected.addedSegmentIds, ["short-source-backed"]);
 assert.equal(selected.recoverableFaceCount, 1);
 assert.equal(selected.segments.some((entry) => entry.sourceObjectId === "short-unrelated"), false);
 
+const filteredOut = selectSourceBackedShortRunSegments({
+  baselineSegments: baseline,
+  paritySegments: [...baseline, sourceBacked, unrelated],
+  dedupeGapDiagnostic: dedupe,
+  consolidationClusters: clusters,
+  sourcePixelWidth: 100,
+  sourcePixelHeight: 100,
+  sourceWidthMeters: 1,
+  sourceHeightMeters: 1,
+  targetRepresentativePairIds: ["different-family"],
+});
+assert.deepEqual(filteredOut.addedSegmentIds, []);
+assert.equal(filteredOut.targetFaceCount, 0);
+assert.deepEqual(filteredOut.targetFamilyIds, []);
+
 function agreement(reason: "unique_family_member_agreement" | "ambiguous_family_member_agreement" | "no_family_member_agreement"): BosSourcePairFamilyAgreementDiagnostic {
   return {
     retainedPairCount: 1,
