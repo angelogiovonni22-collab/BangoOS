@@ -162,7 +162,7 @@ export async function extractRasterLineSegments(
     options?: Partial<RasterLineOptions>;
     dedupeMode?: "longest_per_band" | "keep_all";
   },
-): Promise<{ segments: BosRawSegment[]; width: number; height: number; diagnostics: string[] }> {
+): Promise<{ segments: BosRawSegment[]; width: number; height: number; pixelWidth: number; pixelHeight: number; diagnostics: string[] }> {
   const options = { ...DEFAULT_RASTER_LINE_OPTIONS, ...(input.options || {}) };
   const image = await decodeGray(buffer, options, input.page);
   const segments: BosRawSegment[] = [];
@@ -212,6 +212,8 @@ export async function extractRasterLineSegments(
     segments: retained,
     width: image.width * factorX,
     height: image.height * factorY,
+    pixelWidth: image.width,
+    pixelHeight: image.height,
     diagnostics: [
       `Raster line extraction produced ${retained.length} orthogonal candidates from selected page ${input.page} at ${image.width}×${image.height} pixels.`,
       input.dedupeMode === "keep_all"

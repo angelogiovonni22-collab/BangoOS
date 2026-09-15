@@ -8,14 +8,14 @@ function orientationOf(segment: BosRawSegment) {
 
 export function rasterBandKey(input: {
   segment: BosRawSegment;
-  sourcePixelWidth: number;
-  sourcePixelHeight: number;
+  rasterPixelWidth: number;
+  rasterPixelHeight: number;
   sourceWidthMeters: number;
   sourceHeightMeters: number;
   mergeBandPixels: number;
 }) {
-  const meterPerPixelX = input.sourceWidthMeters / input.sourcePixelWidth;
-  const meterPerPixelY = input.sourceHeightMeters / input.sourcePixelHeight;
+  const meterPerPixelX = input.sourceWidthMeters / input.rasterPixelWidth;
+  const meterPerPixelY = input.sourceHeightMeters / input.rasterPixelHeight;
   const bandX = Math.max(1, input.mergeBandPixels) * meterPerPixelX;
   const bandY = Math.max(1, input.mergeBandPixels) * meterPerPixelY;
   const orientation = orientationOf(input.segment);
@@ -37,8 +37,8 @@ export function selectTargetedDedupeCollisionSegments(input: {
   baselineSegments: readonly BosRawSegment[];
   keepAllSegments: readonly BosRawSegment[];
   collisionBandKeys: readonly string[];
-  sourcePixelWidth: number;
-  sourcePixelHeight: number;
+  rasterPixelWidth: number;
+  rasterPixelHeight: number;
   sourceWidthMeters: number;
   sourceHeightMeters: number;
   mergeBandPixels: number;

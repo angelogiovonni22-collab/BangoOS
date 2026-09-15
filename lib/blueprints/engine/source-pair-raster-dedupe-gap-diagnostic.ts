@@ -10,6 +10,7 @@ export type BosRasterDedupeGapReason =
 type FailedFaceDiagnostic = {
   face: "a" | "b";
   sourceRunPixels: number;
+  rasterRunPixels: number;
   reason: BosRasterDedupeGapReason;
   expectedBandKey: string | null;
   collidingSegmentIds: string[];
@@ -75,11 +76,11 @@ function emptyCounts(): Record<BosRasterDedupeGapReason, number> {
 }
 
 /**
- * Read-only attribution for the extraction-face gaps already isolated by the raster-stage audit.
- * Because the independent source detector and raster extractor use the same rendered page and ink
- * threshold, a contiguous source face at least as long as the raster min-run should exist before
- * band de-duplication. Matching its exact production band key against the retained raster segment
- * identifies cases where a competing segment occupied that de-duplication slot.
+ * Read-only attribution for extraction-face gaps already isolated by the raster-stage audit.
+ * Source-family pixels come from the independent rendered source, while production raster extraction
+ * may downsample that render before min-run filtering and merge-band de-duplication. Convert source
+ * spans into the actual extraction pixel frame and reproduce the exact production merge-band size
+ * before classifying a failed face as min-run loss, de-duplication collision, or unexplained loss.
  */
 export function diagnoseRasterDedupeGaps(input: {
   stageDiagnostic: BosRasterStageGapDiagnostic;
@@ -87,6 +88,8 @@ export function diagnoseRasterDedupeGaps(input: {
   rawSegments: readonly BosRawSegment[];
   sourcePixelWidth: number;
   sourcePixelHeight: number;
+  rasterPixelWidth: number;
+  rasterPixelHeight: number;
   sourceWidthMeters: number;
   sourceHeightMeters: number;
   rasterMinRunPixels?: number;
@@ -94,10 +97,12 @@ export function diagnoseRasterDedupeGaps(input: {
 }): BosRasterDedupeGapDiagnostic {
   const minRunPixels = input.rasterMinRunPixels ?? 34;
   const mergeBandPixels = Math.max(1, input.mergeBandPixels ?? 3);
-  const meterPerPixelX = input.sourceWidthMeters / input.sourcePixelWidth;
-  const meterPerPixelY = input.sourceHeightMeters / input.sourcePixelHeight;
-  const bandX = mergeBandPixels * meterPerPixelX;
-  const bandY = mergeBandPixels * meterPerPixelY;
+  const sourceMeterPerPixelX = input.sourceWidthMeters / input.sourcePixelWidth;
+  const sourceMeterPerPixelY = input.sourceHeightMeters / input.sourcePixelHeight;
+  const rasterMeterPerPixelX = input.sourceWidthMeters / input.rasterPixelWidth;
+  const rasterMeterPerPixelY = input.sourceHeightMeters / input.rasterPixelHeight;
+  const bandX = mergeBandPixels * rasterMeterPerPixelX;
+  const bandY = mergeBandPixels * rasterMeterPerPixelY;
   const retainedByKey = new Map<string, string[]>();
   for (const segment of input.rawSegments) {
     const key = segmentKey(segment, bandX, bandY);
@@ -115,24 +120,35 @@ export function diagnoseRasterDedupeGaps(input: {
       const stage = stageByMember.get(`${representativePairId}::${member.id}`);
       if (!stage) continue;
       const failedFaces: FailedFaceDiagnostic[] = [];
+      const horizontal = member.orientation === "horizontal";
+      const sourceRunPixels = Math.abs(member.endPixel - member.startPixel) + 1;
+      const rasterRunPixels = sourceRunPixels * (horizontal
+        ? input.rasterPixelWidth / input.sourcePixelWidth
+        : input.rasterPixelHeight / input.sourcePixelHeight);
       for (const face of ["a", "b"] as const) {
         const evidence = face === "a" ? stage.rawFaceA : stage.rawFaceB;
         if (evidence.passed) continue;
-        const sourceRunPixels = Math.abs(member.endPixel - member.startPixel) + 1;
-        if (sourceRunPixels < minRunPixels) {
-          failedFaces.push({ face, sourceRunPixels, reason: "below_raster_min_run", expectedBandKey: null, collidingSegmentIds: [] });
+        if (rasterRunPixels < minRunPixels) {
+          failedFaces.push({
+            face,
+            sourceRunPixels,
+            rasterRunPixels,
+            reason: "below_raster_min_run",
+            expectedBandKey: null,
+            collidingSegmentIds: [],
+          });
           continue;
         }
-        const horizontal = member.orientation === "horizontal";
         const fixedPixel = face === "a" ? member.faceAFixedPixel : member.faceBFixedPixel;
-        const fixed = fixedPixel * (horizontal ? meterPerPixelY : meterPerPixelX);
-        const start = Math.min(member.startPixel, member.endPixel) * (horizontal ? meterPerPixelX : meterPerPixelY);
-        const end = Math.max(member.startPixel, member.endPixel) * (horizontal ? meterPerPixelX : meterPerPixelY);
+        const fixed = fixedPixel * (horizontal ? sourceMeterPerPixelY : sourceMeterPerPixelX);
+        const start = Math.min(member.startPixel, member.endPixel) * (horizontal ? sourceMeterPerPixelX : sourceMeterPerPixelY);
+        const end = Math.max(member.startPixel, member.endPixel) * (horizontal ? sourceMeterPerPixelX : sourceMeterPerPixelY);
         const expectedBandKey = lineKey({ orientation: member.orientation, fixed, start, end, bandX, bandY });
         const collidingSegmentIds = retainedByKey.get(expectedBandKey) || [];
         failedFaces.push({
           face,
           sourceRunPixels,
+          rasterRunPixels,
           reason: collidingSegmentIds.length ? "dedupe_band_collision" : "unexpected_post_run_gap",
           expectedBandKey,
           collidingSegmentIds,
@@ -169,8 +185,9 @@ export function diagnoseRasterDedupeGaps(input: {
     reasonFamilyCounts,
     members,
     diagnostics: [
-      `${members.length} extraction-gap source member(s) were attributed against the unchanged ${minRunPixels}-pixel raster minimum and ${mergeBandPixels}-pixel de-duplication bands.`,
-      `${reasonFaceCounts.below_raster_min_run} failed source face(s) are shorter than the current raster minimum and therefore cannot survive extraction as configured.`,
+      `${members.length} extraction-gap source member(s) were attributed against the unchanged ${minRunPixels}-pixel raster minimum and ${mergeBandPixels}-pixel production de-duplication bands.`,
+      `Source-family spans were mapped from ${input.sourcePixelWidth}×${input.sourcePixelHeight} source pixels into the actual ${input.rasterPixelWidth}×${input.rasterPixelHeight} production extraction pixel frame before attribution.`,
+      `${reasonFaceCounts.below_raster_min_run} failed source face(s) are shorter than the current raster minimum after exact extraction-scale conversion and therefore cannot survive extraction as configured.`,
       `${reasonFaceCounts.dedupe_band_collision} failed source face(s) are long enough to survive run extraction but share their exact production band key with a retained competing raster segment, isolating de-duplication loss.`,
       `${reasonFaceCounts.unexpected_post_run_gap} failed source face(s) are long enough to survive run extraction and have no retained same-band competitor; these remain fail-closed for a separate extraction mapping audit.`,
       "Read-only attribution: no raster setting, segment, wall, topology, persistence, canonical geometry, or 3D output changed.",

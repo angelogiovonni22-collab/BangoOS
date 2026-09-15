@@ -13,8 +13,8 @@ const lostSameBand = segment("lost-target", 1.004, 0, 10);
 const unrelatedExtra = segment("unrelated-extra", 3, 0, 10);
 const key = rasterBandKey({
   segment: baseline[0],
-  sourcePixelWidth: 1000,
-  sourcePixelHeight: 1000,
+  rasterPixelWidth: 1000,
+  rasterPixelHeight: 1000,
   sourceWidthMeters: 10,
   sourceHeightMeters: 10,
   mergeBandPixels: 3,
@@ -23,8 +23,8 @@ const selected = selectTargetedDedupeCollisionSegments({
   baselineSegments: baseline,
   keepAllSegments: [...baseline, lostSameBand, unrelatedExtra],
   collisionBandKeys: [key],
-  sourcePixelWidth: 1000,
-  sourcePixelHeight: 1000,
+  rasterPixelWidth: 1000,
+  rasterPixelHeight: 1000,
   sourceWidthMeters: 10,
   sourceHeightMeters: 10,
   mergeBandPixels: 3,

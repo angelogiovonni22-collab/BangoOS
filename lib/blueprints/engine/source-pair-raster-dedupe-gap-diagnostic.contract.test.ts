@@ -62,6 +62,8 @@ const result = diagnoseRasterDedupeGaps({
   rawSegments,
   sourcePixelWidth: 300,
   sourcePixelHeight: 300,
+  rasterPixelWidth: 300,
+  rasterPixelHeight: 300,
   sourceWidthMeters: 3,
   sourceHeightMeters: 3,
   rasterMinRunPixels: 34,
@@ -74,4 +76,22 @@ assert.equal(result.reasonMemberCounts.below_raster_min_run, 1);
 assert.equal(result.reasonMemberCounts.unexpected_post_run_gap, 1);
 assert.equal(result.reasonFaceCounts.dedupe_band_collision, 1);
 assert.equal(result.members.find((member) => member.representativePairId === "collision")?.failedFaces[0].collidingSegmentIds[0], "retained-collision");
+assert.equal(result.members.find((member) => member.representativePairId === "collision")?.failedFaces[0].rasterRunPixels, 36);
+
+const downsampled = diagnoseRasterDedupeGaps({
+  stageDiagnostic,
+  consolidationClusters,
+  rawSegments,
+  sourcePixelWidth: 300,
+  sourcePixelHeight: 300,
+  rasterPixelWidth: 150,
+  rasterPixelHeight: 150,
+  sourceWidthMeters: 3,
+  sourceHeightMeters: 3,
+  rasterMinRunPixels: 34,
+  mergeBandPixels: 3,
+});
+
+assert.equal(downsampled.members.find((member) => member.representativePairId === "collision")?.reason, "below_raster_min_run");
+assert.equal(downsampled.members.find((member) => member.representativePairId === "collision")?.failedFaces[0].rasterRunPixels, 18);
 console.log("Blueprint raster de-duplication gap diagnostic contract passed.");
