@@ -113,10 +113,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceHeightMeters: raster.height,
     });
 
-    const auditedIds = new Set(recovery.uniquelyRecoverableWallIds);
-    const protectedWallIds = (requestedWallIds.length ? requestedWallIds : recovery.uniquelyRecoverableWallIds).filter((id) => auditedIds.has(id));
-    if (!protectedWallIds.length) throw new Error("No requested wall IDs are independently audited one-to-one source-backed structural recovery candidates.");
-    if (requestedWallIds.some((id) => !auditedIds.has(id))) throw new Error("Every requested wall ID must already be independently audited as a unique source-backed recovery candidate.");
+    const auditedWallIds = [...new Set([
+      ...recovery.uniquelyRecoverableWallIds,
+      ...recovery.compositeRecoverableWallIds,
+    ])].sort();
+    const auditedIds = new Set(auditedWallIds);
+    const protectedWallIds = (requestedWallIds.length ? requestedWallIds : auditedWallIds).filter((id) => auditedIds.has(id));
+    if (!protectedWallIds.length) throw new Error("No requested wall IDs are independently audited source-backed structural recovery candidates.");
+    if (requestedWallIds.some((id) => !auditedIds.has(id))) throw new Error("Every requested wall ID must already be independently audited as a unique one-to-one or composite source-backed recovery candidate.");
 
     const simulatedCandidate = buildCandidate(protectedWallIds);
 
@@ -181,6 +185,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         rejectedWallCount: recovery.rejectedWallCount,
         uniquelyRecoverableWallCount: recovery.uniquelyRecoverableWallCount,
         uniquelyRecoverableWallIds: recovery.uniquelyRecoverableWallIds,
+        compositeRecoverableWallCount: recovery.compositeRecoverableWallCount,
+        compositeRecoverableWallIds: recovery.compositeRecoverableWallIds,
+        compositeCandidates: recovery.compositeCandidates,
+        auditedWallCount: auditedWallIds.length,
+        auditedWallIds,
         requestedWallIds,
         protectedWallIds,
       },
