@@ -91,7 +91,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       : `/api/blueprints/${encodeURIComponent(versionId)}/engine-source-family-audit`;
     const targetUrl = new URL(targetPath, incoming.origin);
     const expectedPage = incoming.searchParams.get("expectedPage");
+    const familyIsolationId = incoming.searchParams.get("familyIsolationId")?.trim() || null;
     if (expectedPage) targetUrl.searchParams.set("expectedPage", expectedPage);
+    if (runShortRunSimulation && familyIsolationId) targetUrl.searchParams.set("familyIsolationId", familyIsolationId);
     if (!runShortRunSimulation && incoming.searchParams.get("dedupePreservationSimulation") === "1") targetUrl.searchParams.set("dedupePreservationSimulation", "1");
     if (!runShortRunSimulation) targetUrl.searchParams.set("summaryProxy", "1");
 
