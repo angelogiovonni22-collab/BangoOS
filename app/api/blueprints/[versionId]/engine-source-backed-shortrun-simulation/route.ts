@@ -72,6 +72,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const url = new URL(request.url);
     const expectedPageParam = Number(url.searchParams.get("expectedPage"));
     const expectedPage = Number.isInteger(expectedPageParam) && expectedPageParam > 0 ? expectedPageParam : undefined;
+    const familyIsolationId = url.searchParams.get("familyIsolationId")?.trim() || null;
     if (expectedPage && plan.selectedPage !== expectedPage) throw new Error(`Expected Blueprint page ${expectedPage}, but parser selected page ${plan.selectedPage}.`);
     const selected = summarizeSelectedPlan(plan, "level-1");
     if (!selected.scale.drawingUnitsPerMeter || selected.scale.confidence < 0.55) throw new Error("Verified Blueprint scale is required for source-backed short-run simulation.");
@@ -218,11 +219,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: baselineRaster.width,
       sourceHeightMeters: baselineRaster.height,
     });
-    const simulation = summarizeSelection(targeted);
 
+    let simulation = null;
     let newlyUniqueOnlySimulation = null;
-    if (simulation.newlyUniqueFamilyIds.length > 0) {
-      newlyUniqueOnlySimulation = summarizeSelection(selectSourceBackedShortRunSegments({
+    let familyIsolationSimulation = null;
+
+    if (familyIsolationId) {
+      if (!targeted.targetFamilyIds.includes(familyIsolationId)) {
+        return NextResponse.json({ error: "Requested source-backed short-run family is not eligible for isolated replay." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+      }
+      const isolatedTargeted = selectSourceBackedShortRunSegments({
         baselineSegments: baselineRaster.segments,
         paritySegments: parityRaster.segments,
         dedupeGapDiagnostic: dedupeGap,
@@ -231,14 +237,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourcePixelHeight: sourceImage.height,
         sourceWidthMeters: baselineRaster.width,
         sourceHeightMeters: baselineRaster.height,
-        targetRepresentativePairIds: simulation.newlyUniqueFamilyIds,
-      }));
-    }
-
-    const familyIsolationSimulation = summarizeSourceBackedFamilyIsolationSimulation({
-      results: targeted.targetFamilyIds.map((representativePairId) => ({
-        representativePairId,
-        summary: summarizeSelection(selectSourceBackedShortRunSegments({
+        targetRepresentativePairIds: [familyIsolationId],
+      });
+      familyIsolationSimulation = summarizeSourceBackedFamilyIsolationSimulation({
+        results: [{ representativePairId: familyIsolationId, summary: summarizeSelection(isolatedTargeted) }],
+      });
+    } else {
+      simulation = summarizeSelection(targeted);
+      if (simulation.newlyUniqueFamilyIds.length > 0) {
+        newlyUniqueOnlySimulation = summarizeSelection(selectSourceBackedShortRunSegments({
           baselineSegments: baselineRaster.segments,
           paritySegments: parityRaster.segments,
           dedupeGapDiagnostic: dedupeGap,
@@ -247,10 +254,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
           sourcePixelHeight: sourceImage.height,
           sourceWidthMeters: baselineRaster.width,
           sourceHeightMeters: baselineRaster.height,
-          targetRepresentativePairIds: [representativePairId],
-        })),
-      })),
-    });
+          targetRepresentativePairIds: simulation.newlyUniqueFamilyIds,
+        }));
+      }
+    }
 
     return NextResponse.json({
       mode: "read_only_source_backed_short_run_simulation",
