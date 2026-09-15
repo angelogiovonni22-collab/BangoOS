@@ -146,6 +146,48 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       ...rasterInput,
       options: { minRunPixels: sourceEquivalentMinRunPixels },
     });
+
+    const evaluateSelection = (targeted: ReturnType<typeof selectSourceBackedShortRunSegments>) => {
+      const candidate = buildRasterArchitecturalCandidate({
+        segments: targeted.segments,
+        dimensions: selected.dimensions,
+        drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter!,
+        sourceWidthMeters: baselineRaster.width,
+        sourceHeightMeters: baselineRaster.height,
+      });
+      const agreement = diagnoseSourcePairFamilyAgreement({
+        retainedSourcePairs: sourceEvidence.network.wallFacePairs,
+        consolidationClusters: sourceEvidence.consolidated.clusters,
+        explicitWallSystems: candidate.sheetFrameSelection.wallSystems,
+        sourcePixelWidth: sourceImage.width,
+        sourcePixelHeight: sourceImage.height,
+        sourceWidthMeters: baselineRaster.width,
+        sourceHeightMeters: baselineRaster.height,
+      });
+      const pairing = diagnoseSourcePairRasterPairingGaps({
+        familyAgreement: agreement,
+        consolidationClusters: sourceEvidence.consolidated.clusters,
+        annotationFilteredSegments: candidate.annotationFiltered,
+        explicitWallSystems: candidate.explicitSystems,
+        sheetFrameWallSystems: candidate.sheetFrameSelection.wallSystems,
+        sourcePixelWidth: sourceImage.width,
+        sourcePixelHeight: sourceImage.height,
+        sourceWidthMeters: baselineRaster.width,
+        sourceHeightMeters: baselineRaster.height,
+      });
+      const stage = diagnoseNoMatchingRasterStages({
+        consolidationClusters: sourceEvidence.consolidated.clusters,
+        rasterPairingGapDiagnostic: pairing,
+        rawSegments: candidate.rawSegments,
+        annotationFilteredSegments: candidate.annotationFiltered,
+        sourcePixelWidth: sourceImage.width,
+        sourcePixelHeight: sourceImage.height,
+        sourceWidthMeters: baselineRaster.width,
+        sourceHeightMeters: baselineRaster.height,
+      });
+      return { agreement, stage };
+    };
+
     const targeted = selectSourceBackedShortRunSegments({
       baselineSegments: baselineRaster.segments,
       paritySegments: parityRaster.segments,
@@ -156,43 +198,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: baselineRaster.width,
       sourceHeightMeters: baselineRaster.height,
     });
-    const simulatedCandidate = buildRasterArchitecturalCandidate({
-      segments: targeted.segments,
-      dimensions: selected.dimensions,
-      drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter,
-      sourceWidthMeters: baselineRaster.width,
-      sourceHeightMeters: baselineRaster.height,
-    });
-    const simulatedAgreement = diagnoseSourcePairFamilyAgreement({
-      retainedSourcePairs: sourceEvidence.network.wallFacePairs,
-      consolidationClusters: sourceEvidence.consolidated.clusters,
-      explicitWallSystems: simulatedCandidate.sheetFrameSelection.wallSystems,
-      sourcePixelWidth: sourceImage.width,
-      sourcePixelHeight: sourceImage.height,
-      sourceWidthMeters: baselineRaster.width,
-      sourceHeightMeters: baselineRaster.height,
-    });
-    const simulatedPairing = diagnoseSourcePairRasterPairingGaps({
-      familyAgreement: simulatedAgreement,
-      consolidationClusters: sourceEvidence.consolidated.clusters,
-      annotationFilteredSegments: simulatedCandidate.annotationFiltered,
-      explicitWallSystems: simulatedCandidate.explicitSystems,
-      sheetFrameWallSystems: simulatedCandidate.sheetFrameSelection.wallSystems,
-      sourcePixelWidth: sourceImage.width,
-      sourcePixelHeight: sourceImage.height,
-      sourceWidthMeters: baselineRaster.width,
-      sourceHeightMeters: baselineRaster.height,
-    });
-    const simulatedStage = diagnoseNoMatchingRasterStages({
-      consolidationClusters: sourceEvidence.consolidated.clusters,
-      rasterPairingGapDiagnostic: simulatedPairing,
-      rawSegments: simulatedCandidate.rawSegments,
-      annotationFilteredSegments: simulatedCandidate.annotationFiltered,
-      sourcePixelWidth: sourceImage.width,
-      sourcePixelHeight: sourceImage.height,
-      sourceWidthMeters: baselineRaster.width,
-      sourceHeightMeters: baselineRaster.height,
-    });
+    const evaluated = evaluateSelection(targeted);
     const simulation = summarizeSourceBackedShortRunSimulation({
       baselineMinRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
       sourceEquivalentMinRunPixels,
@@ -204,10 +210,41 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       recoverableFaceCount: targeted.recoverableFaceCount,
       addedSegmentIds: targeted.addedSegmentIds,
       beforeAgreement: baselineAgreement,
-      afterAgreement: simulatedAgreement,
+      afterAgreement: evaluated.agreement,
       beforeStageDiagnostic: baselineStage,
-      afterStageDiagnostic: simulatedStage,
+      afterStageDiagnostic: evaluated.stage,
     });
+
+    let newlyUniqueOnlySimulation = null;
+    if (simulation.newlyUniqueFamilyIds.length > 0) {
+      const newlyUniqueTargeted = selectSourceBackedShortRunSegments({
+        baselineSegments: baselineRaster.segments,
+        paritySegments: parityRaster.segments,
+        dedupeGapDiagnostic: dedupeGap,
+        consolidationClusters: sourceEvidence.consolidated.clusters,
+        sourcePixelWidth: sourceImage.width,
+        sourcePixelHeight: sourceImage.height,
+        sourceWidthMeters: baselineRaster.width,
+        sourceHeightMeters: baselineRaster.height,
+        targetRepresentativePairIds: simulation.newlyUniqueFamilyIds,
+      });
+      const newlyUniqueEvaluated = evaluateSelection(newlyUniqueTargeted);
+      newlyUniqueOnlySimulation = summarizeSourceBackedShortRunSimulation({
+        baselineMinRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
+        sourceEquivalentMinRunPixels,
+        baselineRasterSegmentCount: baselineRaster.segments.length,
+        parityRasterSegmentCount: parityRaster.segments.length,
+        simulatedRasterSegmentCount: newlyUniqueTargeted.segments.length,
+        targetFamilyIds: newlyUniqueTargeted.targetFamilyIds,
+        targetFaceCount: newlyUniqueTargeted.targetFaceCount,
+        recoverableFaceCount: newlyUniqueTargeted.recoverableFaceCount,
+        addedSegmentIds: newlyUniqueTargeted.addedSegmentIds,
+        beforeAgreement: baselineAgreement,
+        afterAgreement: newlyUniqueEvaluated.agreement,
+        beforeStageDiagnostic: baselineStage,
+        afterStageDiagnostic: newlyUniqueEvaluated.stage,
+      });
+    }
 
     return NextResponse.json({
       mode: "read_only_source_backed_short_run_simulation",
@@ -233,6 +270,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         reasonFamilyCounts: dedupeGap.reasonFamilyCounts,
       },
       simulation,
+      newlyUniqueOnlySimulation,
       safety: { writesPerformed: false, extractionChanged: false, sourceSelectionChanged: false, canonicalGeometryChanged: false, generated3d: false },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
