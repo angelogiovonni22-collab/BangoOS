@@ -49,6 +49,7 @@ assert.equal(report.rejectedWallCount, 2);
 assert.equal(report.strictlyMatchedRejectedWallCount, 1);
 assert.equal(report.uniquelyRecoverableWallCount, 1);
 assert.deepEqual(report.uniquelyRecoverableWallIds, ["recoverable"]);
+assert.equal(report.compositeRecoverableWallCount, 0);
 assert.equal(report.candidates[0].candidateCoverageRatio, 1);
 
 const thicknessMismatch = diagnoseSourceBackedStructuralRecovery({
@@ -62,6 +63,7 @@ const thicknessMismatch = diagnoseSourceBackedStructuralRecovery({
   sourceHeightMeters: 10,
 });
 assert.equal(thicknessMismatch.uniquelyRecoverableWallCount, 0, "thickness mismatch above 2 cm must fail closed");
+assert.equal(thicknessMismatch.compositeRecoverableWallCount, 0);
 
 const shortSource = diagnoseSourceBackedStructuralRecovery({
   preselectionWallSystems: [wall("long-candidate", 4, 0.2)],
@@ -74,6 +76,7 @@ const shortSource = diagnoseSourceBackedStructuralRecovery({
   sourceHeightMeters: 10,
 });
 assert.equal(shortSource.uniquelyRecoverableWallCount, 0, "a short retained source pair must not justify most of a longer rejected wall");
+assert.equal(shortSource.compositeRecoverableWallCount, 0, "one short source fragment cannot use the composite path");
 
 const ambiguous = diagnoseSourceBackedStructuralRecovery({
   preselectionWallSystems: [wall("ambiguous", 4, 0.2)],
@@ -88,5 +91,41 @@ const ambiguous = diagnoseSourceBackedStructuralRecovery({
 assert.equal(ambiguous.strictlyMatchedRejectedWallCount, 1);
 assert.equal(ambiguous.uniquelyRecoverableWallCount, 0, "multiple eligible source pairs must remain ambiguous");
 assert.equal(ambiguous.ambiguousRejectedWallCount, 1);
+assert.equal(ambiguous.compositeRecoverableWallCount, 0, "duplicate full-span source pairs must not masquerade as composite evidence");
+
+const composite = diagnoseSourceBackedStructuralRecovery({
+  preselectionWallSystems: [wall("fragmented-source-wall", 4, 0.2)],
+  selectedWallSystems: [],
+  retainedSourcePairs: [
+    pair("fragment-a", 4, 0.2, 10, 29),
+    pair("fragment-b", 4, 0.2, 31, 50),
+  ],
+  directSourceSupportByWallId: new Map([["fragmented-source-wall", 0.99]]),
+  sourcePixelWidth: 100,
+  sourcePixelHeight: 100,
+  sourceWidthMeters: 10,
+  sourceHeightMeters: 10,
+});
+assert.equal(composite.uniquelyRecoverableWallCount, 0, "neither fragment independently covers the wall");
+assert.equal(composite.compositeRecoverableWallCount, 1, "two unique source fragments may jointly prove the existing wall");
+assert.deepEqual(composite.compositeRecoverableWallIds, ["fragmented-source-wall"]);
+assert.equal(composite.compositeCandidates[0].pairIds.length, 2);
+assert.ok(composite.compositeCandidates[0].candidateCoverageRatio >= 0.9);
+assert.ok(composite.compositeCandidates[0].nonRedundantCoverageRatio >= 0.8);
+
+const sharedPair = diagnoseSourceBackedStructuralRecovery({
+  preselectionWallSystems: [wall("shared-a", 4, 0.2), wall("shared-b", 4.001, 0.2)],
+  selectedWallSystems: [],
+  retainedSourcePairs: [
+    pair("shared-fragment-a", 4, 0.2, 10, 29),
+    pair("shared-fragment-b", 4, 0.2, 31, 50),
+  ],
+  directSourceSupportByWallId: new Map([["shared-a", 1], ["shared-b", 1]]),
+  sourcePixelWidth: 100,
+  sourcePixelHeight: 100,
+  sourceWidthMeters: 10,
+  sourceHeightMeters: 10,
+});
+assert.equal(sharedPair.compositeRecoverableWallCount, 0, "a source fragment compatible with multiple rejected walls must fail closed");
 
 console.log("Blueprint source-backed structural recovery diagnostic contract passed.");
