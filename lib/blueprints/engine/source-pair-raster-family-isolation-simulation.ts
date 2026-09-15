@@ -1,8 +1,10 @@
-import type { ReturnTypeOfSourceBackedShortRunSummary } from "./source-pair-raster-family-isolation-types";
+import { summarizeSourceBackedShortRunSimulation } from "./source-pair-raster-targeted-shortrun-simulation";
+
+type SourceBackedShortRunSummary = ReturnType<typeof summarizeSourceBackedShortRunSimulation>;
 
 export type BosSourceBackedFamilyIsolationResult = {
   representativePairId: string;
-  summary: ReturnTypeOfSourceBackedShortRunSummary;
+  summary: SourceBackedShortRunSummary;
 };
 
 /**
