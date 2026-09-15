@@ -48,3 +48,5 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-dedupe-preservation-simulation.contract.test.ts
       - name: Targeted raster de-duplication collision simulation
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-targeted-dedupe-simulation.contract.test.ts
+      - name: Source-backed raster short-run simulation
+        run: npx -y tsx lib/blueprints/engine/source-pair-raster-targeted-shortrun-simulation.contract.test.ts
