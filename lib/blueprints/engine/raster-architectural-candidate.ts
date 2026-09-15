@@ -68,6 +68,8 @@ export function buildRasterArchitecturalCandidate(input: {
   drawingUnitsPerMeter: number;
   sourceWidthMeters?: number | null;
   sourceHeightMeters?: number | null;
+  /** Existing explicit wall-system IDs already proven by independent rendered-source evidence. */
+  protectedWallSystemIds?: ReadonlySet<string> | readonly string[];
 }) {
   if (!Number.isFinite(input.drawingUnitsPerMeter) || input.drawingUnitsPerMeter <= 0) {
     throw new Error("A verified drawing scale is required before raster architectural candidates can be built.");
@@ -90,7 +92,9 @@ export function buildRasterArchitecturalCandidate(input: {
     input.sourceWidthMeters,
     input.sourceHeightMeters,
   );
-  const structuralSelection = selectStructuralRasterWallSystems(sheetFrameSelection.wallSystems);
+  const structuralSelection = selectStructuralRasterWallSystems(sheetFrameSelection.wallSystems, {
+    protectedWallSystemIds: input.protectedWallSystemIds,
+  });
   const constrained = solveGlobalWallConstraints(structuralSelection.wallSystems, dimensionEvidence.dimensions);
   return {
     rawSegments,
