@@ -13,6 +13,7 @@ import { diagnoseSourcePairFamilyAgreement } from "@/lib/blueprints/engine/sourc
 import { diagnoseSourcePairRasterPairingGaps } from "@/lib/blueprints/engine/source-pair-raster-pairing-gap-diagnostic";
 import { diagnoseNoMatchingRasterStages } from "@/lib/blueprints/engine/source-pair-raster-stage-gap-diagnostic";
 import { diagnoseRasterDedupeGaps } from "@/lib/blueprints/engine/source-pair-raster-dedupe-gap-diagnostic";
+import { summarizeSourceBackedFamilyIsolationSimulation } from "@/lib/blueprints/engine/source-pair-raster-family-isolation-simulation";
 import { selectSourceBackedShortRunSegments, summarizeSourceBackedShortRunSimulation } from "@/lib/blueprints/engine/source-pair-raster-targeted-shortrun-simulation";
 import type { Database } from "@/types/database.types";
 
@@ -188,6 +189,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       return { agreement, stage };
     };
 
+    const summarizeSelection = (targeted: ReturnType<typeof selectSourceBackedShortRunSegments>) => {
+      const evaluated = evaluateSelection(targeted);
+      return summarizeSourceBackedShortRunSimulation({
+        baselineMinRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
+        sourceEquivalentMinRunPixels,
+        baselineRasterSegmentCount: baselineRaster.segments.length,
+        parityRasterSegmentCount: parityRaster.segments.length,
+        simulatedRasterSegmentCount: targeted.segments.length,
+        targetFamilyIds: targeted.targetFamilyIds,
+        targetFaceCount: targeted.targetFaceCount,
+        recoverableFaceCount: targeted.recoverableFaceCount,
+        addedSegmentIds: targeted.addedSegmentIds,
+        beforeAgreement: baselineAgreement,
+        afterAgreement: evaluated.agreement,
+        beforeStageDiagnostic: baselineStage,
+        afterStageDiagnostic: evaluated.stage,
+      });
+    };
+
     const targeted = selectSourceBackedShortRunSegments({
       baselineSegments: baselineRaster.segments,
       paritySegments: parityRaster.segments,
@@ -198,26 +218,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: baselineRaster.width,
       sourceHeightMeters: baselineRaster.height,
     });
-    const evaluated = evaluateSelection(targeted);
-    const simulation = summarizeSourceBackedShortRunSimulation({
-      baselineMinRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
-      sourceEquivalentMinRunPixels,
-      baselineRasterSegmentCount: baselineRaster.segments.length,
-      parityRasterSegmentCount: parityRaster.segments.length,
-      simulatedRasterSegmentCount: targeted.segments.length,
-      targetFamilyIds: targeted.targetFamilyIds,
-      targetFaceCount: targeted.targetFaceCount,
-      recoverableFaceCount: targeted.recoverableFaceCount,
-      addedSegmentIds: targeted.addedSegmentIds,
-      beforeAgreement: baselineAgreement,
-      afterAgreement: evaluated.agreement,
-      beforeStageDiagnostic: baselineStage,
-      afterStageDiagnostic: evaluated.stage,
-    });
+    const simulation = summarizeSelection(targeted);
 
     let newlyUniqueOnlySimulation = null;
     if (simulation.newlyUniqueFamilyIds.length > 0) {
-      const newlyUniqueTargeted = selectSourceBackedShortRunSegments({
+      newlyUniqueOnlySimulation = summarizeSelection(selectSourceBackedShortRunSegments({
         baselineSegments: baselineRaster.segments,
         paritySegments: parityRaster.segments,
         dedupeGapDiagnostic: dedupeGap,
@@ -227,24 +232,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWidthMeters: baselineRaster.width,
         sourceHeightMeters: baselineRaster.height,
         targetRepresentativePairIds: simulation.newlyUniqueFamilyIds,
-      });
-      const newlyUniqueEvaluated = evaluateSelection(newlyUniqueTargeted);
-      newlyUniqueOnlySimulation = summarizeSourceBackedShortRunSimulation({
-        baselineMinRunPixels: DEFAULT_RASTER_LINE_OPTIONS.minRunPixels,
-        sourceEquivalentMinRunPixels,
-        baselineRasterSegmentCount: baselineRaster.segments.length,
-        parityRasterSegmentCount: parityRaster.segments.length,
-        simulatedRasterSegmentCount: newlyUniqueTargeted.segments.length,
-        targetFamilyIds: newlyUniqueTargeted.targetFamilyIds,
-        targetFaceCount: newlyUniqueTargeted.targetFaceCount,
-        recoverableFaceCount: newlyUniqueTargeted.recoverableFaceCount,
-        addedSegmentIds: newlyUniqueTargeted.addedSegmentIds,
-        beforeAgreement: baselineAgreement,
-        afterAgreement: newlyUniqueEvaluated.agreement,
-        beforeStageDiagnostic: baselineStage,
-        afterStageDiagnostic: newlyUniqueEvaluated.stage,
-      });
+      }));
     }
+
+    const familyIsolationSimulation = summarizeSourceBackedFamilyIsolationSimulation({
+      results: targeted.targetFamilyIds.map((representativePairId) => ({
+        representativePairId,
+        summary: summarizeSelection(selectSourceBackedShortRunSegments({
+          baselineSegments: baselineRaster.segments,
+          paritySegments: parityRaster.segments,
+          dedupeGapDiagnostic: dedupeGap,
+          consolidationClusters: sourceEvidence.consolidated.clusters,
+          sourcePixelWidth: sourceImage.width,
+          sourcePixelHeight: sourceImage.height,
+          sourceWidthMeters: baselineRaster.width,
+          sourceHeightMeters: baselineRaster.height,
+          targetRepresentativePairIds: [representativePairId],
+        })),
+      })),
+    });
 
     return NextResponse.json({
       mode: "read_only_source_backed_short_run_simulation",
@@ -271,6 +277,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       },
       simulation,
       newlyUniqueOnlySimulation,
+      familyIsolationSimulation,
       safety: { writesPerformed: false, extractionChanged: false, sourceSelectionChanged: false, canonicalGeometryChanged: false, generated3d: false },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
