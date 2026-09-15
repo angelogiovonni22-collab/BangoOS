@@ -39,8 +39,15 @@ function simulationSummary(value: unknown) {
     mode: source.mode ?? null,
     baselineDedupeMode: source.baselineDedupeMode ?? null,
     simulatedDedupeMode: source.simulatedDedupeMode ?? null,
+    baselineMinRunPixels: source.baselineMinRunPixels ?? null,
+    sourceEquivalentMinRunPixels: source.sourceEquivalentMinRunPixels ?? null,
     baselineRasterSegmentCount: source.baselineRasterSegmentCount ?? null,
+    parityRasterSegmentCount: source.parityRasterSegmentCount ?? null,
     simulatedRasterSegmentCount: source.simulatedRasterSegmentCount ?? null,
+    targetFamilyIds: source.targetFamilyIds ?? null,
+    targetFaceCount: source.targetFaceCount ?? null,
+    recoverableFaceCount: source.recoverableFaceCount ?? null,
+    addedSegmentIds: source.addedSegmentIds ?? null,
     before: source.before ?? null,
     after: source.after ?? null,
     delta: source.delta ?? null,
@@ -56,14 +63,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
   try {
     const { versionId } = await params;
     const incoming = new URL(request.url);
-    const auditUrl = new URL(`/api/blueprints/${encodeURIComponent(versionId)}/engine-source-family-audit`, incoming.origin);
+    const runShortRunSimulation = incoming.searchParams.get("shortRunSimulation") === "1";
+    const targetPath = runShortRunSimulation
+      ? `/api/blueprints/${encodeURIComponent(versionId)}/engine-source-backed-shortrun-simulation`
+      : `/api/blueprints/${encodeURIComponent(versionId)}/engine-source-family-audit`;
+    const targetUrl = new URL(targetPath, incoming.origin);
     const expectedPage = incoming.searchParams.get("expectedPage");
-    if (expectedPage) auditUrl.searchParams.set("expectedPage", expectedPage);
-    if (incoming.searchParams.get("dedupePreservationSimulation") === "1") auditUrl.searchParams.set("dedupePreservationSimulation", "1");
-    auditUrl.searchParams.set("summaryProxy", "1");
+    if (expectedPage) targetUrl.searchParams.set("expectedPage", expectedPage);
+    if (!runShortRunSimulation && incoming.searchParams.get("dedupePreservationSimulation") === "1") targetUrl.searchParams.set("dedupePreservationSimulation", "1");
+    if (!runShortRunSimulation) targetUrl.searchParams.set("summaryProxy", "1");
 
     const cookie = request.headers.get("cookie");
-    const response = await fetch(auditUrl, {
+    const response = await fetch(targetUrl, {
       method: "GET",
       headers: cookie ? { cookie } : undefined,
       cache: "no-store",
@@ -74,9 +85,34 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     }
 
     const root = record(payload);
-    const evidence = record(root.evidence);
     const extraction = record(root.extraction);
     const safety = record(root.safety);
+
+    if (runShortRunSimulation) {
+      return NextResponse.json({
+        mode: "read_only_source_backed_short_run_simulation_summary",
+        source: root.source ?? null,
+        extraction: {
+          sourcePixelWidth: extraction.sourcePixelWidth ?? null,
+          sourcePixelHeight: extraction.sourcePixelHeight ?? null,
+          rasterPixelWidth: extraction.rasterPixelWidth ?? null,
+          rasterPixelHeight: extraction.rasterPixelHeight ?? null,
+          baselineRasterSegmentCount: extraction.baselineRasterSegmentCount ?? null,
+          sourceEquivalentMinRunPixels: extraction.sourceEquivalentMinRunPixels ?? null,
+        },
+        baselineDedupeGapCounts: root.baselineDedupeGapCounts ?? null,
+        simulation: simulationSummary(root.simulation),
+        safety: {
+          writesPerformed: safety.writesPerformed ?? null,
+          extractionChanged: safety.extractionChanged ?? null,
+          sourceSelectionChanged: safety.sourceSelectionChanged ?? null,
+          canonicalGeometryChanged: safety.canonicalGeometryChanged ?? null,
+          generated3d: safety.generated3d ?? null,
+        },
+      }, { headers: { "Cache-Control": "no-store" } });
+    }
+
+    const evidence = record(root.evidence);
 
     return NextResponse.json({
       mode: "read_only_source_pair_family_audit_summary",
