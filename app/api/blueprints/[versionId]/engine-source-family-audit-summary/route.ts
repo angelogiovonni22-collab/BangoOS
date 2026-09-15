@@ -85,6 +85,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         rasterSegmentCount: extraction.rasterSegmentCount ?? null,
         sourcePixelWidth: extraction.sourcePixelWidth ?? null,
         sourcePixelHeight: extraction.sourcePixelHeight ?? null,
+        rasterPixelWidth: extraction.rasterPixelWidth ?? null,
+        rasterPixelHeight: extraction.rasterPixelHeight ?? null,
         sourceWidthMeters: extraction.sourceWidthMeters ?? null,
         sourceHeightMeters: extraction.sourceHeightMeters ?? null,
       },
