@@ -59,6 +59,28 @@ function simulationSummary(value: unknown) {
   };
 }
 
+function familyIsolationSummary(value: unknown) {
+  if (!value) return null;
+  const source = record(value);
+  const results = Array.isArray(source.results) ? source.results : [];
+  return {
+    mode: source.mode ?? null,
+    familyCount: source.familyCount ?? null,
+    safeFamilyCount: source.safeFamilyCount ?? null,
+    safeFamilyIds: source.safeFamilyIds ?? null,
+    safeAddedSegmentIds: source.safeAddedSegmentIds ?? null,
+    regressiveFamilyIds: source.regressiveFamilyIds ?? null,
+    ambiguityGrowthFamilyIds: source.ambiguityGrowthFamilyIds ?? null,
+    safeResults: results
+      .map((entry) => record(entry))
+      .filter((entry) => record(entry.summary).safeToConsiderPromotion === true)
+      .map((entry) => ({
+        representativePairId: entry.representativePairId ?? null,
+        summary: simulationSummary(entry.summary),
+      })),
+  };
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ versionId: string }> }) {
   try {
     const { versionId } = await params;
@@ -103,6 +125,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         baselineDedupeGapCounts: root.baselineDedupeGapCounts ?? null,
         simulation: simulationSummary(root.simulation),
         newlyUniqueOnlySimulation: simulationSummary(root.newlyUniqueOnlySimulation),
+        familyIsolationSimulation: familyIsolationSummary(root.familyIsolationSimulation),
         safety: {
           writesPerformed: safety.writesPerformed ?? null,
           extractionChanged: safety.extractionChanged ?? null,
