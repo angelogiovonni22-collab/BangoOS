@@ -7,6 +7,7 @@ export type BosRasterStructuralSelection = {
   componentCount: number;
   retainedComponentCount: number;
   repetitiveArtifactCount: number;
+  protectedWallSystemCount: number;
   diagnostics: string[];
 };
 
@@ -17,6 +18,8 @@ export type BosRasterStructuralSelectorOptions = {
   parallelToleranceRadians?: number;
   minRetainedComponentLengthMeters?: number;
   relativeComponentLengthFloor?: number;
+  /** Existing explicit wall systems that independent source evidence has already proven. */
+  protectedWallSystemIds?: ReadonlySet<string> | readonly string[];
 };
 
 function lineLength(line: BosLine2) {
@@ -132,15 +135,19 @@ function isRepetitiveShortParallelArtifact(
 }
 
 /**
- * Selects building-scale raster wall systems before global constraints. The selector is deliberately
- * network-based: isolated/repetitive paired-line families do not become walls merely because they
- * satisfy local face-pair geometry. Door-sized collinear gaps remain connected as architectural
- * continuity, while unsupported long-distance bridging is prohibited.
+ * Selects building-scale raster wall systems before global constraints. Independent source-backed
+ * protection may retain an existing explicit two-face wall system that would otherwise be removed
+ * as a repetitive/short component. Protection never creates, extends, moves, snaps, or bridges
+ * geometry; callers must only supply IDs already proven by independent source evidence.
  */
 export function selectStructuralRasterWallSystems(
   input: readonly BosWallSystemCandidate[],
   options: BosRasterStructuralSelectorOptions = {},
 ): BosRasterStructuralSelection {
+  const protectedIds = options.protectedWallSystemIds instanceof Set
+    ? options.protectedWallSystemIds
+    : new Set(options.protectedWallSystemIds ?? []);
+
   if (!input.length) {
     return {
       wallSystems: [],
@@ -148,6 +155,7 @@ export function selectStructuralRasterWallSystems(
       componentCount: 0,
       retainedComponentCount: 0,
       repetitiveArtifactCount: 0,
+      protectedWallSystemCount: 0,
       diagnostics: ["Raster structural selector received no wall systems."],
     };
   }
@@ -159,8 +167,10 @@ export function selectStructuralRasterWallSystems(
   const minRetainedComponentLengthMeters = options.minRetainedComponentLengthMeters ?? 4;
   const relativeComponentLengthFloor = options.relativeComponentLengthFloor ?? 0.12;
 
+  const protectedExistingIds = new Set(input.filter((candidate) => protectedIds.has(candidate.id)).map((candidate) => candidate.id));
   const repetitive = new Set(
     input
+      .filter((candidate) => !protectedExistingIds.has(candidate.id))
       .filter((candidate) => isRepetitiveShortParallelArtifact(candidate, input, parallelToleranceRadians))
       .map((candidate) => candidate.id),
   );
@@ -172,6 +182,7 @@ export function selectStructuralRasterWallSystems(
       componentCount: 0,
       retainedComponentCount: 0,
       repetitiveArtifactCount: repetitive.size,
+      protectedWallSystemCount: 0,
       diagnostics: ["Raster structural selector rejected every candidate as repetitive non-building linework."],
     };
   }
@@ -206,16 +217,18 @@ export function selectStructuralRasterWallSystems(
   const components = [...groups.values()].map((wallSystems) => ({
     wallSystems,
     totalLength: wallSystems.reduce((sum, system) => sum + lineLength(system.centerline), 0),
+    sourceBacked: wallSystems.some((system) => protectedExistingIds.has(system.id)),
   })).sort((a, b) => b.totalLength - a.totalLength);
   const largestLength = components[0]?.totalLength || 0;
   const retained = components.filter((component, index) => {
-    if (index === 0) return true;
+    if (index === 0 || component.sourceBacked) return true;
     return component.totalLength >= minRetainedComponentLengthMeters
       && component.totalLength >= largestLength * relativeComponentLengthFloor;
   });
   const retainedIds = new Set(retained.flatMap((component) => component.wallSystems.map((system) => system.id)));
   const wallSystems = systems.filter((system) => retainedIds.has(system.id));
   const rejectedSystemIds = input.filter((system) => !retainedIds.has(system.id)).map((system) => system.id);
+  const protectedWallSystemCount = wallSystems.filter((system) => protectedExistingIds.has(system.id)).length;
 
   return {
     wallSystems,
@@ -223,9 +236,11 @@ export function selectStructuralRasterWallSystems(
     componentCount: components.length,
     retainedComponentCount: retained.length,
     repetitiveArtifactCount: repetitive.size,
+    protectedWallSystemCount,
     diagnostics: [
       `Raster structural selector retained ${wallSystems.length} of ${input.length} explicit wall systems across ${retained.length} of ${components.length} architectural components.`,
       `Raster structural selector rejected ${repetitive.size} repetitive short parallel systems before component selection.`,
+      `Raster structural selector retained ${protectedWallSystemCount} existing explicit wall system(s) because independent source evidence protected their IDs.`,
       `Largest retained architectural component spans ${largestLength.toFixed(2)} m of wall centerline evidence; no unsupported long-distance bridging was used.`,
     ],
   };
