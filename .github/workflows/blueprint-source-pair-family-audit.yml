@@ -52,3 +52,5 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-targeted-shortrun-simulation.contract.test.ts
       - name: Source-backed short-run fidelity simulation
         run: npx -y tsx lib/blueprints/engine/source-backed-shortrun-fidelity-simulation.contract.test.ts
+      - name: Source-backed short-run family isolation
+        run: npx -y tsx lib/blueprints/engine/source-pair-raster-family-isolation-simulation.contract.test.ts
