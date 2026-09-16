@@ -98,13 +98,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       sourceWidthMeters: raster.width,
       sourceHeightMeters: raster.height,
     });
-    const audit = auditResidualSourcePairs({
-      retainedSourcePairs: sourceEvidence.network.wallFacePairs,
+    const auditInput = {
       explicitWallSystems: candidate.sheetFrameSelection.wallSystems,
       sourcePixelWidth: sourceImage.width,
       sourcePixelHeight: sourceImage.height,
       sourceWidthMeters: raster.width,
       sourceHeightMeters: raster.height,
+    };
+    const audit = auditResidualSourcePairs({
+      retainedSourcePairs: sourceEvidence.network.wallFacePairs,
+      ...auditInput,
     });
 
     const unmatched = audit.pairs
@@ -130,6 +133,46 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       coverageOnly: 0,
     });
 
+    const clusterByRepresentative = new Map(sourceEvidence.consolidated.clusters.map((cluster) => [cluster.representativePairId, cluster]));
+    const familyMemberRecoveries = unmatched.flatMap((pair) => {
+      const cluster = clusterByRepresentative.get(pair.pairId);
+      if (!cluster || cluster.members.length < 2) return [];
+      const memberMatches = cluster.members.flatMap((member) => {
+        const memberAudit = auditResidualSourcePairs({ retainedSourcePairs: [member], ...auditInput });
+        const memberResult = memberAudit.pairs[0];
+        if (!memberResult || memberResult.reason !== "unique_explicit_match" || memberResult.eligibleMatches.length !== 1) return [];
+        return [{
+          memberPairId: member.id,
+          wallId: memberResult.eligibleMatches[0].wallId,
+          sourceLengthMeters: memberResult.sourceLengthMeters,
+          coordinateErrorMeters: memberResult.eligibleMatches[0].coordinateErrorMeters,
+          thicknessErrorMeters: memberResult.eligibleMatches[0].thicknessErrorMeters,
+          sourceSpanCoverageRatio: memberResult.eligibleMatches[0].sourceSpanCoverageRatio,
+          sourceThicknessMeters: memberResult.eligibleMatches[0].sourceThicknessMeters,
+          candidateThicknessMeters: memberResult.eligibleMatches[0].candidateThicknessMeters,
+        }];
+      });
+      const wallIds = [...new Set(memberMatches.map((match) => match.wallId))];
+      if (wallIds.length !== 1) return [];
+      const best = [...memberMatches].sort((a, b) =>
+        (a.coordinateErrorMeters + a.thicknessErrorMeters + (1 - a.sourceSpanCoverageRatio))
+        - (b.coordinateErrorMeters + b.thicknessErrorMeters + (1 - b.sourceSpanCoverageRatio))
+        || b.sourceLengthMeters - a.sourceLengthMeters
+        || a.memberPairId.localeCompare(b.memberPairId))[0];
+      if (!best) return [];
+      return [{
+        representativePairId: pair.pairId,
+        representativeSourceLengthMeters: pair.sourceLengthMeters,
+        familySize: cluster.members.length,
+        qualifyingMemberCount: memberMatches.length,
+        wallId: wallIds[0],
+        bestMember: best,
+        qualifyingMembers: memberMatches,
+      }];
+    }).sort((a, b) => b.representativeSourceLengthMeters - a.representativeSourceLengthMeters || a.representativePairId.localeCompare(b.representativePairId));
+    const familyMemberRecoverablePairIds = familyMemberRecoveries.map((item) => item.representativePairId);
+    const familyMemberRecoverableLengthMeters = familyMemberRecoveries.reduce((sum, item) => sum + item.representativeSourceLengthMeters, 0);
+
     return NextResponse.json({
       mode: "read_only_residual_source_pair_audit",
       source: {
@@ -152,12 +195,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         unmatchedSourceLengthMeters: audit.unmatchedSourceLengthMeters,
         unmatchedSourceLengthRatio: audit.unmatchedSourceLengthRatio,
         mismatchSummary,
+        familyMemberRecovery: {
+          recoverableRepresentativePairCount: familyMemberRecoveries.length,
+          recoverableRepresentativePairIds: familyMemberRecoverablePairIds,
+          recoverableSourceLengthMeters: familyMemberRecoverableLengthMeters,
+          recoverableShareOfUnmatchedLength: audit.unmatchedSourceLengthMeters > 0
+            ? familyMemberRecoverableLengthMeters / audit.unmatchedSourceLengthMeters
+            : 0,
+          recoveries: familyMemberRecoveries,
+          diagnostics: [
+            `${familyMemberRecoveries.length} unmatched retained source representative(s) have at least one raw consolidation-family member that uniquely satisfies the unchanged 2 cm coordinate, 2 cm thickness, and 90% source-span gates against the same explicit wall.`,
+            "A family is reported recoverable only when every qualifying raw member points to one explicit wall ID; competing wall IDs fail closed.",
+            "Read-only: production source-family representatives, network selection, explicit wall systems, structural selection, and canonical geometry are unchanged.",
+          ],
+        },
         unmatchedPairs: unmatched,
         diagnostics: audit.diagnostics,
       },
       safety: {
         writesPerformed: false,
         extractionChanged: false,
+        sourceFamilyRepresentativeChanged: false,
         selectorDefaultsChanged: false,
         canonicalGeometryChanged: false,
         generated3d: false,
