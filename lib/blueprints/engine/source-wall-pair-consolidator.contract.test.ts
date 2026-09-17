@@ -46,6 +46,35 @@ assert.deepEqual(new Set(duplicateCluster.members.map((item) => item.id)), new S
 assert(result.diagnostics.some((item) => item.includes("without moving or synthesizing source geometry")), "diagnostics must make evidence-preserving consolidation explicit");
 assert(result.diagnostics.some((item) => item.includes("consolidation family")), "diagnostics must disclose member preservation");
 
+const maxThickness = consolidateSourceWallPairs({
+  wallFacePairs: duplicates,
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+  options: { representativeMode: "maximum_thickness" },
+});
+assert.equal(maxThickness.wallFacePairs[0].id, "same-wall-b", "maximum-thickness simulation must select the thickest existing source pair without synthesizing geometry");
+const minThickness = consolidateSourceWallPairs({
+  wallFacePairs: duplicates,
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+  options: { representativeMode: "minimum_thickness" },
+});
+assert.equal(minThickness.wallFacePairs[0].id, "same-wall-c", "minimum-thickness simulation must select the thinnest existing source pair");
+const longest = consolidateSourceWallPairs({
+  wallFacePairs: duplicates,
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+  options: { representativeMode: "longest" },
+});
+assert.equal(longest.wallFacePairs[0].id, "same-wall-a", "longest simulation must select the longest existing source span with deterministic ID tie-break");
+assert(maxThickness.diagnostics.some((item) => item.includes("without consulting reconstructed wall geometry")), "alternative representative diagnostics must disclose source-only selection");
+
 const chainA = pair("chain-a", 8.00, 1, 9, 0.20);
 const chainB = pair("chain-b", 8.05, 1, 9, 0.25);
 const chainC = pair("chain-c", 8.10, 1, 9, 0.30);
