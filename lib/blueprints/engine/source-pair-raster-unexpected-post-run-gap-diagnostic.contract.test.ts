@@ -28,6 +28,7 @@ const baseDiagnostic: BosRasterDedupeGapDiagnostic = {
 const adjacent = diagnoseUnexpectedPostRunGaps({
   dedupeGapDiagnostic: baseDiagnostic,
   rawSegments: [{
+    sourcePage: 1,
     sourceObjectId: "segment-a",
     start: { x: 6.3, y: 3.3 },
     end: { x: 12.3, y: 3.3 },
