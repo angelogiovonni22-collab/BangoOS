@@ -16,7 +16,7 @@ import { diagnoseRasterDedupeGaps } from "@/lib/blueprints/engine/source-pair-ra
 import { selectTargetedDedupeCollisionSegments, summarizeTargetedDedupeCollisionSimulation } from "@/lib/blueprints/engine/source-pair-raster-targeted-dedupe-simulation";
 import type { Database } from "@/types/database.types";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 const MAX_SOURCE_BYTES = 45 * 1024 * 1024;
 
