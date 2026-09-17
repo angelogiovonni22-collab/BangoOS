@@ -5,6 +5,7 @@ export type BosSourceWallPairConsolidationOptions = {
   minimumOverlapRatio?: number;
   thicknessToleranceMeters?: number;
   clusteringMode?: "single_link" | "complete_link";
+  representativeMode?: "median_thickness" | "longest" | "maximum_thickness" | "minimum_thickness";
 };
 
 export type BosSourceWallPairConsolidationCluster = {
@@ -106,12 +107,30 @@ function completeLinkGroups(pairs: MeterPair[], centerlineToleranceMeters: numbe
   return groups;
 }
 
+function selectRepresentative(group: MeterPair[], mode: NonNullable<BosSourceWallPairConsolidationOptions["representativeMode"]>) {
+  if (mode === "longest") {
+    return [...group].sort((a, b) => b.lengthMeters - a.lengthMeters || a.id.localeCompare(b.id))[0];
+  }
+  if (mode === "maximum_thickness") {
+    return [...group].sort((a, b) => b.separationMeters - a.separationMeters || b.lengthMeters - a.lengthMeters || a.id.localeCompare(b.id))[0];
+  }
+  if (mode === "minimum_thickness") {
+    return [...group].sort((a, b) => a.separationMeters - b.separationMeters || b.lengthMeters - a.lengthMeters || a.id.localeCompare(b.id))[0];
+  }
+  const targetThickness = median(group.map((pair) => pair.separationMeters));
+  return [...group].sort((a, b) => {
+    const thicknessDelta = Math.abs(a.separationMeters - targetThickness) - Math.abs(b.separationMeters - targetThickness);
+    if (Math.abs(thicknessDelta) > 1e-9) return thicknessDelta;
+    return b.lengthMeters - a.lengthMeters || a.id.localeCompare(b.id);
+  })[0];
+}
+
 /**
  * Collapses near-identical rendered-pixel wall-pair candidates that describe the same physical wall.
  * It selects an existing evidence pair as the representative; it never invents or averages geometry.
  * Every original pair remains exposed inside its read-only evidence family for downstream diagnostics.
- * The default single-link mode is unchanged. Complete-link mode is available for read-only simulation
- * and requires every pair inside a cluster to satisfy the original pairwise tolerances with every other member.
+ * The default single-link / median-thickness production behavior is unchanged. Alternative clustering
+ * and representative modes are available only when explicitly requested for read-only source-only simulation.
  */
 export function consolidateSourceWallPairs(input: {
   wallFacePairs: readonly BosSourceWallFacePair[];
@@ -128,6 +147,7 @@ export function consolidateSourceWallPairs(input: {
   const minimumOverlapRatio = input.options?.minimumOverlapRatio ?? 0.72;
   const thicknessToleranceMeters = input.options?.thicknessToleranceMeters ?? 0.08;
   const clusteringMode = input.options?.clusteringMode ?? "single_link";
+  const representativeMode = input.options?.representativeMode ?? "median_thickness";
   const pxPerMeterX = input.sourcePixelWidth / input.sourceWidthMeters;
   const pxPerMeterY = input.sourcePixelHeight / input.sourceHeightMeters;
   const pairs = input.wallFacePairs.map((pair) => toMeters(pair, pxPerMeterX, pxPerMeterY));
@@ -140,12 +160,7 @@ export function consolidateSourceWallPairs(input: {
   const representatives: BosSourceWallFacePair[] = [];
   const clusters: BosSourceWallPairConsolidationCluster[] = [];
   for (const group of groups) {
-    const targetThickness = median(group.map((pair) => pair.separationMeters));
-    const representative = [...group].sort((a, b) => {
-      const thicknessDelta = Math.abs(a.separationMeters - targetThickness) - Math.abs(b.separationMeters - targetThickness);
-      if (Math.abs(thicknessDelta) > 1e-9) return thicknessDelta;
-      return b.lengthMeters - a.lengthMeters || a.id.localeCompare(b.id);
-    })[0];
+    const representative = selectRepresentative(group, representativeMode);
     const representativePair = originalById.get(representative.id) || representative;
     const members = group.map((member) => originalById.get(member.id) || member);
     retainedIds.add(representative.id);
@@ -169,6 +184,9 @@ export function consolidateSourceWallPairs(input: {
       clusteringMode === "complete_link"
         ? "Complete-link simulation requires every member of an evidence family to satisfy those pairwise tolerances with every other member; no synthetic geometry is created."
         : "Single-link production clustering is unchanged; transitive compatible pairs may belong to the same evidence family.",
+      representativeMode === "median_thickness"
+        ? "Production representative selection remains median-thickness then longest-span."
+        : `Read-only source-only representative simulation used ${representativeMode.replaceAll("_", " ")} selection without consulting reconstructed wall geometry.`,
       "Every original source-pair member remains available inside its consolidation family for read-only fidelity diagnostics.",
     ],
   };
