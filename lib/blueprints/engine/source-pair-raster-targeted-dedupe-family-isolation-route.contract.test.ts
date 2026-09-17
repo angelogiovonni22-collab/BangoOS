@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const route = readFileSync("app/api/blueprints/[versionId]/engine-targeted-dedupe-collision-simulation/route.ts", "utf8");
 
+assert.match(route, /export const maxDuration = 120;/, "isolated de-duplication replay must have enough server runtime to complete the read-only A4 diagnostic");
 assert.match(route, /searchParams\.get\("familyIsolationId"\)/, "targeted de-duplication route must require an explicit family isolation parameter for isolated replay");
 assert.match(route, /affectedFamilyIds\.includes\(familyIsolationId\)/, "isolated replay must reject families without a proven de-duplication collision");
 assert.match(route, /member\.representativePairId === familyIsolationId/, "isolated replay must restrict collision bands to the requested source family");
