@@ -7,13 +7,15 @@ import { parsePdfVectorPlan } from "@/lib/blueprints/engine/pdf-vector-parser";
 import { normalizeParsedPlan, summarizeSelectedPlan } from "@/lib/blueprints/engine/plan-parser";
 import { DEFAULT_RASTER_LINE_OPTIONS, extractRasterLineSegments } from "@/lib/blueprints/engine/raster";
 import { buildRasterArchitecturalCandidate } from "@/lib/blueprints/engine/raster-architectural-candidate";
-import { renderBlueprintGraySource } from "@/lib/blueprints/engine/source-pixel-overlay";
-import { buildIndependentSourceWallNetworkEvidence } from "@/lib/blueprints/engine/source-wall-network-overlay";
+import { assessSourcePixelOverlay, renderBlueprintGraySource } from "@/lib/blueprints/engine/source-pixel-overlay";
+import { assessSourceWallNetworkOverlay, buildIndependentSourceWallNetworkEvidence } from "@/lib/blueprints/engine/source-wall-network-overlay";
 import { diagnoseSourcePairFamilyAgreement } from "@/lib/blueprints/engine/source-pair-family-agreement-diagnostic";
 import { diagnoseSourcePairRasterPairingGaps } from "@/lib/blueprints/engine/source-pair-raster-pairing-gap-diagnostic";
 import { diagnoseNoMatchingRasterStages } from "@/lib/blueprints/engine/source-pair-raster-stage-gap-diagnostic";
 import { diagnoseRasterDedupeGaps } from "@/lib/blueprints/engine/source-pair-raster-dedupe-gap-diagnostic";
 import { selectTargetedDedupeCollisionSegments, summarizeTargetedDedupeCollisionSimulation } from "@/lib/blueprints/engine/source-pair-raster-targeted-dedupe-simulation";
+import { summarizeSourceBackedShortRunFidelitySimulation } from "@/lib/blueprints/engine/source-backed-shortrun-fidelity-simulation";
+import { topologyMetrics } from "@/lib/blueprints/engine/geometry";
 import type { Database } from "@/types/database.types";
 
 export const maxDuration = 120;
@@ -210,6 +212,58 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       afterStageDiagnostic: simulatedStage,
     });
 
+    const fidelityMetrics = (candidate: ReturnType<typeof buildRasterArchitecturalCandidate>) => {
+      const constrainedWalls = candidate.constrained.wallSystems;
+      const pixel = assessSourcePixelOverlay({
+        image: sourceImage,
+        wallSystems: constrainedWalls,
+        sourceWidthMeters: baselineRaster.width,
+        sourceHeightMeters: baselineRaster.height,
+      });
+      const network = assessSourceWallNetworkOverlay({
+        image: sourceImage,
+        wallSystems: constrainedWalls,
+        sourceWidthMeters: baselineRaster.width,
+        sourceHeightMeters: baselineRaster.height,
+        predictedPrecision: pixel.predictedPrecision,
+        evidence: sourceEvidence,
+      });
+      const preselectionPixel = assessSourcePixelOverlay({
+        image: sourceImage,
+        wallSystems: candidate.sheetFrameSelection.wallSystems,
+        sourceWidthMeters: baselineRaster.width,
+        sourceHeightMeters: baselineRaster.height,
+      });
+      const preselectionNetwork = assessSourceWallNetworkOverlay({
+        image: sourceImage,
+        wallSystems: candidate.sheetFrameSelection.wallSystems,
+        sourceWidthMeters: baselineRaster.width,
+        sourceHeightMeters: baselineRaster.height,
+        predictedPrecision: preselectionPixel.predictedPrecision,
+        evidence: sourceEvidence,
+      });
+      const supportByWallId = new Map(pixel.perWallSupport.map((item) => [item.wallSystemId, item.support]));
+      const unsupportedHighConfidenceWallCount = constrainedWalls.filter((wall) => wall.confidence >= 0.8 && (supportByWallId.get(wall.id) ?? 0) < 0.95).length;
+      return {
+        wallCount: constrainedWalls.length,
+        preselectionWallCount: candidate.sheetFrameSelection.wallSystems.length,
+        predictedPrecision: pixel.predictedPrecision,
+        sourceWallFaceRecall: pixel.sourceWallFaceRecall,
+        sourceNetworkRecall: network.recall,
+        preselectionSourceNetworkRecall: preselectionNetwork.recall,
+        topologyClosure: topologyMetrics(constrainedWalls.map((wall) => wall.centerline)).closure,
+        unsupportedHighConfidenceWallCount,
+        dimensionAssociationCount: candidate.dimensionEvidence.associations.length,
+        unresolvedDimensionCount: candidate.dimensionEvidence.unresolvedDimensionIds.length,
+      };
+    };
+
+    const fidelitySimulation = summarizeSourceBackedShortRunFidelitySimulation({
+      familyLayerSafe: simulation.safeToConsiderPromotion,
+      baseline: fidelityMetrics(baselineCandidate),
+      simulated: fidelityMetrics(simulatedCandidate),
+    });
+
     return NextResponse.json({
       mode: "read_only_targeted_raster_dedupe_collision_simulation",
       source: {
@@ -229,6 +283,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         keepAllRasterSegmentCount: keepAllRaster.segments.length,
       },
       simulation,
+      fidelitySimulation,
       safety: { writesPerformed: false, sourceSelectionChanged: false, canonicalGeometryChanged: false, generated3d: false },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
