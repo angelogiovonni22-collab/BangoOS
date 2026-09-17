@@ -1,0 +1,1 @@
+Fail closed until independent source-family, rendered-source, topology, dimension, and full-fidelity gates pass.
