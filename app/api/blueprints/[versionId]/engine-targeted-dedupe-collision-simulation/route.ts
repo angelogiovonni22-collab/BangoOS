@@ -284,7 +284,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       },
       simulation,
       fidelitySimulation,
-      safety: { writesPerformed: false, sourceSelectionChanged: false, canonicalGeometryChanged: false, generated3d: false },
+      safety: {
+        writesPerformed: false,
+        extractionChanged: false,
+        selectorDefaultsChanged: false,
+        sourceSelectionChanged: false,
+        canonicalGeometryChanged: false,
+        generated3d: false,
+      },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to run targeted Blueprint de-duplication collision simulation." }, { status: 400 });
