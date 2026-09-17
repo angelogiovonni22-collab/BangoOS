@@ -40,6 +40,10 @@ jobs:
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-stage-gap-diagnostic.contract.test.ts
       - name: Raster de-duplication gap diagnostic
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-dedupe-gap-diagnostic.contract.test.ts
+      - name: Unexpected post-run raster gap diagnostic
+        run: npx -y tsx lib/blueprints/engine/source-pair-raster-unexpected-post-run-gap-diagnostic.contract.test.ts
+      - name: Unexpected post-run raster gap safety
+        run: npx -y tsx lib/blueprints/engine/source-pair-raster-unexpected-post-run-gap-route.contract.test.ts
       - name: Raster min-run parity simulation
         run: npx -y tsx lib/blueprints/engine/source-pair-raster-minrun-simulation.contract.test.ts
       - name: Raster run parity simulation
