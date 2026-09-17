@@ -70,6 +70,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const url = new URL(request.url);
     const expectedPageParam = Number(url.searchParams.get("expectedPage"));
     const expectedPage = Number.isInteger(expectedPageParam) && expectedPageParam > 0 ? expectedPageParam : undefined;
+    const familyIsolationId = url.searchParams.get("familyIsolationId")?.trim() || null;
     if (expectedPage && plan.selectedPage !== expectedPage) throw new Error(`Expected Blueprint page ${expectedPage}, but parser selected page ${plan.selectedPage}.`);
     const selected = summarizeSelectedPlan(plan, "level-1");
     if (!selected.scale.drawingUnitsPerMeter || selected.scale.confidence < 0.55) throw new Error("Verified Blueprint scale is required for targeted de-duplication simulation.");
@@ -138,12 +139,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       mergeBandPixels: DEFAULT_RASTER_LINE_OPTIONS.mergeBandPixels,
     });
 
-    const collisionBandKeys = [...new Set(dedupeGap.members.flatMap((member) => member.failedFaces
+    const collisionMembers = dedupeGap.members.filter((member) => member.failedFaces.some((face) => face.reason === "dedupe_band_collision"));
+    const affectedFamilyIds = [...new Set(collisionMembers.map((member) => member.representativePairId))].sort();
+    if (familyIsolationId && !affectedFamilyIds.includes(familyIsolationId)) {
+      return NextResponse.json({ error: "Requested source family does not contain a proven raster de-duplication collision." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    }
+    const targetedCollisionMembers = familyIsolationId
+      ? collisionMembers.filter((member) => member.representativePairId === familyIsolationId)
+      : collisionMembers;
+    const collisionBandKeys = [...new Set(targetedCollisionMembers.flatMap((member) => member.failedFaces
       .filter((face) => face.reason === "dedupe_band_collision" && face.expectedBandKey)
       .map((face) => face.expectedBandKey as string)))].sort();
-    const affectedFamilyIds = [...new Set(dedupeGap.members
-      .filter((member) => member.failedFaces.some((face) => face.reason === "dedupe_band_collision"))
-      .map((member) => member.representativePairId))].sort();
 
     const keepAllRaster = await extractRasterLineSegments(buffer, { ...rasterInput, dedupeMode: "keep_all" });
     const targeted = selectTargetedDedupeCollisionSegments({
@@ -216,8 +222,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       },
       evidence: {
         affectedFamilyIds,
+        familyIsolationId,
         collisionBandKeys,
-        collisionFaceCount: dedupeGap.reasonFaceCounts.dedupe_band_collision,
+        collisionFaceCount: targetedCollisionMembers.reduce((total, member) => total + member.failedFaces.filter((face) => face.reason === "dedupe_band_collision").length, 0),
         baselineRasterSegmentCount: baselineRaster.segments.length,
         keepAllRasterSegmentCount: keepAllRaster.segments.length,
       },
