@@ -54,6 +54,7 @@ const nextConfig: NextConfig = {
     "/api/blueprints/*/visual-mockup": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs", "./node_modules/sharp/**/*"],
     "/api/blueprints/*/source-page-preview": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
     "/api/blueprints/*/engine-benchmark": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
+    "/api/blueprints/*/engine-targeted-dedupe-collision-simulation": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
   },
   async headers() {
     return [
