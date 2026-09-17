@@ -13,6 +13,7 @@ export type BosPairBuilderConsistencyReason =
   | "unexpected_builder_omission";
 
 type Orientation = "horizontal" | "vertical";
+type Point = { x: number; y: number };
 
 type SourceFace = {
   orientation: Orientation;
@@ -24,9 +25,6 @@ type SourceFace = {
 type Candidate = {
   id: string;
   segment: BosRawSegment;
-  lineFixed: number;
-  start: number;
-  end: number;
   length: number;
 };
 
@@ -63,7 +61,11 @@ function sourceFaceGeometry(
   };
 }
 
-function segmentOrientation(segment: BosRawSegment): Orientation {
+function length(segment: BosRawSegment) {
+  return Math.hypot(segment.end.x - segment.start.x, segment.end.y - segment.start.y);
+}
+
+function orientationOf(segment: BosRawSegment): Orientation {
   return Math.abs(segment.end.x - segment.start.x) >= Math.abs(segment.end.y - segment.start.y)
     ? "horizontal"
     : "vertical";
@@ -81,8 +83,20 @@ function angleDelta(a: number, b: number) {
   return Math.min(delta, Math.PI - delta);
 }
 
+function projection(point: Point, origin: Point, axis: Point) {
+  return (point.x - origin.x) * axis.x + (point.y - origin.y) * axis.y;
+}
+
+function unit(segment: BosRawSegment) {
+  const size = length(segment) || 1;
+  return {
+    x: (segment.end.x - segment.start.x) / size,
+    y: (segment.end.y - segment.start.y) / size,
+  };
+}
+
 function candidateForFace(segment: BosRawSegment, source: SourceFace, coordinateGate: number): Candidate | null {
-  const orientation = segmentOrientation(segment);
+  const orientation = orientationOf(segment);
   if (orientation !== source.orientation) return null;
   const horizontal = orientation === "horizontal";
   const fixed = horizontal
@@ -99,26 +113,33 @@ function candidateForFace(segment: BosRawSegment, source: SourceFace, coordinate
   return {
     id: String(segment.sourceObjectId || "unknown"),
     segment,
-    lineFixed: fixed,
-    start,
-    end,
-    length: Math.hypot(segment.end.x - segment.start.x, segment.end.y - segment.start.y),
+    length: length(segment),
   };
 }
 
 function pairMetrics(a: Candidate, b: Candidate) {
-  const overlap = Math.max(0, Math.min(a.end, b.end) - Math.max(a.start, b.start));
-  const shorter = Math.max(0.000001, Math.min(a.end - a.start, b.end - b.start));
-  const separation = Math.abs(a.lineFixed - b.lineFixed);
-  const drift = Math.abs(
-    Math.abs((a.segment.start.x - b.segment.start.x) + (a.segment.start.y - b.segment.start.y))
-    - Math.abs((a.segment.end.x - b.segment.end.x) + (a.segment.end.y - b.segment.end.y)),
-  );
+  const axis = unit(a.segment);
+  const normal = { x: -axis.y, y: axis.x };
+  const origin = a.segment.start;
+  const a0 = projection(a.segment.start, origin, axis);
+  const a1 = projection(a.segment.end, origin, axis);
+  const b0 = projection(b.segment.start, origin, axis);
+  const b1 = projection(b.segment.end, origin, axis);
+  const minA = Math.min(a0, a1);
+  const maxA = Math.max(a0, a1);
+  const minB = Math.min(b0, b1);
+  const maxB = Math.max(b0, b1);
+  const overlap = Math.max(0, Math.min(maxA, maxB) - Math.max(minA, minB));
+  const shorter = Math.max(0.000001, Math.min(maxA - minA, maxB - minB));
+  const signedOffsetStart = projection(b.segment.start, origin, normal);
+  const signedOffsetEnd = projection(b.segment.end, origin, normal);
+  const separation = (Math.abs(signedOffsetStart) + Math.abs(signedOffsetEnd)) / 2;
+  const separationDrift = Math.abs(Math.abs(signedOffsetStart) - Math.abs(signedOffsetEnd));
   return {
     parallelDelta: angleDelta(angle(a.segment), angle(b.segment)),
     overlapRatio: overlap / shorter,
     separation,
-    separationDrift: drift,
+    separationDrift,
   };
 }
 
@@ -192,6 +213,7 @@ export function diagnosePairBuilderConsistencyGaps(input: {
       for (const a of aCandidates) {
         for (const b of bCandidates) {
           if (a.id === b.id) continue;
+          if (a.segment.sourcePage !== b.segment.sourcePage) continue;
           const metrics = pairMetrics(a, b);
           if (metrics.parallelDelta > parallelTolerance) {
             sawParallelFailure = true;
