@@ -72,6 +72,24 @@ assert(completeLinkChain.clusters.every((cluster) => cluster.members.every((left
 }))), "every complete-link family must remain bounded by the existing centerline and thickness tolerances");
 assert(completeLinkChain.diagnostics.some((item) => item.includes("Complete-link simulation")), "simulation diagnostics must disclose the bounded clustering mode");
 
+const medianFaceMembers: BosSourceWallFacePair[] = [
+  { id: "mf-a", orientation: "horizontal", faceAFixedPixel: 100, faceBFixedPixel: 105, startPixel: 100, endPixel: 900, centerFixedPixel: 102.5, lengthMeters: 8, separationMeters: 0.05 },
+  { id: "mf-b", orientation: "horizontal", faceAFixedPixel: 99, faceBFixedPixel: 106, startPixel: 100, endPixel: 880, centerFixedPixel: 102.5, lengthMeters: 7.8, separationMeters: 0.07 },
+  { id: "mf-c", orientation: "horizontal", faceAFixedPixel: 99, faceBFixedPixel: 105, startPixel: 100, endPixel: 860, centerFixedPixel: 102, lengthMeters: 7.6, separationMeters: 0.06 },
+  { id: "mf-d", orientation: "horizontal", faceAFixedPixel: 100, faceBFixedPixel: 106, startPixel: 100, endPixel: 840, centerFixedPixel: 103, lengthMeters: 7.4, separationMeters: 0.06 },
+];
+const medianFaceSimulation = consolidateSourceWallPairs({
+  wallFacePairs: medianFaceMembers,
+  sourcePixelWidth: 2000,
+  sourcePixelHeight: 2000,
+  sourceWidthMeters: 20,
+  sourceHeightMeters: 20,
+  options: { representativeMode: "median_faces" },
+});
+assert.equal(medianFaceSimulation.wallFacePairs.length, 1, "median-face simulation must still retain exactly one existing pair per source family");
+assert.equal(medianFaceSimulation.wallFacePairs[0].id, "mf-b", "median-face simulation must choose an existing pair nearest both face-band medians before source-length tie-breaking");
+assert(medianFaceSimulation.diagnostics.some((item) => item.includes("Median-face simulation")), "diagnostics must disclose the source-only representative simulation mode");
+
 const empty = consolidateSourceWallPairs({
   wallFacePairs: [],
   sourcePixelWidth: 2000,
