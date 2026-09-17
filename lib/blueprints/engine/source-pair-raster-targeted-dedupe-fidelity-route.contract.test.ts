@@ -13,6 +13,8 @@ assert.match(route, /unresolvedDimensionCount: candidate\.dimensionEvidence\.unr
 assert.match(route, /unsupportedHighConfidenceWallCount/, "targeted replay must reject unsupported high-confidence geometry regressions");
 assert.match(route, /fidelitySimulation,/, "route response must expose the full-fidelity verdict");
 assert.match(route, /writesPerformed: false/, "targeted replay must remain read-only");
+assert.match(route, /extractionChanged: false/, "targeted replay must not change production extraction behavior");
+assert.match(route, /selectorDefaultsChanged: false/, "targeted replay must not change selector defaults");
 assert.match(route, /canonicalGeometryChanged: false/, "targeted replay must not modify canonical geometry");
 assert.match(route, /generated3d: false/, "targeted replay must not generate 3D output");
 
