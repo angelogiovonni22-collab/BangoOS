@@ -1,7 +1,10 @@
 import type { BosDimension } from "./building-graph";
 import type { BosRawSegment } from "./geometry";
 import { solveGlobalWallConstraints } from "./global-constraint-solver";
-import { associateRasterDimensionEvidence } from "./raster-dimension-evidence-associator";
+import {
+  associateRasterDimensionEvidence,
+  type BosRasterDimensionEvidenceAssociationOptions,
+} from "./raster-dimension-evidence-associator";
 import { excludeRasterSheetFrameSystems } from "./raster-sheet-frame";
 import { selectStructuralRasterWallSystems } from "./raster-structural-selector";
 import { buildWallSystemsFromRasterFaces } from "./raster-wall-system-builder";
@@ -70,6 +73,8 @@ export function buildRasterArchitecturalCandidate(input: {
   sourceHeightMeters?: number | null;
   /** Existing explicit wall-system IDs already proven by independent rendered-source evidence. */
   protectedWallSystemIds?: ReadonlySet<string> | readonly string[];
+  /** Read-only simulation override. Omit to preserve production dimension-association defaults. */
+  dimensionEvidenceOptions?: BosRasterDimensionEvidenceAssociationOptions;
 }) {
   if (!Number.isFinite(input.drawingUnitsPerMeter) || input.drawingUnitsPerMeter <= 0) {
     throw new Error("A verified drawing scale is required before raster architectural candidates can be built.");
@@ -84,6 +89,7 @@ export function buildRasterArchitecturalCandidate(input: {
     segments: rawSegments,
     dimensions: input.dimensions,
     drawingUnitsPerMeter: input.drawingUnitsPerMeter,
+    options: input.dimensionEvidenceOptions,
   }), input.dimensions);
   const annotationFiltered = suppressDimensionAnnotationDetections(rawSegments, zones);
   const explicitSystems = buildWallSystemsFromRasterFaces(annotationFiltered);
