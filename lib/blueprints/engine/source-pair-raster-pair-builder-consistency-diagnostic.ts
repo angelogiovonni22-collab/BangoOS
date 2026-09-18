@@ -9,6 +9,7 @@ export type BosPairBuilderConsistencyReason =
   | "overlap_gate"
   | "thickness_gate"
   | "separation_drift_gate"
+  | "centerline_length_gate"
   | "greedy_face_claim_conflict"
   | "unexpected_builder_omission";
 
@@ -138,6 +139,7 @@ function pairMetrics(a: Candidate, b: Candidate) {
   return {
     parallelDelta: angleDelta(angle(a.segment), angle(b.segment)),
     overlapRatio: overlap / shorter,
+    overlapLength: overlap,
     separation,
     separationDrift,
   };
@@ -150,6 +152,7 @@ function emptyCounts(): Record<BosPairBuilderConsistencyReason, number> {
     overlap_gate: 0,
     thickness_gate: 0,
     separation_drift_gate: 0,
+    centerline_length_gate: 0,
     greedy_face_claim_conflict: 0,
     unexpected_builder_omission: 0,
   };
@@ -206,6 +209,7 @@ export function diagnosePairBuilderConsistencyGaps(input: {
     let sawOverlapFailure = false;
     let sawThicknessFailure = false;
     let sawDriftFailure = false;
+    let sawCenterlineLengthFailure = false;
 
     if (!aCandidates.length || !bCandidates.length) {
       reason = "missing_individual_face_candidate";
@@ -231,6 +235,10 @@ export function diagnosePairBuilderConsistencyGaps(input: {
             sawDriftFailure = true;
             continue;
           }
+          if (metrics.overlapLength < minLength) {
+            sawCenterlineLengthFailure = true;
+            continue;
+          }
           eligiblePairs.push({ a, b });
         }
       }
@@ -239,7 +247,8 @@ export function diagnosePairBuilderConsistencyGaps(input: {
         else if (sawOverlapFailure) reason = "overlap_gate";
         else if (sawParallelFailure) reason = "parallel_gate";
         else if (sawDriftFailure) reason = "separation_drift_gate";
-      } else if (eligiblePairs.some(({ a, b }) => claimedIds.has(a.id) || claimedIds.has(b.id))) {
+        else if (sawCenterlineLengthFailure) reason = "centerline_length_gate";
+      } else if (eligiblePairs.every(({ a, b }) => claimedIds.has(a.id) || claimedIds.has(b.id))) {
         reason = "greedy_face_claim_conflict";
       }
     }
