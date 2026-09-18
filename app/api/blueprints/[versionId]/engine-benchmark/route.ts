@@ -21,7 +21,7 @@ import { auditResidualSourcePairs } from "@/lib/blueprints/engine/residual-sourc
 import { auditBlueprintPhaseFidelity } from "@/lib/blueprints/engine/phase-fidelity-audit";
 import type { Database } from "@/types/database.types";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 const MAX_SOURCE_BYTES = 45 * 1024 * 1024;
 
@@ -81,6 +81,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
     const url = new URL(request.url);
     const expectedPageParam = Number(url.searchParams.get("expectedPage"));
     const expectedPage = Number.isInteger(expectedPageParam) && expectedPageParam > 0 ? expectedPageParam : undefined;
+    const includeDimensionSweep = url.searchParams.get("dimensionSweep") === "1";
     const benchmark = evaluateVectorFirstCandidatePlan(plan, { expectedPage });
     const selected = summarizeSelectedPlan(plan, "level-1");
 
@@ -100,6 +101,37 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
         sourceWidthMeters: raster.width,
         sourceHeightMeters: raster.height,
       });
+      const dimensionEvidenceOptionSweep = includeDimensionSweep
+        ? [
+            { id: "baseline", options: undefined },
+            { id: "label-distance-1.50m", options: { maxLabelDistanceMeters: 1.5 } },
+            { id: "ambiguity-gap-0.04", options: { ambiguityScoreGap: 0.04 } },
+            { id: "label-1.50m-ambiguity-0.04", options: { maxLabelDistanceMeters: 1.5, ambiguityScoreGap: 0.04 } },
+          ].map((variant) => {
+            const candidate = variant.id === "baseline"
+              ? architecturalCandidate
+              : buildRasterArchitecturalCandidate({
+                  segments: raster.segments,
+                  dimensions: selected.dimensions,
+                  drawingUnitsPerMeter: selected.scale.drawingUnitsPerMeter!,
+                  sourceWidthMeters: raster.width,
+                  sourceHeightMeters: raster.height,
+                  dimensionEvidenceOptions: variant.options,
+                });
+            return {
+              id: variant.id,
+              options: variant.options ?? {},
+              sourceAssociationCount: candidate.dimensionEvidence.associations.length,
+              unresolvedSourceAssociationCount: candidate.dimensionEvidence.unresolvedDimensionIds.length,
+              singleSegmentAssociationCount: candidate.dimensionEvidence.singleSegmentAssociationCount,
+              labelGapChainAssociationCount: candidate.dimensionEvidence.labelGapChainAssociationCount,
+              fragmentChainAssociationCount: candidate.dimensionEvidence.fragmentChainAssociationCount,
+              witnessSpanAssociationCount: candidate.dimensionEvidence.witnessSpanAssociationCount,
+              matchedGlobalDimensionCount: candidate.constrained.matchedDimensionCount,
+              unresolvedGlobalDimensionCount: candidate.constrained.unresolvedDimensionIds.length,
+            };
+          })
+        : null;
       const stages = evaluateRasterEvidenceStages({
         segments: raster.segments,
         dimensions: selected.dimensions,
@@ -224,6 +256,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       rasterEvidence = {
         extraction: { widthMeters: raster.width, heightMeters: raster.height, sourcePixelWidth: sourceImage.width, sourcePixelHeight: sourceImage.height, diagnostics: raster.diagnostics },
         stages,
+        dimensionEvidenceOptionSweep,
         sourcePixelOverlay,
         sourceWallNetworkOverlay,
         sourceWallNetworkPreselectionCoverage,
