@@ -29,6 +29,7 @@ const adjacent = diagnoseUnexpectedPostRunGaps({
   dedupeGapDiagnostic: baseDiagnostic,
   rawSegments: [{
     sourceObjectId: "segment-a",
+    sourcePage: 1,
     start: { x: 6.3, y: 3.3 },
     end: { x: 12.3, y: 3.3 },
     confidence: 1,
