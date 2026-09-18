@@ -13,6 +13,10 @@ type FailedFaceDiagnostic = {
   rasterRunPixels: number;
   reason: BosRasterDedupeGapReason;
   expectedBandKey: string | null;
+  expectedOrientation?: Orientation;
+  expectedFixedMeters?: number;
+  expectedStartMeters?: number;
+  expectedEndMeters?: number;
   collidingSegmentIds: string[];
 };
 
@@ -135,6 +139,10 @@ export function diagnoseRasterDedupeGaps(input: {
             rasterRunPixels,
             reason: "below_raster_min_run",
             expectedBandKey: null,
+            expectedOrientation: member.orientation,
+            expectedFixedMeters: undefined,
+            expectedStartMeters: undefined,
+            expectedEndMeters: undefined,
             collidingSegmentIds: [],
           });
           continue;
@@ -151,6 +159,10 @@ export function diagnoseRasterDedupeGaps(input: {
           rasterRunPixels,
           reason: collidingSegmentIds.length ? "dedupe_band_collision" : "unexpected_post_run_gap",
           expectedBandKey,
+          expectedOrientation: member.orientation,
+          expectedFixedMeters: fixed,
+          expectedStartMeters: start,
+          expectedEndMeters: end,
           collidingSegmentIds,
         });
       }

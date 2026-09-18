@@ -19,6 +19,10 @@ const baseDiagnostic: BosRasterDedupeGapDiagnostic = {
       rasterRunPixels: 111,
       reason: "unexpected_post_run_gap",
       expectedBandKey: "h:10:20:40",
+      expectedOrientation: "horizontal",
+      expectedFixedMeters: 3,
+      expectedStartMeters: 6,
+      expectedEndMeters: 12,
       collidingSegmentIds: [],
     }],
   }],
@@ -45,6 +49,10 @@ assert.equal(adjacent.faceCount, 1);
 assert.equal(adjacent.familyCount, 1);
 assert.equal(adjacent.faces[0]?.reason, "adjacent_band_quantization");
 assert.equal(adjacent.faces[0]?.nearestSegmentId, "segment-a");
+assert(Math.abs((adjacent.faces[0]?.exactCoordinateErrorMeters ?? 0) - 0.3) < 1e-9);
+assert(Math.abs((adjacent.faces[0]?.exactSourceSpanCoverageRatio ?? 0) - 0.95) < 1e-9);
+assert.equal(adjacent.faces[0]?.exactCoordinateGatePassed, false);
+assert.equal(adjacent.faces[0]?.exactCoverageGatePassed, true);
 assert.equal(adjacent.safeToConsiderPromotion, false);
 
 const missing = diagnoseUnexpectedPostRunGaps({
