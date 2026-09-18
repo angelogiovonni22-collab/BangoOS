@@ -91,4 +91,37 @@ const omission = diagnosePairBuilderConsistencyGaps({
 });
 assert.equal(omission.members[0]?.reason, "unexpected_builder_omission");
 
+
+const alternateSegments = [
+  ...segments,
+  { sourcePage: 1, sourceObjectId: "face-a-alt", start: { x: 1, y: 1 }, end: { x: 5, y: 1 }, confidence: 1 },
+];
+const unclaimedAlternative = diagnosePairBuilderConsistencyGaps({
+  stageDiagnostic: stage,
+  consolidationClusters: clusters,
+  annotationFilteredSegments: alternateSegments,
+  explicitWallSystems: [claimingSystem],
+  sourcePixelWidth: 1000,
+  sourcePixelHeight: 1000,
+  sourceWidthMeters: 10,
+  sourceHeightMeters: 10,
+});
+assert.equal(unclaimedAlternative.members[0]?.reason, "unexpected_builder_omission");
+
+const shortOverlapSegments = [
+  { sourcePage: 1, sourceObjectId: "short-a", start: { x: 1, y: 1 }, end: { x: 1.6, y: 1 }, confidence: 1 },
+  { sourcePage: 1, sourceObjectId: "short-b", start: { x: 1.3, y: 1.15 }, end: { x: 1.9, y: 1.15 }, confidence: 1 },
+];
+const shortOverlap = diagnosePairBuilderConsistencyGaps({
+  stageDiagnostic: stage,
+  consolidationClusters: clusters,
+  annotationFilteredSegments: shortOverlapSegments,
+  explicitWallSystems: [],
+  sourcePixelWidth: 1000,
+  sourcePixelHeight: 1000,
+  sourceWidthMeters: 10,
+  sourceHeightMeters: 10,
+});
+assert.equal(shortOverlap.members[0]?.reason, "centerline_length_gate");
+
 console.log("Blueprint raster pair-builder consistency diagnostic contract passed.");
