@@ -15,6 +15,7 @@ import { diagnoseSourcePairCoordinateOffsets } from "@/lib/blueprints/engine/sou
 import { diagnoseCompleteLinkFamilySplits } from "@/lib/blueprints/engine/source-pair-complete-link-split-diagnostic";
 import { diagnoseSourcePairRasterPairingGaps } from "@/lib/blueprints/engine/source-pair-raster-pairing-gap-diagnostic";
 import { diagnoseNoMatchingRasterStages } from "@/lib/blueprints/engine/source-pair-raster-stage-gap-diagnostic";
+import { diagnosePairBuilderConsistencyGaps } from "@/lib/blueprints/engine/source-pair-raster-pair-builder-consistency-diagnostic";
 import { diagnoseRasterDedupeGaps } from "@/lib/blueprints/engine/source-pair-raster-dedupe-gap-diagnostic";
 import { summarizeRasterMinRunParitySimulation } from "@/lib/blueprints/engine/source-pair-raster-minrun-simulation";
 import { summarizeRasterRunParitySimulation } from "@/lib/blueprints/engine/source-pair-raster-run-parity-simulation";
@@ -146,6 +147,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       rasterPairingGapDiagnostic,
       rawSegments: architecturalCandidate.rawSegments,
       annotationFilteredSegments: architecturalCandidate.annotationFiltered,
+      sourcePixelWidth: sourceImage.width,
+      sourcePixelHeight: sourceImage.height,
+      sourceWidthMeters: raster.width,
+      sourceHeightMeters: raster.height,
+    });
+    const pairBuilderConsistencyDiagnostic = diagnosePairBuilderConsistencyGaps({
+      stageDiagnostic: noMatchingRasterStageDiagnostic,
+      consolidationClusters: sourceEvidence.consolidated.clusters,
+      annotationFilteredSegments: architecturalCandidate.annotationFiltered,
+      explicitWallSystems: architecturalCandidate.explicitSystems,
       sourcePixelWidth: sourceImage.width,
       sourcePixelHeight: sourceImage.height,
       sourceWidthMeters: raster.width,
@@ -315,6 +326,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ vers
       coordinateOffsetDiagnostic,
       rasterPairingGapDiagnostic,
       noMatchingRasterStageDiagnostic,
+      pairBuilderConsistencyDiagnostic,
       rasterDedupeGapDiagnostic,
       rasterMinRunParitySimulation,
       rasterRunParitySimulation,
