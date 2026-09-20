@@ -330,7 +330,7 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId, init
         onToggleSidebar={() => setSidebarOpen((current) => !current)}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1.55fr)_minmax(0,1.05fr)] 2xl:grid-cols-[250px_minmax(0,1.7fr)_minmax(0,1.1fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
         <PlansSidebar
           folders={folders}
           activeFolderId={activeFolderId}
@@ -350,7 +350,7 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId, init
           onSortRequest={handleSortRequest}
         />
 
-        <div className="lg:col-span-2 xl:col-span-1 xl:min-w-0">
+        <div className="min-w-0 lg:col-start-2">
           <PlansPreview selectedDocument={selectedDocument} projectName={projectName} onUploadRevision={setRevisionDocument} companyId={companyId} projectId={projectId} userId={userId} initialWorkspaceOpen={Boolean(initialVersionId && selectedDocument?.versionId === initialVersionId)} initialPage={initialPage} initialAnnotationId={initialAnnotationId} />
         </div>
       </div>
