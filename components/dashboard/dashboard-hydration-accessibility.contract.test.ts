@@ -15,6 +15,8 @@ assert.match(page, /aria-expanded="true"/, "expanded widget controls expose thei
 assert.match(page, /aria-controls=\{widgetRegionId\}/, "widget controls identify their regions");
 assert.match(customizer, /aria-expanded=\{!isCollapsed\}/, "customizer widget controls expose collapse state");
 assert.match(header, /dashboard\.systemReady/, "ready status is localized");
+assert.match(header, /translatedLoadingLabel/, "dashboard loading state must validate the translated label");
+assert.match(header, /Loading live metrics/, "dashboard loading state must fall back to readable copy instead of exposing a raw loading translation key");
 
 for (const dictionary of [english, spanish]) {
   assert.ok(dictionary.loadingMetrics, "loadingMetrics must be translated");
