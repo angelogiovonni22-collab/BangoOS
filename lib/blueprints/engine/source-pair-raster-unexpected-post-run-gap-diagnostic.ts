@@ -26,6 +26,10 @@ export type BosUnexpectedPostRunGapFace = {
   startBandDelta: number | null;
   endBandDelta: number | null;
   spanOverlapRatio: number | null;
+  exactCoordinateErrorMeters: number | null;
+  exactSourceSpanCoverageRatio: number | null;
+  exactCoordinateGatePassed: boolean | null;
+  exactCoverageGatePassed: boolean | null;
 };
 
 function parseBandKey(value: string): ParsedBandKey | null {
@@ -106,8 +110,12 @@ export function diagnoseUnexpectedPostRunGaps(input: {
   sourceWidthMeters: number;
   sourceHeightMeters: number;
   mergeBandPixels?: number;
+  maximumCoordinateErrorMeters?: number;
+  minimumSourceSpanCoverageRatio?: number;
 }) {
   const mergeBandPixels = Math.max(1, input.mergeBandPixels ?? 3);
+  const maximumCoordinateErrorMeters = input.maximumCoordinateErrorMeters ?? 0.02;
+  const minimumSourceSpanCoverageRatio = input.minimumSourceSpanCoverageRatio ?? 0.9;
   const indexedSegments = input.rawSegments.map((segment) => {
     const key = segmentBandKey({ ...input, segment, mergeBandPixels });
     return { segment, key, parsed: parseBandKey(key) };
@@ -133,6 +141,35 @@ export function diagnoseUnexpectedPostRunGaps(input: {
         .filter((candidate) => candidate.fixedDelta <= 4 && candidate.overlap >= 0.15)
         .sort((a, b) => a.score - b.score || a.item.key.localeCompare(b.item.key));
       const nearest = candidates[0] || null;
+      const expectedFixed = face.expectedFixedMeters;
+      const expectedStart = face.expectedStartMeters;
+      const expectedEnd = face.expectedEndMeters;
+      const nearestSegment = nearest?.item.segment;
+      const nearestHorizontal = nearestSegment ? orientationOf(nearestSegment) === "horizontal" : false;
+      const nearestFixed = nearestSegment
+        ? nearestHorizontal
+          ? (nearestSegment.start.y + nearestSegment.end.y) / 2
+          : (nearestSegment.start.x + nearestSegment.end.x) / 2
+        : null;
+      const nearestStart = nearestSegment
+        ? nearestHorizontal
+          ? Math.min(nearestSegment.start.x, nearestSegment.end.x)
+          : Math.min(nearestSegment.start.y, nearestSegment.end.y)
+        : null;
+      const nearestEnd = nearestSegment
+        ? nearestHorizontal
+          ? Math.max(nearestSegment.start.x, nearestSegment.end.x)
+          : Math.max(nearestSegment.start.y, nearestSegment.end.y)
+        : null;
+      const exactCoordinateErrorMeters = expectedFixed !== undefined && nearestFixed !== null
+        ? Math.abs(expectedFixed - nearestFixed)
+        : null;
+      const expectedLength = expectedStart !== undefined && expectedEnd !== undefined
+        ? Math.max(0.000001, expectedEnd - expectedStart)
+        : null;
+      const exactSourceSpanCoverageRatio = expectedLength !== null && nearestStart !== null && nearestEnd !== null
+        ? Math.max(0, Math.min(expectedEnd!, nearestEnd) - Math.max(expectedStart!, nearestStart)) / expectedLength
+        : null;
       faces.push({
         representativePairId: member.representativePairId,
         memberPairId: member.memberPairId,
@@ -145,6 +182,10 @@ export function diagnoseUnexpectedPostRunGaps(input: {
         startBandDelta: nearest?.startDelta ?? null,
         endBandDelta: nearest?.endDelta ?? null,
         spanOverlapRatio: nearest?.overlap ?? null,
+        exactCoordinateErrorMeters,
+        exactSourceSpanCoverageRatio,
+        exactCoordinateGatePassed: exactCoordinateErrorMeters === null ? null : exactCoordinateErrorMeters <= maximumCoordinateErrorMeters,
+        exactCoverageGatePassed: exactSourceSpanCoverageRatio === null ? null : exactSourceSpanCoverageRatio >= minimumSourceSpanCoverageRatio,
       });
     }
   }
@@ -183,6 +224,7 @@ export function diagnoseUnexpectedPostRunGaps(input: {
       `${reasonFaceCounts.parallel_offset_mapping_gap} face(s) have a strongly overlapping nearby parallel run but a larger fixed-band offset.`,
       `${reasonFaceCounts.fragmented_run_mapping_gap} face(s) have nearby same-line fragments that partially overlap the expected source span.`,
       `${reasonFaceCounts.no_nearby_raster_run} face(s) have no sufficiently nearby production raster run and remain fail-closed for deeper extraction evidence.`,
+      "Each nearby run is also replayed against the exact unchanged 2 cm coordinate and 90% source-span gates so quantized band proximity cannot be mistaken for recoverable source evidence.",
       "Read-only diagnostic only: no raster setting, selector default, wall, topology, persistence, canonical geometry, or 3D output changed.",
     ],
   };
