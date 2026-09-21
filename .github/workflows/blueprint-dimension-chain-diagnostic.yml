@@ -20,3 +20,5 @@ jobs:
       - run: npm ci
       - name: Dimension-chain boundary diagnostic
         run: npx -y tsx lib/blueprints/engine/dimension-chain-boundary-diagnostic.contract.test.ts
+      - name: Raster dimension evidence option sweep
+        run: npx -y tsx lib/blueprints/engine/raster-dimension-evidence-option-sweep-route.contract.test.ts
