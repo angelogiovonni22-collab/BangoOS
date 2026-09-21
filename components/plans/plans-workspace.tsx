@@ -338,19 +338,19 @@ export function PlansWorkspace({ projectName, projectId, companyId, userId, init
           isOpen={sidebarOpen}
         />
 
-        <PlansTable
-          documents={sortedDocuments}
-          selectedIds={selectedIds}
-          focusedDocumentId={focusedDocumentId}
-          sortKey={sortKey}
-          sortDirection={sortDirection}
-          onToggleSelectAll={handleToggleSelectAll}
-          onToggleSelect={handleToggleSelect}
-          onSelectDocument={setFocusedDocumentId}
-          onSortRequest={handleSortRequest}
-        />
+        <div className="min-w-0 space-y-4">
+          <PlansTable
+            documents={sortedDocuments}
+            selectedIds={selectedIds}
+            focusedDocumentId={focusedDocumentId}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onToggleSelectAll={handleToggleSelectAll}
+            onToggleSelect={handleToggleSelect}
+            onSelectDocument={setFocusedDocumentId}
+            onSortRequest={handleSortRequest}
+          />
 
-        <div className="min-w-0 lg:col-start-2">
           <PlansPreview selectedDocument={selectedDocument} projectName={projectName} onUploadRevision={setRevisionDocument} companyId={companyId} projectId={projectId} userId={userId} initialWorkspaceOpen={Boolean(initialVersionId && selectedDocument?.versionId === initialVersionId)} initialPage={initialPage} initialAnnotationId={initialAnnotationId} />
         </div>
       </div>
