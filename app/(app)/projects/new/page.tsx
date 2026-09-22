@@ -277,6 +277,11 @@ export default function NewProjectPage() {
       return;
     }
 
+    if (["completed", "cancelled"].includes(formData.status)) {
+      setErrorMessage(t("projects.validationStatus"));
+      return;
+    }
+
     if (isSaving) {
       return;
     }
@@ -527,7 +532,7 @@ export default function NewProjectPage() {
                 onChange={(event) => updateField("status", event.target.value)}
                 required
               >
-                {PROJECT_STATUSES.map((option) => (
+                {PROJECT_STATUSES.filter((option) => !["completed", "cancelled"].includes(option.value)).map((option) => (
                   <option key={option.value} value={option.value}>
                     {getProjectStatusLabel(option.value, t)}
                   </option>
