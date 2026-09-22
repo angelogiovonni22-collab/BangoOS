@@ -12,27 +12,33 @@ type ProjectOperatingSystemPanelProps = {
   intelligence: ProjectIntelligence;
   briefing: ProjectSuperintendentBriefing;
   projectId: string;
+  projectStatus: string;
   compliance: ProjectComplianceSignals;
   timelineCount: number;
   formatCurrency: (amount: number) => string;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId, compliance, timelineCount, formatCurrency, t }: ProjectOperatingSystemPanelProps) {
+export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId, projectStatus, compliance, timelineCount, formatCurrency, t }: ProjectOperatingSystemPanelProps) {
   const { locale } = useI18n();
   const es = locale === "es";
   const l = (en: string, spanish: string) => es ? spanish : en;
-  const score = calculateOperatingScore(intelligence, timelineCount);
-  const scoreTone = getScoreTone(score);
+  const projectCompleted = projectStatus.trim().toLowerCase() === "completed";
   const complianceReadiness = calculateProjectComplianceReadiness(compliance);
-  const executionReadiness = calculateProjectExecutionReadiness({
+  const baseExecutionReadiness = calculateProjectExecutionReadiness({
     complianceScore: complianceReadiness.score,
     overdueTasks: intelligence.summary.overdueTasks,
     blockedTasks: intelligence.summary.blockedTasks,
     activeTasks: intelligence.summary.activeTasks,
     documentationPresent: intelligence.quality.documentationPresent,
   });
-  const executionAction = getExecutionAction(projectId, executionReadiness.nextAction, es);
+  const executionReadiness = projectCompleted ? { score: 100, status: "Ready" as const, nextAction: "execution" as const } : baseExecutionReadiness;
+  const baseScore = calculateOperatingScore(intelligence, timelineCount);
+  const score = projectCompleted ? clampScore(baseScore * 0.7 + complianceReadiness.score * 0.3) : clampScore(baseScore * 0.7 + executionReadiness.score * 0.3);
+  const scoreTone = getScoreTone(score);
+  const executionAction = projectCompleted
+    ? { label: l("Project completed", "Proyecto completado"), note: l("No active execution work is required. Review closeout records if documentation still needs to be captured.", "No se requiere trabajo de ejecución activo. Revisa los registros de cierre si aún falta documentación."), href: `/projects/${projectId}?tab=inspections` }
+    : getExecutionAction(projectId, executionReadiness.nextAction, es);
   const varianceLabel = intelligence.budget.budgetVariance === null
     ? l("Budget baseline required", "Se requiere una línea base del presupuesto")
     : formatCurrency(intelligence.budget.budgetVariance);
@@ -64,7 +70,7 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
             note={`${intelligence.risk.totalRisks} ${l("active risk signals", "señales de riesgo activas")}`}
           />
           <MetricTile
-            label={l("Budget Variance", "Variación del presupuesto")}
+            label={l("Budget Remaining", "Presupuesto restante")}
             value={varianceLabel}
             note={`${intelligence.budget.overdueInvoices} ${l("overdue invoices", "facturas vencidas")}`}
           />
@@ -100,7 +106,9 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
               {l("Orion Recommended Actions", "Acciones recomendadas por Orion")}
             </p>
             <ul className="mt-3 space-y-2">
-              {briefing.recommendedActions.length === 0 ? (
+              {projectCompleted ? (
+                <li className="text-sm text-[var(--color-text-secondary)]">{l("Project execution is complete. No active execution recommendation is required.", "La ejecución del proyecto está completa. No se requiere una recomendación de ejecución activa.")}</li>
+              ) : briefing.recommendedActions.length === 0 ? (
                 <li className="text-sm text-[var(--color-text-secondary)]">{l("No recommended actions yet. Continue tracking project updates.", "Aún no hay acciones recomendadas. Continúa registrando las actualizaciones del proyecto.")}</li>
               ) : (
                 briefing.recommendedActions.slice(0, 3).map((action) => (
@@ -128,8 +136,8 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
               </p>
               <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{l("Live permit, inspection, and project-document coverage.", "Cobertura en vivo de permisos, inspecciones y documentos del proyecto.")}</p>
             </div>
-            <Badge tone={complianceReadiness.status === "Ready" ? "success" : complianceReadiness.status === "Watch" ? "warning" : "danger"}>
-              {complianceReadiness.score}/100 · {localizeReadinessStatus(complianceReadiness.status, es)}
+            <Badge tone={projectCompleted && complianceReadiness.score === 0 ? "neutral" : complianceReadiness.status === "Ready" ? "success" : complianceReadiness.status === "Watch" ? "warning" : "danger"}>
+              {complianceReadiness.score}/100 · {projectCompleted && complianceReadiness.score === 0 ? l("Records incomplete", "Registros incompletos") : localizeReadinessStatus(complianceReadiness.status, es)}
             </Badge>
           </div>
 

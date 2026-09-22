@@ -953,12 +953,18 @@ export async function executeUpdateProjectStatusCommand(
     throw new Error(readError?.message || "Project not found.");
   }
 
+  const statusUpdatedAt = new Date().toISOString();
+  const projectPatch: Database["public"]["Tables"]["projects"]["Update"] = {
+    status: nextStatus,
+    updated_at: statusUpdatedAt,
+  };
+  if (nextStatus === "completed") {
+    projectPatch.actual_end_date = statusUpdatedAt.slice(0, 10);
+  }
+
   const { error } = await deps.supabase
     .from("projects")
-    .update({
-      status: nextStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(projectPatch)
     .eq("company_id", context.companyId)
     .eq("id", projectId);
 
@@ -990,6 +996,16 @@ export async function executeUpdateProjectStatusCommand(
   });
 
   if (nextStatus === "completed") {
+    const executionService = createProjectExecutionService(deps.supabase);
+    await executionService.startCloseout({
+      companyId: context.companyId,
+      actorProfileId: context.actorProfileId,
+      correlationId: context.correlationId,
+      idempotencyKey: `${context.idempotencyKey}:project-closeout`,
+      projectId,
+      notes: "Closeout initialized automatically when project was marked completed.",
+    });
+
     await orion.publishEvent({
       company_id: context.companyId,
       actor_profile_id: context.actorProfileId,

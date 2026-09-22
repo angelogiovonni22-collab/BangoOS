@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { createProjectExecutionService } from "@/lib/projects/execution";
 
 const COMPLETION_ROLES = new Set(["owner", "administrator", "operations_manager", "project_manager", "superintendent"]);
 
@@ -36,6 +37,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       .select("id,status,actual_end_date")
       .single();
     if (result.error || !result.data) throw new Error(result.error?.message || "Unable to complete project.");
+
+    const executionService = createProjectExecutionService(supabase as SupabaseClient<Database>);
+    await executionService.startCloseout({
+      companyId: workspace.context.companyId,
+      actorProfileId: workspace.context.userId,
+      idempotencyKey: `project-complete:${projectId}`,
+      projectId,
+      notes: "Closeout initialized automatically when project was marked completed.",
+    });
 
     return NextResponse.json({
       ok: true,

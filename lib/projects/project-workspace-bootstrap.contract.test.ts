@@ -26,7 +26,7 @@ assert.match(projectPage, /closeoutStatusLabel=\{closeoutStatusLabel\}/, "the pr
 assert.match(projectPage, /closeoutReady=\{closeoutReady\}/, "the project command center must receive deterministic closeout readiness");
 assert.match(panel, /Operating Score/);
 assert.match(panel, /Delivery Risk/);
-assert.match(panel, /Budget Variance/);
+assert.match(panel, /Budget Remaining/);
 assert.match(panel, /Workflow Coverage/);
 assert.match(panel, /Orion Recommended Actions/);
 assert.match(panel, /Compliance Readiness/);
@@ -44,3 +44,22 @@ assert.equal(calculateProjectCloseoutReadiness({ closeoutStarted: false, closeou
 assert.equal(calculateProjectCloseoutReadiness({ closeoutStarted: true, closeoutReady: true, projectProgress: 100, openPunchItems: 0, pendingInspections: 0, openPermits: 0 }).status, "Ready");
 
 console.log("project workspace bootstrap contract passed");
+
+assert.match(projectPage, /projectStatus=\{project\.status \|\| ""\}/, "project overview must receive the canonical project status");
+assert.match(commandCenter, /const projectCompleted = status\(props\.projectStatus\) === "completed"/, "completed projects must drive completed overview semantics");
+assert.match(commandCenter, /projectCompleted \? 100/, "completed projects must render 100 percent project progress even when task history is empty");
+assert.match(commandCenter, /Project marked complete/, "completed projects with zero tasks must not render 0 of 0 as incomplete work");
+assert.match(commandCenter, /Closeout checklist required/, "completed projects without a closeout record must surface the closeout checklist requirement");
+assert.match(panel, /Project execution is complete/, "completed projects must not receive active execution recommendations");
+assert.match(panel, /Records incomplete/, "completed projects with missing historical compliance records must not be presented as active setup blockers");
+
+const newProject = readFileSync(resolve(root, "app/(app)/projects/new/page.tsx"), "utf8");
+assert.match(newProject, /PROJECT_STATUSES\.filter\(\(option\) => !\["completed", "cancelled"\]\.includes\(option\.value\)\)/, "new projects cannot be created directly in terminal statuses");
+
+const completionRoute = readFileSync(resolve(root, "app/api/projects/[id]/complete/route.ts"), "utf8");
+assert.match(completionRoute, /actual_end_date: now\.slice\(0, 10\)/, "canonical project completion records the actual completion date");
+assert.match(completionRoute, /startCloseout/, "canonical project completion initializes the closeout workflow");
+
+const orionHandlers = readFileSync(resolve(root, "lib/orion/commands/handlers.ts"), "utf8");
+assert.match(orionHandlers, /projectPatch\.actual_end_date = statusUpdatedAt\.slice\(0, 10\)/, "Orion completion records the actual completion date");
+assert.match(orionHandlers, /project-closeout/, "Orion completion initializes closeout");
