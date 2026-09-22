@@ -85,3 +85,12 @@ test("legal contract records and send actions are role-restricted", () => {
   assert.match(sendRouteSource, /"estimator"/);
   assert.match(sendRouteSource, /"office_manager"/);
 });
+
+test("signed contract copy serves Ohio statutory facts from the immutable agreement snapshot", () => {
+  assert.match(routeSource, /signedSnapshot\?\.compliancePackage\?\.ohioHomeSolicitation/);
+  assert.match(routeSource, /signedCompliance\?\.applicable === true/);
+  assert.match(routeSource, /signedFacts\.supplierTaxpayerId/);
+  assert.match(routeSource, /signedFacts\.insuranceCertificateUrl/);
+  assert.match(routeSource, /signedFacts\.supplierSignerName/);
+  assert.match(routeSource, /notice\.cancellationDeadlineDate/);
+});
