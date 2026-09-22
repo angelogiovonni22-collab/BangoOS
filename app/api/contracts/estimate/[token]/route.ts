@@ -67,14 +67,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     ]);
 
     let homeSolicitation = null;
-    let publicEstimate = estimate;
+    const { agreement_snapshot: agreementSnapshot, ...publicEstimateBase } = estimate as typeof estimate & { agreement_snapshot: unknown };
+    let publicEstimate = publicEstimateBase;
     let publicItems = items || [];
     if (estimate) {
       const linkedCustomer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
       const customer = linkedCustomer || prospect;
-      publicEstimate = { ...estimate, customers: customer } as typeof estimate;
+      publicEstimate = { ...publicEstimateBase, customers: customer } as typeof publicEstimateBase;
 
-      const signedSnapshot = estimate.agreement_snapshot as null | {
+      const signedSnapshot = agreementSnapshot as null | {
         estimate?: {
           estimateNumber?: string | null;
           title?: string;
@@ -100,7 +101,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
           terms: signedSnapshot.estimate.terms ?? publicEstimate.terms,
           payment_terms: signedSnapshot.estimate.paymentTerms ?? publicEstimate.payment_terms,
           customers: (signedSnapshot.customer as typeof customer) || customer,
-        } as typeof estimate;
+        } as typeof publicEstimateBase;
         if (Array.isArray(signedSnapshot.estimate.lineItems)) {
           publicItems = signedSnapshot.estimate.lineItems;
         }
