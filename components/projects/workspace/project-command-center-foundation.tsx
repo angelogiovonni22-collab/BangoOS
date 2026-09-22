@@ -15,7 +15,7 @@ export type CommandCenterTimelineEntry = { id: string; title: string; detail: st
 
 type Props = {
   projectId: string; projectName: string; projectDescription: string | null; customerName: string;
-  projectAddress: string; statusLabel: string; tasks: TaskSummary[]; budgetLabel: string;
+  projectAddress: string; statusLabel: string; projectStatus: string; tasks: TaskSummary[]; budgetLabel: string;
   spentLabel: string; remainingLabel: string; startDate: string; targetDate: string; crewCount: number;
   estimatesCount: number; changeOrdersCount: number; invoicesCount: number; photosCount: number;
   permitsCount: number; inspectionsCount: number; dailyReportsCount: number; openPunchItemsCount: number;
@@ -29,20 +29,21 @@ export function ProjectCommandCenterFoundation(props: Props) {
   const es = locale === "es";
   const l = (en: string, spanish: string) => es ? spanish : en;
   const [activeControl, setActiveControl] = useState<ControlKey | null>(null);
+  const projectCompleted = status(props.projectStatus) === "completed";
   const completed = props.tasks.filter((task) => status(task.status) === "completed");
   const active = props.tasks.filter((task) => ["in_progress", "blocked"].includes(status(task.status)));
-  const progress = props.tasks.length ? Math.round((completed.length / props.tasks.length) * 100) : 0;
+  const progress = projectCompleted ? 100 : props.tasks.length ? Math.round((completed.length / props.tasks.length) * 100) : 0;
   const priorities = prioritizeTasks(props.tasks);
   const week = upcomingTasks(props.tasks);
   const blocked = active.some((task) => status(task.status) === "blocked");
   const healthAtRisk = props.openPermitsCount > 0 || props.pendingInspectionsCount > 0 || blocked;
-  const phases = buildScopePhases(props.tasks, es);
+  const phases = buildScopePhases(props.tasks, es, projectCompleted);
   const projectHref = "/projects/" + props.projectId;
   const scheduleHref = `/schedule?project=${encodeURIComponent(props.projectId)}`;
   const crewCostHref = `${projectHref}/crew-costs`;
   const closeoutStarted = props.closeoutStatusLabel.trim().toLowerCase() !== "not started";
   const closeoutReadiness = calculateProjectCloseoutReadiness({
-    closeoutStarted,
+    closeoutStarted: closeoutStarted || projectCompleted,
     closeoutReady: props.closeoutReady,
     projectProgress: progress,
     openPunchItems: props.openPunchItemsCount,
@@ -56,9 +57,9 @@ export function ProjectCommandCenterFoundation(props: Props) {
     <div className={`space-y-4 ${styles.detailsFirst}`} data-project-overview="header-jobsite-clean">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={l("Project controls: Budget, Crew, Schedule, Progress", "Controles del proyecto: presupuesto, cuadrilla, calendario y progreso")}>
         <Metric control="budget" onClick={() => toggleControl("budget")} active={activeControl === "budget"} icon={<CircleDollarSign size={20} />} label={l("Budget", "Presupuesto")} value={props.budgetLabel} detail={`${l("Spent", "Gastado")} ${props.spentLabel}`} />
-        <Metric control="crew" onClick={() => toggleControl("crew")} active={activeControl === "crew"} icon={<Users size={20} />} label={l("Crew", "Cuadrilla")} value={props.crewCount ? `${props.crewCount} ${l("assigned", "asignados")}` : l("Not assigned", "Sin asignar")} detail={`${active.length} ${l("active tasks", "tareas activas")}`} />
-        <Metric control="schedule" onClick={() => toggleControl("schedule")} active={activeControl === "schedule"} icon={<CalendarDays size={20} />} label={l("Schedule", "Calendario")} value={daysRemainingLabel(props.targetDate, es)} detail={`${l("Target", "Objetivo")} ${props.targetDate}`} />
-        <Metric control="progress" onClick={() => toggleControl("progress")} active={activeControl === "progress"} icon={<Gauge size={20} />} label={l("Progress", "Progreso")} value={`${progress}%`} detail={`${completed.length} ${l("of", "de")} ${props.tasks.length} ${l("tasks complete", "tareas completadas")}`} progress={progress} />
+        <Metric control="crew" onClick={() => toggleControl("crew")} active={activeControl === "crew"} icon={<Users size={20} />} label={l("Crew", "Cuadrilla")} value={projectCompleted ? l("Released", "Liberada") : props.crewCount ? `${props.crewCount} ${l("assigned", "asignados")}` : l("Not assigned", "Sin asignar")} detail={projectCompleted ? l("No active field work", "Sin trabajo de campo activo") : `${active.length} ${l("active tasks", "tareas activas")}`} />
+        <Metric control="schedule" onClick={() => toggleControl("schedule")} active={activeControl === "schedule"} icon={<CalendarDays size={20} />} label={l("Schedule", "Calendario")} value={projectCompleted ? l("Completed", "Completado") : daysRemainingLabel(props.targetDate, es)} detail={projectCompleted ? `${l("Target", "Objetivo")} ${props.targetDate}` : `${l("Target", "Objetivo")} ${props.targetDate}`} />
+        <Metric control="progress" onClick={() => toggleControl("progress")} active={activeControl === "progress"} icon={<Gauge size={20} />} label={l("Progress", "Progreso")} value={`${progress}%`} detail={projectCompleted && props.tasks.length === 0 ? l("Project marked complete", "Proyecto marcado como completado") : `${completed.length} ${l("of", "de")} ${props.tasks.length} ${l("tasks complete", "tareas completadas")}`} progress={progress} />
       </section>
 
       {activeControl ? (
@@ -103,7 +104,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
                 <Info label={l("Project start", "Inicio del proyecto")} value={props.startDate} />
                 <Info label={l("Target completion", "Finalización objetivo")} value={props.targetDate} />
                 <Info label={l("Assigned crew", "Cuadrilla asignada")} value={props.crewCount ? `${props.crewCount} ${l("assigned", "asignados")}` : l("Not assigned", "Sin asignar")} />
-                <Info label={l("Schedule status", "Estado del calendario")} value={daysRemainingLabel(props.targetDate, es)} />
+                <Info label={l("Schedule status", "Estado del calendario")} value={projectCompleted ? l("Completed", "Completado") : daysRemainingLabel(props.targetDate, es)} />
               </div>
               <div className="rounded-[14px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -111,7 +112,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
                   <Badge tone={week.length ? "info" : "neutral"}>{week.length} {l("scheduled", "programadas")}</Badge>
                 </div>
                 <div className="mt-3 divide-y divide-[var(--bos-border-light)]">
-                  {week.length ? week.map((task) => (
+                  {projectCompleted ? <Empty label={l("Project completed. No upcoming work is scheduled.", "Proyecto completado. No hay trabajo próximo programado.")} /> : week.length ? week.map((task) => (
                     <div key={task.id} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 py-2.5">
                       <p className="text-xs font-bold text-[var(--bos-text-medium-on-light)]">{formatTaskDate(task.planned_finish, es)}</p>
                       <p className="truncate text-sm font-bold text-[var(--bos-text-strong-on-light)]">{task.title}</p>
@@ -203,9 +204,9 @@ export function ProjectCommandCenterFoundation(props: Props) {
               )) : <Empty label={l("No priority tasks are scheduled.", "No hay tareas prioritarias programadas.")} />}
             </div>
           </Card>
-          <Card title={l("Project Health", "Salud del proyecto")} icon={<ShieldCheck size={18} />} action={<Badge tone={healthAtRisk ? "warning" : "success"}>{healthAtRisk ? l("Needs attention", "Requiere atención") : l("On track", "En curso")}</Badge>}>
+          <Card title={l("Project Health", "Salud del proyecto")} icon={<ShieldCheck size={18} />} action={<Badge tone={healthAtRisk ? "warning" : "success"}>{healthAtRisk ? l("Needs attention", "Requiere atención") : projectCompleted ? l("Completed", "Completado") : l("On track", "En curso")}</Badge>}>
             <div className="grid grid-cols-3 gap-2">
-              <Health label={l("Schedule", "Calendario")} value={blocked ? l("Blocked", "Bloqueado") : l("On track", "En curso")} warning={blocked} />
+              <Health label={l("Schedule", "Calendario")} value={blocked ? l("Blocked", "Bloqueado") : projectCompleted ? l("Completed", "Completado") : l("On track", "En curso")} warning={blocked} />
               <Health label={l("Permits", "Permisos")} value={props.openPermitsCount ? `${props.openPermitsCount} ${l("open", "abiertos")}` : l("Clear", "Sin pendientes")} warning={props.openPermitsCount > 0} />
               <Health label={l("Safety", "Seguridad")} value={l("No incidents", "Sin incidentes")} />
             </div>
@@ -272,7 +273,7 @@ function upcomingTasks(tasks: TaskSummary[]) { const now = new Date(); const end
 function formatTaskDate(value: string | null, es: boolean) { return value ? new Intl.DateTimeFormat(es ? "es-US" : "en-US", { weekday: "short", month: "short", day: "numeric" }).format(new Date(value + "T12:00:00")) : (es ? "Sin programar" : "Unscheduled"); }
 function formatDue(value: string | null, es: boolean) { if (!value) return es ? "Sin fecha" : "No date"; return value === new Date().toISOString().slice(0, 10) ? (es ? "Hoy" : "Today") : formatTaskDate(value, es); }
 function daysRemainingLabel(value: string, es: boolean) { const target = new Date(value); if (Number.isNaN(target.getTime())) return es ? "Sin programar" : "Not scheduled"; const days = Math.ceil((target.getTime() - Date.now()) / 86400000); return days < 0 ? `${Math.abs(days)} ${es ? "días de retraso" : "days overdue"}` : `${days} ${es ? "días restantes" : "days left"}`; }
-function buildScopePhases(tasks: TaskSummary[], es: boolean) { if (!tasks.length) return [{ id: "scope", title: es ? "Detalles del alcance no ingresados" : "Scope details not entered", state: "upcoming" }]; return [...tasks].sort((a, b) => (a.planned_finish || "9999").localeCompare(b.planned_finish || "9999")).slice(0, 5).map((task) => ({ id: task.id, title: task.title, state: status(task.status) === "completed" ? "completed" : status(task.status) === "in_progress" ? "in_progress" : "upcoming" })); }
+function buildScopePhases(tasks: TaskSummary[], es: boolean, projectCompleted = false) { if (!tasks.length) return [{ id: "scope", title: projectCompleted ? (es ? "Proyecto completado" : "Project completed") : (es ? "Detalles del alcance no ingresados" : "Scope details not entered"), state: projectCompleted ? "completed" : "upcoming" }]; return [...tasks].sort((a, b) => (a.planned_finish || "9999").localeCompare(b.planned_finish || "9999")).slice(0, 5).map((task) => ({ id: task.id, title: task.title, state: status(task.status) === "completed" ? "completed" : status(task.status) === "in_progress" ? "in_progress" : "upcoming" })); }
 function phaseDotClass(state: string) { return state === "completed" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-success-100)] text-xs font-bold text-[var(--color-success-700)]" : state === "in_progress" ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-info-100)] text-xs font-bold text-[var(--color-info-700)]" : "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-neutral-100)] text-xs font-bold text-[var(--bos-text-medium-on-light)]"; }
 function phaseLabel(state: string, es: boolean) { return state === "completed" ? (es ? "Completa" : "Complete") : state === "in_progress" ? (es ? "En progreso" : "In progress") : (es ? "Próxima" : "Upcoming"); }
 function controlTitle(control: ControlKey, es: boolean) { if (control === "budget") return es ? "Presupuesto y compromisos" : "Budget & Commitments"; if (control === "crew") return es ? "Personal del proyecto" : "Project Workforce"; if (control === "schedule") return es ? "Calendario del proyecto" : "Project Schedule"; return es ? "Progreso del proyecto" : "Project Progress"; }
