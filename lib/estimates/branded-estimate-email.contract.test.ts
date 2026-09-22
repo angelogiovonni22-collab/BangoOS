@@ -35,6 +35,14 @@ test("estimate signing incorporates versioned construction and electronic signat
   assert.match(agreement, /CONSTRUCTION_AGREEMENT_VERSION/);
   assert.match(agreement, /Ohio Revised Code Chapter 1312/);
   assert.match(agreement, /B\.O\.S\. \(Bango Operating System\)/);
+  assert.match(agreement, /OH-RC-1\.1/);
+  assert.match(agreement, /non-solicitation, non-circumvention, and workforce \/ trade partner protection/i);
+  assert.match(agreement, /twelve \(12\) months/);
+  assert.match(agreement, /Protected Personnel/);
+  assert.match(agreement, /bring a legal action against Owner/);
+  assert.match(agreement, /litigation and financial liability/);
+  assert.match(agreement, /general employment advertising/);
+  assert.match(agreement, /existed independently before Contractor introduced/);
   assert.match(workflow, /constructionAgreementSections/);
   assert.match(workflow, /electronicSignaturePlatformTermsVersion/);
 });
