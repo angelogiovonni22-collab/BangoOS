@@ -90,6 +90,45 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
           lineItems?: Array<{ description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order?: number }>;
         };
         customer?: Record<string, unknown> | null;
+        compliancePackage?: {
+          ohioHomeConstruction?: {
+            rulesetVersion?: string;
+            applicable?: boolean | null;
+            facts?: {
+              supplierName?: string | null;
+              supplierPhysicalAddress?: string | null;
+              supplierPhone?: string | null;
+              supplierTaxpayerId?: string | null;
+              ownerName?: string | null;
+              ownerAddress?: string | null;
+              ownerPhone?: string | null;
+              projectAddress?: string | null;
+              anticipatedStart?: string | null;
+              anticipatedCompletion?: string | null;
+              excludedCostsDisclosed?: boolean;
+              liabilityCoverageAmount?: number | null;
+              insuranceCertificateUrl?: string | null;
+              excessCostMethod?: "written" | "oral" | "firm_price_no_excess" | null;
+              supplierSignerName?: string | null;
+              supplierSignedAt?: string | null;
+              contractLanguage?: "en" | "es" | "unknown";
+            };
+          };
+          ohioHomeSolicitation?: {
+            rulesetVersion?: string;
+            applicable?: boolean | null;
+            notice?: null | {
+              sellerName?: string | null;
+              sellerAddress?: string | null;
+              sellerSignerName?: string | null;
+              sellerSignedAt?: string | null;
+              cancellationEmail?: string | null;
+              cancellationFax?: string | null;
+              transactionDate?: string;
+              cancellationDeadlineDate?: string;
+            };
+          };
+        };
       };
       if (estimate.status === "approved" && signedSnapshot?.estimate) {
         publicEstimate = {
@@ -112,7 +151,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       const isOhioResidential = customer?.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
       if (isOhioResidential) {
         const result = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
-        if (result.evaluation.applicable === true) {
+        const signedSolicitation = estimate.status === "approved" ? signedSnapshot?.compliancePackage?.ohioHomeSolicitation : null;
+        if (signedSolicitation?.applicable === true && signedSolicitation.notice) {
+          const notice = signedSolicitation.notice;
+          const transactionDate = notice.transactionDate || result.profile.transactionSignedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+          homeSolicitation = {
+            applicable: true,
+            rulesetVersion: signedSolicitation.rulesetVersion || result.evaluation.rulesetVersion,
+            sellerName: notice.sellerName ?? null,
+            sellerAddress: notice.sellerAddress ?? null,
+            sellerSignerName: notice.sellerSignerName ?? null,
+            sellerSignedAt: notice.sellerSignedAt ?? null,
+            cancellationEmail: notice.cancellationEmail ?? null,
+            cancellationFax: notice.cancellationFax ?? null,
+            transactionDate,
+            cancellationDeadlineDate: notice.cancellationDeadlineDate || calculateOhioHomeSolicitationDeadline(transactionDate),
+            cancelledAt: result.profile.cancelledAt,
+          };
+        } else if (result.evaluation.applicable === true) {
           if (result.evaluation.status !== "COMPLIANT" && !result.profile.cancelledAt) throw new Error("Home-solicitation compliance is not cleared for signing.");
           const transactionDate = result.profile.transactionSignedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10);
           homeSolicitation = {
@@ -132,7 +188,49 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       }
     }
 
-    const ohioHomeConstruction = ohioContractCompliance.evaluation.applicable === true ? {
+    const signedCompliance = estimate.status === "approved"
+      ? (agreementSnapshot as { compliancePackage?: { ohioHomeConstruction?: { rulesetVersion?: string; applicable?: boolean | null; facts?: Record<string, unknown> } } } | null)?.compliancePackage?.ohioHomeConstruction
+      : null;
+    const signedFacts = signedCompliance?.facts as {
+      supplierName?: string | null;
+      supplierPhysicalAddress?: string | null;
+      supplierPhone?: string | null;
+      supplierTaxpayerId?: string | null;
+      ownerName?: string | null;
+      ownerAddress?: string | null;
+      ownerPhone?: string | null;
+      projectAddress?: string | null;
+      anticipatedStart?: string | null;
+      anticipatedCompletion?: string | null;
+      excludedCostsDisclosed?: boolean;
+      liabilityCoverageAmount?: number | null;
+      insuranceCertificateUrl?: string | null;
+      excessCostMethod?: "written" | "oral" | "firm_price_no_excess" | null;
+      supplierSignerName?: string | null;
+      supplierSignedAt?: string | null;
+      contractLanguage?: "en" | "es" | "unknown";
+    } | undefined;
+
+    const ohioHomeConstruction = signedCompliance?.applicable === true && signedFacts ? {
+      rulesetVersion: signedCompliance.rulesetVersion || ohioContractCompliance.evaluation.rulesetVersion,
+      supplierName: signedFacts.supplierName ?? null,
+      supplierPhysicalAddress: signedFacts.supplierPhysicalAddress ?? null,
+      supplierPhone: signedFacts.supplierPhone ?? null,
+      supplierTaxpayerId: signedFacts.supplierTaxpayerId ?? null,
+      ownerName: signedFacts.ownerName ?? null,
+      ownerAddress: signedFacts.ownerAddress ?? null,
+      ownerPhone: signedFacts.ownerPhone ?? null,
+      projectAddress: signedFacts.projectAddress ?? null,
+      anticipatedStart: signedFacts.anticipatedStart ?? null,
+      anticipatedCompletion: signedFacts.anticipatedCompletion ?? null,
+      excludedCostsDisclosed: signedFacts.excludedCostsDisclosed === true,
+      liabilityCoverageAmount: signedFacts.liabilityCoverageAmount ?? null,
+      insuranceCertificateUrl: signedFacts.insuranceCertificateUrl ?? null,
+      excessCostMethod: signedFacts.excessCostMethod ?? null,
+      supplierSignerName: signedFacts.supplierSignerName ?? null,
+      supplierSignedAt: signedFacts.supplierSignedAt ?? null,
+      contractLanguage: signedFacts.contractLanguage ?? "unknown",
+    } : ohioContractCompliance.evaluation.applicable === true ? {
       rulesetVersion: ohioContractCompliance.evaluation.rulesetVersion,
       supplierName: ohioContractCompliance.profile.supplierName,
       supplierPhysicalAddress: ohioContractCompliance.profile.supplierPhysicalAddress,
