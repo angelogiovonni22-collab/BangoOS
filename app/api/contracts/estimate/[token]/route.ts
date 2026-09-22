@@ -66,6 +66,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
         .maybeSingle(),
     ]);
 
+    if (!estimate || !company) throw new Error("Estimate contract data is unavailable.");
+
     let homeSolicitation = null;
     const { agreement_snapshot: agreementSnapshot, ...publicEstimateBase } = estimate as typeof estimate & { agreement_snapshot: unknown };
     let publicEstimate = publicEstimateBase;
