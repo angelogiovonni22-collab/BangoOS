@@ -51,12 +51,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   try {
     const token = decodeURIComponent((await params).token);
     const { admin, validated } = await context(token, request);
-    const [{ data: estimate }, { data: items }, { data: company }, prospect, ohioContractCompliance] = await Promise.all([
+    const [{ data: estimate }, { data: items }, { data: company }, prospect, ohioContractCompliance, { data: customerSignature }] = await Promise.all([
       admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, agreement_snapshot, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
       admin.from("estimate_line_items").select("description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
       admin.from("companies").select("name").eq("id", validated.companyId).single(),
       loadProspect(admin, validated.companyId, validated.estimateId),
       loadEstimateCompliance(admin, validated.companyId, validated.estimateId),
+      admin.from("estimate_signatures")
+        .select("typed_name, created_at, verification_result")
+        .eq("company_id", validated.companyId)
+        .eq("estimate_id", validated.estimateId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     let homeSolicitation = null;
@@ -143,7 +150,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       contractLanguage: ohioContractCompliance.profile.contractLanguage,
     } : null;
 
-    return NextResponse.json({ estimate: publicEstimate, items: publicItems, company, expiresAt: validated.expiresAt, homeSolicitation, ohioHomeConstruction });
+    return NextResponse.json({ estimate: publicEstimate, items: publicItems, company, expiresAt: validated.expiresAt, homeSolicitation, ohioHomeConstruction, customerSignature });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid contract link." }, { status: 400 });
   }
