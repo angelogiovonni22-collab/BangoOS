@@ -12,9 +12,13 @@ test("contract package is versioned and independently hashed", () => {
   assert.match(packageSource, /ohioHomeSolicitation/);
 });
 
-test("contract package snapshots only taxpayer-id presence, not a raw identifier", () => {
+test("covered contract package snapshots statutory supplier disclosures", () => {
   assert.match(packageSource, /supplierTaxpayerIdRecorded/);
-  assert.doesNotMatch(packageSource, /supplierTaxpayerId:/);
+  assert.match(packageSource, /supplierTaxpayerId:/);
+  assert.match(packageSource, /insuranceCertificateUrl/);
+  assert.match(packageSource, /supplierSignerName/);
+  assert.match(packageSource, /supplierSignedAt/);
+  assert.match(packageSource, /contractLanguage/);
 });
 
 test("applicable home-solicitation package preserves two notices and signing deadline evidence", () => {
