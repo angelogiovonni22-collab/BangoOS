@@ -12,6 +12,8 @@ function covered(overrides: Partial<OhioResidentialContractInput> = {}): OhioRes
     supplierPhysicalAddress: "123 Business St, Marysville, OH 43040",
     supplierPhone: "614-555-0100",
     supplierTaxpayerIdPresent: true,
+    supplierTaxpayerId: "31-1234567",
+    contractLanguage: "en",
     ownerName: "Test Customer",
     ownerAddress: "500 Home St, Hilliard, OH 43026",
     ownerPhone: "614-555-0200",
@@ -23,6 +25,10 @@ function covered(overrides: Partial<OhioResidentialContractInput> = {}): OhioRes
     excludedInstallationOrDeliveryCostsDisclosed: true,
     liabilityInsuranceDocumented: true,
     liabilityCoverageAmount: 1_000_000,
+    insuranceCertificateUrl: "https://example.com/bango-liability-certificate.pdf",
+    supplierSignerName: "Authorized Bango Signer",
+    supplierSignedAt: "2026-09-22T16:00:00.000Z",
+    supplierSignatureConfirmed: true,
     excessCostMethod: "written",
     ...overrides,
   };
@@ -69,4 +75,34 @@ test("coverage under $250,000 blocks covered supplier classification", () => {
   const result = evaluateOhioResidentialContract(covered({ liabilityCoverageAmount: 100_000 }));
   assert.equal(result.status, "ACTION_REQUIRED");
   assert.ok(result.checks.some((check) => check.id === "insurance_amount" && check.status === "FAIL"));
+});
+
+test("missing taxpayer identification number blocks covered contract", () => {
+  const result = evaluateOhioResidentialContract(covered({ supplierTaxpayerId: null }));
+  assert.equal(result.status, "ACTION_REQUIRED");
+  assert.ok(result.checks.some((check) => check.id === "supplier_tin" && check.status === "FAIL"));
+});
+
+test("missing insurance certificate copy blocks covered contract", () => {
+  const result = evaluateOhioResidentialContract(covered({ insuranceCertificateUrl: null }));
+  assert.equal(result.status, "ACTION_REQUIRED");
+  assert.ok(result.checks.some((check) => check.id === "insurance_copy" && check.status === "FAIL"));
+});
+
+test("unsafe insurance certificate URL blocks covered contract", () => {
+  const result = evaluateOhioResidentialContract(covered({ insuranceCertificateUrl: "javascript:alert(1)" }));
+  assert.equal(result.status, "ACTION_REQUIRED");
+  assert.ok(result.checks.some((check) => check.id === "insurance_copy" && check.status === "FAIL"));
+});
+
+test("missing supplier signature blocks covered contract", () => {
+  const result = evaluateOhioResidentialContract(covered({ supplierSignatureConfirmed: false, supplierSignedAt: null }));
+  assert.equal(result.status, "ACTION_REQUIRED");
+  assert.ok(result.checks.some((check) => check.id === "supplier_signature" && check.status === "FAIL"));
+});
+
+test("non-English legal package requires review instead of silently sending English terms", () => {
+  const result = evaluateOhioResidentialContract(covered({ contractLanguage: "es" }));
+  assert.equal(result.status, "REVIEW_REQUIRED");
+  assert.ok(result.checks.some((check) => check.id === "contract_language" && check.status === "REVIEW"));
 });

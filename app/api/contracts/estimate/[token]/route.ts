@@ -4,6 +4,7 @@ import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service"
 import { calculateOhioHomeSolicitationDeadline } from "@/lib/compliance/ohio-home-solicitation";
 import { loadHomeSolicitationCompliance, recordHomeSolicitationEvaluation, recordHomeSolicitationSignature } from "@/lib/compliance/home-solicitation-service";
 import { finalizeAgreementContractPackage } from "@/lib/compliance/contract-package";
+import { loadEstimateCompliance } from "@/lib/compliance/estimate-contract-compliance-service";
 
 type ProspectRow = {
   first_name: string | null;
@@ -50,23 +51,124 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   try {
     const token = decodeURIComponent((await params).token);
     const { admin, validated } = await context(token, request);
-    const [{ data: estimate }, { data: items }, { data: company }, prospect] = await Promise.all([
-      admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
+    const [{ data: estimate }, { data: items }, { data: company }, prospect, ohioContractCompliance, { data: customerSignature }] = await Promise.all([
+      admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, agreement_snapshot, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
       admin.from("estimate_line_items").select("description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
       admin.from("companies").select("name").eq("id", validated.companyId).single(),
       loadProspect(admin, validated.companyId, validated.estimateId),
+      loadEstimateCompliance(admin, validated.companyId, validated.estimateId),
+      admin.from("estimate_signatures")
+        .select("typed_name, created_at, verification_result")
+        .eq("company_id", validated.companyId)
+        .eq("estimate_id", validated.estimateId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
+    if (!estimate || !company) throw new Error("Estimate contract data is unavailable.");
+
     let homeSolicitation = null;
-    let publicEstimate = estimate;
+    const { agreement_snapshot: agreementSnapshot, ...publicEstimateBase } = estimate as typeof estimate & { agreement_snapshot: unknown };
+    let publicEstimate = publicEstimateBase;
+    let publicItems = items || [];
     if (estimate) {
       const linkedCustomer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
       const customer = linkedCustomer || prospect;
-      publicEstimate = { ...estimate, customers: customer } as typeof estimate;
+      publicEstimate = { ...publicEstimateBase, customers: customer } as typeof publicEstimateBase;
+
+      const signedSnapshot = agreementSnapshot as null | {
+        estimate?: {
+          estimateNumber?: string | null;
+          title?: string;
+          description?: string | null;
+          scopeInclusions?: string | null;
+          scopeExclusions?: string | null;
+          totalAmount?: number;
+          terms?: string | null;
+          paymentTerms?: string | null;
+          lineItems?: Array<{ description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order: number }>;
+        };
+        customer?: Record<string, unknown> | null;
+        compliancePackage?: {
+          ohioHomeConstruction?: {
+            rulesetVersion?: string;
+            applicable?: boolean | null;
+            facts?: {
+              supplierName?: string | null;
+              supplierPhysicalAddress?: string | null;
+              supplierPhone?: string | null;
+              supplierTaxpayerId?: string | null;
+              ownerName?: string | null;
+              ownerAddress?: string | null;
+              ownerPhone?: string | null;
+              projectAddress?: string | null;
+              anticipatedStart?: string | null;
+              anticipatedCompletion?: string | null;
+              excludedCostsDisclosed?: boolean;
+              liabilityCoverageAmount?: number | null;
+              insuranceCertificateUrl?: string | null;
+              excessCostMethod?: "written" | "oral" | "firm_price_no_excess" | null;
+              supplierSignerName?: string | null;
+              supplierSignedAt?: string | null;
+              contractLanguage?: "en" | "es" | "unknown";
+            };
+          };
+          ohioHomeSolicitation?: {
+            rulesetVersion?: string;
+            applicable?: boolean | null;
+            notice?: null | {
+              sellerName?: string | null;
+              sellerAddress?: string | null;
+              sellerSignerName?: string | null;
+              sellerSignedAt?: string | null;
+              cancellationEmail?: string | null;
+              cancellationFax?: string | null;
+              transactionDate?: string;
+              cancellationDeadlineDate?: string;
+            };
+          };
+        };
+      };
+      if (estimate.status === "approved" && signedSnapshot?.estimate) {
+        publicEstimate = {
+          ...publicEstimate,
+          estimate_number: signedSnapshot.estimate.estimateNumber ?? publicEstimate.estimate_number,
+          title: signedSnapshot.estimate.title ?? publicEstimate.title,
+          description: signedSnapshot.estimate.description ?? publicEstimate.description,
+          scope_inclusions: signedSnapshot.estimate.scopeInclusions ?? publicEstimate.scope_inclusions,
+          scope_exclusions: signedSnapshot.estimate.scopeExclusions ?? publicEstimate.scope_exclusions,
+          total_amount: signedSnapshot.estimate.totalAmount ?? publicEstimate.total_amount,
+          terms: signedSnapshot.estimate.terms ?? publicEstimate.terms,
+          payment_terms: signedSnapshot.estimate.paymentTerms ?? publicEstimate.payment_terms,
+          customers: (signedSnapshot.customer as typeof customer) || customer,
+        } as typeof publicEstimateBase;
+        if (Array.isArray(signedSnapshot.estimate.lineItems)) {
+          publicItems = signedSnapshot.estimate.lineItems;
+        }
+      }
+
       const isOhioResidential = customer?.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
       if (isOhioResidential) {
         const result = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
-        if (result.evaluation.applicable === true) {
+        const signedSolicitation = estimate.status === "approved" ? signedSnapshot?.compliancePackage?.ohioHomeSolicitation : null;
+        if (signedSolicitation?.applicable === true && signedSolicitation.notice) {
+          const notice = signedSolicitation.notice;
+          const transactionDate = notice.transactionDate || result.profile.transactionSignedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+          homeSolicitation = {
+            applicable: true,
+            rulesetVersion: signedSolicitation.rulesetVersion || result.evaluation.rulesetVersion,
+            sellerName: notice.sellerName ?? null,
+            sellerAddress: notice.sellerAddress ?? null,
+            sellerSignerName: notice.sellerSignerName ?? null,
+            sellerSignedAt: notice.sellerSignedAt ?? null,
+            cancellationEmail: notice.cancellationEmail ?? null,
+            cancellationFax: notice.cancellationFax ?? null,
+            transactionDate,
+            cancellationDeadlineDate: notice.cancellationDeadlineDate || calculateOhioHomeSolicitationDeadline(transactionDate),
+            cancelledAt: result.profile.cancelledAt,
+          };
+        } else if (result.evaluation.applicable === true) {
           if (result.evaluation.status !== "COMPLIANT" && !result.profile.cancelledAt) throw new Error("Home-solicitation compliance is not cleared for signing.");
           const transactionDate = result.profile.transactionSignedAt?.slice(0, 10) || new Date().toISOString().slice(0, 10);
           homeSolicitation = {
@@ -86,7 +188,70 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       }
     }
 
-    return NextResponse.json({ estimate: publicEstimate, items: items || [], company, expiresAt: validated.expiresAt, homeSolicitation });
+    const signedCompliance = estimate.status === "approved"
+      ? (agreementSnapshot as { compliancePackage?: { ohioHomeConstruction?: { rulesetVersion?: string; applicable?: boolean | null; facts?: Record<string, unknown> } } } | null)?.compliancePackage?.ohioHomeConstruction
+      : null;
+    const signedFacts = signedCompliance?.facts as {
+      supplierName?: string | null;
+      supplierPhysicalAddress?: string | null;
+      supplierPhone?: string | null;
+      supplierTaxpayerId?: string | null;
+      ownerName?: string | null;
+      ownerAddress?: string | null;
+      ownerPhone?: string | null;
+      projectAddress?: string | null;
+      anticipatedStart?: string | null;
+      anticipatedCompletion?: string | null;
+      excludedCostsDisclosed?: boolean;
+      liabilityCoverageAmount?: number | null;
+      insuranceCertificateUrl?: string | null;
+      excessCostMethod?: "written" | "oral" | "firm_price_no_excess" | null;
+      supplierSignerName?: string | null;
+      supplierSignedAt?: string | null;
+      contractLanguage?: "en" | "es" | "unknown";
+    } | undefined;
+
+    const ohioHomeConstruction = signedCompliance?.applicable === true && signedFacts ? {
+      rulesetVersion: signedCompliance.rulesetVersion || ohioContractCompliance.evaluation.rulesetVersion,
+      supplierName: signedFacts.supplierName ?? null,
+      supplierPhysicalAddress: signedFacts.supplierPhysicalAddress ?? null,
+      supplierPhone: signedFacts.supplierPhone ?? null,
+      supplierTaxpayerId: signedFacts.supplierTaxpayerId ?? null,
+      ownerName: signedFacts.ownerName ?? null,
+      ownerAddress: signedFacts.ownerAddress ?? null,
+      ownerPhone: signedFacts.ownerPhone ?? null,
+      projectAddress: signedFacts.projectAddress ?? null,
+      anticipatedStart: signedFacts.anticipatedStart ?? null,
+      anticipatedCompletion: signedFacts.anticipatedCompletion ?? null,
+      excludedCostsDisclosed: signedFacts.excludedCostsDisclosed === true,
+      liabilityCoverageAmount: signedFacts.liabilityCoverageAmount ?? null,
+      insuranceCertificateUrl: signedFacts.insuranceCertificateUrl ?? null,
+      excessCostMethod: signedFacts.excessCostMethod ?? null,
+      supplierSignerName: signedFacts.supplierSignerName ?? null,
+      supplierSignedAt: signedFacts.supplierSignedAt ?? null,
+      contractLanguage: signedFacts.contractLanguage ?? "unknown",
+    } : ohioContractCompliance.evaluation.applicable === true ? {
+      rulesetVersion: ohioContractCompliance.evaluation.rulesetVersion,
+      supplierName: ohioContractCompliance.profile.supplierName,
+      supplierPhysicalAddress: ohioContractCompliance.profile.supplierPhysicalAddress,
+      supplierPhone: ohioContractCompliance.profile.supplierPhone,
+      supplierTaxpayerId: ohioContractCompliance.profile.supplierTaxpayerId,
+      ownerName: ohioContractCompliance.profile.ownerName,
+      ownerAddress: ohioContractCompliance.profile.ownerAddress,
+      ownerPhone: ohioContractCompliance.profile.ownerPhone,
+      projectAddress: ohioContractCompliance.profile.projectAddress,
+      anticipatedStart: ohioContractCompliance.profile.anticipatedStart,
+      anticipatedCompletion: ohioContractCompliance.profile.anticipatedCompletion,
+      excludedCostsDisclosed: ohioContractCompliance.profile.excludedInstallationOrDeliveryCostsDisclosed === true,
+      liabilityCoverageAmount: ohioContractCompliance.profile.liabilityCoverageAmount,
+      insuranceCertificateUrl: ohioContractCompliance.profile.insuranceCertificateUrl,
+      excessCostMethod: ohioContractCompliance.profile.excessCostMethod,
+      supplierSignerName: ohioContractCompliance.profile.supplierSignerName,
+      supplierSignedAt: ohioContractCompliance.profile.supplierSignedAt,
+      contractLanguage: ohioContractCompliance.profile.contractLanguage,
+    } : null;
+
+    return NextResponse.json({ estimate: publicEstimate, items: publicItems, company, expiresAt: validated.expiresAt, homeSolicitation, ohioHomeConstruction, customerSignature });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid contract link." }, { status: 400 });
   }

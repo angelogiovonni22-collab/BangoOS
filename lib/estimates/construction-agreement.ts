@@ -1,5 +1,5 @@
-export const CONSTRUCTION_AGREEMENT_VERSION = "OH-RC-1.0";
-export const BOS_ELECTRONIC_TERMS_VERSION = "1.0";
+export const CONSTRUCTION_AGREEMENT_VERSION = "OH-RC-1.2";
+export const BOS_ELECTRONIC_TERMS_VERSION = "1.1";
 
 export type ConstructionAgreementSection = {
   id: string;
@@ -75,11 +75,33 @@ export const constructionAgreementSections: ConstructionAgreementSection[] = [
     ],
   },
   {
+    id: "non-solicitation-non-circumvention",
+    title: "Non-solicitation, non-circumvention, and workforce / trade partner protection",
+    paragraphs: [
+      "Owner acknowledges that Contractor invests substantial time, expense, management effort, recruiting resources, training, supervision, estimating, scheduling, project coordination, and relationship-building in its employees, subcontractors, crews, and trade partners. For this Section, Protected Personnel means an employee, superintendent, project manager, estimator, laborer, crew member, independent contractor, subcontractor, lower-tier subcontractor, consultant, or trade partner who actually performs services in connection with the Project or is specifically introduced to Owner by Contractor for the purpose of performing or pricing work on the Project.",
+      "During the term of this Agreement and for twelve (12) months following the later of substantial completion, termination, cancellation, or the last material performance of work on the Project, Owner shall not knowingly, directly or indirectly, solicit, recruit, induce, encourage, hire, retain, contract with, employ, or otherwise engage Protected Personnel for the purpose of bypassing, replacing, circumventing, or interfering with Contractor's relationship with that person or entity for work on the Project, the Project property, or a specific follow-on opportunity first introduced or materially developed by Contractor.",
+      "Owner shall not knowingly enter into a separate or side arrangement with Protected Personnel for work that was introduced, estimated, proposed, developed, coordinated, managed, supervised, or performed by Contractor in connection with the Project. This restriction applies regardless of how the arrangement is structured or described, including employment, subcontracting, consulting, temporary labor, side work, cash work, purchase orders, referral arrangements, joint ventures, newly formed entities, affiliate companies, related businesses, staffing arrangements, or other direct or indirect business relationships.",
+      "Owner may not accomplish indirectly through another individual or entity what this Agreement prohibits directly. This includes knowingly using or directing an affiliate, related business, another contractor, consultant, staffing company, business partner, family member, owner, officer, employee, agent, representative, newly created company, or other intermediary to solicit, hire, contract with, or otherwise engage Protected Personnel in a manner prohibited by this Section. The restrictions are not avoided merely because Protected Personnel initiates contact with Owner if Owner knowingly enters into an arrangement that otherwise violates this Section.",
+      "This Section does not prohibit a legitimate business relationship that Owner can reasonably demonstrate existed independently before Contractor introduced or involved that person or entity in the Project. It also does not prohibit bona fide general employment advertising, public job postings, or general recruiting efforts that are not specifically directed toward Contractor's Protected Personnel. Nothing in this Section is intended to prevent any individual from working in a chosen occupation, prohibit lawful ordinary competition, prevent unrelated work that did not arise through Contractor, or create a general restriction against working in the construction industry.",
+      "Owner shall not use Contractor's non-public pricing, estimating information, subcontractor pricing, labor rates, project scope development, scheduling information, vendor information, customer information, internal documents, or other proprietary business information for the purpose of circumventing or unfairly bypassing Contractor.",
+      "Owner acknowledges that a violation of this Section may cause Contractor substantial and difficult-to-measure losses, including recruiting and replacement costs, training and supervision costs, lost project margin, lost contractor markup, lost management fees, disruption, delay, administrative costs, and loss of business opportunity. If Owner breaches this Section, Contractor may bring a legal action against Owner and pursue all remedies available under applicable law, including proven monetary damages, court costs where recoverable, and temporary, preliminary, or permanent injunctive relief where legally appropriate. Owner understands that a breach may result in litigation and financial liability.",
+      "Owner may directly hire, retain, or contract with Protected Personnel only with Contractor's prior written authorization signed by an authorized representative of Contractor. Contractor's failure to immediately enforce this Section in one instance is not a waiver of the right to enforce it later or in another instance; any waiver must be in writing and signed by an authorized representative of Contractor.",
+      "The parties intend this Section to be enforced only to the maximum extent permitted by Ohio law. If any restriction is determined to be broader than legally enforceable, the parties intend that it be limited or enforced to the maximum lawful extent rather than invalidating the entire Section, to the extent permitted by applicable law. If any portion is invalid or unenforceable, the remaining provisions continue to the fullest extent permitted by law. The obligations in this Section survive completion, termination, expiration, or cancellation of this Agreement for the stated twelve (12) month protection period.",
+    ],
+  },
+  {
     id: "claims-law",
     title: "Claims, Ohio law, and preserved rights",
     paragraphs: [
       "The parties should first give prompt written notice of a dispute and attempt a good-faith project-level resolution. Any further procedure stated in the project-specific terms applies only to the extent enforceable. Ohio law governs Ohio projects unless non-waivable law requires otherwise.",
       "For a residential construction defect claim, Ohio Revised Code Chapter 1312 may require advance written notice and an opportunity for the contractor to inspect and offer to repair or resolve the claimed defect before litigation or arbitration. This agreement does not shorten or waive a statutory period, cancellation right, lien right, consumer remedy, or other non-waivable protection.",
+    ],
+  },
+  {
+    id: "ohio-defect-notice",
+    title: "IMPORTANT OHIO CONSTRUCTION DEFECT NOTICE",
+    paragraphs: [
+      "OHIO LAW CONTAINS IMPORTANT REQUIREMENTS YOU MUST FOLLOW BEFORE YOU MAY FILE A LAWSUIT OR COMMENCE ARBITRATION PROCEEDINGS FOR DEFECTIVE CONSTRUCTION AGAINST THE RESIDENTIAL CONTRACTOR WHO CONSTRUCTED YOUR HOME. AT LEAST SIXTY DAYS BEFORE YOU FILE A LAWSUIT OR COMMENCE ARBITRATION PROCEEDINGS, YOU MUST PROVIDE THE CONTRACTOR WITH A WRITTEN NOTICE OF THE CONDITIONS YOU ALLEGE ARE DEFECTIVE. UNDER CHAPTER 1312 OF THE OHIO REVISED CODE, THE CONTRACTOR HAS AN OPPORTUNITY TO OFFER TO REPAIR OR PAY FOR THE DEFECTS. YOU ARE NOT OBLIGATED TO ACCEPT ANY OFFER THE CONTRACTOR MAKES. THERE ARE STRICT DEADLINES AND PROCEDURES UNDER STATE LAW, AND FAILURE TO FOLLOW THEM MAY AFFECT YOUR ABILITY TO FILE A LAWSUIT OR COMMENCE ARBITRATION PROCEEDINGS.",
     ],
   },
   {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { requireCompanyRole } from "@/lib/supabase/authorization";
 import { loadEstimateCompliance, saveEstimateCompliance, type EstimateComplianceProfile } from "@/lib/compliance/estimate-contract-compliance-service";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -10,6 +11,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+  try {
+    await requireCompanyRole(supabase, ["owner", "administrator"], workspace.context.companyId);
+  } catch {
+    return NextResponse.json({ error: "Only a company owner or administrator may view legal contract-compliance records." }, { status: 403 });
+  }
 
   try {
     const result = await loadEstimateCompliance(supabase, workspace.context.companyId, estimateId);
@@ -26,6 +32,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+
+  try {
+    await requireCompanyRole(supabase, ["owner", "administrator"], workspace.context.companyId);
+  } catch {
+    return NextResponse.json({ error: "Only a company owner or administrator may change legal contract-compliance records." }, { status: 403 });
+  }
 
   let profile: EstimateComplianceProfile;
   try {

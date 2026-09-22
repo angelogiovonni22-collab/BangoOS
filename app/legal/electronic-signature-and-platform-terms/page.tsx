@@ -13,7 +13,7 @@ export default function ElectronicSignaturePlatformTermsPage() {
         <header className="bg-slate-950 px-6 py-8 text-white sm:px-10">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">B.O.S. legal</p>
           <h1 className="mt-3 text-3xl font-bold sm:text-4xl">B.O.S. Electronic Signature &amp; Platform Terms</h1>
-          <p className="mt-3 text-sm text-slate-300">Version 1.0 · Effective August 14, 2026</p>
+          <p className="mt-3 text-sm text-slate-300">Version 1.1 · Effective September 22, 2026</p>
         </header>
 
         <div className="space-y-9 px-6 py-8 leading-7 sm:px-10">
@@ -31,16 +31,19 @@ export default function ElectronicSignaturePlatformTermsPage() {
           <section className={sectionClass}>
             <h2 className={headingClass}>2. Consent to electronic records</h2>
             <p>
-              By selecting the consent checkbox and signing, you consent to receive the estimate, related
-              disclosures, notices, and signature records electronically. You confirm that you can open,
-              read, save, and print the records displayed in your browser. You may request a paper copy or
-              withdraw consent before signing by contacting the contractor. Withdrawal does not affect the
-              validity of records or signatures completed before withdrawal.
+              By selecting the consent checkbox and signing, you consent to receive this estimate or agreement,
+              its incorporated terms, disclosures, notices, signature records, and transaction-related records
+              electronically for this transaction. You confirm that you can open, read, save, and print the
+              records displayed in your browser. You may request a paper copy at no charge or withdraw consent
+              before signing by contacting the contractor. Withdrawal does not affect the validity of records
+              or signatures completed before withdrawal.
             </p>
             <p>
               To use electronic records, you need an internet-connected device, a current web browser,
               access to the email address where the secure link was delivered, and software capable of
-              displaying and saving standard web pages or PDF documents.
+              displaying and saving standard web pages or PDF documents. If your email address or other
+              electronic contact information changes before the transaction is completed, notify the
+              contractor using the contact information shown in the agreement so delivery records can be updated.
             </p>
           </section>
 

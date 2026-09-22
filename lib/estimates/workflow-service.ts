@@ -25,7 +25,10 @@ type EstimateRow = {
   customer_id: string | null;
   project_id: string | null;
   title: string;
+  estimate_number: string | null;
   description: string | null;
+  scope_inclusions: string | null;
+  scope_exclusions: string | null;
   total_amount: number;
   direct_cost_subtotal: number;
   version_number: number;
@@ -55,7 +58,7 @@ function computeDepositAmount(depositType: string, depositValue: number, totalAm
 async function loadEstimate(db: AnySupabase, companyId: string, estimateId: string) {
   const { data, error } = await db
     .from("estimates")
-    .select("id, company_id, customer_id, project_id, title, description, total_amount, direct_cost_subtotal, version_number, terms, payment_terms, status, deposit_type, deposit_value")
+    .select("id, company_id, customer_id, project_id, title, estimate_number, description, scope_inclusions, scope_exclusions, total_amount, direct_cost_subtotal, version_number, terms, payment_terms, status, deposit_type, deposit_value")
     .eq("company_id", companyId)
     .eq("id", estimateId)
     .maybeSingle();
@@ -117,6 +120,31 @@ export function createEstimateWorkflowService(supabase: SupabaseClient<Database>
   async function generateAgreementSnapshot(input: GenerateAgreementSnapshotInput) {
     const estimate = await loadEstimate(db, input.companyId, input.estimateId);
 
+    const [{ data: lineItems, error: lineItemsError }, { data: linkedCustomer, error: customerError }, { data: prospect, error: prospectError }] = await Promise.all([
+      db.from("estimate_line_items")
+        .select("description, quantity, unit, unit_price, line_total, sort_order")
+        .eq("company_id", input.companyId)
+        .eq("estimate_id", input.estimateId)
+        .order("sort_order"),
+      estimate.customer_id
+        ? db.from("customers")
+            .select("id, first_name, last_name, email, phone, address_line_1, address_line_2, city, state, postal_code, customer_type")
+            .eq("company_id", input.companyId)
+            .eq("id", estimate.customer_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      db.from("estimate_prospects")
+        .select("first_name, last_name, company_name, email, phone, address_line_1, address_line_2, city, state, postal_code, customer_type")
+        .eq("company_id", input.companyId)
+        .eq("estimate_id", input.estimateId)
+        .maybeSingle(),
+    ]);
+
+    if (lineItemsError) throw new Error(lineItemsError.message || "Unable to snapshot estimate line items.");
+    if (customerError) throw new Error(customerError.message || "Unable to snapshot customer details.");
+    if (prospectError) throw new Error(prospectError.message || "Unable to snapshot prospective customer details.");
+    const customerSnapshot = linkedCustomer || prospect || null;
+
     const { data: existingVersions, error: existingVersionsError } = await db
       .from("estimate_agreement_versions")
       .select("version_number")
@@ -137,6 +165,18 @@ export function createEstimateWorkflowService(supabase: SupabaseClient<Database>
       title: estimate.title,
       terms: estimate.terms,
       paymentTerms: estimate.payment_terms,
+      estimate: {
+        estimateNumber: estimate.estimate_number,
+        title: estimate.title,
+        description: estimate.description,
+        scopeInclusions: estimate.scope_inclusions,
+        scopeExclusions: estimate.scope_exclusions,
+        totalAmount: Number(estimate.total_amount || 0),
+        terms: estimate.terms,
+        paymentTerms: estimate.payment_terms,
+        lineItems: lineItems || [],
+      },
+      customer: customerSnapshot,
       constructionAgreement: {
         version: CONSTRUCTION_AGREEMENT_VERSION,
         sections: constructionAgreementSections,
