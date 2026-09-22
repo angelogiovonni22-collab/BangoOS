@@ -49,27 +49,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Add a customer or prospective customer email address before sending the estimate." }, { status: 400 });
   }
 
-  if (Number(estimate.total_amount || 0) >= 25_000) {
+  const isOhioResidentialCustomer = recipient.customer_type === "residential" && ["OH", "OHIO"].includes((recipient.state || "").trim().toUpperCase());
+  if (Number(estimate.total_amount || 0) >= 25_000 || isOhioResidentialCustomer) {
     try {
       const compliance = await loadEstimateCompliance(supabase, workspace.context.companyId, estimateId);
-      await recordEstimateComplianceEvaluation(
-        supabase,
-        workspace.context.companyId,
-        estimateId,
-        workspace.context.userId,
-        compliance.evaluation,
-        compliance.profile.id || null,
-        { source: "send_gate" },
-      );
-      if (compliance.evaluation.status !== "COMPLIANT") {
-        return NextResponse.json({ error: "Contract compliance requires attention before this agreement can be sent.", code: "CONTRACT_COMPLIANCE_BLOCKED", compliance: compliance.evaluation }, { status: 409 });
+      if (isOhioResidentialCustomer && compliance.profile.contractLanguage !== "en") {
+        return NextResponse.json({
+          error: compliance.profile.contractLanguage === "es"
+            ? "This customer agreement requires a Spanish legal package before it can be sent."
+            : "Confirm the principal sales/contract language before sending this Ohio residential agreement.",
+          code: "CONTRACT_LANGUAGE_REVIEW_REQUIRED",
+        }, { status: 409 });
+      }
+      if (Number(estimate.total_amount || 0) >= 25_000) {
+        await recordEstimateComplianceEvaluation(
+          supabase,
+          workspace.context.companyId,
+          estimateId,
+          workspace.context.userId,
+          compliance.evaluation,
+          compliance.profile.id || null,
+          { source: "send_gate" },
+        );
+        if (compliance.evaluation.status !== "COMPLIANT") {
+          return NextResponse.json({ error: "Contract compliance requires attention before this agreement can be sent.", code: "CONTRACT_COMPLIANCE_BLOCKED", compliance: compliance.evaluation }, { status: 409 });
+        }
       }
     } catch (complianceError) {
       return NextResponse.json({ error: complianceError instanceof Error ? complianceError.message : "Unable to verify contract compliance.", code: "CONTRACT_COMPLIANCE_UNAVAILABLE" }, { status: 409 });
     }
   }
 
-  const isOhioResidentialCustomer = recipient.customer_type === "residential" && ["OH", "OHIO"].includes((recipient.state || "").trim().toUpperCase());
   if (isOhioResidentialCustomer) {
     try {
       const homeSolicitation = await loadHomeSolicitationCompliance(supabase, workspace.context.companyId, estimateId);
