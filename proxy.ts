@@ -37,6 +37,12 @@ export async function proxy(request: NextRequest) {
     },
   });
 
+  const { pathname, search } = request.nextUrl;
+  const needsAuthContext = isProtectedPath(pathname) || isAuthPath(pathname) || isOrionApiPath(pathname);
+  if (!needsAuthContext) {
+    return response;
+  }
+
   const { url, publishableKey } = getSupabaseEnv();
 
   if (!url || !publishableKey) {
@@ -60,8 +66,6 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname, search } = request.nextUrl;
 
   if (isOrionApiPath(pathname)) {
     if (!user) {
