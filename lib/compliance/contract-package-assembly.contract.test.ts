@@ -7,6 +7,7 @@ const routeSource = readFileSync(new URL("../../app/api/contracts/estimate/[toke
 const sendRouteSource = readFileSync(new URL("../../app/api/estimates/[id]/contract/route.ts", import.meta.url), "utf8");
 const pageSource = readFileSync(new URL("../../app/contracts/estimate/[token]/page.tsx", import.meta.url), "utf8");
 const agreementSource = readFileSync(new URL("../estimates/construction-agreement.ts", import.meta.url), "utf8");
+const complianceRouteSource = readFileSync(new URL("../../app/api/estimates/[id]/compliance/route.ts", import.meta.url), "utf8");
 
 test("contract package is versioned and independently hashed", () => {
   assert.match(packageSource, /CONTRACT_PACKAGE_VERSION/);
@@ -74,4 +75,13 @@ test("signed contract copy is served from immutable estimate snapshot and shows 
   assert.match(pageSource, /Print \/ Save Copy/);
   assert.match(pageSource, /Customer signature/);
   assert.match(pageSource, /Signed at:/);
+});
+
+test("legal contract records and send actions are role-restricted", () => {
+  assert.match(complianceRouteSource, /requireCompanyRole/);
+  assert.match(complianceRouteSource, /\["owner", "administrator"\]/);
+  assert.match(sendRouteSource, /requireCompanyRole/);
+  assert.match(sendRouteSource, /"operations_manager"/);
+  assert.match(sendRouteSource, /"estimator"/);
+  assert.match(sendRouteSource, /"office_manager"/);
 });
