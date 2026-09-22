@@ -52,7 +52,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     const token = decodeURIComponent((await params).token);
     const { admin, validated } = await context(token, request);
     const [{ data: estimate }, { data: items }, { data: company }, prospect, ohioContractCompliance] = await Promise.all([
-      admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
+      admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, agreement_snapshot, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
       admin.from("estimate_line_items").select("description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
       admin.from("companies").select("name").eq("id", validated.companyId).single(),
       loadProspect(admin, validated.companyId, validated.estimateId),
@@ -61,10 +61,44 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
 
     let homeSolicitation = null;
     let publicEstimate = estimate;
+    let publicItems = items || [];
     if (estimate) {
       const linkedCustomer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
       const customer = linkedCustomer || prospect;
       publicEstimate = { ...estimate, customers: customer } as typeof estimate;
+
+      const signedSnapshot = estimate.agreement_snapshot as null | {
+        estimate?: {
+          estimateNumber?: string | null;
+          title?: string;
+          description?: string | null;
+          scopeInclusions?: string | null;
+          scopeExclusions?: string | null;
+          totalAmount?: number;
+          terms?: string | null;
+          paymentTerms?: string | null;
+          lineItems?: Array<{ description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order?: number }>;
+        };
+        customer?: Record<string, unknown> | null;
+      };
+      if (estimate.status === "approved" && signedSnapshot?.estimate) {
+        publicEstimate = {
+          ...publicEstimate,
+          estimate_number: signedSnapshot.estimate.estimateNumber ?? publicEstimate.estimate_number,
+          title: signedSnapshot.estimate.title ?? publicEstimate.title,
+          description: signedSnapshot.estimate.description ?? publicEstimate.description,
+          scope_inclusions: signedSnapshot.estimate.scopeInclusions ?? publicEstimate.scope_inclusions,
+          scope_exclusions: signedSnapshot.estimate.scopeExclusions ?? publicEstimate.scope_exclusions,
+          total_amount: signedSnapshot.estimate.totalAmount ?? publicEstimate.total_amount,
+          terms: signedSnapshot.estimate.terms ?? publicEstimate.terms,
+          payment_terms: signedSnapshot.estimate.paymentTerms ?? publicEstimate.payment_terms,
+          customers: (signedSnapshot.customer as typeof customer) || customer,
+        } as typeof estimate;
+        if (Array.isArray(signedSnapshot.estimate.lineItems)) {
+          publicItems = signedSnapshot.estimate.lineItems;
+        }
+      }
+
       const isOhioResidential = customer?.customer_type === "residential" && ["OH", "OHIO"].includes((customer.state || "").trim().toUpperCase());
       if (isOhioResidential) {
         const result = await loadHomeSolicitationCompliance(admin, validated.companyId, validated.estimateId);
@@ -109,7 +143,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       contractLanguage: ohioContractCompliance.profile.contractLanguage,
     } : null;
 
-    return NextResponse.json({ estimate: publicEstimate, items: items || [], company, expiresAt: validated.expiresAt, homeSolicitation, ohioHomeConstruction });
+    return NextResponse.json({ estimate: publicEstimate, items: publicItems, company, expiresAt: validated.expiresAt, homeSolicitation, ohioHomeConstruction });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid contract link." }, { status: 400 });
   }
