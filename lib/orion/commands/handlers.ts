@@ -953,12 +953,18 @@ export async function executeUpdateProjectStatusCommand(
     throw new Error(readError?.message || "Project not found.");
   }
 
+  const statusUpdatedAt = new Date().toISOString();
+  const projectPatch: Record<string, unknown> = {
+    status: nextStatus,
+    updated_at: statusUpdatedAt,
+  };
+  if (nextStatus === "completed") {
+    projectPatch.actual_end_date = statusUpdatedAt.slice(0, 10);
+  }
+
   const { error } = await deps.supabase
     .from("projects")
-    .update({
-      status: nextStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(projectPatch)
     .eq("company_id", context.companyId)
     .eq("id", projectId);
 
