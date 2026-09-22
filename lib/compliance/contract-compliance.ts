@@ -66,6 +66,15 @@ function present(value: string | null | undefined) {
   return Boolean(value?.trim());
 }
 
+function validHttpsUrl(value: string | null | undefined) {
+  if (!present(value)) return false;
+  try {
+    return new URL(value as string).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function pass(id: string, label: string): ComplianceCheck {
   return { id, label, status: "PASS" };
 }
@@ -173,7 +182,7 @@ export function evaluateOhioResidentialContract(input: OhioResidentialContractIn
   checks.push(requirement("estimated_cost", "Total estimated contract cost", input.totalEstimatedCostPresent === true, "Total estimated contract cost must be present."));
   checks.push(requirement("excluded_costs", "Excluded installation/delivery/other cost disclosure", input.excludedInstallationOrDeliveryCostsDisclosed === true, "The contract must identify applicable installation, delivery, or other costs not included in the stated cost, or affirm that none are excluded."));
   checks.push(requirement("insurance_documented", "General liability insurance documentation", input.liabilityInsuranceDocumented === true, "A copy of the general liability insurance certificate must be included with the contract."));
-  checks.push(requirement("insurance_copy", "General liability insurance certificate copy", present(input.insuranceCertificateUrl), "A customer-viewable copy of the supplier insurance certificate must be attached or linked in the contract package."));
+  checks.push(requirement("insurance_copy", "General liability insurance certificate copy", validHttpsUrl(input.insuranceCertificateUrl), "A customer-viewable HTTPS copy of the supplier insurance certificate must be attached or linked in the contract package."));
 
   if (input.liabilityCoverageAmount == null) {
     checks.push(fail("insurance_amount", "General liability coverage amount", "B.O.S. cannot verify the statutory minimum coverage amount."));
