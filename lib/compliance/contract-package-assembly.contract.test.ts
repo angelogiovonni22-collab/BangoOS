@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 
 const packageSource = readFileSync(new URL("./contract-package.ts", import.meta.url), "utf8");
 const routeSource = readFileSync(new URL("../../app/api/contracts/estimate/[token]/route.ts", import.meta.url), "utf8");
+const sendRouteSource = readFileSync(new URL("../../app/api/estimates/[id]/contract/route.ts", import.meta.url), "utf8");
+const pageSource = readFileSync(new URL("../../app/contracts/estimate/[token]/page.tsx", import.meta.url), "utf8");
+const agreementSource = readFileSync(new URL("../estimates/construction-agreement.ts", import.meta.url), "utf8");
 
 test("contract package is versioned and independently hashed", () => {
   assert.match(packageSource, /CONTRACT_PACKAGE_VERSION/);
@@ -42,4 +45,21 @@ test("agreement version is enriched before the buyer signature is stored", () =>
 test("finalization uses compare-and-update protection on the base agreement hash", () => {
   assert.match(packageSource, /\.eq\("agreement_hash", input\.baseAgreementHash\)/);
   assert.match(packageSource, /Agreement package changed before finalization/);
+});
+
+test("secure estimate page renders required Ohio contract disclosures", () => {
+  assert.match(pageSource, /Supplier taxpayer identification number/);
+  assert.match(pageSource, /Certificate of general liability insurance/);
+  assert.match(pageSource, /EXCESS COSTS/);
+  assert.match(pageSource, /Owner&apos;s contract selection/);
+  assert.match(pageSource, /Authorized supplier signer/);
+  assert.match(pageSource, /Supplier signature date/);
+  assert.match(agreementSource, /OHIO LAW CONTAINS IMPORTANT REQUIREMENTS/);
+  assert.match(agreementSource, /AT LEAST SIXTY DAYS/);
+});
+
+test("Ohio residential send gate refuses an unresolved or unsupported contract language", () => {
+  assert.match(sendRouteSource, /CONTRACT_LANGUAGE_REVIEW_REQUIRED/);
+  assert.match(sendRouteSource, /requires a Spanish legal package/);
+  assert.match(sendRouteSource, /Confirm the principal sales\/contract language/);
 });
