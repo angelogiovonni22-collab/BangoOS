@@ -70,7 +70,7 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
             note={`${intelligence.risk.totalRisks} ${l("active risk signals", "señales de riesgo activas")}`}
           />
           <MetricTile
-            label={l("Budget Variance", "Variación del presupuesto")}
+            label={l("Budget Remaining", "Presupuesto restante")}
             value={varianceLabel}
             note={`${intelligence.budget.overdueInvoices} ${l("overdue invoices", "facturas vencidas")}`}
           />
