@@ -4,6 +4,7 @@ import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service"
 import { calculateOhioHomeSolicitationDeadline } from "@/lib/compliance/ohio-home-solicitation";
 import { loadHomeSolicitationCompliance, recordHomeSolicitationEvaluation, recordHomeSolicitationSignature } from "@/lib/compliance/home-solicitation-service";
 import { finalizeAgreementContractPackage } from "@/lib/compliance/contract-package";
+import { loadEstimateCompliance } from "@/lib/compliance/estimate-contract-compliance-service";
 
 type ProspectRow = {
   first_name: string | null;
@@ -50,11 +51,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   try {
     const token = decodeURIComponent((await params).token);
     const { admin, validated } = await context(token, request);
-    const [{ data: estimate }, { data: items }, { data: company }, prospect] = await Promise.all([
+    const [{ data: estimate }, { data: items }, { data: company }, prospect, ohioContractCompliance] = await Promise.all([
       admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
       admin.from("estimate_line_items").select("description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
       admin.from("companies").select("name").eq("id", validated.companyId).single(),
       loadProspect(admin, validated.companyId, validated.estimateId),
+      loadEstimateCompliance(admin, validated.companyId, validated.estimateId),
     ]);
 
     let homeSolicitation = null;
@@ -86,7 +88,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       }
     }
 
-    return NextResponse.json({ estimate: publicEstimate, items: items || [], company, expiresAt: validated.expiresAt, homeSolicitation });
+    const ohioHomeConstruction = ohioContractCompliance.evaluation.applicable === true ? {
+      rulesetVersion: ohioContractCompliance.evaluation.rulesetVersion,
+      supplierName: ohioContractCompliance.profile.supplierName,
+      supplierPhysicalAddress: ohioContractCompliance.profile.supplierPhysicalAddress,
+      supplierPhone: ohioContractCompliance.profile.supplierPhone,
+      supplierTaxpayerId: ohioContractCompliance.profile.supplierTaxpayerId,
+      ownerName: ohioContractCompliance.profile.ownerName,
+      ownerAddress: ohioContractCompliance.profile.ownerAddress,
+      ownerPhone: ohioContractCompliance.profile.ownerPhone,
+      projectAddress: ohioContractCompliance.profile.projectAddress,
+      anticipatedStart: ohioContractCompliance.profile.anticipatedStart,
+      anticipatedCompletion: ohioContractCompliance.profile.anticipatedCompletion,
+      excludedCostsDisclosed: ohioContractCompliance.profile.excludedInstallationOrDeliveryCostsDisclosed === true,
+      liabilityCoverageAmount: ohioContractCompliance.profile.liabilityCoverageAmount,
+      insuranceCertificateUrl: ohioContractCompliance.profile.insuranceCertificateUrl,
+      excessCostMethod: ohioContractCompliance.profile.excessCostMethod,
+      supplierSignerName: ohioContractCompliance.profile.supplierSignerName,
+      supplierSignedAt: ohioContractCompliance.profile.supplierSignedAt,
+      contractLanguage: ohioContractCompliance.profile.contractLanguage,
+    } : null;
+
+    return NextResponse.json({ estimate: publicEstimate, items: items || [], company, expiresAt: validated.expiresAt, homeSolicitation, ohioHomeConstruction });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid contract link." }, { status: 400 });
   }
