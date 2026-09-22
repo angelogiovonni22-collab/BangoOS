@@ -13,6 +13,8 @@ const emptyProfile: EstimateComplianceProfile = {
   supplierPhysicalAddress: "",
   supplierPhone: "",
   supplierTaxpayerIdPresent: false,
+  supplierTaxpayerId: "",
+  contractLanguage: "unknown",
   ownerName: "",
   ownerAddress: "",
   ownerPhone: "",
@@ -23,6 +25,10 @@ const emptyProfile: EstimateComplianceProfile = {
   liabilityInsuranceDocumented: false,
   liabilityCoverageAmount: null,
   insuranceDocumentReference: "",
+  insuranceCertificateUrl: "",
+  supplierSignerName: "",
+  supplierSignedAt: null,
+  supplierSignatureConfirmed: false,
   excessCostMethod: null,
   depositAmount: null,
   specialOrderAmount: null,
@@ -104,7 +110,8 @@ export function ContractCompliancePanel({ estimateId, totalAmount }: { estimateI
           <Field label="Contractor legal name"><input className={inputClass} value={profile.supplierName || ""} onChange={(e) => setProfile({ ...profile, supplierName: e.target.value })} /></Field>
           <Field label="Contractor business phone"><input className={inputClass} value={profile.supplierPhone || ""} onChange={(e) => setProfile({ ...profile, supplierPhone: e.target.value })} /></Field>
           <Field label="Contractor physical business address"><input className={inputClass} value={profile.supplierPhysicalAddress || ""} onChange={(e) => setProfile({ ...profile, supplierPhysicalAddress: e.target.value })} /></Field>
-          <Check label="Taxpayer identification information is recorded securely" checked={profile.supplierTaxpayerIdPresent === true} onChange={(checked) => setProfile({ ...profile, supplierTaxpayerIdPresent: checked })} />
+          <Field label="Contractor taxpayer identification number"><input className={inputClass} value={profile.supplierTaxpayerId || ""} onChange={(e) => setProfile({ ...profile, supplierTaxpayerId: e.target.value, supplierTaxpayerIdPresent: Boolean(e.target.value.trim()) })} placeholder="Required on covered Ohio contracts" /></Field>
+          <Field label="Principal sales / contract language"><select className={inputClass} value={profile.contractLanguage || "unknown"} onChange={(e) => setProfile({ ...profile, contractLanguage: e.target.value as EstimateComplianceProfile["contractLanguage"] })}><option value="unknown">Select language</option><option value="en">English</option><option value="es">Spanish</option></select></Field>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -121,7 +128,10 @@ export function ContractCompliancePanel({ estimateId, totalAmount }: { estimateI
           <Check label="General liability insurance certificate is documented" checked={profile.liabilityInsuranceDocumented === true} onChange={(checked) => setProfile({ ...profile, liabilityInsuranceDocumented: checked })} />
           <Field label="General liability coverage amount"><input className={inputClass} type="number" min="0" value={profile.liabilityCoverageAmount ?? ""} onChange={(e) => setProfile({ ...profile, liabilityCoverageAmount: e.target.value === "" ? null : Number(e.target.value) })} /></Field>
           <Field label="Insurance document reference"><input className={inputClass} value={profile.insuranceDocumentReference || ""} onChange={(e) => setProfile({ ...profile, insuranceDocumentReference: e.target.value })} placeholder="File name, document ID, or policy reference" /></Field>
+          <Field label="Customer-viewable insurance certificate URL"><input className={inputClass} type="url" value={profile.insuranceCertificateUrl || ""} onChange={(e) => setProfile({ ...profile, insuranceCertificateUrl: e.target.value })} placeholder="https://…/certificate.pdf" /></Field>
           <Field label="Excess-cost selection"><select className={inputClass} value={profile.excessCostMethod || ""} onChange={(e) => setProfile({ ...profile, excessCostMethod: (e.target.value || null) as EstimateComplianceProfile["excessCostMethod"] })}><option value="">Select method</option><option value="written">Written estimate</option><option value="oral">Oral estimate</option><option value="firm_price_no_excess">Firm price — no excess costs charged</option></select></Field>
+          <Field label="Authorized supplier signer"><input className={inputClass} value={profile.supplierSignerName || ""} onChange={(e) => setProfile({ ...profile, supplierSignerName: e.target.value, supplierSignedAt: null, supplierSignatureConfirmed: false })} placeholder="Full legal name" /></Field>
+          <Check label="I am authorized to sign this estimate/contract for the supplier and confirm this supplier signature" checked={profile.supplierSignatureConfirmed === true} onChange={(checked) => setProfile({ ...profile, supplierSignatureConfirmed: checked, supplierSignedAt: checked ? (profile.supplierSignedAt || new Date().toISOString()) : null })} />
         </div>
 
         {attention.length ? (
