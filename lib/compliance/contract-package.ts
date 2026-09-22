@@ -33,6 +33,8 @@ export type ContractCompliancePackage = {
       supplierPhysicalAddress: string | null | undefined;
       supplierPhone: string | null | undefined;
       supplierTaxpayerIdRecorded: boolean;
+      supplierTaxpayerId: string | null | undefined;
+      contractLanguage: "en" | "es" | "unknown" | undefined;
       ownerName: string | null | undefined;
       ownerAddress: string | null | undefined;
       ownerPhone: string | null | undefined;
@@ -43,6 +45,10 @@ export type ContractCompliancePackage = {
       liabilityInsuranceDocumented: boolean;
       liabilityCoverageAmount: number | null | undefined;
       insuranceDocumentReference: string | null | undefined;
+      insuranceCertificateUrl: string | null | undefined;
+      supplierSignerName: string | null | undefined;
+      supplierSignedAt: string | null | undefined;
+      supplierSignatureConfirmed: boolean;
       excessCostMethod: string | null | undefined;
     };
   };
@@ -119,6 +125,8 @@ export async function buildContractCompliancePackage(
         supplierPhysicalAddress: contract.profile.supplierPhysicalAddress,
         supplierPhone: contract.profile.supplierPhone,
         supplierTaxpayerIdRecorded: contract.profile.supplierTaxpayerIdPresent === true,
+        supplierTaxpayerId: contract.profile.supplierTaxpayerId,
+        contractLanguage: contract.profile.contractLanguage,
         ownerName: contract.profile.ownerName,
         ownerAddress: contract.profile.ownerAddress,
         ownerPhone: contract.profile.ownerPhone,
@@ -129,6 +137,10 @@ export async function buildContractCompliancePackage(
         liabilityInsuranceDocumented: contract.profile.liabilityInsuranceDocumented === true,
         liabilityCoverageAmount: contract.profile.liabilityCoverageAmount,
         insuranceDocumentReference: contract.profile.insuranceDocumentReference,
+        insuranceCertificateUrl: contract.profile.insuranceCertificateUrl,
+        supplierSignerName: contract.profile.supplierSignerName,
+        supplierSignedAt: contract.profile.supplierSignedAt,
+        supplierSignatureConfirmed: contract.profile.supplierSignatureConfirmed === true,
         excessCostMethod: contract.profile.excessCostMethod,
       },
     },
