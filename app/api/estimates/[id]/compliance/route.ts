@@ -11,6 +11,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+  try {
+    await requireCompanyRole(supabase, ["owner", "administrator"], workspace.context.companyId);
+  } catch {
+    return NextResponse.json({ error: "Only a company owner or administrator may view legal contract-compliance records." }, { status: 403 });
+  }
 
   try {
     const result = await loadEstimateCompliance(supabase, workspace.context.companyId, estimateId);
