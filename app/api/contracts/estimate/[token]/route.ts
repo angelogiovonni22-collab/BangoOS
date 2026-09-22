@@ -87,7 +87,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
           totalAmount?: number;
           terms?: string | null;
           paymentTerms?: string | null;
-          lineItems?: Array<{ description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order?: number }>;
+          lineItems?: Array<{ description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order: number }>;
         };
         customer?: Record<string, unknown> | null;
         compliancePackage?: {
