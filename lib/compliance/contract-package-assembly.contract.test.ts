@@ -63,3 +63,15 @@ test("Ohio residential send gate refuses an unresolved or unsupported contract l
   assert.match(sendRouteSource, /requires a Spanish legal package/);
   assert.match(sendRouteSource, /Confirm the principal sales\/contract language/);
 });
+
+test("signed contract copy is served from immutable estimate snapshot and shows dated signatures", () => {
+  assert.match(routeSource, /agreement_snapshot/);
+  assert.match(routeSource, /signedSnapshot\.estimate/);
+  assert.match(routeSource, /publicItems = signedSnapshot\.estimate\.lineItems/);
+  assert.match(routeSource, /estimate_signatures/);
+  assert.match(routeSource, /customerSignature/);
+  assert.match(pageSource, /Signed contract copy/);
+  assert.match(pageSource, /Print \/ Save Copy/);
+  assert.match(pageSource, /Customer signature/);
+  assert.match(pageSource, /Signed at:/);
+});
