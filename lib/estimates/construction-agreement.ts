@@ -1,5 +1,5 @@
-export const CONSTRUCTION_AGREEMENT_VERSION = "OH-RC-1.1";
-export const BOS_ELECTRONIC_TERMS_VERSION = "1.0";
+export const CONSTRUCTION_AGREEMENT_VERSION = "OH-RC-1.2";
+export const BOS_ELECTRONIC_TERMS_VERSION = "1.1";
 
 export type ConstructionAgreementSection = {
   id: string;
@@ -95,6 +95,13 @@ export const constructionAgreementSections: ConstructionAgreementSection[] = [
     paragraphs: [
       "The parties should first give prompt written notice of a dispute and attempt a good-faith project-level resolution. Any further procedure stated in the project-specific terms applies only to the extent enforceable. Ohio law governs Ohio projects unless non-waivable law requires otherwise.",
       "For a residential construction defect claim, Ohio Revised Code Chapter 1312 may require advance written notice and an opportunity for the contractor to inspect and offer to repair or resolve the claimed defect before litigation or arbitration. This agreement does not shorten or waive a statutory period, cancellation right, lien right, consumer remedy, or other non-waivable protection.",
+    ],
+  },
+  {
+    id: "ohio-defect-notice",
+    title: "IMPORTANT OHIO CONSTRUCTION DEFECT NOTICE",
+    paragraphs: [
+      "OHIO LAW CONTAINS IMPORTANT REQUIREMENTS YOU MUST FOLLOW BEFORE YOU MAY FILE A LAWSUIT OR COMMENCE ARBITRATION PROCEEDINGS FOR DEFECTIVE CONSTRUCTION AGAINST THE RESIDENTIAL CONTRACTOR WHO CONSTRUCTED YOUR HOME. AT LEAST SIXTY DAYS BEFORE YOU FILE A LAWSUIT OR COMMENCE ARBITRATION PROCEEDINGS, YOU MUST PROVIDE THE CONTRACTOR WITH A WRITTEN NOTICE OF THE CONDITIONS YOU ALLEGE ARE DEFECTIVE. UNDER CHAPTER 1312 OF THE OHIO REVISED CODE, THE CONTRACTOR HAS AN OPPORTUNITY TO OFFER TO REPAIR OR PAY FOR THE DEFECTS. YOU ARE NOT OBLIGATED TO ACCEPT ANY OFFER THE CONTRACTOR MAKES. THERE ARE STRICT DEADLINES AND PROCEDURES UNDER STATE LAW, AND FAILURE TO FOLLOW THEM MAY AFFECT YOUR ABILITY TO FILE A LAWSUIT OR COMMENCE ARBITRATION PROCEEDINGS.",
     ],
   },
   {
