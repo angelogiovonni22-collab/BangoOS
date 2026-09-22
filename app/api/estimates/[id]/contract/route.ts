@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { requireCompanyRole } from "@/lib/supabase/authorization";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
 import { renderBrandedEstimateEmail } from "@/lib/estimates/branded-estimate-email";
@@ -29,6 +30,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!supabase) return NextResponse.json({ error: "B.O.S. database is unavailable." }, { status: 503 });
   const workspace = await resolveWorkspaceContext(supabase);
   if (!workspace.context) return NextResponse.json({ error: workspace.errorMessage || "Unauthorized." }, { status: 401 });
+  try {
+    await requireCompanyRole(
+      supabase,
+      ["owner", "administrator", "operations_manager", "project_manager", "estimator", "office_manager"],
+      workspace.context.companyId,
+    );
+  } catch {
+    return NextResponse.json({ error: "You do not have permission to send customer estimate agreements." }, { status: 403 });
+  }
 
   const prospectDb = supabase as unknown as ProspectDb;
   const [{ data: estimate, error }, { data: prospect, error: prospectError }] = await Promise.all([
