@@ -52,7 +52,7 @@ test("secure estimate page renders required Ohio contract disclosures", () => {
   assert.match(pageSource, /Supplier taxpayer identification number/);
   assert.match(pageSource, /Certificate of general liability insurance/);
   assert.match(pageSource, /EXCESS COSTS/);
-  assert.match(pageSource, /Owner&apos;s contract selection/);
+  assert.match(pageSource, /Owner&apos;s contract designation/);
   assert.match(pageSource, /Authorized supplier signer/);
   assert.match(pageSource, /Supplier signature date/);
   assert.match(agreementSource, /OHIO LAW CONTAINS IMPORTANT REQUIREMENTS/);
@@ -71,7 +71,7 @@ test("signed contract copy is served from immutable estimate snapshot and shows 
   assert.match(routeSource, /publicItems = signedSnapshot\.estimate\.lineItems/);
   assert.match(routeSource, /estimate_signatures/);
   assert.match(routeSource, /customerSignature/);
-  assert.match(pageSource, /Signed contract copy/);
+  assert.match(pageSource, /Estimate signed · Contract copy/);
   assert.match(pageSource, /Print \/ Save Copy/);
   assert.match(pageSource, /Customer signature/);
   assert.match(pageSource, /Signed at:/);
