@@ -954,7 +954,7 @@ export async function executeUpdateProjectStatusCommand(
   }
 
   const statusUpdatedAt = new Date().toISOString();
-  const projectPatch: Record<string, unknown> = {
+  const projectPatch: Database["public"]["Tables"]["projects"]["Update"] = {
     status: nextStatus,
     updated_at: statusUpdatedAt,
   };
