@@ -51,6 +51,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
     openPermits: props.openPermitsCount,
   });
   const closeoutAction = getCloseoutAction(projectHref, closeoutReadiness.nextAction, es);
+  const closeoutWorkflowLabel = projectCompleted && !closeoutStarted ? l("Closeout checklist required", "Se requiere lista de cierre") : props.closeoutStatusLabel;
   const toggleControl = (control: ControlKey) => setActiveControl((current) => current === control ? null : control);
 
   return (
@@ -103,7 +104,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <Info label={l("Project start", "Inicio del proyecto")} value={props.startDate} />
                 <Info label={l("Target completion", "Finalización objetivo")} value={props.targetDate} />
-                <Info label={l("Assigned crew", "Cuadrilla asignada")} value={props.crewCount ? `${props.crewCount} ${l("assigned", "asignados")}` : l("Not assigned", "Sin asignar")} />
+                <Info label={l("Assigned crew", "Cuadrilla asignada")} value={projectCompleted ? l("Released", "Liberada") : props.crewCount ? `${props.crewCount} ${l("assigned", "asignados")}` : l("Not assigned", "Sin asignar")} />
                 <Info label={l("Schedule status", "Estado del calendario")} value={projectCompleted ? l("Completed", "Completado") : daysRemainingLabel(props.targetDate, es)} />
               </div>
               <div className="rounded-[14px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-4">
@@ -132,7 +133,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <Info label={l("Overall progress", "Progreso general")} value={`${progress}%`} />
-                <Info label={l("Completed tasks", "Tareas completadas")} value={`${completed.length} ${l("of", "de")} ${props.tasks.length}`} />
+                <Info label={l("Completed tasks", "Tareas completadas")} value={projectCompleted && props.tasks.length === 0 ? l("Project marked complete", "Proyecto marcado como completado") : `${completed.length} ${l("of", "de")} ${props.tasks.length}`} />
                 <Info label={l("Active tasks", "Tareas activas")} value={String(active.length)} />
                 <Info label={l("Blocked", "Bloqueadas")} value={String(active.filter((task) => status(task.status) === "blocked").length)} />
               </div>
@@ -195,7 +196,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
         <div className="grid gap-4">
           <Card title={l("Today's Priorities", "Prioridades de hoy")} icon={<Activity size={18} />} action={<Link href={projectHref + "?tab=tasks"} className="text-xs font-bold text-[var(--orion-blue)]">{l("View all", "Ver todas")}</Link>}>
             <div className="divide-y divide-[var(--bos-border-light)]">
-              {priorities.length ? priorities.map((task, index) => (
+              {projectCompleted ? <Empty label={l("Project completed. No active priorities remain.", "Proyecto completado. No quedan prioridades activas.")} /> : priorities.length ? priorities.map((task, index) => (
                 <div key={task.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 py-2.5">
                   <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary-100)] text-xs font-extrabold text-[var(--color-primary-700)]">{index + 1}</span>
                   <p className="min-w-0 truncate text-sm font-bold text-[var(--bos-text-strong-on-light)]">{task.title}</p>
@@ -217,7 +218,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
       <div className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
         <Card title={l("Next 7 Days", "Próximos 7 días")} icon={<CalendarDays size={18} />} action={<Link href={scheduleHref} className="text-xs font-bold text-[var(--orion-blue)]">{l("View schedule", "Ver calendario")}</Link>}>
           <div className="divide-y divide-[var(--bos-border-light)]">
-            {week.length ? week.map((task) => (
+            {projectCompleted ? <Empty label={l("Project completed. No upcoming work is scheduled.", "Proyecto completado. No hay trabajo próximo programado.")} /> : week.length ? week.map((task) => (
               <div key={task.id} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 py-2.5">
                 <p className="text-xs font-bold text-[var(--bos-text-medium-on-light)]">{formatTaskDate(task.planned_finish, es)}</p>
                 <p className="truncate text-sm font-bold text-[var(--bos-text-strong-on-light)]">{task.title}</p>
@@ -251,7 +252,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
           <div className="min-w-0">
             <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{l("Next closeout action", "Siguiente acción de cierre")}</p>
             <p className="mt-1 break-words text-sm font-extrabold text-[var(--bos-text-strong-on-light)]">{closeoutAction.label}</p>
-            <p className="mt-1 break-words text-xs font-medium text-[var(--bos-text-medium-on-light)]">{closeoutAction.note} {l("Current workflow", "Flujo actual")}: {props.closeoutStatusLabel}.</p>
+            <p className="mt-1 break-words text-xs font-medium text-[var(--bos-text-medium-on-light)]">{closeoutAction.note} {l("Current workflow", "Flujo actual")}: {closeoutWorkflowLabel}.</p>
           </div>
           <Link href={closeoutAction.href} className="inline-flex shrink-0 items-center justify-center rounded-[10px] border border-[var(--color-primary-300)] bg-white px-3 py-2 text-xs font-extrabold text-[var(--color-primary-700)] transition hover:bg-[var(--color-primary-50)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-500)]">{l("Open closeout", "Abrir cierre")}</Link>
         </div>
