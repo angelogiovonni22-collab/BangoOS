@@ -996,6 +996,16 @@ export async function executeUpdateProjectStatusCommand(
   });
 
   if (nextStatus === "completed") {
+    const executionService = createProjectExecutionService(deps.supabase);
+    await executionService.startCloseout({
+      companyId: context.companyId,
+      actorProfileId: context.actorProfileId,
+      correlationId: context.correlationId,
+      idempotencyKey: `${context.idempotencyKey}:project-closeout`,
+      projectId,
+      notes: "Closeout initialized automatically when project was marked completed.",
+    });
+
     await orion.publishEvent({
       company_id: context.companyId,
       actor_profile_id: context.actorProfileId,
