@@ -67,7 +67,9 @@ function OhioHomeConstructionTerms({ contract, total }: { contract: OhioHomeCons
     <div className="mt-6 rounded-2xl border-2 border-slate-900 bg-slate-50 p-5">
       <h3 className="text-base font-black">EXCESS COSTS</h3>
       <p className="mt-3 text-sm font-semibold leading-6">If at any time a home construction service requires extra costs above the cost specified or estimated in the contract that were reasonably unforeseen, but necessary, and the total of all extra costs to date exceeds five thousand dollars over the course of the entire home construction contract, you have a right to an estimate of those excess costs before the home construction service supplier begins work related to those costs.</p>
-      <p className="mt-3 text-sm font-black">Owner&apos;s contract selection: {selection}</p>
+      <p className="mt-3 text-sm font-semibold leading-6">The contract must designate the type of excess-cost estimate required when this protection applies.</p>
+      <div className="mt-3 grid gap-2 text-sm font-bold sm:grid-cols-2"><p>{contract.excessCostMethod === "written" ? "☒" : "☐"} Written estimate</p><p>{contract.excessCostMethod === "oral" ? "☒" : "☐"} Oral estimate</p></div>
+      <p className="mt-3 text-sm font-black">Owner&apos;s contract designation: {selection}. By signing this agreement, Owner confirms the designation shown here.</p>
     </div>
     <div className="mt-6 rounded-2xl border border-slate-200 p-5">
       <h3 className="text-base font-black">Certificate of general liability insurance</h3>
