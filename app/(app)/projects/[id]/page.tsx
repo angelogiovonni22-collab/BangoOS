@@ -792,6 +792,7 @@ export default function ProjectWorkspacePage() {
                   intelligence={projectIntelligence}
                   briefing={superintendentBriefing}
                   projectId={project.id}
+                  projectStatus={project.status || ""}
                   compliance={{
                     permitsTotal: workspace.counts.permits,
                     openPermits: workspace.counts.openPermits,
@@ -810,6 +811,7 @@ export default function ProjectWorkspacePage() {
                   customerName={customerName}
                   projectAddress={location}
                   statusLabel={statusLabel}
+                  projectStatus={project.status || ""}
                   tasks={workspace.tasks}
                   budgetLabel={budgetValue}
                   spentLabel={spentValue}
