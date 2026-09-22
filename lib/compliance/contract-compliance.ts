@@ -38,6 +38,8 @@ export type OhioResidentialContractInput = {
   supplierPhysicalAddress?: string | null;
   supplierPhone?: string | null;
   supplierTaxpayerIdPresent?: boolean;
+  supplierTaxpayerId?: string | null;
+  contractLanguage?: "en" | "es" | "unknown";
   ownerName?: string | null;
   ownerAddress?: string | null;
   ownerPhone?: string | null;
@@ -49,6 +51,10 @@ export type OhioResidentialContractInput = {
   excludedInstallationOrDeliveryCostsDisclosed?: boolean;
   liabilityInsuranceDocumented?: boolean;
   liabilityCoverageAmount?: number | null;
+  insuranceCertificateUrl?: string | null;
+  supplierSignerName?: string | null;
+  supplierSignedAt?: string | null;
+  supplierSignatureConfirmed?: boolean;
   excessCostMethod?: "written" | "oral" | "firm_price_no_excess" | null;
 };
 
@@ -156,7 +162,7 @@ export function evaluateOhioResidentialContract(input: OhioResidentialContractIn
   checks.push(requirement("supplier_name", "Supplier legal name", present(input.supplierName), "Supplier legal name is required."));
   checks.push(requirement("supplier_address", "Supplier physical business address", present(input.supplierPhysicalAddress), "Supplier physical business address is required."));
   checks.push(requirement("supplier_phone", "Supplier business telephone number", present(input.supplierPhone), "Supplier business telephone number is required."));
-  checks.push(requirement("supplier_tin", "Supplier taxpayer identification information", input.supplierTaxpayerIdPresent === true, "Supplier taxpayer identification information must be recorded for the contract without exposing it unnecessarily in customer-facing UI."));
+  checks.push(requirement("supplier_tin", "Supplier taxpayer identification number", input.supplierTaxpayerIdPresent === true && present(input.supplierTaxpayerId), "The written contract must include the supplier taxpayer identification number."));
   checks.push(requirement("owner_name", "Owner/customer name", present(input.ownerName), "Owner/customer name is required."));
   checks.push(requirement("owner_address", "Owner/customer address", present(input.ownerAddress), "Owner/customer address is required."));
   checks.push(requirement("owner_phone", "Owner/customer telephone number", present(input.ownerPhone), "Owner/customer telephone number is required."));
@@ -166,13 +172,24 @@ export function evaluateOhioResidentialContract(input: OhioResidentialContractIn
   checks.push(requirement("anticipated_completion", "Anticipated completion date or period", present(input.anticipatedCompletion), "Anticipated completion date or time period is required."));
   checks.push(requirement("estimated_cost", "Total estimated contract cost", input.totalEstimatedCostPresent === true, "Total estimated contract cost must be present."));
   checks.push(requirement("excluded_costs", "Excluded installation/delivery/other cost disclosure", input.excludedInstallationOrDeliveryCostsDisclosed === true, "The contract must identify applicable installation, delivery, or other costs not included in the stated cost, or affirm that none are excluded."));
-  checks.push(requirement("insurance_documented", "General liability insurance documentation", input.liabilityInsuranceDocumented === true, "Proof/copy of general liability insurance must be available."));
+  checks.push(requirement("insurance_documented", "General liability insurance documentation", input.liabilityInsuranceDocumented === true, "A copy of the general liability insurance certificate must be included with the contract."));
+  checks.push(requirement("insurance_copy", "General liability insurance certificate copy", present(input.insuranceCertificateUrl), "A customer-viewable copy of the supplier insurance certificate must be attached or linked in the contract package."));
 
   if (input.liabilityCoverageAmount == null) {
     checks.push(fail("insurance_amount", "General liability coverage amount", "B.O.S. cannot verify the statutory minimum coverage amount."));
   } else {
     checks.push(requirement("insurance_amount", "General liability coverage amount", input.liabilityCoverageAmount >= 250_000, "General liability coverage must be at least $250,000 for this supplier classification."));
   }
+
+  if (!input.contractLanguage || input.contractLanguage === "unknown") {
+    checks.push(review("contract_language", "Contract language", "Confirm the language principally used in the sales presentation before sending the agreement."));
+  } else if (input.contractLanguage !== "en") {
+    checks.push(review("contract_language", "Contract language", "The current customer-facing legal package is English-only. A same-language legal package must be supplied before sending a covered home-solicitation agreement presented principally in another language."));
+  } else {
+    checks.push(pass("contract_language", "Contract language"));
+  }
+
+  checks.push(requirement("supplier_signature", "Dated supplier signature", input.supplierSignatureConfirmed === true && present(input.supplierSignerName) && present(input.supplierSignedAt), "The written contract must include the dated signature of an authorized supplier representative."));
 
   if (input.pricingType === "fixed" && input.excessCostMethod === "firm_price_no_excess") {
     checks.push(pass("excess_costs", "Excess-cost handling"));
