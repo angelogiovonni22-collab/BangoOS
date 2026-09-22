@@ -6,26 +6,23 @@ import styles from "./BosStartupIntro.module.css";
 
 const VIDEO_SRC = "/branding/Mobile_app_startup_logo_animation_202609032341_iOS_optimized%20(1).mp4";
 const FALLBACK_LOGO_SRC = "/branding/bos-operating-system-logo.png";
-const LOAD_TIMEOUT_MS = 5000;
+const LOAD_TIMEOUT_MS = 1200;
 const PLAYBACK_TIMEOUT_MS = 15000;
-const REOPEN_THRESHOLD_MS = 1000;
+const FALLBACK_HOLD_MS = 900;
+const FADE_MS = 220;
 const PREPAINT_CLASS = "bos-startup-prepaint";
 
 type IntroState = "checking" | "video" | "fallback" | "fading" | "hidden";
 
-type NavigatorWithStandalone = Navigator & { standalone?: boolean };
-
 export function BosStartupIntro() {
   const [state, setState] = useState<IntroState>("checking");
   const [videoVisible, setVideoVisible] = useState(false);
-  const [runId, setRunId] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fallbackTimerRef = useRef<number | null>(null);
   const finishTimerRef = useRef<number | null>(null);
   const loadTimerRef = useRef<number | null>(null);
   const playbackTimerRef = useRef<number | null>(null);
   const playRequestedRef = useRef(false);
-  const hiddenAtRef = useRef<number | null>(null);
 
   const clearTimers = () => {
     for (const ref of [fallbackTimerRef, finishTimerRef, loadTimerRef, playbackTimerRef]) {
@@ -40,11 +37,13 @@ export function BosStartupIntro() {
     document.documentElement.classList.remove(PREPAINT_CLASS);
   };
 
-  const armLoadTimeout = () => {
-    if (loadTimerRef.current !== null) window.clearTimeout(loadTimerRef.current);
-    loadTimerRef.current = window.setTimeout(() => {
-      setState((current) => (current === "video" ? "fallback" : current));
-    }, LOAD_TIMEOUT_MS);
+  const finish = () => {
+    clearTimers();
+    setState("fading");
+    finishTimerRef.current = window.setTimeout(() => {
+      releasePrepaint();
+      setState("hidden");
+    }, FADE_MS);
   };
 
   useEffect(() => {
@@ -62,7 +61,9 @@ export function BosStartupIntro() {
       }
 
       setState("video");
-      armLoadTimeout();
+      loadTimerRef.current = window.setTimeout(() => {
+        setState((current) => (current === "video" ? "fallback" : current));
+      }, LOAD_TIMEOUT_MS);
     });
 
     return () => {
@@ -73,45 +74,8 @@ export function BosStartupIntro() {
   }, []);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        hiddenAtRef.current = Date.now();
-        return;
-      }
-
-      const hiddenAt = hiddenAtRef.current;
-      hiddenAtRef.current = null;
-      if (hiddenAt === null || Date.now() - hiddenAt < REOPEN_THRESHOLD_MS) return;
-
-      const isMobile = window.matchMedia("(max-width: 1023px)").matches;
-      const isStandalone = window.matchMedia("(display-mode: standalone)").matches
-        || (navigator as NavigatorWithStandalone).standalone === true;
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (!isMobile || !isStandalone || reducedMotion) return;
-
-      clearTimers();
-      playRequestedRef.current = false;
-      setVideoVisible(false);
-      document.documentElement.classList.add(PREPAINT_CLASS);
-      setRunId((current) => current + 1);
-      setState("video");
-      armLoadTimeout();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
-
-  useEffect(() => {
     if (state !== "fallback") return;
-    fallbackTimerRef.current = window.setTimeout(() => {
-      setState("fading");
-      finishTimerRef.current = window.setTimeout(() => {
-        releasePrepaint();
-        setState("hidden");
-      }, 320);
-    }, 2200);
-
+    fallbackTimerRef.current = window.setTimeout(finish, FALLBACK_HOLD_MS);
     return () => {
       if (fallbackTimerRef.current !== null) {
         window.clearTimeout(fallbackTimerRef.current);
@@ -119,15 +83,6 @@ export function BosStartupIntro() {
       }
     };
   }, [state]);
-
-  const finish = () => {
-    clearTimers();
-    setState("fading");
-    finishTimerRef.current = window.setTimeout(() => {
-      releasePrepaint();
-      setState("hidden");
-    }, 320);
-  };
 
   const requestPlayback = async () => {
     const video = videoRef.current;
@@ -151,15 +106,11 @@ export function BosStartupIntro() {
       window.clearTimeout(loadTimerRef.current);
       loadTimerRef.current = null;
     }
-    if (playbackTimerRef.current !== null) {
-      window.clearTimeout(playbackTimerRef.current);
-    }
+    if (playbackTimerRef.current !== null) window.clearTimeout(playbackTimerRef.current);
     playbackTimerRef.current = window.setTimeout(finish, PLAYBACK_TIMEOUT_MS);
   };
 
   if (state === "hidden") return null;
-
-  const isFallback = state === "fallback";
 
   return (
     <div
@@ -168,21 +119,20 @@ export function BosStartupIntro() {
     >
       <div className={styles.ambient} />
 
-      {isFallback ? (
-        <div className={`${styles.fallback} ${styles.fallbackPlaying}`}>
-          <Image
-            src={FALLBACK_LOGO_SRC}
-            alt=""
-            width={720}
-            height={672}
-            priority
-            className={styles.fallbackLogo}
-          />
-          <div className={styles.fallbackGlow} />
-        </div>
-      ) : state === "video" ? (
+      <div className={`${styles.fallback} ${styles.fallbackReady}`}>
+        <Image
+          src={FALLBACK_LOGO_SRC}
+          alt=""
+          width={720}
+          height={672}
+          priority
+          className={styles.fallbackLogo}
+        />
+        <div className={styles.fallbackGlow} />
+      </div>
+
+      {state === "video" ? (
         <video
-          key={runId}
           ref={videoRef}
           className={`${styles.video} ${videoVisible ? styles.videoPlaying : ""}`}
           src={VIDEO_SRC}

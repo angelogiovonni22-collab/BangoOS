@@ -37,7 +37,7 @@
   pointer-events: none;
 }
 
-.video {
+ .video {
   position: absolute;
   inset: 0;
   display: block;
@@ -46,6 +46,7 @@
   object-fit: contain;
   object-position: center;
   background: #000;
+  z-index: 2;
   opacity: 0;
 }
 
@@ -55,13 +56,14 @@
 
 .fallback {
   position: relative;
+  z-index: 1;
   width: min(84vw, 720px);
   opacity: 0;
   transform: scale(0.985);
 }
 
-.fallbackPlaying {
-  animation: fallbackReveal 2.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+.fallbackReady {
+  animation: fallbackReveal 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .fallbackLogo {
@@ -86,20 +88,10 @@
 
 @keyframes fallbackReveal {
   0% {
-    opacity: 0;
-    transform: scale(0.985);
-    filter: brightness(0.2);
+    opacity: 0.82;
+    transform: scale(0.992);
+    filter: brightness(0.78);
   }
-  42% {
-    opacity: 0.72;
-    filter: brightness(0.7);
-  }
-  70% {
-    opacity: 1;
-    transform: scale(1.004);
-    filter: brightness(1.06);
-  }
-  84%,
   100% {
     opacity: 1;
     transform: scale(1);
