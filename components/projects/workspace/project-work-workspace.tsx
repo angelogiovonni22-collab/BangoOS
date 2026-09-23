@@ -570,11 +570,13 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
               </button>
             </div>
 
-            <StatusPulse triggerKey={`task-selection-inline-${selectedTaskId ?? "none"}`}>
-              <div className={isMobileDetailsOpen ? "hidden md:block lg:col-span-2" : "hidden"}>
-                {taskDetailsPanel}
-              </div>
-            </StatusPulse>
+            <div className="min-w-0 lg:col-span-2">
+              <StatusPulse triggerKey={`task-selection-inline-${selectedTaskId ?? "none"}`}>
+                <div className={isMobileDetailsOpen ? "hidden md:block" : "hidden"}>
+                  {taskDetailsPanel}
+                </div>
+              </StatusPulse>
+            </div>
 
             <div className="min-w-0">
               <ProjectWorkSiteCamPanel
