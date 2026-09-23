@@ -10,6 +10,8 @@ const migration = readFileSync(resolve(root, "supabase/migrations/20260824050000
 const projectPage = readFileSync(resolve(root, "app/(app)/projects/[id]/page.tsx"), "utf8");
 const panel = readFileSync(resolve(root, "components/projects/workspace/project-operating-system-panel.tsx"), "utf8");
 const commandCenter = readFileSync(resolve(root, "components/projects/workspace/project-command-center-foundation.tsx"), "utf8");
+const workWorkspace = readFileSync(resolve(root, "components/projects/workspace/project-work-workspace.tsx"), "utf8");
+const superintendentBriefing = readFileSync(resolve(root, "components/projects/workspace/project-superintendent-briefing.tsx"), "utf8");
 
 assert.match(migration, /pg_advisory_xact_lock/, "workspace bootstrap must serialize concurrent retries");
 assert.match(migration, /partition by lower\(btrim\(s\.name\)\)/, "estimate section phase names must be deduplicated deterministically");
@@ -73,3 +75,11 @@ assert.match(invoiceService, /change_order_invoice_links/, "approved uninvoiced 
 
 assert.match(completionRoute, /ensureProjectCompletionInvoice/, "canonical project completion must create or reuse a draft completion invoice");
 assert.match(orionHandlers, /ensureProjectCompletionInvoice/, "Orion project completion must create or reuse a draft completion invoice");
+
+assert.match(workWorkspace, /const isProjectCompleted = normalizeStatus\(projectStatus\) === "completed"/, "Tasks workspace must derive completed state from the canonical project status");
+assert.match(workWorkspace, /completionPercent: 100/, "completed project Tasks snapshot must render 100 percent completion");
+assert.match(workWorkspace, /recommendedActions: \[\]/, "completed project Tasks view must suppress active execution recommendations");
+assert.match(workWorkspace, /workCompletedTitle/, "completed projects must replace the active phase board with a closeout-safe completed state");
+assert.doesNotMatch(workWorkspace, /<StaggerGroup className="grid min-w-0 gap-6 xl:grid-cols/, "Tasks layout must not rely on StaggerGroup wrappers for grid column spans");
+assert.match(workWorkspace, /xl:col-span-2 lg:grid-cols-2/, "active Tasks lower workspace must reflow full width below the execution board");
+assert.match(superintendentBriefing, /briefingRisksCompletedState/, "completed Tasks briefing must not tell users to continue active project execution");

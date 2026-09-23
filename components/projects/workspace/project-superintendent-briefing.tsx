@@ -30,6 +30,7 @@ type ProjectSuperintendentBriefingPanelProps = {
   briefing: ProjectSuperintendentBriefing;
   projectId: string;
   projectName: string;
+  projectStatus?: string;
   locale: string;
   t: TranslateFn;
   /** Format a currency value using the workspace locale. */
@@ -46,11 +47,13 @@ export function ProjectSuperintendentBriefingPanel({
   briefing,
   projectId,
   projectName,
+  projectStatus,
   locale,
   t,
   formatCurrency,
 }: ProjectSuperintendentBriefingPanelProps) {
   const { metadata, state, greeting, executiveSummaryKey, executiveSummaryParams, focusItems, riskItems, progressSnapshot, recommendedActions } = briefing;
+  const isProjectCompleted = projectStatus?.trim().toLowerCase() === "completed";
 
   const [mode, setMode] = useState<PanelMode>("deterministic");
   const [narration, setNarration] = useState<NarratedBriefing | null>(null);
@@ -236,6 +239,7 @@ export function ProjectSuperintendentBriefingPanel({
             mode={mode}
             narration={narration}
             riskItems={riskItems}
+            isProjectCompleted={isProjectCompleted}
             t={t}
           />
         </FadeIn>
@@ -338,7 +342,7 @@ function FocusSection({ mode, narration, focusItems, t }: { mode: PanelMode; nar
   );
 }
 
-function RisksSection({ mode, narration, riskItems, t }: { mode: PanelMode; narration: NarratedBriefing | null; riskItems: import("@/lib/project-intelligence/briefing/briefing-types").BriefingRiskItem[]; t: TranslateFn }) {
+function RisksSection({ mode, narration, riskItems, isProjectCompleted, t }: { mode: PanelMode; narration: NarratedBriefing | null; riskItems: import("@/lib/project-intelligence/briefing/briefing-types").BriefingRiskItem[]; isProjectCompleted: boolean; t: TranslateFn }) {
   const aiRisks = mode === "ai" && narration ? narration.risks : null;
   return (
     <Card as="section" variant="elevated" className="rounded-[16px] shadow-[var(--shadow-small)]">
@@ -374,7 +378,7 @@ function RisksSection({ mode, narration, riskItems, t }: { mode: PanelMode; narr
         ) : (
           <div className="flex items-center gap-3 rounded-[12px] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-4 py-3">
             <CheckCircle2 size={16} className="shrink-0 text-[var(--color-success-600)]" aria-hidden="true" />
-            <p className="text-sm font-semibold text-[var(--color-success-700)]">{t("briefingRisksHealthyState")}</p>
+            <p className="text-sm font-semibold text-[var(--color-success-700)]">{t(isProjectCompleted ? "briefingRisksCompletedState" : "briefingRisksHealthyState")}</p>
           </div>
         )}
       </CardContent>

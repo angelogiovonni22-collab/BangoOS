@@ -37,8 +37,8 @@ assert.ok(headerWeather.includes("min-h-[112px]"), "weather and map stay short i
 
 assert.ok(!workWorkspace.includes('xl:grid-cols-[280px_minmax(0,1fr)_340px]'), "Tasks must not force the board between two fixed desktop rails");
 assert.ok(workWorkspace.includes('xl:grid-cols-[240px_minmax(0,1fr)]'), "laptop Tasks layout reserves the dominant width for the execution board");
-assert.ok(workWorkspace.includes('md:grid-cols-2 xl:col-span-2'), "supporting Tasks panels reflow beneath the board instead of squeezing it");
-assert.ok(workWorkspace.includes('hidden md:block md:col-span-2 min-[1800px]:hidden'), "tablet and laptop users receive usable inline task details");
+assert.ok(workWorkspace.includes('xl:col-span-2 lg:grid-cols-2'), "supporting Tasks panels reflow full-width beneath the board instead of squeezing it");
+assert.ok(workWorkspace.includes('hidden lg:col-span-2 md:block'), "tablet and laptop users receive a full-width task-details toggle beneath the board");
 assert.ok(executionBoard.includes('data-testid="execution-board-scroll-region"'), "the execution board exposes its scroll-safe desktop region");
 assert.ok(executionBoard.includes('min-w-[1040px] grid-cols-4'), "kanban columns retain a readable minimum width");
 assert.ok(executionBoard.includes('overflow-x-auto'), "desktop kanban overflow scrolls instead of clipping or compressing cards");
