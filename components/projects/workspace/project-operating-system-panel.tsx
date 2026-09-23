@@ -59,8 +59,8 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
 
       <CardContent className="space-y-5 p-5">
         <Link href={`/projects/${projectId}/materials`} className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--color-brand-200)] bg-[var(--color-primary-50)] px-4 py-3 transition hover:border-[var(--color-brand-400)] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-500)]">
-          <span className="flex items-center gap-3"><span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary-600)] text-white"><Boxes size={18} aria-hidden="true" /></span><span><span className="block text-sm font-semibold text-[var(--color-navy-900)]">{l("Materials & Procurement", "Materiales y compras")}</span><span className="block text-xs text-[var(--color-text-secondary)]">{l("Review estimate materials, inventory, current costs, and purchasing status.", "Revisa materiales del presupuesto, inventario, costos actuales y estado de compras.")}</span></span></span>
-          <span className="text-xs font-semibold text-[var(--color-brand-700)]">{l("Open plan", "Abrir plan")}</span>
+          <span className="flex items-center gap-3"><span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary-600)] text-white"><Boxes size={18} aria-hidden="true" /></span><span><span className="block text-sm font-semibold text-slate-950">{l("Materials & Procurement", "Materiales y compras")}</span><span className="block text-xs text-slate-950">{l("Review estimate materials, inventory, current costs, and purchasing status.", "Revisa materiales del presupuesto, inventario, costos actuales y estado de compras.")}</span></span></span>
+          <span className="text-xs font-semibold text-slate-950">{l("Open plan", "Abrir plan")}</span>
         </Link>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile label={l("Operating Score", "Puntuación operativa")} value={`${score}/100`} note={scoreSummary(score, es)} />
@@ -83,7 +83,7 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
 
         <div className="grid gap-4 xl:grid-cols-2">
           <div className="rounded-[14px] border border-[var(--color-border-subtle)] bg-white p-4">
-            <p className="flex items-center gap-2 text-sm font-semibold text-[var(--color-navy-900)]">
+            <p className="flex items-center gap-2 text-sm font-bold text-white [&_svg]:text-blue-400">
               <ShieldCheck size={15} aria-hidden="true" />
               {l("Risk Priorities", "Prioridades de riesgo")}
             </p>
@@ -101,7 +101,7 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
           </div>
 
           <div className="rounded-[14px] border border-[var(--color-border-subtle)] bg-white p-4">
-            <p className="flex items-center gap-2 text-sm font-semibold text-[var(--color-navy-900)]">
+            <p className="flex items-center gap-2 text-sm font-bold text-white [&_svg]:text-blue-400">
               <Bot size={15} aria-hidden="true" />
               {l("Orion Recommended Actions", "Acciones recomendadas por Orion")}
             </p>
@@ -130,7 +130,7 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
         <div className="rounded-[14px] border border-[var(--color-border-subtle)] bg-white p-4" data-testid="project-compliance-readiness">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="flex items-center gap-2 text-sm font-semibold text-[var(--color-navy-900)]">
+              <p className="flex items-center gap-2 text-sm font-bold text-white [&_svg]:text-blue-400">
                 <ShieldCheck size={15} aria-hidden="true" />
                 {l("Compliance Readiness", "Preparación de cumplimiento")}
               </p>
@@ -151,7 +151,7 @@ export function ProjectOperatingSystemPanel({ intelligence, briefing, projectId,
         <div className="rounded-[14px] border border-[var(--color-border-subtle)] bg-white p-4" data-testid="project-execution-readiness">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-sm font-semibold text-[var(--color-navy-900)]">
+              <p className="flex items-center gap-2 text-sm font-bold text-white [&_svg]:text-blue-400">
                 <Activity size={15} aria-hidden="true" />
                 {l("Execution Readiness", "Preparación de ejecución")}
               </p>
