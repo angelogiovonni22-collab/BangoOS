@@ -197,6 +197,8 @@
   "workPhasesTitle": "Fases del proyecto",
   "workPhasesAdd": "Agregar fase",
   "workCreateTask": "Crear tarea",
+  "workCompletedTitle": "Trabajo del proyecto completado",
+  "workCompletedDescription": "La ejecucion esta completa. Los controles activos de tareas y fases estan ocultos; la documentacion historica de campo y la cronologia de operaciones siguen disponibles para revisar el cierre.",
   "workCreateTaskPlaceholder": "Titulo de la tarea",
   "workOpenSchedule": "Abrir calendario",
   "workCreateDailyReport": "Crear informe diario",
@@ -847,6 +849,7 @@
 
   "briefingRisksTitle": "Riesgos del proyecto",
   "briefingRisksHealthyState": "No se detectaron riesgos significativos. Continua la ejecucion normal del proyecto.",
+  "briefingRisksCompletedState": "La ejecucion del proyecto esta completa. No hay riesgos de ejecucion activos que requieran accion; continua con la revision de cierre.",
 
   "briefingRiskOverdueCriticalTitle": "Critico: multiples tareas vencidas",
   "briefingRiskOverdueCriticalExplanation": "{{count}} tareas han superado su fecha de finalizacion planificada. Esto afecta el cronograma general.",
