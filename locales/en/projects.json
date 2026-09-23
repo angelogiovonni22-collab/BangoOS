@@ -197,6 +197,8 @@
   "workPhasesTitle": "Project Phases",
   "workPhasesAdd": "Add Phase",
   "workCreateTask": "Create Task",
+  "workCompletedTitle": "Project work completed",
+  "workCompletedDescription": "Execution is complete. Active task and phase controls are hidden; historical field documentation and the operations timeline remain available for closeout review.",
   "workCreateTaskPlaceholder": "Task title",
   "workOpenSchedule": "Open Schedule",
   "workCreateDailyReport": "Create Daily Report",
@@ -847,6 +849,7 @@
 
   "briefingRisksTitle": "Project Risks",
   "briefingRisksHealthyState": "No significant risks detected. Continue normal project execution.",
+  "briefingRisksCompletedState": "Project execution is complete. No active execution risks require action; continue with closeout review.",
 
   "briefingRiskOverdueCriticalTitle": "Critical: Multiple overdue tasks",
   "briefingRiskOverdueCriticalExplanation": "{{count}} tasks are past their planned finish date. This is impacting the overall schedule.",
