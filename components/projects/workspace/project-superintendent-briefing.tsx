@@ -148,8 +148,8 @@ export function ProjectSuperintendentBriefingPanel({
           {/* Deterministic executive summary */}
           {!isAI && mode !== "loading" && (
             <div className={`flex items-start gap-3 rounded-[14px] border px-4 py-3.5 ${stateColors.summaryStrip}`}>
-              <span className={`mt-0.5 shrink-0 ${stateColors.summaryIcon}`}><StateIcon state={state} /></span>
-              <p className="text-sm font-semibold leading-6 text-[var(--color-navy-900)]">{t(executiveSummaryKey, executiveSummaryParams)}</p>
+              <span className={`mt-0.5 shrink-0 ${isProjectCompleted ? "text-white" : stateColors.summaryIcon}`}><StateIcon state={state} /></span>
+              <p className={`text-sm font-semibold leading-6 ${isProjectCompleted ? "text-white" : "text-[var(--color-navy-900)]"}`}>{t(executiveSummaryKey, executiveSummaryParams)}</p>
             </div>
           )}
 
@@ -649,11 +649,11 @@ function ConfidencePill({ confidence, t }: { confidence: "high" | "medium" | "lo
 }
 
 function SnapshotMetric({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "danger" | "warning" }) {
-  const valueClass = tone === "danger" ? "text-[var(--color-danger-700)]" : tone === "warning" ? "text-[var(--color-warning-700)]" : "text-[var(--color-navy-900)]";
+  const valueClass = tone === "danger" ? "text-[#ffb4b4]" : tone === "warning" ? "text-[#ffd88a]" : "text-white";
   return (
-    <div className="rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-2.5">
-      <dt className="text-[0.68rem] font-semibold uppercase tracking-[0.07em] text-[var(--color-text-muted)]">{label}</dt>
-      <dd className={`mt-1 text-base font-bold ${valueClass}`}>{value}</dd>
+    <div className="rounded-[10px] border border-[#315f8c] bg-[#071a33] px-3 py-2.5">
+      <dt className="text-[0.68rem] font-bold uppercase tracking-[0.07em] text-[#9fb8d3]">{label}</dt>
+      <dd className={`mt-1 text-base font-extrabold ${valueClass}`}>{value}</dd>
     </div>
   );
 }
