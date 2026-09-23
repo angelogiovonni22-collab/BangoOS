@@ -205,6 +205,7 @@ type WorkspaceState = {
   profilesById: Record<string, string>;
   tasks: TaskSummary[];
   invoices: InvoiceSummary[];
+  originalEstimateId: string | null;
   counts: WorkspaceCounts;
   closeout: CloseoutSnapshot;
   timelineEntries: CommandCenterTimelineEntry[];
@@ -523,7 +524,16 @@ export default function ProjectWorkspacePage() {
             .limit(20),
         ]);
 
-        if (profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || dailyReportsCountResponse.error || photosCountResponse.error || latestProjectPhotoResponse.error || inspectionsCountResponse.error || pendingInspectionsCountResponse.error || permitsCountResponse.error || openPermitsCountResponse.error || communicationsCountResponse.error || openPunchItemsCountResponse.error || closeoutResponse.error || assignedEquipmentCountResponse.error || availableEquipmentCountResponse.error || equipmentConflictCountResponse.error || communicationsRecentResponse.error || inspectionsRecentResponse.error || permitsRecentResponse.error || punchItemsRecentResponse.error || punchItemsDetailResponse.error || assignmentsResponse.error || crewsResponse.error || dailyReportEventsResponse.error || photoEventsResponse.error || changeOrdersRecentResponse.error) {
+        const originalEstimateResponse = await client
+          .from("estimates")
+          .select("id")
+          .eq("company_id", workspaceResult.context.companyId)
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle<{ id: string }>();
+
+        if (originalEstimateResponse.error || profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || dailyReportsCountResponse.error || photosCountResponse.error || latestProjectPhotoResponse.error || inspectionsCountResponse.error || pendingInspectionsCountResponse.error || permitsCountResponse.error || openPermitsCountResponse.error || communicationsCountResponse.error || openPunchItemsCountResponse.error || closeoutResponse.error || assignedEquipmentCountResponse.error || availableEquipmentCountResponse.error || equipmentConflictCountResponse.error || communicationsRecentResponse.error || inspectionsRecentResponse.error || permitsRecentResponse.error || punchItemsRecentResponse.error || punchItemsDetailResponse.error || assignmentsResponse.error || crewsResponse.error || dailyReportEventsResponse.error || photoEventsResponse.error || changeOrdersRecentResponse.error) {
           if (isSubscribed) {
             setErrorKind("database");
             setErrorMessage(t("projects.errorLoadProject"));
@@ -580,6 +590,7 @@ export default function ProjectWorkspacePage() {
             profilesById: profileMap,
             tasks: taskRows,
             invoices: invoiceRows,
+            originalEstimateId: originalEstimateResponse.data?.id || null,
             counts: {
               estimates: estimatesCountResponse.count || 0,
               changeOrders: changeOrdersCountResponse.count || 0,
@@ -777,6 +788,8 @@ export default function ProjectWorkspacePage() {
             statusKey={status.key}
             customerHref={customerHref}
             editProjectHref={`/projects/${project.id}/edit`}
+            estimateHref={workspace.originalEstimateId ? `/estimates/${workspace.originalEstimateId}` : null}
+            invoiceHref={workspace.invoices[0]?.id ? `/invoices/${workspace.invoices[0].id}` : null}
           />
         </FadeIn>
 
