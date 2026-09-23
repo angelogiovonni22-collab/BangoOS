@@ -6,6 +6,7 @@ import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createProjectExecutionService } from "@/lib/projects/execution";
+import { ensureProjectCompletionInvoice } from "@/lib/invoices/service";
 
 const COMPLETION_ROLES = new Set(["owner", "administrator", "operations_manager", "project_manager", "superintendent"]);
 
@@ -26,7 +27,16 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       .eq("id", projectId)
       .maybeSingle();
     if (existing.error || !existing.data) throw new Error("Project not found.");
-    if (existing.data.status === "completed") return NextResponse.json({ ok: true, alreadyCompleted: true });
+    if (existing.data.status === "completed") {
+      const completionInvoice = await ensureProjectCompletionInvoice({
+        supabase: supabase as SupabaseClient<Database>,
+        companyId: workspace.context.companyId,
+        projectId,
+        userId: workspace.context.userId,
+      });
+      if (completionInvoice.error) throw new Error(completionInvoice.error);
+      return NextResponse.json({ ok: true, alreadyCompleted: true, completionInvoice });
+    }
     if (existing.data.status === "cancelled") throw new Error("A cancelled project cannot be marked complete.");
 
     const now = new Date().toISOString();
@@ -47,10 +57,19 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       notes: "Closeout initialized automatically when project was marked completed.",
     });
 
+    const completionInvoice = await ensureProjectCompletionInvoice({
+      supabase: supabase as SupabaseClient<Database>,
+      companyId: workspace.context.companyId,
+      projectId,
+      userId: workspace.context.userId,
+    });
+    if (completionInvoice.error) throw new Error(completionInvoice.error);
+
     return NextResponse.json({
       ok: true,
       project: result.data,
-      message: "Project completed. Active Trade Partner project access was closed automatically and historical records were preserved.",
+      completionInvoice,
+      message: "Project completed. Closeout was initialized and the final invoice was prepared as a draft ready for review.",
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to complete project." }, { status: 400 });
