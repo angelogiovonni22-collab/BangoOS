@@ -83,3 +83,5 @@ assert.match(workWorkspace, /workCompletedTitle/, "completed projects must repla
 assert.doesNotMatch(workWorkspace, /<StaggerGroup className="grid min-w-0 gap-6 xl:grid-cols/, "Tasks layout must not rely on StaggerGroup wrappers for grid column spans");
 assert.match(workWorkspace, /xl:col-span-2 lg:grid-cols-2/, "active Tasks lower workspace must reflow full width below the execution board");
 assert.match(superintendentBriefing, /briefingRisksCompletedState/, "completed Tasks briefing must not tell users to continue active project execution");
+
+assert.match(workWorkspace, /executiveSummaryKey: "briefingCompletedSummary"/, "completed Tasks briefing must not prompt users to start or schedule execution work");

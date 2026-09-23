@@ -61,6 +61,8 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     return {
       ...briefing,
       state: "no_active_work",
+      executiveSummaryKey: "briefingCompletedSummary",
+      executiveSummaryParams: {},
       focusItems: [],
       riskItems: [],
       recommendedActions: [],
