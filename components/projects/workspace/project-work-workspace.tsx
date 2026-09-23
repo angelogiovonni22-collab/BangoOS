@@ -52,6 +52,32 @@ type ProjectWorkWorkspaceProps = {
 
 export function ProjectWorkWorkspace({ companyId, projectId, projectName, projectStatus, customerId, userId, locale, tasks, profiles, briefing, formatCurrency, t }: ProjectWorkWorkspaceProps) {
   const supabase = useMemo(() => createClient(), []);
+  const isProjectCompleted = normalizeStatus(projectStatus) === "completed";
+  const completedBriefing = useMemo<ProjectSuperintendentBriefing>(() => {
+    if (!isProjectCompleted) {
+      return briefing;
+    }
+
+    return {
+      ...briefing,
+      state: "no_active_work",
+      focusItems: [],
+      riskItems: [],
+      recommendedActions: [],
+      progressSnapshot: {
+        ...briefing.progressSnapshot,
+        completionPercent: 100,
+        activeTasks: 0,
+        overdueTasks: 0,
+        blockedTasks: 0,
+        activePhasesCount: 0,
+        tasksDueToday: 0,
+        tasksDueThisWeek: 0,
+        assignedWorkers: 0,
+        unassignedTaskCount: 0,
+      },
+    };
+  }, [briefing, isProjectCompleted]);
   const [workspaceTasks, setWorkspaceTasks] = useState(tasks);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -401,18 +427,26 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
               <h2 className="mt-1 truncate text-lg font-bold text-[var(--color-navy-900)]">{projectName}</h2>
             </div>
             <div className="flex min-w-0 flex-wrap gap-2">
-              <button type="button" onClick={() => setIsCreateTaskOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-[10px] bg-[var(--color-brand-700)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-brand-800)]">
-                {isCreateTaskOpen ? <X size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
-                {isCreateTaskOpen ? t("projects.workTaskDetailsClose") : t("projects.workCreateTask")}
-              </button>
+              {!isProjectCompleted ? (
+                <button type="button" onClick={() => setIsCreateTaskOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-[10px] bg-[var(--color-brand-700)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-brand-800)]">
+                  {isCreateTaskOpen ? <X size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
+                  {isCreateTaskOpen ? t("projects.workTaskDetailsClose") : t("projects.workCreateTask")}
+                </button>
+              ) : (
+                <span className="inline-flex items-center rounded-full border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-3 py-2 text-sm font-semibold text-[var(--color-success-700)]">
+                  {t("projects.summaryCompleted")}
+                </span>
+              )}
               <WorkspaceLink href={`/schedule?projectId=${projectId}`} icon={<CalendarDays size={15} aria-hidden="true" />} label={t("projects.workOpenSchedule")} />
-              <WorkspaceLink href={`/daily-reports/new?projectId=${projectId}&projectName=${encodeURIComponent(projectName)}`} icon={<FilePlus2 size={15} aria-hidden="true" />} label={t("projects.workCreateDailyReport")} />
+              {!isProjectCompleted ? (
+                <WorkspaceLink href={`/daily-reports/new?projectId=${projectId}&projectName=${encodeURIComponent(projectName)}`} icon={<FilePlus2 size={15} aria-hidden="true" />} label={t("projects.workCreateDailyReport")} />
+              ) : null}
               <WorkspaceLink href={`/projects/${projectId}?tab=inspections`} icon={<ClipboardCheck size={15} aria-hidden="true" />} label={t("projects.workspaceTabInspections")} />
               <WorkspaceLink href={`/projects/${projectId}?tab=inspections#punch-list`} icon={<ListChecks size={15} aria-hidden="true" />} label={t("projects.workOpenPunchList")} />
             </div>
           </div>
 
-          {isCreateTaskOpen ? (
+          {!isProjectCompleted && isCreateTaskOpen ? (
             <div className="mt-4 grid min-w-0 gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
               <input value={newTaskTitle} onChange={(event) => setNewTaskTitle(event.target.value)} placeholder={t("projects.workCreateTaskPlaceholder")} aria-label={t("projects.workTaskDetailsFieldTitle")} className="h-10 min-w-0 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)] focus:ring-2 focus:ring-[var(--focus-ring-primary)]" />
               <input type="date" value={newTaskDueDate} onChange={(event) => setNewTaskDueDate(event.target.value)} aria-label={t("projects.workTaskDetailsFieldPlannedFinish")} className="h-10 min-w-0 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)]" />
@@ -426,7 +460,8 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
 
       <FadeIn delayMs={170} distancePx={6}>
         <ProjectSuperintendentBriefingPanel
-          briefing={briefing}
+          briefing={completedBriefing}
+          projectStatus={projectStatus}
           projectId={projectId}
           locale={locale}
           projectName={projectName}
@@ -447,90 +482,128 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
         />
       </FadeIn>
 
-      <StaggerGroup className="grid min-w-0 gap-6 xl:grid-cols-[240px_minmax(0,1fr)] min-[1800px]:grid-cols-[260px_minmax(640px,1fr)_320px]" startDelayMs={230} staggerMs={45} distancePx={8}>
-        <StatusPulse triggerKey={`phase-selection-${selectedPhaseId ?? "none"}`}>
-          <ProjectWorkActivePhasesPanel
-            companyId={companyId}
-            projectId={projectId}
-            tasks={workspaceTasks}
-            selectedPhaseId={selectedPhaseId}
-            onSelectedPhaseChange={handleSelectedPhaseChange}
-            t={t}
-          />
-        </StatusPulse>
+      {isProjectCompleted ? (
+        <div className="space-y-6">
+          <Card as="section" variant="elevated" className="min-w-0 rounded-[16px] shadow-[var(--shadow-small)]">
+            <CardHeader className="bg-[var(--color-surface-subtle)]/55">
+              <CardTitle className="text-[1.1rem] font-bold text-[var(--color-navy-900)]">{t("projects.workCompletedTitle")}</CardTitle>
+            </CardHeader>
+            <div className="p-5">
+              <p className="text-sm leading-6 text-[var(--color-text-secondary)]">{t("projects.workCompletedDescription")}</p>
+            </div>
+          </Card>
 
-        <div className="min-w-0 space-y-6">
-          <StatusPulse triggerKey={`board-selection-${selectedPhaseId ?? "none"}`}>
-            <Card as="section" variant="elevated" className="min-w-0 rounded-[16px] shadow-[var(--shadow-small)]">
-              <CardHeader className="bg-[var(--color-surface-subtle)]/55">
-                <CardTitle className="text-[1.1rem] font-bold text-[var(--color-navy-900)]">Execution Board</CardTitle>
-              </CardHeader>
-              <ProjectWorkExecutionBoard
-                selectedPhaseId={selectedPhaseId}
-                selectedTaskId={selectedTaskId}
-                tasks={workspaceTasks}
+          <div className="grid min-w-0 gap-6 xl:grid-cols-2">
+            <div className="min-w-0">
+              <ProjectWorkSiteCamPanel
+                companyId={companyId}
+                projectId={projectId}
+                projectName={projectName}
+                userId={userId}
+                selectedPhaseId={null}
+                selectedPhaseName={null}
+                selectedTaskId={null}
+                selectedTaskTitle={null}
                 profiles={profiles}
-                filters={executionFilters}
-                onFiltersChange={setExecutionFilters}
-                onSelectedTaskChange={handleSelectedTaskChange}
-                onDependenciesChanged={handleDependenciesChanged}
                 t={t}
               />
-            </Card>
-          </StatusPulse>
+            </div>
+            <div className="min-w-0">
+              <ProjectWorkOperationsTimeline
+                companyId={companyId}
+                projectId={projectId}
+                tasks={workspaceTasks}
+                profiles={profiles}
+                phaseNameById={phaseNameById}
+                t={t}
+              />
+            </div>
+          </div>
         </div>
-
-        <div className="grid min-w-0 gap-6 md:grid-cols-2 xl:col-span-2 min-[1800px]:col-span-1 min-[1800px]:block min-[1800px]:space-y-6">
-          <div className="hidden md:block md:col-span-2 min-[1800px]:hidden">
-            <button
-              type="button"
-              onClick={() => setIsMobileDetailsOpen((value) => !value)}
-              className="inline-flex w-full items-center justify-between rounded-[12px] border border-[var(--color-border-subtle)] bg-white px-4 py-2.5 text-left shadow-[var(--shadow-small)]"
-            >
-              <span className="text-sm font-semibold text-[var(--color-navy-900)]">{t("projects.workTaskDetailsMobileToggle")}</span>
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                {isMobileDetailsOpen ? t("projects.workTaskDetailsMobileHide") : t("projects.workTaskDetailsMobileShow")}
-              </span>
-            </button>
+      ) : (
+        <div className="grid min-w-0 gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
+          <div className="min-w-0">
+            <StatusPulse triggerKey={`phase-selection-${selectedPhaseId ?? "none"}`}>
+              <ProjectWorkActivePhasesPanel
+                companyId={companyId}
+                projectId={projectId}
+                tasks={workspaceTasks}
+                selectedPhaseId={selectedPhaseId}
+                onSelectedPhaseChange={handleSelectedPhaseChange}
+                t={t}
+              />
+            </StatusPulse>
           </div>
 
-          <StatusPulse triggerKey={`task-selection-inline-${selectedTaskId ?? "none"}`}>
-            <div className={isMobileDetailsOpen ? "hidden md:block md:col-span-2 min-[1800px]:hidden" : "hidden"}>
-              {taskDetailsPanel}
-            </div>
-          </StatusPulse>
+          <div className="min-w-0 space-y-6">
+            <StatusPulse triggerKey={`board-selection-${selectedPhaseId ?? "none"}`}>
+              <Card as="section" variant="elevated" className="min-w-0 rounded-[16px] shadow-[var(--shadow-small)]">
+                <CardHeader className="bg-[var(--color-surface-subtle)]/55">
+                  <CardTitle className="text-[1.1rem] font-bold text-[var(--color-navy-900)]">Execution Board</CardTitle>
+                </CardHeader>
+                <ProjectWorkExecutionBoard
+                  selectedPhaseId={selectedPhaseId}
+                  selectedTaskId={selectedTaskId}
+                  tasks={workspaceTasks}
+                  profiles={profiles}
+                  filters={executionFilters}
+                  onFiltersChange={setExecutionFilters}
+                  onSelectedTaskChange={handleSelectedTaskChange}
+                  onDependenciesChanged={handleDependenciesChanged}
+                  t={t}
+                />
+              </Card>
+            </StatusPulse>
+          </div>
 
-          <StatusPulse triggerKey={`task-selection-${selectedTaskId ?? "none"}`}>
-            <div className="hidden min-[1800px]:block">
-              <SlidePanel open from="right" className="h-full">
+          <div className="grid min-w-0 gap-6 xl:col-span-2 lg:grid-cols-2">
+            <div className="hidden lg:col-span-2 md:block">
+              <button
+                type="button"
+                onClick={() => setIsMobileDetailsOpen((value) => !value)}
+                className="inline-flex w-full items-center justify-between rounded-[12px] border border-[var(--color-border-subtle)] bg-white px-4 py-2.5 text-left shadow-[var(--shadow-small)]"
+              >
+                <span className="text-sm font-semibold text-[var(--color-navy-900)]">{t("projects.workTaskDetailsMobileToggle")}</span>
+                <span className="text-xs text-[var(--color-text-secondary)]">
+                  {isMobileDetailsOpen ? t("projects.workTaskDetailsMobileHide") : t("projects.workTaskDetailsMobileShow")}
+                </span>
+              </button>
+            </div>
+
+            <StatusPulse triggerKey={`task-selection-inline-${selectedTaskId ?? "none"}`}>
+              <div className={isMobileDetailsOpen ? "hidden md:block lg:col-span-2" : "hidden"}>
                 {taskDetailsPanel}
-              </SlidePanel>
+              </div>
+            </StatusPulse>
+
+            <div className="min-w-0">
+              <ProjectWorkSiteCamPanel
+                companyId={companyId}
+                projectId={projectId}
+                projectName={projectName}
+                userId={userId}
+                selectedPhaseId={selectedPhaseId}
+                selectedPhaseName={selectedPhaseId ? phaseNameById[selectedPhaseId] || null : null}
+                selectedTaskId={selectedTaskId}
+                selectedTaskTitle={selectedTask?.title || null}
+                profiles={profiles}
+                t={t}
+              />
             </div>
-          </StatusPulse>
 
-          <ProjectWorkSiteCamPanel
-            companyId={companyId}
-            projectId={projectId}
-            projectName={projectName}
-            userId={userId}
-            selectedPhaseId={selectedPhaseId}
-            selectedPhaseName={selectedPhaseId ? phaseNameById[selectedPhaseId] || null : null}
-            selectedTaskId={selectedTaskId}
-            selectedTaskTitle={selectedTask?.title || null}
-            profiles={profiles}
-            t={t}
-          />
-
-          <ProjectWorkOperationsTimeline
-            companyId={companyId}
-            projectId={projectId}
-            tasks={workspaceTasks}
-            profiles={profiles}
-            phaseNameById={phaseNameById}
-            t={t}
-          />
+            <div className="min-w-0">
+              <ProjectWorkOperationsTimeline
+                companyId={companyId}
+                projectId={projectId}
+                tasks={workspaceTasks}
+                profiles={profiles}
+                phaseNameById={phaseNameById}
+                t={t}
+              />
+            </div>
+          </div>
         </div>
-      </StaggerGroup>
+      )}
 
       <BottomSheet
         open={isMobileDetailsOpen}
