@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CheckCircle2,
+  FileText,
   Pencil,
+  Receipt,
   Share2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -22,6 +24,8 @@ type ProjectWorkspaceHeaderProps = {
   statusKey: string;
   customerHref: string | null;
   editProjectHref?: string | null;
+  estimateHref?: string | null;
+  invoiceHref?: string | null;
 };
 
 export function ProjectWorkspaceHeader({
@@ -32,6 +36,8 @@ export function ProjectWorkspaceHeader({
   statusLabel,
   statusKey,
   editProjectHref,
+  estimateHref,
+  invoiceHref,
 }: ProjectWorkspaceHeaderProps) {
   const { locale } = useI18n();
   const es = locale === "es";
@@ -114,17 +120,61 @@ export function ProjectWorkspaceHeader({
         badgeLabel={statusLabel}
         badgeTone={statusTone}
         actions={
-          <>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="rounded-[11px] border-[#5678a7] bg-[#152a4b] px-3.5 py-2 text-[0.8rem] font-semibold text-[#e7f1ff] hover:bg-[#1d3c68] disabled:border-[#3d5478] disabled:bg-[#122038] disabled:text-[#9ab0cd]"
-              onClick={() => void handleShare()}
-            >
-              <Share2 size={15} aria-hidden="true" />
-              {shareState === "copied" ? l("Copied", "Copiado") : l("Share", "Compartir")}
-            </Button>
+          <div className="flex flex-col items-end gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full justify-center rounded-[11px] border-[#5678a7] bg-[#152a4b] px-3.5 py-2 text-[0.8rem] font-semibold text-[#e7f1ff] hover:bg-[#1d3c68] disabled:border-[#3d5478] disabled:bg-[#122038] disabled:text-[#9ab0cd]"
+                onClick={() => void handleShare()}
+              >
+                <Share2 size={15} aria-hidden="true" />
+                {shareState === "copied" ? l("Copied", "Copiado") : l("Share", "Compartir")}
+              </Button>
+
+              {editProjectHref ? (
+                <Link
+                  href={editProjectHref}
+                  className={`${getButtonClassName({ variant: "primary", size: "sm" })} w-full justify-center rounded-[11px] border border-[#9ecfff] bg-[linear-gradient(180deg,#3b77be,#2d5f9f)] px-3.5 py-2 text-[0.8rem] font-semibold shadow-[0_12px_22px_-14px_rgba(30,120,255,0.84)]`}
+                >
+                  <Pencil size={15} aria-hidden="true" />
+                  {l("Edit Project", "Editar proyecto")}
+                </Link>
+              ) : <span />}
+
+              {estimateHref ? (
+                <Link
+                  href={estimateHref}
+                  aria-label={l("View original estimate", "Ver estimación original")}
+                  className={`${getButtonClassName({ variant: "outline", size: "sm" })} w-full justify-center rounded-[11px] border-[#5678a7] bg-[#152a4b] px-3.5 py-2 text-[0.8rem] font-semibold text-[#e7f1ff] hover:bg-[#1d3c68]`}
+                >
+                  <FileText size={15} aria-hidden="true" />
+                  {l("View Estimate", "Ver estimación")}
+                </Link>
+              ) : (
+                <Button type="button" size="sm" variant="outline" disabled className="w-full justify-center rounded-[11px] px-3.5 py-2 text-[0.8rem] font-semibold">
+                  <FileText size={15} aria-hidden="true" />
+                  {l("View Estimate", "Ver estimación")}
+                </Button>
+              )}
+
+              {invoiceHref ? (
+                <Link
+                  href={invoiceHref}
+                  aria-label={l("View project invoice", "Ver factura del proyecto")}
+                  className={`${getButtonClassName({ variant: "outline", size: "sm" })} w-full justify-center rounded-[11px] border-[#5678a7] bg-[#152a4b] px-3.5 py-2 text-[0.8rem] font-semibold text-[#e7f1ff] hover:bg-[#1d3c68]`}
+                >
+                  <Receipt size={15} aria-hidden="true" />
+                  {l("Invoice", "Factura")}
+                </Link>
+              ) : (
+                <Button type="button" size="sm" variant="outline" disabled className="w-full justify-center rounded-[11px] px-3.5 py-2 text-[0.8rem] font-semibold">
+                  <Receipt size={15} aria-hidden="true" />
+                  {l("Invoice", "Factura")}
+                </Button>
+              )}
+            </div>
 
             {statusKey !== "completed" && statusKey !== "cancelled" ? (
               <Button
@@ -139,17 +189,7 @@ export function ProjectWorkspaceHeader({
                 {completeBusy ? l("Completing Project…", "Completando proyecto…") : l("Project Complete", "Completar proyecto")}
               </Button>
             ) : null}
-
-            {editProjectHref ? (
-              <Link
-                href={editProjectHref}
-                className={`${getButtonClassName({ variant: "primary", size: "sm" })} rounded-[11px] border border-[#9ecfff] bg-[linear-gradient(180deg,#3b77be,#2d5f9f)] px-3.5 py-2 text-[0.8rem] font-semibold shadow-[0_12px_22px_-14px_rgba(30,120,255,0.84)]`}
-              >
-                <Pencil size={15} aria-hidden="true" />
-                {l("Edit Project", "Editar proyecto")}
-              </Link>
-            ) : null}
-          </>
+          </div>
         }
       />
       {completeMessage ? <div className="mx-4 mt-2 rounded-lg border border-emerald-300/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100">{completeMessage}</div> : null}
