@@ -27,7 +27,16 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       .eq("id", projectId)
       .maybeSingle();
     if (existing.error || !existing.data) throw new Error("Project not found.");
-    if (existing.data.status === "completed") return NextResponse.json({ ok: true, alreadyCompleted: true });
+    if (existing.data.status === "completed") {
+      const completionInvoice = await ensureProjectCompletionInvoice({
+        supabase: supabase as SupabaseClient<Database>,
+        companyId: workspace.context.companyId,
+        projectId,
+        userId: workspace.context.userId,
+      });
+      if (completionInvoice.error) throw new Error(completionInvoice.error);
+      return NextResponse.json({ ok: true, alreadyCompleted: true, completionInvoice });
+    }
     if (existing.data.status === "cancelled") throw new Error("A cancelled project cannot be marked complete.");
 
     const now = new Date().toISOString();
