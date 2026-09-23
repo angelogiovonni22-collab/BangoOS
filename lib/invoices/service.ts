@@ -523,6 +523,11 @@ export async function markInvoicePaid(params: {
   }
 
   const now = new Date().toISOString();
+  const remainingBalance = Math.max(record.data.invoice.total_amount - record.data.invoice.amount_paid, 0);
+
+  if (remainingBalance <= 0) {
+    return { error: null };
+  }
 
   const { error: paymentError } = await params.supabase
     .from("invoice_payment_history")
@@ -530,7 +535,7 @@ export async function markInvoicePaid(params: {
       company_id: params.companyId,
       invoice_id: params.invoiceId,
       payment_date: now.slice(0, 10),
-      amount: record.data.invoice.total_amount,
+      amount: remainingBalance,
       method: "manual",
       status: "recorded",
       notes: "Marked paid from invoice profile.",
@@ -585,7 +590,7 @@ export async function markInvoicePaid(params: {
       occurred_at: now,
       payload: {
         invoice_id: params.invoiceId,
-        amount: record.data.invoice.total_amount,
+        amount: remainingBalance,
         paid_date: now.slice(0, 10),
         deep_link: `/invoices/${params.invoiceId}`,
       },
