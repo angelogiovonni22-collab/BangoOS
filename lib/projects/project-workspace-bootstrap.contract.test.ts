@@ -63,3 +63,13 @@ assert.match(completionRoute, /startCloseout/, "canonical project completion ini
 const orionHandlers = readFileSync(resolve(root, "lib/orion/commands/handlers.ts"), "utf8");
 assert.match(orionHandlers, /projectPatch\.actual_end_date = statusUpdatedAt\.slice\(0, 10\)/, "Orion completion records the actual completion date");
 assert.match(orionHandlers, /project-closeout/, "Orion completion initializes closeout");
+
+const invoiceService = readFileSync(resolve(root, "lib/invoices/service.ts"), "utf8");
+assert.match(invoiceService, /ensureProjectCompletionInvoice/, "invoice service must expose automatic completion invoice creation");
+assert.match(invoiceService, /Final Invoice -/, "completion invoice must be created as a final draft invoice");
+assert.match(invoiceService, /status: "draft"/, "completion invoice must remain draft until the user sends it");
+assert.match(invoiceService, /previouslyInvoiced/, "completion invoice must account for prior project invoices such as deposits");
+assert.match(invoiceService, /change_order_invoice_links/, "approved uninvoiced change orders must be linked into the completion invoice");
+
+assert.match(completionRoute, /ensureProjectCompletionInvoice/, "canonical project completion must create or reuse a draft completion invoice");
+assert.match(orionHandlers, /ensureProjectCompletionInvoice/, "Orion project completion must create or reuse a draft completion invoice");
