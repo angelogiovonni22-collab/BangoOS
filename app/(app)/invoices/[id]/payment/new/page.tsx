@@ -98,7 +98,7 @@ export default function RecordCustomerPaymentPage() {
       <PageHeader
         compact
         eyebrow="ACCOUNTS RECEIVABLE"
-        title="Record Customer Payment"
+        title="Record Partial or Full Payment"
         description={`${invoice.invoice_number || "Invoice"} · ${invoice.title}`}
         secondaryActions={<Link href={`/invoices/${invoiceId}`} className={getButtonClassName({ variant: "secondary" })}>Cancel</Link>}
       />
@@ -111,7 +111,7 @@ export default function RecordCustomerPaymentPage() {
             <div><p className="text-xs uppercase text-[var(--bos-text-muted)]">Balance</p><p className="font-bold">{usd.format(balance)}</p></div>
           </div>
           <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-[var(--bos-text-secondary)]">
-            Record only money that has already been received outside this screen. This workflow does not charge a card, debit a bank account, or initiate an ACH transfer.
+            Record only money that has already been received outside this screen. Enter less than the balance to mark the invoice Partially Paid; enter the full balance to mark it Paid. This workflow does not charge a card, debit a bank account, or initiate an ACH transfer.
           </div>
           {error && <p className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm">{error}</p>}
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={submit}>
@@ -120,7 +120,7 @@ export default function RecordCustomerPaymentPage() {
             <label className="text-sm font-semibold">Method<select className={inputClass} value={method} onChange={(event) => setMethod(event.target.value)}><option value="check">Check</option><option value="ach">ACH / Bank Transfer</option><option value="card">Card</option><option value="cash">Cash</option><option value="other">Other</option></select></label>
             <label className="text-sm font-semibold">Reference Number<input className={inputClass} value={referenceNumber} onChange={(event) => setReferenceNumber(event.target.value)} placeholder="Check, ACH, or transaction ID" /></label>
             <label className="text-sm font-semibold sm:col-span-2">Notes<textarea className={inputClass} rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional payment note" /></label>
-            <div className="sm:col-span-2 flex justify-end"><Button type="submit" disabled={saving || balance <= 0}>{saving ? "Recording…" : "Record Payment"}</Button></div>
+            <div className="sm:col-span-2 flex justify-end"><Button type="submit" disabled={saving || balance <= 0}>{saving ? "Recording…" : Number(amount) > 0 && Number(amount) < balance - 0.005 ? "Record Partial Payment" : "Record Full Payment"}</Button></div>
           </form>
         </CardContent>
       </Card>
