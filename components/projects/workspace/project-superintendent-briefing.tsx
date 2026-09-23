@@ -148,7 +148,7 @@ export function ProjectSuperintendentBriefingPanel({
           {/* Deterministic executive summary */}
           {!isAI && mode !== "loading" && (
             <div className={`flex items-start gap-3 rounded-[14px] border px-4 py-3.5 ${stateColors.summaryStrip}`}>
-              <span className={`mt-0.5 shrink-0 ${stateColors.summaryIcon}`}><StateIcon state={state} /></span>
+              <span className={`mt-0.5 shrink-0 ${isProjectCompleted ? "text-white" : stateColors.summaryIcon}`}><StateIcon state={state} /></span>
               <p className={`text-sm font-semibold leading-6 ${isProjectCompleted ? "text-white" : "text-[var(--color-navy-900)]"}`}>{t(executiveSummaryKey, executiveSummaryParams)}</p>
             </div>
           )}
