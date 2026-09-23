@@ -529,7 +529,7 @@ export function ProjectWorkSiteCamPanel({
             <Button type="button" size="sm" variant="outline" className="border-[#6bb7f5] bg-white font-bold text-[#12345a] hover:bg-[#eef7ff] hover:text-[#0b2746]" onClick={() => uploadInputRef.current?.click()}>
               {t("projects.sitecamUploadPhotos")}
             </Button>
-            <Button type="button" size="sm" className="bg-[#2378ea] font-bold text-white hover:bg-[#1767d1] disabled:bg-[#a9c9ee] disabled:text-[#526d89]" disabled={isUploading || uploadQueue.length === 0} onClick={() => void uploadPhotos()}>
+            <Button type="button" size="sm" className="bg-[#2378ea] font-bold text-white hover:bg-[#1767d1] disabled:bg-[#6d9fd7] disabled:text-white disabled:opacity-100" disabled={isUploading || uploadQueue.length === 0} onClick={() => void uploadPhotos()}>
               {isUploading ? t("projects.sitecamUploadInProgress") : t("projects.sitecamStartUpload")}
             </Button>
           </div>
