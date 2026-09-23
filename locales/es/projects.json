@@ -847,6 +847,7 @@
   "briefingFocusDueThisWeekTitle": "{{count}} tarea con vencimiento esta semana",
   "briefingFocusDueThisWeekDescription": "Planifica la capacidad para cerrar estas tareas antes de sus fechas planificadas.",
 
+  "briefingCompletedSummary": "La ejecucion del proyecto esta completa. Revisa los registros de cierre, la documentacion final y la actividad historica del proyecto.",
   "briefingRisksTitle": "Riesgos del proyecto",
   "briefingRisksHealthyState": "No se detectaron riesgos significativos. Continua la ejecucion normal del proyecto.",
   "briefingRisksCompletedState": "La ejecucion del proyecto esta completa. No hay riesgos de ejecucion activos que requieran accion; continua con la revision de cierre.",
