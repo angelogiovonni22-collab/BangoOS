@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { CalendarDays, ClipboardCheck, FilePlus2, ListChecks, Plus, X } from "lucide-react";
 import { TaskDetailsPanel } from "@/app/(app)/projects/[id]/components/task-details-panel";
 import type { TaskFormValues } from "@/app/(app)/projects/[id]/components/workspace-types";
-import { FadeIn, SlidePanel, StaggerGroup, StatusPulse } from "@/components/motion";
+import { FadeIn, StatusPulse } from "@/components/motion";
 import { BottomSheet, Card, CardHeader, CardTitle } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import type { ProjectSuperintendentBriefing } from "@/lib/project-intelligence/briefing/briefing-types";
