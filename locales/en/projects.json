@@ -847,6 +847,7 @@
   "briefingFocusDueThisWeekTitle": "{{count}} task due this week",
   "briefingFocusDueThisWeekDescription": "Plan capacity now to close these tasks before their planned finish dates.",
 
+  "briefingCompletedSummary": "Project execution is complete. Review closeout records, final documentation, and historical project activity.",
   "briefingRisksTitle": "Project Risks",
   "briefingRisksHealthyState": "No significant risks detected. Continue normal project execution.",
   "briefingRisksCompletedState": "Project execution is complete. No active execution risks require action; continue with closeout review.",
