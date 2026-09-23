@@ -146,6 +146,7 @@ export function ProjectWorkspaceHeader({
               {estimateHref ? (
                 <Link
                   href={estimateHref}
+                  aria-label={l("View original estimate", "Ver estimación original")}
                   className={`${getButtonClassName({ variant: "outline", size: "sm" })} w-full justify-center rounded-[11px] border-[#5678a7] bg-[#152a4b] px-3.5 py-2 text-[0.8rem] font-semibold text-[#e7f1ff] hover:bg-[#1d3c68]`}
                 >
                   <FileText size={15} aria-hidden="true" />
@@ -161,6 +162,7 @@ export function ProjectWorkspaceHeader({
               {invoiceHref ? (
                 <Link
                   href={invoiceHref}
+                  aria-label={l("View project invoice", "Ver factura del proyecto")}
                   className={`${getButtonClassName({ variant: "outline", size: "sm" })} w-full justify-center rounded-[11px] border-[#5678a7] bg-[#152a4b] px-3.5 py-2 text-[0.8rem] font-semibold text-[#e7f1ff] hover:bg-[#1d3c68]`}
                 >
                   <Receipt size={15} aria-hidden="true" />
