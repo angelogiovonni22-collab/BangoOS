@@ -644,3 +644,165 @@ export async function voidInvoice(params: {
 
   return { error: error?.message || null };
 }
+
+
+export async function ensureProjectCompletionInvoice(params: {
+  supabase: SupabaseClient<Database>;
+  companyId: string;
+  projectId: string;
+  userId: string | null;
+}) {
+  const existing = await params.supabase
+    .from("invoices")
+    .select("id, status")
+    .eq("company_id", params.companyId)
+    .eq("project_id", params.projectId)
+    .is("archived_at", null)
+    .order("created_at", { ascending: false });
+
+  if (existing.error) {
+    return { error: existing.error.message, invoiceId: null, created: false };
+  }
+
+  const readyDraft = (existing.data ?? []).find((invoice) => invoice.status === "draft");
+  if (readyDraft?.id) {
+    return { error: null, invoiceId: readyDraft.id, created: false };
+  }
+
+  const projectResult = await params.supabase
+    .from("projects")
+    .select("id, name, customer_id, contract_amount, estimated_cost, created_by")
+    .eq("company_id", params.companyId)
+    .eq("id", params.projectId)
+    .maybeSingle();
+
+  if (projectResult.error || !projectResult.data) {
+    return { error: projectResult.error?.message || "Project not found.", invoiceId: null, created: false };
+  }
+
+  const project = projectResult.data;
+  const actorId = params.userId || project.created_by;
+  if (!actorId) {
+    return { error: "Unable to resolve an invoice owner.", invoiceId: null, created: false };
+  }
+
+  const [estimateResult, priorInvoicesResult, changeOrdersResult] = await Promise.all([
+    params.supabase
+      .from("estimates")
+      .select("id, title, estimate_number, total_amount, payment_terms, tax_rate")
+      .eq("company_id", params.companyId)
+      .eq("project_id", params.projectId)
+      .in("status", ["approved", "converted"])
+      .order("created_at", { ascending: false })
+      .limit(1),
+    params.supabase
+      .from("invoices")
+      .select("id, total_amount, status")
+      .eq("company_id", params.companyId)
+      .eq("project_id", params.projectId)
+      .neq("status", "void"),
+    params.supabase
+      .from("change_orders")
+      .select("id, change_order_number, title, total_amount, status, invoice_id")
+      .eq("company_id", params.companyId)
+      .eq("project_id", params.projectId)
+      .eq("status", "approved")
+      .is("archived_at", null),
+  ]);
+
+  if (estimateResult.error || priorInvoicesResult.error || changeOrdersResult.error) {
+    return {
+      error: estimateResult.error?.message || priorInvoicesResult.error?.message || changeOrdersResult.error?.message || "Unable to prepare completion invoice.",
+      invoiceId: null,
+      created: false,
+    };
+  }
+
+  const estimate = estimateResult.data?.[0] ?? null;
+  const baseContract = Number(estimate?.total_amount ?? project.contract_amount ?? project.estimated_cost ?? 0);
+  const uninvoicedChangeOrders = (changeOrdersResult.data ?? []).filter((changeOrder) => !changeOrder.invoice_id);
+  const changeOrderTotal = uninvoicedChangeOrders.reduce((sum, changeOrder) => sum + Number(changeOrder.total_amount || 0), 0);
+  const previouslyInvoiced = (priorInvoicesResult.data ?? []).reduce((sum, invoice) => sum + Number(invoice.total_amount || 0), 0);
+  const balanceDue = Math.max(0, Number((baseContract + changeOrderTotal - previouslyInvoiced).toFixed(2)));
+
+  if (balanceDue <= 0) {
+    return { error: null, invoiceId: null, created: false };
+  }
+
+  const issueDate = new Date().toISOString().slice(0, 10);
+  const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const lineItems: InvoiceLineItemDraft[] = [
+    {
+      id: `project-${params.projectId}-completion`,
+      sortOrder: 0,
+      description: previouslyInvoiced > 0 ? `Final balance - ${project.name}` : `Contract work - ${project.name}`,
+      quantity: "1",
+      unit: "lump_sum",
+      rate: String(Math.max(0, baseContract - previouslyInvoiced)),
+      notes: estimate?.estimate_number ? `Based on approved estimate ${estimate.estimate_number}.` : "Based on the project contract amount.",
+    },
+    ...uninvoicedChangeOrders
+      .filter((changeOrder) => Number(changeOrder.total_amount || 0) > 0)
+      .map((changeOrder, index) => ({
+        id: `change-order-${changeOrder.id}`,
+        sortOrder: index + 1,
+        description: `${changeOrder.change_order_number} - ${changeOrder.title}`,
+        quantity: "1",
+        unit: "lump_sum" as const,
+        rate: String(Number(changeOrder.total_amount || 0)),
+        notes: "Approved change order included in final invoice.",
+      })),
+  ].filter((line) => Number(line.rate || 0) > 0);
+
+  const values: InvoiceFormValues = {
+    title: `Final Invoice - ${project.name}`,
+    invoiceNumber: "",
+    customerId: project.customer_id || "",
+    projectId: params.projectId,
+    estimateId: estimate?.id || "",
+    preparedBy: actorId,
+    issueDate,
+    dueDate,
+    status: "draft",
+    description: "Automatically prepared when the project was marked complete. Review before sending.",
+    discountType: "none",
+    discountValue: "0",
+    taxRatePercent: String(Number(estimate?.tax_rate || 0) * 100),
+    additionalFee: "0",
+    notes: "B.O.S. completion invoice - ready for review and sending.",
+    paymentTerms: estimate?.payment_terms || "Net 30",
+  };
+
+  const saved = await saveInvoice({
+    supabase: params.supabase,
+    companyId: params.companyId,
+    userId: actorId,
+    values,
+    lineItems,
+  });
+
+  if (saved.error || !saved.invoiceId) {
+    return { error: saved.error || "Unable to create completion invoice.", invoiceId: null, created: false };
+  }
+
+  for (const changeOrder of uninvoicedChangeOrders) {
+    await params.supabase
+      .from("change_order_invoice_links")
+      .upsert({
+        company_id: params.companyId,
+        change_order_id: changeOrder.id,
+        invoice_id: saved.invoiceId,
+        link_type: "converted",
+        amount_applied: changeOrder.total_amount,
+        created_by: actorId,
+      }, { onConflict: "change_order_id,invoice_id" });
+
+    await params.supabase
+      .from("change_orders")
+      .update({ invoice_id: saved.invoiceId, status: "invoiced", updated_by: actorId })
+      .eq("company_id", params.companyId)
+      .eq("id", changeOrder.id);
+  }
+
+  return { error: null, invoiceId: saved.invoiceId, created: true };
+}
