@@ -528,7 +528,7 @@ export default function ProjectWorkspacePage() {
           .from("estimates")
           .select("id")
           .eq("company_id", workspaceResult.context.companyId)
-          .eq("project_id", projectId)
+          .or(`project_id.eq.${projectId},converted_project_id.eq.${projectId}`)
           .order("created_at", { ascending: true })
           .limit(1)
           .maybeSingle<{ id: string }>();
