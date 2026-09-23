@@ -737,7 +737,7 @@ export async function ensureProjectCompletionInvoice(params: {
       sortOrder: 0,
       description: previouslyInvoiced > 0 ? `Final balance - ${project.name}` : `Contract work - ${project.name}`,
       quantity: "1",
-      unit: "lump_sum",
+      unit: "lump_sum" as const,
       rate: String(Math.max(0, baseContract - previouslyInvoiced)),
       notes: estimate?.estimate_number ? `Based on approved estimate ${estimate.estimate_number}.` : "Based on the project contract amount.",
     },
