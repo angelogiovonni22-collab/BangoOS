@@ -654,7 +654,7 @@ export async function ensureProjectCompletionInvoice(params: {
 }) {
   const existing = await params.supabase
     .from("invoices")
-    .select("id, status")
+    .select("id, status, title")
     .eq("company_id", params.companyId)
     .eq("project_id", params.projectId)
     .is("archived_at", null)
@@ -664,7 +664,7 @@ export async function ensureProjectCompletionInvoice(params: {
     return { error: existing.error.message, invoiceId: null, created: false };
   }
 
-  const readyDraft = (existing.data ?? []).find((invoice) => invoice.status === "draft");
+  const readyDraft = (existing.data ?? []).find((invoice) => invoice.status === "draft" && invoice.title?.startsWith("Final Invoice -"));
   if (readyDraft?.id) {
     return { error: null, invoiceId: readyDraft.id, created: false };
   }
@@ -689,7 +689,7 @@ export async function ensureProjectCompletionInvoice(params: {
   const [estimateResult, priorInvoicesResult, changeOrdersResult] = await Promise.all([
     params.supabase
       .from("estimates")
-      .select("id, title, estimate_number, total_amount, payment_terms, tax_rate")
+      .select("id, title, estimate_number, total_amount, payment_terms")
       .eq("company_id", params.companyId)
       .eq("project_id", params.projectId)
       .in("status", ["approved", "converted"])
@@ -767,7 +767,7 @@ export async function ensureProjectCompletionInvoice(params: {
     description: "Automatically prepared when the project was marked complete. Review before sending.",
     discountType: "none",
     discountValue: "0",
-    taxRatePercent: String(Number(estimate?.tax_rate || 0) * 100),
+    taxRatePercent: "0",
     additionalFee: "0",
     notes: "B.O.S. completion invoice - ready for review and sending.",
     paymentTerms: estimate?.payment_terms || "Net 30",
