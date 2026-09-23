@@ -192,7 +192,8 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const balanceDue = Math.max(invoice.total_amount - invoice.amount_paid, 0);
   const status = normalizeInvoiceStatus(invoice.status);
   const canSend = status === "draft";
-  const canMarkPaid = ["sent", "viewed", "partially_paid", "overdue"].includes(status) && balanceDue > 0;
+  const canRecordPayment = ["sent", "viewed", "partially_paid", "overdue"].includes(status) && balanceDue > 0;
+  const canMarkPaid = canRecordPayment;
   const canVoid = status !== "paid" && status !== "void";
 
   return (
@@ -207,6 +208,13 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
               <Button type="button" variant="secondary" size="md">Print</Button>
             </Link>
             <Button type="button" variant="secondary" size="md" onClick={handleSend} disabled={!canSend}>Send</Button>
+            {canRecordPayment ? (
+              <Link href={`/invoices/${invoiceId}/payment/new`} className={getButtonClassName({ variant: "secondary", size: "md" })}>
+                Record Payment
+              </Link>
+            ) : (
+              <Button type="button" variant="secondary" size="md" disabled>Record Payment</Button>
+            )}
             <Button type="button" variant="secondary" size="md" onClick={handleMarkPaid} disabled={!canMarkPaid}>Mark Paid</Button>
             <Button type="button" variant="secondary" size="md" onClick={handleVoid} disabled={!canVoid}>Void</Button>
           </>
@@ -227,7 +235,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           <DetailRow label="Issue Date" value={formatInvoiceDate(invoice.issue_date, localeTag, "Not set")} />
           <DetailRow label="Due Date" value={formatInvoiceDate(invoice.due_date, localeTag, "Not set")} />
           <DetailRow label="Amount" value={formatUsd(invoice.total_amount, localeTag)} />
-          <DetailRow label="Paid" value={formatUsd(invoice.amount_paid, localeTag)} />
+          <DetailRow label={status === "partially_paid" ? "Partial Payment Received" : "Paid"} value={formatUsd(invoice.amount_paid, localeTag)} />
           <DetailRow label="Balance Due" value={formatUsd(balanceDue, localeTag)} />
         </CardContent>
       </Card>
@@ -342,6 +350,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
                     <p className="text-xs text-[var(--color-text-secondary)]">{formatInvoiceDate(payment.payment_date, localeTag, "Not set")}</p>
                   </div>
                   <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{payment.method || "manual"} · {payment.status}</p>
+                  {payment.reference_number ? <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Reference: {payment.reference_number}</p> : null}
                   <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{payment.notes || "No note provided."}</p>
                 </article>
               ))}

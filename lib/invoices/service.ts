@@ -523,25 +523,32 @@ export async function markInvoicePaid(params: {
   }
 
   const now = new Date().toISOString();
+  const remainingBalance = Math.max(record.data.invoice.total_amount - record.data.invoice.amount_paid, 0);
 
-  const { error: paymentError } = await params.supabase
+  if (remainingBalance <= 0) {
+    return { error: null };
+  }
+
+  const paymentResult = await params.supabase
     .from("invoice_payment_history")
     .insert({
       company_id: params.companyId,
       invoice_id: params.invoiceId,
       payment_date: now.slice(0, 10),
-      amount: record.data.invoice.total_amount,
+      amount: remainingBalance,
       method: "manual",
       status: "recorded",
       notes: "Marked paid from invoice profile.",
       created_by: params.userId,
-    });
+    })
+    .select("id")
+    .single();
 
-  if (paymentError) {
-    return { error: paymentError.message };
+  if (paymentResult.error) {
+    return { error: paymentResult.error.message };
   }
 
-  const { error } = await params.supabase
+  const updateResult = await params.supabase
     .from("invoices")
     .update({
       status: "paid",
@@ -550,9 +557,24 @@ export async function markInvoicePaid(params: {
       updated_by: params.userId,
     })
     .eq("company_id", params.companyId)
-    .eq("id", params.invoiceId);
+    .eq("id", params.invoiceId)
+    .eq("amount_paid", record.data.invoice.amount_paid)
+    .select("id")
+    .maybeSingle();
 
-  if (!error) {
+  if (updateResult.error || !updateResult.data) {
+    await params.supabase
+      .from("invoice_payment_history")
+      .delete()
+      .eq("company_id", params.companyId)
+      .eq("id", paymentResult.data.id);
+
+    return {
+      error: updateResult.error?.message || "Invoice balance changed while marking the invoice paid. Refresh and try again.",
+    };
+  }
+
+  {
     const orion = createSupabaseOrionEventPublisher(params.supabase);
     await orion.publishEvent({
       company_id: params.companyId,
@@ -585,7 +607,7 @@ export async function markInvoicePaid(params: {
       occurred_at: now,
       payload: {
         invoice_id: params.invoiceId,
-        amount: record.data.invoice.total_amount,
+        amount: remainingBalance,
         paid_date: now.slice(0, 10),
         deep_link: `/invoices/${params.invoiceId}`,
       },
@@ -598,7 +620,7 @@ export async function markInvoicePaid(params: {
     });
   }
 
-  return { error: error?.message || null };
+  return { error: null };
 }
 
 export async function voidInvoice(params: {
