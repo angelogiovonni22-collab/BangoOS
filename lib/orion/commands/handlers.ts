@@ -1,7 +1,7 @@
 import { saveEstimate } from "@/lib/estimates/service";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { escapeContractEmailText, estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
-import { saveInvoice, sendInvoice, markInvoicePaid } from "@/lib/invoices/service";
+import { ensureProjectCompletionInvoice, saveInvoice, sendInvoice, markInvoicePaid } from "@/lib/invoices/service";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { resolveCanonicalOrionNavigationHref } from "@/lib/orion/navigation/catalog";
 import { createProjectExecutionService } from "@/lib/projects/execution";
@@ -1005,6 +1005,16 @@ export async function executeUpdateProjectStatusCommand(
       projectId,
       notes: "Closeout initialized automatically when project was marked completed.",
     });
+
+    const completionInvoice = await ensureProjectCompletionInvoice({
+      supabase: deps.supabase,
+      companyId: context.companyId,
+      projectId,
+      userId: context.actorProfileId,
+    });
+    if (completionInvoice.error) {
+      throw new Error(completionInvoice.error);
+    }
 
     await orion.publishEvent({
       company_id: context.companyId,
