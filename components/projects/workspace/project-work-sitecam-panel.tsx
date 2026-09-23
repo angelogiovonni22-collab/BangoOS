@@ -508,7 +508,7 @@ export function ProjectWorkSiteCamPanel({
             <select
               value={sortOrder}
               onChange={(event) => setSortOrder(event.target.value as "newest" | "oldest")}
-              className="h-10 w-full rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)]"
+              className="h-10 w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 text-sm font-semibold text-white outline-none focus:border-[#68b9ff]"
             >
               <option value="newest">{t("projects.workSitecamSortNewest")}</option>
               <option value="oldest">{t("projects.workSitecamSortOldest")}</option>
