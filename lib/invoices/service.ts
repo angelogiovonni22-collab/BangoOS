@@ -529,7 +529,7 @@ export async function markInvoicePaid(params: {
     return { error: null };
   }
 
-  const { error: paymentError } = await params.supabase
+  const paymentResult = await params.supabase
     .from("invoice_payment_history")
     .insert({
       company_id: params.companyId,
@@ -540,13 +540,15 @@ export async function markInvoicePaid(params: {
       status: "recorded",
       notes: "Marked paid from invoice profile.",
       created_by: params.userId,
-    });
+    })
+    .select("id")
+    .single();
 
-  if (paymentError) {
-    return { error: paymentError.message };
+  if (paymentResult.error) {
+    return { error: paymentResult.error.message };
   }
 
-  const { error } = await params.supabase
+  const updateResult = await params.supabase
     .from("invoices")
     .update({
       status: "paid",
@@ -555,9 +557,24 @@ export async function markInvoicePaid(params: {
       updated_by: params.userId,
     })
     .eq("company_id", params.companyId)
-    .eq("id", params.invoiceId);
+    .eq("id", params.invoiceId)
+    .eq("amount_paid", record.data.invoice.amount_paid)
+    .select("id")
+    .maybeSingle();
 
-  if (!error) {
+  if (updateResult.error || !updateResult.data) {
+    await params.supabase
+      .from("invoice_payment_history")
+      .delete()
+      .eq("company_id", params.companyId)
+      .eq("id", paymentResult.data.id);
+
+    return {
+      error: updateResult.error?.message || "Invoice balance changed while marking the invoice paid. Refresh and try again.",
+    };
+  }
+
+  {
     const orion = createSupabaseOrionEventPublisher(params.supabase);
     await orion.publishEvent({
       company_id: params.companyId,
@@ -603,7 +620,7 @@ export async function markInvoicePaid(params: {
     });
   }
 
-  return { error: error?.message || null };
+  return { error: null };
 }
 
 export async function voidInvoice(params: {
