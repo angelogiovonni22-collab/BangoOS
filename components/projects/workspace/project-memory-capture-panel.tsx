@@ -253,40 +253,40 @@ export function ProjectMemoryCapturePanel({
     <div className="space-y-6">
       <Card as="section" variant="elevated" className="rounded-[16px] shadow-[var(--shadow-small)]">
         <CardHeader className="bg-[var(--color-surface-subtle)]/55">
-          <CardTitle className="text-[1.05rem] font-bold text-[var(--color-navy-900)]">{t("projects.memorySaveTitle")}</CardTitle>
+          <CardTitle className="text-[1.05rem] font-extrabold text-[#0f2744]">{t("projects.memorySaveTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 p-5">
-          <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t("projects.memoryTitle")} aria-label={t("projects.memoryTitle")} />
+          <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t("projects.memoryTitle")} aria-label={t("projects.memoryTitle")} className="border-[#4d8bc4] bg-[#071a33] font-medium text-white placeholder:text-[#b9cbe0] focus:border-[#68b9ff]" />
           <textarea
             value={summary}
             onChange={(event) => setSummary(event.target.value)}
             placeholder={t("projects.memorySummary")}
             aria-label={t("projects.memorySummary")}
-            className="min-h-[86px] w-full rounded-[12px] border border-[var(--color-border-subtle)] px-3 py-2 text-sm"
+            className="min-h-[86px] w-full rounded-[12px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-medium text-white placeholder:text-[#b9cbe0] focus:border-[#68b9ff] focus:outline-none"
           />
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <select value={scope} onChange={(event) => setScope(event.target.value as MemoryScope)} className="rounded-[10px] border border-[var(--color-border-subtle)] px-3 py-2 text-sm" aria-label={t("projects.memoryScope")}>
+            <select value={scope} onChange={(event) => setScope(event.target.value as MemoryScope)} className="rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-semibold text-white focus:border-[#68b9ff] focus:outline-none" aria-label={t("projects.memoryScope")}>
               <option value="project">{t("projects.memoryScopeProject")}</option>
               <option value="customer" disabled={!customerId}>{t("projects.memoryScopeCustomer")}</option>
               <option value="task">{t("projects.memoryScopeTask")}</option>
               <option value="phase">{t("projects.memoryScopePhase")}</option>
             </select>
 
-            <select value={category} onChange={(event) => setCategory(event.target.value as MemoryCategory)} className="rounded-[10px] border border-[var(--color-border-subtle)] px-3 py-2 text-sm" aria-label={t("projects.memoryCategory")}>
+            <select value={category} onChange={(event) => setCategory(event.target.value as MemoryCategory)} className="rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-semibold text-white focus:border-[#68b9ff] focus:outline-none" aria-label={t("projects.memoryCategory")}>
               {MANUAL_CATEGORIES.map((option) => (
                 <option key={option} value={option}>{t(`projects.memoryCategory_${option}`)}</option>
               ))}
             </select>
 
-            <select value={importance} onChange={(event) => setImportance(event.target.value as MemoryImportance)} className="rounded-[10px] border border-[var(--color-border-subtle)] px-3 py-2 text-sm" aria-label={t("projects.memoryImportance")}>
+            <select value={importance} onChange={(event) => setImportance(event.target.value as MemoryImportance)} className="rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-semibold text-white focus:border-[#68b9ff] focus:outline-none" aria-label={t("projects.memoryImportance")}>
               <option value="critical">{t("projects.memoryImportanceCritical")}</option>
               <option value="high">{t("projects.memoryImportanceHigh")}</option>
               <option value="medium">{t("projects.memoryImportanceMedium")}</option>
               <option value="low">{t("projects.memoryImportanceLow")}</option>
             </select>
 
-            <select value={confidence} onChange={(event) => setConfidence(event.target.value as MemoryConfidence)} className="rounded-[10px] border border-[var(--color-border-subtle)] px-3 py-2 text-sm" aria-label={t("projects.memoryConfidence")}>
+            <select value={confidence} onChange={(event) => setConfidence(event.target.value as MemoryConfidence)} className="rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-semibold text-white focus:border-[#68b9ff] focus:outline-none" aria-label={t("projects.memoryConfidence")}>
               <option value="verified">{t("projects.memoryConfidenceVerified")}</option>
               <option value="observed">{t("projects.memoryConfidenceObserved")}</option>
               <option value="inferred">{t("projects.memoryConfidenceInferred")}</option>
@@ -295,14 +295,14 @@ export function ProjectMemoryCapturePanel({
           </div>
 
           {scope === "task" && (
-            <select value={taskId} onChange={(event) => setTaskId(event.target.value)} className="w-full rounded-[10px] border border-[var(--color-border-subtle)] px-3 py-2 text-sm" aria-label={t("projects.memoryTaskLink")}>
+            <select value={taskId} onChange={(event) => setTaskId(event.target.value)} className="w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-semibold text-white focus:border-[#68b9ff] focus:outline-none" aria-label={t("projects.memoryTaskLink")}>
               <option value="">{t("projects.memoryTaskLink")}</option>
               {taskOptions.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
             </select>
           )}
 
           {scope === "phase" && (
-            <select value={phaseId} onChange={(event) => setPhaseId(event.target.value)} className="w-full rounded-[10px] border border-[var(--color-border-subtle)] px-3 py-2 text-sm" aria-label={t("projects.memoryPhaseLink")}>
+            <select value={phaseId} onChange={(event) => setPhaseId(event.target.value)} className="w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-semibold text-white focus:border-[#68b9ff] focus:outline-none" aria-label={t("projects.memoryPhaseLink")}>
               <option value="">{t("projects.memoryPhaseLink")}</option>
               {Object.entries(phaseNameById).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
             </select>
@@ -325,10 +325,10 @@ export function ProjectMemoryCapturePanel({
       {showCloseout && (
         <Card as="section" variant="elevated" className="rounded-[16px] shadow-[var(--shadow-small)]">
           <CardHeader className="bg-[var(--color-surface-subtle)]/55">
-            <CardTitle className="text-[1.05rem] font-bold text-[var(--color-navy-900)]">{t("projects.memoryCloseoutTitle")}</CardTitle>
+            <CardTitle className="text-[1.05rem] font-extrabold text-[#0f2744]">{t("projects.memoryCloseoutTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 p-5">
-            <select value={closeoutConfidence} onChange={(event) => setCloseoutConfidence(event.target.value as MemoryConfidence)} className="w-full rounded-[10px] border border-[var(--color-border-subtle)] px-3 py-2 text-sm" aria-label={t("projects.memoryConfidence")}>
+            <select value={closeoutConfidence} onChange={(event) => setCloseoutConfidence(event.target.value as MemoryConfidence)} className="w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-semibold text-white focus:border-[#68b9ff] focus:outline-none" aria-label={t("projects.memoryConfidence")}>
               <option value="verified">{t("projects.memoryConfidenceVerified")}</option>
               <option value="observed">{t("projects.memoryConfidenceObserved")}</option>
             </select>
@@ -340,7 +340,7 @@ export function ProjectMemoryCapturePanel({
                 onChange={(event) => setCloseoutDraft((previous) => ({ ...previous, [field.key]: event.target.value }))}
                 placeholder={t(field.labelKey)}
                 aria-label={t(field.labelKey)}
-                className="min-h-[72px] w-full rounded-[12px] border border-[var(--color-border-subtle)] px-3 py-2 text-sm"
+                className="min-h-[72px] w-full rounded-[12px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-medium text-white placeholder:text-[#b9cbe0] focus:border-[#68b9ff] focus:outline-none"
               />
             ))}
 

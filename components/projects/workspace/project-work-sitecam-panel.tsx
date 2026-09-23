@@ -464,12 +464,12 @@ export function ProjectWorkSiteCamPanel({
               <Camera size={15} aria-hidden="true" />
             </span>
             <div>
-              <CardTitle className="text-[1.1rem] font-bold text-[var(--color-navy-900)]">{t("projects.sitecamTitle")}</CardTitle>
-              <p className="text-sm text-[var(--color-text-secondary)]">{t("projects.workSitecamPanelDescription")}</p>
+              <CardTitle className="text-[1.1rem] font-extrabold text-[#0f2744]">{t("projects.sitecamTitle")}</CardTitle>
+              <p className="text-sm font-medium text-[#49647f]">{t("projects.workSitecamPanelDescription")}</p>
             </div>
           </div>
           <Link href={`/projects/${projectId}?tab=documents`} className="inline-flex">
-            <Button size="sm" variant="outline">{t("projects.workSitecamViewAll")}</Button>
+            <Button size="sm" variant="outline" className="border-[#75bfff] bg-white font-bold text-[#12345a] hover:bg-[#eef7ff] hover:text-[#0b2746]">{t("projects.workSitecamViewAll")}</Button>
           </Link>
         </div>
       </CardHeader>
@@ -490,11 +490,11 @@ export function ProjectWorkSiteCamPanel({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{t("projects.sitecamFilterUploader")}</span>
+            <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-[#31567a]">{t("projects.sitecamFilterUploader")}</span>
             <select
               value={uploaderFilter}
               onChange={(event) => setUploaderFilter(event.target.value)}
-              className="h-10 w-full rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)]"
+              className="h-10 w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 text-sm font-semibold text-white outline-none focus:border-[#68b9ff]"
             >
               <option value="all">{t("projects.sitecamAllUploaders")}</option>
               {uploaderOptions.map((option) => (
@@ -504,11 +504,11 @@ export function ProjectWorkSiteCamPanel({
           </label>
 
           <label className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{t("projects.workSitecamSortLabel")}</span>
+            <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-[#31567a]">{t("projects.workSitecamSortLabel")}</span>
             <select
               value={sortOrder}
               onChange={(event) => setSortOrder(event.target.value as "newest" | "oldest")}
-              className="h-10 w-full rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-brand-500)]"
+              className="h-10 w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 text-sm font-semibold text-white outline-none focus:border-[#68b9ff]"
             >
               <option value="newest">{t("projects.workSitecamSortNewest")}</option>
               <option value="oldest">{t("projects.workSitecamSortOldest")}</option>
@@ -526,10 +526,10 @@ export function ProjectWorkSiteCamPanel({
             onChange={onSelectUploadFiles}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => uploadInputRef.current?.click()}>
+            <Button type="button" size="sm" variant="outline" className="border-[#6bb7f5] bg-white font-bold text-[#12345a] hover:bg-[#eef7ff] hover:text-[#0b2746]" onClick={() => uploadInputRef.current?.click()}>
               {t("projects.sitecamUploadPhotos")}
             </Button>
-            <Button type="button" size="sm" disabled={isUploading || uploadQueue.length === 0} onClick={() => void uploadPhotos()}>
+            <Button type="button" size="sm" className="bg-[#2378ea] font-bold text-white hover:bg-[#1767d1] disabled:bg-[#a9c9ee] disabled:text-[#526d89]" disabled={isUploading || uploadQueue.length === 0} onClick={() => void uploadPhotos()}>
               {isUploading ? t("projects.sitecamUploadInProgress") : t("projects.sitecamStartUpload")}
             </Button>
           </div>
@@ -550,12 +550,12 @@ export function ProjectWorkSiteCamPanel({
           ) : null}
 
           <label className="mt-3 block space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{t("projects.workSitecamCaptionLabel")}</span>
+            <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-[#31567a]">{t("projects.workSitecamCaptionLabel")}</span>
             <textarea
               value={uploadCaption}
               onChange={(event) => setUploadCaption(event.target.value)}
               maxLength={500}
-              className="min-h-20 w-full rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-2 text-sm text-[var(--color-text-primary)]"
+              className="min-h-20 w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-medium text-white placeholder:text-[#b9cbe0] focus:border-[#68b9ff] focus:outline-none"
               placeholder={t("projects.sitecamNotePlaceholder")}
             />
           </label>
@@ -692,7 +692,7 @@ export function ProjectWorkSiteCamPanel({
           <article>
             <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{t("projects.workSitecamEditCaption")}</h3>
             <label className="mt-3 block space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{t("projects.workSitecamCaptionLabel")}</span>
+              <span className="text-xs font-extrabold uppercase tracking-[0.08em] text-[#31567a]">{t("projects.workSitecamCaptionLabel")}</span>
               <textarea
                 value={captionDraft}
                 onChange={(event) => setCaptionDraft(event.target.value)}

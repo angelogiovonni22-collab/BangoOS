@@ -276,8 +276,8 @@ export function ProjectWorkOperationsTimeline({
             <Activity size={15} aria-hidden="true" />
           </span>
           <div>
-            <CardTitle className="text-[1.1rem] font-bold text-[var(--color-navy-900)]">{t("projects.workTimelineTitle")}</CardTitle>
-            <p className="text-sm text-[var(--color-text-secondary)]">{t("projects.workTimelineDescription")}</p>
+            <CardTitle className="text-[1.1rem] font-extrabold text-[#0f2744]">{t("projects.workTimelineTitle")}</CardTitle>
+            <p className="text-sm font-medium text-[#49647f]">{t("projects.workTimelineDescription")}</p>
           </div>
         </div>
       </CardHeader>
@@ -287,16 +287,16 @@ export function ProjectWorkOperationsTimeline({
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="relative">
               <span className="sr-only">{t("projects.workTimelineSearchLabel")}</span>
-              <Search size={14} className="pointer-events-none absolute left-3 top-3.5 text-[var(--color-text-muted)]" aria-hidden="true" />
+              <Search size={14} className="pointer-events-none absolute left-3 top-3.5 text-[#9fc1e2]" aria-hidden="true" />
               <Input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder={t("projects.workTimelineSearchPlaceholder")}
-                className="pl-9"
+                className="border-[#4d8bc4] bg-[#071a33] pl-9 font-medium text-white placeholder:text-[#b9cbe0] focus:border-[#68b9ff]"
               />
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <Select value={filter} onChange={(event) => setFilter(event.target.value as TimelineFilter)}>
+              <Select value={filter} onChange={(event) => setFilter(event.target.value as TimelineFilter)} className="border-[#4d8bc4] bg-[#071a33] font-semibold text-white focus:border-[#68b9ff]">
                 <option value="all">{t("projects.workTimelineFilterAll")}</option>
                 <option value="tasks">{t("projects.workTimelineFilterTasks")}</option>
                 <option value="photos">{t("projects.workTimelineFilterPhotos")}</option>
@@ -304,7 +304,7 @@ export function ProjectWorkOperationsTimeline({
                 <option value="daily_logs">{t("projects.workTimelineFilterDailyLogs")}</option>
                 <option value="inspections">{t("projects.workTimelineFilterInspections")}</option>
               </Select>
-              <Select value={sort} onChange={(event) => setSort(event.target.value as TimelineSort)}>
+              <Select value={sort} onChange={(event) => setSort(event.target.value as TimelineSort)} className="border-[#4d8bc4] bg-[#071a33] font-semibold text-white focus:border-[#68b9ff]">
                 <option value="newest">{t("projects.workTimelineSortNewest")}</option>
                 <option value="oldest">{t("projects.workTimelineSortOldest")}</option>
               </Select>
