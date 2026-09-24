@@ -475,11 +475,32 @@ export async function sendInvoice(params: {
   invoiceId: string;
   userId: string;
 }) {
+  const invoiceResult = await params.supabase
+    .from("invoices")
+    .select("total_amount, amount_paid, paid_date")
+    .eq("company_id", params.companyId)
+    .eq("id", params.invoiceId)
+    .maybeSingle();
+
+  if (invoiceResult.error || !invoiceResult.data) {
+    return { error: invoiceResult.error?.message || "Invoice not found." };
+  }
+
+  const total = Number(invoiceResult.data.total_amount || 0);
+  const amountPaid = Number(invoiceResult.data.amount_paid || 0);
+  const nextStatus = amountPaid >= total - 0.005 && total > 0
+    ? "paid"
+    : amountPaid > 0
+      ? "partially_paid"
+      : "sent";
+  const sentAt = new Date().toISOString();
+
   const { error } = await params.supabase
     .from("invoices")
     .update({
-      status: "sent",
-      sent_at: new Date().toISOString(),
+      status: nextStatus,
+      sent_at: sentAt,
+      paid_date: nextStatus === "paid" ? (invoiceResult.data.paid_date || sentAt.slice(0, 10)) : null,
       updated_by: params.userId,
     })
     .eq("company_id", params.companyId)
@@ -496,6 +517,9 @@ export async function sendInvoice(params: {
       source_module: "invoices",
       payload: {
         invoice_id: params.invoiceId,
+        status: nextStatus,
+        amount_paid: amountPaid,
+        balance_due: Math.max(total - amountPaid, 0),
         deep_link: `/invoices/${params.invoiceId}`,
       },
       metadata: {

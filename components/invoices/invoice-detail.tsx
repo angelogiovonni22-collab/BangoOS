@@ -192,8 +192,8 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const balanceDue = Math.max(invoice.total_amount - invoice.amount_paid, 0);
   const status = normalizeInvoiceStatus(invoice.status);
   const canSend = status === "draft";
-  const canRecordPayment = ["sent", "viewed", "partially_paid", "overdue"].includes(status) && balanceDue > 0;
-  const canMarkPaid = canRecordPayment;
+  const canRecordPayment = status !== "void" && status !== "paid" && balanceDue > 0;
+  const canMarkPaid = ["sent", "viewed", "partially_paid", "overdue"].includes(status) && balanceDue > 0;
   const canVoid = status !== "paid" && status !== "void";
 
   return (
