@@ -69,7 +69,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     const token = decodeURIComponent((await params).token);
     const { admin, validated, isPreview } = await context(token, request);
     const [{ data: estimate }, { data: items }, { data: company }, prospect, ohioContractCompliance, { data: customerSignature }] = await Promise.all([
-      admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, agreement_snapshot, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
+      admin.from("estimates").select("id, title, estimate_number, description, issue_date, expiration_date, subtotal, discount_total, tax_rate, tax_amount, additional_fee, total_amount, customer_notes, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, agreement_snapshot, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
       admin.from("estimate_line_items").select("description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
       admin.from("companies").select("name").eq("id", validated.companyId).single(),
       loadProspect(admin, validated.companyId, validated.estimateId),

@@ -232,7 +232,7 @@ export function EstimateDetail({ estimateId, sendIssue, createdForReview = false
                   <td className="px-3 py-2 text-sm text-[var(--color-text-primary)]">{formatEstimateStatusLabel(lineItem.category)}</td>
                   <td className="px-3 py-2 text-sm text-[var(--color-text-primary)]">{lineItem.description}</td>
                   <td className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">{lineItem.quantity}</td>
-                  <td className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">{formatEstimateStatusLabel(lineItem.unit)}</td>
+                  <td className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">{lineItem.unit === "lump_sum" ? "Total" : formatEstimateStatusLabel(lineItem.unit)}</td>
                   <td className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">{formatUsd(lineItem.unit_cost, localeTag)}</td>
                   <td className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">{lineItem.markup_percent}%</td>
                   <td className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">{formatUsd(lineItem.unit_price, localeTag)}</td>
