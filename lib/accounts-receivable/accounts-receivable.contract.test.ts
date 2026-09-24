@@ -19,7 +19,7 @@ test("accounts receivable excludes non-collectible states and calculates standar
 test("customer payment recording preserves compliance and balance safety boundaries", () => {
   assert.match(service, /authorizeInvoicePaymentCollection/);
   assert.match(service, /Payment cannot exceed the invoice balance/);
-  assert.match(service, /\.eq\("amount_paid", alreadyPaid\)/);
+  assert.match(service, /\.eq\("updated_at",invoiceResult\.data\.updated_at\)/);
   assert.match(service, /invoice_payment_history/);
   assert.match(service, /partially_paid/);
   assert.match(service, /payment\.received/);
