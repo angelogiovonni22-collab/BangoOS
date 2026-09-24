@@ -777,6 +777,23 @@ export function createEstimateWorkflowService(supabase: SupabaseClient<Database>
       },
     });
 
+    if (row?.project_id) {
+      const acceptedEstimate = await loadEstimate(db, input.companyId, input.estimateId);
+      const requiredDownPayment = computeDepositAmount(
+        acceptedEstimate.deposit_type,
+        Number(acceptedEstimate.deposit_value || 0),
+        Number(acceptedEstimate.total_amount || 0),
+      );
+      const { error: projectSyncError } = await db
+        .from("projects")
+        .update({ required_down_payment: requiredDownPayment })
+        .eq("company_id", input.companyId)
+        .eq("id", row.project_id);
+      if (projectSyncError) {
+        throw new Error(projectSyncError.message || "Unable to carry the accepted deposit requirement into the project.");
+      }
+    }
+
     const orion = createSupabaseOrionEventPublisher(db as unknown as SupabaseClient<Database>);
     await orion.publishEvent({
       company_id: input.companyId,
