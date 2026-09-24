@@ -180,6 +180,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
     if (!form.vendorId.trim()) errors.vendorId = "Trade Partner is required.";
     if (selectedVendor?.rehireStatus === "do_not_rehire") errors.vendorId = "This Trade Partner is marked Do Not Rehire.";
     if (!form.tradeName.trim()) errors.tradeName = "Trade is required.";
+    if (!form.scopeOfWork.trim()) errors.scopeOfWork = "Scope of Work is required so the subcontract commitment is tied to defined project work.";
     if (!form.primaryContactEmail.trim()) errors.primaryContactEmail = "Email is required so B.O.S. can send the subcontract agreement.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.primaryContactEmail.trim())) errors.primaryContactEmail = "Please enter a valid email.";
     if (form.retainagePercent.trim()) {
@@ -251,14 +252,14 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
         <div className="mx-auto max-w-xl space-y-4 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary-50)] text-[var(--color-brand-700)] shadow-[var(--shadow-small)]"><Users size={20} /></div>
           <h3 className="text-section-title font-bold tracking-tight text-[var(--bos-text-strong-on-light)]">No Trade Partners Selected</h3>
-          <p className="text-sm font-medium leading-7 text-[var(--bos-text-medium-on-light)]">Select a Trade Partner, define scope and compensation, and B.O.S. will email the agreement for signature. They do not become active until signed and cleared to mobilize.</p>
+          <p className="text-sm font-medium leading-7 text-[var(--bos-text-medium-on-light)]">Select a Trade Partner, define exactly what work they are performing and what B.O.S. is paying them internally, then send the agreement for signature. These internal costs are never shown on customer-facing estimates or invoices.</p>
           <Button type="button" onClick={openCreateDialog}>Assign Trade Partner</Button>
         </div>
       </section>
     ) : <>
       <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">Project Subcontractors</h2><p className="mt-1 text-sm font-medium text-[var(--bos-text-medium-on-light)]">Manage assignments, agreements, mobilization, project costs, and closeout from one workspace.</p></div><Button type="button" onClick={openCreateDialog}>Assign Trade Partner</Button></div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><SummaryRow label="Selected" value={String(summary.totalAssigned)} /><SummaryRow label="Authorized / Active" value={String(summary.active)} /><SummaryRow label="Awaiting Contract" value={String(summary.pending)} /><SummaryRow label="Total Contract Value" value={formatMoney(summary.totalContractValue, "Not Provided")} /></div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">Project Subcontractors</h2><p className="mt-1 text-sm font-medium text-[var(--bos-text-medium-on-light)]">Manage assigned scope, internal subcontract commitments, agreements, mobilization, payments, and closeout. Internal subcontract costs stay private from customers.</p></div><Button type="button" onClick={openCreateDialog}>Assign Trade Partner</Button></div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><SummaryRow label="Selected" value={String(summary.totalAssigned)} /><SummaryRow label="Authorized / Active" value={String(summary.active)} /><SummaryRow label="Awaiting Contract" value={String(summary.pending)} /><SummaryRow label="Internal Subcontract Commitments" value={formatMoney(summary.totalContractValue, "Not Provided")} /></div>
       </section>
       <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(260px,1fr)] xl:items-start">
         <div className="grid min-w-0 gap-4">
@@ -285,7 +286,8 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
               <CardContent className="space-y-3 p-4">
                 <DetailRow label="Contract Status" value={contractStatusLabel} icon={<ClipboardCheck size={14} />} />
                 <div><Badge tone={CONTRACT_TONE[assignment.contractStatus] || "neutral"}>{contractStatusLabel}</Badge></div>
-                <DetailRow label="Committed Amount" value={formatMoney(assignment.contractAmount)} />
+                <DetailRow label="Scope of Work" value={assignment.scopeOfWork || "Not Provided"} />
+                <DetailRow label="Amount We Are Paying (Internal)" value={formatMoney(assignment.contractAmount)} />
                 <DetailRow label="Compensation & Payment Terms" value={assignment.paymentTerms || "Not Provided"} />
                 <DetailRow label="Retainage" value={assignment.retainagePercent == null ? "Not specified" : `${assignment.retainagePercent}%`} />
                 <DetailRow label="Crew Size" value={assignment.crewSize !== null ? String(assignment.crewSize) : "Not Provided"} />
@@ -331,24 +333,25 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Trade" value={form.tradeName} onChange={(value) => setForm((current) => ({ ...current, tradeName: value }))} error={fieldErrors.tradeName} required />
-          <Field label="Scope of Work" value={form.scopeOfWork} onChange={(value) => setForm((current) => ({ ...current, scopeOfWork: value }))} />
+          <Field label="Scope of Work" value={form.scopeOfWork} onChange={(value) => setForm((current) => ({ ...current, scopeOfWork: value }))} error={fieldErrors.scopeOfWork} required />
           <Field label="Primary Contact Name" value={form.primaryContactName} onChange={(value) => setForm((current) => ({ ...current, primaryContactName: value }))} />
           <Field label="Primary Contact Phone" value={form.primaryContactPhone} onChange={(value) => setForm((current) => ({ ...current, primaryContactPhone: value }))} />
           <Field label="Primary Contact Email" value={form.primaryContactEmail} onChange={(value) => setForm((current) => ({ ...current, primaryContactEmail: value }))} error={fieldErrors.primaryContactEmail} required />
         </div>
         {!editingAssignmentId ? <div className="rounded-[14px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
-          <h4 className="font-bold text-[var(--color-text-primary)]">Compensation & commitment</h4>
+          <h4 className="font-bold text-[var(--color-text-primary)]">Internal subcontract cost</h4>
+          <p className="mt-1 text-xs font-semibold text-[var(--color-text-secondary)]">B.O.S. uses this for project costing and subcontractor payments. It is internal only and is never shown to the customer.</p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             <div className="space-y-1.5"><label className="text-sm font-bold">How are we paying?</label><Select value={form.compensationMethod} onChange={(event) => setForm((current) => ({ ...current, compensationMethod: event.currentTarget.value as SubPayMethod }))}><option value="lump_sum">Lump sum</option><option value="hourly">Hourly</option><option value="day_rate">Day rate</option><option value="unit_rate">Unit / piece rate</option><option value="prevailing_wage">Prevailing wage</option></Select></div>
             {["hourly", "day_rate", "unit_rate"].includes(form.compensationMethod) ? <>
               <Field label={form.compensationMethod === "hourly" ? "Hourly Rate" : form.compensationMethod === "day_rate" ? "Day Rate" : "Unit Rate"} type="number" value={form.rate} onChange={(value) => setForm((current) => ({ ...current, rate: value }))} error={fieldErrors.rate} />
               <Field label={form.compensationMethod === "hourly" ? "Estimated Hours" : form.compensationMethod === "day_rate" ? "Estimated Days" : "Estimated Units"} type="number" value={form.estimatedQuantity} onChange={(value) => setForm((current) => ({ ...current, estimatedQuantity: value }))} error={fieldErrors.estimatedQuantity} />
-            </> : <Field label={form.compensationMethod === "prevailing_wage" ? "Estimated Subcontract Commitment" : "Lump Sum Amount"} type="number" value={form.contractAmount} onChange={(value) => setForm((current) => ({ ...current, contractAmount: value }))} error={fieldErrors.contractAmount} />}
+            </> : <Field label={form.compensationMethod === "prevailing_wage" ? "Amount We Are Paying (Internal)" : "Amount We Are Paying (Internal)"} type="number" value={form.contractAmount} onChange={(value) => setForm((current) => ({ ...current, contractAmount: value }))} error={fieldErrors.contractAmount} />}
             <Field label="Payment Terms" value={form.paymentTerms} onChange={(value) => setForm((current) => ({ ...current, paymentTerms: value }))} />
             <Field label="Retainage %" type="number" value={form.retainagePercent} onChange={(value) => setForm((current) => ({ ...current, retainagePercent: value }))} error={fieldErrors.retainagePercent} />
           </div>
-          <div className="mt-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-3"><p className="text-xs font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">Committed project cost</p><p className="mt-1 text-xl font-extrabold">{money(calculatedAmount)}</p><p className="mt-1 text-xs text-[var(--color-text-secondary)]">This amount becomes a project commitment after the subcontract is signed.</p></div>
-        </div> : <div className="grid gap-3 md:grid-cols-2"><Field label="Contract Amount" type="number" value={form.contractAmount} onChange={(value) => setForm((current) => ({ ...current, contractAmount: value }))} /><Field label="Payment Terms" value={form.paymentTerms} onChange={(value) => setForm((current) => ({ ...current, paymentTerms: value }))} /><Field label="Retainage %" type="number" value={form.retainagePercent} onChange={(value) => setForm((current) => ({ ...current, retainagePercent: value }))} /></div>}
+          <div className="mt-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-3"><p className="text-xs font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">Internal committed project cost</p><p className="mt-1 text-xl font-extrabold">{money(calculatedAmount)}</p><p className="mt-1 text-xs text-[var(--color-text-secondary)]">This is the amount B.O.S. tracks as the subcontractor cost after the subcontract is signed. It is not customer-facing.</p></div>
+        </div> : <div className="grid gap-3 md:grid-cols-2"><Field label="Amount We Are Paying (Internal)" type="number" value={form.contractAmount} onChange={(value) => setForm((current) => ({ ...current, contractAmount: value }))} /><Field label="Payment Terms" value={form.paymentTerms} onChange={(value) => setForm((current) => ({ ...current, paymentTerms: value }))} /><Field label="Retainage %" type="number" value={form.retainagePercent} onChange={(value) => setForm((current) => ({ ...current, retainagePercent: value }))} /></div>}
         <div className="grid gap-3 md:grid-cols-3"><Field label="Start Date" type="date" value={form.startDate} onChange={(value) => setForm((current) => ({ ...current, startDate: value }))} /><Field label="Target Completion Date" type="date" value={form.targetCompletionDate} onChange={(value) => setForm((current) => ({ ...current, targetCompletionDate: value }))} error={fieldErrors.targetCompletionDate} /><Field label="Crew Size" type="number" value={form.crewSize} onChange={(value) => setForm((current) => ({ ...current, crewSize: value }))} error={fieldErrors.crewSize} /></div>
         <div className="space-y-1.5"><label className="text-sm font-bold">Notes</label><textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.currentTarget.value }))} className="min-h-24 w-full rounded-[var(--radius-lg)] border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-4 py-3 text-base font-medium text-[var(--bos-text-primary)]" /></div>
         {formError ? <p className="rounded-xl border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] p-3 text-sm font-semibold text-[var(--color-danger-700)]">{formError}</p> : null}
