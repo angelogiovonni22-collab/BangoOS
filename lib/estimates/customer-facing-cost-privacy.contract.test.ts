@@ -16,8 +16,8 @@ test("customer estimate API explicitly whitelists public line-item fields", () =
   assert.match(route, /signedSnapshot\.estimate\.lineItems\.map/);
 });
 
-test("subcontractor category is visibly marked internal in the estimate builder", () => {
-  assert.match(constants, /Trade Partner Cost \(Internal\)/);
+test("subcontractor cost is not selectable in the customer estimate line-item builder", () => {
+  assert.doesNotMatch(constants, /value: "subcontractors"/);
   assert.doesNotMatch(constants, /label: "Subcontractors"/);
 });
 
