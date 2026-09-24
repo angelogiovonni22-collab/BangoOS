@@ -83,6 +83,8 @@ export function InvoiceForm({
 
   const [values, setValues] = useState<InvoiceFormValues>(DEFAULT_FORM_VALUES);
   const [lineItems, setLineItems] = useState<InvoiceLineItemDraft[]>(DEFAULT_LINE_ITEMS);
+  const [amountPaid, setAmountPaid] = useState(0);
+  const [paymentSummary, setPaymentSummary] = useState<{ count: number; latestAmount: number | null; latestDate: string | null; latestMethod: string | null }>({ count: 0, latestAmount: null, latestDate: null, latestMethod: null });
   const [isDirty, setIsDirty] = useState(false);
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
 
@@ -260,6 +262,15 @@ export function InvoiceForm({
           additionalFee: String(invoiceResult.data.invoice.additional_fee ?? 0),
           notes: invoiceResult.data.invoice.notes || "",
           paymentTerms: invoiceResult.data.invoice.payment_terms || "",
+        });
+
+        setAmountPaid(Number(invoiceResult.data.invoice.amount_paid || 0));
+        const latestPayment = invoiceResult.data.payments[0] ?? null;
+        setPaymentSummary({
+          count: invoiceResult.data.payments.length,
+          latestAmount: latestPayment ? Number(latestPayment.amount || 0) : null,
+          latestDate: latestPayment?.payment_date || null,
+          latestMethod: latestPayment?.method || null,
         });
 
         setLineItems(
@@ -486,7 +497,7 @@ export function InvoiceForm({
           }}
         />
 
-        <InvoiceTotalsSection totals={totals} values={values} localeTag={localeTag} onFieldChange={onFieldChange} />
+        <InvoiceTotalsSection totals={totals} values={values} localeTag={localeTag} onFieldChange={onFieldChange} showPaymentSummary={mode === "edit"} amountPaid={amountPaid} paymentSummary={paymentSummary} />
         <RecordPhotoUpload ref={photoUploadRef} entityType="invoice" />
 
         <InvoiceNotesTermsSection values={values} onFieldChange={onFieldChange} />
