@@ -53,6 +53,17 @@ export function validateEstimateForm(values: EstimateFormValues, lineItems: Esti
     errors.taxRatePercent = "Tax cannot be negative.";
   }
 
+  const depositValue = Number(values.depositValue || 0);
+  if (depositValue < 0 || Number.isNaN(depositValue)) {
+    errors.depositValue = "Deposit cannot be negative.";
+  }
+  if (values.depositType === "percentage" && depositValue > 100) {
+    errors.depositValue = "Deposit percentage cannot exceed 100%.";
+  }
+  if (values.depositType === "fixed" && depositValue > totals.grandTotal) {
+    errors.depositValue = "Deposit amount cannot exceed the estimate total.";
+  }
+
   if (totals.grandTotal < 0) {
     errors.discountValue = "Discount creates an invalid negative total.";
   }
