@@ -59,10 +59,10 @@ test("secure estimate page renders required Ohio contract disclosures", () => {
   assert.match(agreementSource, /AT LEAST SIXTY DAYS/);
 });
 
-test("Ohio residential send gate refuses an unresolved or unsupported contract language", () => {
-  assert.match(sendRouteSource, /CONTRACT_LANGUAGE_REVIEW_REQUIRED/);
-  assert.match(sendRouteSource, /requires a Spanish legal package/);
-  assert.match(sendRouteSource, /Confirm the principal sales\/contract language/);
+test("standard estimate send flow does not require manual contract-language compliance review", () => {
+  assert.doesNotMatch(sendRouteSource, /CONTRACT_LANGUAGE_REVIEW_REQUIRED/);
+  assert.doesNotMatch(sendRouteSource, /requires a Spanish legal package/);
+  assert.doesNotMatch(sendRouteSource, /Confirm the principal sales\/contract language/);
 });
 
 test("signed contract copy is served from immutable estimate snapshot and shows dated signatures", () => {
