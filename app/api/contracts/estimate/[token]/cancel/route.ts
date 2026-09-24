@@ -24,6 +24,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const workflow = createEstimateWorkflowService(admin);
     const validated = await workflow.validatePublicToken({ token, ipAddress: request.headers.get("x-forwarded-for"), userAgent: request.headers.get("user-agent") });
     if (!validated.isValid || !validated.companyId || !validated.estimateId) throw new Error(validated.failureReason || "invalid_contract_link");
+    if (validated.tokenId) {
+      const { data: tokenRow } = await migrationTables.from("estimate_public_tokens").select("metadata").eq("id", validated.tokenId).maybeSingle();
+      const metadata = (tokenRow?.metadata || {}) as Record<string, unknown>;
+      if (metadata.purpose === "customer_preview") return NextResponse.json({ error: "Customer preview links are read-only." }, { status: 403 });
+    }
 
     const body = await request.json() as { confirmation?: boolean; notice?: string };
     if (body.confirmation !== true) return NextResponse.json({ error: "Cancellation confirmation is required." }, { status: 400 });
