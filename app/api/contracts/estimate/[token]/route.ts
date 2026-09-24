@@ -27,6 +27,18 @@ type ProspectQuery = {
 };
 
 type ProspectDb = { from: (table: string) => ProspectQuery };
+type PublicEstimateLineItem = { description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order: number };
+
+function sanitizePublicEstimateLineItem(item: Record<string, unknown>): PublicEstimateLineItem {
+  return {
+    description: String(item.description ?? ""),
+    quantity: Number(item.quantity ?? 0),
+    unit: String(item.unit ?? ""),
+    unit_price: Number(item.unit_price ?? 0),
+    line_total: Number(item.line_total ?? 0),
+    sort_order: Number(item.sort_order ?? 0),
+  };
+}
 
 async function context(token: string, request: Request) {
   const admin = createAdminClient();
@@ -71,7 +83,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     let homeSolicitation = null;
     const { agreement_snapshot: agreementSnapshot, ...publicEstimateBase } = estimate as typeof estimate & { agreement_snapshot: unknown };
     let publicEstimate = publicEstimateBase;
-    let publicItems = items || [];
+    let publicItems: PublicEstimateLineItem[] = (items || []).map((item) => sanitizePublicEstimateLineItem(item as unknown as Record<string, unknown>));
     if (estimate) {
       const linkedCustomer = Array.isArray(estimate.customers) ? estimate.customers[0] : estimate.customers;
       const customer = linkedCustomer || prospect;
@@ -144,7 +156,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
           customers: (signedSnapshot.customer as typeof customer) || customer,
         } as typeof publicEstimateBase;
         if (Array.isArray(signedSnapshot.estimate.lineItems)) {
-          publicItems = signedSnapshot.estimate.lineItems;
+          publicItems = signedSnapshot.estimate.lineItems.map((item) => sanitizePublicEstimateLineItem(item as unknown as Record<string, unknown>));
         }
       }
 
