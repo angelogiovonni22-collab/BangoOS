@@ -20,3 +20,12 @@ test("subcontractor category is visibly marked internal in the estimate builder"
   assert.match(constants, /Trade Partner Cost \(Internal\)/);
   assert.doesNotMatch(constants, /label: "Subcontractors"/);
 });
+
+const tradePartnerWorkspace = readFileSync("components/projects/workspace/project-trade-partners-workspace.tsx", "utf8");
+
+test("project trade-partner workflow clearly owns internal subcontract costs", () => {
+  assert.match(tradePartnerWorkspace, /Scope of Work/);
+  assert.match(tradePartnerWorkspace, /Amount We Are Paying \(Internal\)/);
+  assert.match(tradePartnerWorkspace, /Internal subcontract cost/);
+  assert.match(tradePartnerWorkspace, /never shown to the customer|never shown on customer-facing estimates or invoices/);
+});
