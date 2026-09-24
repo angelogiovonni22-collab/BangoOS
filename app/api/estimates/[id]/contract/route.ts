@@ -5,8 +5,6 @@ import { requireCompanyRole } from "@/lib/supabase/authorization";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
 import { renderBrandedEstimateEmail } from "@/lib/estimates/branded-estimate-email";
-import { loadEstimateCompliance, recordEstimateComplianceEvaluation } from "@/lib/compliance/estimate-contract-compliance-service";
-import { loadHomeSolicitationCompliance, recordHomeSolicitationEvaluation } from "@/lib/compliance/home-solicitation-service";
 
 type Recipient = {
   email: string;
@@ -57,49 +55,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const recipient = (linkedCustomer?.email ? linkedCustomer : prospect) as Recipient | null;
   if (!recipient?.email?.trim()) {
     return NextResponse.json({ error: "Add a customer or prospective customer email address before sending the estimate." }, { status: 400 });
-  }
-
-  const isOhioResidentialCustomer = recipient.customer_type === "residential" && ["OH", "OHIO"].includes((recipient.state || "").trim().toUpperCase());
-  if (Number(estimate.total_amount || 0) >= 25_000 || isOhioResidentialCustomer) {
-    try {
-      const compliance = await loadEstimateCompliance(supabase, workspace.context.companyId, estimateId);
-      if (isOhioResidentialCustomer && compliance.profile.contractLanguage !== "en") {
-        return NextResponse.json({
-          error: compliance.profile.contractLanguage === "es"
-            ? "This customer agreement requires a Spanish legal package before it can be sent."
-            : "Confirm the principal sales/contract language before sending this Ohio residential agreement.",
-          code: "CONTRACT_LANGUAGE_REVIEW_REQUIRED",
-        }, { status: 409 });
-      }
-      if (Number(estimate.total_amount || 0) >= 25_000) {
-        await recordEstimateComplianceEvaluation(
-          supabase,
-          workspace.context.companyId,
-          estimateId,
-          workspace.context.userId,
-          compliance.evaluation,
-          compliance.profile.id || null,
-          { source: "send_gate" },
-        );
-        if (compliance.evaluation.status !== "COMPLIANT") {
-          return NextResponse.json({ error: "Contract compliance requires attention before this agreement can be sent.", code: "CONTRACT_COMPLIANCE_BLOCKED", compliance: compliance.evaluation }, { status: 409 });
-        }
-      }
-    } catch (complianceError) {
-      return NextResponse.json({ error: complianceError instanceof Error ? complianceError.message : "Unable to verify contract compliance.", code: "CONTRACT_COMPLIANCE_UNAVAILABLE" }, { status: 409 });
-    }
-  }
-
-  if (isOhioResidentialCustomer) {
-    try {
-      const homeSolicitation = await loadHomeSolicitationCompliance(supabase, workspace.context.companyId, estimateId);
-      await recordHomeSolicitationEvaluation(supabase, workspace.context.companyId, estimateId, workspace.context.userId, homeSolicitation.evaluation, { source: "send_gate" });
-      if (homeSolicitation.evaluation.status !== "COMPLIANT") {
-        return NextResponse.json({ error: "Home-solicitation review requires attention before this agreement can be sent.", code: "HOME_SOLICITATION_COMPLIANCE_BLOCKED", compliance: homeSolicitation.evaluation }, { status: 409 });
-      }
-    } catch (complianceError) {
-      return NextResponse.json({ error: complianceError instanceof Error ? complianceError.message : "Unable to verify home-solicitation compliance.", code: "HOME_SOLICITATION_COMPLIANCE_UNAVAILABLE" }, { status: 409 });
-    }
   }
 
   const { data: company, error: companyError } = await supabase.from("companies").select("name, display_name, legal_name, logo_url").eq("id", workspace.context.companyId).single();
