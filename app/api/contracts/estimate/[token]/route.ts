@@ -45,7 +45,12 @@ async function context(token: string, request: Request) {
   const workflow = createEstimateWorkflowService(admin);
   const validated = await workflow.validatePublicToken({ token, ipAddress: request.headers.get("x-forwarded-for"), userAgent: request.headers.get("user-agent") });
   if (!validated.isValid || !validated.companyId || !validated.estimateId) throw new Error(validated.failureReason || "invalid_contract_link");
-  return { admin, workflow, validated: { ...validated, companyId: validated.companyId as string, estimateId: validated.estimateId as string } };
+  const { data: tokenRow } = validated.tokenId
+    ? await admin.from("estimate_public_tokens").select("metadata").eq("id", validated.tokenId).maybeSingle()
+    : { data: null };
+  const metadata = (tokenRow?.metadata || {}) as Record<string, unknown>;
+  const isPreview = metadata.purpose === "customer_preview";
+  return { admin, workflow, isPreview, validated: { ...validated, companyId: validated.companyId as string, estimateId: validated.estimateId as string } };
 }
 
 async function loadProspect(admin: ReturnType<typeof createAdminClient>, companyId: string, estimateId: string) {
@@ -62,7 +67,7 @@ async function loadProspect(admin: ReturnType<typeof createAdminClient>, company
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   try {
     const token = decodeURIComponent((await params).token);
-    const { admin, validated } = await context(token, request);
+    const { admin, validated, isPreview } = await context(token, request);
     const [{ data: estimate }, { data: items }, { data: company }, prospect, ohioContractCompliance, { data: customerSignature }] = await Promise.all([
       admin.from("estimates").select("id, title, estimate_number, description, total_amount, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, agreement_snapshot, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
       admin.from("estimate_line_items").select("description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
@@ -263,7 +268,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
       contractLanguage: ohioContractCompliance.profile.contractLanguage,
     } : null;
 
-    return NextResponse.json({ estimate: publicEstimate, items: publicItems, company, expiresAt: validated.expiresAt, homeSolicitation, ohioHomeConstruction, customerSignature });
+    return NextResponse.json({ estimate: publicEstimate, items: publicItems, company, expiresAt: validated.expiresAt, homeSolicitation, ohioHomeConstruction, customerSignature, preview: isPreview });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid contract link." }, { status: 400 });
   }
@@ -274,7 +279,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const token = decodeURIComponent((await params).token);
     const body = await request.json() as { typedName?: string; consentAccepted?: boolean };
     if (!body.typedName?.trim() || body.consentAccepted !== true) return NextResponse.json({ error: "Your legal name and consent are required." }, { status: 400 });
-    const { admin, workflow, validated } = await context(token, request);
+    const { admin, workflow, validated, isPreview } = await context(token, request);
+    if (isPreview) return NextResponse.json({ error: "Customer preview links are read-only and cannot be signed." }, { status: 403 });
     const [{ data: estimate }, prospect] = await Promise.all([
       admin.from("estimates").select("version_number, status, customer_id, project_id, approved_at, customers(email,customer_type,state)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
       loadProspect(admin, validated.companyId, validated.estimateId),
