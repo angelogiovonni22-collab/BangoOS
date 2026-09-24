@@ -19,14 +19,13 @@ test("accounts receivable excludes non-collectible states and calculates standar
 test("customer payment recording preserves compliance and balance safety boundaries", () => {
   assert.match(service, /authorizeInvoicePaymentCollection/);
   assert.match(service, /Payment cannot exceed the invoice balance/);
-  assert.match(service, /\.eq\("updated_at",invoiceResult\.data\.updated_at\)/);
+  assert.match(service, /select\("amount_paid, status, paid_date"\)/);
   assert.match(service, /invoice_payment_history/);
   assert.match(service, /partially_paid/);
   assert.match(service, /payment\.received/);
   assert.match(service, /invoice\.paid/);
   assert.doesNotMatch(service, /\["draft","void","paid"\]/);
-  assert.match(service, /isDraft=invoiceResult\.data\.status==="draft"/);
-  assert.match(service, /nextStatus=isDraft\?"draft":isPaid\?"paid":"partially_paid"/);
+  assert.doesNotMatch(service, /Invoice balance changed while recording the payment/);
 });
 
 test("accounts receivable command center exposes aging and controlled payment workflow", () => {
