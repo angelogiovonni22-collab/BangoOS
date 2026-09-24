@@ -293,6 +293,13 @@ export async function saveEstimate(params: {
     tax_amount: totals.taxTotal,
     additional_fee: totals.additionalFee,
     total_amount: totals.grandTotal,
+    deposit_type: params.values.depositType,
+    deposit_value: Number(params.values.depositValue || 0),
+    deposit_amount: params.values.depositType === "percentage"
+      ? Number(Math.max(0, totals.grandTotal * (Number(params.values.depositValue || 0) / 100)).toFixed(2))
+      : params.values.depositType === "fixed"
+        ? Number(Math.min(Math.max(0, Number(params.values.depositValue || 0)), Math.max(0, totals.grandTotal)).toFixed(2))
+        : 0,
     internal_notes: params.values.internalNotes.trim() || null,
     customer_notes: params.values.customerNotes.trim() || null,
     scope_inclusions: params.values.scopeInclusions.trim() || null,

@@ -256,6 +256,7 @@ export function EstimateDetail({ estimateId, sendIssue, createdForReview = false
           <DetailRow label="Tax" value={formatUsd(estimate.tax_amount ?? 0, localeTag)} />
           <DetailRow label="Additional Fee" value={formatUsd(estimate.additional_fee ?? 0, localeTag)} />
           <DetailRow label="Grand Total" value={formatUsd(estimate.total_amount ?? 0, localeTag)} />
+          <DetailRow label="Deposit Required" value={estimate.deposit_type === "percentage" ? `${estimate.deposit_value}% · ${formatUsd(estimate.deposit_amount ?? 0, localeTag)}` : estimate.deposit_type === "fixed" ? formatUsd(estimate.deposit_amount ?? 0, localeTag) : "None"} />
         </CardContent>
       </Card>
 

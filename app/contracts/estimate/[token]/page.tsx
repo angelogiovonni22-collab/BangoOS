@@ -6,12 +6,17 @@ import { CONSTRUCTION_AGREEMENT_VERSION, constructionAgreementSections } from "@
 type HomeSolicitationNotice = { applicable: true; rulesetVersion: string; sellerName: string | null; sellerAddress: string | null; sellerSignerName: string | null; sellerSignedAt: string | null; cancellationEmail: string | null; cancellationFax: string | null; transactionDate: string; cancellationDeadlineDate: string; cancelledAt: string | null };
 type OhioHomeConstruction = { rulesetVersion: string; supplierName: string | null; supplierPhysicalAddress: string | null; supplierPhone: string | null; supplierTaxpayerId: string | null; ownerName: string | null; ownerAddress: string | null; ownerPhone: string | null; projectAddress: string | null; anticipatedStart: string | null; anticipatedCompletion: string | null; excludedCostsDisclosed: boolean; liabilityCoverageAmount: number | null; insuranceCertificateUrl: string | null; excessCostMethod: "written" | "oral" | "firm_price_no_excess" | null; supplierSignerName: string | null; supplierSignedAt: string | null; contractLanguage: "en" | "es" | "unknown" | null };
 type Customer = { first_name: string | null; last_name: string | null; email: string | null; address_line_1: string | null; address_line_2: string | null; city: string | null; state: string | null; postal_code: string | null; customer_type?: string | null };
-type Contract = { company: { name: string }; estimate: { title: string; estimate_number: string | null; description: string | null; issue_date: string | null; expiration_date: string | null; subtotal: number; discount_total: number; tax_rate: number; tax_amount: number; additional_fee: number; total_amount: number; customer_notes: string | null; terms: string | null; payment_terms: string | null; scope_inclusions: string | null; scope_exclusions: string | null; status: string; customers?: Customer | Customer[] | null }; items: Array<{ category: string; description: string; quantity: number; unit: string; unit_price: number; line_total: number }>; expiresAt: string; homeSolicitation: HomeSolicitationNotice | null; ohioHomeConstruction: OhioHomeConstruction | null; customerSignature: { typed_name: string; created_at: string; verification_result: string } | null; preview?: boolean };
+type Contract = { company: { name: string }; estimate: { title: string; estimate_number: string | null; description: string | null; issue_date: string | null; expiration_date: string | null; subtotal: number; discount_total: number; tax_rate: number; tax_amount: number; additional_fee: number; total_amount: number; deposit_type: string; deposit_value: number; deposit_amount: number; customer_notes: string | null; terms: string | null; payment_terms: string | null; scope_inclusions: string | null; scope_exclusions: string | null; status: string; customers?: Customer | Customer[] | null }; items: Array<{ category: string; description: string; quantity: number; unit: string; unit_price: number; line_total: number }>; expiresAt: string; homeSolicitation: HomeSolicitationNotice | null; ohioHomeConstruction: OhioHomeConstruction | null; customerSignature: { typed_name: string; created_at: string; verification_result: string } | null; preview?: boolean };
 
 const money = (value: number) => Number(value || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
 const dateLabel = (value: string | null) => value ? new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Not set";
 const publicUnitLabel = (unit: string) => unit === "lump_sum" || unit.toLowerCase() === "lump sum" ? "Total" : unit.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 const quantityLabel = (quantity: number, unit: string) => unit === "lump_sum" || unit.toLowerCase() === "lump sum" ? "Total" : `${quantity} ${publicUnitLabel(unit)}`;
+const depositLabel = (type: string, value: number, amount: number) => type === "percentage"
+  ? `${value}% · ${money(amount)}`
+  : type === "fixed"
+    ? money(amount)
+    : "No deposit required";
 const categoryLabel = (category: string) => ({
   labor: "Labor",
   materials: "Materials",
@@ -47,6 +52,9 @@ function ContractReview({ contract, typedName, consent, submitting, error, signe
         <PriceRow label={contract.estimate.tax_rate > 0 ? `Tax (${(contract.estimate.tax_rate * 100).toFixed(2).replace(/\.00$/, "")}%)` : "Tax"} value={money(contract.estimate.tax_amount)} />
         {contract.estimate.additional_fee > 0 ? <PriceRow label="Additional fee" value={money(contract.estimate.additional_fee)} /> : null}
         <div className="flex items-center justify-between border-t border-slate-300 pt-3"><span className="font-black text-slate-800">Estimate total</span><span className="text-2xl font-black">{money(contract.estimate.total_amount)}</span></div>
+        <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <div className="flex items-center justify-between gap-6"><span className="font-black text-blue-950">Deposit required</span><span className="font-black text-blue-950">{depositLabel(contract.estimate.deposit_type, contract.estimate.deposit_value, contract.estimate.deposit_amount)}</span></div>
+        </div>
       </div>
     </div></DocumentSection>
     <DocumentSection number="03" title="Project terms"><div className="grid gap-6 md:grid-cols-2"><TermBlock title="Project-specific terms" value={contract.estimate.terms || "No additional project-specific terms were entered."} /><TermBlock title="Payment terms" value={contract.estimate.payment_terms || "Payment terms are governed by the estimate and incorporated Construction Agreement."} /></div></DocumentSection>
