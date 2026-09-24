@@ -24,6 +24,9 @@ test("customer payment recording preserves compliance and balance safety boundar
   assert.match(service, /partially_paid/);
   assert.match(service, /payment\.received/);
   assert.match(service, /invoice\.paid/);
+  assert.doesNotMatch(service, /\["draft","void","paid"\]/);
+  assert.match(service, /isDraft=invoiceResult\.data\.status==="draft"/);
+  assert.match(service, /nextStatus=isDraft\?"draft":isPaid\?"paid":"partially_paid"/);
 });
 
 test("accounts receivable command center exposes aging and controlled payment workflow", () => {
@@ -35,4 +38,14 @@ test("accounts receivable command center exposes aging and controlled payment wo
   assert.match(payment, /Reference Number/);
   assert.match(invoices, /Accounts Receivable/);
   assert.match(invoices, /\/invoices\/accounts-receivable/);
+});
+
+
+test("draft invoices support historical payments before send", () => {
+  const detail = readFileSync("components/invoices/invoice-detail.tsx", "utf8");
+  const invoiceService = readFileSync("lib/invoices/service.ts", "utf8");
+  assert.match(detail, /status !== "void" && status !== "paid" && balanceDue > 0/);
+  assert.match(payment, /Record Historical Payment/);
+  assert.match(invoiceService, /amountPaid > 0/);
+  assert.match(invoiceService, /"partially_paid"/);
 });
