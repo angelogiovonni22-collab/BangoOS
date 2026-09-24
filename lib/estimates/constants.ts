@@ -4,7 +4,6 @@ export const ESTIMATE_CATEGORY_OPTIONS: Array<{ value: EstimateLineCategory; lab
   { value: "labor", label: "Labor" },
   { value: "materials", label: "Materials" },
   { value: "equipment", label: "Equipment" },
-  { value: "subcontractors", label: "Trade Partner Cost (Internal)" },
   { value: "general_conditions", label: "General Conditions" },
   { value: "permits_fees", label: "Permits and Fees" },
   { value: "other", label: "Other" },
