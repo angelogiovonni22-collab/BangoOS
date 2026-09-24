@@ -20,7 +20,7 @@ test("public contract experience is branded and complete", () => {
   assert.match(page, /Project address/);
   assert.match(page, /scope_inclusions/);
   assert.match(page, /scope_exclusions/);
-  assert.match(page, /Contract total/);
+  assert.match(page, /Estimate total/);
   assert.match(page, /Construction Agreement/);
   assert.match(page, /One-step acceptance & electronic signature/);
   assert.match(page, /B\.O\.S\. provides the secure document and electronic-signature workflow and is not a party/);
