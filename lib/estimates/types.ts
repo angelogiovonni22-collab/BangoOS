@@ -34,6 +34,7 @@ export type EstimateUnit =
   | "lump_sum";
 
 export type EstimateDiscountType = "none" | "percentage" | "fixed";
+export type EstimateDepositType = "none" | "percentage" | "fixed";
 
 export type EstimateRow = Database["public"]["Tables"]["estimates"]["Row"];
 export type EstimateInsert = Database["public"]["Tables"]["estimates"]["Insert"];
@@ -102,6 +103,8 @@ export type EstimateFormValues = {
   discountValue: string;
   taxRatePercent: string;
   additionalFee: string;
+  depositType: EstimateDepositType;
+  depositValue: string;
   internalNotes: string;
   customerNotes: string;
   scopeInclusions: string;
