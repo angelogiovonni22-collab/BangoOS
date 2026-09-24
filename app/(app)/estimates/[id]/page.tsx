@@ -1,7 +1,6 @@
 import { EstimateDetail } from "@/components/estimates";
 import { EstimateComplianceSection } from "@/components/estimates/estimate-compliance-section";
 import { HomeSolicitationCompliancePanel } from "@/components/estimates/home-solicitation-compliance-panel";
-import { HomeSolicitationSellerSignature } from "@/components/estimates/home-solicitation-seller-signature";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -21,7 +20,6 @@ export default async function EstimateDetailsPage({ params, searchParams }: Page
       <EstimateDetail estimateId={estimateId} sendIssue={sendIssue} createdForReview={createdForReview === "1"} />
       <EstimateComplianceSection estimateId={estimateId} />
       <HomeSolicitationCompliancePanel estimateId={estimateId} />
-      <HomeSolicitationSellerSignature estimateId={estimateId} />
     </div>
   );
 }
