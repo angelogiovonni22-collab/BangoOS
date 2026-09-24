@@ -21,7 +21,7 @@ test("customer payment recording preserves compliance and balance safety boundar
   assert.match(service, /Payment cannot exceed the invoice balance/);
   assert.match(service, /select\("amount_paid, status, paid_date"\)/);
   assert.match(service, /invoice_payment_history/);
-  assert.match(service, /partially_paid/);
+  assert.match(service, /invoice\.partial_payment/);
   assert.match(service, /payment\.received/);
   assert.match(service, /invoice\.paid/);
   assert.doesNotMatch(service, /\["draft","void","paid"\]/);
