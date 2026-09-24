@@ -345,11 +345,17 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
     setIsSaving(true);
 
     try {
+      const prospectEmail = prospect.email.trim().toLowerCase();
+      const matchedCustomer = !values.customerId && prospectEmail
+        ? customerOptions.find((customer) => (customer.email || "").trim().toLowerCase() === prospectEmail) || null
+        : null;
+      const effectiveValues = matchedCustomer ? { ...values, customerId: matchedCustomer.id } : values;
+
       const result = await saveEstimate({
         supabase,
         companyId,
         userId,
-        values,
+        values: effectiveValues,
         lineItems,
         estimateId: mode === "edit" ? estimateId : undefined,
       });
@@ -359,7 +365,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         return;
       }
 
-      const prospectPersistence = values.customerId
+      const prospectPersistence = effectiveValues.customerId
         ? await removeEstimateProspect(supabase, companyId, result.estimateId)
         : await saveEstimateProspect({ supabase, companyId, estimateId: result.estimateId, userId, values: prospect });
 
@@ -400,7 +406,13 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         }
       }
 
-      setSuccessMessage(values.customerId ? "Estimate saved successfully." : "Estimate and prospective customer details saved successfully.");
+      setSuccessMessage(
+        effectiveValues.customerId
+          ? matchedCustomer
+            ? "Estimate saved and linked to the matching existing customer."
+            : "Estimate saved successfully."
+          : "Estimate and prospective customer details saved successfully.",
+      );
 
       if (action === "draft") {
         router.push("/estimates");
@@ -408,7 +420,11 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         return;
       }
 
-      router.push(`/estimates/${result.estimateId}/edit`);
+      if (action === "continue") {
+        router.push(`/estimates/${result.estimateId}/edit`);
+      } else {
+        router.push(`/estimates/${result.estimateId}`);
+      }
       router.refresh();
     } catch (caughtError) {
       console.error("Save estimate error", caughtError);
