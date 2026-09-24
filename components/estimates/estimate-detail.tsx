@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
 import { SendContractButton } from "@/components/estimates/send-contract-button";
+import { PreviewEstimateButton } from "@/components/estimates/preview-estimate-button";
 import { BlueprintSourceLink } from "@/components/plans/blueprint-source-link";
 
 export function EstimateDetail({ estimateId, sendIssue, createdForReview = false }: { estimateId: string; sendIssue?: string; createdForReview?: boolean }) {
@@ -161,7 +162,7 @@ export function EstimateDetail({ estimateId, sendIssue, createdForReview = false
         description="Review estimate scope, pricing, and terms in a read-only summary."
         secondaryActions={(
           <>
-            {estimate.status !== "approved" && estimate.status !== "archived" ? <SendContractButton estimateId={estimate.id} /> : null}
+            {estimate.status !== "approved" && estimate.status !== "archived" ? <><PreviewEstimateButton estimateId={estimate.id} /><SendContractButton estimateId={estimate.id} /></> : null}
             {estimate.status === "approved" ? (
               <>
                 <Link href={`/change-orders/new?estimateId=${estimate.id}${estimate.customer_id ? `&customerId=${estimate.customer_id}` : ""}${estimate.project_id ? `&projectId=${estimate.project_id}` : ""}`}>
