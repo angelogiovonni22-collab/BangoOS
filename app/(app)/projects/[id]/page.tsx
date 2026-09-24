@@ -67,6 +67,7 @@ type ProjectSummary = Pick<
   | "postal_code"
   | "estimated_cost"
   | "contract_amount"
+  | "required_down_payment"
   | "estimated_start_date"
   | "estimated_end_date"
   | "actual_end_date"
@@ -198,6 +199,22 @@ type CloseoutSnapshot = {
   equipmentReturnCompleted: boolean;
 } | null;
 
+type AcceptedEstimateSummary = {
+  id: string;
+  estimate_number: string | null;
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total_amount: number;
+  deposit_type: string;
+  deposit_value: number;
+  deposit_amount: number;
+  payment_terms: string | null;
+  customer_notes: string | null;
+  scope_inclusions: string | null;
+  scope_exclusions: string | null;
+};
+
 type WorkspaceState = {
   project: ProjectSummary;
   customer: CustomerSummary | null;
@@ -206,6 +223,7 @@ type WorkspaceState = {
   tasks: TaskSummary[];
   invoices: InvoiceSummary[];
   originalEstimateId: string | null;
+  acceptedEstimate: AcceptedEstimateSummary | null;
   counts: WorkspaceCounts;
   closeout: CloseoutSnapshot;
   timelineEntries: CommandCenterTimelineEntry[];
@@ -302,7 +320,7 @@ export default function ProjectWorkspacePage() {
         const projectResponse = await client
           .from("projects")
           .select(
-            "id, name, project_number, project_type, status, description, customer_id, created_by, address_line_1, address_line_2, city, state, postal_code, estimated_cost, contract_amount, estimated_start_date, estimated_end_date, actual_end_date, created_at, updated_at",
+            "id, name, project_number, project_type, status, description, customer_id, created_by, address_line_1, address_line_2, city, state, postal_code, estimated_cost, contract_amount, required_down_payment, estimated_start_date, estimated_end_date, actual_end_date, created_at, updated_at",
           )
           .eq("id", projectId)
           .eq("company_id", workspaceResult.context.companyId)
@@ -526,12 +544,12 @@ export default function ProjectWorkspacePage() {
 
         const originalEstimateResponse = await client
           .from("estimates")
-          .select("id")
+          .select("id, estimate_number, subtotal, tax_rate, tax_amount, total_amount, deposit_type, deposit_value, deposit_amount, payment_terms, customer_notes, scope_inclusions, scope_exclusions")
           .eq("company_id", workspaceResult.context.companyId)
           .or(`project_id.eq.${projectId},converted_project_id.eq.${projectId}`)
           .order("created_at", { ascending: true })
           .limit(1)
-          .maybeSingle<{ id: string }>();
+          .maybeSingle<AcceptedEstimateSummary>();
 
         if (originalEstimateResponse.error || profilesResponse.error || tasksResponse.error || invoicesResponse.error || customerResponse.error || estimatesCountResponse.error || changeOrdersCountResponse.error || dailyReportsCountResponse.error || photosCountResponse.error || latestProjectPhotoResponse.error || inspectionsCountResponse.error || pendingInspectionsCountResponse.error || permitsCountResponse.error || openPermitsCountResponse.error || communicationsCountResponse.error || openPunchItemsCountResponse.error || closeoutResponse.error || assignedEquipmentCountResponse.error || availableEquipmentCountResponse.error || equipmentConflictCountResponse.error || communicationsRecentResponse.error || inspectionsRecentResponse.error || permitsRecentResponse.error || punchItemsRecentResponse.error || punchItemsDetailResponse.error || assignmentsResponse.error || crewsResponse.error || dailyReportEventsResponse.error || photoEventsResponse.error || changeOrdersRecentResponse.error) {
           if (isSubscribed) {
@@ -591,6 +609,7 @@ export default function ProjectWorkspacePage() {
             tasks: taskRows,
             invoices: invoiceRows,
             originalEstimateId: originalEstimateResponse.data?.id || null,
+            acceptedEstimate: originalEstimateResponse.data || null,
             counts: {
               estimates: estimatesCountResponse.count || 0,
               changeOrders: changeOrdersCountResponse.count || 0,
@@ -801,6 +820,14 @@ export default function ProjectWorkspacePage() {
           <PageTransition transitionKey={`workspace-tab-${activeTab}`} className="min-w-0 max-w-full">
             {activeTab === "overview" ? (
               <div className="min-w-0 space-y-4">
+                {workspace.acceptedEstimate ? (
+                  <AcceptedEstimateSummaryCard
+                    estimate={workspace.acceptedEstimate}
+                    projectRequiredDownPayment={Number(project.required_down_payment || 0)}
+                    localeTag={localeTag}
+                    estimateHref={`/estimates/${workspace.acceptedEstimate.id}`}
+                  />
+                ) : null}
                 <ProjectOperatingSystemPanel
                   intelligence={projectIntelligence}
                   briefing={superintendentBriefing}
@@ -1581,4 +1608,60 @@ function toRecord(value: unknown): Record<string, unknown> {
   }
 
   return value as Record<string, unknown>;
+}
+
+
+function AcceptedEstimateSummaryCard({
+  estimate,
+  projectRequiredDownPayment,
+  localeTag,
+  estimateHref,
+}: {
+  estimate: AcceptedEstimateSummary;
+  projectRequiredDownPayment: number;
+  localeTag: string;
+  estimateHref: string;
+}) {
+  const money = (value: number) => formatProjectCurrency(Number(value || 0), localeTag, "$0");
+  const depositAmount = Number(estimate.deposit_amount || projectRequiredDownPayment || 0);
+  const depositLabel = estimate.deposit_type === "percentage"
+    ? `${Number(estimate.deposit_value || 0)}% · ${money(depositAmount)}`
+    : estimate.deposit_type === "fixed"
+      ? money(depositAmount)
+      : "No deposit required";
+
+  return (
+    <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)] sm:p-5" data-accepted-estimate-summary>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-[.1em] text-[var(--color-primary-700)]">Original Contract</p>
+          <h2 className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-[var(--bos-text-strong-on-light)]">Accepted Estimate Summary</h2>
+          <p className="mt-1 text-sm font-medium text-[var(--bos-text-medium-on-light)]">Customer-approved pricing and scope terms carried into this project.</p>
+        </div>
+        <Link href={estimateHref} className={getButtonClassName({ variant: "outline", size: "sm" })}>View Accepted Estimate</Link>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <AcceptedInfo label="Contract Value" value={money(estimate.total_amount)} />
+        <AcceptedInfo label="Deposit Required" value={depositLabel} />
+        <AcceptedInfo label="Subtotal" value={money(estimate.subtotal)} />
+        <AcceptedInfo label={`Tax (${(Number(estimate.tax_rate || 0) * 100).toFixed(2).replace(/\.00$/, "")}%)`} value={money(estimate.tax_amount)} />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <AcceptedText label="Payment Terms" value={estimate.payment_terms} />
+        <AcceptedText label="Customer Notes" value={estimate.customer_notes} />
+        <AcceptedText label="Scope Inclusions" value={estimate.scope_inclusions} />
+        <AcceptedText label="Scope Exclusions" value={estimate.scope_exclusions} />
+      </div>
+    </section>
+  );
+}
+
+function AcceptedInfo({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-[13px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] px-4 py-3"><p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="mt-1 text-base font-extrabold text-[var(--bos-text-strong-on-light)]">{value}</p></div>;
+}
+
+function AcceptedText({ label, value }: { label: string; value: string | null }) {
+  return <div className="rounded-[13px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] px-4 py-3"><p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm font-medium leading-6 text-[var(--bos-text-strong-on-light)]">{value?.trim() || "Not provided."}</p></div>;
 }

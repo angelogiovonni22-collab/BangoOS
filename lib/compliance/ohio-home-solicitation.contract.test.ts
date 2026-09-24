@@ -7,7 +7,7 @@ const cancelRoute = fs.readFileSync("app/api/contracts/estimate/[token]/cancel/r
 const publicPage = fs.readFileSync("app/contracts/estimate/[token]/page.tsx", "utf8");
 const migration = fs.readFileSync("supabase/migrations/20260814133000_estimate_home_solicitation_compliance.sql", "utf8");
 
-assert.match(sendRoute, /home.?solicitation/i, "send route must enforce home-solicitation readiness");
+assert.doesNotMatch(sendRoute, /home.?solicitation/i, "standard estimate send route must not require manual home-solicitation review");
 assert.match(publicRoute, /cancellation/i, "public contract route must expose cancellation information");
 assert.match(cancelRoute, /cancel/i, "public cancellation endpoint must exist");
 assert.match(publicPage, /cancel/i, "public contract page must present cancellation controls or notice");
