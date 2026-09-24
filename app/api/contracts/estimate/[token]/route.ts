@@ -27,10 +27,11 @@ type ProspectQuery = {
 };
 
 type ProspectDb = { from: (table: string) => ProspectQuery };
-type PublicEstimateLineItem = { description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order: number };
+type PublicEstimateLineItem = { category: string; description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order: number };
 
 function sanitizePublicEstimateLineItem(item: Record<string, unknown>): PublicEstimateLineItem {
   return {
+    category: String(item.category ?? "other"),
     description: String(item.description ?? ""),
     quantity: Number(item.quantity ?? 0),
     unit: String(item.unit ?? ""),
@@ -70,7 +71,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     const { admin, validated, isPreview } = await context(token, request);
     const [{ data: estimate }, { data: items }, { data: company }, prospect, ohioContractCompliance, { data: customerSignature }] = await Promise.all([
       admin.from("estimates").select("id, title, estimate_number, description, issue_date, expiration_date, subtotal, discount_total, tax_rate, tax_amount, additional_fee, total_amount, customer_notes, terms, payment_terms, scope_inclusions, scope_exclusions, version_number, status, customer_id, agreement_snapshot, customers(first_name,last_name,email,address_line_1,address_line_2,city,state,postal_code,customer_type)").eq("id", validated.estimateId).eq("company_id", validated.companyId).single(),
-      admin.from("estimate_line_items").select("description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
+      admin.from("estimate_line_items").select("category, description, quantity, unit, unit_price, line_total, sort_order").eq("estimate_id", validated.estimateId).eq("company_id", validated.companyId).order("sort_order"),
       admin.from("companies").select("name").eq("id", validated.companyId).single(),
       loadProspect(admin, validated.companyId, validated.estimateId),
       loadEstimateCompliance(admin, validated.companyId, validated.estimateId),
@@ -104,7 +105,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
           totalAmount?: number;
           terms?: string | null;
           paymentTerms?: string | null;
-          lineItems?: Array<{ description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order: number }>;
+          lineItems?: Array<{ category?: string; description: string; quantity: number; unit: string; unit_price: number; line_total: number; sort_order: number }>;
         };
         customer?: Record<string, unknown> | null;
         compliancePackage?: {
