@@ -17,7 +17,7 @@ export const ESTIMATE_UNIT_OPTIONS: Array<{ value: EstimateUnit; label: string }
   { value: "square_foot", label: "Square Foot" },
   { value: "linear_foot", label: "Linear Foot" },
   { value: "cubic_yard", label: "Cubic Yard" },
-  { value: "lump_sum", label: "Lump Sum" },
+  { value: "lump_sum", label: "Total" },
 ];
 
 export const ESTIMATE_STATUS_OPTIONS: Array<{ value: EstimateStatus; label: string }> = [
