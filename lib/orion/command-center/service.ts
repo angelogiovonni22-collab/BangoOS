@@ -229,37 +229,6 @@ function addContextPriorityActions(params: {
       }));
     }
 
-    if (dashboardOpen) {
-      actions.push(
-        buildAction({
-          id: "route-estimate-customer-portal",
-          label: "Customer Portal",
-          subtitle: "Open estimate customer portal",
-          group: "estimates",
-          command: dashboardOpen,
-          params: { entityType: "workflow", entityId: estimateId, deepLink: `/estimates/${estimateId}` },
-          deepLink: `/estimates/${estimateId}`,
-          entityType: "estimate",
-          entityId: estimateId,
-          keywords: ["estimate", "portal"],
-          contextTags: ["estimate"],
-        }),
-        buildAction({
-          id: "route-estimate-approval-status",
-          label: "View Approval Status",
-          subtitle: "Open approval workflow details",
-          group: "estimates",
-          command: dashboardOpen,
-          params: { entityType: "workflow", entityId: estimateId, deepLink: `/estimates/${estimateId}` },
-          deepLink: `/estimates/${estimateId}`,
-          entityType: "estimate",
-          entityId: estimateId,
-          keywords: ["estimate", "approval", "status"],
-          contextTags: ["estimate"],
-        }),
-      );
-    }
-
     if (estimateDeposit) {
       actions.push(buildAction({
         id: "estimate.generate_deposit_invoice",
@@ -301,8 +270,6 @@ function addContextPriorityActions(params: {
       { id: "route-customer-timeline", label: "Open Timeline", href: `/timeline?customerId=${customerId}`, group: "reports", keywords: ["customer", "timeline"] },
       { id: "route-customer-balance", label: "Outstanding Balance", href: `/customers/${customerId}?tab=invoices`, group: "finance", keywords: ["customer", "balance"] },
       { id: "route-customer-documents", label: "Documents", href: `/customers/${customerId}?tab=documents`, group: "customers", keywords: ["customer", "documents"] },
-      { id: "route-customer-call", label: "Call", href: `/customers/${customerId}`, group: "customers", keywords: ["customer", "call"] },
-      { id: "route-customer-email", label: "Email", href: `/customers/${customerId}`, group: "customers", keywords: ["customer", "email"] },
     ];
 
     for (const priority of priorities) {
