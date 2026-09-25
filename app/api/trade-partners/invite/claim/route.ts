@@ -61,8 +61,33 @@ export async function GET(request: NextRequest) {
     const token = request.nextUrl.searchParams.get("token")?.trim() || "";
     const invitation = await loadInvitation(admin, token);
     if (!invitation) return NextResponse.json({ error: "This Trade Partner invitation is invalid." }, { status: 404 });
-    if (["cancelled", "completed"].includes(invitation.status)) {
-      return NextResponse.json({ error: invitation.status === "completed" ? "This Trade Partner onboarding is already complete." : "This invitation is no longer active." }, { status: 410 });
+    if (invitation.status === "cancelled") {
+      return NextResponse.json({ error: "This invitation is no longer active." }, { status: 410 });
+    }
+
+    if (invitation.status === "completed") {
+      const { data: vendor } = await admin
+        .from("vendors")
+        .select("display_name,company_name,vendor_code")
+        .eq("company_id", invitation.company_id)
+        .eq("id", invitation.vendor_id)
+        .maybeSingle();
+
+      return NextResponse.json({
+        ok: true,
+        completed: true,
+        invitation: {
+          email: invitation.email,
+          phone: invitation.phone,
+          firstName: invitation.first_name,
+          lastName: invitation.last_name,
+          expiresAt: invitation.expires_at,
+        },
+        tradePartner: {
+          displayName: vendor?.display_name || vendor?.company_name || "Trade Partner",
+          vendorCode: vendor?.vendor_code || null,
+        },
+      });
     }
     if (isExpired(invitation)) {
       await admin.from("trade_partner_invitations" as never).update({ status: "expired", updated_at: new Date().toISOString() } as never).eq("id", invitation.id);
