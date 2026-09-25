@@ -6,8 +6,6 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { FadeIn, MotionProvider, PageTransition } from "@/components/motion";
 import {
   CommandCenterTimelineEntry,
-  ProjectCommandCenterFoundation,
-  ProjectCommitmentsControl,
   ProjectComplianceWorkflow,
   ProjectCommandCenterTabPlaceholder,
   ProjectActivityWorkspace,
@@ -19,8 +17,8 @@ import {
   ProjectExecutionIssue,
   ProjectExecutionNote,
   ProjectExecutionTask,
-  ProjectOperatingSystemPanel,
   ProjectWorkWorkspace,
+  ProjectOverviewCommandCenter,
   ProjectTabs,
   ProjectTradePartnersWorkspace,
   ProjectTradePartnerMessages,
@@ -819,67 +817,30 @@ export default function ProjectWorkspacePage() {
         <div className="min-w-0 rounded-[20px] border border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-surface),var(--bos-bg-workspace-surface-soft))] p-3 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)]">
           <PageTransition transitionKey={`workspace-tab-${activeTab}`} className="min-w-0 max-w-full">
             {activeTab === "overview" ? (
-              <div className="min-w-0 space-y-4">
-                {workspace.acceptedEstimate ? (
-                  <AcceptedEstimateSummaryCard
-                    estimate={workspace.acceptedEstimate}
-                    projectRequiredDownPayment={Number(project.required_down_payment || 0)}
-                    localeTag={localeTag}
-                    estimateHref={`/estimates/${workspace.acceptedEstimate.id}`}
-                  />
-                ) : null}
-                <ProjectOperatingSystemPanel
-                  intelligence={projectIntelligence}
-                  briefing={superintendentBriefing}
-                  projectId={project.id}
-                  projectStatus={project.status || ""}
-                  compliance={{
-                    permitsTotal: workspace.counts.permits,
-                    openPermits: workspace.counts.openPermits,
-                    inspectionsTotal: workspace.counts.inspections,
-                    pendingInspections: workspace.counts.pendingInspections,
-                    documentsTotal: workspace.counts.communications,
-                  }}
-                  timelineCount={timeline.length}
-                  formatCurrency={(amount) => formatProjectCurrency(amount, localeTag, "$0")}
-                  t={(key, params) => t(`projects.${key}`, params)}
-                />
-                <ProjectCommandCenterFoundation
-                  projectId={project.id}
-                  projectName={projectName}
-                  projectDescription={project.description}
-                  customerName={customerName}
-                  projectAddress={location}
-                  statusLabel={statusLabel}
-                  projectStatus={project.status || ""}
-                  tasks={workspace.tasks}
-                  budgetLabel={budgetValue}
-                  spentLabel={spentValue}
-                  remainingLabel={remainingBudgetLabel}
-                  startDate={startDate}
-                  targetDate={completionDate}
-                  crewCount={workspace.assignments.length}
-                  estimatesCount={workspace.counts.estimates}
-                  changeOrdersCount={workspace.counts.changeOrders}
-                  invoicesCount={workspace.invoices.length}
-                  photosCount={workspace.counts.photos}
-                  permitsCount={workspace.counts.permits}
-                  inspectionsCount={workspace.counts.inspections}
-                  dailyReportsCount={workspace.counts.dailyReports}
-                  openPunchItemsCount={workspace.counts.openPunchItems}
-                  openPermitsCount={workspace.counts.openPermits}
-                  pendingInspectionsCount={workspace.counts.pendingInspections}
-                  closeoutStatusLabel={closeoutStatusLabel}
-                  closeoutReady={closeoutReady}
-                  activityItems={recentActivity}
-                  timelineEntries={timeline}
-                />
-                <ProjectCommitmentsControl
-                  projectId={project.id}
-                  companyId={workspace.workspaceContext.companyId}
-                  budget={budgetValueRaw}
-                />
-              </div>
+              <ProjectOverviewCommandCenter
+                projectId={project.id}
+                companyId={workspace.workspaceContext.companyId}
+                projectName={projectName}
+                customerName={customerName}
+                projectType={project.project_type}
+                address={location}
+                statusLabel={statusLabel}
+                startDate={startDate}
+                targetDate={completionDate}
+                contractValue={project.contract_amount ?? project.estimated_cost}
+                projectManager={project.created_by ? workspace.profilesById[project.created_by] || "Not Assigned" : "Not Assigned"}
+                tasks={workspace.tasks}
+                assignments={workspace.assignments}
+                inspections={workspace.inspections}
+                financialReport={workspace.financialReport}
+                photoCount={workspace.counts.photos}
+                heroImageUrl={workspace.heroImageUrl}
+                activityItems={recentActivity}
+                permitsOpen={workspace.counts.openPermits}
+                pendingInspections={workspace.counts.pendingInspections}
+                openPunchItems={workspace.counts.openPunchItems}
+                localeTag={localeTag}
+              />
             ) : activeTab === "tasks" ? (
               <ProjectWorkWorkspace
                 companyId={workspace.workspaceContext.companyId}
@@ -1608,60 +1569,4 @@ function toRecord(value: unknown): Record<string, unknown> {
   }
 
   return value as Record<string, unknown>;
-}
-
-
-function AcceptedEstimateSummaryCard({
-  estimate,
-  projectRequiredDownPayment,
-  localeTag,
-  estimateHref,
-}: {
-  estimate: AcceptedEstimateSummary;
-  projectRequiredDownPayment: number;
-  localeTag: string;
-  estimateHref: string;
-}) {
-  const money = (value: number) => formatProjectCurrency(Number(value || 0), localeTag, "$0");
-  const depositAmount = Number(estimate.deposit_amount || projectRequiredDownPayment || 0);
-  const depositLabel = estimate.deposit_type === "percentage"
-    ? `${Number(estimate.deposit_value || 0)}% · ${money(depositAmount)}`
-    : estimate.deposit_type === "fixed"
-      ? money(depositAmount)
-      : "No deposit required";
-
-  return (
-    <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)] sm:p-5" data-accepted-estimate-summary>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-[.1em] text-[var(--color-primary-700)]">Original Contract</p>
-          <h2 className="mt-1 text-xl font-extrabold tracking-[-0.02em] text-[var(--bos-text-strong-on-light)]">Accepted Estimate Summary</h2>
-          <p className="mt-1 text-sm font-medium text-[var(--bos-text-medium-on-light)]">Customer-approved pricing and scope terms carried into this project.</p>
-        </div>
-        <Link href={estimateHref} className={getButtonClassName({ variant: "outline", size: "sm" })}>View Accepted Estimate</Link>
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <AcceptedInfo label="Contract Value" value={money(estimate.total_amount)} />
-        <AcceptedInfo label="Deposit Required" value={depositLabel} />
-        <AcceptedInfo label="Subtotal" value={money(estimate.subtotal)} />
-        <AcceptedInfo label={`Tax (${(Number(estimate.tax_rate || 0) * 100).toFixed(2).replace(/\.00$/, "")}%)`} value={money(estimate.tax_amount)} />
-      </div>
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <AcceptedText label="Payment Terms" value={estimate.payment_terms} />
-        <AcceptedText label="Customer Notes" value={estimate.customer_notes} />
-        <AcceptedText label="Scope Inclusions" value={estimate.scope_inclusions} />
-        <AcceptedText label="Scope Exclusions" value={estimate.scope_exclusions} />
-      </div>
-    </section>
-  );
-}
-
-function AcceptedInfo({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-[13px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] px-4 py-3"><p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="mt-1 text-base font-extrabold text-[var(--bos-text-strong-on-light)]">{value}</p></div>;
-}
-
-function AcceptedText({ label, value }: { label: string; value: string | null }) {
-  return <div className="rounded-[13px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] px-4 py-3"><p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm font-medium leading-6 text-[var(--bos-text-strong-on-light)]">{value?.trim() || "Not provided."}</p></div>;
 }
