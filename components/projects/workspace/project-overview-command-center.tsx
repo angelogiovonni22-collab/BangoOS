@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { ProjectFinancialReport } from "@/lib/financial-reporting";
 
@@ -268,7 +268,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
 const panelClass = "rounded-[18px] border border-[#1d4261] bg-[linear-gradient(180deg,#071827,#061320)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.035),0_10px_30px_rgba(0,0,0,.12)] sm:p-5";
 const smallAction = "inline-flex min-h-8 items-center justify-center rounded-lg border border-[#28577c] bg-[#0a2035] px-3 text-xs font-bold text-[#cfe9ff] transition hover:border-[#3c83b9] hover:bg-[#0d2b47]";
 
-function Panel({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+function Panel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return <section className={panelClass}><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-extrabold tracking-[-.01em] text-white">{title}</h2>{action}</div>{children}</section>;
 }
 
