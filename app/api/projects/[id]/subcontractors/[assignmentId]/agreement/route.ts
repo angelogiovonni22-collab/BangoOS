@@ -5,7 +5,7 @@ import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import { sendContractEmail } from "@/lib/estimates/contract-email";
+import { sendContractEmail } from "@/lib/estimates/contract-email";\nimport { renderBrandedSubcontractEmail } from "@/lib/subcontractors/branded-subcontract-email";
 import {
   MASTER_SUBCONTRACT_AGREEMENT_VERSION,
   PROJECT_WORK_AUTHORIZATION_VERSION,
@@ -145,7 +145,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const delivery = await sendContractEmail({
       to: email,
       subject: `${companyName} subcontract agreement — ${waSnapshot.project}`,
-      html: `<p>Hello ${asText(assignment.primary_contact_name) || asText(vendor.first_name) || "there"},</p><p>${companyName} has assigned your company to <strong>${waSnapshot.project}</strong> for <strong>${assignment.trade_name}</strong>.</p><p>Please review and sign the subcontract documents using the secure link below.</p><p><a href="${url}">Review &amp; Sign Subcontract</a></p><p>This link expires in 14 days.</p>`,
+      html: renderBrandedSubcontractEmail({
+        companyName,
+        companyLogoUrl: asText(companyRecord.logo_url),
+        contactName: asText(assignment.primary_contact_name) || asText(vendor.first_name),
+        projectName: waSnapshot.project,
+        tradeName: assignment.trade_name,
+        scopeOfWork: asText(assignment.scope_of_work),
+        contractAmount: asNumber(assignment.contract_amount),
+        reviewUrl: url,
+        expiresAt,
+      }),
     });
     await admin.from("subcontractor_signature_events" as never).insert({ company_id: companyId, vendor_id: assignment.vendor_id, assignment_id: assignmentId, master_agreement_id: master.id, work_authorization_id: authorization.id, event_type: "sent", signer_email: email, document_hash: authorization.authorization_hash, metadata: { delivery } } as never);
 
