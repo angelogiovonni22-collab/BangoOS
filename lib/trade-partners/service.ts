@@ -161,7 +161,7 @@ function createSupabaseRepository(
         .eq("company_id", companyId)
         .eq("project_id", projectId)
         .eq("vendor_id", vendorId)
-        .eq("assignment_status", "active")
+        .neq("assignment_status", "archived")
         .limit(1);
 
       if (excludeId) {
@@ -262,7 +262,7 @@ export function createTradePartnerAssignmentsService(deps: TradePartnerAssignmen
     if (duplicateResult.data?.id) {
       throw new TradePartnerAssignmentsError(
         "CONFLICT",
-        "An active trade partner assignment already exists for this vendor on the selected project.",
+        "This Trade Partner already has a current assignment on this project. Edit or close that assignment instead of creating a duplicate.",
         { duplicateAssignmentId: duplicateResult.data.id },
       );
     }
@@ -350,9 +350,7 @@ export function createTradePartnerAssignmentsService(deps: TradePartnerAssignmen
 
       await ensureProjectAndVendorScope(context, normalized.projectId, normalized.vendorId);
 
-      if (normalized.assignmentStatus === "active") {
-        await ensureNoActiveDuplicate(context, normalized.projectId, normalized.vendorId);
-      }
+      await ensureNoActiveDuplicate(context, normalized.projectId, normalized.vendorId);
 
       if (!repository) {
         throw new TradePartnerAssignmentsError("PERSISTENCE", "Unable to connect to storage.");

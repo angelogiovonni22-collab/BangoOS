@@ -33,8 +33,9 @@ test("resending preserves verified compliance and never overwrites an executed a
   assert.match(route, /existingAuthorization\?\.status === "signed"/);
   assert.match(route, /alreadySigned: true/);
   assert.match(route, /ignoreDuplicates: true/);
-  assert.match(component, /signed \|\| busy === "send" \|\| !email/);
+  assert.doesNotMatch(component, /signed \\|\\| busy === "send"/);
   assert.match(component, /Agreement Signed/);
+  assert.match(component, /View Agreement/);
 });
 
 test("public subcontract portal requires explicit signer identity and consent", () => {

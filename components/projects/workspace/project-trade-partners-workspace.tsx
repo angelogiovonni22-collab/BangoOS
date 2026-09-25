@@ -3,7 +3,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import Link from "next/link";
-import { ArrowUpRight, Building2, ClipboardCheck, Star, Users } from "lucide-react";
+import { ArrowUpRight, Building2, Star, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Badge,
@@ -54,7 +54,7 @@ type AssignmentFormState = {
 };
 type SubcontractorSummary = {
   totalAssigned: number;
-  active: number;
+  signed: number;
   pending: number;
   archived: number;
   totalContractValue: number | null;
@@ -69,7 +69,6 @@ const EMPTY_FORM: AssignmentFormState = {
   startDate: "", targetCompletionDate: "", crewSize: "", notes: "",
 };
 const STATUS_TONE: Record<TradePartnerAssignmentStatus, "brand" | "success" | "warning" | "danger" | "neutral" | "info"> = { active: "success", inactive: "neutral", archived: "warning" };
-const CONTRACT_TONE: Record<string, "brand" | "success" | "warning" | "danger" | "neutral" | "info"> = { draft: "neutral", pending_signature: "warning", signed: "success", cancelled: "danger", closed: "info" };
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
 export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartnersWorkspaceProps) {
@@ -114,6 +113,8 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
     return rows;
   }, [vendorSearch, vendors]);
   const vendorById = useMemo(() => new Map(vendors.map((vendor) => [vendor.id, vendor])), [vendors]);
+  const currentAssignments = useMemo(() => assignments.filter((assignment) => assignment.assignmentStatus !== "archived"), [assignments]);
+  const historicalAssignments = useMemo(() => assignments.filter((assignment) => assignment.assignmentStatus === "archived"), [assignments]);
   const summary = useMemo(() => buildSummary(assignments), [assignments]);
 
   const openCreateDialog = () => {
@@ -259,15 +260,16 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
     ) : <>
       <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">Project Subcontractors</h2><p className="mt-1 text-sm font-medium text-[var(--bos-text-medium-on-light)]">Manage assigned scope, internal subcontract commitments, agreements, mobilization, payments, and closeout. Internal subcontract costs stay private from customers.</p></div><Button type="button" onClick={openCreateDialog}>Assign Trade Partner</Button></div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><SummaryRow label="Selected" value={String(summary.totalAssigned)} /><SummaryRow label="Authorized / Active" value={String(summary.active)} /><SummaryRow label="Awaiting Contract" value={String(summary.pending)} /><SummaryRow label="Internal Subcontract Commitments" value={formatMoney(summary.totalContractValue, "Not Provided")} /></div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><SummaryRow label="Selected" value={String(summary.totalAssigned)} /><SummaryRow label="Signed Contracts" value={String(summary.signed)} /><SummaryRow label="Awaiting Signature" value={String(summary.pending)} /><SummaryRow label="Internal Subcontract Commitments" value={formatMoney(summary.totalContractValue, "Not Provided")} /></div>
       </section>
       <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(260px,1fr)] xl:items-start">
         <div className="grid min-w-0 gap-4">
-          {assignments.map((assignment) => {
+          {currentAssignments.map((assignment) => {
             const vendor = vendorById.get(assignment.vendorId);
             const companyName = vendor?.displayName || vendor?.companyName || "Not Assigned";
             const contractStatusLabel = prettifyToken(assignment.contractStatus);
             const authorized = assignment.contractStatus === "signed" && assignment.assignmentStatus === "active";
+            const statusLabel = authorized ? "Authorized to Start" : assignment.contractStatus === "signed" ? "Signed · Mobilization Hold" : prettifyToken(assignment.assignmentStatus);
             return <Card key={assignment.id} className="min-w-0 overflow-hidden border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-card),var(--color-neutral-50))] shadow-[var(--bos-shadow-workspace-card)]">
               <CardHeader className="space-y-2 border-b border-[var(--bos-border-light)] bg-[linear-gradient(180deg,#f8fbff,#f3f7fd)] pb-4">
                 <div className="flex items-start justify-between gap-2">
@@ -279,20 +281,27 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
                       {vendor?.rehireStatus === "do_not_rehire" ? <Badge tone="danger">Do Not Rehire</Badge> : vendor?.rehireStatus === "review_before_assignment" ? <Badge tone="warning">Review First</Badge> : null}
                     </div>
                   </div>
-                  <Badge tone={STATUS_TONE[assignment.assignmentStatus]}>{authorized ? "Authorized to Start" : prettifyToken(assignment.assignmentStatus)}</Badge>
+                  <Badge tone={authorized ? "success" : assignment.contractStatus === "signed" ? "warning" : STATUS_TONE[assignment.assignmentStatus]}>{statusLabel}</Badge>
                 </div>
                 <p className="text-sm font-bold text-[var(--bos-text-medium-on-light)]">{assignment.tradeName}</p>
               </CardHeader>
               <CardContent className="space-y-3 p-4">
-                <DetailRow label="Contract Status" value={contractStatusLabel} icon={<ClipboardCheck size={14} />} />
-                <div><Badge tone={CONTRACT_TONE[assignment.contractStatus] || "neutral"}>{contractStatusLabel}</Badge></div>
-                <DetailRow label="Scope of Work" value={assignment.scopeOfWork || "Not Provided"} />
-                <DetailRow label="Amount We Are Paying (Internal)" value={formatMoney(assignment.contractAmount)} />
-                <DetailRow label="Compensation & Payment Terms" value={assignment.paymentTerms || "Not Provided"} />
-                <DetailRow label="Retainage" value={assignment.retainagePercent == null ? "Not specified" : `${assignment.retainagePercent}%`} />
-                <DetailRow label="Crew Size" value={assignment.crewSize !== null ? String(assignment.crewSize) : "Not Provided"} />
-                <DetailRow label="Schedule" value={[assignment.startDate, assignment.targetCompletionDate].filter(Boolean).join(" → ") || "Not Scheduled"} />
-                <DetailRow label="Primary Contact" value={assignment.primaryContactName || vendor?.contactName || "Not Assigned"} icon={<Building2 size={14} />} />
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <SummaryRow label="Contract" value={contractStatusLabel} />
+                  <SummaryRow label="Commitment" value={formatMoney(assignment.contractAmount)} />
+                  <SummaryRow label="Crew" value={assignment.crewSize !== null ? String(assignment.crewSize) : "Not Provided"} />
+                  <SummaryRow label="Schedule" value={assignment.startDate || "Not Scheduled"} />
+                </div>
+                <details className="rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)]">
+                  <summary className="cursor-pointer px-3 py-2.5 text-xs font-black uppercase tracking-[0.06em] text-[var(--bos-text-strong-on-light)]">Assignment Details</summary>
+                  <div className="space-y-2 border-t border-[var(--bos-border-light)] p-3">
+                    <DetailRow label="Scope of Work" value={assignment.scopeOfWork || "Not Provided"} />
+                    <DetailRow label="Compensation & Payment Terms" value={assignment.paymentTerms || "Not Provided"} />
+                    <DetailRow label="Retainage" value={assignment.retainagePercent == null ? "Not specified" : `${assignment.retainagePercent}%`} />
+                    <DetailRow label="Schedule" value={[assignment.startDate, assignment.targetCompletionDate].filter(Boolean).join(" → ") || "Not Scheduled"} />
+                    <DetailRow label="Primary Contact" value={assignment.primaryContactName || vendor?.contactName || "Not Assigned"} icon={<Building2 size={14} />} />
+                  </div>
+                </details>
                 <SubcontractorContractActions projectId={projectId} assignmentId={assignment.id} email={assignment.primaryContactEmail || vendor?.email || null} />
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Link href={`/vendors/${assignment.vendorId}`} className={`${getButtonClassName({ variant: "outline" })} w-full`}>View Trade Partner<ArrowUpRight size={14} /></Link>
@@ -302,6 +311,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
             </Card>;
           })}
         </div>
+        <div className="space-y-4">
         <Card className="h-fit border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-card),var(--color-neutral-50))] shadow-[var(--bos-shadow-workspace-card)]">
           <CardHeader><CardTitle className="text-section-title font-bold">Additional Project Details</CardTitle></CardHeader>
           <CardContent className="space-y-2">
@@ -310,6 +320,23 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
             <SummaryRow label="Next Scheduled Start" value={summary.nextScheduledStart || "Not Scheduled"} />
           </CardContent>
         </Card>
+        {historicalAssignments.length ? (
+          <details className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-3 shadow-[var(--shadow-small)]">
+            <summary className="cursor-pointer text-sm font-black text-[var(--bos-text-strong-on-light)]">Historical / Closed Assignments ({historicalAssignments.length})</summary>
+            <div className="mt-3 space-y-2">
+              {historicalAssignments.map((assignment) => {
+                const vendor = vendorById.get(assignment.vendorId);
+                return <div key={assignment.id} className="rounded-xl border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div><p className="text-sm font-black text-[var(--bos-text-strong-on-light)]">{vendor?.displayName || vendor?.companyName || "Trade Partner"}</p><p className="text-xs font-semibold text-[var(--bos-text-medium-on-light)]">{assignment.tradeName} · {prettifyToken(assignment.contractStatus)}</p></div>
+                    <Badge tone="neutral">Archived</Badge>
+                  </div>
+                </div>;
+              })}
+            </div>
+          </details>
+        ) : null}
+        </div>
       </section>
     </>}
 
@@ -382,12 +409,12 @@ function toNullableInteger(value: string) { const parsed = toNullableNumber(valu
 function formatMoney(value: number | null, fallback = "Not Provided") { return value === null ? fallback : money(value); }
 function prettifyToken(value: string) { return value.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase()); }
 function buildSummary(assignments: TradePartnerAssignment[]): SubcontractorSummary {
-  const active = assignments.filter((assignment) => assignment.assignmentStatus === "active").length;
-  const pending = assignments.filter((assignment) => !["signed", "closed"].includes(assignment.contractStatus) && assignment.assignmentStatus !== "archived").length;
+  const signed = assignments.filter((assignment) => assignment.assignmentStatus !== "archived" && ["signed", "closed"].includes(assignment.contractStatus)).length;
+  const pending = assignments.filter((assignment) => assignment.assignmentStatus !== "archived" && !["signed", "closed", "cancelled"].includes(assignment.contractStatus)).length;
   const archived = assignments.filter((assignment) => assignment.assignmentStatus === "archived").length;
   const values = assignments.filter((assignment) => assignment.assignmentStatus !== "archived" && assignment.contractAmount !== null).map((assignment) => assignment.contractAmount as number);
   const crews = assignments.filter((assignment) => assignment.assignmentStatus !== "archived" && assignment.crewSize !== null).map((assignment) => assignment.crewSize as number);
   const starts = assignments.filter((assignment) => assignment.assignmentStatus !== "archived" && assignment.startDate).map((assignment) => assignment.startDate as string).sort();
-  return { totalAssigned: assignments.filter((assignment) => assignment.assignmentStatus !== "archived").length, active, pending, archived, totalContractValue: values.length ? values.reduce((sum, value) => sum + value, 0) : null, totalCrewMembers: crews.length ? crews.reduce((sum, value) => sum + value, 0) : null, averageCrewSize: crews.length ? crews.reduce((sum, value) => sum + value, 0) / crews.length : null, nextScheduledStart: starts[0] || null };
+  return { totalAssigned: assignments.filter((assignment) => assignment.assignmentStatus !== "archived").length, signed, pending, archived, totalContractValue: values.length ? values.reduce((sum, value) => sum + value, 0) : null, totalCrewMembers: crews.length ? crews.reduce((sum, value) => sum + value, 0) : null, averageCrewSize: crews.length ? crews.reduce((sum, value) => sum + value, 0) / crews.length : null, nextScheduledStart: starts[0] || null };
 }
 function mapFriendlyError(error: unknown) { if (error instanceof TradePartnerAssignmentsError || error instanceof VendorsServiceError) return error.message; if (error instanceof Error) return error.message; return "Unable to complete this Trade Partner request."; }
