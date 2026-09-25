@@ -71,12 +71,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       const type = String(row.requirement_type || "");
       if (COMPANY_REQUIREMENTS.has(type) && !latestCompany.has(type)) latestCompany.set(type, row);
     }
-    const rows = [
+    const rows: Array<Record<string, unknown>> = [
       ...Array.from(latestCompany.values()).map((row) => ({ ...row, source: "company_profile" })),
       ...((projectRows || []) as Array<Record<string, unknown>>).map((row) => ({ ...row, source: "project_assignment" })),
     ];
 
-    const documents = await Promise.all(rows.map(async (row) => {
+    const documents = await Promise.all(rows.map(async (row: Record<string, unknown>) => {
       const { data: signed } = await admin.storage.from(BUCKET).createSignedUrl(String(row.storage_path), 60 * 10);
       return {
         id: row.id,
