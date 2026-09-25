@@ -28,7 +28,7 @@ type MasterRecord = {
 };
 
 type VendorRecord = {
-  name: string;
+  display_name: string | null;
   company_name: string | null;
   first_name: string | null;
   last_name: string | null;
@@ -42,7 +42,7 @@ function vendorDisplayName(vendor: VendorRecord) {
   const personName = [vendor.first_name, vendor.last_name]
     .filter((value): value is string => Boolean(value?.trim()))
     .join(" ");
-  return vendor.name?.trim() || vendor.company_name?.trim() || personName || "Subcontractor";
+  return vendor.display_name?.trim() || vendor.company_name?.trim() || personName || "Subcontractor";
 }
 
 async function loadContext(token: string) {
@@ -60,7 +60,7 @@ async function loadContext(token: string) {
 
   const [masterResult, vendorResult, projectResult, companyResult, assignmentResult] = await Promise.all([
     admin.from("subcontractor_master_agreements" as never).select("*").eq("id", authorization.master_agreement_id).single(),
-    admin.from("vendors").select("name,company_name,first_name,last_name,email").eq("id", authorization.vendor_id).eq("company_id", authorization.company_id).single(),
+    admin.from("vendors").select("display_name,company_name,first_name,last_name,email").eq("id", authorization.vendor_id).eq("company_id", authorization.company_id).single(),
     admin.from("projects").select("id").eq("id", authorization.project_id).eq("company_id", authorization.company_id).single(),
     admin.from("companies").select("id,name").eq("id", authorization.company_id).single(),
     admin.from("trade_partner_assignments").select("id").eq("id", authorization.assignment_id).eq("company_id", authorization.company_id).single(),
