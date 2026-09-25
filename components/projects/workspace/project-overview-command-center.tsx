@@ -116,7 +116,6 @@ export function ProjectOverviewCommandCenter(props: Props) {
   useEffect(() => {
     let active = true;
     if (!supabase || crewIds.length === 0) {
-      setCrewMembers([]);
       return;
     }
 
@@ -143,12 +142,13 @@ export function ProjectOverviewCommandCenter(props: Props) {
 
   const bosCrewAssignments = props.assignments.filter((row) => Boolean(row.crew_id) && !["completed", "cancelled"].includes(row.status));
   const assignedBosCrewCount = new Set(bosCrewAssignments.map((row) => row.crew_id).filter(Boolean)).size;
+  const effectiveCrewMembers = crewIds.length ? crewMembers : [];
   const today = new Date();
   const todayKey = today.toISOString().slice(0, 10);
   const assignmentsToday = props.assignments.filter((row) => row.starts_at.slice(0, 10) <= todayKey && row.ends_at.slice(0, 10) >= todayKey && !["completed", "cancelled"].includes(row.status));
   const employeeIdsToday = new Set(assignmentsToday.map((row) => row.employee_id).filter((value): value is string => Boolean(value)));
   const crewIdsToday = new Set(assignmentsToday.map((row) => row.crew_id).filter((value): value is string => Boolean(value)));
-  for (const member of crewMembers) {
+  for (const member of effectiveCrewMembers) {
     if (crewIdsToday.has(member.crew_id)) employeeIdsToday.add(member.employee_id);
   }
   const onsiteToday = employeeIdsToday.size;
