@@ -18,11 +18,13 @@ const LABELS: Record<string, string> = {
   scope_confirmation: "Scope Confirmation",
 };
 
+const EXPIRING_COMPANY_REQUIREMENTS = new Set(["coi", "workers_comp", "licenses"]);
+
 export function TradePartnerMobilizationPanel({ projectId }: { projectId: string }) {
   const [data, setData] = useState<Payload | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [coiExpiresAt, setCoiExpiresAt] = useState("");
+  const [expiresAtByType, setExpiresAtByType] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     const response = await fetch("/api/trade-partners/projects/" + encodeURIComponent(projectId) + "/mobilization", { cache: "no-store" });
@@ -59,7 +61,8 @@ export function TradePartnerMobilizationPanel({ projectId }: { projectId: string
       const form = new FormData();
       form.append("file", file);
       form.append("requirementType", type);
-      if (type === "coi" && coiExpiresAt) form.append("expiresAt", coiExpiresAt);
+      const expiresAt = expiresAtByType[type];
+      if (expiresAt) form.append("expiresAt", expiresAt);
       const response = await fetch("/api/trade-partners/onboarding/documents", { method: "POST", body: form });
       const body = await response.json() as { error?: string };
       if (!response.ok) throw new Error(body.error || "Unable to upload document.");
@@ -123,7 +126,7 @@ export function TradePartnerMobilizationPanel({ projectId }: { projectId: string
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {companyLevel ? <>
-                {requirement.requirement_type === "coi" ? <input type="date" aria-label="COI expiration date" value={coiExpiresAt} onChange={(event) => setCoiExpiresAt(event.currentTarget.value)} className="h-9 rounded-lg border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-2 text-xs" /> : null}
+                {EXPIRING_COMPANY_REQUIREMENTS.has(requirement.requirement_type) ? <input type="date" aria-label={(LABELS[requirement.requirement_type] || pretty(requirement.requirement_type)) + " expiration date"} value={expiresAtByType[requirement.requirement_type] || ""} onChange={(event) => setExpiresAtByType((current) => ({ ...current, [requirement.requirement_type]: event.currentTarget.value }))} className="h-9 rounded-lg border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-2 text-xs" /> : null}
                 <label className="inline-flex h-9 cursor-pointer items-center rounded-lg border border-[var(--bos-border-default)] px-3 text-xs font-semibold">
                   <input className="sr-only" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" disabled={busy === "upload:" + requirement.requirement_type} onChange={(event) => void upload(requirement.requirement_type, event)} />
                   {busy === "upload:" + requirement.requirement_type ? "Uploading..." : doc ? "Replace" : "Upload"}
