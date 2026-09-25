@@ -12,6 +12,64 @@ import {
 const INTERNAL_ROLES = new Set(["owner", "administrator", "office_manager", "project_manager"]);
 const asText = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : null;
 
+
+async function loadPortalState(projectId: string, assignmentId: string) {
+  const supabase = await createClient();
+  if (!supabase) return { error: "B.O.S. database is unavailable.", status: 503 as const };
+
+  const workspace = await resolveWorkspaceContext(supabase as SupabaseClient<Database>);
+  if (!workspace.context) return { error: workspace.errorMessage || "Unauthorized.", status: 401 as const };
+  if (!INTERNAL_ROLES.has((workspace.context.role || "").toLowerCase())) {
+    return { error: "You are not authorized to manage Trade Partner portal access.", status: 403 as const };
+  }
+
+  const admin = createAdminClient();
+  const { data: assignment } = await admin
+    .from("trade_partner_assignments")
+    .select("vendor_id")
+    .eq("company_id", workspace.context.companyId)
+    .eq("project_id", projectId)
+    .eq("id", assignmentId)
+    .maybeSingle();
+
+  if (!assignment) return { error: "Trade Partner assignment not found.", status: 404 as const };
+
+  const [{ data: activeMembership }, { data: pendingInvitation }] = await Promise.all([
+    admin
+      .from("company_memberships")
+      .select("id")
+      .eq("company_id", workspace.context.companyId)
+      .eq("vendor_id" as never, assignment.vendor_id as never)
+      .eq("role", "subcontractor")
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("trade_partner_invitations" as never)
+      .select("id,status,expires_at")
+      .eq("company_id", workspace.context.companyId)
+      .eq("vendor_id", assignment.vendor_id)
+      .in("status", ["sent", "opened", "claimed"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  return {
+    status: 200 as const,
+    active: Boolean(activeMembership),
+    pending: Boolean(pendingInvitation),
+    invitationStatus: pendingInvitation ? String((pendingInvitation as { status?: string }).status || "sent") : null,
+  };
+}
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string; assignmentId: string }> }) {
+  const { id: projectId, assignmentId } = await params;
+  const state = await loadPortalState(projectId, assignmentId);
+  if ("error" in state) return NextResponse.json({ error: state.error }, { status: state.status });
+  return NextResponse.json({ active: state.active, pending: state.pending, invitationStatus: state.invitationStatus });
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; assignmentId: string }> }) {
   try {
     const { id: projectId, assignmentId } = await params;
