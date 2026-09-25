@@ -74,6 +74,17 @@ export function SubcontractorContractActions({ projectId, assignmentId, email }:
     finally { setBusy(null); }
   }
 
+  async function sendPortalAccess() {
+    setBusy("portal"); setMessage(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/subcontractors/${assignmentId}/portal-access`, { method: "POST" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Unable to send Trade Partner portal access.");
+      setMessage(body.alreadyActive ? "This Trade Partner already has active B.O.S. portal access." : "Secure Trade Partner portal setup email sent.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to send Trade Partner portal access."); }
+    finally { setBusy(null); }
+  }
+
   async function updateRequirement(requirementType: string, status: "verified" | "waived") {
     setBusy(requirementType); setMessage(null);
     try {
@@ -113,6 +124,7 @@ export function SubcontractorContractActions({ projectId, assignmentId, email }:
       <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-black uppercase tracking-[0.08em] text-[var(--bos-text-medium-on-light)]">Subcontract & Mobilization</p><p className="mt-1 text-sm font-bold text-[var(--bos-text-strong-on-light)]">{cleared ? "CLEARED TO MOBILIZE" : "NOT CLEARED TO MOBILIZE"}</p></div><Badge tone={cleared ? "success" : "warning"}>{cleared ? "Cleared" : "Hold"}</Badge></div>
       <div className="grid gap-1 text-xs font-semibold text-[var(--bos-text-medium-on-light)]"><p>Master Agreement: {label(data?.master?.status || "not_created")}</p><p>Project Work Authorization: {label(data?.authorization?.status || "not_created")}</p></div>
       <Button type="button" size="sm" className="w-full" disabled={signed || busy === "send" || !email} onClick={() => void sendAgreement()}>{busy === "send" ? "Sending…" : signed ? "Agreement Signed" : sent ? "Resend Agreement" : "Send Agreement"}</Button>
+      <Button type="button" size="sm" variant="outline" className="w-full" disabled={busy === "portal" || !email} onClick={() => void sendPortalAccess()}>{busy === "portal" ? "Sending Portal Setup…" : "Send / Resend Portal Setup"}</Button>
       {!email ? <p className="text-xs font-semibold text-[var(--color-danger-700)]">Add a subcontractor email address before sending.</p> : null}
       {data?.requirements?.length ? <details><summary className="cursor-pointer text-xs font-black text-[var(--bos-text-strong-on-light)]">Mobilization Requirements ({data.requirements.filter((item) => item.required && !["verified","waived"].includes(item.status)).length} open)</summary><div className="mt-2 space-y-2">{data.requirements.map((requirement) => {
         const doc = docFor(requirement.requirement_type);
