@@ -468,7 +468,7 @@ export function ProjectWorkSiteCamPanel({
               <p className="text-sm font-medium text-[#49647f]">{t("projects.workSitecamPanelDescription")}</p>
             </div>
           </div>
-          <Link href={`/projects/${projectId}?tab=documents`} className="inline-flex">
+          <Link href={`/projects/${projectId}?tab=photos`} className="inline-flex">
             <Button size="sm" variant="outline" className="border-[#75bfff] bg-white font-bold text-[#12345a] hover:bg-[#eef7ff] hover:text-[#0b2746]">{t("projects.workSitecamViewAll")}</Button>
           </Link>
         </div>
