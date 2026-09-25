@@ -283,7 +283,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
                   </div>
                   <Badge tone={authorized ? "success" : assignment.contractStatus === "signed" ? "warning" : STATUS_TONE[assignment.assignmentStatus]}>{statusLabel}</Badge>
                 </div>
-                <p className="text-sm font-bold text-[var(--bos-text-medium-on-light)]">{assignment.tradeName}</p>
+                <p className="text-sm font-bold text-[var(--bos-text-medium-on-light)]">{displayTradeName(assignment.tradeName)}</p>
               </CardHeader>
               <CardContent className="space-y-3 p-4">
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -319,7 +319,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
                 const vendor = vendorById.get(assignment.vendorId);
                 return <div key={assignment.id} className="rounded-xl border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div><p className="text-sm font-black text-[var(--bos-text-strong-on-light)]">{vendor?.displayName || vendor?.companyName || "Trade Partner"}</p><p className="text-xs font-semibold text-[var(--bos-text-medium-on-light)]">{assignment.tradeName} · {prettifyToken(assignment.contractStatus)}</p></div>
+                    <div><p className="text-sm font-black text-[var(--bos-text-strong-on-light)]">{vendor?.displayName || vendor?.companyName || "Trade Partner"}</p><p className="text-xs font-semibold text-[var(--bos-text-medium-on-light)]">{displayTradeName(assignment.tradeName)} · {prettifyToken(assignment.contractStatus)}</p></div>
                     <Badge tone="neutral">Archived</Badge>
                   </div>
                 </div>;
@@ -407,4 +407,5 @@ function buildSummary(assignments: TradePartnerAssignment[]): SubcontractorSumma
   const starts = assignments.filter((assignment) => assignment.assignmentStatus !== "archived" && assignment.startDate).map((assignment) => assignment.startDate as string).sort();
   return { totalAssigned: assignments.filter((assignment) => assignment.assignmentStatus !== "archived").length, signed, pending, archived, totalContractValue: values.length ? values.reduce((sum, value) => sum + value, 0) : null, totalCrewMembers: crews.length ? crews.reduce((sum, value) => sum + value, 0) : null, averageCrewSize: crews.length ? crews.reduce((sum, value) => sum + value, 0) / crews.length : null, nextScheduledStart: starts[0] || null };
 }
+function displayTradeName(value: string) { const trimmed = value.trim(); return trimmed.toLowerCase() === "all" ? "General Remodeling" : trimmed; }
 function mapFriendlyError(error: unknown) { if (error instanceof TradePartnerAssignmentsError || error instanceof VendorsServiceError) return error.message; if (error instanceof Error) return error.message; return "Unable to complete this Trade Partner request."; }
