@@ -260,16 +260,16 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
     ) : <>
       <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">Project Subcontractors</h2><p className="mt-1 text-sm font-medium text-[var(--bos-text-medium-on-light)]">Manage assigned scope, internal subcontract commitments, agreements, mobilization, payments, and closeout. Internal subcontract costs stay private from customers.</p></div><Button type="button" onClick={openCreateDialog}>Assign Trade Partner</Button></div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><SummaryRow label="Selected" value={String(summary.totalAssigned)} /><SummaryRow label="Signed Contracts" value={String(summary.signed)} /><SummaryRow label="Awaiting Signature" value={String(summary.pending)} /><SummaryRow label="Internal Subcontract Commitments" value={formatMoney(summary.totalContractValue, "Not Provided")} /></div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-6"><SummaryRow label="Selected" value={String(summary.totalAssigned)} /><SummaryRow label="Signed Contracts" value={String(summary.signed)} /><SummaryRow label="Awaiting Signature" value={String(summary.pending)} /><SummaryRow label="Internal Subcontract Commitments" value={formatMoney(summary.totalContractValue, "Not Provided")} /><SummaryRow label="Current Trade Partner Crew" value={summary.totalCrewMembers === null ? "Not Provided" : String(summary.totalCrewMembers)} /><SummaryRow label="Next Scheduled Start" value={summary.nextScheduledStart || "Not Scheduled"} /></div>
       </section>
-      <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(260px,1fr)] xl:items-start">
+      <section className="grid min-w-0 gap-4">
         <div className="grid min-w-0 gap-4">
           {currentAssignments.map((assignment) => {
             const vendor = vendorById.get(assignment.vendorId);
             const companyName = vendor?.displayName || vendor?.companyName || "Not Assigned";
             const contractStatusLabel = prettifyToken(assignment.contractStatus);
             const authorized = assignment.contractStatus === "signed" && assignment.assignmentStatus === "active";
-            const statusLabel = authorized ? "Authorized to Start" : assignment.contractStatus === "signed" ? "Signed · Mobilization Hold" : prettifyToken(assignment.assignmentStatus);
+            const statusLabel = authorized ? "Authorized to Start" : assignment.contractStatus === "signed" ? "Contract Signed · Awaiting Mobilization Clearance" : prettifyToken(assignment.assignmentStatus);
             return <Card key={assignment.id} className="min-w-0 overflow-hidden border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-card),var(--color-neutral-50))] shadow-[var(--bos-shadow-workspace-card)]">
               <CardHeader className="space-y-2 border-b border-[var(--bos-border-light)] bg-[linear-gradient(180deg,#f8fbff,#f3f7fd)] pb-4">
                 <div className="flex items-start justify-between gap-2">
@@ -289,7 +289,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   <SummaryRow label="Contract" value={contractStatusLabel} />
                   <SummaryRow label="Commitment" value={formatMoney(assignment.contractAmount)} />
-                  <SummaryRow label="Crew" value={assignment.crewSize !== null ? String(assignment.crewSize) : "Not Provided"} />
+                  <SummaryRow label="Current Trade Partner Crew" value={assignment.crewSize !== null ? String(assignment.crewSize) : "Not Provided"} />
                   <SummaryRow label="Schedule" value={assignment.startDate || "Not Scheduled"} />
                 </div>
                 <details className="rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)]">
@@ -311,19 +311,10 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
             </Card>;
           })}
         </div>
-        <div className="space-y-4">
-        <Card className="h-fit border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-card),var(--color-neutral-50))] shadow-[var(--bos-shadow-workspace-card)]">
-          <CardHeader><CardTitle className="text-section-title font-bold">Additional Project Details</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            <SummaryRow label="Historical / Closed" value={String(summary.archived)} />
-            <SummaryRow label="Total Crew Members" value={summary.totalCrewMembers === null ? "Not Provided" : String(summary.totalCrewMembers)} />
-            <SummaryRow label="Next Scheduled Start" value={summary.nextScheduledStart || "Not Scheduled"} />
-          </CardContent>
-        </Card>
         {historicalAssignments.length ? (
           <details className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-3 shadow-[var(--shadow-small)]">
             <summary className="cursor-pointer text-sm font-black text-[var(--bos-text-strong-on-light)]">Historical / Closed Assignments ({historicalAssignments.length})</summary>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
               {historicalAssignments.map((assignment) => {
                 const vendor = vendorById.get(assignment.vendorId);
                 return <div key={assignment.id} className="rounded-xl border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3">
@@ -336,7 +327,6 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
             </div>
           </details>
         ) : null}
-        </div>
       </section>
     </>}
 
