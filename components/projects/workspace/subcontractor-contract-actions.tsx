@@ -60,7 +60,15 @@ export function SubcontractorContractActions({ projectId, assignmentId, email }:
       const response = await fetch(`/api/projects/${projectId}/subcontractors/${assignmentId}/agreement`, { method: "POST" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Unable to send agreement.");
-      setMessage(body.delivery?.delivered === false ? "Agreement created. Email delivery is not configured." : "Subcontract agreement sent.");
+      setMessage(
+        body.delivery?.delivered === false
+          ? "Agreement created. Email delivery is not configured."
+          : body.portalSetup?.required && body.portalSetup?.sent
+            ? "Subcontract agreement and secure Trade Partner account setup sent."
+            : body.portalSetup?.required && body.portalSetup?.warning
+              ? "Subcontract agreement sent, but the Trade Partner account setup email needs attention."
+              : "Subcontract agreement sent."
+      );
       await load();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to send agreement."); }
     finally { setBusy(null); }
