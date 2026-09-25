@@ -12,16 +12,16 @@ const subcontractors = read("components/projects/workspace/project-trade-partner
 const migration = read("supabase/migrations/20260828020000_project_commitments_control_cards.sql");
 const payroll = read("app/(app)/invoices/payroll/page.tsx");
 
-assert.match(commandCenter, /label=\{l\("Budget",[\s\S]*label=\{l\("Crew",[\s\S]*label=\{l\("Schedule",[\s\S]*label=\{l\("Progress",/);
-assert.match(commandCenter, /activeControl/);
-assert.match(commandCenter, /data-project-control-expanded/);
-assert.match(commandCenter, /aria-expanded=/);
-assert.match(commandCenter, /ProjectBudgetControlDetails/);
-assert.match(commandCenter, /ProjectCrewControlDetails/);
-assert.match(commandCenter, /Open Full Schedule/);
-assert.match(commandCenter, /View Full Progress/);
+assert.match(commandCenter, /Project Snapshot/);
+assert.match(commandCenter, /Schedule & Milestones/);
+assert.match(commandCenter, /Financial Health/);
+assert.match(commandCenter, /Today on Site \/ Workforce/);
+assert.match(commandCenter, /Current Work \/ Next Up/);
+assert.match(commandCenter, /Risks & Decisions/);
+assert.match(commandCenter, /Project Signals/);
+assert.match(commandCenter, /Assigned B\.O\.S\. Crew/);
 assert.match(commandCenter, /\?tab=financials/);
-assert.match(commandCenter, /\/crew-costs/);
+assert.match(commandCenter, /\?tab=crew/);
 assert.match(commandCenter, /\/schedule\?project=/);
 assert.match(controlDetails, /ProjectCommitmentsControl/);
 assert.match(controlDetails, /ProjectCrewCompensationWorkspace/);

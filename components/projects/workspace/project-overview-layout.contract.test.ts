@@ -14,16 +14,20 @@ const topCommandLayout = read("app/top-command-layout.css");
 
 assert.ok(!page.includes("<ProjectWorkspaceHero"), "the oversized photo/weather hero stays out of the project landing view");
 assert.ok(!page.includes("<ProjectKpiGrid"), "the duplicate KPI strip stays out of the project landing view");
-assert.ok(overview.includes('data-project-overview="header-jobsite-clean"'), "the overview declares its cleaned header-jobsite hierarchy");
-assert.ok(overview.includes("Scope of Work"));
-assert.ok(overview.includes("Today's Priorities"));
-assert.ok(overview.includes("Project Health"));
-assert.ok(overview.includes("Next 7 Days"));
+assert.ok(overview.includes('data-project-overview="project-command-center"'), "the overview declares the project command center hierarchy");
+assert.ok(overview.includes("Project Snapshot"));
+assert.ok(overview.includes("Schedule & Milestones"));
+assert.ok(overview.includes("Financial Health"));
+assert.ok(overview.includes("Today on Site / Workforce"));
+assert.ok(overview.includes("Current Work / Next Up"));
+assert.ok(overview.includes("Risks & Decisions"));
+assert.ok(overview.includes("Recent Activity"));
+assert.ok(overview.includes("Recent Photos"));
 assert.ok(overview.includes("styles.detailsFirst"), "project details opt into the details-first overview order");
 assert.ok(overviewLayout.includes("flex-direction: column"), "the overview parent becomes an ordered vertical stack");
 assert.ok(overviewLayout.includes(":not(.detailsFirst)"), "the operating-system panel is ordered after the project details");
 assert.ok(!overview.includes('label="Job site"'), "job-site address is not duplicated inside Project Team");
-assert.ok(!overview.includes('title="Project Team"'), "duplicate Project Team summary stays out of Overview");
+assert.ok(overview.includes("Assigned B.O.S. Crew"), "overview clearly distinguishes internal B.O.S. workforce");
 assert.ok(!overview.includes("<LocationForecastCard"), "the full-width weather/map card no longer consumes the project overview");
 assert.ok(!overview.includes('data-project-jobsite-intelligence="primary"'));
 assert.ok(header.includes("<WorkspaceHeader\n        compact"), "the project header uses the compact layout");
@@ -54,3 +58,6 @@ assert.ok(topCommandLayout.includes('.grid:has(> :nth-child(2) [data-testid="exe
 assert.ok(topCommandLayout.includes('grid-column: 1 / -1'), "Tasks supporting panels span the full desktop row instead of a narrow rail");
 
 console.log("+ project overview, Tasks workspace, and shared responsive layout invariants hold across desktop shell widths");
+
+assert.ok(!page.includes("<ProjectOperatingSystemPanel"), "Overview does not stack a second operating-system dashboard above project details");
+assert.ok(!page.includes("<ProjectCommitmentsControl"), "Overview does not duplicate detailed commitments controls below the project command center");

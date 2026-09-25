@@ -7,7 +7,6 @@ import { FadeIn, MotionProvider, PageTransition } from "@/components/motion";
 import {
   CommandCenterTimelineEntry,
   ProjectCommandCenterFoundation,
-  ProjectCommitmentsControl,
   ProjectComplianceWorkflow,
   ProjectCommandCenterTabPlaceholder,
   ProjectActivityWorkspace,
@@ -19,7 +18,6 @@ import {
   ProjectExecutionIssue,
   ProjectExecutionNote,
   ProjectExecutionTask,
-  ProjectOperatingSystemPanel,
   ProjectWorkWorkspace,
   ProjectTabs,
   ProjectTradePartnersWorkspace,
@@ -828,22 +826,6 @@ export default function ProjectWorkspacePage() {
                     estimateHref={`/estimates/${workspace.acceptedEstimate.id}`}
                   />
                 ) : null}
-                <ProjectOperatingSystemPanel
-                  intelligence={projectIntelligence}
-                  briefing={superintendentBriefing}
-                  projectId={project.id}
-                  projectStatus={project.status || ""}
-                  compliance={{
-                    permitsTotal: workspace.counts.permits,
-                    openPermits: workspace.counts.openPermits,
-                    inspectionsTotal: workspace.counts.inspections,
-                    pendingInspections: workspace.counts.pendingInspections,
-                    documentsTotal: workspace.counts.communications,
-                  }}
-                  timelineCount={timeline.length}
-                  formatCurrency={(amount) => formatProjectCurrency(amount, localeTag, "$0")}
-                  t={(key, params) => t(`projects.${key}`, params)}
-                />
                 <ProjectCommandCenterFoundation
                   projectId={project.id}
                   projectName={projectName}
@@ -874,11 +856,7 @@ export default function ProjectWorkspacePage() {
                   activityItems={recentActivity}
                   timelineEntries={timeline}
                 />
-                <ProjectCommitmentsControl
-                  projectId={project.id}
-                  companyId={workspace.workspaceContext.companyId}
-                  budget={budgetValueRaw}
-                />
+
               </div>
             ) : activeTab === "tasks" ? (
               <ProjectWorkWorkspace

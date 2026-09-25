@@ -21,9 +21,9 @@ assert.match(migration, /project\.workspace_bootstrapped/, "the canonical worksp
 assert.match(migration, /on conflict \(company_id, event_type, idempotency_key\)/, "bootstrap event retries must be idempotent");
 assert.match(migration, /after insert or update of status, project_id, converted_project_id/, "approved conversions must trigger workspace bootstrap automatically");
 assert.match(migration, /revoke all on function public\.bootstrap_estimate_project_workspace\(uuid, uuid\) from public, anon, authenticated/, "workspace bootstrap must be server-only");
-assert.match(projectPage, /<ProjectOperatingSystemPanel/, "the project workspace must render the B.O.S. operating system panel");
-assert.match(projectPage, /<ProjectOperatingSystemPanel[\s\S]*?t=\{\(key, params\) => t\(`projects\.\$\{key\}`/, "Orion action copy must resolve through the projects translation namespace");
-assert.match(projectPage, /compliance=\{\{[\s\S]*permitsTotal:[\s\S]*openPermits:[\s\S]*inspectionsTotal:[\s\S]*pendingInspections:[\s\S]*documentsTotal:/, "the operating panel must receive live compliance signals");
+assert.doesNotMatch(projectPage, /<ProjectOperatingSystemPanel/, "the Overview must not stack a second operating-system dashboard above project details");
+assert.match(projectPage, /<ProjectCommandCenterFoundation/, "the project workspace must render the project-centric command center");
+assert.match(projectPage, /<ProjectCommandCenterFoundation[\s\S]*openPunchItemsCount=\{workspace\.counts\.openPunchItems\}[\s\S]*openPermitsCount=\{workspace\.counts\.openPermits\}[\s\S]*pendingInspectionsCount=\{workspace\.counts\.pendingInspections\}/, "the project command center must receive live project risk and compliance signals");
 assert.match(projectPage, /closeoutStatusLabel=\{closeoutStatusLabel\}/, "the project command center must receive the live closeout workflow status");
 assert.match(projectPage, /closeoutReady=\{closeoutReady\}/, "the project command center must receive deterministic closeout readiness");
 assert.match(panel, /Operating Score/);
