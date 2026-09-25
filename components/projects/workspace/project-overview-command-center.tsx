@@ -61,6 +61,7 @@ type Props = {
   projectType: string | null;
   address: string;
   statusLabel: string;
+  projectStatus: string;
   startDate: string;
   targetDate: string;
   targetDateRaw: string | null;
@@ -76,6 +77,8 @@ type Props = {
   permitsOpen: number;
   pendingInspections: number;
   openPunchItems: number;
+  closeoutStatusLabel: string;
+  closeoutReady: boolean;
   localeTag: string;
 };
 
@@ -132,8 +135,9 @@ export function ProjectOverviewCommandCenter(props: Props) {
     return () => { active = false; };
   }, [crewIds, props.companyId, supabase]);
 
+  const projectCompleted = normalizeStatus(props.projectStatus) === "completed";
   const completedTasks = props.tasks.filter((task) => normalizeStatus(task.status) === "completed").length;
-  const progressPercent = props.tasks.length ? Math.round((completedTasks / props.tasks.length) * 100) : 0;
+  const progressPercent = projectCompleted ? 100 : props.tasks.length ? Math.round((completedTasks / props.tasks.length) * 100) : 0;
   const openTasks = props.tasks.filter((task) => normalizeStatus(task.status) !== "completed");
   const nextTask = [...openTasks].sort((a, b) => (a.planned_start || "9999").localeCompare(b.planned_start || "9999"))[0] || null;
   const nextInspection = [...props.inspections]
@@ -180,6 +184,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
     props.assignments.length === 0 ? { label: "No internal schedule established", detail: "Create workforce assignments to establish the active job schedule.", badge: "Not Scheduled", tone: "warning" } : null,
     props.permitsOpen > 0 ? { label: "Open permit items", detail: `${props.permitsOpen} permit item${props.permitsOpen === 1 ? "" : "s"} still require attention.`, badge: `${props.permitsOpen} Open`, tone: "warning" } : null,
     props.pendingInspections > 0 ? { label: "Pending inspections", detail: `${props.pendingInspections} inspection${props.pendingInspections === 1 ? "" : "s"} are pending or require follow-up.`, badge: `${props.pendingInspections} Pending`, tone: "warning" } : null,
+    projectCompleted && !props.closeoutReady ? { label: "Closeout checklist required", detail: `Project is complete, but closeout is not ready. Current closeout status: ${props.closeoutStatusLabel}.`, badge: "Closeout", tone: "warning" } : null,
   ].filter(Boolean) as Array<{ label: string; detail: string; badge: string; tone: string }>;
 
   return (
