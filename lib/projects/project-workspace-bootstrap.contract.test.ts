@@ -23,7 +23,7 @@ assert.match(migration, /after insert or update of status, project_id, converted
 assert.match(migration, /revoke all on function public\.bootstrap_estimate_project_workspace\(uuid, uuid\) from public, anon, authenticated/, "workspace bootstrap must be server-only");
 assert.doesNotMatch(projectPage, /<ProjectOperatingSystemPanel/, "the Overview must not stack a second operating-system dashboard above project details");
 assert.match(projectPage, /<ProjectCommandCenterFoundation/, "the project workspace must render the project-centric command center");
-assert.match(projectPage, /<ProjectCommandCenterFoundation[\s\S]*openPermitsCount=\{workspace\.counts\.openPermits\}[\s\S]*pendingInspectionsCount=\{workspace\.counts\.pendingInspections\}[\s\S]*openPunchItemsCount=\{workspace\.counts\.openPunchItems\}/, "the project command center must receive live project risk and compliance signals");
+assert.match(projectPage, /<ProjectCommandCenterFoundation[\s\S]*openPunchItemsCount=\{workspace\.counts\.openPunchItems\}[\s\S]*openPermitsCount=\{workspace\.counts\.openPermits\}[\s\S]*pendingInspectionsCount=\{workspace\.counts\.pendingInspections\}/, "the project command center must receive live project risk and compliance signals");
 assert.match(projectPage, /closeoutStatusLabel=\{closeoutStatusLabel\}/, "the project command center must receive the live closeout workflow status");
 assert.match(projectPage, /closeoutReady=\{closeoutReady\}/, "the project command center must receive deterministic closeout readiness");
 assert.match(panel, /Operating Score/);
