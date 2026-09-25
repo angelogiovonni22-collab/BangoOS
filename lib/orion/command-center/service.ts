@@ -159,12 +159,12 @@ function addContextPriorityActions(params: {
   if (route.projectId && dashboardOpen) {
     const projectId = route.projectId;
     const projectPriorities: Array<{ id: string; label: string; href: string; keywords: string[] }> = [
-      { id: "route-project-budget", label: "Open Budget", href: `/projects/${projectId}?tab=budget`, keywords: ["project", "budget"] },
-      { id: "route-project-timeline", label: "Open Timeline", href: `/projects/${projectId}?tab=timeline`, keywords: ["project", "timeline"] },
+      { id: "route-project-budget", label: "Open Budget", href: `/projects/${projectId}?tab=financials`, keywords: ["project", "budget"] },
+      { id: "route-project-timeline", label: "Open Timeline", href: `/projects/${projectId}?tab=activity`, keywords: ["project", "timeline"] },
       { id: "route-project-change-order", label: "Create Change Order", href: `/change-orders/new?projectId=${projectId}`, keywords: ["project", "change order"] },
       { id: "route-project-assign-crew", label: "Assign Crew", href: `/crews?projectId=${projectId}`, keywords: ["project", "crew", "assign"] },
       { id: "route-project-daily-report", label: "Daily Report", href: `/daily-reports/new?projectId=${projectId}`, keywords: ["project", "daily report"] },
-      { id: "route-project-health", label: "Project Health", href: `/projects/${projectId}?tab=health`, keywords: ["project", "health"] },
+      { id: "route-project-health", label: "Project Health", href: `/projects/${projectId}`, keywords: ["project", "health"] },
       { id: "route-project-photos", label: "Site Photos", href: `/projects/${projectId}?tab=photos`, keywords: ["project", "photos"] },
       { id: "route-project-documents", label: "Project Documents", href: `/projects/${projectId}?tab=documents`, keywords: ["project", "documents"] },
     ];
@@ -237,8 +237,8 @@ function addContextPriorityActions(params: {
           subtitle: "Open estimate customer portal",
           group: "estimates",
           command: dashboardOpen,
-          params: { entityType: "workflow", entityId: estimateId, deepLink: `/estimates/${estimateId}?tab=portal` },
-          deepLink: `/estimates/${estimateId}?tab=portal`,
+          params: { entityType: "workflow", entityId: estimateId, deepLink: `/estimates/${estimateId}` },
+          deepLink: `/estimates/${estimateId}`,
           entityType: "estimate",
           entityId: estimateId,
           keywords: ["estimate", "portal"],
@@ -250,8 +250,8 @@ function addContextPriorityActions(params: {
           subtitle: "Open approval workflow details",
           group: "estimates",
           command: dashboardOpen,
-          params: { entityType: "workflow", entityId: estimateId, deepLink: `/estimates/${estimateId}?tab=approval-status` },
-          deepLink: `/estimates/${estimateId}?tab=approval-status`,
+          params: { entityType: "workflow", entityId: estimateId, deepLink: `/estimates/${estimateId}` },
+          deepLink: `/estimates/${estimateId}`,
           entityType: "estimate",
           entityId: estimateId,
           keywords: ["estimate", "approval", "status"],
@@ -299,10 +299,10 @@ function addContextPriorityActions(params: {
       { id: "route-customer-create-estimate", label: "Create Estimate", href: `/estimates/new?customerId=${customerId}`, group: "estimates", keywords: ["customer", "estimate"] },
       { id: "route-customer-create-project", label: "Create Project", href: `/projects/new?customerId=${customerId}`, group: "projects", keywords: ["customer", "project"] },
       { id: "route-customer-timeline", label: "Open Timeline", href: `/timeline?customerId=${customerId}`, group: "reports", keywords: ["customer", "timeline"] },
-      { id: "route-customer-balance", label: "Outstanding Balance", href: `/customers/${customerId}?tab=balance`, group: "finance", keywords: ["customer", "balance"] },
+      { id: "route-customer-balance", label: "Outstanding Balance", href: `/customers/${customerId}?tab=invoices`, group: "finance", keywords: ["customer", "balance"] },
       { id: "route-customer-documents", label: "Documents", href: `/customers/${customerId}?tab=documents`, group: "customers", keywords: ["customer", "documents"] },
-      { id: "route-customer-call", label: "Call", href: `/customers/${customerId}?tab=contact`, group: "customers", keywords: ["customer", "call"] },
-      { id: "route-customer-email", label: "Email", href: `/customers/${customerId}?tab=contact`, group: "customers", keywords: ["customer", "email"] },
+      { id: "route-customer-call", label: "Call", href: `/customers/${customerId}`, group: "customers", keywords: ["customer", "call"] },
+      { id: "route-customer-email", label: "Email", href: `/customers/${customerId}`, group: "customers", keywords: ["customer", "email"] },
     ];
 
     for (const priority of priorities) {
