@@ -25,10 +25,15 @@ export function ProjectCommandCenterFoundation(props: Props) {
   const es = locale === "es";
   const l = (en: string, spanish: string) => es ? spanish : en;
   const projectHref = "/projects/" + props.projectId;
+  const projectCompleted = status(props.projectStatus) === "completed";
   const completedTasks = props.tasks.filter((task) => normalize(task.status) === "completed");
   const activeTasks = props.tasks.filter((task) => ["in_progress", "blocked"].includes(normalize(task.status)));
   const blockedTasks = activeTasks.filter((task) => normalize(task.status) === "blocked");
-  const progress = normalize(props.projectStatus) === "completed" ? 100 : props.tasks.length ? Math.round((completedTasks.length / props.tasks.length) * 100) : 0;
+  const progress = projectCompleted ? 100 : props.tasks.length ? Math.round((completedTasks.length / props.tasks.length) * 100) : 0;
+  const progressDetail = projectCompleted && props.tasks.length === 0 ? l("Project marked complete", "Proyecto marcado como completado") : String(completedTasks.length) + " " + l("of", "de") + " " + String(props.tasks.length) + " " + l("tasks complete", "tareas completadas");
+  const closeoutStarted = props.closeoutStatusLabel.trim().toLowerCase() !== "not started";
+  const closeoutLabel = projectCompleted && !closeoutStarted ? l("Closeout checklist required", "Se requiere lista de cierre") : props.closeoutStatusLabel;
+  const closeoutNextAction = props.closeoutReady ? l("Complete project handover", "Completar entrega del proyecto") : projectCompleted ? l("Complete closeout checklist", "Completar lista de cierre") : l("Finish project work", "Finalizar trabajo del proyecto");
   const upcoming = [...props.tasks].filter((task) => normalize(task.status) !== "completed").sort((a, b) => (a.planned_finish || "9999").localeCompare(b.planned_finish || "9999")).slice(0, 4);
   const risks = [
     props.crewCount === 0 ? { label: l("No B.O.S. crew assigned", "No hay cuadrilla B.O.S. asignada"), detail: l("Assign internal workforce if Bango employees will perform project work.", "Asigna personal interno si empleados de Bango realizarán trabajo del proyecto."), tone: "warning" as const } : null,
@@ -42,7 +47,7 @@ export function ProjectCommandCenterFoundation(props: Props) {
       <div className="grid gap-4 xl:grid-cols-[1.18fr_1fr_0.95fr]">
         <Panel title={l("Project Snapshot", "Resumen del proyecto")} icon={<Activity size={18} />} action={<Link href={projectHref + "/edit"} className={actionClass()}>{l("Edit", "Editar")}</Link>}>
           <div className="grid gap-4 sm:grid-cols-[150px_1fr]">
-            <div className="flex items-center justify-center"><ProgressRing progress={progress} label={l("Complete", "Completo")} /></div>
+            <div className="flex flex-col items-center justify-center"><ProgressRing progress={progress} label={l("Complete", "Completo")} /><p className="mt-2 text-center text-[11px] font-semibold text-[var(--bos-text-medium-on-light)]">{progressDetail}</p></div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Info label={l("Customer", "Cliente")} value={props.customerName || l("Not assigned", "Sin asignar")} />
               <Info label={l("Project status", "Estado del proyecto")} value={props.statusLabel} />
@@ -134,6 +139,16 @@ export function ProjectCommandCenterFoundation(props: Props) {
             <MiniMetric label={l("Open punch items", "Pendientes abiertos")} value={String(props.openPunchItemsCount)} warning={props.openPunchItemsCount > 0} />
             <MiniMetric label={l("Daily reports", "Reportes diarios")} value={String(props.dailyReportsCount)} />
           </div>
+          <div data-testid="project-closeout-readiness" className="mt-3 rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[var(--bos-text-medium-on-light)]">{l("Closeout Readiness", "Preparación para cierre")}</p>
+                <p className="mt-1 text-sm font-extrabold text-[var(--bos-text-strong-on-light)]">{closeoutLabel}</p>
+                <p className="mt-1 text-xs font-medium text-[var(--bos-text-medium-on-light)]">{l("Next closeout action", "Siguiente acción de cierre")}: {closeoutNextAction}</p>
+              </div>
+              <Badge tone={props.closeoutReady ? "success" : projectCompleted ? "warning" : "neutral"}>{props.closeoutReady ? l("Ready", "Listo") : l("Not Ready", "No listo")}</Badge>
+            </div>
+          </div>
         </Panel>
       </div>
 
@@ -194,6 +209,7 @@ function Milestone({ label, state }: { label: string; state: "complete" | "curre
 
 function Empty({ label }: { label: string }) { return <p className="py-4 text-sm font-medium text-[var(--bos-text-medium-on-light)]">{label}</p>; }
 function actionClass() { return "shrink-0 text-xs font-extrabold text-[var(--orion-blue)] hover:underline"; }
+function status(value: string) { return normalize(value); }
 function normalize(value: string) { return value.trim().toLowerCase().replaceAll(" ", "_"); }
 
 function pretty(value: string, es: boolean) {
