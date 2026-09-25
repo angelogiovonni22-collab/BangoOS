@@ -96,7 +96,7 @@ function createFakeRepository(state: FakeRepoState) {
         if (item.company_id !== companyId) return false;
         if (item.project_id !== projectId) return false;
         if (item.vendor_id !== vendorId) return false;
-        if (item.assignment_status !== "active") return false;
+        if (item.assignment_status === "archived") return false;
         if (excludeId && item.id === excludeId) return false;
         return true;
       }) || null;
@@ -257,7 +257,7 @@ async function main() {
     check(state.assignments.length === 1, "assignment row is persisted");
   });
 
-  await test("5. duplicate active assignment prevention works", async () => {
+  await test("5. duplicate current assignment prevention works", async () => {
     const state: FakeRepoState = {
       assignments: [
         makeAssignment({
@@ -283,7 +283,36 @@ async function main() {
       });
     });
 
-    check(threw, "second active assignment for same project/vendor is blocked");
+    check(threw, "second current assignment for same project/vendor is blocked");
+  });
+
+  await test("5b. inactive duplicate assignment is also blocked", async () => {
+    const state: FakeRepoState = {
+      assignments: [
+        makeAssignment({
+          id: "tp-existing-inactive",
+          company_id: "company-a",
+          project_id: "project-a",
+          vendor_id: "vendor-a",
+          trade_name: "Electrical",
+          assignment_status: "inactive",
+        }),
+      ],
+      projects: [{ id: "project-a", company_id: "company-a" }],
+      vendors: [{ id: "vendor-a", company_id: "company-a" }],
+    };
+
+    const { service } = createServiceFixture({ state });
+    const threw = await expectThrows("CONFLICT", async () => {
+      await service.createTradePartnerAssignment({
+        projectId: "project-a",
+        vendorId: "vendor-a",
+        tradeName: "Electrical",
+        assignmentStatus: "inactive",
+      });
+    });
+
+    check(threw, "second inactive/current assignment for same project/vendor is blocked");
   });
 
   await test("6. update assignment applies typed changes", async () => {
