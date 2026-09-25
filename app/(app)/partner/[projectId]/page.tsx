@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { TradePartnerMobilizationPanel } from "@/components/trade-partners/trade-partner-mobilization-panel";
 
 type TradePartnerJob = {
   assignment_id: string;
@@ -178,6 +179,8 @@ export default async function TradePartnerProjectPage({ params, searchParams }: 
           <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--bos-text-primary)]">{job.scope_of_work || "Scope has not been published yet."}</p>
         </div>
       </section>
+
+      <TradePartnerMobilizationPanel projectId={projectId} />
 
       {query.notice ? <div className="rounded-xl border border-emerald-300/40 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{query.notice}</div> : null}
       {query.error ? <div className="rounded-xl border border-rose-300/40 bg-rose-50 p-3 text-sm font-semibold text-rose-900">{query.error}</div> : null}

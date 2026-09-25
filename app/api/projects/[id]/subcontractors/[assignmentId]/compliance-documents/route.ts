@@ -9,6 +9,7 @@ const BUCKET = "subcontractor-compliance";
 const MAX_BYTES = 20 * 1024 * 1024;
 const INTERNAL_ROLES = new Set(["owner", "administrator", "office_manager", "project_manager"]);
 const ALLOWED_REQUIREMENTS = new Set(["w9", "coi", "workers_comp", "licenses", "safety_acknowledgement"]);
+const COMPANY_REQUIREMENTS = new Set(["w9", "coi", "workers_comp", "licenses"]);
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
   "image/jpeg",
@@ -45,17 +46,37 @@ async function context(projectId: string, assignmentId: string) {
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string; assignmentId: string }> }) {
   try {
     const { id: projectId, assignmentId } = await params;
-    const { admin, workspace } = await context(projectId, assignmentId);
-    const { data: rows, error } = await admin
-      .from("subcontractor_compliance_documents" as never)
-      .select("id,requirement_type,original_filename,mime_type,file_size_bytes,expires_at,status,storage_path,created_at")
-      .eq("company_id", workspace.companyId)
-      .eq("assignment_id", assignmentId)
-      .eq("status", "active")
-      .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    const { admin, workspace, assignment } = await context(projectId, assignmentId);
+    const [{ data: projectRows, error: projectError }, { data: companyRows, error: companyError }] = await Promise.all([
+      admin
+        .from("subcontractor_compliance_documents" as never)
+        .select("id,requirement_type,original_filename,mime_type,file_size_bytes,expires_at,status,storage_path,created_at")
+        .eq("company_id", workspace.companyId)
+        .eq("assignment_id", assignmentId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false }),
+      admin
+        .from("trade_partner_onboarding_documents" as never)
+        .select("id,requirement_type,original_filename,mime_type,file_size_bytes,expires_at,status,storage_path,created_at,review_status,review_note")
+        .eq("company_id", workspace.companyId)
+        .eq("vendor_id", assignment.vendor_id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false }),
+    ]);
+    if (projectError) throw new Error(projectError.message);
+    if (companyError) throw new Error(companyError.message);
 
-    const documents = await Promise.all(((rows || []) as Array<Record<string, unknown>>).map(async (row) => {
+    const latestCompany = new Map<string, Record<string, unknown>>();
+    for (const row of (companyRows || []) as Array<Record<string, unknown>>) {
+      const type = String(row.requirement_type || "");
+      if (COMPANY_REQUIREMENTS.has(type) && !latestCompany.has(type)) latestCompany.set(type, row);
+    }
+    const rows: Array<Record<string, unknown>> = [
+      ...Array.from(latestCompany.values()).map((row) => ({ ...row, source: "company_profile" })),
+      ...((projectRows || []) as Array<Record<string, unknown>>).map((row) => ({ ...row, source: "project_assignment" })),
+    ];
+
+    const documents = await Promise.all(rows.map(async (row: Record<string, unknown>) => {
       const { data: signed } = await admin.storage.from(BUCKET).createSignedUrl(String(row.storage_path), 60 * 10);
       return {
         id: row.id,
@@ -65,6 +86,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         fileSizeBytes: row.file_size_bytes,
         expiresAt: row.expires_at,
         createdAt: row.created_at,
+        reviewStatus: row.review_status || null,
+        reviewNote: row.review_note || null,
+        source: row.source,
         viewUrl: signed?.signedUrl || null,
       };
     }));
@@ -89,6 +113,54 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!ALLOWED_MIME_TYPES.has(file.type)) return NextResponse.json({ error: "Upload a PDF, image, DOC, or DOCX file." }, { status: 400 });
     if (file.size < 1 || file.size > MAX_BYTES) return NextResponse.json({ error: "Compliance documents must be 20 MB or smaller." }, { status: 400 });
     if (expiresAtRaw && Number.isNaN(Date.parse(expiresAtRaw))) return NextResponse.json({ error: "Expiration date is invalid." }, { status: 400 });
+
+    if (COMPANY_REQUIREMENTS.has(requirementType)) {
+      const storagePath = workspace.companyId + "/" + assignment.vendor_id + "/company/" + requirementType + "/" + crypto.randomUUID() + "-" + safeFilename(file.name);
+      uploadedPath = storagePath;
+      const bytes = await file.arrayBuffer();
+      const { error: uploadError } = await admin.storage.from(BUCKET).upload(storagePath, bytes, { contentType: file.type, upsert: false });
+      if (uploadError) throw new Error(uploadError.message || "Unable to upload compliance document.");
+
+      await admin
+        .from("trade_partner_onboarding_documents" as never)
+        .update({ status: "superseded", updated_at: new Date().toISOString() } as never)
+        .eq("company_id", workspace.companyId)
+        .eq("vendor_id", assignment.vendor_id)
+        .eq("requirement_type", requirementType)
+        .eq("status", "active");
+
+      const { data: document, error: metadataError } = await admin
+        .from("trade_partner_onboarding_documents" as never)
+        .insert({
+          company_id: workspace.companyId,
+          vendor_id: assignment.vendor_id,
+          requirement_type: requirementType,
+          storage_path: storagePath,
+          original_filename: file.name,
+          mime_type: file.type,
+          file_size_bytes: file.size,
+          expires_at: expiresAtRaw ? new Date(expiresAtRaw).toISOString() : null,
+          status: "active",
+          review_status: "pending",
+          uploaded_by: workspace.userId,
+        } as never)
+        .select("id,original_filename")
+        .single();
+      if (metadataError || !document) throw new Error(metadataError?.message || "Unable to record company compliance document.");
+
+      const { data: refreshed } = await admin.rpc("refresh_subcontractor_mobilization_status" as never, {
+        p_company_id: workspace.companyId,
+        p_assignment_id: assignmentId,
+      } as never) as { data: Array<{ mobilization_status: string; blockers: unknown }> | null };
+
+      return NextResponse.json({
+        uploaded: true,
+        source: "company_profile",
+        document,
+        mobilizationStatus: refreshed?.[0]?.mobilization_status || "not_cleared",
+        blockers: refreshed?.[0]?.blockers || [],
+      });
+    }
 
     const storagePath = `${workspace.companyId}/${assignment.vendor_id}/${assignmentId}/${requirementType}/${crypto.randomUUID()}-${safeFilename(file.name)}`;
     uploadedPath = storagePath;
