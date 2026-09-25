@@ -7,7 +7,6 @@ import { FadeIn, MotionProvider, PageTransition } from "@/components/motion";
 import {
   CommandCenterTimelineEntry,
   ProjectCommandCenterFoundation,
-  ProjectCommitmentsControl,
   ProjectComplianceWorkflow,
   ProjectCommandCenterTabPlaceholder,
   ProjectActivityWorkspace,
@@ -19,7 +18,6 @@ import {
   ProjectExecutionIssue,
   ProjectExecutionNote,
   ProjectExecutionTask,
-  ProjectOperatingSystemPanel,
   ProjectWorkWorkspace,
   ProjectTabs,
   ProjectTradePartnersWorkspace,
