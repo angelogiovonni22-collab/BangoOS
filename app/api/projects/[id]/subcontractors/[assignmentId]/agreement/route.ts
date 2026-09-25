@@ -5,7 +5,8 @@ import type { Database } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import { sendContractEmail } from "@/lib/estimates/contract-email";\nimport { renderBrandedSubcontractEmail } from "@/lib/subcontractors/branded-subcontract-email";
+import { sendContractEmail } from "@/lib/estimates/contract-email";
+import { renderBrandedSubcontractEmail } from "@/lib/subcontractors/branded-subcontract-email";
 import {
   MASTER_SUBCONTRACT_AGREEMENT_VERSION,
   PROJECT_WORK_AUTHORIZATION_VERSION,
