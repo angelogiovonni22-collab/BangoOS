@@ -8,6 +8,10 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { sendContractEmail } from "@/lib/estimates/contract-email";
 import { renderBrandedSubcontractEmail } from "@/lib/subcontractors/branded-subcontract-email";
 import {
+  createTradePartnerInviteToken,
+  sendTradePartnerEmail,
+} from "@/lib/trade-partners/invitations";
+import {
   MASTER_SUBCONTRACT_AGREEMENT_VERSION,
   PROJECT_WORK_AUTHORIZATION_VERSION,
   buildMasterSnapshot,
@@ -142,6 +146,85 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await admin.from("trade_partner_assignments").update({ contract_status: "pending_signature" } as never).eq("company_id", companyId).eq("id", assignmentId);
     await admin.rpc("refresh_subcontractor_mobilization_status" as never, { p_company_id: companyId, p_assignment_id: assignmentId } as never);
 
+    const portalSetup: { required: boolean; sent: boolean; warning: string | null } = { required: false, sent: false, warning: null };
+    const { data: activeMembership } = await admin
+      .from("company_memberships")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("vendor_id" as never, assignment.vendor_id as never)
+      .eq("role", "subcontractor")
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+
+    if (!activeMembership) {
+      portalSetup.required = true;
+      const { token: inviteToken, tokenHash: inviteTokenHash } = createTradePartnerInviteToken();
+      const inviteExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+      await admin
+        .from("trade_partner_invitations" as never)
+        .update({ status: "cancelled", updated_at: new Date().toISOString() } as never)
+        .eq("company_id", companyId)
+        .eq("vendor_id", assignment.vendor_id)
+        .in("status", ["sent", "opened", "claimed"]);
+
+      const { data: invitation, error: invitationError } = await admin
+        .from("trade_partner_invitations" as never)
+        .insert({
+          company_id: companyId,
+          vendor_id: assignment.vendor_id,
+          token_hash: inviteTokenHash,
+          email,
+          phone: asText(assignment.primary_contact_phone) || asText(vendor.phone) || null,
+          first_name: asText(vendor.first_name),
+          last_name: asText(vendor.last_name),
+          status: "sent",
+          delivery_channels: [],
+          delivery_metadata: {},
+          expires_at: inviteExpiresAt,
+          created_by: workspace.context.userId,
+        } as never)
+        .select("id")
+        .single();
+
+      if (invitationError || !invitation) {
+        portalSetup.warning = invitationError?.message || "Unable to create Trade Partner portal setup.";
+      } else {
+        const invitationId = String((invitation as { id: string }).id);
+        const intakeUrl = new URL("/trade-partner-invite", request.url);
+        intakeUrl.searchParams.set("token", inviteToken);
+        try {
+          await sendTradePartnerEmail({
+            email,
+            link: intakeUrl.toString(),
+            recipientName: asText(assignment.primary_contact_name) || personName,
+            companyName,
+            stage: "intake",
+            idempotencyKey: `bos-subcontract-portal-intake-${invitationId}`,
+          });
+          portalSetup.sent = true;
+          await admin
+            .from("trade_partner_invitations" as never)
+            .update({
+              delivery_channels: ["email"],
+              delivery_metadata: { source: "subcontract_agreement", email: "sent" },
+              updated_at: new Date().toISOString(),
+            } as never)
+            .eq("id", invitationId);
+        } catch (portalError) {
+          portalSetup.warning = portalError instanceof Error ? portalError.message : "Unable to send Trade Partner portal setup.";
+          await admin
+            .from("trade_partner_invitations" as never)
+            .update({
+              delivery_metadata: { source: "subcontract_agreement", email: "failed", error: portalSetup.warning },
+              updated_at: new Date().toISOString(),
+            } as never)
+            .eq("id", invitationId);
+        }
+      }
+    }
+
     const url = new URL(`/subcontracts/${encodeURIComponent(token)}`, request.url).toString();
     const delivery = await sendContractEmail({
       to: email,
@@ -160,7 +243,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     await admin.from("subcontractor_signature_events" as never).insert({ company_id: companyId, vendor_id: assignment.vendor_id, assignment_id: assignmentId, master_agreement_id: master.id, work_authorization_id: authorization.id, event_type: "sent", signer_email: email, document_hash: authorization.authorization_hash, metadata: { delivery } } as never);
 
-    return NextResponse.json({ sent: true, url, expiresAt, delivery, workAuthorizationId: authorization.id, masterAgreementId: master.id });
+    return NextResponse.json({ sent: true, url, expiresAt, delivery, portalSetup, workAuthorizationId: authorization.id, masterAgreementId: master.id });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to send subcontract agreement." }, { status: 400 });
   }
