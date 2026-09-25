@@ -37,6 +37,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const { id: projectId, assignmentId } = await params;
     const { admin, workspace, assignment } = await workspaceContext(projectId, assignmentId);
+    await admin.rpc("sync_trade_partner_company_compliance" as never, { p_company_id: workspace.companyId, p_vendor_id: assignment.vendor_id, p_requirement_type: null } as never);
     const [{ data: authorization }, { data: master }, { data: requirements }, refreshed] = await Promise.all([
       admin.from("project_subcontract_work_authorizations" as never).select("id,status,signed_at,sent_at,authorization_hash").eq("company_id", workspace.companyId).eq("assignment_id", assignmentId).maybeSingle(),
       admin.from("subcontractor_master_agreements" as never).select("id,status,signed_at,agreement_hash").eq("company_id", workspace.companyId).eq("vendor_id", assignment.vendor_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
