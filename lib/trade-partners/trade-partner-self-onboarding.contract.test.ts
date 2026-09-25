@@ -36,6 +36,10 @@ assert.doesNotMatch(migration, /to anon/);
 
 assert.match(publicInvitePage, /Confirm your contact information/);
 assert.match(publicInvitePage, /If your contractor invited you by phone only/);
+assert.match(publicInvitePage, /Onboarding complete/);
+assert.match(publicInvitePage, /Go to Trade Partner Portal/);
+assert.match(publicInvitePage, /\/login\?next=%2Fpartner/);
+assert.match(claimRoute, /completed: true/);
 assert.match(claimRoute, /generateLink\(\{ type: "invite"/);
 assert.match(claimRoute, /Continue|account setup/i);
 assert.match(claimRoute, /status: "claimed"/);
