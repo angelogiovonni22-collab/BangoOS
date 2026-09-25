@@ -146,7 +146,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await admin.from("trade_partner_assignments").update({ contract_status: "pending_signature" } as never).eq("company_id", companyId).eq("id", assignmentId);
     await admin.rpc("refresh_subcontractor_mobilization_status" as never, { p_company_id: companyId, p_assignment_id: assignmentId } as never);
 
-    let portalSetup: { required: boolean; sent: boolean; warning: string | null } = { required: false, sent: false, warning: null };
+    const portalSetup: { required: boolean; sent: boolean; warning: string | null } = { required: false, sent: false, warning: null };
     const { data: activeMembership } = await admin
       .from("company_memberships")
       .select("id")
