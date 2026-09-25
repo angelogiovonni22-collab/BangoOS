@@ -15,6 +15,7 @@ type InvitePayload = {
     displayName?: string | null;
     vendorCode?: string | null;
   };
+  completed?: boolean;
   error?: string;
 };
 
@@ -23,6 +24,7 @@ export function TradePartnerInviteClient({ token }: { token: string }) {
   const [loading, setLoading] = useState(Boolean(token));
   const [submitting, setSubmitting] = useState(false);
   const [complete, setComplete] = useState(false);
+  const [alreadyComplete, setAlreadyComplete] = useState(false);
   const [error, setError] = useState(token ? "" : missingTokenMessage);
   const [message, setMessage] = useState("");
   const [warning, setWarning] = useState("");
@@ -48,6 +50,7 @@ export function TradePartnerInviteClient({ token }: { token: string }) {
         setPhone(body.invitation?.phone || "");
         setTradePartnerName(body.tradePartner?.displayName || "Trade Partner");
         setVendorCode(body.tradePartner?.vendorCode || "");
+        setAlreadyComplete(Boolean(body.completed));
       })
       .catch((loadError) => {
         if (active) setError(loadError instanceof Error ? loadError.message : "Unable to verify the Trade Partner invitation.");
@@ -109,6 +112,34 @@ export function TradePartnerInviteClient({ token }: { token: string }) {
         <section className="p-7 sm:p-10">
           {loading ? (
             <div className="py-16 text-center text-sm text-slate-300">Verifying your secure invitation…</div>
+          ) : alreadyComplete ? (
+            <div className="space-y-6 py-8">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-2xl text-emerald-300">✓</div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-400">Onboarding complete</p>
+                <h2 className="mt-2 text-2xl font-black">Your Trade Partner account is ready</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  This Trade Partner profile has already completed B.O.S. onboarding. You can sign in and go directly to the Trade Partner Portal.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-blue-300/15 bg-[#0f2036] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Trade Partner</p>
+                <p className="mt-1 font-bold">{tradePartnerName}</p>
+                {vendorCode ? <p className="mt-1 text-xs text-slate-400">{vendorCode}</p> : null}
+                {email ? <p className="mt-2 text-sm text-slate-300">{email}</p> : null}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <a href="/partner" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white transition hover:bg-blue-500">
+                  Go to Trade Partner Portal
+                </a>
+                <a href="/login?next=%2Fpartner" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-300/25 bg-blue-950/20 px-4 py-3 text-sm font-black text-slate-100 transition hover:bg-blue-900/30">
+                  Sign In
+                </a>
+              </div>
+              <p className="text-xs leading-5 text-slate-400">
+                If you are already signed in, use Trade Partner Portal. Otherwise, choose Sign In with the email linked to this Trade Partner account.
+              </p>
+            </div>
           ) : error && !email && !firstName && !lastName ? (
             <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-5 text-sm text-red-100" role="alert">{error}</div>
           ) : complete ? (
