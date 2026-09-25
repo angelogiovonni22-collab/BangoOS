@@ -44,6 +44,25 @@ export function shouldAutoEditElement(element: HTMLTextAreaElement) {
   return true;
 }
 
+const INPUT_ASSISTANCE_EXCLUSIONS = /(?:email|phone|tel|url|website|password|code|sku|vin|serial|postal|zip|tax|ein|ssn|account|routing|license[_-]?number|permit[_-]?number|invoice[_-]?number|estimate[_-]?number|project[_-]?number)/i;
+const NON_LANGUAGE_AUTOCOMPLETE = new Set(["email", "tel", "url", "username", "current-password", "new-password", "one-time-code"]);
+
+export function shouldEnableNativeInputAssistance(element: HTMLInputElement) {
+  if (element.disabled || element.readOnly) return false;
+  if (element.dataset.autoEdit === "off" || element.closest('[data-auto-edit="off"]')) return false;
+
+  const type = (element.type || "text").toLowerCase();
+  if (type !== "text") return false;
+
+  const autoComplete = (element.autocomplete || "").toLowerCase();
+  if (NON_LANGUAGE_AUTOCOMPLETE.has(autoComplete)) return false;
+
+  const semanticName = [element.name, element.id, element.getAttribute("aria-label") || ""].join(" ");
+  if (INPUT_ASSISTANCE_EXCLUSIONS.test(semanticName)) return false;
+
+  return true;
+}
+
 function capitalizeSentences(value: string) {
   let capitalizeNext = true;
   return Array.from(value).map((character) => {
