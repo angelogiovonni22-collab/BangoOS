@@ -58,6 +58,7 @@ async function getContext(projectId: string): Promise<PartnerContext> {
 
 async function payload(context: PartnerContext, projectId: string) {
   const { admin, companyId, vendorId, assignmentId } = context;
+  await admin.rpc("sync_trade_partner_company_compliance" as never, { p_company_id: companyId, p_vendor_id: vendorId, p_requirement_type: null } as never);
   const [{ data: requirements }, { data: documents }, { data: assignment }] = await Promise.all([
     admin
       .from("subcontractor_mobilization_requirements" as never)
