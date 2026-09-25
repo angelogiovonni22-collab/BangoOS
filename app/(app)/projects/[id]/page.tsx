@@ -806,6 +806,7 @@ export default function ProjectWorkspacePage() {
                 statusLabel={statusLabel}
                 startDate={startDate}
                 targetDate={completionDate}
+                targetDateRaw={project.actual_end_date || project.estimated_end_date}
                 contractValue={project.contract_amount ?? project.estimated_cost}
                 projectManager={project.created_by ? workspace.profilesById[project.created_by] || "Not Assigned" : "Not Assigned"}
                 tasks={workspace.tasks}
