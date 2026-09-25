@@ -54,10 +54,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { id: projectId, assignmentId } = await params;
     const body = await request.json() as { requirementType?: string; status?: string; expiresAt?: string | null; note?: string | null };
     const allowedTypes = new Set(["w9","coi","workers_comp","licenses","safety_acknowledgement"]);
-    const allowedStatuses = new Set(["missing","pending","verified","waived","expired"]);
+    const allowedStatuses = new Set(["missing","pending","verified","waived","expired","rejected"]);
     if (!body.requirementType || !allowedTypes.has(body.requirementType)) return NextResponse.json({ error: "This requirement cannot be changed manually." }, { status: 400 });
     if (!body.status || !allowedStatuses.has(body.status)) return NextResponse.json({ error: "Invalid requirement status." }, { status: 400 });
-    const { admin, workspace } = await workspaceContext(projectId, assignmentId);
+    const { admin, workspace, assignment } = await workspaceContext(projectId, assignmentId);
+    const companyTypes = new Set(["w9","coi","workers_comp","licenses"]);
+    if (body.status === "rejected" && companyTypes.has(body.requirementType)) {
+      const { error: rejectError } = await admin
+        .from("trade_partner_onboarding_documents" as never)
+        .update({ review_status: "rejected", review_note: body.note || "Document rejected during project review.", reviewed_at: new Date().toISOString(), reviewed_by: workspace.userId, updated_at: new Date().toISOString() } as never)
+        .eq("company_id", workspace.companyId)
+        .eq("vendor_id", assignment.vendor_id)
+        .eq("requirement_type", body.requirementType)
+        .eq("status", "active");
+      if (rejectError) throw new Error(rejectError.message || "Unable to reject company compliance document.");
+      await admin.rpc("sync_trade_partner_company_compliance" as never, {
+        p_company_id: workspace.companyId,
+        p_vendor_id: assignment.vendor_id,
+        p_requirement_type: body.requirementType,
+      } as never);
+      const refreshed = await refreshMobilization(admin, workspace.companyId, assignmentId);
+      return NextResponse.json({ updated: true, mobilizationStatus: refreshed?.mobilization_status || "not_cleared", blockers: refreshed?.blockers || [] });
+    }
+
+    if (body.status === "rejected") {
+      return NextResponse.json({ error: "Only company compliance documents can be rejected from this review." }, { status: 400 });
+    }
+
     const verifiedAt = body.status === "verified" || body.status === "waived" ? new Date().toISOString() : null;
     const { error } = await admin.from("subcontractor_mobilization_requirements" as never).update({ status: body.status, verified_at: verifiedAt, verified_by: verifiedAt ? workspace.userId : null, expires_at: body.expiresAt || null, evidence: { note: body.note || null, reviewed_by: workspace.userId } } as never).eq("company_id", workspace.companyId).eq("assignment_id", assignmentId).eq("requirement_type", body.requirementType);
     if (error) throw new Error(error.message || "Unable to update requirement.");
