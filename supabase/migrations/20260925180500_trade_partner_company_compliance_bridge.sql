@@ -31,7 +31,8 @@ declare
   v_status text;
   v_assignment record;
 begin
-  if coalesce(auth.role(), '') <> 'service_role'
+  if auth.uid() is not null
+     and coalesce(auth.role(), '') <> 'service_role'
      and not public.has_company_role(p_company_id, array['owner','administrator','office_manager','project_manager'])
      and not exists (
        select 1
