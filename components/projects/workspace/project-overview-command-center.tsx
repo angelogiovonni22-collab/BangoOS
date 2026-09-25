@@ -88,15 +88,21 @@ export function ProjectOverviewCommandCenter(props: Props) {
     let active = true;
     if (!supabase) return;
 
-    void supabase
+    const db = supabase as unknown as {
+      // Generated Supabase types lag migration-backed Trade Partner lifecycle columns.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      from: (table: string) => any;
+    };
+
+    void db
       .from("trade_partner_assignments")
       .select("id,trade_name,crew_size,assignment_status,mobilization_status,mobilization_blockers,start_date")
       .eq("company_id", props.companyId)
       .eq("project_id", props.projectId)
       .neq("assignment_status", "archived")
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (active) setTradePartners((data || []) as TradePartnerSummary[]);
+      .then(({ data }: { data: TradePartnerSummary[] | null }) => {
+        if (active) setTradePartners(data || []);
       });
 
     return () => { active = false; };
