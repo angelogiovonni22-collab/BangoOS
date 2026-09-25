@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -62,6 +63,7 @@ type Props = {
   statusLabel: string;
   startDate: string;
   targetDate: string;
+  targetDateRaw: string | null;
   contractValue: number | null;
   projectManager: string;
   tasks: OverviewTask[];
@@ -80,6 +82,7 @@ type Props = {
 export function ProjectOverviewCommandCenter(props: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [tradePartners, setTradePartners] = useState<TradePartnerSummary[]>([]);
+  const [crewMembers, setCrewMembers] = useState<Array<{ crew_id: string; employee_id: string }>>([]);
 
   useEffect(() => {
     let active = true;
@@ -99,6 +102,31 @@ export function ProjectOverviewCommandCenter(props: Props) {
     return () => { active = false; };
   }, [props.companyId, props.projectId, supabase]);
 
+  const crewIds = useMemo(
+    () => [...new Set(props.assignments.map((row) => row.crew_id).filter((value): value is string => Boolean(value)))],
+    [props.assignments],
+  );
+
+  useEffect(() => {
+    let active = true;
+    if (!supabase || crewIds.length === 0) {
+      setCrewMembers([]);
+      return;
+    }
+
+    void supabase
+      .from("crew_memberships")
+      .select("crew_id,employee_id")
+      .eq("company_id", props.companyId)
+      .eq("status", "active")
+      .in("crew_id", crewIds)
+      .then(({ data }) => {
+        if (active) setCrewMembers((data || []) as Array<{ crew_id: string; employee_id: string }>);
+      });
+
+    return () => { active = false; };
+  }, [crewIds, props.companyId, supabase]);
+
   const completedTasks = props.tasks.filter((task) => normalizeStatus(task.status) === "completed").length;
   const progressPercent = props.tasks.length ? Math.round((completedTasks / props.tasks.length) * 100) : 0;
   const openTasks = props.tasks.filter((task) => normalizeStatus(task.status) !== "completed");
@@ -108,9 +136,16 @@ export function ProjectOverviewCommandCenter(props: Props) {
     .sort((a, b) => (a.scheduled_at || a.created_at).localeCompare(b.scheduled_at || b.created_at))[0] || null;
 
   const bosCrewAssignments = props.assignments.filter((row) => Boolean(row.crew_id) && !["completed", "cancelled"].includes(row.status));
+  const assignedBosCrewCount = new Set(bosCrewAssignments.map((row) => row.crew_id).filter(Boolean)).size;
   const today = new Date();
   const todayKey = today.toISOString().slice(0, 10);
-  const onsiteToday = props.assignments.filter((row) => row.starts_at.slice(0, 10) <= todayKey && row.ends_at.slice(0, 10) >= todayKey && !["completed", "cancelled"].includes(row.status)).length;
+  const assignmentsToday = props.assignments.filter((row) => row.starts_at.slice(0, 10) <= todayKey && row.ends_at.slice(0, 10) >= todayKey && !["completed", "cancelled"].includes(row.status));
+  const employeeIdsToday = new Set(assignmentsToday.map((row) => row.employee_id).filter((value): value is string => Boolean(value)));
+  const crewIdsToday = new Set(assignmentsToday.map((row) => row.crew_id).filter((value): value is string => Boolean(value)));
+  for (const member of crewMembers) {
+    if (crewIdsToday.has(member.crew_id)) employeeIdsToday.add(member.employee_id);
+  }
+  const onsiteToday = employeeIdsToday.size;
   const activeTradePartners = tradePartners.length;
   const tradePartnerCrewSize = tradePartners.reduce((sum, row) => sum + Math.max(0, Number(row.crew_size || 0)), 0);
   const blockedTradePartners = tradePartners.filter((row) => row.mobilization_status !== "cleared");
@@ -129,7 +164,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
   const grossProfit = summary?.grossProfit || 0;
   const margin = summary?.grossMarginPercent;
 
-  const daysRemaining = computeDaysRemaining(props.targetDate);
+  const daysRemaining = computeDaysRemaining(props.targetDateRaw);
   const scheduleHealth = props.pendingInspections > 0 || props.openPunchItems > 0 ? "Needs Attention" : "On Track";
   const latestActivity = props.activityItems.slice(0, 4);
 
@@ -215,7 +250,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
       <div className="grid min-w-0 gap-4 xl:grid-cols-[1.2fr_.8fr]">
         <Panel title="Today on Site / Workforce" action={<Link href={`/projects/${props.projectId}?tab=crew`} className={smallAction}>Manage Crew</Link>}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <Metric label="Assigned B.O.S. Crew" value={bosCrewAssignments.length ? String(bosCrewAssignments.length) : "None Assigned"} />
+            <Metric label="Assigned B.O.S. Crew" value={assignedBosCrewCount ? String(assignedBosCrewCount) : "None Assigned"} />
             <Metric label="Trade Partners" value={`${activeTradePartners} Assigned`} sub="View Subcontractors" />
             <Metric label="Trade Partner Crew Size" value={String(tradePartnerCrewSize)} sub="Workers" />
             <Metric label="Workers Expected Onsite" value={String(onsiteToday)} sub="Today" />
@@ -258,7 +293,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
         </Panel>
 
         <Panel title="Recent Photos" action={<Link href={`/projects/${props.projectId}?tab=photos`} className={smallAction}>View All →</Link>}>
-          {props.heroImageUrl ? <div className="grid gap-3 sm:grid-cols-[1.4fr_.6fr]"><img src={props.heroImageUrl} alt={`${props.projectName} latest project photo`} className="h-44 w-full rounded-xl border border-[#21405c] object-cover" /><div className="grid place-items-center rounded-xl border border-[#21405c] bg-[#071827] p-4 text-center"><div><p className="text-3xl font-black text-white">{props.photoCount}</p><p className="mt-1 text-xs font-bold uppercase tracking-[.08em] text-[#8daac0]">Project Photos</p></div></div></div> : <div className="grid min-h-44 place-items-center rounded-xl border border-dashed border-[#31516c] bg-[#071827] p-6 text-center"><div><p className="text-base font-bold text-white">No project photos yet</p><p className="mt-1 text-sm text-[#91aabd]">Field photos will appear here automatically.</p></div></div>}
+          {props.heroImageUrl ? <div className="grid gap-3 sm:grid-cols-[1.4fr_.6fr]"><div className="relative h-44 overflow-hidden rounded-xl border border-[#21405c]"><Image src={props.heroImageUrl} alt={`${props.projectName} latest project photo`} fill unoptimized className="object-cover" /></div><div className="grid place-items-center rounded-xl border border-[#21405c] bg-[#071827] p-4 text-center"><div><p className="text-3xl font-black text-white">{props.photoCount}</p><p className="mt-1 text-xs font-bold uppercase tracking-[.08em] text-[#8daac0]">Project Photos</p></div></div></div> : <div className="grid min-h-44 place-items-center rounded-xl border border-dashed border-[#31516c] bg-[#071827] p-6 text-center"><div><p className="text-base font-bold text-white">No project photos yet</p><p className="mt-1 text-sm text-[#91aabd]">Field photos will appear here automatically.</p></div></div>}
         </Panel>
       </div>
     </div>
@@ -305,8 +340,9 @@ function pct(value: number) { return `${Math.round(Math.max(0, Math.min(1, value
 function formatDate(value: string, localeTag: string) { const d = new Date(value); return Number.isNaN(d.getTime()) ? value : new Intl.DateTimeFormat(localeTag, { month: "short", day: "numeric", year: "numeric" }).format(d); }
 function initials(value: string) { return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "—"; }
 function blockerCount(value: unknown) { return Array.isArray(value) ? value.length : 0; }
-function computeDaysRemaining(targetLabel: string) {
-  const target = new Date(targetLabel);
+function computeDaysRemaining(targetValue: string | null) {
+  if (!targetValue) return null;
+  const target = new Date(targetValue);
   if (Number.isNaN(target.getTime())) return null;
   const diff = target.getTime() - Date.now();
   return Math.max(0, Math.ceil(diff / 86400000));
