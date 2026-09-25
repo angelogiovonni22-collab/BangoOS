@@ -44,7 +44,7 @@ export function shouldAutoEditElement(element: HTMLTextAreaElement) {
   return true;
 }
 
-const INPUT_ASSISTANCE_EXCLUSIONS = /(?:email|phone|tel|url|website|password|code|sku|vin|serial|postal|zip|tax|ein|ssn|account|routing|license[_-]?number|permit[_-]?number|invoice[_-]?number|estimate[_-]?number|project[_-]?number)/i;
+const INPUT_ASSISTANCE_EXCLUSIONS = /(?:email|phone|tel|url|website|password|code|sku|vin|serial|postal|zip|state|tax|ein|ssn|account|routing|license[_-]?number|permit[_-]?number|invoice[_-]?number|estimate[_-]?number|project[_-]?number)/i;
 const NON_LANGUAGE_AUTOCOMPLETE = new Set(["email", "tel", "url", "username", "current-password", "new-password", "one-time-code"]);
 
 export function shouldEnableNativeInputAssistance(element: HTMLInputElement) {
