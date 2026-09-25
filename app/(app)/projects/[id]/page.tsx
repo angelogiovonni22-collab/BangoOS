@@ -703,12 +703,6 @@ export default function ProjectWorkspacePage() {
   const startDate = formatProjectDateLong(project.estimated_start_date, localeTag, t("projects.notProvided"));
   const completionDate = formatProjectDateLong(project.actual_end_date || project.estimated_end_date, localeTag, t("projects.notProvided"));
 
-  const budgetValueRaw = project.contract_amount ?? project.estimated_cost;
-  const spentValueRaw = workspace.invoices.reduce((sum, invoice) => sum + Math.max(0, invoice.amount_paid), 0);
-
-  const budgetValue = formatProjectCurrency(budgetValueRaw, localeTag, t("projects.notProvided"));
-  const spentValue = formatProjectCurrency(spentValueRaw, localeTag, "$0");
-
   const recentActivity = buildRecentActivity({
     project,
     customer: workspace.customer,
@@ -719,21 +713,6 @@ export default function ProjectWorkspacePage() {
     t,
   });
 
-  const timeline = workspace.timelineEntries;
-  const remainingBudgetRaw = budgetValueRaw !== null ? budgetValueRaw - spentValueRaw : null;
-  const remainingBudgetLabel = remainingBudgetRaw !== null
-    ? formatProjectCurrency(Math.max(remainingBudgetRaw, 0), localeTag, "$0")
-    : t("projects.notProvided");
-  const closeoutReady = Boolean(
-    workspace.closeout
-    && workspace.closeout.finalPaymentRecorded
-    && workspace.closeout.customerApprovalRecorded
-    && workspace.closeout.requiredDocumentsCompleted
-    && workspace.closeout.permitClosureCompleted
-    && workspace.closeout.crewRemovalCompleted
-    && workspace.closeout.equipmentReturnCompleted,
-  );
-  const closeoutStatusLabel = workspace.closeout ? `${workspace.closeout.status} / ${workspace.closeout.handoverStatus}` : "Not started";
   const executionTasks = buildExecutionTasks(workspace.tasks, workspace.profilesById);
   const executionIssues = buildExecutionIssues(workspace.punchItems, executionTasks, workspace.profilesById);
   const executionNotes = buildExecutionNotes({
