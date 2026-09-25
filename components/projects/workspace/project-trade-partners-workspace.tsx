@@ -3,7 +3,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import Link from "next/link";
-import { ArrowUpRight, Building2, ClipboardCheck, Star, Users } from "lucide-react";
+import { ArrowUpRight, Building2, Star, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Badge,
@@ -69,7 +69,6 @@ const EMPTY_FORM: AssignmentFormState = {
   startDate: "", targetCompletionDate: "", crewSize: "", notes: "",
 };
 const STATUS_TONE: Record<TradePartnerAssignmentStatus, "brand" | "success" | "warning" | "danger" | "neutral" | "info"> = { active: "success", inactive: "neutral", archived: "warning" };
-const CONTRACT_TONE: Record<string, "brand" | "success" | "warning" | "danger" | "neutral" | "info"> = { draft: "neutral", pending_signature: "warning", signed: "success", cancelled: "danger", closed: "info" };
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
 export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartnersWorkspaceProps) {
@@ -270,6 +269,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
             const companyName = vendor?.displayName || vendor?.companyName || "Not Assigned";
             const contractStatusLabel = prettifyToken(assignment.contractStatus);
             const authorized = assignment.contractStatus === "signed" && assignment.assignmentStatus === "active";
+            const statusLabel = authorized ? "Authorized to Start" : assignment.contractStatus === "signed" ? "Signed · Mobilization Hold" : prettifyToken(assignment.assignmentStatus);
             return <Card key={assignment.id} className="min-w-0 overflow-hidden border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-card),var(--color-neutral-50))] shadow-[var(--bos-shadow-workspace-card)]">
               <CardHeader className="space-y-2 border-b border-[var(--bos-border-light)] bg-[linear-gradient(180deg,#f8fbff,#f3f7fd)] pb-4">
                 <div className="flex items-start justify-between gap-2">
@@ -281,7 +281,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
                       {vendor?.rehireStatus === "do_not_rehire" ? <Badge tone="danger">Do Not Rehire</Badge> : vendor?.rehireStatus === "review_before_assignment" ? <Badge tone="warning">Review First</Badge> : null}
                     </div>
                   </div>
-                  <Badge tone={STATUS_TONE[assignment.assignmentStatus]}>{authorized ? "Authorized to Start" : prettifyToken(assignment.assignmentStatus)}</Badge>
+                  <Badge tone={authorized ? "success" : assignment.contractStatus === "signed" ? "warning" : STATUS_TONE[assignment.assignmentStatus]}>{statusLabel}</Badge>
                 </div>
                 <p className="text-sm font-bold text-[var(--bos-text-medium-on-light)]">{assignment.tradeName}</p>
               </CardHeader>
