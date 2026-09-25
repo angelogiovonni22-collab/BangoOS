@@ -33,9 +33,17 @@ export function TradePartnerMobilizationPanel({ projectId }: { projectId: string
 
   useEffect(() => {
     let active = true;
-    void load().catch((error) => { if (active) setMessage(error instanceof Error ? error.message : "Unable to load mobilization requirements."); });
+    void fetch("/api/trade-partners/projects/" + encodeURIComponent(projectId) + "/mobilization", { cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json() as Payload;
+        if (!response.ok) throw new Error(body.error || "Unable to load mobilization requirements.");
+        if (active) setData(body);
+      })
+      .catch((error) => {
+        if (active) setMessage(error instanceof Error ? error.message : "Unable to load mobilization requirements.");
+      });
     return () => { active = false; };
-  }, [load]);
+  }, [projectId]);
 
   const docs = useMemo(() => new Map((data?.companyDocuments || []).map((doc) => [doc.requirementType, doc])), [data?.companyDocuments]);
   const openCount = (data?.requirements || []).filter((row) => row.required && !["verified", "waived"].includes(row.status)).length;
