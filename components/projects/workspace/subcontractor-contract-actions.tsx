@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
-import { Badge, Button } from "@/components/ui";
+import { Badge, Button, getButtonClassName } from "@/components/ui";
 import { SubcontractorOperationsActions } from "./subcontractor-operations-actions";
 import { SubcontractorLifecycleActions } from "./subcontractor-lifecycle-actions";
 
@@ -140,7 +140,7 @@ export function SubcontractorContractActions({ projectId, assignmentId, email }:
       <div className="grid gap-1 text-xs font-semibold text-[var(--bos-text-medium-on-light)]"><p>Master Agreement: {label(data?.master?.status || "not_created")}</p><p>Project Work Authorization: {label(data?.authorization?.status || "not_created")}</p></div>
       {openRequirements.length ? <div className="flex flex-wrap gap-1.5">{openRequirements.map((requirement) => <span key={requirement.requirement_type} className="rounded-full border border-amber-300/50 bg-amber-50 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-800">{label(requirement.requirement_type)}</span>)}</div> : null}
       <div className="flex flex-wrap items-center gap-2">
-        {signed ? <><Badge tone="success">Agreement Signed</Badge><Link href={`/projects/${projectId}/subcontractors/${assignmentId}/agreement`} className="text-xs font-black text-[var(--color-primary-700)] underline underline-offset-2">View Agreement</Link></> : <Button type="button" size="sm" className="flex-1" disabled={busy === "send" || !email} onClick={() => void sendAgreement()}>{busy === "send" ? "Sending…" : sent ? "Resend Agreement" : "Send Agreement"}</Button>}
+        {signed ? <><Badge tone="success">Agreement Signed</Badge><Link href={`/projects/${projectId}/subcontractors/${assignmentId}/agreement`} className={getButtonClassName({ variant: "outline", size: "sm" })}>View Agreement</Link></> : <Button type="button" size="sm" className="flex-1" disabled={busy === "send" || !email} onClick={() => void sendAgreement()}>{busy === "send" ? "Sending…" : sent ? "Resend Agreement" : "Send Agreement"}</Button>}
         {portal.active ? <Badge tone="success">Portal Active</Badge> : <Button type="button" size="sm" variant="outline" className="flex-1" disabled={busy === "portal" || !email} onClick={() => void sendPortalAccess()}>{busy === "portal" ? "Sending Portal Setup…" : portal.pending ? "Resend Portal Setup" : "Send Portal Setup"}</Button>}
       </div>
       {!email ? <p className="text-xs font-semibold text-[var(--color-danger-700)]">Add a subcontractor email address before sending.</p> : null}
