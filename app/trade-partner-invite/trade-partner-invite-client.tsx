@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button, Input } from "@/components/ui";
 
@@ -129,12 +130,12 @@ export function TradePartnerInviteClient({ token }: { token: string }) {
                 {email ? <p className="mt-2 text-sm text-slate-300">{email}</p> : null}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <a href="/partner" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white transition hover:bg-blue-500">
+                <Link href="/partner" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white transition hover:bg-blue-500">
                   Go to Trade Partner Portal
-                </a>
-                <a href="/login?next=%2Fpartner" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-300/25 bg-blue-950/20 px-4 py-3 text-sm font-black text-slate-100 transition hover:bg-blue-900/30">
+                </Link>
+                <Link href="/login?next=%2Fpartner" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-300/25 bg-blue-950/20 px-4 py-3 text-sm font-black text-slate-100 transition hover:bg-blue-900/30">
                   Sign In
-                </a>
+                </Link>
               </div>
               <p className="text-xs leading-5 text-slate-400">
                 If you are already signed in, use Trade Partner Portal. Otherwise, choose Sign In with the email linked to this Trade Partner account.
