@@ -712,6 +712,16 @@ export default function ProjectWorkspacePage() {
     localeTag,
     t,
   });
+  const closeoutReady = Boolean(
+    workspace.closeout
+    && workspace.closeout.finalPaymentRecorded
+    && workspace.closeout.customerApprovalRecorded
+    && workspace.closeout.requiredDocumentsCompleted
+    && workspace.closeout.permitClosureCompleted
+    && workspace.closeout.crewRemovalCompleted
+    && workspace.closeout.equipmentReturnCompleted,
+  );
+  const closeoutStatusLabel = workspace.closeout ? `${workspace.closeout.status} / ${workspace.closeout.handoverStatus}` : "Not started";
 
   const executionTasks = buildExecutionTasks(workspace.tasks, workspace.profilesById);
   const executionIssues = buildExecutionIssues(workspace.punchItems, executionTasks, workspace.profilesById);
@@ -804,6 +814,7 @@ export default function ProjectWorkspacePage() {
                 projectType={project.project_type}
                 address={location}
                 statusLabel={statusLabel}
+                projectStatus={project.status || ""}
                 startDate={startDate}
                 targetDate={completionDate}
                 targetDateRaw={project.actual_end_date || project.estimated_end_date}
@@ -819,6 +830,8 @@ export default function ProjectWorkspacePage() {
                 permitsOpen={workspace.counts.openPermits}
                 pendingInspections={workspace.counts.pendingInspections}
                 openPunchItems={workspace.counts.openPunchItems}
+                closeoutStatusLabel={closeoutStatusLabel}
+                closeoutReady={closeoutReady}
                 localeTag={localeTag}
               />
             ) : activeTab === "tasks" ? (
