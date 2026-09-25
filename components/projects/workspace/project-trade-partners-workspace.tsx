@@ -260,7 +260,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
     ) : <>
       <section className="rounded-[18px] border border-[var(--bos-border-light)] bg-[var(--bos-bg-workspace-surface)] p-4 shadow-[var(--shadow-small)]">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-extrabold text-[var(--bos-text-strong-on-light)]">Project Subcontractors</h2><p className="mt-1 text-sm font-medium text-[var(--bos-text-medium-on-light)]">Manage assigned scope, internal subcontract commitments, agreements, mobilization, payments, and closeout. Internal subcontract costs stay private from customers.</p></div><Button type="button" onClick={openCreateDialog}>Assign Trade Partner</Button></div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-6"><SummaryRow label="Selected" value={String(summary.totalAssigned)} /><SummaryRow label="Signed Contracts" value={String(summary.signed)} /><SummaryRow label="Awaiting Signature" value={String(summary.pending)} /><SummaryRow label="Internal Subcontract Commitments" value={formatMoney(summary.totalContractValue, "Not Provided")} /><SummaryRow label="Current Trade Partner Crew" value={summary.totalCrewMembers === null ? "Not Provided" : String(summary.totalCrewMembers)} /><SummaryRow label="Next Scheduled Start" value={summary.nextScheduledStart || "Not Scheduled"} /></div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-6"><SummaryRow label="Assigned Trade Partners" value={String(summary.totalAssigned)} /><SummaryRow label="Signed Contracts" value={String(summary.signed)} /><SummaryRow label="Awaiting Signature" value={String(summary.pending)} /><SummaryRow label="Committed Cost" value={formatMoney(summary.totalContractValue, "Not Provided")} /><SummaryRow label="Current Crew Size" value={summary.totalCrewMembers === null ? "Not Provided" : String(summary.totalCrewMembers)} /><SummaryRow label="Next Scheduled Start" value={summary.nextScheduledStart || "Not Scheduled"} /></div>
       </section>
       <section className="grid min-w-0 gap-4">
         <div className="grid min-w-0 gap-4">
@@ -276,20 +276,20 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
                   <div className="min-w-0">
                     <CardTitle className="break-words text-card-title font-bold text-[var(--bos-text-strong-on-light)]">{companyName}</CardTitle>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-[var(--bos-text-medium-on-light)]">
-                      <span className="inline-flex items-center gap-1"><Star size={13} />{vendor?.performanceRating == null ? "Not rated" : `${vendor.performanceRating.toFixed(1)} / 5`}</span>
+                      <span className="inline-flex items-center gap-1"><Star size={13} />{vendor?.performanceRating == null ? "Not Yet Rated" : `${vendor.performanceRating.toFixed(1)} / 5`}</span>
                       {vendor?.performanceReviewCount ? <span>· {vendor.performanceReviewCount} {vendor.performanceReviewCount === 1 ? "review" : "reviews"}</span> : null}
                       {vendor?.rehireStatus === "do_not_rehire" ? <Badge tone="danger">Do Not Rehire</Badge> : vendor?.rehireStatus === "review_before_assignment" ? <Badge tone="warning">Review First</Badge> : null}
                     </div>
                   </div>
                   <Badge tone={authorized ? "success" : assignment.contractStatus === "signed" ? "warning" : STATUS_TONE[assignment.assignmentStatus]}>{statusLabel}</Badge>
                 </div>
-                <p className="text-sm font-bold text-[var(--bos-text-medium-on-light)]">{displayTradeName(assignment.tradeName)}</p>
+                <div className="flex flex-wrap items-center gap-2"><Badge tone="info">{displayTradeName(assignment.tradeName)}</Badge></div>
               </CardHeader>
               <CardContent className="space-y-3 p-4">
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   <SummaryRow label="Contract" value={contractStatusLabel} />
                   <SummaryRow label="Commitment" value={formatMoney(assignment.contractAmount)} />
-                  <SummaryRow label="Current Trade Partner Crew" value={assignment.crewSize !== null ? String(assignment.crewSize) : "Not Provided"} />
+                  <SummaryRow label="Current Crew Size" value={assignment.crewSize !== null ? String(assignment.crewSize) : "Not Provided"} />
                   <SummaryRow label="Schedule" value={assignment.startDate || "Not Scheduled"} />
                 </div>
                 <details className="rounded-[12px] border border-[var(--bos-border-light)] bg-[var(--color-neutral-50)]">
@@ -305,7 +305,7 @@ export function ProjectTradePartnersWorkspace({ projectId }: ProjectTradePartner
                 <SubcontractorContractActions projectId={projectId} assignmentId={assignment.id} email={assignment.primaryContactEmail || vendor?.email || null} />
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Link href={`/vendors/${assignment.vendorId}`} className={`${getButtonClassName({ variant: "outline" })} w-full`}>View Trade Partner<ArrowUpRight size={14} /></Link>
-                  <Button type="button" variant="outline" onClick={() => openEditDialog(assignment)} disabled={assignment.assignmentStatus === "archived"}>Edit Assignment</Button>
+                  <Button type="button" onClick={() => openEditDialog(assignment)} disabled={assignment.assignmentStatus === "archived"}>Edit Assignment</Button>
                 </div>
               </CardContent>
             </Card>;

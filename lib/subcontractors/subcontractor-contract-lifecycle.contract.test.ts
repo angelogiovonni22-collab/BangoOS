@@ -86,7 +86,8 @@ test("project subcontractor cards expose agreement and mobilization controls", (
   const workspace = read("components/projects/workspace/project-trade-partners-workspace.tsx");
   assert.match(component, /Send Agreement/);
   assert.match(component, /Resend Agreement/);
-  assert.match(component, /CLEARED TO MOBILIZE/);
+  assert.match(component, /Cleared to Mobilize/);
+  assert.match(component, /Mobilization Hold/);
   assert.match(component, /Mobilization Requirements/);
   assert.match(component, /Verify/);
   assert.match(component, /Waive/);
