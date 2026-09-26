@@ -15,4 +15,5 @@ export const PROJECT_WORKSPACE_TABS: Array<{ key: ProjectWorkspaceTabKey; labelK
   { key: "submittals", labelKey: "projects.workspaceTabSubmittals" },
   { key: "inspections", labelKey: "projects.workspaceTabInspections" },
   { key: "activity", labelKey: "projects.workspaceTabActivity" },
+  { key: "scope", labelKey: "projects.workspaceTabScope" },
 ];
