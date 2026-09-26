@@ -43,11 +43,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
         .select("name,display_name,legal_name")
         .eq("id", tokenRow.company_id)
         .single(),
-      admin
+      (admin
         .from("change_order_customer_approvals" as never)
         .select("decision,typed_name,created_at")
         .eq("token_id", tokenRow.id)
-        .maybeSingle() as Promise<{ data: { decision: string; typed_name: string; created_at: string } | null; error: unknown }>,
+        .maybeSingle() as unknown as Promise<{ data: { decision: string; typed_name: string; created_at: string } | null; error: unknown }>),
     ]);
 
     if (changeOrderError || !changeOrder) throw new Error("Change order not found.");
