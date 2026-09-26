@@ -216,6 +216,8 @@ export function ProjectOverviewCommandCenter(props: Props) {
         : "Review open items";
   const scheduleTone = scheduleHealth === "On Track" ? "success" : "warning";
   const latestActivity = props.activityItems.slice(0, 4);
+  const displayCustomerName = normalizeLeadingCase(props.customerName);
+  const displayAddress = normalizeProjectAddress(props.address);
 
   const riskRows = [
     mobilizationBlockers > 0 ? { label: "Trade Partner mobilization hold", detail: `${mobilizationBlockers} requirement${mobilizationBlockers === 1 ? "" : "s"} must be cleared before work starts.`, badge: `${mobilizationBlockers} Open`, tone: "danger" } : null,
@@ -228,26 +230,26 @@ export function ProjectOverviewCommandCenter(props: Props) {
 
   return (
     <div className="space-y-4" data-project-overview-command-center>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[1.1fr_1fr_1fr]">
+      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[1.4fr_1.08fr_.92fr]">
         <Panel title="Project Snapshot" action={<Link href={`/projects/${props.projectId}/edit`} className={smallAction}>Edit</Link>}>
-          <div className="grid gap-5 sm:grid-cols-[150px_1fr]">
-            <div className="flex items-center justify-center">
-              <div className="relative grid h-32 w-32 place-items-center rounded-full" style={{ background: `conic-gradient(#42a5ff ${progressPercent}%, #0b2039 0)` }}>
-                <div className="grid h-24 w-24 place-items-center rounded-full border border-[#21476b] bg-[#071626] text-center">
-                  <div><div className="text-3xl font-black text-white">{progressPercent}%</div><div className="text-[11px] font-bold uppercase tracking-[.08em] text-[#9bb4ca]">Complete</div></div>
+          <div className="grid items-start gap-5 lg:grid-cols-[118px_minmax(0,1fr)]">
+            <div className="flex justify-center pt-1 lg:justify-start">
+              <div className="relative grid h-28 w-28 place-items-center rounded-full" style={{ background: `conic-gradient(#42a5ff ${progressPercent}%, #0b2039 0)` }}>
+                <div className="grid h-[84px] w-[84px] place-items-center rounded-full border border-[#21476b] bg-[#071626] text-center">
+                  <div><div className="text-2xl font-black text-white">{progressPercent}%</div><div className="text-[10px] font-bold uppercase tracking-[.08em] text-[#9bb4ca]">Complete</div></div>
                 </div>
               </div>
             </div>
-            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
-              <Detail label="Customer" value={props.customerName} />
-              <Detail label="Project Type" value={props.projectType || "Not provided"} />
-              <Detail label="Address" value={props.address} />
-              <Detail label="Start Date" value={props.startDate} />
-              <Detail label="Target Completion" value={props.targetDate} />
+            <div className="grid min-w-0 gap-x-5 gap-y-3 sm:grid-cols-2">
+              <Detail label="Customer" value={displayCustomerName} wide />
+              <Detail label="Project Type" value={props.projectType || "Not set"} />
               <Detail label="Status" value={props.statusLabel} />
+              <Detail label="Address" value={displayAddress} wide />
+              <Detail label="Start Date" value={props.startDate === "Not provided" ? "Not set" : props.startDate} />
+              <Detail label="Target Completion" value={props.targetDate === "Not provided" ? "Not set" : props.targetDate} />
               <Detail label="Project Manager" value={props.projectManager || "Not Assigned"} />
               <Detail label="Superintendent" value="Not Assigned" />
-              <Detail label="Contract Value" value={money(props.contractValue || 0, props.localeTag)} />
+              <Detail label="Contract Value" value={money(props.contractValue || 0, props.localeTag)} wide />
             </div>
           </div>
         </Panel>
@@ -291,13 +293,13 @@ export function ProjectOverviewCommandCenter(props: Props) {
             <Metric label="Est. Cost to Complete" value={money(remainingCost, props.localeTag)} />
           </div>
           <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
-            <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-emerald-300">Projected Margin</p>
+            <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-emerald-300">Projected Gross Margin</p>
             <div className="mt-1 flex items-end justify-between gap-3"><span className="text-xl font-black text-emerald-300">{money(grossProfit, props.localeTag)}</span><span className="text-sm font-bold text-emerald-200">{margin === null || margin === undefined ? "—" : `${margin.toFixed(1)}%`}</span></div>
           </div>
         </Panel>
       </div>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[1.2fr_.8fr]">
+      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[.85fr_1.15fr]">
         <Panel title="Today on Site / Workforce" action={<Link href={`/projects/${props.projectId}?tab=crew`} className={smallAction}>Manage Crew</Link>}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Metric label="Assigned B.O.S. Crew" value={assignedBosCrewCount ? String(assignedBosCrewCount) : "None Assigned"} />
@@ -327,7 +329,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
 
         <Panel title="Project Team" action={<Link href={`/projects/${props.projectId}?tab=crew`} className={smallAction}>Manage Team</Link>}>
           <div className="space-y-2">
-            <TeamRow initials={initials(props.customerName)} name={props.customerName} role="Customer" />
+            <TeamRow initials={initials(displayCustomerName)} name={displayCustomerName} role="Customer" />
             <TeamRow initials={initials(props.projectManager)} name={props.projectManager || "Not Assigned"} role="Project Manager" />
             <TeamRow initials="—" name="Not Assigned" role="Superintendent" />
             {tradePartners.slice(0, 2).map((row) => <TeamRow key={row.id} initials={initials(row.vendor_name)} name={row.vendor_name} role={tradePartnerRole(row.trade_name)} />)}
@@ -357,8 +359,8 @@ function Panel({ title, action, children }: { title: string; action?: ReactNode;
   return <section className={panelClass}><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-extrabold tracking-[-.01em] text-white">{title}</h2>{action}</div>{children}</section>;
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[#7898b0]">{label}</p><p className="mt-1 break-words text-sm font-bold leading-5 text-[#eef8ff]">{value}</p></div>;
+function Detail({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return <div className={`min-w-0 ${wide ? "sm:col-span-2" : ""}`}><p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[#7898b0]">{label}</p><p className="mt-1 break-words text-sm font-bold leading-5 text-[#eef8ff]">{value}</p></div>;
 }
 
 function Metric({ label, value, sub, tone = "default" }: { label: string; value: string; sub?: string; tone?: "default" | "success" | "warning" }) {
@@ -394,6 +396,20 @@ function tradePartnerRole(tradeName: string | null) {
   return normalized && normalized.toLowerCase() !== "all" ? `Trade Partner · ${normalized}` : "Trade Partner";
 }
 function blockerCount(value: unknown) { return Array.isArray(value) ? value.length : 0; }
+function normalizeLeadingCase(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  return trimmed.replace(/[A-Za-z]/, (letter) => letter.toUpperCase());
+}
+function normalizeProjectAddress(value: string) {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  const segments = cleaned.split(",").map((segment) => segment.trim()).filter(Boolean);
+  if (segments.length < 3) return normalizeLeadingCase(cleaned);
+  const street = segments[0].replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  const city = segments[1].replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  const stateZip = segments.slice(2).join(", ").replace(/\b(oh|ohio)\b/i, "OH");
+  return `${street}, ${city}, ${stateZip}`;
+}
 function computeDaysRemaining(targetValue: string | null) {
   if (!targetValue) return null;
   const target = new Date(targetValue);
