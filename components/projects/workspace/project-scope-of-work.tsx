@@ -16,7 +16,7 @@ import {
   ShoppingCart,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type EstimateRow = {
@@ -91,14 +91,12 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!supabase || !estimateId) {
-      setLoading(false);
-      return;
-    }
+  useEffect(() => {
+    let active = true;
 
-    setLoading(true);
-    setError(null);
+    if (!supabase || !estimateId) {
+      return () => { active = false; };
+    }
 
     const db = supabase as unknown as {
       // Generated Supabase types can lag estimate/material-plan migrations.
@@ -106,45 +104,47 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
       from: (table: string) => any;
     };
 
-    try {
-      const [estimateResult, lineResult, materialResult] = await Promise.all([
-        db
-          .from("estimates")
-          .select("id,estimate_number,title,description,status,subtotal,total_amount,internal_cost_total,gross_profit,gross_margin_percent,scope_inclusions,scope_exclusions,terms,payment_terms,customer_notes,internal_notes")
-          .eq("company_id", companyId)
-          .eq("id", estimateId)
-          .maybeSingle(),
-        db
-          .from("estimate_line_items")
-          .select("id,sort_order,item_code,category,description,quantity,unit,unit_cost,unit_price,line_total,notes,material_id")
-          .eq("company_id", companyId)
-          .eq("estimate_id", estimateId)
-          .order("sort_order", { ascending: true }),
-        db
-          .from("project_material_plan_items")
-          .select("id,description,item_code,unit_of_measure,estimated_quantity,original_unit_cost,current_unit_cost,status")
-          .eq("company_id", companyId)
-          .eq("project_id", projectId)
-          .order("created_at", { ascending: true }),
-      ]);
+    const request = Promise.all([
+      db
+        .from("estimates")
+        .select("id,estimate_number,title,description,status,subtotal,total_amount,internal_cost_total,gross_profit,gross_margin_percent,scope_inclusions,scope_exclusions,terms,payment_terms,customer_notes,internal_notes")
+        .eq("company_id", companyId)
+        .eq("id", estimateId)
+        .maybeSingle(),
+      db
+        .from("estimate_line_items")
+        .select("id,sort_order,item_code,category,description,quantity,unit,unit_cost,unit_price,line_total,notes,material_id")
+        .eq("company_id", companyId)
+        .eq("estimate_id", estimateId)
+        .order("sort_order", { ascending: true }),
+      db
+        .from("project_material_plan_items")
+        .select("id,description,item_code,unit_of_measure,estimated_quantity,original_unit_cost,current_unit_cost,status")
+        .eq("company_id", companyId)
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: true }),
+    ]);
 
-      if (estimateResult.error) throw new Error(estimateResult.error.message);
-      if (lineResult.error) throw new Error(lineResult.error.message);
-      if (materialResult.error) throw new Error(materialResult.error.message);
+    void request
+      .then(([estimateResult, lineResult, materialResult]) => {
+        if (!active) return;
+        if (estimateResult.error) throw new Error(estimateResult.error.message);
+        if (lineResult.error) throw new Error(lineResult.error.message);
+        if (materialResult.error) throw new Error(materialResult.error.message);
 
-      setEstimate((estimateResult.data || null) as EstimateRow | null);
-      setLines((lineResult.data || []) as EstimateLine[]);
-      setMaterials((materialResult.data || []) as MaterialPlanItem[]);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to load scope of work.");
-    } finally {
-      setLoading(false);
-    }
+        setEstimate((estimateResult.data || null) as EstimateRow | null);
+        setLines((lineResult.data || []) as EstimateLine[]);
+        setMaterials((materialResult.data || []) as MaterialPlanItem[]);
+      })
+      .catch((caught: unknown) => {
+        if (active) setError(caught instanceof Error ? caught.message : "Unable to load scope of work.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
   }, [companyId, estimateId, projectId, supabase]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const scopeGroups = useMemo(() => buildScopeGroups(lines), [lines]);
   const materialBudget = lines
