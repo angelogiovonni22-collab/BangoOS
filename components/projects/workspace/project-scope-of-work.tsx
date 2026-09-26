@@ -106,6 +106,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   const [lines, setLines] = useState<EstimateLine[]>([]);
   const [materials, setMaterials] = useState<MaterialPlanItem[]>([]);
   const [savedScopeItems, setSavedScopeItems] = useState<ProjectScopeItem[]>([]);
+  const [scopeMaterialized, setScopeMaterialized] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editor, setEditor] = useState({ category: "", details: "", materialCost: "0", laborCost: "0", status: "planned" });
@@ -165,7 +166,9 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         setEstimate((estimateResult.data || null) as EstimateRow | null);
         setLines((lineResult.data || []) as EstimateLine[]);
         setMaterials((materialResult.data || []) as MaterialPlanItem[]);
-        setSavedScopeItems((scopeResult.data || []) as ProjectScopeItem[]);
+        const scopeRows = (scopeResult.data || []) as ProjectScopeItem[];
+        setSavedScopeItems(scopeRows);
+        setScopeMaterialized(scopeRows.length > 0);
       })
       .catch((caught: unknown) => {
         if (active) setError(caught instanceof Error ? caught.message : "Unable to load scope of work.");
@@ -179,8 +182,8 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
 
   const generatedScopeGroups = useMemo(() => buildScopeGroups(lines), [lines]);
   const scopeGroups = useMemo(
-    () => savedScopeItems.length ? savedScopeItems.map(scopeItemToGroup) : generatedScopeGroups,
-    [generatedScopeGroups, savedScopeItems],
+    () => scopeMaterialized ? savedScopeItems.map(scopeItemToGroup) : generatedScopeGroups,
+    [generatedScopeGroups, savedScopeItems, scopeMaterialized],
   );
   const materialBudget = lines
     .filter((line) => normalizeCategory(line.category).includes("material"))
@@ -207,7 +210,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   };
 
   const materializeScopeItems = async () => {
-    if (savedScopeItems.length) return savedScopeItems;
+    if (scopeMaterialized) return savedScopeItems;
     const payload = generatedScopeGroups.map((group, index) => ({
       company_id: companyId,
       project_id: projectId,
@@ -225,6 +228,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     if (insertError) throw new Error(insertError.message);
     const rows = (data || []) as ProjectScopeItem[];
     setSavedScopeItems(rows);
+    setScopeMaterialized(true);
     return rows;
   };
 
@@ -346,8 +350,8 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         <SummaryCard icon={<CircleDollarSign size={22} />} label="Scope Value" value={money(scopeValue, localeTag)} sub="From estimate" />
         <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(workingMaterialBudget, localeTag)} sub={scopeValue > 0 ? pct(workingMaterialBudget / scopeValue) + " of total" : "0% of total"} />
         <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(workingLaborBudget, localeTag)} sub={scopeValue > 0 ? pct(workingLaborBudget / scopeValue) + " of total" : "0% of total"} />
-        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(savedScopeItems.length ? workingCost : estimatedCost, localeTag)} sub={scopeValue > 0 ? pct((savedScopeItems.length ? workingCost : estimatedCost) / scopeValue) + " of scope value" : "0% of scope value"} />
-        <SummaryCard icon={<BarChart3 size={22} />} label="Gross Margin" value={money(savedScopeItems.length ? workingGrossMargin : grossMargin, localeTag)} sub={`${Number(savedScopeItems.length ? workingGrossMarginPercent : grossMarginPercent || 0).toFixed(1)}% margin`} />
+        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(scopeMaterialized ? workingCost : estimatedCost, localeTag)} sub={scopeValue > 0 ? pct((scopeMaterialized ? workingCost : estimatedCost) / scopeValue) + " of scope value" : "0% of scope value"} />
+        <SummaryCard icon={<BarChart3 size={22} />} label="Gross Margin" value={money(scopeMaterialized ? workingGrossMargin : grossMargin, localeTag)} sub={`${Number(scopeMaterialized ? workingGrossMarginPercent : grossMarginPercent || 0).toFixed(1)}% margin`} />
         <SummaryCard icon={<ClipboardList size={22} />} label="Scope Categories" value={String(scopeGroups.length)} sub="Total categories" />
         <div className="grid gap-2">
           <Link href={`/estimates/${estimate.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#318ef1] bg-[linear-gradient(180deg,#2f8cff,#156dd1)] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(20,105,210,.24)] transition hover:brightness-110">
