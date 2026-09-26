@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MotionProvider } from "@/components/motion";
 import { OrionCommandCenterOverlay } from "@/components/orion/command-center";
 import { PersistentOrion } from "@/components/orion/persistent";
@@ -86,6 +87,9 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [orionVisible, setOrionVisible] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const mobileHistoryRef = useRef<string[]>([]);
+  const lastPathRef = useRef<string | null>(null);
+  const mobileBackNavigationRef = useRef(false);
   const pathname = usePathname();
   const isDashboard = pathname === "/dashboard";
   const router = useRouter();
@@ -112,6 +116,36 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
     }
     return platformAdmin ? [...groups, { key: "platform", label: "B.O.S. Platform", items: [{ key: "platformAdmin", href: "/platform-admin", icon: "◆" }] }] : groups;
   }, [hasModule, normalizedRole, platformAdmin]);
+
+  useEffect(() => {
+    if (!pathname) return;
+    const previousPath = lastPathRef.current;
+    if (!previousPath) {
+      lastPathRef.current = pathname;
+      return;
+    }
+    if (previousPath === pathname) return;
+    if (mobileBackNavigationRef.current) {
+      mobileBackNavigationRef.current = false;
+      lastPathRef.current = pathname;
+      return;
+    }
+    if (mobileHistoryRef.current[mobileHistoryRef.current.length - 1] !== previousPath) {
+      mobileHistoryRef.current.push(previousPath);
+      if (mobileHistoryRef.current.length > 24) mobileHistoryRef.current.shift();
+    }
+    lastPathRef.current = pathname;
+  }, [pathname]);
+
+  const handleMobileBack = () => {
+    const previousPath = mobileHistoryRef.current.pop();
+    if (previousPath && previousPath !== pathname) {
+      mobileBackNavigationRef.current = true;
+      router.push(previousPath);
+      return;
+    }
+    router.push(homePath);
+  };
 
   useEffect(() => { if (pathname && !canAccessPath(normalizedRole, pathname)) router.replace(homePath); }, [homePath, normalizedRole, pathname, router]);
   useEffect(() => {
@@ -183,7 +217,8 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
             <header data-bos-topbar="true" className="sticky top-0 z-20 border-b border-[var(--bos-border-subtle)] bg-[var(--bos-bg-panel)]/92 px-4 py-3.5 text-[var(--bos-text-primary)] backdrop-blur-sm sm:px-6 lg:px-8">
               <div className="bos-top-command-utility flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3 sm:items-center">
-                  <button type="button" aria-label={t("common.openSidebar")} aria-controls="bangoos-sidebar" aria-expanded={mobileOpen} className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] lg:hidden" onClick={() => setMobileOpen(true)}><span className="text-lg">☰</span></button>
+                  {pathname && pathname !== homePath ? <button type="button" aria-label={t("common.back")} title={t("common.back")} onClick={handleMobileBack} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] lg:hidden"><ArrowLeft size={20} aria-hidden="true" /></button> : null}
+                  <button type="button" aria-label={t("common.openSidebar")} aria-controls="bangoos-sidebar" aria-expanded={mobileOpen} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] lg:hidden" onClick={() => setMobileOpen(true)}><span className="text-lg">☰</span></button>
                   {isDashboard ? <p className="truncate text-sm font-medium uppercase tracking-[0.28em] text-[var(--bos-text-primary)] sm:text-base">Bango Operating System</p> : <div className="min-w-0 space-y-1.5">
                     <p className="truncate text-sm font-medium text-[var(--bos-text-secondary)]">{companyName || t("common.operationsWorkspace")}</p><NavigationBreadcrumb />
                     {!['subcontractor', 'customer'].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
