@@ -218,6 +218,11 @@ export function ProjectOverviewCommandCenter(props: Props) {
   const latestActivity = props.activityItems.slice(0, 4);
   const displayCustomerName = normalizeLeadingCase(props.customerName);
   const displayAddress = normalizeProjectAddress(props.address);
+  const missingSetup = [
+    !props.projectType ? "Project Type" : null,
+    props.startDate === "Not provided" ? "Start Date" : null,
+    props.targetDate === "Not provided" ? "Target Completion" : null,
+  ].filter((value): value is string => Boolean(value));
 
   const riskRows = [
     mobilizationBlockers > 0 ? { label: "Trade Partner mobilization hold", detail: `${mobilizationBlockers} requirement${mobilizationBlockers === 1 ? "" : "s"} must be cleared before work starts.`, badge: `${mobilizationBlockers} Open`, tone: "danger" } : null,
@@ -242,66 +247,89 @@ export function ProjectOverviewCommandCenter(props: Props) {
             </div>
             <div className="grid min-w-0 gap-x-5 gap-y-3 sm:grid-cols-2">
               <Detail label="Customer" value={displayCustomerName} wide />
-              <Detail label="Project Type" value={props.projectType || "Not set"} />
               <Detail label="Status" value={props.statusLabel} />
-              <Detail label="Address" value={displayAddress} wide />
-              <Detail label="Start Date" value={props.startDate === "Not provided" ? "Not set" : props.startDate} />
-              <Detail label="Target Completion" value={props.targetDate === "Not provided" ? "Not set" : props.targetDate} />
               <Detail label="Project Manager" value={props.projectManager || "Not Assigned"} />
+              <Detail label="Address" value={displayAddress} wide />
+              {props.projectType ? <Detail label="Project Type" value={prettyStatus(props.projectType)} /> : null}
+              {props.startDate !== "Not provided" ? <Detail label="Start Date" value={props.startDate} /> : null}
+              {props.targetDate !== "Not provided" ? <Detail label="Target Completion" value={props.targetDate} /> : null}
               <Detail label="Superintendent" value="Not Assigned" />
               <Detail label="Contract Value" value={money(props.contractValue || 0, props.localeTag)} wide />
             </div>
           </div>
+          {missingSetup.length ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3.5 py-3">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-amber-300">Project Setup</p>
+                <p className="mt-1 text-xs font-semibold text-[#d8e3ec]">Still needed: {missingSetup.join(", ")}</p>
+              </div>
+              <Link href={`/projects/${props.projectId}/edit`} className={smallAction}>Complete Setup</Link>
+            </div>
+          ) : null}
         </Panel>
 
-        <Panel title="Schedule & Milestones" action={<Link href={`/projects/${props.projectId}?tab=tasks`} className={smallAction}>View Schedule →</Link>}>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Metric label="Current Status" value={props.statusLabel} sub={`${progressPercent}% complete`} />
-            <Metric label="Next Milestone" value={nextTask?.title || "No milestone scheduled"} sub={nextTask?.planned_finish ? formatDate(nextTask.planned_finish, props.localeTag) : "Not Scheduled"} />
-          </div>
-          <div className="mt-5">
-            <div className="flex items-center gap-2">
-              {["Planning", "Permits", "Construction", "Final Inspections", "Closeout"].map((label, index) => {
-                const filled = index === 0 || (progressPercent >= 25 && index === 1) || (progressPercent >= 50 && index === 2) || (progressPercent >= 80 && index === 3) || progressPercent === 100;
-                return <div key={label} className="flex min-w-0 flex-1 items-center gap-2"><span className={`h-4 w-4 shrink-0 rounded-full border ${filled ? "border-[#52b7ff] bg-[#2389ef]" : "border-[#668099] bg-[#0a1c2e]"}`} />{index < 4 ? <span className="h-px flex-1 bg-[#355370]" /> : null}</div>;
-              })}
+        <Panel title="Schedule & Milestones" action={<Link href={`/projects/${props.projectId}?tab=tasks`} className={smallAction}>{hasPlannedWork ? "View Schedule →" : "Create Schedule →"}</Link>}>
+          {!hasPlannedWork ? (
+            <div className="rounded-2xl border border-amber-400/25 bg-[linear-gradient(135deg,rgba(245,158,11,.08),rgba(8,27,45,.9))] p-5">
+              <p className="text-[10px] font-extrabold uppercase tracking-[.1em] text-amber-300">Schedule Not Established</p>
+              <h3 className="mt-2 text-lg font-black text-white">This project is not scheduled yet.</h3>
+              <p className="mt-2 text-sm leading-6 text-[#9fb6c9]">No workforce assignments or planned tasks have been created. Add the first scheduled work item to start tracking milestones and schedule health.</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <Metric label="Current Status" value={props.statusLabel} sub={`${progressPercent}% complete`} />
+                <Metric label="Target Completion" value={props.targetDate === "Not provided" ? "Not Set" : props.targetDate} sub={props.targetDateRaw ? "Project target" : "Add a completion target"} tone="warning" />
+              </div>
             </div>
-            <div className="mt-2 grid grid-cols-5 gap-2 text-center text-[10px] font-bold text-[#a8bfd3]">
-              <span>Planning</span><span>Permits</span><span>Construction</span><span>Final Inspections</span><span>Closeout</span>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <Metric label="Days Remaining" value={daysRemaining === null ? "—" : String(daysRemaining)} sub="to target" />
-            <Metric label="Schedule Health" value={scheduleHealth} sub={scheduleHealthSub} tone={scheduleTone} />
-            <Metric label="Target Completion" value={props.targetDate} sub={daysRemaining === null ? "Not calculated" : `${daysRemaining} days remaining`} />
-          </div>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Metric label="Current Status" value={props.statusLabel} sub={`${progressPercent}% complete`} />
+                <Metric label="Next Milestone" value={nextTask?.title || "No milestone scheduled"} sub={nextTask?.planned_finish ? formatDate(nextTask.planned_finish, props.localeTag) : "Not Scheduled"} />
+              </div>
+              <div className="mt-5">
+                <div className="flex items-center gap-2">
+                  {["Planning", "Permits", "Construction", "Final Inspections", "Closeout"].map((label, index) => {
+                    const filled = index === 0 || (progressPercent >= 25 && index === 1) || (progressPercent >= 50 && index === 2) || (progressPercent >= 80 && index === 3) || progressPercent === 100;
+                    return <div key={label} className="flex min-w-0 flex-1 items-center gap-2"><span className={`h-4 w-4 shrink-0 rounded-full border ${filled ? "border-[#52b7ff] bg-[#2389ef]" : "border-[#668099] bg-[#0a1c2e]"}`} />{index < 4 ? <span className="h-px flex-1 bg-[#355370]" /> : null}</div>;
+                  })}
+                </div>
+                <div className="mt-2 grid grid-cols-5 gap-2 text-center text-[10px] font-bold text-[#a8bfd3]">
+                  <span>Planning</span><span>Permits</span><span>Construction</span><span>Final Inspections</span><span>Closeout</span>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <Metric label="Days Remaining" value={daysRemaining === null ? "—" : String(daysRemaining)} sub="to target" />
+                <Metric label="Schedule Health" value={scheduleHealth} sub={scheduleHealthSub} tone={scheduleTone} />
+                <Metric label="Target Completion" value={props.targetDate} sub={daysRemaining === null ? "Not calculated" : `${daysRemaining} days remaining`} />
+              </div>
+            </>
+          )}
         </Panel>
 
         <Panel title="Financial Health" action={<Link href={`/projects/${props.projectId}?tab=financials`} className={smallAction}>View Financials →</Link>}>
-          <div className="space-y-2">
+          <div className="rounded-xl border border-[#1c3e5b] bg-[#081b2d] px-3 py-2">
             <MoneyRow label="Original Contract" value={originalContract} localeTag={props.localeTag} />
             <MoneyRow label="Approved Change Orders" value={approvedChangeOrders} localeTag={props.localeTag} />
             <MoneyRow label="Revised Contract" value={revisedContract} localeTag={props.localeTag} strong />
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
-            <Metric label="Invoiced" value={money(invoiced, props.localeTag)} sub={revisedContract > 0 ? pct(invoiced / revisedContract) : "0%"} />
-            <Metric label="Paid" value={money(paid, props.localeTag)} sub={invoiced > 0 ? pct(paid / invoiced) : "0%"} tone="success" />
-            <Metric label="Outstanding" value={money(outstanding, props.localeTag)} sub={invoiced > 0 ? pct(outstanding / invoiced) : "0%"} tone={outstanding > 0 ? "warning" : "default"} />
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <CompactMetric label="Invoiced" value={money(invoiced, props.localeTag)} sub={revisedContract > 0 ? pct(invoiced / revisedContract) : "0%"} />
+            <CompactMetric label="Paid" value={money(paid, props.localeTag)} sub={invoiced > 0 ? pct(paid / invoiced) : "0%"} tone="success" />
+            <CompactMetric label="Outstanding" value={money(outstanding, props.localeTag)} sub={invoiced > 0 ? pct(outstanding / invoiced) : "0%"} tone={outstanding > 0 ? "warning" : "default"} />
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Metric label="Committed Cost" value={money(committed, props.localeTag)} />
-            <Metric label="Est. Cost to Complete" value={money(remainingCost, props.localeTag)} />
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <CompactMetric label="Committed Cost" value={money(committed, props.localeTag)} />
+            <CompactMetric label="Cost to Complete" value={money(remainingCost, props.localeTag)} />
           </div>
-          <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
-            <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-emerald-300">Projected Gross Margin</p>
-            <div className="mt-1 flex items-end justify-between gap-3"><span className="text-xl font-black text-emerald-300">{money(grossProfit, props.localeTag)}</span><span className="text-sm font-bold text-emerald-200">{margin === null || margin === undefined ? "—" : `${margin.toFixed(1)}%`}</span></div>
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-400/25 bg-emerald-400/5 px-3 py-3">
+            <div><p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-emerald-300">Projected Gross Margin</p><p className="mt-1 text-lg font-black text-emerald-300">{money(grossProfit, props.localeTag)}</p></div>
+            <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-sm font-black text-emerald-200">{margin === null || margin === undefined ? "—" : `${margin.toFixed(1)}%`}</span>
           </div>
         </Panel>
       </div>
 
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[.85fr_1.15fr]">
         <Panel title="Today on Site / Workforce" action={<Link href={`/projects/${props.projectId}?tab=crew`} className={smallAction}>Manage Crew</Link>}>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Metric label="Assigned B.O.S. Crew" value={assignedBosCrewCount ? String(assignedBosCrewCount) : "None Assigned"} />
             <Metric label="Trade Partners" value={`${activeTradePartners} Assigned`} sub="View Subcontractors" />
             <Metric label="Trade Partner Crew Size" value={String(tradePartnerCrewSize)} sub="Workers" />
@@ -315,7 +343,6 @@ export function ProjectOverviewCommandCenter(props: Props) {
             <WorkRow kicker="Next Up" title={nextTask?.title || "No active task scheduled"} detail={nextTask?.planned_finish ? `Target ${formatDate(nextTask.planned_finish, props.localeTag)}` : "Create or schedule the next project task."} badge={nextTask ? prettyStatus(nextTask.status) : "Not Scheduled"} />
             <WorkRow kicker="Upcoming Inspection" title={nextInspection?.inspection_type || "No inspection scheduled"} detail={nextInspection?.scheduled_at ? formatDate(nextInspection.scheduled_at, props.localeTag) : "No upcoming inspection date."} badge={nextInspection ? prettyStatus(nextInspection.status) : "Not Scheduled"} />
             <WorkRow kicker="Open Work" title={openTasks[1]?.title || "No additional open task"} detail={openTasks[1]?.planned_finish ? `Target ${formatDate(openTasks[1].planned_finish!, props.localeTag)}` : "Project work will appear here as it is scheduled."} badge={openTasks[1] ? prettyStatus(openTasks[1].status) : "Clear"} />
-            <WorkRow kicker="Recent Activity" title={latestActivity[0]?.title || "No recent activity"} detail={latestActivity[0]?.detail || "Updates will appear here as the project changes."} badge={latestActivity[0]?.timestamp || "—"} />
           </div>
         </Panel>
       </div>
@@ -344,8 +371,8 @@ export function ProjectOverviewCommandCenter(props: Props) {
           </div>
         </Panel>
 
-        <Panel title="Recent Photos" action={<Link href={`/projects/${props.projectId}?tab=photos`} className={smallAction}>View All →</Link>}>
-          {props.heroImageUrl ? <div className="grid gap-3 sm:grid-cols-[1.4fr_.6fr]"><div className="relative h-44 overflow-hidden rounded-xl border border-[#21405c]"><Image src={props.heroImageUrl} alt={`${props.projectName} latest project photo`} fill unoptimized className="object-cover" /></div><div className="grid place-items-center rounded-xl border border-[#21405c] bg-[#071827] p-4 text-center"><div><p className="text-3xl font-black text-white">{props.photoCount}</p><p className="mt-1 text-xs font-bold uppercase tracking-[.08em] text-[#8daac0]">Project Photos</p></div></div></div> : <div className="grid min-h-44 place-items-center rounded-xl border border-dashed border-[#31516c] bg-[#071827] p-6 text-center"><div><p className="text-base font-bold text-white">No project photos yet</p><p className="mt-1 text-sm text-[#91aabd]">Field photos will appear here automatically.</p></div></div>}
+        <Panel title="Recent Project Media" action={<Link href={`/projects/${props.projectId}?tab=photos`} className={smallAction}>View All →</Link>}>
+          {props.heroImageUrl ? <div className="grid gap-3 sm:grid-cols-[1.4fr_.6fr]"><div className="relative h-44 overflow-hidden rounded-xl border border-[#21405c]"><Image src={props.heroImageUrl} alt={`${props.projectName} recent project media`} fill unoptimized className="object-cover" /></div><div className="grid place-items-center rounded-xl border border-[#21405c] bg-[#071827] p-4 text-center"><div><p className="text-3xl font-black text-white">{props.photoCount}</p><p className="mt-1 text-xs font-bold uppercase tracking-[.08em] text-[#8daac0]">Media Files</p></div></div></div> : <div className="grid min-h-44 place-items-center rounded-xl border border-dashed border-[#31516c] bg-[#071827] p-6 text-center"><div><p className="text-base font-bold text-white">No project media yet</p><p className="mt-1 text-sm text-[#91aabd]">Project photos and field media will appear here automatically.</p></div></div>}
         </Panel>
       </div>
     </div>
@@ -366,6 +393,11 @@ function Detail({ label, value, wide = false }: { label: string; value: string; 
 function Metric({ label, value, sub, tone = "default" }: { label: string; value: string; sub?: string; tone?: "default" | "success" | "warning" }) {
   const valueClass = tone === "success" ? "text-emerald-300" : tone === "warning" ? "text-amber-300" : "text-white";
   return <div className="rounded-xl border border-[#1c3e5b] bg-[#081b2d] p-3"><p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-[#7f9eb5]">{label}</p><p className={`mt-1 text-sm font-black leading-5 ${valueClass}`}>{value}</p>{sub ? <p className="mt-1 text-[11px] font-semibold text-[#8fa8bc]">{sub}</p> : null}</div>;
+}
+
+function CompactMetric({ label, value, sub, tone = "default" }: { label: string; value: string; sub?: string; tone?: "default" | "success" | "warning" }) {
+  const valueClass = tone === "success" ? "text-emerald-300" : tone === "warning" ? "text-amber-300" : "text-white";
+  return <div className="min-w-0 rounded-xl border border-[#1c3e5b] bg-[#081b2d] px-2.5 py-2.5"><p className="truncate text-[9px] font-extrabold uppercase tracking-[.07em] text-[#7f9eb5]">{label}</p><p className={`mt-1 truncate text-xs font-black ${valueClass}`}>{value}</p>{sub ? <p className="mt-0.5 text-[10px] font-semibold text-[#8fa8bc]">{sub}</p> : null}</div>;
 }
 
 function MoneyRow({ label, value, localeTag, strong = false }: { label: string; value: number; localeTag: string; strong?: boolean }) {
@@ -402,13 +434,29 @@ function normalizeLeadingCase(value: string) {
   return trimmed.replace(/[A-Za-z]/, (letter) => letter.toUpperCase());
 }
 function normalizeProjectAddress(value: string) {
+  const lines = value.split(/\n+/).map((segment) => segment.trim()).filter(Boolean);
+  const titleWords = (input: string) => input.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+
+  if (lines.length >= 2) {
+    const street = titleWords(lines.slice(0, -1).join(" "));
+    const locality = lines[lines.length - 1].replace(/\s+/g, " ").trim();
+    const match = locality.match(/^(.+?)\s+(oh|ohio)\s+(\d{5}(?:-\d{4})?)$/i);
+    if (match) return `${street}, ${titleWords(match[1])}, OH ${match[3]}`;
+    return `${street}, ${titleWords(locality)}`;
+  }
+
   const cleaned = value.replace(/\s+/g, " ").trim();
-  const segments = cleaned.split(",").map((segment) => segment.trim()).filter(Boolean);
-  if (segments.length < 3) return normalizeLeadingCase(cleaned);
-  const street = segments[0].replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
-  const city = segments[1].replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
-  const stateZip = segments.slice(2).join(", ").replace(/\b(oh|ohio)\b/i, "OH");
-  return `${street}, ${city}, ${stateZip}`;
+  const commaSegments = cleaned.split(",").map((segment) => segment.trim()).filter(Boolean);
+  if (commaSegments.length >= 3) {
+    const street = titleWords(commaSegments[0]);
+    const city = titleWords(commaSegments[1]);
+    const stateZip = commaSegments.slice(2).join(" ").replace(/\b(oh|ohio)\b/i, "OH");
+    return `${street}, ${city}, ${stateZip}`;
+  }
+
+  const inline = cleaned.match(/^(.*?)\s+([A-Za-z .'-]+)\s+(oh|ohio)\s+(\d{5}(?:-\d{4})?)$/i);
+  if (inline) return `${titleWords(inline[1])}, ${titleWords(inline[2])}, OH ${inline[4]}`;
+  return titleWords(cleaned);
 }
 function computeDaysRemaining(targetValue: string | null) {
   if (!targetValue) return null;

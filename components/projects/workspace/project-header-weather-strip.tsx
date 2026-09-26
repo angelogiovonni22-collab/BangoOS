@@ -86,6 +86,7 @@ export function ProjectHeaderWeatherStrip() {
   const mapEmbed = payload?.directionsAddress
     ? `https://www.google.com/maps?q=${encodeURIComponent(payload.directionsAddress)}&output=embed`
     : null;
+  const displayAddress = payload?.directionsAddress ? formatJobsiteAddress(payload.directionsAddress) : "";
 
   if (!projectId) return null;
 
@@ -127,7 +128,7 @@ export function ProjectHeaderWeatherStrip() {
           <div className="flex items-center justify-between gap-4 px-5 py-4">
             <div className="min-w-0">
               <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#8faed3]">{l("Jobsite", "Sitio de trabajo")}</p>
-              <p className="mt-1 truncate text-sm font-bold text-white" title={payload.directionsAddress}>{payload.directionsAddress}</p>
+              <p className="mt-1 truncate text-sm font-bold text-white" title={displayAddress}>{displayAddress}</p>
               <p className="mt-1 text-[11px] font-medium text-[#afc5e2]">{l("Live project location", "Ubicación activa del proyecto")}</p>
             </div>
             {directionsHref ? (
@@ -185,4 +186,22 @@ function weatherSceneKind(code: number) {
   if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return "snow";
   if (code >= 95) return "storm";
   return "cloud";
+}
+
+
+function formatJobsiteAddress(value: string) {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  const titleWords = (input: string) => input.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  const segments = cleaned.split(",").map((segment) => segment.trim()).filter(Boolean);
+
+  if (segments.length >= 4) {
+    const street = titleWords(segments[0]);
+    const city = titleWords(segments[1]);
+    const state = segments[2].replace(/^(oh|ohio)$/i, "OH").toUpperCase();
+    return `${street}, ${city}, ${state} ${segments[3]}`;
+  }
+
+  const inline = cleaned.match(/^(.*?)\s+([A-Za-z .'-]+)\s+(oh|ohio)\s+(\d{5}(?:-\d{4})?)$/i);
+  if (inline) return `${titleWords(inline[1])}, ${titleWords(inline[2])}, OH ${inline[4]}`;
+  return titleWords(cleaned);
 }
