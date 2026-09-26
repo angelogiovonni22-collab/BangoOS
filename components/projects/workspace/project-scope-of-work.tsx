@@ -15,9 +15,8 @@ import {
   Pencil,
   ShoppingCart,
   Users,
-  WalletCards,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type EstimateRow = {
@@ -306,15 +305,15 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
 const panelClass = "rounded-[17px] border border-[#1d4564] bg-[linear-gradient(180deg,#071a2b,#061624)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.025)]";
 const outlineButton = "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#2f678f] bg-[#092239] px-3 text-xs font-extrabold text-[#dcefff] transition hover:bg-[#0d2d49]";
 
-function SummaryCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub: string }) {
+function SummaryCard({ icon, label, value, sub }: { icon: ReactNode; label: string; value: string; sub: string }) {
   return <div className="rounded-[14px] border border-[#1d4564] bg-[linear-gradient(180deg,#08203a,#07182a)] p-3.5"><div className="flex items-start gap-3"><span className="mt-0.5 text-[#51b5ff]">{icon}</span><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.07em] text-[#83a4be]">{label}</p><p className="mt-1 truncate text-xl font-black text-white">{value}</p><p className="mt-0.5 text-[11px] font-semibold text-[#8ba6ba]">{sub}</p></div></div></div>;
 }
 
-function Panel({ title, icon, action, children }: { title: string; icon: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) {
+function Panel({ title, icon, action, children }: { title: string; icon: ReactNode; action?: ReactNode; children: ReactNode }) {
   return <section className={panelClass}><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2.5"><span className="text-[#8fc8ff]">{icon}</span><h2 className="text-lg font-black tracking-[-.015em] text-white">{title}</h2></div>{action}</div>{children}</section>;
 }
 
-function NotesColumn({ title, icon, text, fallback }: { title: string; icon: React.ReactNode; text: string | null; fallback: string }) {
+function NotesColumn({ title, icon, text, fallback }: { title: string; icon: ReactNode; text: string | null; fallback: string }) {
   const rows = splitNotes(text || fallback);
   return <div className="min-w-0 border-[#234760] md:border-r md:pr-5 last:border-r-0"><div className="flex items-center gap-2"><span>{icon}</span><h3 className="text-sm font-extrabold text-white">{title}</h3></div><ul className="mt-2 space-y-1 text-xs leading-5 text-[#c7d5e1]">{rows.map((row, index) => <li key={index} className="flex gap-2"><span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#7ea1ba]" /><span>{row}</span></li>)}</ul></div>;
 }
