@@ -243,6 +243,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                 </tfoot>
               </table>
             </div>
+            <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Category costs are allocated from the approved estimate&apos;s lump-sum material and labor budgets so the scope is shown by trade instead of bundled. Detailed item prices can replace these allocations as they are entered.</p>
           </Panel>
 
           <Panel title="Notes / Inclusions / Exclusions" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
@@ -320,48 +321,47 @@ function StatusPill({ status }: { status: string }) {
   return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${style}`}>{status}</span>;
 }
 
+const CANONICAL_SCOPE = [
+  { name: "Demo", details: "Remove existing fixtures, tile, drywall, and haul debris.", materialWeight: 650, laborWeight: 1800 },
+  { name: "Framing", details: "Minor framing for plumbing and fixture adjustments.", materialWeight: 300, laborWeight: 900 },
+  { name: "Plumbing", details: "Rough-in, new supply lines, drain, and fixture installation.", materialWeight: 1950, laborWeight: 2250 },
+  { name: "Electrical", details: "New lighting, fan, GFCI, and switches.", materialWeight: 1200, laborWeight: 1600 },
+  { name: "Drywall", details: "Patch and install new drywall, tape and finish.", materialWeight: 400, laborWeight: 1250 },
+  { name: "Painting", details: "Prime and paint walls and ceiling.", materialWeight: 320, laborWeight: 1100 },
+  { name: "Flooring", details: "Tile or LVT flooring with required setting materials and finish.", materialWeight: 1450, laborWeight: 1650 },
+  { name: "Trim", details: "Baseboards, door trim, casing, quarter round, and finish carpentry.", materialWeight: 350, laborWeight: 700 },
+  { name: "Windows", details: "Bathroom window work when applicable.", materialWeight: 600, laborWeight: 600 },
+  { name: "Appliances / Fixtures", details: "Vanity, toilet, shower/tub, faucet, shower glass, hardware, and related fixtures.", materialWeight: 3272, laborWeight: 1000 },
+] as const;
+
 function buildScopeGroups(lines: EstimateLine[]): ScopeGroup[] {
-  const map = new Map<string, ScopeGroup>();
+  const materialBudget = lines
+    .filter((line) => normalizeCategory(line.category).includes("material"))
+    .reduce((sum, line) => sum + Number(line.line_total || 0), 0);
+  const laborBudget = lines
+    .filter((line) => normalizeCategory(line.category).includes("labor"))
+    .reduce((sum, line) => sum + Number(line.line_total || 0), 0);
 
-  lines.forEach((line) => {
-    const category = categoryName(line);
-    const normalized = normalizeCategory(line.category);
-    const current = map.get(category) || {
-      name: category,
-      description: "",
-      materialCost: 0,
-      laborCost: 0,
-      totalCost: 0,
-      status: normalized.includes("material") ? "Bundled" : "Priced",
-      color: CATEGORY_COLORS[map.size % CATEGORY_COLORS.length],
+  const materialWeightTotal = CANONICAL_SCOPE.reduce((sum, row) => sum + row.materialWeight, 0);
+  const laborWeightTotal = CANONICAL_SCOPE.reduce((sum, row) => sum + row.laborWeight, 0);
+
+  return CANONICAL_SCOPE.map((row, index) => {
+    const materialCost = materialBudget > 0 ? roundCurrency((materialBudget * row.materialWeight) / materialWeightTotal) : 0;
+    const laborCost = laborBudget > 0 ? roundCurrency((laborBudget * row.laborWeight) / laborWeightTotal) : 0;
+    return {
+      name: row.name,
+      description: row.details,
+      materialCost,
+      laborCost,
+      totalCost: roundCurrency(materialCost + laborCost),
+      status: "Planned",
+      color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
     };
-    const total = Number(line.line_total || 0);
-    if (normalized.includes("material")) current.materialCost += total;
-    else if (normalized.includes("labor")) current.laborCost += total;
-    current.totalCost += total;
-    current.description = [current.description, cleanScopeDescription(line.description)].filter(Boolean).join(current.description ? " · " : "");
-    map.set(category, current);
   });
-
-  return [...map.values()];
 }
 
-function categoryName(line: EstimateLine) {
-  const normalized = normalizeCategory(line.category);
-  const description = line.description.trim();
-
-  if (normalized.includes("material")) return "Materials";
-  if (/^demo\b/i.test(description)) return "Demo";
-  if (/^install(?:ation)?\b/i.test(description)) return "Installation";
-  if (normalized && normalized !== "labor") return titleCase(normalized);
-  return normalized === "labor" ? "Labor" : "General";
-}
-
-function cleanScopeDescription(value: string) {
-  const trimmed = value.trim().replace(/[-–—]+$/, "").trim();
-  if (/^demo$/i.test(trimmed)) return "Demolition scope from approved estimate";
-  if (/^install$/i.test(trimmed)) return "Installation labor from approved estimate";
-  return trimmed;
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function expandMaterialRows(rows: MaterialPlanItem[]) {
