@@ -2,6 +2,7 @@ import type { ProjectWorkspaceTabKey } from "./types";
 
 export const PROJECT_WORKSPACE_TABS: Array<{ key: ProjectWorkspaceTabKey; labelKey: string }> = [
   { key: "overview", labelKey: "projects.workspaceTabOverview" },
+  { key: "scope", labelKey: "projects.workspaceTabScope" },
   { key: "tasks", labelKey: "projects.workspaceTabTasks" },
   { key: "daily_logs", labelKey: "projects.workspaceTabDailyLogs" },
   { key: "photos", labelKey: "projects.workspaceTabPhotos" },
@@ -15,5 +16,4 @@ export const PROJECT_WORKSPACE_TABS: Array<{ key: ProjectWorkspaceTabKey; labelK
   { key: "submittals", labelKey: "projects.workspaceTabSubmittals" },
   { key: "inspections", labelKey: "projects.workspaceTabInspections" },
   { key: "activity", labelKey: "projects.workspaceTabActivity" },
-  { key: "scope", labelKey: "projects.workspaceTabScope" },
 ];
