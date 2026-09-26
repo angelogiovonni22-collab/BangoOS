@@ -7,6 +7,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   Files,
+  FileSpreadsheet,
   FileText,
   LayoutGrid,
   ReceiptText,
@@ -55,6 +56,7 @@ export function ProjectTabs({ activeTab, onChange, t }: ProjectTabsProps) {
     submittals: <ClipboardList size={17} aria-hidden="true" />,
     inspections: <ShieldCheck size={17} aria-hidden="true" />,
     activity: <Activity size={17} aria-hidden="true" />,
+    scope: <FileSpreadsheet size={17} aria-hidden="true" />,
   };
 
   const items: ProjectNavItem[] = PROJECT_WORKSPACE_TABS.flatMap((tab) => {

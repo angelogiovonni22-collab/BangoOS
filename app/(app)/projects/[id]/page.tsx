@@ -19,6 +19,7 @@ import {
   ProjectExecutionTask,
   ProjectWorkWorkspace,
   ProjectOverviewCommandCenter,
+  ProjectScopeOfWork,
   ProjectTabs,
   ProjectTradePartnersWorkspace,
   ProjectTradePartnerMessages,
@@ -834,6 +835,13 @@ export default function ProjectWorkspacePage() {
                 closeoutReady={closeoutReady}
                 localeTag={localeTag}
               />
+            ) : activeTab === "scope" ? (
+              <ProjectScopeOfWork
+                companyId={workspace.workspaceContext.companyId}
+                projectId={project.id}
+                estimateId={workspace.originalEstimateId}
+                localeTag={localeTag}
+              />
             ) : activeTab === "tasks" ? (
               <ProjectWorkWorkspace
                 companyId={workspace.workspaceContext.companyId}
@@ -952,6 +960,7 @@ function resolveWorkspaceTab(tabParam: string | null): WorkspaceTab {
     "submittals",
     "inspections",
     "activity",
+    "scope",
   ];
   const aliases: Record<string, WorkspaceTab> = {
     work: "tasks",
@@ -987,6 +996,7 @@ function getWorkspaceTabLabel(tab: WorkspaceTab, t: (key: string) => string) {
     submittals: "projects.workspaceTabSubmittals",
     inspections: "projects.workspaceTabInspections",
     activity: "projects.workspaceTabActivity",
+    scope: "projects.workspaceTabScope",
   };
 
   return t(keyByTab[tab]);

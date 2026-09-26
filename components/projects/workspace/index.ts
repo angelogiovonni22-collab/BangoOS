@@ -54,3 +54,5 @@ export type {
   WorkspaceQuickAction,
   WorkspaceSummaryCardItem,
 } from "./types";
+
+export { ProjectScopeOfWork } from "./project-scope-of-work";

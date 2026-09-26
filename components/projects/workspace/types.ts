@@ -14,7 +14,8 @@ export type ProjectWorkspaceTabKey =
   | "rfis"
   | "submittals"
   | "inspections"
-  | "activity";
+  | "activity"
+  | "scope";
 
 export type WorkspaceSummaryCardItem = {
   label: string;
