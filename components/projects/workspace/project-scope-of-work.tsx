@@ -210,9 +210,9 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                     <th className="w-[30px] px-1.5 py-2.5">#</th>
                     <th className="w-[105px] px-1.5 py-2.5">Category</th>
                     <th className="px-1.5 py-2.5">Scope Details</th>
-                    <th className="w-[82px] px-1.5 py-2.5 text-right">Materials</th>
-                    <th className="w-[76px] px-1.5 py-2.5 text-right">Labor</th>
-                    <th className="w-[82px] px-1.5 py-2.5 text-right">Total</th>
+                    <th className="w-[82px] px-1.5 py-2.5 text-right">Materials Cost</th>
+                    <th className="w-[76px] px-1.5 py-2.5 text-right">Labor Cost</th>
+                    <th className="w-[82px] px-1.5 py-2.5 text-right">Total Cost</th>
                     <th className="w-[76px] px-1.5 py-2.5 text-center">Status</th>
                   </tr>
                 </thead>
