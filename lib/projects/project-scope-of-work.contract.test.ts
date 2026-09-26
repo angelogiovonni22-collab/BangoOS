@@ -57,3 +57,24 @@ test("Scope of Work is grounded in live estimate and material-plan data", () => 
 });
 
 console.log("Project Scope of Work contract passed.");
+
+
+test("Scope of Work renders the exact ten-category trade breakdown instead of bundled material/labor rows", () => {
+  for (const category of [
+    "Demo",
+    "Framing",
+    "Plumbing",
+    "Electrical",
+    "Drywall",
+    "Painting",
+    "Flooring",
+    "Trim",
+    "Windows",
+    "Appliances / Fixtures",
+  ]) {
+    assert.ok(scope.includes(`name: "${category}"`), "missing trade category: " + category);
+  }
+  assert.doesNotMatch(scope, /return "Materials"/);
+  assert.doesNotMatch(scope, /return "Labor"/);
+  assert.match(scope, /Category costs are allocated from the approved estimate's lump-sum material and labor budgets/);
+});
