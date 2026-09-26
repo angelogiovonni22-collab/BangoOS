@@ -632,16 +632,16 @@ export function ChangeOrderForm({
         <CardContent className="space-y-3 overflow-x-auto">
           {errors.lineItems ? <p className="text-sm text-[var(--color-danger-700)]">{errors.lineItems}</p> : null}
 
-          <table className="min-w-[1360px] w-full">
+          <table className="hidden min-w-[1360px] w-full md:table">
             <thead>
               <tr className="text-left text-xs uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
                 <th className="px-3 py-2">Description</th>
                 <th className="px-3 py-2">Quantity</th>
                 <th className="px-3 py-2">Unit</th>
-                <th className="px-3 py-2">Unit Cost</th>
-                <th className="px-3 py-2">Unit Price</th>
-                <th className="px-3 py-2">Cost Amount</th>
-                <th className="px-3 py-2">Price Amount</th>
+                <th className="px-3 py-2">Unit Cost (Internal)</th>
+                <th className="px-3 py-2">Customer Price</th>
+                <th className="px-3 py-2">Internal Cost</th>
+                <th className="px-3 py-2">Customer Amount</th>
                 <th className="px-3 py-2">Notes</th>
                 <th className="px-3 py-2">Actions</th>
               </tr>
@@ -678,6 +678,52 @@ export function ChangeOrderForm({
               })}
             </tbody>
           </table>
+
+          <div className="space-y-4 md:hidden">
+            {lineItems.map((lineItem, index) => {
+              const money = changeOrderLineItemMoney(lineItem);
+              return (
+                <article key={`mobile-${lineItem.id}`} className="rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <p className="text-sm font-black text-[var(--color-text-primary)]">Line Item {index + 1}</p>
+                    <Button type="button" size="sm" variant="danger" onClick={() => removeLineItem(index)}>Remove</Button>
+                  </div>
+                  <div className="grid gap-4">
+                    <Field label="Description" htmlFor={`mobile-description-${index}`}>
+                      <Input id={`mobile-description-${index}`} value={lineItem.description} onChange={(event) => updateLineItem(index, { ...lineItem, description: event.target.value })} placeholder="Work description" />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Quantity" htmlFor={`mobile-quantity-${index}`}>
+                        <Input id={`mobile-quantity-${index}`} type="number" min={0} step="0.01" value={lineItem.quantity} onChange={(event) => updateLineItem(index, { ...lineItem, quantity: event.target.value })} />
+                      </Field>
+                      <Field label="Unit" htmlFor={`mobile-unit-${index}`}>
+                        <Select id={`mobile-unit-${index}`} value={lineItem.unit} onChange={(event) => updateLineItem(index, { ...lineItem, unit: event.target.value as ChangeOrderLineItemDraft["unit"] })}>
+                          {CHANGE_ORDER_UNIT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </Select>
+                      </Field>
+                    </div>
+                    <Field label="Unit Cost (Internal)" htmlFor={`mobile-unit-cost-${index}`}>
+                      <Input id={`mobile-unit-cost-${index}`} type="number" min={0} step="0.01" value={lineItem.unitCost} onChange={(event) => updateLineItem(index, { ...lineItem, unitCost: event.target.value })} />
+                    </Field>
+                    <Field label="Customer Price" htmlFor={`mobile-unit-price-${index}`} error={Number(lineItem.quantity || 0) > 0 && Number(lineItem.unitPrice || 0) <= 0 ? "Required before sending to customer." : undefined}>
+                      <Input id={`mobile-unit-price-${index}`} type="number" min={0} step="0.01" value={lineItem.unitPrice} onChange={(event) => updateLineItem(index, { ...lineItem, unitPrice: event.target.value })} />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-3">
+                      <div><p className="text-[11px] font-bold uppercase tracking-[.06em] text-[var(--color-text-muted)]">Internal Cost</p><p className="mt-1 text-sm font-black text-[var(--color-text-primary)]">{formatUsd(money.costAmount, localeTag)}</p></div>
+                      <div><p className="text-[11px] font-bold uppercase tracking-[.06em] text-[var(--color-text-muted)]">Customer Amount</p><p className="mt-1 text-sm font-black text-[var(--color-text-primary)]">{formatUsd(money.priceAmount, localeTag)}</p></div>
+                    </div>
+                    <Field label="Notes" htmlFor={`mobile-notes-${index}`}>
+                      <Input id={`mobile-notes-${index}`} value={lineItem.notes} onChange={(event) => updateLineItem(index, { ...lineItem, notes: event.target.value })} placeholder="Optional note" />
+                    </Field>
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" variant="secondary" onClick={() => moveLineItem(index, -1)} disabled={index === 0}>Move Up</Button>
+                      <Button type="button" size="sm" variant="secondary" onClick={() => moveLineItem(index, 1)} disabled={index === lineItems.length - 1}>Move Down</Button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 
@@ -686,6 +732,7 @@ export function ChangeOrderForm({
           <CardTitle>6. Financial Totals</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5 lg:grid-cols-[1fr_340px]">
+          <div className="lg:col-span-2 rounded-xl border border-sky-400/25 bg-sky-400/[0.06] px-4 py-3 text-sm text-[var(--color-text-secondary)]"><strong className="text-[var(--color-text-primary)]">Customer Price</strong> is the amount the customer will approve and is what drives the change-order total. <strong className="text-[var(--color-text-primary)]">Unit Cost</strong> is internal only.</div>
           <Field label="Tax Rate %" htmlFor="tax-rate-percent" error={errors.taxRatePercent}>
             <Input id="tax-rate-percent" type="number" min={0} step="0.01" value={values.taxRatePercent} onChange={(event) => onFieldChange("taxRatePercent", event.target.value)} />
           </Field>
