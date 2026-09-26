@@ -62,6 +62,13 @@ export function validateChangeOrderForm(
     errors.lineItems = "At least one meaningful line item is required before submission.";
   }
 
+  if (["pending_approval", "approved", "invoiced"].includes(values.status)) {
+    const missingCustomerPrice = lineItems.some((item) => hasMeaningfulItem(item) && Number(item.unitPrice || 0) <= 0);
+    if (missingCustomerPrice) {
+      errors.lineItems = "Enter a Customer Price greater than $0 for every line item before approval.";
+    }
+  }
+
   const totals = calculateChangeOrderTotals({
     lineItems,
     taxRatePercent: values.taxRatePercent,
