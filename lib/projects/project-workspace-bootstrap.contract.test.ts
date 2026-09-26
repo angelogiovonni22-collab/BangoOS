@@ -53,6 +53,11 @@ assert.match(projectPage, /projectStatus=\{project\.status \|\| ""\}/, "project 
 assert.match(redesignedOverview, /const projectCompleted = normalizeStatus\(props\.projectStatus\) === "completed"/, "redesigned overview must derive completion from canonical project status");
 assert.match(redesignedOverview, /projectCompleted \? 100/, "completed projects must render 100 percent progress in the redesigned overview");
 assert.match(redesignedOverview, /Closeout checklist required/, "completed projects without closeout readiness must surface a closeout requirement in the redesigned overview");
+assert.match(redesignedOverview, /Schedule Not Established/, "unscheduled projects must use a dedicated schedule empty state instead of a misleading milestone track");
+assert.match(redesignedOverview, /Project Setup/, "missing project setup fields must be grouped into an intentional setup notice");
+assert.match(redesignedOverview, /Recent Project Media/, "overview media must not imply every project image is a field photo");
+assert.match(redesignedOverview, /grid gap-3 sm:grid-cols-2 lg:grid-cols-3/, "workforce metrics must use readable multi-row layout rather than five cramped columns");
+assert.match(redesignedOverview, /Projected Gross Margin/, "financial overview must label projected profitability explicitly");
 assert.match(commandCenter, /const projectCompleted = status\(props\.projectStatus\) === "completed"/, "completed projects must drive completed overview semantics");
 assert.match(commandCenter, /projectCompleted \? 100/, "completed projects must render 100 percent project progress even when task history is empty");
 assert.match(commandCenter, /Project marked complete/, "completed projects with zero tasks must not render 0 of 0 as incomplete work");
