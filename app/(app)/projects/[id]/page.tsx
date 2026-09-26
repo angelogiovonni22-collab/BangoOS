@@ -1047,10 +1047,16 @@ function getCustomerDisplayName(customer: CustomerSummary, fallbackLabel = "Unna
   const fallbackName = [firstName, lastName].filter(Boolean).join(" ");
 
   if (customer.customer_type?.trim().toLowerCase() === "commercial" && companyName) {
-    return companyName;
+    return normalizeDisplayLeadingCase(companyName);
   }
 
-  return fallbackName || companyName || fallbackLabel;
+  return normalizeDisplayLeadingCase(fallbackName || companyName || fallbackLabel);
+}
+
+function normalizeDisplayLeadingCase(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  return trimmed.replace(/[A-Za-z]/, (letter) => letter.toUpperCase());
 }
 
 function buildRecentActivity({
