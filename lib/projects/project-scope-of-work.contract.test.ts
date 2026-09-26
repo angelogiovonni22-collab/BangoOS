@@ -35,7 +35,6 @@ test("Scope of Work preserves the approved B.O.S. mockup structure", () => {
     "Scope of Work Summary",
     "Itemized Scope & Cost Breakdown",
     "Trade / Scope Summary",
-    "Materials Detail",
     "Notes / Inclusions / Exclusions",
     "Materials Cost",
     "Labor Cost",
@@ -46,10 +45,10 @@ test("Scope of Work preserves the approved B.O.S. mockup structure", () => {
   assert.match(scope, /CATEGORY_COLORS/);
 });
 
-test("Scope of Work is grounded in live estimate and material-plan data", () => {
+test("Scope of Work is grounded in live estimate and editable project scope data", () => {
   assert.match(scope, /\.from\("estimates"\)/);
   assert.match(scope, /\.from\("estimate_line_items"\)/);
-  assert.match(scope, /\.from\("project_material_plan_items"\)/);
+  assert.match(scope, /\.from\("project_scope_items"\)/);
   assert.match(scope, /internal_cost_total/);
   assert.match(scope, /gross_profit/);
   assert.match(scope, /gross_margin_percent/);
@@ -77,7 +76,15 @@ test("Scope of Work renders the exact ten-category trade breakdown instead of bu
   }
   assert.doesNotMatch(scope, /return "Materials"/);
   assert.doesNotMatch(scope, /return "Labor"/);
-  assert.match(scope, /Category costs are allocated from the approved estimate(?:\&apos;|\')s lump-sum material and labor budgets/);
+  assert.match(scope, /Material and labor costs are managed directly in the scope rows above/);
+});
+
+test("Scope of Work does not duplicate the itemized breakdown with a separate Materials Detail card", () => {
+  assert.doesNotMatch(scope, /title="Materials Detail"/);
+  assert.doesNotMatch(scope, /Individual material prices are not separately itemized/);
+  assert.doesNotMatch(scope, /project_material_plan_items/);
+  assert.match(scope, /Trade \/ Scope Summary/);
+  assert.match(scope, /Itemized Scope & Cost Breakdown/);
 });
 
 
