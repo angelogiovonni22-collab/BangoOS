@@ -243,7 +243,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                 </tfoot>
               </table>
             </div>
-            <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Category costs are allocated from the approved estimate's lump-sum material and labor budgets so the scope is shown by trade instead of bundled. Detailed item prices can replace these allocations as they are entered.</p>
+            <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Category costs are allocated from the approved estimate&apos;s lump-sum material and labor budgets so the scope is shown by trade instead of bundled. Detailed item prices can replace these allocations as they are entered.</p>
           </Panel>
 
           <Panel title="Notes / Inclusions / Exclusions" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
