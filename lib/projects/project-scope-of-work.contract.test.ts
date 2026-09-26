@@ -9,6 +9,7 @@ const scope = readFileSync("components/projects/workspace/project-scope-of-work.
 const types = readFileSync("components/projects/workspace/types.ts", "utf8");
 const en = readFileSync("locales/en/projects.json", "utf8");
 const es = readFileSync("locales/es/projects.json", "utf8");
+const projectScopeMigration = readFileSync("supabase/migrations/20260926033200_project_scope_line_items.sql", "utf8");
 
 test("Scope of Work is a first-class project workspace tab", () => {
   assert.match(types, /\| "scope"/);
@@ -77,4 +78,25 @@ test("Scope of Work renders the exact ten-category trade breakdown instead of bu
   assert.doesNotMatch(scope, /return "Materials"/);
   assert.doesNotMatch(scope, /return "Labor"/);
   assert.match(scope, /Category costs are allocated from the approved estimate(?:\&apos;|\')s lump-sum material and labor budgets/);
+});
+
+
+test("working scope line items are editable without mutating the accepted estimate", () => {
+  assert.match(projectScopeMigration, /create table if not exists public\.project_scope_items/i);
+  assert.match(projectScopeMigration, /Editable project working scope breakdown/i);
+  assert.match(projectScopeMigration, /enable row level security/i);
+  assert.match(projectScopeMigration, /project_scope_items_insert/i);
+  assert.match(projectScopeMigration, /project_scope_items_update/i);
+  assert.match(projectScopeMigration, /project_scope_items_delete/i);
+
+  assert.match(scope, /\.from\("project_scope_items"\)/);
+  assert.match(scope, /Add Category/);
+  assert.match(scope, /Edit Line Item/);
+  assert.match(scope, /Remove this scope line item from the project working scope/);
+  assert.match(scope, /The accepted estimate will not be changed/);
+  assert.match(scope, /Save Line Item/);
+  assert.match(scope, /materializeScopeItems/);
+  assert.match(scope, /\.insert\(payload\)/);
+  assert.match(scope, /\.update\(\{/);
+  assert.match(scope, /\.delete\(\)/);
 });
