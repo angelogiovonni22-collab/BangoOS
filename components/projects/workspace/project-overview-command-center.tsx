@@ -45,6 +45,8 @@ type ActivityItem = {
 
 type TradePartnerSummary = {
   id: string;
+  vendor_id: string;
+  vendor_name: string;
   trade_name: string | null;
   crew_size: number | null;
   assignment_status: string;
@@ -97,16 +99,38 @@ export function ProjectOverviewCommandCenter(props: Props) {
       from: (table: string) => any;
     };
 
-    void db
-      .from("trade_partner_assignments")
-      .select("id,trade_name,crew_size,assignment_status,mobilization_status,mobilization_blockers,start_date")
-      .eq("company_id", props.companyId)
-      .eq("project_id", props.projectId)
-      .neq("assignment_status", "archived")
-      .order("created_at", { ascending: false })
-      .then(({ data }: { data: TradePartnerSummary[] | null }) => {
-        if (active) setTradePartners(data || []);
-      });
+    void (async () => {
+      const { data: assignments } = await db
+        .from("trade_partner_assignments")
+        .select("id,vendor_id,trade_name,crew_size,assignment_status,mobilization_status,mobilization_blockers,start_date")
+        .eq("company_id", props.companyId)
+        .eq("project_id", props.projectId)
+        .neq("assignment_status", "archived")
+        .order("created_at", { ascending: false });
+
+      const rows = (assignments || []) as Array<Omit<TradePartnerSummary, "vendor_name">>;
+      const vendorIds = [...new Set(rows.map((row) => row.vendor_id).filter(Boolean))];
+      const vendorNameById = new Map<string, string>();
+
+      if (vendorIds.length) {
+        const { data: vendors } = await db
+          .from("vendors")
+          .select("id,display_name,company_name")
+          .eq("company_id", props.companyId)
+          .in("id", vendorIds);
+
+        for (const vendor of (vendors || []) as Array<{ id: string; display_name: string | null; company_name: string | null }>) {
+          vendorNameById.set(vendor.id, vendor.display_name?.trim() || vendor.company_name?.trim() || "Trade Partner");
+        }
+      }
+
+      if (active) {
+        setTradePartners(rows.map((row) => ({
+          ...row,
+          vendor_name: vendorNameById.get(row.vendor_id) || "Trade Partner",
+        })));
+      }
+    })();
 
     return () => { active = false; };
   }, [props.companyId, props.projectId, supabase]);
@@ -175,7 +199,22 @@ export function ProjectOverviewCommandCenter(props: Props) {
   const margin = summary?.grossMarginPercent;
 
   const daysRemaining = computeDaysRemaining(props.targetDateRaw);
-  const scheduleHealth = props.pendingInspections > 0 || props.openPunchItems > 0 ? "Needs Attention" : "On Track";
+  const hasPlannedWork = props.assignments.length > 0 || props.tasks.some((task) => Boolean(task.planned_start || task.planned_finish));
+  const scheduleHealth = !hasPlannedWork
+    ? "Not Scheduled"
+    : !props.targetDateRaw
+      ? "Needs Setup"
+      : props.pendingInspections > 0 || props.openPunchItems > 0
+        ? "Needs Attention"
+        : "On Track";
+  const scheduleHealthSub = scheduleHealth === "On Track"
+    ? "No current schedule alerts"
+    : scheduleHealth === "Not Scheduled"
+      ? "No workforce or task schedule established"
+      : scheduleHealth === "Needs Setup"
+        ? "Target completion date is missing"
+        : "Review open items";
+  const scheduleTone = scheduleHealth === "On Track" ? "success" : "warning";
   const latestActivity = props.activityItems.slice(0, 4);
 
   const riskRows = [
@@ -231,7 +270,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <Metric label="Days Remaining" value={daysRemaining === null ? "—" : String(daysRemaining)} sub="to target" />
-            <Metric label="Schedule Health" value={scheduleHealth} sub={scheduleHealth === "On Track" ? "No current schedule alerts" : "Review open items"} tone={scheduleHealth === "On Track" ? "success" : "warning"} />
+            <Metric label="Schedule Health" value={scheduleHealth} sub={scheduleHealthSub} tone={scheduleTone} />
             <Metric label="Target Completion" value={props.targetDate} sub={daysRemaining === null ? "Not calculated" : `${daysRemaining} days remaining`} />
           </div>
         </Panel>
@@ -291,7 +330,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
             <TeamRow initials={initials(props.customerName)} name={props.customerName} role="Customer" />
             <TeamRow initials={initials(props.projectManager)} name={props.projectManager || "Not Assigned"} role="Project Manager" />
             <TeamRow initials="—" name="Not Assigned" role="Superintendent" />
-            {tradePartners.slice(0, 2).map((row) => <TeamRow key={row.id} initials="TP" name={row.trade_name || "Trade Partner"} role="Trade Partner" />)}
+            {tradePartners.slice(0, 2).map((row) => <TeamRow key={row.id} initials={initials(row.vendor_name)} name={row.vendor_name} role={tradePartnerRole(row.trade_name)} />)}
           </div>
         </Panel>
       </div>
@@ -350,6 +389,10 @@ function money(value: number, localeTag: string) { return new Intl.NumberFormat(
 function pct(value: number) { return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`; }
 function formatDate(value: string, localeTag: string) { const d = new Date(value); return Number.isNaN(d.getTime()) ? value : new Intl.DateTimeFormat(localeTag, { month: "short", day: "numeric", year: "numeric" }).format(d); }
 function initials(value: string) { return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "—"; }
+function tradePartnerRole(tradeName: string | null) {
+  const normalized = (tradeName || "").trim();
+  return normalized && normalized.toLowerCase() !== "all" ? `Trade Partner · ${normalized}` : "Trade Partner";
+}
 function blockerCount(value: unknown) { return Array.isArray(value) ? value.length : 0; }
 function computeDaysRemaining(targetValue: string | null) {
   if (!targetValue) return null;
