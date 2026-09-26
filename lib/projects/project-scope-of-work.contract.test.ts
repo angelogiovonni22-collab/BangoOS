@@ -76,5 +76,5 @@ test("Scope of Work renders the exact ten-category trade breakdown instead of bu
   }
   assert.doesNotMatch(scope, /return "Materials"/);
   assert.doesNotMatch(scope, /return "Labor"/);
-  assert.match(scope, /Category costs are allocated from the approved estimate's lump-sum material and labor budgets/);
+  assert.match(scope, /Category costs are allocated from the approved estimate(?:\&apos;|\')s lump-sum material and labor budgets/);
 });
