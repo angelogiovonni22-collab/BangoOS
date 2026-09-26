@@ -51,6 +51,9 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
   const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isSendingToCustomer, setIsSendingToCustomer] = useState(false);
+  const [customerApprovalMessage, setCustomerApprovalMessage] = useState<string | null>(null);
+  const [customerApprovalUrl, setCustomerApprovalUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -236,6 +239,25 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
     router.refresh();
   }
 
+  async function handleSendToCustomer() {
+    if (!changeOrder || isSendingToCustomer) return;
+    setIsSendingToCustomer(true);
+    setCustomerApprovalMessage(null);
+    setCustomerApprovalUrl(null);
+    try {
+      const response = await fetch(`/api/change-orders/${changeOrder.id}/send-approval`, { method: "POST" });
+      const body = await response.json();
+      if (body.url) setCustomerApprovalUrl(body.url);
+      if (!response.ok) throw new Error(body.error || "Unable to send change order.");
+      setCustomerApprovalMessage("Change order sent to the customer for approval.");
+      setChangeOrder((current) => current ? { ...current, status: "pending_approval", submitted_at: new Date().toISOString() } : current);
+    } catch (caught) {
+      setCustomerApprovalMessage(caught instanceof Error ? caught.message : "Unable to send change order.");
+    } finally {
+      setIsSendingToCustomer(false);
+    }
+  }
+
   async function handleAddToExistingInvoice() {
     if (!supabase || !companyId || !userId || !selectedInvoiceId) {
       return;
@@ -307,6 +329,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
   const canReject = status === "pending_approval";
   const canReopen = status === "approved" || status === "rejected";
   const canAddToInvoice = status === "approved" && !isArchived;
+  const canSendToCustomer = !["void", "invoiced"].includes(status) && !isArchived;
+  const customerTotalMissing = Number(changeOrder.total_amount || 0) <= 0;
 
   return (
     <div className="space-y-6">
@@ -319,8 +343,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
             <Link href={`/change-orders/${changeOrderId}/print`}>
               <Button type="button" variant="secondary" size="md">Print</Button>
             </Link>
-            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("submit")} disabled={!canSubmit}>Submit for Approval</Button>
-            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("approve")} disabled={!canApprove}>Approve</Button>
+            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("submit")} disabled={!canSubmit}>Submit Internally</Button>
+            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("approve")} disabled={!canApprove}>Mark Approved</Button>
             <Button type="button" variant="secondary" size="md" onClick={() => void runAction("reject")} disabled={!canReject}>Reject</Button>
             <Button type="button" variant="secondary" size="md" onClick={() => void runAction("reopen")} disabled={!canReopen}>Reopen</Button>
             <Button type="button" variant="danger" size="md" onClick={() => void runAction("void")} disabled={status === "void"}>Void</Button>
@@ -332,13 +356,20 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
           </>
         )}
         primaryAction={(
-          <Link href={`/change-orders/${changeOrderId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Change Order</Link>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="md" onClick={() => void handleSendToCustomer()} disabled={!canSendToCustomer || customerTotalMissing || isSendingToCustomer}>
+              {isSendingToCustomer ? "Sending…" : "Send to Customer"}
+            </Button>
+            <Link href={`/change-orders/${changeOrderId}/edit`} className={getButtonClassName({ size: "md", variant: "secondary" })}>Edit Change Order</Link>
+          </div>
         )}
       />
 
       <BlueprintSourceLink targetType="change_order" targetIds={[changeOrder.id]} />
 
       {actionMessage ? <ErrorState title="Action result" description={actionMessage} compact /> : null}
+      {customerTotalMissing ? <div className="rounded-[var(--radius-lg)] border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200">Customer total is $0.00. Edit the change order and enter the Customer Price for each line item before sending it for approval.</div> : null}
+      {customerApprovalMessage ? <div className="rounded-[var(--radius-lg)] border border-sky-400/30 bg-sky-400/10 px-4 py-3 text-sm text-sky-100" role="status">{customerApprovalMessage}{customerApprovalUrl ? <a href={customerApprovalUrl} target="_blank" rel="noreferrer" className="ml-2 font-bold underline">Open customer approval link</a> : null}</div> : null}
 
       <ConfirmDialog
         open={isApproveDialogOpen}
