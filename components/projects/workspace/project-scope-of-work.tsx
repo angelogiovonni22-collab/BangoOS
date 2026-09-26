@@ -13,8 +13,12 @@ import {
   Info,
   PackagePlus,
   Pencil,
+  Plus,
+  Save,
   ShoppingCart,
+  Trash2,
   Users,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -64,7 +68,20 @@ type MaterialPlanItem = {
   status: string;
 };
 
+type ProjectScopeItem = {
+  id: string;
+  sort_order: number;
+  category: string;
+  scope_details: string;
+  material_cost: number;
+  labor_cost: number;
+  status: string;
+  color: string | null;
+};
+
 type ScopeGroup = {
+  id?: string;
+  sortOrder?: number;
   name: string;
   description: string;
   materialCost: number;
@@ -88,6 +105,12 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   const [estimate, setEstimate] = useState<EstimateRow | null>(null);
   const [lines, setLines] = useState<EstimateLine[]>([]);
   const [materials, setMaterials] = useState<MaterialPlanItem[]>([]);
+  const [savedScopeItems, setSavedScopeItems] = useState<ProjectScopeItem[]>([]);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editor, setEditor] = useState({ category: "", details: "", materialCost: "0", laborCost: "0", status: "planned" });
+  const [savingScope, setSavingScope] = useState(false);
+  const [scopeActionError, setScopeActionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,18 +146,26 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         .eq("company_id", companyId)
         .eq("project_id", projectId)
         .order("created_at", { ascending: true }),
+      db
+        .from("project_scope_items")
+        .select("id,sort_order,category,scope_details,material_cost,labor_cost,status,color")
+        .eq("company_id", companyId)
+        .eq("project_id", projectId)
+        .order("sort_order", { ascending: true }),
     ]);
 
     void request
-      .then(([estimateResult, lineResult, materialResult]) => {
+      .then(([estimateResult, lineResult, materialResult, scopeResult]) => {
         if (!active) return;
         if (estimateResult.error) throw new Error(estimateResult.error.message);
         if (lineResult.error) throw new Error(lineResult.error.message);
         if (materialResult.error) throw new Error(materialResult.error.message);
+        if (scopeResult.error) throw new Error(scopeResult.error.message);
 
         setEstimate((estimateResult.data || null) as EstimateRow | null);
         setLines((lineResult.data || []) as EstimateLine[]);
         setMaterials((materialResult.data || []) as MaterialPlanItem[]);
+        setSavedScopeItems((scopeResult.data || []) as ProjectScopeItem[]);
       })
       .catch((caught: unknown) => {
         if (active) setError(caught instanceof Error ? caught.message : "Unable to load scope of work.");
@@ -146,7 +177,11 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     return () => { active = false; };
   }, [companyId, estimateId, projectId, supabase]);
 
-  const scopeGroups = useMemo(() => buildScopeGroups(lines), [lines]);
+  const generatedScopeGroups = useMemo(() => buildScopeGroups(lines), [lines]);
+  const scopeGroups = useMemo(
+    () => savedScopeItems.length ? savedScopeItems.map(scopeItemToGroup) : generatedScopeGroups,
+    [generatedScopeGroups, savedScopeItems],
+  );
   const materialBudget = lines
     .filter((line) => normalizeCategory(line.category).includes("material"))
     .reduce((sum, line) => sum + Number(line.line_total || 0), 0);
@@ -157,8 +192,136 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   const scopeValue = Number(estimate?.total_amount || 0);
   const grossMargin = Number(estimate?.gross_profit ?? Math.max(0, scopeValue - estimatedCost));
   const grossMarginPercent = estimate?.gross_margin_percent ?? (scopeValue > 0 ? (grossMargin / scopeValue) * 100 : 0);
+  const workingMaterialBudget = scopeGroups.reduce((sum, row) => sum + row.materialCost, 0);
+  const workingLaborBudget = scopeGroups.reduce((sum, row) => sum + row.laborCost, 0);
+  const workingCost = workingMaterialBudget + workingLaborBudget;
+  const workingGrossMargin = scopeValue - workingCost;
+  const workingGrossMarginPercent = scopeValue > 0 ? (workingGrossMargin / scopeValue) * 100 : 0;
   const materialRows = expandMaterialRows(materials.length ? materials : fallbackMaterials(lines));
   const scopeSummary = estimate?.description?.trim() || lines.map((line) => line.description).filter(Boolean).join(" ") || "No scope summary has been entered yet.";
+
+  const db = supabase as unknown as {
+    // Generated Supabase types can lag project scope migrations.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    from: (table: string) => any;
+  };
+
+  const materializeScopeItems = async () => {
+    if (savedScopeItems.length) return savedScopeItems;
+    const payload = generatedScopeGroups.map((group, index) => ({
+      company_id: companyId,
+      project_id: projectId,
+      estimate_id: estimateId,
+      sort_order: index,
+      category: group.name,
+      scope_details: group.description,
+      material_cost: group.materialCost,
+      labor_cost: group.laborCost,
+      status: normalizeScopeStatus(group.status),
+      color: group.color,
+      source_type: "estimate_allocation",
+    }));
+    const { data, error: insertError } = await db.from("project_scope_items").insert(payload).select("id,sort_order,category,scope_details,material_cost,labor_cost,status,color").order("sort_order");
+    if (insertError) throw new Error(insertError.message);
+    const rows = (data || []) as ProjectScopeItem[];
+    setSavedScopeItems(rows);
+    return rows;
+  };
+
+  const openAddScope = () => {
+    setEditingIndex(null);
+    setScopeActionError(null);
+    setEditor({ category: "", details: "", materialCost: "0", laborCost: "0", status: "planned" });
+    setEditorOpen(true);
+  };
+
+  const openEditScope = (group: ScopeGroup, index: number) => {
+    setEditingIndex(index);
+    setScopeActionError(null);
+    setEditor({
+      category: group.name,
+      details: group.description,
+      materialCost: String(group.materialCost),
+      laborCost: String(group.laborCost),
+      status: normalizeScopeStatus(group.status),
+    });
+    setEditorOpen(true);
+  };
+
+  const saveScopeItem = async () => {
+    const category = editor.category.trim();
+    const details = editor.details.trim();
+    const materialCost = Number(editor.materialCost || 0);
+    const laborCost = Number(editor.laborCost || 0);
+    if (!category) {
+      setScopeActionError("Category is required.");
+      return;
+    }
+    if (materialCost < 0 || laborCost < 0 || !Number.isFinite(materialCost) || !Number.isFinite(laborCost)) {
+      setScopeActionError("Material and labor costs must be valid non-negative numbers.");
+      return;
+    }
+
+    setSavingScope(true);
+    setScopeActionError(null);
+    try {
+      const rows = await materializeScopeItems();
+      if (editingIndex === null) {
+        const nextSort = rows.length ? Math.max(...rows.map((row) => row.sort_order)) + 1 : 0;
+        const { data, error: insertError } = await db.from("project_scope_items").insert({
+          company_id: companyId,
+          project_id: projectId,
+          estimate_id: estimateId,
+          sort_order: nextSort,
+          category,
+          scope_details: details,
+          material_cost: materialCost,
+          labor_cost: laborCost,
+          status: editor.status,
+          color: CATEGORY_COLORS[nextSort % CATEGORY_COLORS.length],
+          source_type: "manual",
+        }).select("id,sort_order,category,scope_details,material_cost,labor_cost,status,color").single();
+        if (insertError) throw new Error(insertError.message);
+        setSavedScopeItems((current) => [...current, data as ProjectScopeItem].sort((a, b) => a.sort_order - b.sort_order));
+      } else {
+        const target = rows[editingIndex];
+        if (!target) throw new Error("Scope line item could not be found.");
+        const { data, error: updateError } = await db.from("project_scope_items").update({
+          category,
+          scope_details: details,
+          material_cost: materialCost,
+          labor_cost: laborCost,
+          status: editor.status,
+          updated_at: new Date().toISOString(),
+        }).eq("company_id", companyId).eq("project_id", projectId).eq("id", target.id).select("id,sort_order,category,scope_details,material_cost,labor_cost,status,color").single();
+        if (updateError) throw new Error(updateError.message);
+        setSavedScopeItems((current) => current.map((row) => row.id === target.id ? data as ProjectScopeItem : row));
+      }
+      setEditorOpen(false);
+    } catch (caught) {
+      setScopeActionError(caught instanceof Error ? caught.message : "Unable to save scope line item.");
+    } finally {
+      setSavingScope(false);
+    }
+  };
+
+  const removeScopeItem = async (index: number) => {
+    if (!window.confirm("Remove this scope line item from the project working scope? The accepted estimate will not be changed.")) return;
+    setSavingScope(true);
+    setScopeActionError(null);
+    try {
+      const rows = await materializeScopeItems();
+      const target = rows[index];
+      if (!target) throw new Error("Scope line item could not be found.");
+      const { error: deleteError } = await db.from("project_scope_items").delete().eq("company_id", companyId).eq("project_id", projectId).eq("id", target.id);
+      if (deleteError) throw new Error(deleteError.message);
+      setSavedScopeItems((current) => current.filter((row) => row.id !== target.id));
+    } catch (caught) {
+      setScopeActionError(caught instanceof Error ? caught.message : "Unable to remove scope line item.");
+    } finally {
+      setSavingScope(false);
+    }
+  };
 
   if (loading) {
     return <div className="rounded-[18px] border border-[#183d5c] bg-[#061624] p-6 text-sm font-semibold text-[#9fb7ca]">Loading scope of work…</div>;
@@ -181,10 +344,10 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     <div className="space-y-4 rounded-[18px] bg-[#07182a] text-[#eaf4ff]" data-project-scope-of-work>
       <div className="grid gap-3 md:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(118px,1fr))_190px]">
         <SummaryCard icon={<CircleDollarSign size={22} />} label="Scope Value" value={money(scopeValue, localeTag)} sub="From estimate" />
-        <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(materialBudget, localeTag)} sub={scopeValue > 0 ? pct(materialBudget / scopeValue) + " of total" : "0% of total"} />
-        <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(laborBudget, localeTag)} sub={scopeValue > 0 ? pct(laborBudget / scopeValue) + " of total" : "0% of total"} />
-        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(estimatedCost, localeTag)} sub={scopeValue > 0 ? pct(estimatedCost / scopeValue) + " of scope value" : "0% of scope value"} />
-        <SummaryCard icon={<BarChart3 size={22} />} label="Gross Margin" value={money(grossMargin, localeTag)} sub={`${Number(grossMarginPercent || 0).toFixed(1)}% margin`} />
+        <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(workingMaterialBudget, localeTag)} sub={scopeValue > 0 ? pct(workingMaterialBudget / scopeValue) + " of total" : "0% of total"} />
+        <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(workingLaborBudget, localeTag)} sub={scopeValue > 0 ? pct(workingLaborBudget / scopeValue) + " of total" : "0% of total"} />
+        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(savedScopeItems.length ? workingCost : estimatedCost, localeTag)} sub={scopeValue > 0 ? pct((savedScopeItems.length ? workingCost : estimatedCost) / scopeValue) + " of scope value" : "0% of scope value"} />
+        <SummaryCard icon={<BarChart3 size={22} />} label="Gross Margin" value={money(savedScopeItems.length ? workingGrossMargin : grossMargin, localeTag)} sub={`${Number(savedScopeItems.length ? workingGrossMarginPercent : grossMarginPercent || 0).toFixed(1)}% margin`} />
         <SummaryCard icon={<ClipboardList size={22} />} label="Scope Categories" value={String(scopeGroups.length)} sub="Total categories" />
         <div className="grid gap-2">
           <Link href={`/estimates/${estimate.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#318ef1] bg-[linear-gradient(180deg,#2f8cff,#156dd1)] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(20,105,210,.24)] transition hover:brightness-110">
@@ -202,7 +365,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
             <p className="text-[15px] leading-6 text-[#d7e4ef]">{scopeSummary}</p>
           </Panel>
 
-          <Panel title="Itemized Scope & Cost Breakdown" icon={<Hammer size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}>Add Category</Link>}>
+          <Panel title="Itemized Scope & Cost Breakdown" icon={<Hammer size={21} />} action={<button type="button" onClick={openAddScope} className={outlineButton}><Plus size={14} /> Add Category</button>}>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[650px] table-fixed border-collapse">
                 <thead>
@@ -213,7 +376,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                     <th className="w-[82px] px-1.5 py-2.5 text-right">Materials Cost</th>
                     <th className="w-[76px] px-1.5 py-2.5 text-right">Labor Cost</th>
                     <th className="w-[82px] px-1.5 py-2.5 text-right">Total Cost</th>
-                    <th className="w-[76px] px-1.5 py-2.5 text-center">Status</th>
+                    <th className="w-[126px] px-1.5 py-2.5 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -227,7 +390,13 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                       <td className="px-1.5 py-2.5 text-right font-bold">{money(group.materialCost, localeTag)}</td>
                       <td className="px-1.5 py-2.5 text-right font-bold">{money(group.laborCost, localeTag)}</td>
                       <td className="px-1.5 py-2.5 text-right font-black text-white">{money(group.totalCost, localeTag)}</td>
-                      <td className="px-1.5 py-2.5 text-center"><StatusPill status={group.status} /></td>
+                      <td className="px-1.5 py-2.5">
+  <div className="flex items-center justify-end gap-1.5">
+    <StatusPill status={group.status} />
+    <button type="button" onClick={() => openEditScope(group, index)} className="grid h-7 w-7 place-items-center rounded-md border border-[#315a78] bg-[#092239] text-[#b9d7ec] hover:bg-[#0d2d49]" aria-label={`Edit ${group.name}`}><Pencil size={12} /></button>
+    <button type="button" onClick={() => void removeScopeItem(index)} disabled={savingScope} className="grid h-7 w-7 place-items-center rounded-md border border-red-400/25 bg-red-400/[0.06] text-red-300 hover:bg-red-400/10 disabled:opacity-50" aria-label={`Remove ${group.name}`}><Trash2 size={12} /></button>
+  </div>
+</td>
                     </tr>
                   ))}
                   {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the estimate yet.</td></tr> : null}
@@ -243,6 +412,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                 </tfoot>
               </table>
             </div>
+            {scopeActionError ? <p className="mt-2 rounded-lg border border-red-400/30 bg-red-400/[0.06] px-3 py-2 text-xs font-semibold text-red-200">{scopeActionError}</p> : null}
             <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Category costs are allocated from the approved estimate&apos;s lump-sum material and labor budgets so the scope is shown by trade instead of bundled. Detailed item prices can replace these allocations as they are entered.</p>
           </Panel>
 
@@ -295,10 +465,36 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
           </Panel>
         </div>
       </div>
+
+      {editorOpen ? (
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={editingIndex === null ? "Add scope line item" : "Edit scope line item"}>
+          <div className="w-full max-w-xl rounded-2xl border border-[#2b5f84] bg-[#071827] p-5 shadow-2xl">
+            <div className="flex items-center justify-between gap-3">
+              <div><p className="text-[10px] font-extrabold uppercase tracking-[.09em] text-[#68baff]">Project Scope</p><h3 className="mt-1 text-xl font-black text-white">{editingIndex === null ? "Add Line Item" : "Edit Line Item"}</h3></div>
+              <button type="button" onClick={() => setEditorOpen(false)} className="grid h-9 w-9 place-items-center rounded-lg border border-[#315a78] text-[#bcd2e3] hover:bg-[#0d2d49]" aria-label="Close"><X size={17} /></button>
+            </div>
+            <div className="mt-5 grid gap-4">
+              <label className="grid gap-1.5 text-xs font-bold text-[#b9cedf]">Category<input value={editor.category} onChange={(event) => setEditor((current) => ({ ...current, category: event.target.value }))} className={inputClass} placeholder="e.g. Plumbing" /></label>
+              <label className="grid gap-1.5 text-xs font-bold text-[#b9cedf]">Scope Details<textarea value={editor.details} onChange={(event) => setEditor((current) => ({ ...current, details: event.target.value }))} className={inputClass + " min-h-24 resize-y"} placeholder="Describe the work included in this line item." /></label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-1.5 text-xs font-bold text-[#b9cedf]">Materials Cost<input type="number" min="0" step="0.01" value={editor.materialCost} onChange={(event) => setEditor((current) => ({ ...current, materialCost: event.target.value }))} className={inputClass} /></label>
+                <label className="grid gap-1.5 text-xs font-bold text-[#b9cedf]">Labor Cost<input type="number" min="0" step="0.01" value={editor.laborCost} onChange={(event) => setEditor((current) => ({ ...current, laborCost: event.target.value }))} className={inputClass} /></label>
+              </div>
+              <label className="grid gap-1.5 text-xs font-bold text-[#b9cedf]">Status<select value={editor.status} onChange={(event) => setEditor((current) => ({ ...current, status: event.target.value }))} className={inputClass}><option value="planned">Planned</option><option value="ordered">Ordered</option><option value="in_progress">In Progress</option><option value="complete">Complete</option><option value="on_hold">On Hold</option></select></label>
+              {scopeActionError ? <p className="rounded-lg border border-red-400/30 bg-red-400/[0.06] px-3 py-2 text-xs font-semibold text-red-200">{scopeActionError}</p> : null}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setEditorOpen(false)} className={outlineButton}>Cancel</button>
+              <button type="button" disabled={savingScope} onClick={() => void saveScopeItem()} className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[#318ef1] bg-[linear-gradient(180deg,#2f8cff,#156dd1)] px-4 text-xs font-extrabold text-white disabled:opacity-50"><Save size={14} />{savingScope ? "Saving…" : "Save Line Item"}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
+const inputClass = "w-full rounded-lg border border-[#315a78] bg-[#061521] px-3 py-2.5 text-sm font-semibold text-white outline-none placeholder:text-[#55728a] focus:border-[#4ca8f6] focus:ring-2 focus:ring-[#2d8ae8]/20";
 const panelClass = "rounded-[17px] border border-[#1d4564] bg-[linear-gradient(180deg,#071a2b,#061624)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.025)]";
 const outlineButton = "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#2f678f] bg-[#092239] px-3 text-xs font-extrabold text-[#dcefff] transition hover:bg-[#0d2d49]";
 
@@ -316,9 +512,31 @@ function NotesColumn({ title, icon, text, fallback }: { title: string; icon: Rea
 }
 
 function StatusPill({ status }: { status: string }) {
-  const normalized = status.toLowerCase();
+  const normalized = normalizeScopeStatus(status);
   const style = normalized.includes("complete") ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : normalized.includes("progress") ? "border-sky-400/40 bg-sky-400/10 text-sky-300" : normalized.includes("order") ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : "border-[#3a617c] bg-[#0d2a43] text-[#c8def0]";
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${style}`}>{status}</span>;
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${style}`}>{scopeStatusLabel(status)}</span>;
+}
+
+function scopeItemToGroup(item: ProjectScopeItem): ScopeGroup {
+  return {
+    id: item.id,
+    sortOrder: item.sort_order,
+    name: item.category,
+    description: item.scope_details,
+    materialCost: Number(item.material_cost || 0),
+    laborCost: Number(item.labor_cost || 0),
+    totalCost: roundCurrency(Number(item.material_cost || 0) + Number(item.labor_cost || 0)),
+    status: scopeStatusLabel(item.status),
+    color: item.color || CATEGORY_COLORS[item.sort_order % CATEGORY_COLORS.length],
+  };
+}
+
+function normalizeScopeStatus(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function scopeStatusLabel(value: string) {
+  return titleCase(normalizeScopeStatus(value));
 }
 
 const CANONICAL_SCOPE = [
