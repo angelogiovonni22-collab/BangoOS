@@ -35,7 +35,7 @@ export function ProjectCrewSummary({ title, items, fallbackLabel, viewLabel }: P
                   {item.allocationPercentage}%
                 </span>
               </div>
-              <Link href="/team" className="mt-3 inline-flex text-sm font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">
+              <Link href="/crews" className="mt-3 inline-flex text-sm font-semibold text-[var(--color-brand-700)] hover:text-[var(--color-brand-800)]">
                 {viewLabel}
               </Link>
             </article>

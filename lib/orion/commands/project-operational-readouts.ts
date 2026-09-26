@@ -123,7 +123,7 @@ async function executeProjectChangeOrderSummary(
     status: "completed",
     entityType: "project",
     entityId: project.id,
-    href: `/projects/${project.id}?tab=change-orders`,
+    href: `/projects/${project.id}?tab=change_orders`,
     userMessage: message,
     details: {
       outstandingChangeOrderCount: pending.length,

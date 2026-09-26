@@ -106,7 +106,7 @@ export function RelationshipEngineFromExecutive(data: ExecutiveDashboardData, co
     edges.push({ id: `edge-project-document-${project.id}`, from: projectNodeId, to: documentNodeId, label: "contains" });
 
     const photoNodeId = `photo-${project.id}`;
-    nodes.push({ id: photoNodeId, kind: "photo", label: "Photos", value: project.lastPhotoUpload === "--" ? "0" : "recent", href: `${project.href}?tab=documents` });
+    nodes.push({ id: photoNodeId, kind: "photo", label: "Photos", value: project.lastPhotoUpload === "--" ? "0" : "recent", href: `${project.href}?tab=photos` });
     edges.push({ id: `edge-document-photo-${project.id}`, from: documentNodeId, to: photoNodeId, label: "captures" });
 
     const changeOrderNodeId = `co-${project.id}`;
@@ -165,7 +165,7 @@ export function RelationshipEngineFromProject(input: ProjectRelationshipInput, c
   nodes.push({ id: crewNodeId, kind: "crew", label: "Crew", href: "/crews" });
   nodes.push({ id: equipmentNodeId, kind: "equipment", label: "Equipment", href: "/equipment" });
   nodes.push({ id: documentNodeId, kind: "document", label: "Documents", href: `/projects/${input.projectId}?tab=documents` });
-  nodes.push({ id: photoNodeId, kind: "photo", label: "Photos", value: String(input.photosCount), href: `/projects/${input.projectId}?tab=documents` });
+  nodes.push({ id: photoNodeId, kind: "photo", label: "Photos", value: String(input.photosCount), href: `/projects/${input.projectId}?tab=photos` });
   nodes.push({ id: changeOrderNodeId, kind: "change_order", label: "Change Orders", value: String(input.changeOrdersCount), href: `/change-orders?projectId=${input.projectId}` });
   nodes.push({ id: invoiceNodeId, kind: "invoice", label: "Invoices", value: String(input.invoiceCount), href: `/invoices?projectId=${input.projectId}` });
 

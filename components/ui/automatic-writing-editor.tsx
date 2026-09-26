@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { improveNarrativeText, shouldAutoEditElement } from "@/lib/writing/automatic-editor";
+import { improveNarrativeText, shouldAutoEditElement, shouldEnableNativeInputAssistance } from "@/lib/writing/automatic-editor";
 
 const EDIT_DELAY_MS = 900;
 
@@ -11,9 +11,16 @@ export function AutomaticWritingEditor() {
     const applying = new WeakSet<HTMLTextAreaElement>();
     const composing = new WeakSet<HTMLTextAreaElement>();
 
-    const enhance = (element: HTMLTextAreaElement) => {
+    const enhanceTextarea = (element: HTMLTextAreaElement) => {
       element.spellcheck = true;
       element.setAttribute("autocapitalize", "sentences");
+      element.setAttribute("autocorrect", "on");
+      element.dataset.autoEditor = "active";
+    };
+
+    const enhanceInput = (element: HTMLInputElement) => {
+      element.spellcheck = true;
+      element.setAttribute("autocapitalize", "words");
       element.setAttribute("autocorrect", "on");
       element.dataset.autoEditor = "active";
     };
@@ -43,7 +50,8 @@ export function AutomaticWritingEditor() {
     };
 
     const onFocus = (event: FocusEvent) => {
-      if (event.target instanceof HTMLTextAreaElement && shouldAutoEditElement(event.target)) enhance(event.target);
+      if (event.target instanceof HTMLTextAreaElement && shouldAutoEditElement(event.target)) enhanceTextarea(event.target);
+      if (event.target instanceof HTMLInputElement && shouldEnableNativeInputAssistance(event.target)) enhanceInput(event.target);
     };
     const onInput = (event: Event) => {
       if (event.target instanceof HTMLTextAreaElement && !applying.has(event.target) && shouldAutoEditElement(event.target)) schedule(event.target);
@@ -62,7 +70,8 @@ export function AutomaticWritingEditor() {
     document.addEventListener("focusout", onBlur, true);
     document.addEventListener("compositionstart", onCompositionStart, true);
     document.addEventListener("compositionend", onCompositionEnd, true);
-    document.querySelectorAll("textarea").forEach((element) => { if (shouldAutoEditElement(element)) enhance(element); });
+    document.querySelectorAll("textarea").forEach((element) => { if (shouldAutoEditElement(element)) enhanceTextarea(element); });
+    document.querySelectorAll("input").forEach((element) => { if (shouldEnableNativeInputAssistance(element)) enhanceInput(element); });
 
     return () => {
       document.removeEventListener("focusin", onFocus, true);
