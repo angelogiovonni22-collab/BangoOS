@@ -157,7 +157,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   const scopeValue = Number(estimate?.total_amount || 0);
   const grossMargin = Number(estimate?.gross_profit ?? Math.max(0, scopeValue - estimatedCost));
   const grossMarginPercent = estimate?.gross_margin_percent ?? (scopeValue > 0 ? (grossMargin / scopeValue) * 100 : 0);
-  const materialRows = materials.length ? materials : fallbackMaterials(lines);
+  const materialRows = expandMaterialRows(materials.length ? materials : fallbackMaterials(lines));
   const scopeSummary = estimate?.description?.trim() || lines.map((line) => line.description).filter(Boolean).join(" ") || "No scope summary has been entered yet.";
 
   if (loading) {
@@ -178,8 +178,8 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   }
 
   return (
-    <div className="space-y-4 text-[#eaf4ff]" data-project-scope-of-work>
-      <div className="grid gap-3 xl:grid-cols-[repeat(6,minmax(0,1fr))_190px]">
+    <div className="space-y-4 rounded-[18px] bg-[#07182a] text-[#eaf4ff]" data-project-scope-of-work>
+      <div className="grid gap-3 md:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(118px,1fr))_190px]">
         <SummaryCard icon={<CircleDollarSign size={22} />} label="Scope Value" value={money(scopeValue, localeTag)} sub="From estimate" />
         <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(materialBudget, localeTag)} sub={scopeValue > 0 ? pct(materialBudget / scopeValue) + " of total" : "0% of total"} />
         <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(laborBudget, localeTag)} sub={scopeValue > 0 ? pct(laborBudget / scopeValue) + " of total" : "0% of total"} />
@@ -196,7 +196,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(300px,.75fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2.15fr)_minmax(285px,.85fr)]">
         <div className="space-y-4">
           <Panel title="Scope of Work Summary" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
             <p className="text-[15px] leading-6 text-[#d7e4ef]">{scopeSummary}</p>
@@ -204,30 +204,30 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
 
           <Panel title="Itemized Scope & Cost Breakdown" icon={<Hammer size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}>Add Category</Link>}>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] border-collapse">
+              <table className="w-full min-w-[650px] table-fixed border-collapse">
                 <thead>
                   <tr className="border-b border-[#1f4564] text-left text-[11px] font-extrabold uppercase tracking-[.07em] text-[#83a0b8]">
-                    <th className="px-2 py-2.5">#</th>
-                    <th className="px-2 py-2.5">Category</th>
-                    <th className="px-2 py-2.5">Scope Details</th>
-                    <th className="px-2 py-2.5 text-right">Materials Cost</th>
-                    <th className="px-2 py-2.5 text-right">Labor Cost</th>
-                    <th className="px-2 py-2.5 text-right">Total Cost</th>
-                    <th className="px-2 py-2.5 text-center">Status</th>
+                    <th className="w-[30px] px-1.5 py-2.5">#</th>
+                    <th className="w-[105px] px-1.5 py-2.5">Category</th>
+                    <th className="px-1.5 py-2.5">Scope Details</th>
+                    <th className="w-[82px] px-1.5 py-2.5 text-right">Materials Cost</th>
+                    <th className="w-[76px] px-1.5 py-2.5 text-right">Labor Cost</th>
+                    <th className="w-[82px] px-1.5 py-2.5 text-right">Total Cost</th>
+                    <th className="w-[76px] px-1.5 py-2.5 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {scopeGroups.map((group, index) => (
                     <tr key={group.name + index} className="border-b border-[#16344d] text-sm last:border-b-0">
-                      <td className="px-2 py-2.5 font-semibold text-[#b6c9d9]">{index + 1}</td>
-                      <td className="px-2 py-2.5">
+                      <td className="px-1.5 py-2.5 font-semibold text-[#b6c9d9]">{index + 1}</td>
+                      <td className="px-1.5 py-2.5">
                         <div className="flex items-center gap-2 font-extrabold text-white"><span className="h-2.5 w-2.5 rounded-full" style={{ background: group.color }} />{group.name}</div>
                       </td>
                       <td className="max-w-[370px] px-2 py-2.5 text-xs leading-5 text-[#c4d4e2]">{group.description}</td>
-                      <td className="px-2 py-2.5 text-right font-bold">{money(group.materialCost, localeTag)}</td>
-                      <td className="px-2 py-2.5 text-right font-bold">{money(group.laborCost, localeTag)}</td>
-                      <td className="px-2 py-2.5 text-right font-black text-white">{money(group.totalCost, localeTag)}</td>
-                      <td className="px-2 py-2.5 text-center"><StatusPill status={group.status} /></td>
+                      <td className="px-1.5 py-2.5 text-right font-bold">{money(group.materialCost, localeTag)}</td>
+                      <td className="px-1.5 py-2.5 text-right font-bold">{money(group.laborCost, localeTag)}</td>
+                      <td className="px-1.5 py-2.5 text-right font-black text-white">{money(group.totalCost, localeTag)}</td>
+                      <td className="px-1.5 py-2.5 text-center"><StatusPill status={group.status} /></td>
                     </tr>
                   ))}
                   {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the estimate yet.</td></tr> : null}
@@ -272,29 +272,25 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
           </Panel>
 
           <Panel title="Materials Detail" icon={<ShoppingCart size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><PackagePlus size={14} /> Add Material</Link>}>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[420px]">
-                <thead><tr className="border-b border-[#1f4564] text-left text-[10px] font-extrabold uppercase tracking-[.06em] text-[#819db4]"><th className="py-2 pr-2">Item</th><th className="px-2 py-2 text-right">Qty</th><th className="px-2 py-2 text-right">Unit Cost</th><th className="pl-2 py-2 text-right">Total Cost</th></tr></thead>
-                <tbody>
-                  {materialRows.map((item) => {
-                    const unitCost = item.current_unit_cost ?? item.original_unit_cost;
-                    const total = unitCost === null ? null : Number(item.estimated_quantity || 0) * Number(unitCost || 0);
-                    return (
-                      <tr key={item.id} className="border-b border-[#16344d] text-xs last:border-b-0">
-                        <td className="max-w-[190px] py-2 pr-2 font-bold text-white">{item.description}</td>
-                        <td className="px-2 py-2 text-right text-[#c7d6e2]">{formatQty(item.estimated_quantity, item.unit_of_measure)}</td>
-                        <td className="px-2 py-2 text-right text-[#c7d6e2]">{unitCost === null ? "Included" : money(unitCost, localeTag)}</td>
-                        <td className="pl-2 py-2 text-right font-black text-white">{total === null ? "—" : money(total, localeTag)}</td>
-                      </tr>
-                    );
-                  })}
-                  {!materialRows.length ? <tr><td colSpan={4} className="py-8 text-center text-xs text-[#8ea8bc]">No itemized materials are linked yet.</td></tr> : null}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-[#315a78] text-sm font-black text-white"><td colSpan={3} className="pt-3">Total Materials</td><td className="pt-3 text-right">{money(materialRows.reduce((sum, row) => sum + Number(row.estimated_quantity || 0) * Number(row.current_unit_cost ?? row.original_unit_cost ?? 0), 0), localeTag)}</td></tr>
-                </tfoot>
-              </table>
+            <div className="grid grid-cols-[minmax(0,1fr)_44px_72px] gap-2 border-b border-[#1f4564] pb-2 text-[10px] font-extrabold uppercase tracking-[.06em] text-[#819db4]">
+              <span>Item</span><span className="text-right">Qty</span><span className="text-right">Cost</span>
             </div>
+            <div className="divide-y divide-[#16344d]">
+              {materialRows.map((item) => {
+                const unitCost = item.current_unit_cost ?? item.original_unit_cost;
+                const total = unitCost === null ? null : Number(item.estimated_quantity || 0) * Number(unitCost || 0);
+                return (
+                  <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_44px_72px] items-start gap-2 py-2.5 text-xs">
+                    <span className="min-w-0 break-words font-bold leading-4 text-white">{item.description}</span>
+                    <span className="text-right text-[#c7d6e2]">{formatQty(item.estimated_quantity, item.unit_of_measure)}</span>
+                    <span className="text-right font-black text-white">{total === null ? "Included" : money(total, localeTag)}</span>
+                  </div>
+                );
+              })}
+              {!materialRows.length ? <div className="py-8 text-center text-xs text-[#8ea8bc]">No itemized materials are linked yet.</div> : null}
+            </div>
+            {materialRows.length ? <p className="mt-3 rounded-lg border border-sky-400/20 bg-sky-400/[0.05] px-3 py-2 text-[11px] leading-4 text-[#a9c8de]">Individual material prices are not separately itemized in the approved estimate. They are included within the bundled material allowance.</p> : null}
+            <div className="mt-3 flex items-center justify-between border-t border-[#315a78] pt-3 text-sm font-black text-white"><span>Total Materials</span><span>{money(materialBudget, localeTag)}</span></div>
           </Panel>
         </div>
       </div>
@@ -306,7 +302,7 @@ const panelClass = "rounded-[17px] border border-[#1d4564] bg-[linear-gradient(1
 const outlineButton = "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#2f678f] bg-[#092239] px-3 text-xs font-extrabold text-[#dcefff] transition hover:bg-[#0d2d49]";
 
 function SummaryCard({ icon, label, value, sub }: { icon: ReactNode; label: string; value: string; sub: string }) {
-  return <div className="rounded-[14px] border border-[#1d4564] bg-[linear-gradient(180deg,#08203a,#07182a)] p-3.5"><div className="flex items-start gap-3"><span className="mt-0.5 text-[#51b5ff]">{icon}</span><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.07em] text-[#83a4be]">{label}</p><p className="mt-1 truncate text-xl font-black text-white">{value}</p><p className="mt-0.5 text-[11px] font-semibold text-[#8ba6ba]">{sub}</p></div></div></div>;
+  return <div className="rounded-[14px] border border-[#1d4564] bg-[linear-gradient(180deg,#08203a,#07182a)] p-3"><div className="flex items-start gap-2.5"><span className="mt-0.5 text-[#51b5ff]">{icon}</span><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.07em] text-[#83a4be]">{label}</p><p className="mt-1 whitespace-nowrap text-[17px] font-black leading-5 text-white">{value}</p><p className="mt-0.5 text-[11px] font-semibold text-[#8ba6ba]">{sub}</p></div></div></div>;
 }
 
 function Panel({ title, icon, action, children }: { title: string; icon: ReactNode; action?: ReactNode; children: ReactNode }) {
@@ -327,16 +323,23 @@ function StatusPill({ status }: { status: string }) {
 function buildScopeGroups(lines: EstimateLine[]): ScopeGroup[] {
   const map = new Map<string, ScopeGroup>();
 
-  lines.forEach((line, index) => {
+  lines.forEach((line) => {
     const category = categoryName(line);
-    const current = map.get(category) || { name: category, description: "", materialCost: 0, laborCost: 0, totalCost: 0, status: "Planned", color: CATEGORY_COLORS[map.size % CATEGORY_COLORS.length] };
-    const total = Number(line.line_total || 0);
     const normalized = normalizeCategory(line.category);
+    const current = map.get(category) || {
+      name: category,
+      description: "",
+      materialCost: 0,
+      laborCost: 0,
+      totalCost: 0,
+      status: normalized.includes("material") ? "Bundled" : "Priced",
+      color: CATEGORY_COLORS[map.size % CATEGORY_COLORS.length],
+    };
+    const total = Number(line.line_total || 0);
     if (normalized.includes("material")) current.materialCost += total;
     else if (normalized.includes("labor")) current.laborCost += total;
     current.totalCost += total;
-    current.description = [current.description, line.description].filter(Boolean).join(current.description ? " · " : "");
-    if (index === 0 && normalizeCategory(line.description).includes("demo")) current.status = "Complete";
+    current.description = [current.description, cleanScopeDescription(line.description)].filter(Boolean).join(current.description ? " · " : "");
     map.set(category, current);
   });
 
@@ -344,26 +347,52 @@ function buildScopeGroups(lines: EstimateLine[]): ScopeGroup[] {
 }
 
 function categoryName(line: EstimateLine) {
+  const normalized = normalizeCategory(line.category);
   const description = line.description.trim();
+
+  if (normalized.includes("material")) return "Materials";
   if (/^demo\b/i.test(description)) return "Demo";
-  if (/framing/i.test(description)) return "Framing";
-  if (/plumb/i.test(description)) return "Plumbing";
-  if (/electric/i.test(description)) return "Electrical";
-  if (/drywall/i.test(description)) return "Drywall";
-  if (/paint/i.test(description)) return "Painting";
-  if (/floor|tile|lvt/i.test(description)) return "Flooring";
-  if (/trim|casing|baseboard|quarter round/i.test(description)) return "Trim";
-  if (/window/i.test(description)) return "Windows";
-  if (/appliance|fixture|vanity|toilet|shower|faucet/i.test(description)) return "Appliances / Fixtures";
-  const category = line.category?.trim();
-  return category ? titleCase(category) : "General";
+  if (/^install(?:ation)?\b/i.test(description)) return "Installation";
+  if (normalized && normalized !== "labor") return titleCase(normalized);
+  return normalized === "labor" ? "Labor" : "General";
+}
+
+function cleanScopeDescription(value: string) {
+  const trimmed = value.trim().replace(/[-–—]+$/, "").trim();
+  if (/^demo$/i.test(trimmed)) return "Demolition scope from approved estimate";
+  if (/^install$/i.test(trimmed)) return "Installation labor from approved estimate";
+  return trimmed;
+}
+
+function expandMaterialRows(rows: MaterialPlanItem[]) {
+  return rows.flatMap((row) => {
+    const chunks = splitMaterialDescription(row.description);
+    if (chunks.length <= 1) return [row];
+    return chunks.map((description, index) => ({
+      ...row,
+      id: `${row.id}-detail-${index}`,
+      description: titleCase(description),
+      estimated_quantity: 1,
+      unit_of_measure: null,
+      original_unit_cost: null,
+      current_unit_cost: null,
+    }));
+  });
+}
+
+function splitMaterialDescription(value: string) {
+  return value
+    .replace(/\band\b/gi, ",")
+    .split(/[,.]/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function fallbackMaterials(lines: EstimateLine[]): MaterialPlanItem[] {
   const materialLines = lines.filter((line) => normalizeCategory(line.category).includes("material"));
   const parsed: MaterialPlanItem[] = [];
   for (const line of materialLines) {
-    const chunks = line.description.split(/,|\band\b/gi).map((item) => item.trim().replace(/[.]+$/, "")).filter(Boolean);
+    const chunks = splitMaterialDescription(line.description);
     if (chunks.length <= 1) {
       parsed.push({ id: line.id, description: line.description, item_code: null, unit_of_measure: line.unit, estimated_quantity: Number(line.quantity || 1), original_unit_cost: Number(line.unit_cost || 0), current_unit_cost: Number(line.unit_cost || 0), status: "planned" });
       continue;
