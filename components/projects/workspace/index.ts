@@ -20,6 +20,7 @@ export { ProjectHealthHero } from "./project-health-hero";
 export { ProjectKpiGrid } from "./project-kpi-grid";
 export { ProjectMilestones } from "./project-milestones";
 export { ProjectOverview } from "./project-overview";
+export { ProjectOverviewCommandCenter } from "./project-overview-command-center";
 export { ProjectOperatingSystemPanel } from "./project-operating-system-panel";
 export { ProjectSidebar } from "./project-sidebar";
 export { ProjectSummaryCards } from "./project-summary-cards";

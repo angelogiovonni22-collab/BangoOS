@@ -10,6 +10,7 @@ const migration = readFileSync(resolve(root, "supabase/migrations/20260824050000
 const projectPage = readFileSync(resolve(root, "app/(app)/projects/[id]/page.tsx"), "utf8");
 const panel = readFileSync(resolve(root, "components/projects/workspace/project-operating-system-panel.tsx"), "utf8");
 const commandCenter = readFileSync(resolve(root, "components/projects/workspace/project-command-center-foundation.tsx"), "utf8");
+const redesignedOverview = readFileSync(resolve(root, "components/projects/workspace/project-overview-command-center.tsx"), "utf8");
 const workWorkspace = readFileSync(resolve(root, "components/projects/workspace/project-work-workspace.tsx"), "utf8");
 const superintendentBriefing = readFileSync(resolve(root, "components/projects/workspace/project-superintendent-briefing.tsx"), "utf8");
 
@@ -21,11 +22,12 @@ assert.match(migration, /project\.workspace_bootstrapped/, "the canonical worksp
 assert.match(migration, /on conflict \(company_id, event_type, idempotency_key\)/, "bootstrap event retries must be idempotent");
 assert.match(migration, /after insert or update of status, project_id, converted_project_id/, "approved conversions must trigger workspace bootstrap automatically");
 assert.match(migration, /revoke all on function public\.bootstrap_estimate_project_workspace\(uuid, uuid\) from public, anon, authenticated/, "workspace bootstrap must be server-only");
-assert.match(projectPage, /<ProjectOperatingSystemPanel/, "the project workspace must render the B.O.S. operating system panel");
-assert.match(projectPage, /<ProjectOperatingSystemPanel[\s\S]*?t=\{\(key, params\) => t\(`projects\.\$\{key\}`/, "Orion action copy must resolve through the projects translation namespace");
-assert.match(projectPage, /compliance=\{\{[\s\S]*permitsTotal:[\s\S]*openPermits:[\s\S]*inspectionsTotal:[\s\S]*pendingInspections:[\s\S]*documentsTotal:/, "the operating panel must receive live compliance signals");
-assert.match(projectPage, /closeoutStatusLabel=\{closeoutStatusLabel\}/, "the project command center must receive the live closeout workflow status");
-assert.match(projectPage, /closeoutReady=\{closeoutReady\}/, "the project command center must receive deterministic closeout readiness");
+assert.match(projectPage, /<ProjectOverviewCommandCenter/, "the project workspace must render the project-centered B.O.S. overview command center");
+assert.match(projectPage, /permitsOpen=\{workspace\.counts\.openPermits\}/, "the project overview must receive live permit signals");
+assert.match(projectPage, /pendingInspections=\{workspace\.counts\.pendingInspections\}/, "the project overview must receive live inspection signals");
+assert.match(projectPage, /openPunchItems=\{workspace\.counts\.openPunchItems\}/, "the project overview must receive live punch-list signals");
+assert.match(projectPage, /closeoutStatusLabel=\{closeoutStatusLabel\}/, "the redesigned project overview must receive the live closeout workflow status");
+assert.match(projectPage, /closeoutReady=\{closeoutReady\}/, "the redesigned project overview must receive deterministic closeout readiness");
 assert.match(panel, /Operating Score/);
 assert.match(panel, /Delivery Risk/);
 assert.match(panel, /Budget Remaining/);
@@ -48,6 +50,9 @@ assert.equal(calculateProjectCloseoutReadiness({ closeoutStarted: true, closeout
 console.log("project workspace bootstrap contract passed");
 
 assert.match(projectPage, /projectStatus=\{project\.status \|\| ""\}/, "project overview must receive the canonical project status");
+assert.match(redesignedOverview, /const projectCompleted = normalizeStatus\(props\.projectStatus\) === "completed"/, "redesigned overview must derive completion from canonical project status");
+assert.match(redesignedOverview, /projectCompleted \? 100/, "completed projects must render 100 percent progress in the redesigned overview");
+assert.match(redesignedOverview, /Closeout checklist required/, "completed projects without closeout readiness must surface a closeout requirement in the redesigned overview");
 assert.match(commandCenter, /const projectCompleted = status\(props\.projectStatus\) === "completed"/, "completed projects must drive completed overview semantics");
 assert.match(commandCenter, /projectCompleted \? 100/, "completed projects must render 100 percent project progress even when task history is empty");
 assert.match(commandCenter, /Project marked complete/, "completed projects with zero tasks must not render 0 of 0 as incomplete work");
