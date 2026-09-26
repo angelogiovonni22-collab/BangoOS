@@ -11,7 +11,6 @@ import {
   FileText,
   Hammer,
   Info,
-  PackagePlus,
   Pencil,
   Plus,
   Save,
@@ -57,17 +56,6 @@ type EstimateLine = {
   material_id: string | null;
 };
 
-type MaterialPlanItem = {
-  id: string;
-  description: string;
-  item_code: string | null;
-  unit_of_measure: string | null;
-  estimated_quantity: number;
-  original_unit_cost: number | null;
-  current_unit_cost: number | null;
-  status: string;
-};
-
 type ProjectScopeItem = {
   id: string;
   sort_order: number;
@@ -104,7 +92,6 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   const supabase = useMemo(() => createClient(), []);
   const [estimate, setEstimate] = useState<EstimateRow | null>(null);
   const [lines, setLines] = useState<EstimateLine[]>([]);
-  const [materials, setMaterials] = useState<MaterialPlanItem[]>([]);
   const [savedScopeItems, setSavedScopeItems] = useState<ProjectScopeItem[]>([]);
   const [scopeMaterialized, setScopeMaterialized] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -142,12 +129,6 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         .eq("estimate_id", estimateId)
         .order("sort_order", { ascending: true }),
       db
-        .from("project_material_plan_items")
-        .select("id,description,item_code,unit_of_measure,estimated_quantity,original_unit_cost,current_unit_cost,status")
-        .eq("company_id", companyId)
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: true }),
-      db
         .from("project_scope_items")
         .select("id,sort_order,category,scope_details,material_cost,labor_cost,status,color")
         .eq("company_id", companyId)
@@ -156,16 +137,14 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     ]);
 
     void request
-      .then(([estimateResult, lineResult, materialResult, scopeResult]) => {
+      .then(([estimateResult, lineResult, scopeResult]) => {
         if (!active) return;
         if (estimateResult.error) throw new Error(estimateResult.error.message);
         if (lineResult.error) throw new Error(lineResult.error.message);
-        if (materialResult.error) throw new Error(materialResult.error.message);
         if (scopeResult.error) throw new Error(scopeResult.error.message);
 
         setEstimate((estimateResult.data || null) as EstimateRow | null);
         setLines((lineResult.data || []) as EstimateLine[]);
-        setMaterials((materialResult.data || []) as MaterialPlanItem[]);
         const scopeRows = (scopeResult.data || []) as ProjectScopeItem[];
         setSavedScopeItems(scopeRows);
         setScopeMaterialized(scopeRows.length > 0);
@@ -185,12 +164,6 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     () => scopeMaterialized ? savedScopeItems.map(scopeItemToGroup) : generatedScopeGroups,
     [generatedScopeGroups, savedScopeItems, scopeMaterialized],
   );
-  const materialBudget = lines
-    .filter((line) => normalizeCategory(line.category).includes("material"))
-    .reduce((sum, line) => sum + Number(line.line_total || 0), 0);
-  const laborBudget = lines
-    .filter((line) => normalizeCategory(line.category).includes("labor"))
-    .reduce((sum, line) => sum + Number(line.line_total || 0), 0);
   const estimatedCost = Number(estimate?.internal_cost_total || lines.reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unit_cost || 0), 0));
   const scopeValue = Number(estimate?.total_amount || 0);
   const grossMargin = Number(estimate?.gross_profit ?? Math.max(0, scopeValue - estimatedCost));
@@ -200,7 +173,6 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   const workingCost = workingMaterialBudget + workingLaborBudget;
   const workingGrossMargin = scopeValue - workingCost;
   const workingGrossMarginPercent = scopeValue > 0 ? (workingGrossMargin / scopeValue) * 100 : 0;
-  const materialRows = expandMaterialRows(materials.length ? materials : fallbackMaterials(lines));
   const scopeSummary = estimate?.description?.trim() || lines.map((line) => line.description).filter(Boolean).join(" ") || "No scope summary has been entered yet.";
 
   const db = supabase as unknown as {
@@ -363,112 +335,87 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,2.15fr)_minmax(285px,.85fr)]">
-        <div className="space-y-4">
-          <Panel title="Scope of Work Summary" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
-            <p className="text-[15px] leading-6 text-[#d7e4ef]">{scopeSummary}</p>
-          </Panel>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,.75fr)]">
+        <Panel title="Scope of Work Summary" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
+          <p className="text-[15px] leading-6 text-[#d7e4ef]">{scopeSummary}</p>
+        </Panel>
 
-          <Panel title="Itemized Scope & Cost Breakdown" icon={<Hammer size={21} />} action={<button type="button" onClick={openAddScope} className={outlineButton}><Plus size={14} /> Add Category</button>}>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[650px] table-fixed border-collapse">
-                <thead>
-                  <tr className="border-b border-[#1f4564] text-left text-[11px] font-extrabold uppercase tracking-[.07em] text-[#83a0b8]">
-                    <th className="w-[30px] px-1.5 py-2.5">#</th>
-                    <th className="w-[105px] px-1.5 py-2.5">Category</th>
-                    <th className="px-1.5 py-2.5">Scope Details</th>
-                    <th className="w-[82px] px-1.5 py-2.5 text-right">Materials Cost</th>
-                    <th className="w-[76px] px-1.5 py-2.5 text-right">Labor Cost</th>
-                    <th className="w-[82px] px-1.5 py-2.5 text-right">Total Cost</th>
-                    <th className="w-[126px] px-1.5 py-2.5 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {scopeGroups.map((group, index) => (
-                    <tr key={group.name + index} className="border-b border-[#16344d] text-sm last:border-b-0">
-                      <td className="px-1.5 py-2.5 font-semibold text-[#b6c9d9]">{index + 1}</td>
-                      <td className="px-1.5 py-2.5">
-                        <div className="flex items-center gap-2 font-extrabold text-white"><span className="h-2.5 w-2.5 rounded-full" style={{ background: group.color }} />{group.name}</div>
-                      </td>
-                      <td className="max-w-[370px] px-2 py-2.5 text-xs leading-5 text-[#c4d4e2]">{group.description}</td>
-                      <td className="px-1.5 py-2.5 text-right font-bold">{money(group.materialCost, localeTag)}</td>
-                      <td className="px-1.5 py-2.5 text-right font-bold">{money(group.laborCost, localeTag)}</td>
-                      <td className="px-1.5 py-2.5 text-right font-black text-white">{money(group.totalCost, localeTag)}</td>
-                      <td className="px-1.5 py-2.5">
-  <div className="flex items-center justify-end gap-1.5">
-    <StatusPill status={group.status} />
-    <button type="button" onClick={() => openEditScope(group, index)} className="grid h-7 w-7 place-items-center rounded-md border border-[#315a78] bg-[#092239] text-[#b9d7ec] hover:bg-[#0d2d49]" aria-label={`Edit ${group.name}`}><Pencil size={12} /></button>
-    <button type="button" onClick={() => void removeScopeItem(index)} disabled={savingScope} className="grid h-7 w-7 place-items-center rounded-md border border-red-400/25 bg-red-400/[0.06] text-red-300 hover:bg-red-400/10 disabled:opacity-50" aria-label={`Remove ${group.name}`}><Trash2 size={12} /></button>
-  </div>
-</td>
-                    </tr>
-                  ))}
-                  {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the estimate yet.</td></tr> : null}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-[#315a78] bg-[#081c2d] text-sm font-black text-white">
-                    <td className="px-2 py-3" colSpan={3}>Total</td>
-                    <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.materialCost, 0), localeTag)}</td>
-                    <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.laborCost, 0), localeTag)}</td>
-                    <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.totalCost, 0), localeTag)}</td>
-                    <td />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-            {scopeActionError ? <p className="mt-2 rounded-lg border border-red-400/30 bg-red-400/[0.06] px-3 py-2 text-xs font-semibold text-red-200">{scopeActionError}</p> : null}
-            <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Category costs are allocated from the approved estimate&apos;s lump-sum material and labor budgets so the scope is shown by trade instead of bundled. Detailed item prices can replace these allocations as they are entered.</p>
-          </Panel>
-
-          <Panel title="Notes / Inclusions / Exclusions" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
-            <div className="grid gap-5 md:grid-cols-3">
-              <NotesColumn title="Inclusions" icon={<CheckCircle2 size={20} className="text-emerald-400" />} text={estimate.scope_inclusions} fallback="All labor and materials per approved estimate scope." />
-              <NotesColumn title="Exclusions" icon={<span className="grid h-5 w-5 place-items-center rounded-full bg-amber-400 text-[12px] font-black text-[#17202c]">!</span>} text={estimate.scope_exclusions} fallback="No exclusions have been entered." />
-              <NotesColumn title="Notes" icon={<Info size={20} className="text-sky-400" />} text={estimate.customer_notes || estimate.internal_notes || estimate.payment_terms} fallback="No additional scope notes have been entered." />
-            </div>
-          </Panel>
-        </div>
-
-        <div className="space-y-4">
-          <Panel title="Trade / Scope Summary" icon={<BarChart3 size={21} />} action={<span className="text-xs font-bold text-[#acd7ff]">View Details →</span>}>
-            <div className="space-y-2.5">
-              {scopeGroups.map((group) => {
-                const ratio = scopeGroups.reduce((sum, row) => sum + row.totalCost, 0) > 0 ? group.totalCost / scopeGroups.reduce((sum, row) => sum + row.totalCost, 0) : 0;
-                return (
-                  <div key={group.name} className="grid grid-cols-[minmax(0,1fr)_74px_42px_95px] items-center gap-2 text-xs">
-                    <div className="flex min-w-0 items-center gap-2 font-bold text-[#dce9f4]"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: group.color }} /><span className="truncate">{group.name}</span></div>
-                    <span className="text-right font-black text-white">{money(group.totalCost, localeTag)}</span>
-                    <span className="text-right font-bold text-[#a8bfd2]">{Math.round(ratio * 100)}%</span>
-                    <span className="h-2 overflow-hidden rounded-full bg-[#102d45]"><span className="block h-full rounded-full" style={{ width: `${Math.max(4, ratio * 100)}%`, background: group.color }} /></span>
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
-
-          <Panel title="Materials Detail" icon={<ShoppingCart size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><PackagePlus size={14} /> Add Material</Link>}>
-            <div className="grid grid-cols-[minmax(0,1fr)_44px_72px] gap-2 border-b border-[#1f4564] pb-2 text-[10px] font-extrabold uppercase tracking-[.06em] text-[#819db4]">
-              <span>Item</span><span className="text-right">Qty</span><span className="text-right">Cost</span>
-            </div>
-            <div className="divide-y divide-[#16344d]">
-              {materialRows.map((item) => {
-                const unitCost = item.current_unit_cost ?? item.original_unit_cost;
-                const total = unitCost === null ? null : Number(item.estimated_quantity || 0) * Number(unitCost || 0);
-                return (
-                  <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_44px_72px] items-start gap-2 py-2.5 text-xs">
-                    <span className="min-w-0 break-words font-bold leading-4 text-white">{item.description}</span>
-                    <span className="text-right text-[#c7d6e2]">{formatQty(item.estimated_quantity, item.unit_of_measure)}</span>
-                    <span className="text-right font-black text-white">{total === null ? "Included" : money(total, localeTag)}</span>
-                  </div>
-                );
-              })}
-              {!materialRows.length ? <div className="py-8 text-center text-xs text-[#8ea8bc]">No itemized materials are linked yet.</div> : null}
-            </div>
-            {materialRows.length ? <p className="mt-3 rounded-lg border border-sky-400/20 bg-sky-400/[0.05] px-3 py-2 text-[11px] leading-4 text-[#a9c8de]">Individual material prices are not separately itemized in the approved estimate. They are included within the bundled material allowance.</p> : null}
-            <div className="mt-3 flex items-center justify-between border-t border-[#315a78] pt-3 text-sm font-black text-white"><span>Total Materials</span><span>{money(materialBudget, localeTag)}</span></div>
-          </Panel>
-        </div>
+        <Panel title="Trade / Scope Summary" icon={<BarChart3 size={21} />}>
+          <div className="space-y-2.5">
+            {scopeGroups.map((group) => {
+              const scopeTotal = scopeGroups.reduce((sum, row) => sum + row.totalCost, 0);
+              const ratio = scopeTotal > 0 ? group.totalCost / scopeTotal : 0;
+              return (
+                <div key={group.name} className="grid grid-cols-[minmax(0,1fr)_74px_42px_76px] items-center gap-2 text-xs">
+                  <div className="flex min-w-0 items-center gap-2 font-bold text-[#dce9f4]"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: group.color }} /><span className="truncate">{group.name}</span></div>
+                  <span className="text-right font-black text-white">{money(group.totalCost, localeTag)}</span>
+                  <span className="text-right font-bold text-[#a8bfd2]">{Math.round(ratio * 100)}%</span>
+                  <span className="h-2 overflow-hidden rounded-full bg-[#102d45]"><span className="block h-full rounded-full" style={{ width: `${Math.max(4, ratio * 100)}%`, background: group.color }} /></span>
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
       </div>
+
+      <Panel title="Itemized Scope & Cost Breakdown" icon={<Hammer size={21} />} action={<button type="button" onClick={openAddScope} className={outlineButton}><Plus size={14} /> Add Category</button>}>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[650px] table-fixed border-collapse">
+            <thead>
+              <tr className="border-b border-[#1f4564] text-left text-[11px] font-extrabold uppercase tracking-[.07em] text-[#83a0b8]">
+                <th className="w-[30px] px-1.5 py-2.5">#</th>
+                <th className="w-[105px] px-1.5 py-2.5">Category</th>
+                <th className="px-1.5 py-2.5">Scope Details</th>
+                <th className="w-[82px] px-1.5 py-2.5 text-right">Materials Cost</th>
+                <th className="w-[76px] px-1.5 py-2.5 text-right">Labor Cost</th>
+                <th className="w-[82px] px-1.5 py-2.5 text-right">Total Cost</th>
+                <th className="w-[126px] px-1.5 py-2.5 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scopeGroups.map((group, index) => (
+                <tr key={group.name + index} className="border-b border-[#16344d] text-sm last:border-b-0">
+                  <td className="px-1.5 py-2.5 font-semibold text-[#b6c9d9]">{index + 1}</td>
+                  <td className="px-1.5 py-2.5">
+                    <div className="flex items-center gap-2 font-extrabold text-white"><span className="h-2.5 w-2.5 rounded-full" style={{ background: group.color }} />{group.name}</div>
+                  </td>
+                  <td className="max-w-[370px] px-2 py-2.5 text-xs leading-5 text-[#c4d4e2]">{group.description}</td>
+                  <td className="px-1.5 py-2.5 text-right font-bold">{money(group.materialCost, localeTag)}</td>
+                  <td className="px-1.5 py-2.5 text-right font-bold">{money(group.laborCost, localeTag)}</td>
+                  <td className="px-1.5 py-2.5 text-right font-black text-white">{money(group.totalCost, localeTag)}</td>
+                  <td className="px-1.5 py-2.5">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <StatusPill status={group.status} />
+                      <button type="button" onClick={() => openEditScope(group, index)} className="grid h-7 w-7 place-items-center rounded-md border border-[#315a78] bg-[#092239] text-[#b9d7ec] hover:bg-[#0d2d49]" aria-label={`Edit ${group.name}`}><Pencil size={12} /></button>
+                      <button type="button" onClick={() => void removeScopeItem(index)} disabled={savingScope} className="grid h-7 w-7 place-items-center rounded-md border border-red-400/25 bg-red-400/[0.06] text-red-300 hover:bg-red-400/10 disabled:opacity-50" aria-label={`Remove ${group.name}`}><Trash2 size={12} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the project yet.</td></tr> : null}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-[#315a78] bg-[#081c2d] text-sm font-black text-white">
+                <td className="px-2 py-3" colSpan={3}>Total</td>
+                <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.materialCost, 0), localeTag)}</td>
+                <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.laborCost, 0), localeTag)}</td>
+                <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.totalCost, 0), localeTag)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {scopeActionError ? <p className="mt-2 rounded-lg border border-red-400/30 bg-red-400/[0.06] px-3 py-2 text-xs font-semibold text-red-200">{scopeActionError}</p> : null}
+        <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Material and labor costs are managed directly in the scope rows above. Edit a category to change its costs, details, or status.</p>
+      </Panel>
+
+      <Panel title="Notes / Inclusions / Exclusions" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
+        <div className="grid gap-5 md:grid-cols-3">
+          <NotesColumn title="Inclusions" icon={<CheckCircle2 size={20} className="text-emerald-400" />} text={estimate.scope_inclusions} fallback="All labor and materials per approved estimate scope." />
+          <NotesColumn title="Exclusions" icon={<span className="grid h-5 w-5 place-items-center rounded-full bg-amber-400 text-[12px] font-black text-[#17202c]">!</span>} text={estimate.scope_exclusions} fallback="No exclusions have been entered." />
+          <NotesColumn title="Notes" icon={<Info size={20} className="text-sky-400" />} text={estimate.customer_notes || estimate.internal_notes || estimate.payment_terms} fallback="No additional scope notes have been entered." />
+        </div>
+      </Panel>
 
       {editorOpen ? (
         <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={editingIndex === null ? "Add scope line item" : "Edit scope line item"}>
@@ -586,47 +533,8 @@ function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-function expandMaterialRows(rows: MaterialPlanItem[]) {
-  return rows.flatMap((row) => {
-    const chunks = splitMaterialDescription(row.description);
-    if (chunks.length <= 1) return [row];
-    return chunks.map((description, index) => ({
-      ...row,
-      id: `${row.id}-detail-${index}`,
-      description: titleCase(description),
-      estimated_quantity: 1,
-      unit_of_measure: null,
-      original_unit_cost: null,
-      current_unit_cost: null,
-    }));
-  });
-}
-
-function splitMaterialDescription(value: string) {
-  return value
-    .replace(/\band\b/gi, ",")
-    .split(/[,.]/g)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function fallbackMaterials(lines: EstimateLine[]): MaterialPlanItem[] {
-  const materialLines = lines.filter((line) => normalizeCategory(line.category).includes("material"));
-  const parsed: MaterialPlanItem[] = [];
-  for (const line of materialLines) {
-    const chunks = splitMaterialDescription(line.description);
-    if (chunks.length <= 1) {
-      parsed.push({ id: line.id, description: line.description, item_code: null, unit_of_measure: line.unit, estimated_quantity: Number(line.quantity || 1), original_unit_cost: Number(line.unit_cost || 0), current_unit_cost: Number(line.unit_cost || 0), status: "planned" });
-      continue;
-    }
-    chunks.forEach((description, index) => parsed.push({ id: `${line.id}-${index}`, description: titleCase(description), item_code: null, unit_of_measure: null, estimated_quantity: 1, original_unit_cost: null, current_unit_cost: null, status: "planned" }));
-  }
-  return parsed;
-}
-
 function normalizeCategory(value: string | null | undefined) { return (value || "").trim().toLowerCase(); }
 function titleCase(value: string) { return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
 function splitNotes(value: string) { return value.split(/\n|•|;/g).map((row) => row.trim().replace(/^[-–—]\s*/, "")).filter(Boolean); }
 function money(value: number, localeTag: string) { return new Intl.NumberFormat(localeTag, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(value || 0)); }
 function pct(value: number) { return `${Math.round(Math.max(0, value) * 100)}%`; }
-function formatQty(quantity: number, unit: string | null) { const q = Number(quantity || 0); const formatted = Number.isInteger(q) ? String(q) : q.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""); return unit ? `${formatted} ${unit}` : formatted; }
