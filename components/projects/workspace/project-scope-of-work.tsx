@@ -206,8 +206,6 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     0,
   );
   const currentContractValue = originalContractValue + approvedChangeOrderValue;
-  const grossMargin = Number(estimate?.gross_profit ?? Math.max(0, originalContractValue - estimatedCost));
-  const grossMarginPercent = estimate?.gross_margin_percent ?? (originalContractValue > 0 ? (grossMargin / originalContractValue) * 100 : 0);
   const workingMaterialBudget = scopeGroups.reduce((sum, row) => sum + row.materialCost, 0);
   const workingLaborBudget = scopeGroups.reduce((sum, row) => sum + row.laborCost, 0);
   const workingCost = workingMaterialBudget + workingLaborBudget;
