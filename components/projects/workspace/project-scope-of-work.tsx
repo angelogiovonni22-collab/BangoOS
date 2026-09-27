@@ -206,11 +206,18 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     0,
   );
   const currentContractValue = originalContractValue + approvedChangeOrderValue;
+  const acceptedMaterialBudget = lines
+    .filter((line) => normalizeCategory(line.category).includes("material"))
+    .reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unit_cost || 0), 0);
+  const acceptedLaborBudget = lines
+    .filter((line) => normalizeCategory(line.category).includes("labor"))
+    .reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unit_cost || 0), 0);
   const workingMaterialBudget = scopeGroups.reduce((sum, row) => sum + row.materialCost, 0);
   const workingLaborBudget = scopeGroups.reduce((sum, row) => sum + row.laborCost, 0);
   const workingCost = workingMaterialBudget + workingLaborBudget;
-  const currentWorkingCost = (scopeMaterialized ? workingCost : estimatedCost) + approvedChangeOrderCost;
-  const currentGrossMargin = currentContractValue - currentWorkingCost;
+  const workingScopeVariance = roundCurrency(workingCost - estimatedCost);
+  const currentEstimatedCost = estimatedCost + approvedChangeOrderCost;
+  const currentGrossMargin = currentContractValue - currentEstimatedCost;
   const currentGrossMarginPercent = currentContractValue > 0 ? (currentGrossMargin / currentContractValue) * 100 : 0;
   const scopeSummary = estimate?.description?.trim() || lines.map((line) => line.description).filter(Boolean).join(" ") || "No scope summary has been entered yet.";
 
@@ -359,9 +366,9 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     <div className="space-y-4 rounded-[18px] bg-[#07182a] text-[#eaf4ff]" data-project-scope-of-work>
       <div className="grid gap-3 md:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(118px,1fr))_190px]">
         <SummaryCard icon={<CircleDollarSign size={22} />} label="Scope Value" value={money(currentContractValue, localeTag)} sub={approvedChangeOrders.length ? "Current contract value" : "From estimate"} />
-        <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(workingMaterialBudget, localeTag)} sub={currentContractValue > 0 ? pct(workingMaterialBudget / currentContractValue) + " of total" : "0% of total"} />
-        <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(workingLaborBudget, localeTag)} sub={currentContractValue > 0 ? pct(workingLaborBudget / currentContractValue) + " of total" : "0% of total"} />
-        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(currentWorkingCost, localeTag)} sub={currentContractValue > 0 ? pct(currentWorkingCost / currentContractValue) + " of scope value" : "0% of scope value"} />
+        <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(acceptedMaterialBudget, localeTag)} sub="Accepted estimate baseline" />
+        <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(acceptedLaborBudget, localeTag)} sub="Accepted estimate baseline" />
+        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(currentEstimatedCost, localeTag)} sub={approvedChangeOrderCost > 0 ? "Estimate + approved change costs" : "Accepted estimate baseline"} />
         <SummaryCard icon={<BarChart3 size={22} />} label="Gross Margin" value={money(currentGrossMargin, localeTag)} sub={`${Number(currentGrossMarginPercent || 0).toFixed(1)}% margin`} />
         <SummaryCard icon={<ClipboardList size={22} />} label="Scope Categories" value={String(scopeGroups.length)} sub="Total categories" />
         <div className="grid gap-2">
@@ -373,6 +380,24 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
           </button>
         </div>
       </div>
+
+      {scopeMaterialized && Math.abs(workingScopeVariance) >= 0.01 ? (
+        <div className="rounded-[14px] border border-amber-400/30 bg-amber-400/[0.06] px-4 py-3" data-scope-budget-reconciliation>
+          <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-amber-300">Working Scope Reconciliation</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-[#f0dfb9]">
+            Accepted estimate cost is {money(estimatedCost, localeTag)}. Editable scope rows currently total {money(workingCost, localeTag)} ({workingScopeVariance > 0 ? "+" : ""}{money(workingScopeVariance, localeTag)} variance). Financial reporting keeps the accepted estimate as the contract baseline until the budget is intentionally revised.
+          </p>
+        </div>
+      ) : null}
+
+      {approvedChangeOrderCost > 0 && approvedChangeOrderValue <= 0 ? (
+        <div className="rounded-[14px] border border-amber-400/30 bg-amber-400/[0.06] px-4 py-3" data-unpriced-change-order-warning>
+          <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-amber-300">Approved Change Order Has Cost but No Contract Value</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-[#f0dfb9]">
+            Approved change-order cost is {money(approvedChangeOrderCost, localeTag)}, while the approved customer increase is {money(approvedChangeOrderValue, localeTag)}. This is why projected margin is being reduced.
+          </p>
+        </div>
+      ) : null}
 
       {approvedChangeOrders.length ? (
         <div className="grid gap-3 rounded-[16px] border border-cyan-400/25 bg-cyan-400/[0.045] p-3 sm:grid-cols-3" data-approved-change-orders-summary>
@@ -470,10 +495,17 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
             </tbody>
             <tfoot>
               <tr className="border-t border-[#315a78] bg-[#081c2d] text-sm font-black text-white">
-                <td className="px-2 py-3" colSpan={3}>Total</td>
-                <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.materialCost, 0), localeTag)}</td>
-                <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.laborCost, 0), localeTag)}</td>
-                <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.totalCost, 0) + approvedChangeOrderCost, localeTag)}</td>
+                <td className="px-2 py-3" colSpan={3}>Working Scope Total</td>
+                <td className="px-2 py-3 text-right">{money(workingMaterialBudget, localeTag)}</td>
+                <td className="px-2 py-3 text-right">{money(workingLaborBudget, localeTag)}</td>
+                <td className="px-2 py-3 text-right">{money(workingCost + approvedChangeOrderCost, localeTag)}</td>
+                <td />
+              </tr>
+              <tr className="border-t border-[#315a78] bg-[#0a2135] text-sm font-black text-cyan-100">
+                <td className="px-2 py-3" colSpan={3}>Accepted Estimate Baseline</td>
+                <td className="px-2 py-3 text-right">{money(acceptedMaterialBudget, localeTag)}</td>
+                <td className="px-2 py-3 text-right">{money(acceptedLaborBudget, localeTag)}</td>
+                <td className="px-2 py-3 text-right">{money(currentEstimatedCost, localeTag)}</td>
                 <td />
               </tr>
             </tfoot>
@@ -592,17 +624,17 @@ const CANONICAL_SCOPE = [
 ] as const;
 
 function buildScopeGroups(lines: EstimateLine[]): ScopeGroup[] {
-  const materialBudget = lines
+  const materialBudget = roundCurrency(lines
     .filter((line) => normalizeCategory(line.category).includes("material"))
-    .reduce((sum, line) => sum + Number(line.line_total || 0), 0);
-  const laborBudget = lines
+    .reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unit_cost || 0), 0));
+  const laborBudget = roundCurrency(lines
     .filter((line) => normalizeCategory(line.category).includes("labor"))
-    .reduce((sum, line) => sum + Number(line.line_total || 0), 0);
+    .reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unit_cost || 0), 0));
 
   const materialWeightTotal = CANONICAL_SCOPE.reduce((sum, row) => sum + row.materialWeight, 0);
   const laborWeightTotal = CANONICAL_SCOPE.reduce((sum, row) => sum + row.laborWeight, 0);
 
-  return CANONICAL_SCOPE.map((row, index) => {
+  const groups = CANONICAL_SCOPE.map((row, index) => {
     const materialCost = materialBudget > 0 ? roundCurrency((materialBudget * row.materialWeight) / materialWeightTotal) : 0;
     const laborCost = laborBudget > 0 ? roundCurrency((laborBudget * row.laborWeight) / laborWeightTotal) : 0;
     return {
@@ -615,6 +647,17 @@ function buildScopeGroups(lines: EstimateLine[]): ScopeGroup[] {
       color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
     };
   });
+
+  if (groups.length) {
+    const last = groups[groups.length - 1];
+    const materialResidual = roundCurrency(materialBudget - groups.reduce((sum, row) => sum + row.materialCost, 0));
+    const laborResidual = roundCurrency(laborBudget - groups.reduce((sum, row) => sum + row.laborCost, 0));
+    last.materialCost = roundCurrency(last.materialCost + materialResidual);
+    last.laborCost = roundCurrency(last.laborCost + laborResidual);
+    last.totalCost = roundCurrency(last.materialCost + last.laborCost);
+  }
+
+  return groups;
 }
 
 function roundCurrency(value: number) {
