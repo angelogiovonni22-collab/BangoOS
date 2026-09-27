@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -87,7 +87,12 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [orionVisible, setOrionVisible] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
   const mobileHistoryRef = useRef<string[]>([]);
+  const pullStartYRef = useRef<number | null>(null);
+  const pullDistanceRef = useRef(0);
+  const pullEligibleRef = useRef(false);
   const lastPathRef = useRef<string | null>(null);
   const mobileBackNavigationRef = useRef(false);
   const pathname = usePathname();
@@ -147,6 +152,92 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
     router.push(homePath);
   };
 
+  const refreshCurrentPage = () => {
+    if (refreshing || typeof window === "undefined") return;
+    setRefreshing(true);
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    try {
+      window.sessionStorage.setItem("bos-mobile-refresh-url", currentUrl);
+      window.sessionStorage.setItem("bos-mobile-refresh-scroll-y", String(window.scrollY));
+    } catch {
+      // Refresh still works when session storage is unavailable.
+    }
+    window.setTimeout(() => window.location.reload(), 120);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const savedUrl = window.sessionStorage.getItem("bos-mobile-refresh-url");
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (savedUrl !== currentUrl) return;
+      const savedScrollY = Number(window.sessionStorage.getItem("bos-mobile-refresh-scroll-y") || "0");
+      window.sessionStorage.removeItem("bos-mobile-refresh-url");
+      window.sessionStorage.removeItem("bos-mobile-refresh-scroll-y");
+      if (Number.isFinite(savedScrollY) && savedScrollY > 0) {
+        window.requestAnimationFrame(() => window.scrollTo({ top: savedScrollY, behavior: "auto" }));
+      }
+    } catch {
+      // Scroll restoration is best-effort only.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const resetPull = () => {
+      pullStartYRef.current = null;
+      pullEligibleRef.current = false;
+      pullDistanceRef.current = 0;
+      setPullDistance(0);
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (window.innerWidth >= 1024 || mobileOpen || refreshing || window.scrollY > 1 || event.touches.length !== 1) {
+        resetPull();
+        return;
+      }
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("input, textarea, select, [contenteditable='true'], [role='dialog'], [data-disable-pull-refresh]")) {
+        resetPull();
+        return;
+      }
+      pullStartYRef.current = event.touches[0].clientY;
+      pullEligibleRef.current = true;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!pullEligibleRef.current || pullStartYRef.current === null || event.touches.length !== 1) return;
+      const rawDistance = event.touches[0].clientY - pullStartYRef.current;
+      if (rawDistance <= 0) {
+        pullDistanceRef.current = 0;
+        setPullDistance(0);
+        return;
+      }
+      const resistedDistance = Math.min(96, rawDistance * 0.55);
+      pullDistanceRef.current = resistedDistance;
+      setPullDistance(resistedDistance);
+      if (rawDistance > 4 && event.cancelable) event.preventDefault();
+    };
+
+    const handleTouchEnd = () => {
+      const shouldRefresh = pullEligibleRef.current && pullDistanceRef.current >= 68;
+      resetPull();
+      if (shouldRefresh) refreshCurrentPage();
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", resetPull, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", resetPull);
+    };
+  }, [mobileOpen, refreshing]);
+
   useEffect(() => { if (pathname && !canAccessPath(normalizedRole, pathname)) router.replace(homePath); }, [homePath, normalizedRole, pathname, router]);
   useEffect(() => {
     const moduleKey = moduleForPath(pathname);
@@ -179,6 +270,18 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
   return (
     <div className="min-h-screen bg-[var(--bos-bg-root)] text-[var(--bos-text-primary)] enterprise-shell">
       <AutomaticWritingEditor />
+      {(pullDistance > 0 || refreshing) ? (
+        <div
+          data-bos-mobile-refresh-indicator="true"
+          className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+10px)] z-[100] -translate-x-1/2 lg:hidden"
+          aria-live="polite"
+        >
+          <div className="flex items-center gap-2 rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)]/95 px-3 py-2 text-xs font-bold text-[var(--bos-text-primary)] shadow-[var(--shadow-card)] backdrop-blur">
+            <RefreshCw size={15} className={refreshing ? "animate-spin text-sky-300" : pullDistance >= 68 ? "rotate-180 text-emerald-300 transition-transform" : "text-sky-300 transition-transform"} aria-hidden="true" />
+            <span>{refreshing ? "Refreshing…" : pullDistance >= 68 ? "Release to refresh" : "Pull to refresh"}</span>
+          </div>
+        </div>
+      ) : null}
       {orionEnabled && orionVisible ? <PersistentOrion onOpenCommandCenter={() => setCommandCenterOpen(true)} onHide={() => { setCommandCenterOpen(false); setOrionVisible(false); }} /> : null}
       <div className="flex min-h-screen min-w-0">
         <LayerManager layer={mobileOpen ? "dialog" : "popover"}>
@@ -219,6 +322,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
                 <div className="flex min-w-0 items-start gap-3 sm:items-center">
                   {pathname && pathname !== homePath ? <button type="button" aria-label={t("common.back")} title={t("common.back")} onClick={handleMobileBack} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)] lg:hidden"><ArrowLeft size={20} aria-hidden="true" /></button> : null}
                   <button type="button" aria-label={t("common.openSidebar")} aria-controls="bangoos-sidebar" aria-expanded={mobileOpen} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] lg:hidden" onClick={() => setMobileOpen(true)}><span className="text-lg">☰</span></button>
+                  <button type="button" aria-label="Refresh current page" title="Refresh current page" data-bos-mobile-refresh-button="true" disabled={refreshing} onClick={refreshCurrentPage} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] text-[var(--bos-text-primary)] shadow-[var(--shadow-small)] transition hover:bg-[var(--bos-bg-hover)] disabled:opacity-60 lg:hidden"><RefreshCw size={19} className={refreshing ? "animate-spin" : ""} aria-hidden="true" /></button>
                   {isDashboard ? <p className="truncate text-sm font-medium uppercase tracking-[0.28em] text-[var(--bos-text-primary)] sm:text-base">Bango Operating System</p> : <div className="min-w-0 space-y-1.5">
                     <p className="truncate text-sm font-medium text-[var(--bos-text-secondary)]">{companyName || t("common.operationsWorkspace")}</p><NavigationBreadcrumb />
                     {!['subcontractor', 'customer'].includes(normalizedRole) ? <DepartmentNavigator t={t} /> : <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--bos-text-muted)]">{formatRole(normalizedRole)}</p>}
