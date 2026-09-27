@@ -189,6 +189,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
   const summary = props.financialReport?.summary;
   const originalContract = summary?.originalEstimate || props.contractValue || 0;
   const approvedChangeOrders = summary?.approvedChangeOrders || 0;
+  const approvedChangeOrderCost = summary?.approvedChangeOrderCost || 0;
   const revisedContract = summary?.revisedContractValue || props.contractValue || 0;
   const invoiced = summary?.amountInvoiced || 0;
   const paid = summary?.paymentsReceived || 0;
@@ -320,9 +321,16 @@ export function ProjectOverviewCommandCenter(props: Props) {
             <CompactMetric label="Committed Cost" value={money(committed, props.localeTag)} />
             <CompactMetric label="Cost to Complete" value={money(remainingCost, props.localeTag)} />
           </div>
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-400/25 bg-emerald-400/5 px-3 py-3">
-            <div><p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-emerald-300">Projected Gross Margin</p><p className="mt-1 text-lg font-black text-emerald-300">{money(grossProfit, props.localeTag)}</p></div>
-            <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-sm font-black text-emerald-200">{margin === null || margin === undefined ? "—" : `${margin.toFixed(1)}%`}</span>
+          {approvedChangeOrderCost > 0 && approvedChangeOrders <= 0 ? (
+            <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-3 py-3" data-unpriced-change-order-warning>
+              <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-amber-300">Change Order Pricing Warning</p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-[#f4e2b6]">Approved change-order cost is {money(approvedChangeOrderCost, props.localeTag)}, but the customer contract increase is {money(approvedChangeOrders, props.localeTag)}. This cost is reducing projected margin.</p>
+              <Link href={`/projects/${props.projectId}?tab=change_orders`} className="mt-2 inline-flex text-xs font-extrabold text-amber-200 underline underline-offset-2">Review Change Order →</Link>
+            </div>
+          ) : null}
+          <div className={`mt-3 flex items-center justify-between gap-3 rounded-xl border px-3 py-3 ${grossProfit < 0 ? "border-red-400/30 bg-red-400/[0.07]" : "border-emerald-400/25 bg-emerald-400/5"}`}>
+            <div><p className={`text-[10px] font-extrabold uppercase tracking-[.08em] ${grossProfit < 0 ? "text-red-300" : "text-emerald-300"}`}>Projected Gross Margin</p><p className={`mt-1 text-lg font-black ${grossProfit < 0 ? "text-red-300" : "text-emerald-300"}`}>{money(grossProfit, props.localeTag)}</p></div>
+            <span className={`rounded-full border px-2.5 py-1 text-sm font-black ${grossProfit < 0 ? "border-red-400/25 bg-red-400/10 text-red-200" : "border-emerald-400/25 bg-emerald-400/10 text-emerald-200"}`}>{margin === null || margin === undefined ? "—" : `${margin.toFixed(1)}%`}</span>
           </div>
         </Panel>
       </div>
