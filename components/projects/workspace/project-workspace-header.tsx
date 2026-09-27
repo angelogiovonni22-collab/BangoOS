@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CheckCircle2,
+  ChevronDown,
   FileText,
   Pencil,
   Receipt,
@@ -44,8 +45,9 @@ export function ProjectWorkspaceHeader({
   const l = (en: string, spanish: string) => es ? spanish : en;
   const pathname = usePathname();
   const [shareState, setShareState] = useState<"idle" | "copied">("idle");
-  const [completeBusy, setCompleteBusy] = useState(false);
-  const [completeMessage, setCompleteMessage] = useState<string | null>(null);
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const statusTone = useMemo(() => statusToneClass(statusKey), [statusKey]);
   const projectId = useMemo(() => {
     const match = pathname.match(/^\/projects\/([^/?#]+)/);
@@ -82,27 +84,64 @@ export function ProjectWorkspaceHeader({
     }
   };
 
-  const handleCompleteProject = async () => {
-    if (!projectId || statusKey === "completed") return;
-    const confirmed = window.confirm(
-      es
-        ? `¿Marcar ${projectName} como completado? B.O.S. lo quitará automáticamente de los portales activos de socios comerciales y conservará todo el historial de contratistas.`
-        : `Mark ${projectName} complete? B.O.S. will automatically remove this project from active Trade Partner portals and preserve all contractor history.`,
-    );
-    if (!confirmed) return;
+  const handleProjectStatus = async (nextStatus: "in_progress" | "on_hold" | "delayed" | "completed") => {
+    if (!projectId || statusBusy) return;
+    setStatusMenuOpen(false);
 
-    setCompleteBusy(true);
-    setCompleteMessage(null);
+    if (nextStatus === "completed") {
+      const confirmed = window.confirm(
+        es
+          ? `¿Completar ${projectName}? B.O.S. iniciará el cierre, preparará la factura final y quitará el proyecto de los portales activos de socios comerciales.`
+          : `Complete ${projectName}? B.O.S. will start closeout, prepare the final invoice, and remove the project from active Trade Partner portals.`,
+      );
+      if (!confirmed) return;
+
+      setStatusBusy(true);
+      setStatusMessage(null);
+      try {
+        const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/complete`, { method: "POST" });
+        const body = await response.json() as { error?: string; message?: string };
+        if (!response.ok) throw new Error(body.error || l("Unable to complete project.", "No se pudo completar el proyecto."));
+        setStatusMessage(body.message || l("Project completed.", "Proyecto completado."));
+        window.setTimeout(() => window.location.reload(), 500);
+      } catch (error) {
+        setStatusMessage(error instanceof Error ? error.message : l("Unable to complete project.", "No se pudo completar el proyecto."));
+      } finally {
+        setStatusBusy(false);
+      }
+      return;
+    }
+
+    let reason = "";
+    if (nextStatus === "on_hold" || nextStatus === "delayed") {
+      const promptText = nextStatus === "on_hold"
+        ? l("Why is this project being paused? This reason will be included in the Trade Partner alert.", "¿Por qué se pausa este proyecto? Este motivo se incluirá en la alerta al socio comercial.")
+        : l("Why is this project delayed? This reason will be included in the Trade Partner alert.", "¿Por qué está retrasado este proyecto? Este motivo se incluirá en la alerta al socio comercial.");
+      const entered = window.prompt(promptText, "");
+      if (entered === null) return;
+      reason = entered.trim();
+      if (!reason) {
+        setStatusMessage(l("Enter a reason before pausing or delaying the project.", "Ingresa un motivo antes de pausar o retrasar el proyecto."));
+        return;
+      }
+    }
+
+    setStatusBusy(true);
+    setStatusMessage(null);
     try {
-      const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/complete`, { method: "POST" });
+      const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus, reason }),
+      });
       const body = await response.json() as { error?: string; message?: string };
-      if (!response.ok) throw new Error(body.error || l("Unable to complete project.", "No se pudo completar el proyecto."));
-      setCompleteMessage(body.message || l("Project completed.", "Proyecto completado."));
+      if (!response.ok) throw new Error(body.error || l("Unable to update project status.", "No se pudo actualizar el estado del proyecto."));
+      setStatusMessage(body.message || l("Project status updated.", "Estado del proyecto actualizado."));
       window.setTimeout(() => window.location.reload(), 500);
     } catch (error) {
-      setCompleteMessage(error instanceof Error ? error.message : l("Unable to complete project.", "No se pudo completar el proyecto."));
+      setStatusMessage(error instanceof Error ? error.message : l("Unable to update project status.", "No se pudo actualizar el estado del proyecto."));
     } finally {
-      setCompleteBusy(false);
+      setStatusBusy(false);
     }
   };
 
@@ -176,23 +215,51 @@ export function ProjectWorkspaceHeader({
               )}
             </div>
 
-            {statusKey !== "completed" && statusKey !== "cancelled" ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={completeBusy || !projectId}
-                onClick={() => void handleCompleteProject()}
-                className="rounded-[11px] border-emerald-500/60 bg-emerald-500/10 px-3.5 py-2 text-[0.8rem] font-semibold text-emerald-200 hover:bg-emerald-500/20"
-              >
-                <CheckCircle2 size={15} aria-hidden="true" />
-                {completeBusy ? l("Completing Project…", "Completando proyecto…") : l("Project Complete", "Completar proyecto")}
-              </Button>
+            {statusKey !== "cancelled" ? (
+              <div className="relative">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={statusBusy || !projectId || statusKey === "completed"}
+                  onClick={() => setStatusMenuOpen((open) => !open)}
+                  aria-haspopup="menu"
+                  aria-expanded={statusMenuOpen}
+                  className={`min-w-[190px] justify-between rounded-[11px] px-3.5 py-2 text-[0.8rem] font-semibold ${projectStatusControlClass(statusKey)}`}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <CheckCircle2 size={15} aria-hidden="true" />
+                    {statusBusy ? l("Updating Status…", "Actualizando estado…") : `${l("Project Status", "Estado del proyecto")}: ${projectStatusActionLabel(statusKey, es)}`}
+                  </span>
+                  {statusKey !== "completed" ? <ChevronDown size={14} aria-hidden="true" /> : null}
+                </Button>
+                {statusMenuOpen && statusKey !== "completed" ? (
+                  <div role="menu" className="absolute right-0 z-50 mt-2 w-[210px] overflow-hidden rounded-xl border border-[#41658d] bg-[#0b1930] p-1.5 shadow-2xl">
+                    {[
+                      { value: "in_progress" as const, label: l("Active", "Activo") },
+                      { value: "on_hold" as const, label: l("Paused", "Pausado") },
+                      { value: "delayed" as const, label: l("Delayed", "Retrasado") },
+                      { value: "completed" as const, label: l("Complete", "Completo") },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => void handleProjectStatus(option.value)}
+                        className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-[#e6f0ff] hover:bg-[#17345a]"
+                      >
+                        <span>{option.label}</span>
+                        {statusKey === option.value ? <CheckCircle2 size={14} className="text-emerald-300" aria-hidden="true" /> : null}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             ) : null}
           </div>
         }
       />
-      {completeMessage ? <div className="mx-4 mt-2 rounded-lg border border-emerald-300/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100">{completeMessage}</div> : null}
+      {statusMessage ? <div className="mx-4 mt-2 rounded-lg border border-sky-300/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100">{statusMessage}</div> : null}
       <ProjectHeaderWeatherStrip />
     </div>
   );
@@ -201,7 +268,26 @@ export function ProjectWorkspaceHeader({
 function statusToneClass(statusKey: string): "brand" | "success" | "warning" | "danger" | "neutral" | "info" {
   if (statusKey === "completed") return "success";
   if (statusKey === "cancelled") return "danger";
-  if (statusKey === "on_hold") return "warning";
+  if (statusKey === "on_hold" || statusKey === "delayed") return "warning";
   if (statusKey === "estimating" || statusKey === "lead") return "neutral";
   return "brand";
+}
+
+
+function projectStatusActionLabel(statusKey: string, es: boolean) {
+  if (statusKey === "in_progress") return es ? "Activo" : "Active";
+  if (statusKey === "on_hold") return es ? "Pausado" : "Paused";
+  if (statusKey === "delayed") return es ? "Retrasado" : "Delayed";
+  if (statusKey === "completed") return es ? "Completo" : "Complete";
+  if (statusKey === "approved") return es ? "Aprobado" : "Approved";
+  if (statusKey === "scheduled") return es ? "Programado" : "Scheduled";
+  return statusKey.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function projectStatusControlClass(statusKey: string) {
+  if (statusKey === "completed") return "border-emerald-500/60 bg-emerald-500/10 text-emerald-200";
+  if (statusKey === "delayed") return "border-rose-400/60 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20";
+  if (statusKey === "on_hold") return "border-amber-400/60 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20";
+  if (statusKey === "in_progress") return "border-sky-400/60 bg-sky-500/10 text-sky-100 hover:bg-sky-500/20";
+  return "border-[#5678a7] bg-[#152a4b] text-[#e7f1ff] hover:bg-[#1d3c68]";
 }
