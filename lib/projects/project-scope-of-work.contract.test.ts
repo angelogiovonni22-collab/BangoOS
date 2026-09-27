@@ -107,3 +107,20 @@ test("working scope line items are editable without mutating the accepted estima
   assert.match(scope, /\.update\(\{/);
   assert.match(scope, /\.delete\(\)/);
 });
+
+
+test("approved change orders become highlighted live scope without mutating the estimate", () => {
+  assert.match(scope, /\.from\("change_orders"\)/);
+  assert.match(scope, /\.eq\("project_id", projectId\)/);
+  assert.match(scope, /\.in\("status", \["approved", "invoiced"\]\)/);
+  assert.match(scope, /\.is\("archived_at", null\)/);
+  assert.match(scope, /change_order_line_items\(id,sort_order,description,cost_amount,price_amount,notes\)/);
+  assert.match(scope, /Approved Change Orders/);
+  assert.match(scope, /Current Contract Value/);
+  assert.match(scope, /CHANGE ORDER ·/);
+  assert.match(scope, /data-approved-change-order-row/);
+  assert.match(scope, /Approved Change/);
+  assert.match(scope, /\/change-orders\/\$\{changeOrder\.id\}/);
+  assert.match(scope, /approvedChangeOrderCost/);
+  assert.match(scope, /internal cost is included in Total Cost without inventing a material\/labor split/);
+});
