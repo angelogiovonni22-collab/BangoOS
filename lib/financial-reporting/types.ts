@@ -33,6 +33,7 @@ export type ProjectFinancialSummary = {
   projectName: string;
   originalEstimate: number;
   approvedChangeOrders: number;
+  approvedChangeOrderCost: number;
   revisedContractValue: number;
   originalBudget: number;
   revisedBudget: number;
