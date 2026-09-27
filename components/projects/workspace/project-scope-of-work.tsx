@@ -67,6 +67,29 @@ type ProjectScopeItem = {
   color: string | null;
 };
 
+type ChangeOrderLineItem = {
+  id: string;
+  sort_order: number;
+  description: string;
+  cost_amount: number;
+  price_amount: number;
+  notes: string | null;
+};
+
+type ApprovedChangeOrder = {
+  id: string;
+  change_order_number: string;
+  title: string;
+  description: string | null;
+  status: "approved" | "invoiced";
+  subtotal: number;
+  tax_amount: number;
+  total_amount: number;
+  approved_at: string | null;
+  effective_date: string | null;
+  change_order_line_items: ChangeOrderLineItem[] | null;
+};
+
 type ScopeGroup = {
   id?: string;
   sortOrder?: number;
@@ -93,6 +116,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   const [estimate, setEstimate] = useState<EstimateRow | null>(null);
   const [lines, setLines] = useState<EstimateLine[]>([]);
   const [savedScopeItems, setSavedScopeItems] = useState<ProjectScopeItem[]>([]);
+  const [approvedChangeOrders, setApprovedChangeOrders] = useState<ApprovedChangeOrder[]>([]);
   const [scopeMaterialized, setScopeMaterialized] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -134,20 +158,30 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         .eq("company_id", companyId)
         .eq("project_id", projectId)
         .order("sort_order", { ascending: true }),
+      db
+        .from("change_orders")
+        .select("id,change_order_number,title,description,status,subtotal,tax_amount,total_amount,approved_at,effective_date,change_order_line_items(id,sort_order,description,cost_amount,price_amount,notes)")
+        .eq("company_id", companyId)
+        .eq("project_id", projectId)
+        .in("status", ["approved", "invoiced"])
+        .is("archived_at", null)
+        .order("approved_at", { ascending: true, nullsFirst: false }),
     ]);
 
     void request
-      .then(([estimateResult, lineResult, scopeResult]) => {
+      .then(([estimateResult, lineResult, scopeResult, changeOrderResult]) => {
         if (!active) return;
         if (estimateResult.error) throw new Error(estimateResult.error.message);
         if (lineResult.error) throw new Error(lineResult.error.message);
         if (scopeResult.error) throw new Error(scopeResult.error.message);
+        if (changeOrderResult.error) throw new Error(changeOrderResult.error.message);
 
         setEstimate((estimateResult.data || null) as EstimateRow | null);
         setLines((lineResult.data || []) as EstimateLine[]);
         const scopeRows = (scopeResult.data || []) as ProjectScopeItem[];
         setSavedScopeItems(scopeRows);
         setScopeMaterialized(scopeRows.length > 0);
+        setApprovedChangeOrders((changeOrderResult.data || []) as ApprovedChangeOrder[]);
       })
       .catch((caught: unknown) => {
         if (active) setError(caught instanceof Error ? caught.message : "Unable to load scope of work.");
@@ -165,14 +199,21 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     [generatedScopeGroups, savedScopeItems, scopeMaterialized],
   );
   const estimatedCost = Number(estimate?.internal_cost_total || lines.reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unit_cost || 0), 0));
-  const scopeValue = Number(estimate?.total_amount || 0);
-  const grossMargin = Number(estimate?.gross_profit ?? Math.max(0, scopeValue - estimatedCost));
-  const grossMarginPercent = estimate?.gross_margin_percent ?? (scopeValue > 0 ? (grossMargin / scopeValue) * 100 : 0);
+  const originalContractValue = Number(estimate?.total_amount || 0);
+  const approvedChangeOrderValue = approvedChangeOrders.reduce((sum, changeOrder) => sum + Number(changeOrder.total_amount || 0), 0);
+  const approvedChangeOrderCost = approvedChangeOrders.reduce(
+    (sum, changeOrder) => sum + (changeOrder.change_order_line_items || []).reduce((lineSum, line) => lineSum + Number(line.cost_amount || 0), 0),
+    0,
+  );
+  const currentContractValue = originalContractValue + approvedChangeOrderValue;
+  const grossMargin = Number(estimate?.gross_profit ?? Math.max(0, originalContractValue - estimatedCost));
+  const grossMarginPercent = estimate?.gross_margin_percent ?? (originalContractValue > 0 ? (grossMargin / originalContractValue) * 100 : 0);
   const workingMaterialBudget = scopeGroups.reduce((sum, row) => sum + row.materialCost, 0);
   const workingLaborBudget = scopeGroups.reduce((sum, row) => sum + row.laborCost, 0);
   const workingCost = workingMaterialBudget + workingLaborBudget;
-  const workingGrossMargin = scopeValue - workingCost;
-  const workingGrossMarginPercent = scopeValue > 0 ? (workingGrossMargin / scopeValue) * 100 : 0;
+  const currentWorkingCost = (scopeMaterialized ? workingCost : estimatedCost) + approvedChangeOrderCost;
+  const currentGrossMargin = currentContractValue - currentWorkingCost;
+  const currentGrossMarginPercent = currentContractValue > 0 ? (currentGrossMargin / currentContractValue) * 100 : 0;
   const scopeSummary = estimate?.description?.trim() || lines.map((line) => line.description).filter(Boolean).join(" ") || "No scope summary has been entered yet.";
 
   const db = supabase as unknown as {
@@ -319,11 +360,11 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   return (
     <div className="space-y-4 rounded-[18px] bg-[#07182a] text-[#eaf4ff]" data-project-scope-of-work>
       <div className="grid gap-3 md:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(118px,1fr))_190px]">
-        <SummaryCard icon={<CircleDollarSign size={22} />} label="Scope Value" value={money(scopeValue, localeTag)} sub="From estimate" />
-        <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(workingMaterialBudget, localeTag)} sub={scopeValue > 0 ? pct(workingMaterialBudget / scopeValue) + " of total" : "0% of total"} />
-        <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(workingLaborBudget, localeTag)} sub={scopeValue > 0 ? pct(workingLaborBudget / scopeValue) + " of total" : "0% of total"} />
-        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(scopeMaterialized ? workingCost : estimatedCost, localeTag)} sub={scopeValue > 0 ? pct((scopeMaterialized ? workingCost : estimatedCost) / scopeValue) + " of scope value" : "0% of scope value"} />
-        <SummaryCard icon={<BarChart3 size={22} />} label="Gross Margin" value={money(scopeMaterialized ? workingGrossMargin : grossMargin, localeTag)} sub={`${Number(scopeMaterialized ? workingGrossMarginPercent : grossMarginPercent || 0).toFixed(1)}% margin`} />
+        <SummaryCard icon={<CircleDollarSign size={22} />} label="Scope Value" value={money(currentContractValue, localeTag)} sub={approvedChangeOrders.length ? "Current contract value" : "From estimate"} />
+        <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(workingMaterialBudget, localeTag)} sub={currentContractValue > 0 ? pct(workingMaterialBudget / currentContractValue) + " of total" : "0% of total"} />
+        <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(workingLaborBudget, localeTag)} sub={currentContractValue > 0 ? pct(workingLaborBudget / currentContractValue) + " of total" : "0% of total"} />
+        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(currentWorkingCost, localeTag)} sub={currentContractValue > 0 ? pct(currentWorkingCost / currentContractValue) + " of scope value" : "0% of scope value"} />
+        <SummaryCard icon={<BarChart3 size={22} />} label="Gross Margin" value={money(currentGrossMargin, localeTag)} sub={`${Number(currentGrossMarginPercent || 0).toFixed(1)}% margin`} />
         <SummaryCard icon={<ClipboardList size={22} />} label="Scope Categories" value={String(scopeGroups.length)} sub="Total categories" />
         <div className="grid gap-2">
           <Link href={`/estimates/${estimate.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#318ef1] bg-[linear-gradient(180deg,#2f8cff,#156dd1)] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(20,105,210,.24)] transition hover:brightness-110">
@@ -334,6 +375,14 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
           </button>
         </div>
       </div>
+
+      {approvedChangeOrders.length ? (
+        <div className="grid gap-3 rounded-[16px] border border-cyan-400/25 bg-cyan-400/[0.045] p-3 sm:grid-cols-3" data-approved-change-orders-summary>
+          <ContractValue label="Original Contract" value={money(originalContractValue, localeTag)} />
+          <ContractValue label="Approved Change Orders" value={`+${money(approvedChangeOrderValue, localeTag)}`} accent />
+          <ContractValue label="Current Contract Value" value={money(currentContractValue, localeTag)} strong />
+        </div>
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,.75fr)]">
         <Panel title="Scope of Work Summary" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
@@ -392,21 +441,48 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                   </td>
                 </tr>
               ))}
-              {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the project yet.</td></tr> : null}
+              {approvedChangeOrders.map((changeOrder) => {
+                const internalCost = (changeOrder.change_order_line_items || []).reduce((sum, line) => sum + Number(line.cost_amount || 0), 0);
+                const details = changeOrderScopeDetails(changeOrder);
+                return (
+                  <tr key={changeOrder.id} className="border-b border-cyan-300/20 bg-cyan-400/[0.075] text-sm last:border-b-0" data-approved-change-order-row>
+                    <td className="px-1.5 py-3 font-semibold text-cyan-200">CO</td>
+                    <td className="px-1.5 py-3 align-top">
+                      <div className="flex flex-col items-start gap-1.5">
+                        <Link href={`/change-orders/${changeOrder.id}`} className="inline-flex rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.06em] text-cyan-100 hover:bg-cyan-300/15">
+                          CHANGE ORDER · {changeOrder.change_order_number}
+                        </Link>
+                        <span className="text-xs font-extrabold text-white">{changeOrder.title}</span>
+                      </div>
+                    </td>
+                    <td className="max-w-[370px] px-2 py-3 align-top text-xs leading-5 text-[#d7ecf4]">{details}</td>
+                    <td className="px-1.5 py-3 text-right font-bold text-[#8fb0c4]">—</td>
+                    <td className="px-1.5 py-3 text-right font-bold text-[#8fb0c4]">—</td>
+                    <td className="px-1.5 py-3 text-right align-top">
+                      <div className="font-black text-white">{money(internalCost, localeTag)}</div>
+                      <div className="mt-1 text-[10px] font-extrabold text-cyan-200">+{money(changeOrder.total_amount, localeTag)} contract</div>
+                    </td>
+                    <td className="px-1.5 py-3 text-right align-top">
+                      <span className="inline-flex rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-extrabold text-cyan-100">Approved Change</span>
+                    </td>
+                  </tr>
+                );
+              })}
+                            {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the project yet.</td></tr> : null}
             </tbody>
             <tfoot>
               <tr className="border-t border-[#315a78] bg-[#081c2d] text-sm font-black text-white">
                 <td className="px-2 py-3" colSpan={3}>Total</td>
                 <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.materialCost, 0), localeTag)}</td>
                 <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.laborCost, 0), localeTag)}</td>
-                <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.totalCost, 0), localeTag)}</td>
+                <td className="px-2 py-3 text-right">{money(scopeGroups.reduce((sum, row) => sum + row.totalCost, 0) + approvedChangeOrderCost, localeTag)}</td>
                 <td />
               </tr>
             </tfoot>
           </table>
         </div>
         {scopeActionError ? <p className="mt-2 rounded-lg border border-red-400/30 bg-red-400/[0.06] px-3 py-2 text-xs font-semibold text-red-200">{scopeActionError}</p> : null}
-        <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Material and labor costs are managed directly in the scope rows above. Edit a category to change its costs, details, or status.</p>
+        <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Material and labor costs are managed directly in the base scope rows above. Approved change orders are highlighted separately and stay linked to their signed customer approval record; their internal cost is included in Total Cost without inventing a material/labor split.</p>
       </Panel>
 
       <Panel title="Notes / Inclusions / Exclusions" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
@@ -449,6 +525,11 @@ const inputClass = "w-full rounded-lg border border-[#315a78] bg-[#061521] px-3 
 const panelClass = "rounded-[17px] border border-[#1d4564] bg-[linear-gradient(180deg,#071a2b,#061624)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.025)]";
 const outlineButton = "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#2f678f] bg-[#092239] px-3 text-xs font-extrabold text-[#dcefff] transition hover:bg-[#0d2d49]";
 
+function ContractValue({ label, value, accent = false, strong = false }: { label: string; value: string; accent?: boolean; strong?: boolean }) {
+  const valueClass = strong ? "text-white" : accent ? "text-cyan-200" : "text-[#dcecf7]";
+  return <div className="rounded-xl border border-[#214966] bg-[#071b2c] px-4 py-3"><p className="text-[10px] font-extrabold uppercase tracking-[.07em] text-[#83a4be]">{label}</p><p className={`mt-1 text-lg font-black ${valueClass}`}>{value}</p></div>;
+}
+
 function SummaryCard({ icon, label, value, sub }: { icon: ReactNode; label: string; value: string; sub: string }) {
   return <div className="rounded-[14px] border border-[#1d4564] bg-[linear-gradient(180deg,#08203a,#07182a)] p-3"><div className="flex items-start gap-2.5"><span className="mt-0.5 text-[#51b5ff]">{icon}</span><div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[.07em] text-[#83a4be]">{label}</p><p className="mt-1 whitespace-nowrap text-[17px] font-black leading-5 text-white">{value}</p><p className="mt-0.5 text-[11px] font-semibold text-[#8ba6ba]">{sub}</p></div></div></div>;
 }
@@ -466,6 +547,15 @@ function StatusPill({ status }: { status: string }) {
   const normalized = normalizeScopeStatus(status);
   const style = normalized.includes("complete") ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : normalized.includes("progress") ? "border-sky-400/40 bg-sky-400/10 text-sky-300" : normalized.includes("order") ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : "border-[#3a617c] bg-[#0d2a43] text-[#c8def0]";
   return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${style}`}>{scopeStatusLabel(status)}</span>;
+}
+
+function changeOrderScopeDetails(changeOrder: ApprovedChangeOrder) {
+  const lineDescriptions = (changeOrder.change_order_line_items || [])
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((line) => line.description.trim())
+    .filter(Boolean);
+  return lineDescriptions.join(" · ") || changeOrder.description?.trim() || "Approved change to project scope.";
 }
 
 function scopeItemToGroup(item: ProjectScopeItem): ScopeGroup {
