@@ -121,3 +121,9 @@ assert.match(projectStatusRoute, /\.eq\("role", "subcontractor"\)/, "Trade Partn
 assert.match(projectStatusRoute, /\.from\("bos_notifications"\)\.insert\(notificationRows\)/, "status changes must create Trade Partner portal alerts");
 assert.match(projectStatusRoute, /source_module: "project_status"/, "status alerts must be traceable to the project status workflow");
 assert.match(projectStatusRoute, /existing\.data\.status === nextStatus/, "re-saving the same project status must not send duplicate alerts");
+
+
+assert.match(redesignedOverview, /approvedChangeOrderCost/, "project financial overview must distinguish approved change-order cost from customer contract value");
+assert.match(redesignedOverview, /Change Order Pricing Warning/, "zero-value approved change work must explain its margin impact");
+assert.match(redesignedOverview, /data-unpriced-change-order-warning/, "unpriced approved change work warning must be visible and testable");
+assert.match(redesignedOverview, /grossProfit < 0/, "negative projected margin must render as a risk state instead of success green");

@@ -124,3 +124,23 @@ test("approved change orders become highlighted live scope without mutating the 
   assert.match(scope, /approvedChangeOrderCost/);
   assert.match(scope, /internal cost is included in Total Cost without inventing a material\/labor split/);
 });
+
+
+test("scope financial summary stays tied to the accepted estimate baseline", () => {
+  assert.match(scope, /acceptedMaterialBudget/);
+  assert.match(scope, /acceptedLaborBudget/);
+  assert.match(scope, /currentEstimatedCost = estimatedCost \+ approvedChangeOrderCost/);
+  assert.match(scope, /Accepted Estimate Baseline/);
+  assert.match(scope, /Working Scope Reconciliation/);
+  assert.match(scope, /data-scope-budget-reconciliation/);
+  assert.match(scope, /workingScopeVariance/);
+  assert.match(scope, /quantity \|\| 0\) \* Number\(line\.unit_cost \|\| 0\)/);
+  assert.match(scope, /materialResidual/);
+  assert.match(scope, /laborResidual/);
+});
+
+test("scope warns when approved change work has cost but no customer value", () => {
+  assert.match(scope, /data-unpriced-change-order-warning/);
+  assert.match(scope, /Approved Change Order Has Cost but No Contract Value/);
+  assert.match(scope, /approvedChangeOrderCost > 0 && approvedChangeOrderValue <= 0/);
+});

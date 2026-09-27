@@ -687,6 +687,7 @@ export async function buildProjectFinancialReport(params: {
       projectName: project.name,
       originalEstimate,
       approvedChangeOrders,
+      approvedChangeOrderCost,
       revisedContractValue,
       originalBudget,
       revisedBudget,
@@ -704,6 +705,7 @@ export async function buildProjectFinancialReport(params: {
       metricSources: {
         originalEstimate: ["estimates.total_amount"],
         approvedChangeOrders: ["change_orders.total_amount"],
+        approvedChangeOrderCost: ["change_order_line_items.cost_amount"],
         revisedContractValue: ["projects.contract_amount", "change_orders.total_amount", "derived"],
         originalBudget: ["projects.estimated_cost", "estimates.internal_cost_total", "derived"],
         revisedBudget: ["change_order_line_items.cost_amount", "derived"],
