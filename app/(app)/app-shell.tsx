@@ -4,7 +4,7 @@ import Image from "next/image";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MotionProvider } from "@/components/motion";
 import { OrionCommandCenterOverlay } from "@/components/orion/command-center";
 import { PersistentOrion } from "@/components/orion/persistent";
@@ -152,7 +152,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
     router.push(homePath);
   };
 
-  const refreshCurrentPage = () => {
+  const refreshCurrentPage = useCallback(() => {
     if (refreshing || typeof window === "undefined") return;
     setRefreshing(true);
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -163,7 +163,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
       // Refresh still works when session storage is unavailable.
     }
     window.setTimeout(() => window.location.reload(), 120);
-  };
+  }, [refreshing]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -236,7 +236,7 @@ function AppShellFrame({ children, userName, userEmail, companyName, role, orion
       window.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("touchcancel", resetPull);
     };
-  }, [mobileOpen, refreshing]);
+  }, [mobileOpen, refreshCurrentPage, refreshing]);
 
   useEffect(() => { if (pathname && !canAccessPath(normalizedRole, pathname)) router.replace(homePath); }, [homePath, normalizedRole, pathname, router]);
   useEffect(() => {
