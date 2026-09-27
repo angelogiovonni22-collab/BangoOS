@@ -24,3 +24,21 @@ test("mobile back control is localized", () => {
 });
 
 console.log("Mobile back navigation contract passed.");
+
+
+test("mobile app shell supports pull-to-refresh and a visible refresh control", () => {
+  assert.match(shell, /RefreshCw/);
+  assert.match(shell, /data-bos-mobile-refresh-button/);
+  assert.match(shell, /data-bos-mobile-refresh-indicator/);
+  assert.match(shell, /touchstart/);
+  assert.match(shell, /touchmove/);
+  assert.match(shell, /touchend/);
+  assert.match(shell, /pullDistanceRef/);
+  assert.match(shell, /Release to refresh/);
+  assert.match(shell, /window\.location\.reload\(\)/);
+  assert.match(shell, /bos-mobile-refresh-url/);
+  assert.match(shell, /bos-mobile-refresh-scroll-y/);
+  assert.match(shell, /window\.scrollTo/);
+  assert.match(shell, /event\.preventDefault\(\)/);
+  assert.match(shell, /window\.innerWidth >= 1024/);
+});
