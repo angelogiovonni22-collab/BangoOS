@@ -532,7 +532,7 @@ export default function NewProjectPage() {
                 onChange={(event) => updateField("status", event.target.value)}
                 required
               >
-                {PROJECT_STATUSES.filter((option) => !["completed", "cancelled"].includes(option.value)).map((option) => (
+                {PROJECT_STATUSES.filter((option) => !["delayed", "completed", "cancelled"].includes(option.value)).map((option) => (
                   <option key={option.value} value={option.value}>
                     {getProjectStatusLabel(option.value, t)}
                   </option>
@@ -883,6 +883,7 @@ function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
     scheduled: "projects.statusScheduled",
     in_progress: "projects.statusInProgress",
     on_hold: "projects.statusOnHold",
+    delayed: "projects.statusDelayed",
     completed: "projects.statusCompleted",
     cancelled: "projects.statusCancelled",
   };

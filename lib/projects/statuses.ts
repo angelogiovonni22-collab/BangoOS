@@ -4,7 +4,8 @@ export const PROJECT_STATUSES = [
   { value: "approved", label: "Approved" },
   { value: "scheduled", label: "Scheduled" },
   { value: "in_progress", label: "In Progress" },
-  { value: "on_hold", label: "On Hold" },
+  { value: "on_hold", label: "Paused" },
+  { value: "delayed", label: "Delayed" },
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
@@ -17,6 +18,7 @@ export function getProjectStatusBadgeClass(statusValue: string) {
     scheduled: "bg-blue-50 text-blue-700 ring-blue-600/20",
     in_progress: "bg-indigo-50 text-indigo-700 ring-indigo-600/20",
     on_hold: "bg-yellow-50 text-yellow-700 ring-yellow-600/20",
+    delayed: "bg-rose-50 text-rose-700 ring-rose-600/20",
     completed: "bg-green-50 text-green-700 ring-green-600/20",
     cancelled: "bg-rose-50 text-rose-700 ring-rose-600/20",
   };

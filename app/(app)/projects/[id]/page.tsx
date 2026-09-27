@@ -1036,6 +1036,7 @@ function getProjectStatusLabel(statusKey: string, t: (key: string) => string) {
     scheduled: "projects.statusScheduled",
     in_progress: "projects.statusInProgress",
     on_hold: "projects.statusOnHold",
+    delayed: "projects.statusDelayed",
     completed: "projects.statusCompleted",
     cancelled: "projects.statusCancelled",
   };

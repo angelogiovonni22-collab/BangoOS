@@ -13,6 +13,9 @@ const commandCenter = readFileSync(resolve(root, "components/projects/workspace/
 const redesignedOverview = readFileSync(resolve(root, "components/projects/workspace/project-overview-command-center.tsx"), "utf8");
 const workWorkspace = readFileSync(resolve(root, "components/projects/workspace/project-work-workspace.tsx"), "utf8");
 const superintendentBriefing = readFileSync(resolve(root, "components/projects/workspace/project-superintendent-briefing.tsx"), "utf8");
+const projectHeader = readFileSync(resolve(root, "components/projects/workspace/project-workspace-header.tsx"), "utf8");
+const projectStatusRoute = readFileSync(resolve(root, "app/api/projects/[id]/status/route.ts"), "utf8");
+const projectStatuses = readFileSync(resolve(root, "lib/projects/statuses.ts"), "utf8");
 
 assert.match(migration, /pg_advisory_xact_lock/, "workspace bootstrap must serialize concurrent retries");
 assert.match(migration, /partition by lower\(btrim\(s\.name\)\)/, "estimate section phase names must be deduplicated deterministically");
@@ -95,3 +98,26 @@ assert.match(workWorkspace, /xl:col-span-2 lg:grid-cols-2/, "active Tasks lower 
 assert.match(superintendentBriefing, /briefingRisksCompletedState/, "completed Tasks briefing must not tell users to continue active project execution");
 
 assert.match(workWorkspace, /executiveSummaryKey: "briefingCompletedSummary"/, "completed Tasks briefing must not prompt users to start or schedule execution work");
+
+
+assert.match(projectHeader, /Project Status/, "project header must expose Project Status instead of implying the job is already complete");
+assert.match(projectHeader, /Active/);
+assert.match(projectHeader, /Paused/);
+assert.match(projectHeader, /Delayed/);
+assert.match(projectHeader, /Complete/);
+assert.doesNotMatch(projectHeader, /Project Complete", "Completar proyecto"/, "legacy Project Complete action label must be removed");
+assert.match(projectHeader, /window\.prompt/, "paused and delayed states must capture a reason for the Trade Partner alert");
+assert.match(projectHeader, /\/api\/projects\/\$\{encodeURIComponent\(projectId\)\}\/status/, "non-terminal project status changes must use the status workflow");
+assert.match(projectHeader, /\/api\/projects\/\$\{encodeURIComponent\(projectId\)\}\/complete/, "Complete must preserve the canonical project closeout and final-invoice workflow");
+
+assert.match(projectStatuses, /\{ value: "delayed", label: "Delayed" \}/, "Delayed must be a first-class canonical project status");
+assert.match(projectStatuses, /\{ value: "on_hold", label: "Paused" \}/, "On-hold storage must be presented to users as Paused");
+
+assert.match(projectStatusRoute, /ALLOWED_STATUSES = new Set\(\["in_progress", "on_hold", "delayed"\]\)/);
+assert.match(projectStatusRoute, /A reason is required when a project is paused or delayed/);
+assert.match(projectStatusRoute, /\.eq\("assignment_status", "active"\)/, "only active Trade Partner assignments receive status alerts");
+assert.match(projectStatusRoute, /\.eq\("contract_status", "signed"\)/, "only signed Trade Partners receive project status alerts");
+assert.match(projectStatusRoute, /\.eq\("role", "subcontractor"\)/, "Trade Partner alerts must resolve through subcontractor memberships");
+assert.match(projectStatusRoute, /\.from\("bos_notifications"\)\.insert\(notificationRows\)/, "status changes must create Trade Partner portal alerts");
+assert.match(projectStatusRoute, /source_module: "project_status"/, "status alerts must be traceable to the project status workflow");
+assert.match(projectStatusRoute, /existing\.data\.status === nextStatus/, "re-saving the same project status must not send duplicate alerts");
