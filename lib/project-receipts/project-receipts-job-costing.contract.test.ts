@@ -5,6 +5,7 @@ import { join } from "node:path";
 const root = process.cwd();
 const migration = readFileSync(join(root, "supabase/migrations/20260821011500_project_receipts_job_costing.sql"), "utf8");
 const approvalGuard = readFileSync(join(root, "supabase/migrations/20260821012000_project_receipt_approval_guard.sql"), "utf8");
+const finalizeFix = readFileSync(join(root, "supabase/migrations/20260928214500_fix_project_receipt_finalize_ambiguity.sql"), "utf8");
 const route = readFileSync(join(root, "app/api/projects/[id]/receipts/route.ts"), "utf8");
 const workspace = readFileSync(join(root, "components/projects/workspace/project-receipts-workspace.tsx"), "utf8");
 const financials = readFileSync(join(root, "components/projects/workspace/project-financial-reporting.tsx"), "utf8");
@@ -59,3 +60,8 @@ assert.match(financials, /const summary = report\.summary/i, "Financials must co
 assert.match(financials, /const jobCostByCategory = report\.jobCostByCategory/i, "Receipt-aware category totals must come from the canonical report.");
 
 console.log("Project receipts + real-time job costing contract passed.");
+
+
+assert.match(finalizeFix, /delete from public\.project_receipt_items pri/i, "receipt approval finalizer must qualify the receipt item table alias");
+assert.match(finalizeFix, /where pri\.receipt_id = p_receipt_id/i, "receipt approval finalizer must avoid PL\/pgSQL output-parameter ambiguity");
+assert.doesNotMatch(finalizeFix, /delete from public\.project_receipt_items where receipt_id=p_receipt_id/i, "ambiguous receipt_id delete must never return");
