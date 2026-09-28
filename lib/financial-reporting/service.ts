@@ -96,6 +96,11 @@ type MaterialRequestRow = {
   id: string;
 };
 
+type ProjectScopeCostRow = {
+  material_cost: number;
+  labor_cost: number;
+};
+
 type QueryableSupabase = SupabaseClient<Database> & {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
@@ -325,6 +330,7 @@ export async function buildProjectFinancialReport(params: {
     tradePartnersResponse,
     tasksResponse,
     equipmentResponse,
+    scopeItemsResponse,
     procurement,
   ] = await Promise.all([
     supabase
@@ -362,6 +368,11 @@ export async function buildProjectFinancialReport(params: {
       .select("id, daily_internal_cost, rental_daily_cost, maintenance_cost_per_hour")
       .eq("company_id", params.companyId)
       .eq("assigned_job_id", params.projectId),
+    queryable
+      .from("project_scope_items")
+      .select("material_cost,labor_cost")
+      .eq("company_id", params.companyId)
+      .eq("project_id", params.projectId),
     loadProcurementRows(queryable, params.companyId, params.projectId),
   ]);
 
@@ -391,6 +402,10 @@ export async function buildProjectFinancialReport(params: {
 
   if (equipmentResponse.error) {
     throw new Error(equipmentResponse.error.message);
+  }
+
+  if (scopeItemsResponse.error) {
+    throw new Error(scopeItemsResponse.error.message);
   }
 
   const estimates = (estimatesResponse.data ?? []) as EstimateRow[];
@@ -447,6 +462,7 @@ export async function buildProjectFinancialReport(params: {
   const tradePartners = (tradePartnersResponse.data ?? []) as TradePartnerAssignmentRow[];
   const taskRows = (tasksResponse.data ?? []) as TaskRow[];
   const equipmentRows = (equipmentResponse.data ?? []) as EquipmentRow[];
+  const scopeCostRows = (scopeItemsResponse.data ?? []) as ProjectScopeCostRow[];
 
   const eligibleEstimates = estimates.filter((estimate) => RELEVANT_ESTIMATE_STATUSES.has(estimate.status.trim().toLowerCase()));
   const originalEstimateRow = eligibleEstimates[0] ?? null;
@@ -469,9 +485,12 @@ export async function buildProjectFinancialReport(params: {
     approvedChangeOrderLineItems.reduce((sum, item) => sum + safeNumber(item.cost_amount), 0),
   );
 
+  const workingScopeBudget = scopeCostRows.length > 0
+    ? toMoney(scopeCostRows.reduce((sum, row) => sum + safeNumber(row.material_cost) + safeNumber(row.labor_cost), 0))
+    : originalBudget;
   const revisedContractBase = safeNumber(project.contract_amount) || originalEstimate;
   const revisedContractValue = toMoney(revisedContractBase + approvedChangeOrders);
-  const revisedBudget = toMoney(originalBudget + approvedChangeOrderCost);
+  const revisedBudget = toMoney(workingScopeBudget + approvedChangeOrderCost);
 
   const purchaseOrderStatusById = new Map(procurement.purchaseOrders.map((order) => [order.id, order.status.trim().toLowerCase()]));
 
@@ -708,7 +727,9 @@ export async function buildProjectFinancialReport(params: {
         approvedChangeOrderCost: ["change_order_line_items.cost_amount"],
         revisedContractValue: ["projects.contract_amount", "change_orders.total_amount", "derived"],
         originalBudget: ["projects.estimated_cost", "estimates.internal_cost_total", "derived"],
-        revisedBudget: ["change_order_line_items.cost_amount", "derived"],
+        revisedBudget: scopeCostRows.length > 0
+          ? ["project_scope_items", "change_order_line_items.cost_amount", "derived"]
+          : ["estimates.internal_cost_total", "change_order_line_items.cost_amount", "derived"],
         committedCost: ["purchase_order_line_items", "trade_partner_assignments", "derived"],
         actualCost: ["project_material_allocations", "derived"],
         amountInvoiced: ["invoices.total_amount"],
