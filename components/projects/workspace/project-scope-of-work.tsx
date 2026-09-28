@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   BarChart3,
   Calculator,
@@ -113,6 +114,7 @@ const CATEGORY_COLORS = ["#5caeff", "#ffba27", "#20c9d9", "#3db3ff", "#ad7cff", 
 
 export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag }: Props) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
   const [estimate, setEstimate] = useState<EstimateRow | null>(null);
   const [lines, setLines] = useState<EstimateLine[]>([]);
   const [savedScopeItems, setSavedScopeItems] = useState<ProjectScopeItem[]>([]);
@@ -216,7 +218,8 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
   const workingLaborBudget = scopeGroups.reduce((sum, row) => sum + row.laborCost, 0);
   const workingCost = workingMaterialBudget + workingLaborBudget;
   const workingScopeVariance = roundCurrency(workingCost - estimatedCost);
-  const currentEstimatedCost = estimatedCost + approvedChangeOrderCost;
+  const liveScopeBaseCost = scopeMaterialized ? workingCost : estimatedCost;
+  const currentEstimatedCost = liveScopeBaseCost + approvedChangeOrderCost;
   const currentGrossMargin = currentContractValue - currentEstimatedCost;
   const currentGrossMarginPercent = currentContractValue > 0 ? (currentGrossMargin / currentContractValue) * 100 : 0;
   const scopeSummary = estimate?.description?.trim() || lines.map((line) => line.description).filter(Boolean).join(" ") || "No scope summary has been entered yet.";
@@ -320,6 +323,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         setSavedScopeItems((current) => current.map((row) => row.id === target.id ? data as ProjectScopeItem : row));
       }
       setEditorOpen(false);
+      router.refresh();
     } catch (caught) {
       setScopeActionError(caught instanceof Error ? caught.message : "Unable to save scope line item.");
     } finally {
@@ -338,6 +342,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
       const { error: deleteError } = await db.from("project_scope_items").delete().eq("company_id", companyId).eq("project_id", projectId).eq("id", target.id);
       if (deleteError) throw new Error(deleteError.message);
       setSavedScopeItems((current) => current.filter((row) => row.id !== target.id));
+      router.refresh();
     } catch (caught) {
       setScopeActionError(caught instanceof Error ? caught.message : "Unable to remove scope line item.");
     } finally {
@@ -366,9 +371,9 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     <div className="space-y-4 rounded-[18px] bg-[#07182a] text-[#eaf4ff]" data-project-scope-of-work>
       <div className="grid gap-3 md:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(118px,1fr))_190px]">
         <SummaryCard icon={<CircleDollarSign size={22} />} label="Scope Value" value={money(currentContractValue, localeTag)} sub={approvedChangeOrders.length ? "Current contract value" : "From estimate"} />
-        <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(acceptedMaterialBudget, localeTag)} sub="Accepted estimate baseline" />
-        <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(acceptedLaborBudget, localeTag)} sub="Accepted estimate baseline" />
-        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(currentEstimatedCost, localeTag)} sub={approvedChangeOrderCost > 0 ? "Estimate + approved change costs" : "Accepted estimate baseline"} />
+        <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(scopeMaterialized ? workingMaterialBudget : acceptedMaterialBudget, localeTag)} sub={scopeMaterialized ? "Live working scope" : "Accepted estimate baseline"} />
+        <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(scopeMaterialized ? workingLaborBudget : acceptedLaborBudget, localeTag)} sub={scopeMaterialized ? "Live working scope" : "Accepted estimate baseline"} />
+        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(currentEstimatedCost, localeTag)} sub={scopeMaterialized ? "Live scope + approved change costs" : approvedChangeOrderCost > 0 ? "Estimate + approved change costs" : "Accepted estimate baseline"} />
         <SummaryCard icon={<BarChart3 size={22} />} label="Gross Margin" value={money(currentGrossMargin, localeTag)} sub={`${Number(currentGrossMarginPercent || 0).toFixed(1)}% margin`} />
         <SummaryCard icon={<ClipboardList size={22} />} label="Scope Categories" value={String(scopeGroups.length)} sub="Total categories" />
         <div className="grid gap-2">
@@ -385,7 +390,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         <div className="rounded-[14px] border border-amber-400/30 bg-amber-400/[0.06] px-4 py-3" data-scope-budget-reconciliation>
           <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-amber-300">Working Scope Reconciliation</p>
           <p className="mt-1 text-xs font-semibold leading-5 text-[#f0dfb9]">
-            Accepted estimate cost is {money(estimatedCost, localeTag)}. Editable scope rows currently total {money(workingCost, localeTag)} ({workingScopeVariance > 0 ? "+" : ""}{money(workingScopeVariance, localeTag)} variance). Financial reporting keeps the accepted estimate as the contract baseline until the budget is intentionally revised.
+            Accepted estimate cost is {money(estimatedCost, localeTag)}. Editable scope rows currently total {money(workingCost, localeTag)} ({workingScopeVariance > 0 ? "+" : ""}{money(workingScopeVariance, localeTag)} variance). The accepted estimate remains unchanged, while projected cost and margin now follow the live working scope.
           </p>
         </div>
       ) : null}
@@ -505,7 +510,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                 <td className="px-2 py-3" colSpan={3}>Accepted Estimate Baseline</td>
                 <td className="px-2 py-3 text-right">{money(acceptedMaterialBudget, localeTag)}</td>
                 <td className="px-2 py-3 text-right">{money(acceptedLaborBudget, localeTag)}</td>
-                <td className="px-2 py-3 text-right">{money(currentEstimatedCost, localeTag)}</td>
+                <td className="px-2 py-3 text-right">{money(estimatedCost, localeTag)}</td>
                 <td />
               </tr>
             </tfoot>

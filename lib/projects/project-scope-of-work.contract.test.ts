@@ -126,14 +126,17 @@ test("approved change orders become highlighted live scope without mutating the 
 });
 
 
-test("scope financial summary stays tied to the accepted estimate baseline", () => {
+test("scope preserves the accepted estimate while projected margin follows live working scope", () => {
   assert.match(scope, /acceptedMaterialBudget/);
   assert.match(scope, /acceptedLaborBudget/);
-  assert.match(scope, /currentEstimatedCost = estimatedCost \+ approvedChangeOrderCost/);
+  assert.match(scope, /liveScopeBaseCost = scopeMaterialized \? workingCost : estimatedCost/);
+  assert.match(scope, /currentEstimatedCost = liveScopeBaseCost \+ approvedChangeOrderCost/);
+  assert.match(scope, /currentGrossMargin = currentContractValue - currentEstimatedCost/);
+  assert.match(scope, /Live working scope/);
   assert.match(scope, /Accepted Estimate Baseline/);
   assert.match(scope, /Working Scope Reconciliation/);
-  assert.match(scope, /data-scope-budget-reconciliation/);
-  assert.match(scope, /workingScopeVariance/);
+  assert.match(scope, /projected cost and margin now follow the live working scope/);
+  assert.match(scope, /router\.refresh\(\)/);
   assert.match(scope, /quantity \|\| 0\) \* Number\(line\.unit_cost \|\| 0\)/);
   assert.match(scope, /materialResidual/);
   assert.match(scope, /laborResidual/);

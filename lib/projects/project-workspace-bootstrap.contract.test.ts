@@ -16,6 +16,8 @@ const superintendentBriefing = readFileSync(resolve(root, "components/projects/w
 const projectHeader = readFileSync(resolve(root, "components/projects/workspace/project-workspace-header.tsx"), "utf8");
 const projectStatusRoute = readFileSync(resolve(root, "app/api/projects/[id]/status/route.ts"), "utf8");
 const projectStatuses = readFileSync(resolve(root, "lib/projects/statuses.ts"), "utf8");
+const financialService = readFileSync(resolve(root, "lib/financial-reporting/service.ts"), "utf8");
+const financialTypes = readFileSync(resolve(root, "lib/financial-reporting/types.ts"), "utf8");
 
 assert.match(migration, /pg_advisory_xact_lock/, "workspace bootstrap must serialize concurrent retries");
 assert.match(migration, /partition by lower\(btrim\(s\.name\)\)/, "estimate section phase names must be deduplicated deterministically");
@@ -127,3 +129,10 @@ assert.match(redesignedOverview, /approvedChangeOrderCost/, "project financial o
 assert.match(redesignedOverview, /Change Order Pricing Warning/, "zero-value approved change work must explain its margin impact");
 assert.match(redesignedOverview, /data-unpriced-change-order-warning/, "unpriced approved change work warning must be visible and testable");
 assert.match(redesignedOverview, /grossProfit < 0/, "negative projected margin must render as a risk state instead of success green");
+
+
+assert.match(financialService, /\.from\("project_scope_items"\)/, "project financial reporting must read the live editable Scope of Work");
+assert.match(financialService, /workingScopeBudget = scopeCostRows\.length > 0/, "working scope must replace the accepted estimate cost only for projected budget calculations");
+assert.match(financialService, /revisedBudget = toMoney\(workingScopeBudget \+ approvedChangeOrderCost\)/, "projected budget must combine live scope cost and approved change-order cost");
+assert.match(financialService, /originalBudget/, "accepted estimate budget must remain available as the immutable baseline");
+assert.match(financialTypes, /"project_scope_items"/, "financial metric provenance must identify the live project scope source");
