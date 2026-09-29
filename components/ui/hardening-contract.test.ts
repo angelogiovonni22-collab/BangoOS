@@ -36,6 +36,10 @@ function main(): void {
   const workspaceShell = read("components/workspace/workspace-shell.tsx");
   const themeGalleryHardening = read("app/theme-gallery-hardening.css");
   const projectPage = read("app/(app)/projects/[id]/page.tsx");
+  const projectMemory = read("components/projects/workspace/project-memory-capture-panel.tsx");
+  const projectTimeline = read("components/projects/workspace/project-work-operations-timeline.tsx");
+  const projectSitecam = read("components/projects/workspace/project-work-sitecam-panel.tsx");
+  const plansSidebar = read("components/plans/plans-sidebar.tsx");
 
   assert(layout.includes('import "./legacy-token-aliases.css";'), "root layout loads legacy token aliases");
   assert(layout.includes('import "./app-content-surface.css";'), "root layout loads the app content surface contract");
@@ -127,6 +131,13 @@ function main(): void {
   assert(themeGalleryHardening.includes('[data-project-header-jobsite-intelligence="true"]'), "High Contrast normalizes project weather/jobsite intelligence");
   assert(projectPage.includes('<WorkspaceShell className="project-workspace-root">'), "project workspace exposes a stable theme-hardening root");
   assert(!projectPage.includes('activeTab === "scope"\n          ? "min-w-0 rounded-[20px] border border-[#173957]'), "Scope of Work no longer forces a navy outer workspace in light themes");
+  assert(!projectMemory.includes("bg-[#071a33]"), "Tasks business-memory controls cannot force the legacy navy input background");
+  assert(projectMemory.includes("bg-[var(--color-surface-card)]"), "Tasks business-memory controls follow the active theme surface");
+  assert(!projectTimeline.includes("bg-[#071a33]"), "Tasks timeline filters cannot force the legacy navy input background");
+  assert(!projectSitecam.includes("bg-[#071a33]"), "Tasks SiteCam filters cannot force the legacy navy input background");
+  assert(!plansSidebar.includes("bg-slate-950"), "Blueprint discipline navigation cannot force a black/navy sidebar");
+  assert(plansSidebar.includes("bg-[var(--color-surface-card)]"), "Blueprint discipline navigation follows the active theme surface");
+  assert(plansSidebar.includes("text-[var(--color-text-primary)]"), "Blueprint discipline navigation follows active theme text tokens");
 
   console.log(`\nHardening contract results: ${passed} passed, ${failed} failed`);
   if (failed > 0) {

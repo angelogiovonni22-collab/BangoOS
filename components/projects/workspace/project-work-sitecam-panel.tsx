@@ -464,8 +464,8 @@ export function ProjectWorkSiteCamPanel({
               <Camera size={15} aria-hidden="true" />
             </span>
             <div>
-              <CardTitle className="text-[1.1rem] font-extrabold text-[#0f2744]">{t("projects.sitecamTitle")}</CardTitle>
-              <p className="text-sm font-medium text-[#49647f]">{t("projects.workSitecamPanelDescription")}</p>
+              <CardTitle className="text-[1.1rem] font-extrabold text-[var(--color-text-primary)]">{t("projects.sitecamTitle")}</CardTitle>
+              <p className="text-sm font-medium text-[var(--color-text-secondary)]">{t("projects.workSitecamPanelDescription")}</p>
             </div>
           </div>
           <Link href={`/projects/${projectId}?tab=documents`} className="inline-flex">
@@ -494,7 +494,7 @@ export function ProjectWorkSiteCamPanel({
             <select
               value={uploaderFilter}
               onChange={(event) => setUploaderFilter(event.target.value)}
-              className="h-10 w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 text-sm font-semibold text-white outline-none focus:border-[#68b9ff]"
+              className="h-10 w-full rounded-[10px] border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] px-3 text-sm font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-action-primary)]"
             >
               <option value="all">{t("projects.sitecamAllUploaders")}</option>
               {uploaderOptions.map((option) => (
@@ -508,7 +508,7 @@ export function ProjectWorkSiteCamPanel({
             <select
               value={sortOrder}
               onChange={(event) => setSortOrder(event.target.value as "newest" | "oldest")}
-              className="h-10 w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 text-sm font-semibold text-white outline-none focus:border-[#68b9ff]"
+              className="h-10 w-full rounded-[10px] border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] px-3 text-sm font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-action-primary)]"
             >
               <option value="newest">{t("projects.workSitecamSortNewest")}</option>
               <option value="oldest">{t("projects.workSitecamSortOldest")}</option>
@@ -555,7 +555,7 @@ export function ProjectWorkSiteCamPanel({
               value={uploadCaption}
               onChange={(event) => setUploadCaption(event.target.value)}
               maxLength={500}
-              className="min-h-20 w-full rounded-[10px] border border-[#4d8bc4] bg-[#071a33] px-3 py-2 text-sm font-medium text-white placeholder:text-[#b9cbe0] focus:border-[#68b9ff] focus:outline-none"
+              className="min-h-20 w-full rounded-[10px] border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] px-3 py-2 text-sm font-medium text-white placeholder:text-[#b9cbe0] focus:border-[#68b9ff] focus:outline-none"
               placeholder={t("projects.sitecamNotePlaceholder")}
             />
           </label>
