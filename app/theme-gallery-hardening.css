@@ -224,7 +224,9 @@
   [class*="text-[#a"],
   [class*="text-[#b"],
   [class*="text-[#c"],
-  [class*="text-[#d"]
+  [class*="text-[#d"],
+  [class*="text-[#e"],
+  [class*="text-[#f"]
 ),
 [data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] :is(
   [class*="text-[#789"],
@@ -233,7 +235,9 @@
   [class*="text-[#a"],
   [class*="text-[#b"],
   [class*="text-[#c"],
-  [class*="text-[#d"]
+  [class*="text-[#d"],
+  [class*="text-[#e"],
+  [class*="text-[#f"]
 ) {
   color: var(--bos-text-secondary) !important;
 }
@@ -273,4 +277,25 @@
 
 [data-theme="high-contrast"] .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] [role="menuitem"]:hover {
   background: var(--bos-bg-hover) !important;
+}
+
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-jobsite-intelligence="true"] {
+  background: var(--bos-bg-panel) !important;
+  border-color: var(--bos-border-default) !important;
+  color: var(--bos-text-primary) !important;
+  box-shadow: var(--bos-card-shadow) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-jobsite-intelligence="true"] :is(.text-white, [class*="text-[#e"], [class*="text-[#f"]) {
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-jobsite-intelligence="true"] [class*="border-[#"] {
+  border-color: var(--bos-border-default) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-jobsite-intelligence="true"] [class*="bg-[#16"] {
+  background: var(--bos-bg-control) !important;
+  color: var(--bos-text-primary) !important;
 }
