@@ -784,7 +784,7 @@ export default function ProjectWorkspacePage() {
 
   return (
     <MotionProvider>
-      <WorkspaceShell>
+      <WorkspaceShell className="project-workspace-root">
         <FadeIn className="min-w-0" delayMs={0} distancePx={4}>
           <ProjectWorkspaceHeader
             projectName={projectName}
@@ -804,9 +804,7 @@ export default function ProjectWorkspacePage() {
           <ProjectTabs activeTab={activeTab} onChange={handleTabChange} t={t} />
         </FadeIn>
 
-        <div className={activeTab === "scope"
-          ? "min-w-0 rounded-[20px] border border-[#173957] bg-[#07182a] p-3 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
-          : "min-w-0 rounded-[20px] border border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-surface),var(--bos-bg-workspace-surface-soft))] p-3 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)]"}>
+        <div className="min-w-0 rounded-[20px] border border-[var(--bos-border-light)] bg-[linear-gradient(180deg,var(--bos-bg-workspace-surface),var(--bos-bg-workspace-surface-soft))] p-3 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)]">
           <PageTransition transitionKey={`workspace-tab-${activeTab}`} className="min-w-0 max-w-full">
             {activeTab === "overview" ? (
               <ProjectOverviewCommandCenter
