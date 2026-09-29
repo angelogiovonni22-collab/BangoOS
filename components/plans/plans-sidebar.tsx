@@ -11,18 +11,18 @@ type PlansSidebarProps = {
 export function PlansSidebar({ folders, activeFolderId, onFolderSelect, isOpen }: PlansSidebarProps) {
   return (
     <aside
-      className={`rounded-[var(--radius-2xl)] border border-slate-800/80 bg-slate-950 p-3 text-slate-100 shadow-[var(--shadow-small)] ${
+      className={`rounded-[var(--radius-2xl)] border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] p-3 text-[var(--color-text-primary)] shadow-[var(--shadow-small)] ${
         isOpen ? "block" : "hidden lg:block"
       }`}
       aria-label="Folder and discipline navigation"
     >
-      <p className="px-2 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Disciplines</p>
+      <p className="px-2 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Disciplines</p>
       <nav className="space-y-1" aria-label="Plans folders">
         {folders.map((folder) => (
           <FolderRow key={folder.id} folder={folder} activeFolderId={activeFolderId} onFolderSelect={onFolderSelect} level={0} />
         ))}
       </nav>
-      <p className="mt-4 rounded-[var(--radius-lg)] border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300">
+      <p className="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-secondary)]">
         Nested folders are supported in this structure for future discipline and package hierarchies.
       </p>
     </aside>
@@ -50,15 +50,15 @@ function FolderRow({
         onClick={() => onFolderSelect(folder.id)}
         className={`flex w-full items-center gap-2 rounded-[var(--radius-lg)] px-2 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-500/30 ${
           isActive
-            ? "bg-sky-500/15 text-sky-100"
-            : "text-slate-200 hover:bg-slate-900/80 hover:text-white"
+            ? "bg-[var(--color-selected)] text-[var(--color-action-primary)]"
+            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text-primary)]"
         }`}
         style={{ paddingLeft: `${8 + level * 14}px` }}
         aria-current={isActive ? "page" : undefined}
       >
         <Icon size={15} aria-hidden="true" />
         <span className="flex-1">{folder.label}</span>
-        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">{folder.count}</span>
+        <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[11px] text-[var(--color-text-secondary)]">{folder.count}</span>
         {folder.children && folder.children.length > 0 ? <ChevronRight size={13} aria-hidden="true" /> : null}
       </button>
 
