@@ -38,6 +38,39 @@
   --bos-bg-workspace-card: #ffffff;
   --bos-border-light: #9aa8b8;
   --bos-border-light-strong: #66788c;
+
+  /* High Contrast is a light workspace theme everywhere, including legacy WorkspaceShell modules. */
+  --workspace-shell-border: #9aa8b8;
+  --workspace-shell-surface: linear-gradient(180deg, #ffffff 0%, #ffffff 70%, #f7f9fb 100%);
+  --workspace-loading-surface: linear-gradient(180deg, #ffffff, #f2f5f8);
+  --workspace-header-border: #66788c;
+  --workspace-header-surface: linear-gradient(180deg, #ffffff, #f7f9fb);
+  --workspace-header-text: #25394e;
+  --workspace-header-text-strong: #07111e;
+  --workspace-header-title: #07111e;
+  --workspace-header-subtitle: #25394e;
+  --workspace-hero-border: #66788c;
+  --workspace-hero-surface: linear-gradient(180deg, #ffffff, #f7f9fb);
+  --workspace-hero-panel-border: #9aa8b8;
+  --workspace-hero-panel-surface: linear-gradient(180deg, #ffffff, #f2f5f8);
+  --workspace-hero-panel-text: #25394e;
+  --workspace-hero-title: #07111e;
+  --workspace-hero-subtitle: #25394e;
+  --workspace-hero-divider: #9aa8b8;
+  --workspace-hero-badge-border: #66788c;
+  --workspace-hero-badge-surface: linear-gradient(180deg, #ffffff, #eef3f7);
+  --workspace-tabs-border: #66788c;
+  --workspace-tabs-surface: linear-gradient(180deg, #ffffff, #f2f5f8);
+  --workspace-tab-active-border: #005bd7;
+  --workspace-tab-active-surface: linear-gradient(180deg, #0a67e8, #005bd7);
+  --workspace-tab-active-icon-bg: rgb(255 255 255 / 0.18);
+  --workspace-tab-active-icon-text: #ffffff;
+  --workspace-tab-idle-text: #25394e;
+  --workspace-tab-idle-border-hover: #66788c;
+  --workspace-tab-idle-bg-hover: #e2e8ef;
+  --workspace-tab-idle-icon-text: #4e6072;
+  --workspace-tab-idle-icon-bg-hover: #d7e0e9;
+  --workspace-tab-idle-icon-text-hover: #07111e;
 }
 
 [data-theme="digital-command"] {
@@ -123,4 +156,121 @@
     transition: none !important;
     transform: none !important;
   }
+}
+
+
+/* High Contrast must stay visually light and uniform even in older workspaces that
+   previously opted into the legacy dark command surface. */
+[data-theme="high-contrast"] .enterprise-shell main [data-bos-surface="dark"] {
+  color: var(--bos-text-primary);
+  --color-text-primary: var(--bos-text-primary);
+  --color-text-secondary: var(--bos-text-secondary);
+  --color-text-muted: var(--bos-text-muted);
+  --color-border-subtle: var(--bos-border-subtle);
+  --color-border-strong: var(--bos-border-default);
+  --color-surface-card: var(--bos-bg-panel);
+  --color-surface-subtle: var(--bos-bg-control);
+  --color-surface-muted: var(--bos-bg-hover);
+  --color-surface-elevated: var(--bos-bg-panel-elevated);
+}
+
+[data-theme="high-contrast"] .enterprise-shell main [data-bos-surface="dark"] .text-white {
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="high-contrast"] .enterprise-shell main [data-bos-surface="dark"] [class*="hover:text-white"]:hover {
+  color: var(--bos-text-primary) !important;
+}
+
+/* The project workspace contained a second, hard-coded dark skin. High Contrast owns
+   the material here so every project tab follows the same white/gray palette as Projects. */
+[data-theme="high-contrast"] .project-workspace-root {
+  color: var(--bos-text-primary);
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center],
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] {
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] > div > section,
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] > section,
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] > div {
+  border-color: var(--bos-border-default) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] [class*="bg-[#0"],
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work][class*="bg-[#0"],
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] [class*="bg-[#0"] {
+  background-color: var(--bos-bg-panel) !important;
+  background-image: none !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] [class*="bg-[linear-gradient"][class*="#0"],
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] [class*="bg-[linear-gradient"][class*="#0"] {
+  background: var(--bos-bg-panel) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] .text-white,
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] .text-white,
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work][class*="text-[#"] {
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] :is(
+  [class*="text-[#789"],
+  [class*="text-[#8"],
+  [class*="text-[#9"],
+  [class*="text-[#a"],
+  [class*="text-[#b"],
+  [class*="text-[#c"],
+  [class*="text-[#d"]
+),
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] :is(
+  [class*="text-[#789"],
+  [class*="text-[#8"],
+  [class*="text-[#9"],
+  [class*="text-[#a"],
+  [class*="text-[#b"],
+  [class*="text-[#c"],
+  [class*="text-[#d"]
+) {
+  color: var(--bos-text-secondary) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] :is(
+  [class*="border-[#1"],
+  [class*="border-[#2"],
+  [class*="border-[#3"],
+  [class*="border-[#6"]
+),
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] :is(
+  [class*="border-[#1"],
+  [class*="border-[#2"],
+  [class*="border-[#3"],
+  [class*="border-[#6"]
+) {
+  border-color: var(--bos-border-default) !important;
+}
+
+/* Project header actions should read like the rest of High Contrast: white controls,
+   dark text, with the primary Edit action remaining blue. */
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] button[class*="bg-[#152a4b"],
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] a[class*="bg-[#152a4b"] {
+  background: var(--bos-bg-panel) !important;
+  border-color: var(--bos-border-default) !important;
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] [role="menu"] {
+  background: var(--bos-bg-panel) !important;
+  border-color: var(--bos-border-default) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] [role="menuitem"] {
+  color: var(--bos-text-primary) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] [role="menuitem"]:hover {
+  background: var(--bos-bg-hover) !important;
 }
