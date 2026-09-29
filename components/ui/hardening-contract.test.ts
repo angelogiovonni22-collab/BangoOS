@@ -34,6 +34,8 @@ function main(): void {
   const tableContainer = read("components/ui/table-container.tsx");
   const workspaceNavigation = read("components/workspace/workspace-navigation.tsx");
   const workspaceShell = read("components/workspace/workspace-shell.tsx");
+  const themeGalleryHardening = read("app/theme-gallery-hardening.css");
+  const projectPage = read("app/(app)/projects/[id]/page.tsx");
 
   assert(layout.includes('import "./legacy-token-aliases.css";'), "root layout loads legacy token aliases");
   assert(layout.includes('import "./app-content-surface.css";'), "root layout loads the app content surface contract");
@@ -113,6 +115,18 @@ function main(): void {
   assert(visualConsistency.includes('[data-bos-surface="dark"]'), "visual consistency layer defines the dark surface contract");
   assert(visualConsistency.includes(":where(.enterprise-shell main h1"), "global heading defaults use zero specificity so owned surface colors can win");
   assert(!visualConsistency.includes(".enterprise-shell main :is(h1, h2, h3, h4, h5, h6)"), "global heading rule cannot override component-owned dark-surface text");
+
+  assert(themeGalleryHardening.includes('[data-theme="high-contrast"]'), "High Contrast has an explicit hardening contract");
+  assert(themeGalleryHardening.includes("--workspace-shell-surface: linear-gradient(180deg, #ffffff"), "High Contrast workspace shells stay light instead of falling back to the legacy navy shell");
+  assert(themeGalleryHardening.includes("--workspace-header-title: #07111e"), "High Contrast workspace header titles use readable dark text");
+  assert(themeGalleryHardening.includes("--workspace-tabs-surface: linear-gradient(180deg, #ffffff"), "High Contrast shared workspace tabs use the light theme material");
+  assert(themeGalleryHardening.includes('[data-bos-surface="dark"]'), "High Contrast normalizes legacy shared dark-surface workspaces");
+  assert(themeGalleryHardening.includes(".project-workspace-root"), "High Contrast contains a project-workspace legacy skin override");
+  assert(themeGalleryHardening.includes('[data-project-overview-command-center]'), "High Contrast normalizes the project Overview command center");
+  assert(themeGalleryHardening.includes('[data-project-scope-of-work]'), "High Contrast normalizes Scope of Work");
+  assert(themeGalleryHardening.includes('[data-project-header-jobsite-intelligence="true"]'), "High Contrast normalizes project weather/jobsite intelligence");
+  assert(projectPage.includes('<WorkspaceShell className="project-workspace-root">'), "project workspace exposes a stable theme-hardening root");
+  assert(!projectPage.includes('activeTab === "scope"\n          ? "min-w-0 rounded-[20px] border border-[#173957]'), "Scope of Work no longer forces a navy outer workspace in light themes");
 
   console.log(`\nHardening contract results: ${passed} passed, ${failed} failed`);
   if (failed > 0) {
