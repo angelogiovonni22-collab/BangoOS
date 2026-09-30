@@ -529,13 +529,13 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
       </Panel>
 
       {editorOpen ? (
-        <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={editingIndex === null ? "Add scope line item" : "Edit scope line item"}>
-          <div className="w-full max-w-xl rounded-2xl border border-[#2b5f84] bg-[#071827] p-5 shadow-2xl">
+        <div className="fixed inset-0 z-[120] flex items-stretch justify-center overflow-hidden bg-slate-950/75 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={editingIndex === null ? "Add scope line item" : "Edit scope line item"}>
+          <div className="flex h-[100dvh] w-full max-w-xl flex-col overflow-hidden border border-[#2b5f84] bg-[#071827] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+1rem)] shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div><p className="text-[10px] font-extrabold uppercase tracking-[.09em] text-[#68baff]">Project Scope</p><h3 className="mt-1 text-xl font-black text-white">{editingIndex === null ? "Add Line Item" : "Edit Line Item"}</h3></div>
               <button type="button" onClick={() => setEditorOpen(false)} className="grid h-9 w-9 place-items-center rounded-lg border border-[#315a78] text-[#bcd2e3] hover:bg-[#0d2d49]" aria-label="Close"><X size={17} /></button>
             </div>
-            <div className="mt-5 grid gap-4">
+            <div className="mt-5 grid min-h-0 flex-1 content-start gap-4 overflow-y-auto pr-1">
               <label className="grid gap-1.5 text-xs font-bold text-[#b9cedf]">Category<input value={editor.category} onChange={(event) => setEditor((current) => ({ ...current, category: event.target.value }))} className={inputClass} placeholder="e.g. Plumbing" /></label>
               <label className="grid gap-1.5 text-xs font-bold text-[#b9cedf]">Scope Details<textarea value={editor.details} onChange={(event) => setEditor((current) => ({ ...current, details: event.target.value }))} className={inputClass + " min-h-24 resize-y"} placeholder="Describe the work included in this line item." /></label>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -545,7 +545,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
               <label className="grid gap-1.5 text-xs font-bold text-[#b9cedf]">Status<select value={editor.status} onChange={(event) => setEditor((current) => ({ ...current, status: event.target.value }))} className={inputClass}><option value="planned">Planned</option><option value="ordered">Ordered</option><option value="in_progress">In Progress</option><option value="complete">Complete</option><option value="on_hold">On Hold</option></select></label>
               {scopeActionError ? <p className="rounded-lg border border-red-400/30 bg-red-400/[0.06] px-3 py-2 text-xs font-semibold text-red-200">{scopeActionError}</p> : null}
             </div>
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex shrink-0 justify-end gap-2 border-t border-[#234760] pt-4">
               <button type="button" onClick={() => setEditorOpen(false)} className={outlineButton}>Cancel</button>
               <button type="button" disabled={savingScope} onClick={() => void saveScopeItem()} className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[#318ef1] bg-[linear-gradient(180deg,#2f8cff,#156dd1)] px-4 text-xs font-extrabold text-white disabled:opacity-50"><Save size={14} />{savingScope ? "Saving…" : "Save Line Item"}</button>
             </div>

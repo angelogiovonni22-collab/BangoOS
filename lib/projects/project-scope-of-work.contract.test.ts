@@ -147,3 +147,12 @@ test("scope warns when approved change work has cost but no customer value", () 
   assert.match(scope, /Approved Change Order Has Cost but No Contract Value/);
   assert.match(scope, /approvedChangeOrderCost > 0 && approvedChangeOrderValue <= 0/);
 });
+
+
+test("scope line-item editor uses the mobile viewport without dead space", () => {
+  assert.match(scope, /h-[100dvh]/, "mobile line-item editor must use the full dynamic viewport height");
+  assert.match(scope, /sm:h-auto/, "desktop line-item editor must remain a centered content-height dialog");
+  assert.match(scope, /overflow-y-auto/, "mobile editor content must scroll inside the sheet");
+  assert.match(scope, /flex-1 content-start/, "form fields must start at the top of the available mobile sheet");
+  assert.match(scope, /shrink-0 justify-end/, "editor actions must stay attached to the bottom of the sheet");
+});
