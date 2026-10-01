@@ -15,9 +15,7 @@ import {
   Pencil,
   Plus,
   Save,
-  ShoppingCart,
   Trash2,
-  Users,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -518,7 +516,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         ) : null}
 
         {scopeActionError ? <p className="mt-2 rounded-lg border border-red-400/30 bg-red-400/[0.06] px-3 py-2 text-xs font-semibold text-red-200">{scopeActionError}</p> : null}
-        <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Material and labor costs are managed directly in the base scope rows above. Approved change orders are highlighted separately and stay linked to their signed customer approval record; their internal cost is included in Total Cost without inventing a material/labor split.</p>
+        <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Material and labor costs are managed directly in the editable base scope above. Approved change orders remain separate, stay linked to their signed customer approval record, and roll into Projected Cost without changing the accepted estimate baseline.</p>
       </Panel>
 
       <Panel title="Notes / Inclusions / Exclusions" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
@@ -568,11 +566,6 @@ function MetricMini({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-black text-white">{value}</p>
     </div>
   );
-}
-
-function ContractValue({ label, value, accent = false, strong = false }: { label: string; value: string; accent?: boolean; strong?: boolean }) {
-  const valueClass = strong ? "text-white" : accent ? "text-cyan-200" : "text-[#dcecf7]";
-  return <div className="rounded-xl border border-[#214966] bg-[#071b2c] px-4 py-3"><p className="text-[10px] font-extrabold uppercase tracking-[.07em] text-[#83a4be]">{label}</p><p className={`mt-1 text-lg font-black ${valueClass}`}>{value}</p></div>;
 }
 
 function SummaryCard({ icon, label, value, sub }: { icon: ReactNode; label: string; value: string; sub: string }) {
