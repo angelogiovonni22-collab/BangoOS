@@ -299,3 +299,20 @@
   background: var(--bos-bg-control) !important;
   color: var(--bos-text-primary) !important;
 }
+
+
+/* Scope final polish: keep baseline and approved change-order economics readable in High Contrast. */
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] [data-accepted-estimate-baseline] {
+  background: var(--bos-bg-control) !important;
+  color: var(--bos-text-primary) !important;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] [data-accepted-estimate-baseline] * {
+  color: var(--bos-text-primary) !important;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] [data-approved-change-orders-section] {
+  background: var(--bos-bg-control) !important;
+  border-color: var(--bos-border-default) !important;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] [data-approved-change-orders-section] :is(p,a,span) {
+  color: var(--bos-text-primary) !important;
+}

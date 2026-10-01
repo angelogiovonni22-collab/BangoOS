@@ -147,9 +147,10 @@ test("scope preserves the accepted estimate while projected margin follows live 
 
 test("scope explains zero-value approved change-order margin impact without duplicate warning banners", () => {
   assert.match(scope, /data-scope-reconciliation/);
+  assert.match(scope, /Working Scope Variance/);
   assert.match(scope, /customer price/);
   assert.match(scope, /internal cost/);
-  assert.match(scope, /margin impact/);
+  assert.match(scope, /Change Order Margin Impact/);
   assert.match(scope, /approvedChangeOrderCost > 0 && approvedChangeOrderValue <= 0/);
   assert.doesNotMatch(scope, /data-unpriced-change-order-warning/);
 });
