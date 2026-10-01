@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import type { Database } from "@/types/database.types";
 
 const STATUS_ROLES = new Set(["owner", "administrator", "operations_manager", "project_manager", "superintendent"]);
 const ALLOWED_STATUSES = new Set(["in_progress", "on_hold", "delayed"]);
@@ -33,6 +32,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const role = (workspace.context.role || "").toLowerCase();
     if (!STATUS_ROLES.has(role)) throw new Error("You are not authorized to change project status.");
 
+    // Supabase generated types can lag operational project-status migrations.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as unknown as { from: (table: string) => any };
     const existing = await db.from("projects")
       .select("id,name,status")
