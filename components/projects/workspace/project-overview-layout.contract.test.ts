@@ -30,7 +30,9 @@ assert.ok(header.includes("<WorkspaceHeader\n        compact"), "the project hea
 assert.ok(header.includes("<ProjectHeaderWeatherStrip />"), "weather and map sit directly with the project header");
 assert.ok(header.includes('data-project-header-with-jobsite-intelligence="true"'));
 assert.ok(!header.includes('aria-label="More actions"'), "the project header must not expose an inert More menu");
-assert.ok(header.includes("Project Complete"), "the useful completion action remains directly available");
+assert.ok(header.includes("Project Status"), "the project header exposes the lifecycle status control");
+assert.ok(header.includes('label: l("Complete", "Completo")'), "the completion action remains directly available in the lifecycle menu");
+assert.ok(!header.includes("Project Complete"), "the legacy Project Complete label must not return");
 assert.ok(headerWeather.includes('data-project-header-jobsite-intelligence="true"'));
 assert.ok(headerWeather.includes("lg:grid-cols-[1.05fr_1fr_0.9fr]"), "desktop jobsite intelligence uses a compact horizontal strip");
 assert.ok(headerWeather.includes("min-h-[112px]"), "weather and map stay short instead of stretching vertically");
