@@ -32,7 +32,8 @@ assert.match(tradePartnerWorkspace, /performanceRating/);
 assert.match(tradePartnerWorkspace, /Do Not Rehire/);
 assert.match(tradePartnerWorkspace, /Assign Trade Partner/);
 
-assert.match(projectHeader, /Project Status/);\nassert.match(projectHeader, /label: l\("Complete", "Completo"\)/);
+assert.match(projectHeader, /Project Status/);
+assert.match(projectHeader, /label: l\("Complete", "Completo"\)/);
 assert.match(projectHeader, /automatically remove this project from active Trade Partner portals/);
 assert.match(projectCompleteApi, /status: "completed"/);
 assert.match(projectCompleteApi, /actual_end_date/);
