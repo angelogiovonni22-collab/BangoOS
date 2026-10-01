@@ -107,6 +107,8 @@ assert.match(projectHeader, /Active/);
 assert.match(projectHeader, /Paused/);
 assert.match(projectHeader, /Delayed/);
 assert.match(projectHeader, /Complete/);
+assert.match(projectHeader, /Ready to Start/, "approved project lifecycle state must not be confused with estimate approval");
+assert.match(projectHeader, /Invoice Not Created/, "missing project invoice must render an explicit empty state");
 assert.doesNotMatch(projectHeader, /Project Complete", "Completar proyecto"/, "legacy Project Complete action label must be removed");
 assert.match(projectHeader, /window\.prompt/, "paused and delayed states must capture a reason for the Trade Partner alert");
 assert.match(projectHeader, /\/api\/projects\/\$\{encodeURIComponent\(projectId\)\}\/status/, "non-terminal project status changes must use the status workflow");
