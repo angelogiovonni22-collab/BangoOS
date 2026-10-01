@@ -22,14 +22,14 @@ test("Scope of Work is a first-class project workspace tab", () => {
   assert.match(es, /"workspaceTabScope": "Alcance del trabajo"/);
 });
 
-test("Scope of Work preserves the approved B.O.S. mockup structure", () => {
+test("Scope of Work presents a consolidated financial and scope hierarchy", () => {
   for (const label of [
-    "Scope Value",
-    "Material Budget",
-    "Labor Budget",
-    "Total Estimated Cost",
-    "Gross Margin",
-    "Scope Categories",
+    "Original Contract",
+    "Approved Change Orders",
+    "Current Contract",
+    "Projected Cost",
+    "Projected Gross Profit",
+    "Working Scope",
     "View Original Estimate",
     "Export Scope",
     "Scope of Work Summary",
@@ -40,8 +40,10 @@ test("Scope of Work preserves the approved B.O.S. mockup structure", () => {
     "Labor Cost",
     "Total Cost",
   ]) {
-    assert.ok(scope.includes(label), "missing approved mockup label: " + label);
+    assert.ok(scope.includes(label), "missing scope hierarchy label: " + label);
   }
+  assert.match(scope, /data-scope-financial-snapshot/);
+  assert.match(scope, /data-scope-actions/);
   assert.match(scope, /CATEGORY_COLORS/);
 });
 
@@ -76,7 +78,7 @@ test("Scope of Work renders the exact ten-category trade breakdown instead of bu
   }
   assert.doesNotMatch(scope, /return "Materials"/);
   assert.doesNotMatch(scope, /return "Labor"/);
-  assert.match(scope, /Material and labor costs are managed directly in the scope rows above/);
+  assert.match(scope, /Material and labor costs are managed directly in the editable base scope above/);
 });
 
 test("Scope of Work does not duplicate the itemized breakdown with a separate Materials Detail card", () => {
@@ -116,13 +118,14 @@ test("approved change orders become highlighted live scope without mutating the 
   assert.match(scope, /\.is\("archived_at", null\)/);
   assert.match(scope, /change_order_line_items\(id,sort_order,description,cost_amount,price_amount,notes\)/);
   assert.match(scope, /Approved Change Orders/);
-  assert.match(scope, /Current Contract Value/);
-  assert.match(scope, /CHANGE ORDER ·/);
-  assert.match(scope, /data-approved-change-order-row/);
-  assert.match(scope, /Approved Change/);
+  assert.match(scope, /Current Contract/);
+  assert.match(scope, /data-approved-change-orders-section/);
+  assert.match(scope, /Customer Price/);
+  assert.match(scope, /Internal Cost/);
+  assert.match(scope, /Margin Impact/);
   assert.match(scope, /\/change-orders\/\$\{changeOrder\.id\}/);
   assert.match(scope, /approvedChangeOrderCost/);
-  assert.match(scope, /internal cost is included in Total Cost without inventing a material\/labor split/);
+  assert.match(scope, /roll into Projected Cost without changing the accepted estimate baseline/);
 });
 
 
@@ -132,20 +135,23 @@ test("scope preserves the accepted estimate while projected margin follows live 
   assert.match(scope, /liveScopeBaseCost = scopeMaterialized \? workingCost : estimatedCost/);
   assert.match(scope, /currentEstimatedCost = liveScopeBaseCost \+ approvedChangeOrderCost/);
   assert.match(scope, /currentGrossMargin = currentContractValue - currentEstimatedCost/);
-  assert.match(scope, /Live working scope/);
+  assert.match(scope, /Working Scope/);
   assert.match(scope, /Accepted Estimate Baseline/);
-  assert.match(scope, /Working Scope Reconciliation/);
-  assert.match(scope, /projected cost and margin now follow the live working scope/);
+  assert.match(scope, /Scope Reconciliation/);
+  assert.match(scope, /Projected cost and margin follow the live working scope plus approved change-order cost/);
   assert.match(scope, /router\.refresh\(\)/);
   assert.match(scope, /quantity \|\| 0\) \* Number\(line\.unit_cost \|\| 0\)/);
   assert.match(scope, /materialResidual/);
   assert.match(scope, /laborResidual/);
 });
 
-test("scope warns when approved change work has cost but no customer value", () => {
-  assert.match(scope, /data-unpriced-change-order-warning/);
-  assert.match(scope, /Approved Change Order Has Cost but No Contract Value/);
+test("scope explains zero-value approved change-order margin impact without duplicate warning banners", () => {
+  assert.match(scope, /data-scope-reconciliation/);
+  assert.match(scope, /customer price/);
+  assert.match(scope, /internal cost/);
+  assert.match(scope, /margin impact/);
   assert.match(scope, /approvedChangeOrderCost > 0 && approvedChangeOrderValue <= 0/);
+  assert.doesNotMatch(scope, /data-unpriced-change-order-warning/);
 });
 
 
