@@ -369,50 +369,47 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
 
   return (
     <div className="space-y-4 rounded-[18px] bg-[#07182a] text-[#eaf4ff]" data-project-scope-of-work>
-      <div className="grid gap-3 md:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(118px,1fr))_190px]">
-        <SummaryCard icon={<CircleDollarSign size={22} />} label="Scope Value" value={money(currentContractValue, localeTag)} sub={approvedChangeOrders.length ? "Current contract value" : "From estimate"} />
-        <SummaryCard icon={<ShoppingCart size={22} />} label="Material Budget" value={money(scopeMaterialized ? workingMaterialBudget : acceptedMaterialBudget, localeTag)} sub={scopeMaterialized ? "Live working scope" : "Accepted estimate baseline"} />
-        <SummaryCard icon={<Users size={22} />} label="Labor Budget" value={money(scopeMaterialized ? workingLaborBudget : acceptedLaborBudget, localeTag)} sub={scopeMaterialized ? "Live working scope" : "Accepted estimate baseline"} />
-        <SummaryCard icon={<Calculator size={22} />} label="Total Estimated Cost" value={money(currentEstimatedCost, localeTag)} sub={scopeMaterialized ? "Live scope + approved change costs" : approvedChangeOrderCost > 0 ? "Estimate + approved change costs" : "Accepted estimate baseline"} />
-        <SummaryCard icon={<BarChart3 size={22} />} label="Gross Margin" value={money(currentGrossMargin, localeTag)} sub={`${Number(currentGrossMarginPercent || 0).toFixed(1)}% margin`} />
-        <SummaryCard icon={<ClipboardList size={22} />} label="Scope Categories" value={String(scopeGroups.length)} sub="Total categories" />
-        <div className="grid gap-2">
-          <Link href={`/estimates/${estimate.id}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#318ef1] bg-[linear-gradient(180deg,#2f8cff,#156dd1)] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(20,105,210,.24)] transition hover:brightness-110">
-            <FileText size={16} /> View Original Estimate
-          </Link>
-          <button type="button" onClick={() => window.print()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#315b7c] bg-[#0a2135] px-4 text-sm font-extrabold text-white transition hover:bg-[#0d2b47]">
-            Export Scope <ChevronDown size={15} />
-          </button>
-        </div>
+      <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6" data-scope-financial-snapshot>
+        <SummaryCard icon={<CircleDollarSign size={22} />} label="Original Contract" value={money(originalContractValue, localeTag)} sub="Signed estimate value" />
+        <SummaryCard icon={<Plus size={22} />} label="Approved Change Orders" value={`+${money(approvedChangeOrderValue, localeTag)}`} sub={approvedChangeOrders.length ? `${approvedChangeOrders.length} approved` : "No approved changes"} />
+        <SummaryCard icon={<CheckCircle2 size={22} />} label="Current Contract" value={money(currentContractValue, localeTag)} sub="Signed contract + customer COs" />
+        <SummaryCard icon={<Calculator size={22} />} label="Projected Cost" value={money(currentEstimatedCost, localeTag)} sub="Live scope + approved CO cost" />
+        <SummaryCard icon={<BarChart3 size={22} />} label="Projected Gross Profit" value={money(currentGrossMargin, localeTag)} sub={`${Number(currentGrossMarginPercent || 0).toFixed(1)}% projected margin`} />
+        <SummaryCard icon={<ClipboardList size={22} />} label="Working Scope" value={money(workingCost, localeTag)} sub={`${scopeGroups.length} categories · editable`} />
       </div>
 
-      {scopeMaterialized && Math.abs(workingScopeVariance) >= 0.01 ? (
-        <div className="rounded-[14px] border border-amber-400/30 bg-amber-400/[0.06] px-4 py-3" data-scope-budget-reconciliation>
-          <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-amber-300">Working Scope Reconciliation</p>
-          <p className="mt-1 text-xs font-semibold leading-5 text-[#f0dfb9]">
-            Accepted estimate cost is {money(estimatedCost, localeTag)}. Editable scope rows currently total {money(workingCost, localeTag)} ({workingScopeVariance > 0 ? "+" : ""}{money(workingScopeVariance, localeTag)} variance). The accepted estimate remains unchanged, while projected cost and margin now follow the live working scope.
-          </p>
+      <div className="flex flex-wrap justify-end gap-2" data-scope-actions>
+        <Link href={`/estimates/${estimate.id}`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#318ef1] bg-[linear-gradient(180deg,#2f8cff,#156dd1)] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(20,105,210,.20)] transition hover:brightness-110">
+          <FileText size={16} /> View Original Estimate
+        </Link>
+        <button type="button" onClick={() => window.print()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#315b7c] bg-[#0a2135] px-4 text-sm font-extrabold text-white transition hover:bg-[#0d2b47]">
+          Export Scope <ChevronDown size={15} />
+        </button>
+      </div>
+
+      {(scopeMaterialized && Math.abs(workingScopeVariance) >= 0.01) || (approvedChangeOrderCost > 0 && approvedChangeOrderValue <= 0) ? (
+        <div className="rounded-[14px] border border-amber-400/30 bg-amber-400/[0.055] px-4 py-3" data-scope-reconciliation>
+          <div className="flex items-center gap-2">
+            <Info size={16} className="text-amber-300" aria-hidden="true" />
+            <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-amber-300">Scope Reconciliation</p>
+          </div>
+          <div className="mt-2 grid gap-2 text-xs font-semibold leading-5 text-[#f0dfb9] md:grid-cols-2">
+            {scopeMaterialized && Math.abs(workingScopeVariance) >= 0.01 ? (
+              <p>
+                <span className="font-extrabold text-white">Working scope:</span> accepted estimate cost {money(estimatedCost, localeTag)} · editable scope {money(workingCost, localeTag)} · variance {workingScopeVariance > 0 ? "+" : ""}{money(workingScopeVariance, localeTag)}.
+              </p>
+            ) : null}
+            {approvedChangeOrderCost > 0 && approvedChangeOrderValue <= 0 ? (
+              <p>
+                <span className="font-extrabold text-white">Change order:</span> customer price {money(approvedChangeOrderValue, localeTag)} · internal cost {money(approvedChangeOrderCost, localeTag)} · margin impact -{money(approvedChangeOrderCost, localeTag)}.
+              </p>
+            ) : null}
+          </div>
+          <p className="mt-2 text-[11px] text-[#c9b98f]">The signed estimate remains unchanged. Projected cost and margin follow the live working scope plus approved change-order cost.</p>
         </div>
       ) : null}
 
-      {approvedChangeOrderCost > 0 && approvedChangeOrderValue <= 0 ? (
-        <div className="rounded-[14px] border border-amber-400/30 bg-amber-400/[0.06] px-4 py-3" data-unpriced-change-order-warning>
-          <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-amber-300">Approved Change Order Has Cost but No Contract Value</p>
-          <p className="mt-1 text-xs font-semibold leading-5 text-[#f0dfb9]">
-            Approved change-order cost is {money(approvedChangeOrderCost, localeTag)}, while the approved customer increase is {money(approvedChangeOrderValue, localeTag)}. This is why projected margin is being reduced.
-          </p>
-        </div>
-      ) : null}
-
-      {approvedChangeOrders.length ? (
-        <div className="grid gap-3 rounded-[16px] border border-cyan-400/25 bg-cyan-400/[0.045] p-3 sm:grid-cols-3" data-approved-change-orders-summary>
-          <ContractValue label="Original Contract" value={money(originalContractValue, localeTag)} />
-          <ContractValue label="Approved Change Orders" value={`+${money(approvedChangeOrderValue, localeTag)}`} accent />
-          <ContractValue label="Current Contract Value" value={money(currentContractValue, localeTag)} strong />
-        </div>
-      ) : null}
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,.75fr)]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,1fr)]">
         <Panel title="Scope of Work Summary" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
           <p className="text-[15px] leading-6 text-[#d7e4ef]">{scopeSummary}</p>
         </Panel>
@@ -423,7 +420,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
               const scopeTotal = scopeGroups.reduce((sum, row) => sum + row.totalCost, 0);
               const ratio = scopeTotal > 0 ? group.totalCost / scopeTotal : 0;
               return (
-                <div key={group.name} className="grid grid-cols-[minmax(0,1fr)_74px_42px_76px] items-center gap-2 text-xs">
+                <div key={group.name} className="grid grid-cols-[minmax(0,1fr)_88px_46px_96px] items-center gap-2 text-xs">
                   <div className="flex min-w-0 items-center gap-2 font-bold text-[#dce9f4]"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: group.color }} /><span className="truncate">{group.name}</span></div>
                   <span className="text-right font-black text-white">{money(group.totalCost, localeTag)}</span>
                   <span className="text-right font-bold text-[#a8bfd2]">{Math.round(ratio * 100)}%</span>
@@ -469,53 +466,57 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                   </td>
                 </tr>
               ))}
-              {approvedChangeOrders.map((changeOrder) => {
-                const internalCost = (changeOrder.change_order_line_items || []).reduce((sum, line) => sum + Number(line.cost_amount || 0), 0);
-                const details = changeOrderScopeDetails(changeOrder);
-                return (
-                  <tr key={changeOrder.id} className="border-b border-cyan-300/20 bg-cyan-400/[0.075] text-sm last:border-b-0" data-approved-change-order-row>
-                    <td className="px-1.5 py-3 font-semibold text-cyan-200">CO</td>
-                    <td className="px-1.5 py-3 align-top">
-                      <div className="flex flex-col items-start gap-1.5">
-                        <Link href={`/change-orders/${changeOrder.id}`} className="inline-flex rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.06em] text-cyan-100 hover:bg-cyan-300/15">
-                          CHANGE ORDER · {changeOrder.change_order_number}
-                        </Link>
-                        <span className="text-xs font-extrabold text-white">{changeOrder.title}</span>
-                      </div>
-                    </td>
-                    <td className="max-w-[370px] px-2 py-3 align-top text-xs leading-5 text-[#d7ecf4]">{details}</td>
-                    <td className="px-1.5 py-3 text-right font-bold text-[#8fb0c4]">—</td>
-                    <td className="px-1.5 py-3 text-right font-bold text-[#8fb0c4]">—</td>
-                    <td className="px-1.5 py-3 text-right align-top">
-                      <div className="font-black text-white">{money(internalCost, localeTag)}</div>
-                      <div className="mt-1 text-[10px] font-extrabold text-cyan-200">+{money(changeOrder.total_amount, localeTag)} contract</div>
-                    </td>
-                    <td className="px-1.5 py-3 text-right align-top">
-                      <span className="inline-flex rounded-full border border-cyan-300/40 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-extrabold text-cyan-100">Approved Change</span>
-                    </td>
-                  </tr>
-                );
-              })}
-                            {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the project yet.</td></tr> : null}
+              {!scopeGroups.length ?          {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the project yet.</td></tr> : null}
             </tbody>
             <tfoot>
               <tr className="border-t border-[#315a78] bg-[#081c2d] text-sm font-black text-white">
-                <td className="px-2 py-3" colSpan={3}>Working Scope Total</td>
+                <td className="px-2 py-3" colSpan={3}>Working Scope Cost</td>
                 <td className="px-2 py-3 text-right">{money(workingMaterialBudget, localeTag)}</td>
                 <td className="px-2 py-3 text-right">{money(workingLaborBudget, localeTag)}</td>
-                <td className="px-2 py-3 text-right">{money(workingCost + approvedChangeOrderCost, localeTag)}</td>
+                <td className="px-2 py-3 text-right">{money(workingCost, localeTag)}</td>
                 <td />
               </tr>
-              <tr className="border-t border-[#315a78] bg-[#0a2135] text-sm font-black text-cyan-100">
-                <td className="px-2 py-3" colSpan={3}>Accepted Estimate Baseline</td>
-                <td className="px-2 py-3 text-right">{money(acceptedMaterialBudget, localeTag)}</td>
-                <td className="px-2 py-3 text-right">{money(acceptedLaborBudget, localeTag)}</td>
-                <td className="px-2 py-3 text-right">{money(estimatedCost, localeTag)}</td>
+              <tr className="border-t border-[#315a78] bg-[#0b2940] text-sm font-black text-white">
+                <td className="px-2 py-3" colSpan={3}>Accepted Estimate Baseline <span className="ml-2 text-[10px] font-semibold text-cyan-200">(signed · immutable)</span></td>
+                <td className="px-2 py-3 text-right text-cyan-100">{money(acceptedMaterialBudget, localeTag)}</td>
+                <td className="px-2 py-3 text-right text-cyan-100">{money(acceptedLaborBudget, localeTag)}</td>
+                <td className="px-2 py-3 text-right text-cyan-100">{money(estimatedCost, localeTag)}</td>
                 <td />
               </tr>
             </tfoot>
           </table>
         </div>
+
+        {approvedChangeOrders.length ? (
+          <section className="mt-4 rounded-[14px] border border-cyan-400/25 bg-cyan-400/[0.045] p-3" data-approved-change-orders-section>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-cyan-200">Approved Change Orders</p>
+                <p className="mt-1 text-xs text-[#a9c6d8]">Customer-approved amendments stay separate from the editable base scope and roll into projected project cost.</p>
+              </div>
+              <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-extrabold text-cyan-100">{approvedChangeOrders.length} approved</span>
+            </div>
+            <div className="mt-3 grid gap-2">
+              {approvedChangeOrders.map((changeOrder) => {
+                const internalCost = (changeOrder.change_order_line_items || []).reduce((sum, line) => sum + Number(line.cost_amount || 0), 0);
+                const marginImpact = Number(changeOrder.total_amount || 0) - internalCost;
+                return (
+                  <div key={changeOrder.id} className="grid gap-3 rounded-xl border border-cyan-300/20 bg-[#082033] p-3 md:grid-cols-[minmax(0,1fr)_120px_120px_120px_auto] md:items-center">
+                    <div className="min-w-0">
+                      <Link href={`/change-orders/${changeOrder.id}`} className="text-xs font-extrabold text-cyan-100 hover:underline">{changeOrder.change_order_number} · {changeOrder.title}</Link>
+                      <p className="mt-1 text-xs leading-5 text-[#bfd4e2]">{changeOrderScopeDetails(changeOrder)}</p>
+                    </div>
+                    <MetricMini label="Customer Price" value={money(changeOrder.total_amount, localeTag)} />
+                    <MetricMini label="Internal Cost" value={money(internalCost, localeTag)} />
+                    <MetricMini label="Margin Impact" value={`${marginImpact >= 0 ? "+" : ""}${money(marginImpact, localeTag)}`} />
+                    <Link href={`/change-orders/${changeOrder.id}`} className={outlineButton}>View</Link>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         {scopeActionError ? <p className="mt-2 rounded-lg border border-red-400/30 bg-red-400/[0.06] px-3 py-2 text-xs font-semibold text-red-200">{scopeActionError}</p> : null}
         <p className="mt-2 text-[11px] leading-4 text-[#8fa9bd]">Material and labor costs are managed directly in the base scope rows above. Approved change orders are highlighted separately and stay linked to their signed customer approval record; their internal cost is included in Total Cost without inventing a material/labor split.</p>
       </Panel>
@@ -559,6 +560,15 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
 const inputClass = "w-full rounded-lg border border-[#315a78] bg-[#061521] px-3 py-2.5 text-sm font-semibold text-white outline-none placeholder:text-[#55728a] focus:border-[#4ca8f6] focus:ring-2 focus:ring-[#2d8ae8]/20";
 const panelClass = "rounded-[17px] border border-[#1d4564] bg-[linear-gradient(180deg,#071a2b,#061624)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.025)]";
 const outlineButton = "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#2f678f] bg-[#092239] px-3 text-xs font-extrabold text-[#dcefff] transition hover:bg-[#0d2d49]";
+
+function MetricMini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[#244b67] bg-[#0a2135] px-3 py-2">
+      <p className="text-[9px] font-extrabold uppercase tracking-[.07em] text-[#83a0b8]">{label}</p>
+      <p className="mt-1 text-sm font-black text-white">{value}</p>
+    </div>
+  );
+}
 
 function ContractValue({ label, value, accent = false, strong = false }: { label: string; value: string; accent?: boolean; strong?: boolean }) {
   const valueClass = strong ? "text-white" : accent ? "text-cyan-200" : "text-[#dcecf7]";
