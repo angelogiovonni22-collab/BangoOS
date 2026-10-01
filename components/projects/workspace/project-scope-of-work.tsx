@@ -464,7 +464,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                   </td>
                 </tr>
               ))}
-              {!scopeGroups.length ?          {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the project yet.</td></tr> : null}
+              {!scopeGroups.length ? <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-[#8da7bb]">No scope line items have been added to the project yet.</td></tr> : null}
             </tbody>
             <tfoot>
               <tr className="border-t border-[#315a78] bg-[#081c2d] text-sm font-black text-white">
