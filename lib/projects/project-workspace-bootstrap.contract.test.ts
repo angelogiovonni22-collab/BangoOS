@@ -71,7 +71,7 @@ assert.match(panel, /Project execution is complete/, "completed projects must no
 assert.match(panel, /Records incomplete/, "completed projects with missing historical compliance records must not be presented as active setup blockers");
 
 const newProject = readFileSync(resolve(root, "app/(app)/projects/new/page.tsx"), "utf8");
-assert.match(newProject, /PROJECT_STATUSES\.filter\(\(option\) => !\["completed", "cancelled"\]\.includes\(option\.value\)\)/, "new projects cannot be created directly in terminal statuses");
+assert.match(newProject, /PROJECT_STATUSES\.filter\(\(option\) => !\["delayed", "completed", "cancelled"\]\.includes\(option\.value\)\)/, "new projects cannot be created directly in delayed or terminal statuses");
 
 const completionRoute = readFileSync(resolve(root, "app/api/projects/[id]/complete/route.ts"), "utf8");
 assert.match(completionRoute, /actual_end_date: now\.slice\(0, 10\)/, "canonical project completion records the actual completion date");
