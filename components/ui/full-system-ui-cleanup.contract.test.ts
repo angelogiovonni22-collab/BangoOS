@@ -36,7 +36,7 @@ assert.match(projectTabs, /min-h-10/, "Project workspace tabs must retain readab
 assert.match(projectTabs, /text-sm/, "Project workspace tab labels must be readable");
 assert.match(projectHeader, /useI18n/, "Project workspace header must follow the active locale");
 assert.match(projectHeader, /Espacio de trabajo del proyecto/, "Project workspace header must localize its workspace label");
-assert.match(projectHeader, /Completar proyecto/, "Project completion action must localize its visible label");
+assert.match(projectHeader, /Completo/, "Project completion action must localize its visible lifecycle-menu label");
 assert.match(projectWeather, /useI18n/, "Project jobsite intelligence must follow the active locale");
 assert.match(projectWeather, /Sensación térmica/, "Project weather strip must localize weather detail copy");
 assert.match(projectWeather, /Cómo llegar/, "Project weather strip must localize directions copy");
