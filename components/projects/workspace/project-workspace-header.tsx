@@ -156,7 +156,7 @@ export function ProjectWorkspaceHeader({
         ]}
         title={projectName}
         subtitle={projectNumber ? `${l("Project Workspace", "Espacio de trabajo del proyecto")} · ${projectNumber}` : l("Project Workspace", "Espacio de trabajo del proyecto")}
-        badgeLabel={statusLabel}
+        badgeLabel={statusKey === "approved" ? l("Ready to Start", "Listo para comenzar") : statusLabel}
         badgeTone={statusTone}
         actions={
           <div className="flex flex-col items-end gap-2">
@@ -210,7 +210,7 @@ export function ProjectWorkspaceHeader({
               ) : (
                 <Button type="button" size="sm" variant="outline" disabled className="w-full justify-center rounded-[11px] px-3.5 py-2 text-[0.8rem] font-semibold">
                   <Receipt size={15} aria-hidden="true" />
-                  {l("Invoice", "Factura")}
+                  {l("Invoice Not Created", "Factura no creada")}
                 </Button>
               )}
             </div>
@@ -279,7 +279,7 @@ function projectStatusActionLabel(statusKey: string, es: boolean) {
   if (statusKey === "on_hold") return es ? "Pausado" : "Paused";
   if (statusKey === "delayed") return es ? "Retrasado" : "Delayed";
   if (statusKey === "completed") return es ? "Completo" : "Complete";
-  if (statusKey === "approved") return es ? "Aprobado" : "Approved";
+  if (statusKey === "approved") return es ? "Listo para comenzar" : "Ready to Start";
   if (statusKey === "scheduled") return es ? "Programado" : "Scheduled";
   return statusKey.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
