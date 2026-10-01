@@ -676,4 +676,3 @@ function normalizeCategory(value: string | null | undefined) { return (value || 
 function titleCase(value: string) { return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
 function splitNotes(value: string) { return value.split(/\n|•|;/g).map((row) => row.trim().replace(/^[-–—]\s*/, "")).filter(Boolean); }
 function money(value: number, localeTag: string) { return new Intl.NumberFormat(localeTag, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(value || 0)); }
-function pct(value: number) { return `${Math.round(Math.max(0, value) * 100)}%`; }
