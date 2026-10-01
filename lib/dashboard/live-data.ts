@@ -858,7 +858,7 @@ function buildMetrics(
 
   return [
     makeMetric("active-projects", "P", "dashboard.metricActiveProjects", activeProjects, "/projects", "dashboard.metricActiveProjectsTooltip", "dashboard.metricActiveProjectsSubtitle"),
-    makeMetric("assigned-active-work", "A", "dashboard.metricAssignedActiveWork", assignedToActiveWork, "/team", "dashboard.metricAssignedActiveWorkTooltip", "dashboard.metricAssignedActiveWorkSubtitle", "dashboard.metricAssignedActiveWorkTrend"),
+    makeMetric("assigned-active-work", "A", "dashboard.metricAssignedActiveWork", assignedToActiveWork, "/crews", "dashboard.metricAssignedActiveWorkTooltip", "dashboard.metricAssignedActiveWorkSubtitle", "dashboard.metricAssignedActiveWorkTrend"),
     makeMetric("open-estimates", "S", "dashboard.metricOpenEstimates", openEstimates, "/estimates", "dashboard.metricOpenEstimatesTooltip", "dashboard.metricOpenEstimatesSubtitle"),
     canReadFinancials
       ? makeMetric("open-invoices", "I", "dashboard.metricOpenInvoices", openInvoices, "/invoices", "dashboard.metricOpenInvoicesTooltip", "dashboard.metricOpenInvoicesSubtitle")

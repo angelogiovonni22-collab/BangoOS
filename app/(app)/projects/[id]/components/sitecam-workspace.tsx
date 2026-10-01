@@ -451,12 +451,12 @@ export function SiteCamWorkspace({
             category: selectedCategory,
             caption: uploadNote.trim() || null,
             uploaded_at: new Date().toISOString(),
-            deep_link: `/projects/${projectId}?tab=documents`,
+            deep_link: `/projects/${projectId}?tab=photos`,
           },
           metadata: {
             event_category: "field",
             event_severity: "info",
-            deep_link: `/projects/${projectId}?tab=documents`,
+            deep_link: `/projects/${projectId}?tab=photos`,
           },
         });
       } catch (eventError) {
@@ -607,12 +607,12 @@ export function SiteCamWorkspace({
         payload: {
           project_id: projectId,
           photo_id: deletingPhoto.id,
-          deep_link: `/projects/${projectId}?tab=documents`,
+          deep_link: `/projects/${projectId}?tab=photos`,
         },
         metadata: {
           event_category: "field",
           event_severity: "attention",
-          deep_link: `/projects/${projectId}?tab=documents`,
+          deep_link: `/projects/${projectId}?tab=photos`,
         },
       });
     } catch (eventError) {

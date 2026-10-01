@@ -6,5 +6,5 @@ type ProjectPlansRedirectPageProps = {
 
 export default async function ProjectPlansRedirectPage({ params }: ProjectPlansRedirectPageProps) {
   const { id } = await params;
-  redirect(`/projects/${id}?tab=plans`);
+  redirect(`/projects/${id}?tab=blueprints`);
 }
