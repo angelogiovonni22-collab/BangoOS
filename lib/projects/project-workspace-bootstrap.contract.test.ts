@@ -71,7 +71,7 @@ assert.match(panel, /Project execution is complete/, "completed projects must no
 assert.match(panel, /Records incomplete/, "completed projects with missing historical compliance records must not be presented as active setup blockers");
 
 const newProject = readFileSync(resolve(root, "app/(app)/projects/new/page.tsx"), "utf8");
-assert.match(newProject, /PROJECT_STATUSES\.filter\(\(option\) => !\["completed", "cancelled"\]\.includes\(option\.value\)\)/, "new projects cannot be created directly in terminal statuses");
+assert.match(newProject, /PROJECT_STATUSES\.filter\(\(option\) => !\["delayed", "completed", "cancelled"\]\.includes\(option\.value\)\)/, "new projects cannot be created directly in delayed or terminal statuses");
 
 const completionRoute = readFileSync(resolve(root, "app/api/projects/[id]/complete/route.ts"), "utf8");
 assert.match(completionRoute, /actual_end_date: now\.slice\(0, 10\)/, "canonical project completion records the actual completion date");
@@ -107,6 +107,8 @@ assert.match(projectHeader, /Active/);
 assert.match(projectHeader, /Paused/);
 assert.match(projectHeader, /Delayed/);
 assert.match(projectHeader, /Complete/);
+assert.match(projectHeader, /Ready to Start/, "approved project lifecycle state must not be confused with estimate approval");
+assert.match(projectHeader, /Invoice Not Created/, "missing project invoice must render an explicit empty state");
 assert.doesNotMatch(projectHeader, /Project Complete", "Completar proyecto"/, "legacy Project Complete action label must be removed");
 assert.match(projectHeader, /window\.prompt/, "paused and delayed states must capture a reason for the Trade Partner alert");
 assert.match(projectHeader, /\/api\/projects\/\$\{encodeURIComponent\(projectId\)\}\/status/, "non-terminal project status changes must use the status workflow");
