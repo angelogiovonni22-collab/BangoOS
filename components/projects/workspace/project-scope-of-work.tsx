@@ -391,16 +391,20 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
             <Info size={16} className="text-amber-300" aria-hidden="true" />
             <p className="text-[10px] font-extrabold uppercase tracking-[.08em] text-amber-300">Scope Reconciliation</p>
           </div>
-          <div className="mt-2 grid gap-2 text-xs font-semibold leading-5 text-[#f0dfb9] md:grid-cols-2">
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
             {scopeMaterialized && Math.abs(workingScopeVariance) >= 0.01 ? (
-              <p>
-                <span className="font-extrabold text-white">Working scope:</span> accepted estimate cost {money(estimatedCost, localeTag)} · editable scope {money(workingCost, localeTag)} · variance {workingScopeVariance > 0 ? "+" : ""}{money(workingScopeVariance, localeTag)}.
-              </p>
+              <div className="rounded-xl border border-amber-300/20 bg-black/10 px-3 py-2">
+                <p className="text-[10px] font-extrabold uppercase tracking-[.06em] text-[#d7b96b]">Working Scope Variance</p>
+                <p className="mt-1 text-base font-black text-white">{workingScopeVariance > 0 ? "+" : ""}{money(workingScopeVariance, localeTag)}</p>
+                <p className="mt-1 text-[11px] font-semibold text-[#d8cba8]">{money(workingCost, localeTag)} working scope vs. {money(estimatedCost, localeTag)} accepted estimate cost.</p>
+              </div>
             ) : null}
             {approvedChangeOrderCost > 0 && approvedChangeOrderValue <= 0 ? (
-              <p>
-                <span className="font-extrabold text-white">Change order:</span> customer price {money(approvedChangeOrderValue, localeTag)} · internal cost {money(approvedChangeOrderCost, localeTag)} · margin impact -{money(approvedChangeOrderCost, localeTag)}.
-              </p>
+              <div className="rounded-xl border border-amber-300/20 bg-black/10 px-3 py-2">
+                <p className="text-[10px] font-extrabold uppercase tracking-[.06em] text-[#d7b96b]">Change Order Margin Impact</p>
+                <p className="mt-1 text-base font-black text-white">-{money(approvedChangeOrderCost, localeTag)}</p>
+                <p className="mt-1 text-[11px] font-semibold text-[#d8cba8]">{money(approvedChangeOrderValue, localeTag)} customer price · {money(approvedChangeOrderCost, localeTag)} internal cost.</p>
+              </div>
             ) : null}
           </div>
           <p className="mt-2 text-[11px] text-[#c9b98f]">The signed estimate remains unchanged. Projected cost and margin follow the live working scope plus approved change-order cost.</p>
@@ -408,9 +412,11 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
       ) : null}
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,1fr)]">
-        <Panel title="Scope of Work Summary" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
-          <p className="text-[15px] leading-6 text-[#d7e4ef]">{scopeSummary}</p>
-        </Panel>
+        <div className="h-fit self-start">
+          <Panel title="Scope of Work Summary" icon={<FileText size={21} />} action={<Link href={`/estimates/${estimate.id}`} className={outlineButton}><Pencil size={14} /> Edit</Link>}>
+            <p className="text-[15px] leading-6 text-[#d7e4ef]">{scopeSummary}</p>
+          </Panel>
+        </div>
 
         <Panel title="Trade / Scope Summary" icon={<BarChart3 size={21} />}>
           <div className="space-y-2.5">
@@ -458,8 +464,8 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                   <td className="px-1.5 py-2.5">
                     <div className="flex items-center justify-end gap-1.5">
                       <StatusPill status={group.status} />
-                      <button type="button" onClick={() => openEditScope(group, index)} className="grid h-7 w-7 place-items-center rounded-md border border-[#315a78] bg-[#092239] text-[#b9d7ec] hover:bg-[#0d2d49]" aria-label={`Edit ${group.name}`}><Pencil size={12} /></button>
-                      <button type="button" onClick={() => void removeScopeItem(index)} disabled={savingScope} className="grid h-7 w-7 place-items-center rounded-md border border-red-400/25 bg-red-400/[0.06] text-red-300 hover:bg-red-400/10 disabled:opacity-50" aria-label={`Remove ${group.name}`}><Trash2 size={12} /></button>
+                      <button type="button" onClick={() => openEditScope(group, index)} className="grid h-8 w-8 place-items-center rounded-lg border border-[#315a78] bg-[#092239] text-[#b9d7ec] hover:bg-[#0d2d49]" aria-label={`Edit ${group.name}`}><Pencil size={13} /></button>
+                      <button type="button" onClick={() => void removeScopeItem(index)} disabled={savingScope} className="grid h-8 w-8 place-items-center rounded-lg border border-red-400/25 bg-red-400/[0.06] text-red-300 hover:bg-red-400/10 disabled:opacity-50" aria-label={`Remove ${group.name}`}><Trash2 size={13} /></button>
                     </div>
                   </td>
                 </tr>
@@ -474,7 +480,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                 <td className="px-2 py-3 text-right">{money(workingCost, localeTag)}</td>
                 <td />
               </tr>
-              <tr className="border-t border-[#315a78] bg-[#0b2940] text-sm font-black text-white">
+              <tr className="border-t border-[#315a78] bg-[#0b2940] text-sm font-black text-white" data-accepted-estimate-baseline>
                 <td className="px-2 py-3" colSpan={3}>Accepted Estimate Baseline <span className="ml-2 text-[10px] font-semibold text-cyan-200">(signed · immutable)</span></td>
                 <td className="px-2 py-3 text-right text-cyan-100">{money(acceptedMaterialBudget, localeTag)}</td>
                 <td className="px-2 py-3 text-right text-cyan-100">{money(acceptedLaborBudget, localeTag)}</td>
@@ -584,7 +590,7 @@ function NotesColumn({ title, icon, text, fallback }: { title: string; icon: Rea
 function StatusPill({ status }: { status: string }) {
   const normalized = normalizeScopeStatus(status);
   const style = normalized.includes("complete") ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : normalized.includes("progress") ? "border-sky-400/40 bg-sky-400/10 text-sky-300" : normalized.includes("order") ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : "border-[#3a617c] bg-[#0d2a43] text-[#c8def0]";
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${style}`}>{scopeStatusLabel(status)}</span>;
+  return <span className={`inline-flex rounded-full border px-3 py-1.5 text-[10px] font-extrabold ${style}`}>{scopeStatusLabel(status)}</span>;
 }
 
 function changeOrderScopeDetails(changeOrder: ApprovedChangeOrder) {
