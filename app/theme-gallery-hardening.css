@@ -316,3 +316,71 @@
 [data-theme="high-contrast"] .project-workspace-root [data-project-scope-of-work] [data-approved-change-orders-section] :is(p,a,span) {
   color: var(--bos-text-primary) !important;
 }
+
+/* Overview uses dark-skin utility colors. Keep its light-theme pairs explicit,
+   including blue controls that must retain white text after shell overrides. */
+[data-theme="high-contrast"] .enterprise-shell main .project-workspace-root [role="tab"][aria-selected="true"],
+[data-theme="high-contrast"] .enterprise-shell main .project-workspace-root [role="tab"][aria-selected="true"] > span,
+[data-theme="high-contrast"] .enterprise-shell main .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] a[class*="bg-[linear-gradient"] {
+  color: #ffffff !important;
+  background: #005bd7 !important;
+  border-color: #0046a6 !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] [data-project-invoice-empty] {
+  background: var(--bos-bg-control) !important;
+  border-color: var(--bos-border-default) !important;
+  color: var(--bos-text-secondary) !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root :is([data-project-overview-command-center], [data-project-header-with-jobsite-intelligence="true"]) :is([class*="text-amber-"], [class*="text-emerald-"], [class*="text-red-"], [class*="text-rose-"], [class*="text-sky-"]) {
+  color: #25394e !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root :is([data-project-overview-command-center], [data-project-header-with-jobsite-intelligence="true"]) [class*="text-amber-"] { color: #713b00 !important; }
+[data-theme="high-contrast"] .project-workspace-root :is([data-project-overview-command-center], [data-project-header-with-jobsite-intelligence="true"]) [class*="text-emerald-"] { color: #00613e !important; }
+[data-theme="high-contrast"] .project-workspace-root :is([data-project-overview-command-center], [data-project-header-with-jobsite-intelligence="true"]) :is([class*="text-red-"], [class*="text-rose-"]) { color: #991b1b !important; }
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] [class*="text-sky-"] { color: #0046a6 !important; }
+
+[data-theme="high-contrast"] .project-workspace-root :is([data-project-overview-command-center], [data-project-header-with-jobsite-intelligence="true"]) [class*="bg-amber-"] {
+  background: #fff3d6 !important;
+  border-color: #8b4d00 !important;
+}
+[data-theme="high-contrast"] .project-workspace-root :is([data-project-overview-command-center], [data-project-header-with-jobsite-intelligence="true"]) [class*="bg-emerald-"] {
+  background: #e6f4ed !important;
+  border-color: #00613e !important;
+}
+[data-theme="high-contrast"] .project-workspace-root :is([data-project-overview-command-center], [data-project-header-with-jobsite-intelligence="true"]) :is([class*="bg-red-"], [class*="bg-rose-"]) {
+  background: #fff0f0 !important;
+  border-color: #991b1b !important;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-with-jobsite-intelligence="true"] [class*="bg-sky-"] {
+  background: #eaf2ff !important;
+  border-color: #0046a6 !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] :is([class*="text-[#7"], [class*="text-[#4"]) {
+  color: var(--bos-text-secondary) !important;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] :is([class*="text-[9px]"], [class*="text-[10px]"], [class*="text-[11px]"]) {
+  font-size: 0.75rem;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] h2 {
+  color: var(--bos-text-primary) !important;
+  font-size: 1.125rem;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] [class*="bg-[#1678d2]"] {
+  color: #ffffff !important;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] [data-unpriced-change-order-warning] :is(p,a) {
+  color: #713b00 !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] [class*="bg-[linear-gradient"][class*="rgba(245,158,11"] {
+  background: #fff3d6 !important;
+  border-color: #8b4d00 !important;
+}
+
+[data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] [class*="border-[#"] {
+  border-color: var(--bos-border-default) !important;
+}

@@ -380,11 +380,22 @@ export function ProjectOverviewCommandCenter(props: Props) {
         </Panel>
 
         <Panel title="Recent Project Media" action={<Link href={`/projects/${props.projectId}?tab=photos`} className={smallAction}>View All →</Link>}>
-          {props.heroImageUrl ? <div className="grid gap-3 sm:grid-cols-[1.4fr_.6fr]"><div className="relative h-44 overflow-hidden rounded-xl border border-[#21405c]"><Image src={props.heroImageUrl} alt={`${props.projectName} recent project media`} fill unoptimized className="object-cover" /></div><div className="grid place-items-center rounded-xl border border-[#21405c] bg-[#071827] p-4 text-center"><div><p className="text-3xl font-black text-white">{props.photoCount}</p><p className="mt-1 text-xs font-bold uppercase tracking-[.08em] text-[#8daac0]">Media Files</p></div></div></div> : <div className="grid min-h-44 place-items-center rounded-xl border border-dashed border-[#31516c] bg-[#071827] p-6 text-center"><div><p className="text-base font-bold text-white">No project media yet</p><p className="mt-1 text-sm text-[#91aabd]">Project photos and field media will appear here automatically.</p></div></div>}
+          <ProjectMediaPreview key={props.heroImageUrl} imageUrl={props.heroImageUrl} projectName={props.projectName} photoCount={props.photoCount} projectId={props.projectId} />
         </Panel>
       </div>
     </div>
   );
+}
+
+function ProjectMediaPreview({ imageUrl, projectName, photoCount, projectId }: { imageUrl: string | null; projectName: string; photoCount: number; projectId: string }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const hasPreview = Boolean(imageUrl) && !imageFailed;
+  return <div className="grid gap-3 sm:grid-cols-[1.4fr_.6fr]">
+    <div className="relative grid min-h-44 place-items-center overflow-hidden rounded-xl border border-[#21405c] bg-[#071827] p-4 text-center">
+      {hasPreview ? <Image src={imageUrl!} alt={`${projectName} recent project media`} fill unoptimized className="object-cover" onError={() => setImageFailed(true)} /> : <div><p className="text-base font-bold text-white">{photoCount > 0 ? "Media preview unavailable" : "No project media yet"}</p><p className="mt-1 text-sm text-[#91aabd]">{photoCount > 0 ? "Open Photos to view the project files." : "Project photos and field media will appear here automatically."}</p>{photoCount > 0 ? <Link href={`/projects/${projectId}?tab=photos`} className={`${smallAction} mt-3`}>Open Photos</Link> : null}</div>}
+    </div>
+    <div className="grid place-items-center rounded-xl border border-[#21405c] bg-[#071827] p-4 text-center"><div><p className="text-3xl font-black text-white">{photoCount}</p><p className="mt-1 text-xs font-bold uppercase tracking-[.08em] text-[#8daac0]">Media Files</p></div></div>
+  </div>;
 }
 
 const panelClass = "rounded-[18px] border border-[#1d4261] bg-[linear-gradient(180deg,#071827,#061320)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.035),0_10px_30px_rgba(0,0,0,.12)] sm:p-5";
