@@ -384,3 +384,17 @@
 [data-theme="high-contrast"] .project-workspace-root [data-project-overview-command-center] [class*="border-[#"] {
   border-color: var(--bos-border-default) !important;
 }
+
+/* Animated weather keeps its motion, with a light base beneath readable text. */
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-jobsite-intelligence="true"] [data-live-weather] {
+  background: #eef3f7 !important;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-jobsite-intelligence="true"] [data-live-weather] > div[aria-hidden="true"] {
+  opacity: 0.12;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-jobsite-intelligence="true"] :is([class*="text-[#8"], [class*="text-[#a"], [class*="text-[#c"]) {
+  color: var(--bos-text-secondary) !important;
+}
+[data-theme="high-contrast"] .project-workspace-root [data-project-header-jobsite-intelligence="true"] :is([class*="text-[10px]"], [class*="text-[11px]"]) {
+  font-size: 0.75rem;
+}

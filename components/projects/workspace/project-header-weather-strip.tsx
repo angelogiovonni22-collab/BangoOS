@@ -96,7 +96,9 @@ export function ProjectHeaderWeatherStrip() {
       className="mt-3 overflow-hidden rounded-[16px] border border-[#345783] bg-[linear-gradient(135deg,#0e2546,#102d52_52%,#0c213d)] shadow-[0_14px_30px_-22px_rgba(0,0,0,0.9)]"
     >
       {loading ? (
-        <div className="h-[112px] animate-pulse bg-white/5" />
+        <div role="status" className="flex min-h-[112px] animate-pulse items-center gap-3 bg-white/5 px-5 py-4 text-sm font-semibold text-[#c6d8ef]">
+          <CloudSun size={18} aria-hidden="true" />{l("Loading jobsite weather and map…", "Cargando el clima y el mapa del sitio…")}
+        </div>
       ) : payload ? (
         <div className="grid min-h-[112px] grid-cols-1 divide-y divide-[#31537e] lg:grid-cols-[1.05fr_1fr_0.9fr] lg:divide-x lg:divide-y-0">
           <div
