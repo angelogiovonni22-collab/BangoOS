@@ -208,10 +208,10 @@ export function ProjectWorkspaceHeader({
                   {l("Invoice", "Factura")}
                 </Link>
               ) : (
-                <Button type="button" size="sm" variant="outline" disabled className="w-full justify-center rounded-[11px] px-3.5 py-2 text-[0.8rem] font-semibold">
+                <span data-project-invoice-empty className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-[11px] border border-[#5678a7] bg-[#152a4b] px-3.5 py-2 text-[0.8rem] font-semibold text-[#e7f1ff]">
                   <Receipt size={15} aria-hidden="true" />
                   {l("Invoice Not Created", "Factura no creada")}
-                </Button>
+                </span>
               )}
             </div>
 
