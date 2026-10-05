@@ -252,14 +252,14 @@ export function ProjectComplianceWorkflow({ projectId, workspaceContext }: Proje
 
     await runMutation("inspection-action", async () => {
       if (inspectionAction === "schedule") {
-        const scheduledAt = inspectionActionDate || new Date().toISOString();
+        const scheduledAt = inspectionActionDate ? new Date(inspectionActionDate).toISOString() : new Date().toISOString();
         const activeService = getServiceOrThrow(service);
         await activeService.scheduleInspection({ ...actorContext, inspectionId: selectedInspectionId, scheduledAt });
         return;
       }
 
       if (inspectionAction === "reschedule") {
-        const scheduledAt = inspectionActionDate || new Date().toISOString();
+        const scheduledAt = inspectionActionDate ? new Date(inspectionActionDate).toISOString() : new Date().toISOString();
         const activeService = getServiceOrThrow(service);
         await activeService.rescheduleInspection({ ...actorContext, inspectionId: selectedInspectionId, scheduledAt });
         return;
@@ -288,13 +288,13 @@ export function ProjectComplianceWorkflow({ projectId, workspaceContext }: Proje
           inspectionId: selectedInspectionId,
           correctionNotes: inspectionActionNote || null,
           reinspectionRequired: Boolean(inspectionActionDate),
-          reinspectionDate: inspectionActionDate || null,
+          reinspectionDate: inspectionActionDate ? new Date(inspectionActionDate).toISOString() : null,
         });
         return;
       }
 
       if (inspectionAction === "reinspection_required") {
-        const reinspectionDate = inspectionActionDate || new Date().toISOString();
+        const reinspectionDate = inspectionActionDate ? new Date(inspectionActionDate).toISOString() : new Date().toISOString();
         const activeService = getServiceOrThrow(service);
         await activeService.scheduleReinspection({ ...actorContext, inspectionId: selectedInspectionId, reinspectionDate });
         return;
