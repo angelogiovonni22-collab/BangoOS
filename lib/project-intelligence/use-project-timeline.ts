@@ -184,7 +184,8 @@ export function useProjectTimeline({
     const groups = new Map<string, ProjectEvent[]>();
 
     filteredEvents.forEach((event) => {
-      const key = event.occurredAt.slice(0, 10);
+      const date = new Date(event.occurredAt);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
       const current = groups.get(key) || [];
       current.push(event);
       groups.set(key, current);

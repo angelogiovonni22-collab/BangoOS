@@ -191,7 +191,7 @@ export function ProjectTimeline({ projectId, localeTag, currentUserId, currentUs
 
       <ProjectTimelineSummary summary={summary} locale={localeTag} t={t} />
 
-      <div className="space-y-4 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4">
+      <div className="space-y-4 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4">
         <div id="project-intelligence-search">
           <ProjectTimelineSearch value={searchTerm} onChange={setSearchTerm} matchedCount={matchedCount} t={t} />
         </div>
@@ -229,7 +229,7 @@ export function ProjectTimeline({ projectId, localeTag, currentUserId, currentUs
                 value={formState.note}
                 onChange={(event) => setFormState((current) => ({ ...current, note: event.target.value }))}
                 placeholder={t("projects.intelligenceManualNoteBodyPlaceholder")}
-                className="min-h-28 w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-white px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
+                className="min-h-28 w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] px-4 py-3 text-sm text-[var(--color-text-primary)] outline-none transition focus-visible:border-[var(--color-brand-500)] focus-visible:ring-4 focus-visible:ring-[var(--focus-ring-primary)]"
                 aria-label={t("projects.intelligenceManualNoteBody")}
               />
 

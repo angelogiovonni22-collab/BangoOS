@@ -81,7 +81,7 @@ export function ProjectTimelineEventDetails({ event, locale, t, sourceLabel }: P
           <p className="mt-1">{event.aiContext.summary}</p>
 
           {event.aiExplanation?.factors && event.aiExplanation.factors.length > 0 ? (
-            <div className="mt-3 rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] bg-white p-3">
+            <div className="mt-3 rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-3">
               <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
                 {t("projects.intelligenceWhyThisMatters")}
               </p>
