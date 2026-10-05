@@ -918,6 +918,7 @@ function buildProjectHealthRow(
     id: project.id,
     projectName: project.name,
     healthScore: intelligence.summary.healthScore ?? 0,
+    completionPercent: intelligence.summary.completionPercent,
     budgetStatusKey: toBudgetStatusKey(project, invoices),
     scheduleStatusKey: toScheduleStatusKey(intelligence.summary.overdueTasks),
     lastPhotoUpload: recentPhoto ? formatRelativeTime(recentPhoto) : "--",

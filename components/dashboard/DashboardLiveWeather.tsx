@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CloudMoon, CloudSun } from "lucide-react";
 import weatherSceneStyles from "@/components/location-intelligence/location-weather-scene.module.css";
+import { useI18n } from "@/lib/i18n/provider";
 
 type WeatherPayload = {
   ok: boolean;
@@ -23,6 +24,7 @@ type WeatherPayload = {
 };
 
 export function DashboardLiveWeather({ projectId }: { projectId: string | null }) {
+  const { t } = useI18n();
   const [payload, setPayload] = useState<WeatherPayload | null>(null);
   const [loading, setLoading] = useState(Boolean(projectId));
 
@@ -82,14 +84,14 @@ export function DashboardLiveWeather({ projectId }: { projectId: string | null }
           <div className="min-w-0">
             <div className="flex items-end gap-2">
               <p className="text-[31px] font-light leading-none tracking-[-0.04em] text-white">{current.temperatureF}°</p>
-              <p className="pb-0.5 text-[11px] font-bold text-white">{current.condition}</p>
+              <p className="pb-0.5 text-[11px] font-bold text-white">{current.weatherCode === 0 ? t("common.clearWeather") : current.condition}</p>
             </div>
-            <p className="mt-1 truncate text-[9px] font-semibold text-[#e0ecf8]">{location} · Feels {current.apparentTemperatureF}° · Wind {current.windMph} mph</p>
+            <p className="mt-1 truncate text-[9px] font-semibold text-[#e0ecf8]">{location} · {t("common.feelsWindTemplate", { temp: current.apparentTemperatureF, wind: current.windMph })}</p>
           </div>
         </div>
         <div className="shrink-0 text-right text-[9px] font-semibold text-[#e0ecf8]">
-          {days[0] ? <p>H {days[0].highF}° · L {days[0].lowF}°</p> : null}
-          {hours[0] ? <p className="mt-1">Rain {hours[0].precipitationProbability}%</p> : null}
+          {days[0] ? <p>{t("dashboard.weatherHighLow", { high: `${days[0].highF}°`, low: `${days[0].lowF}°` })}</p> : null}
+          {hours[0] ? <p className="mt-1">{t("common.rainTemplate", { chance: hours[0].precipitationProbability })}</p> : null}
         </div>
       </div>
     </div>

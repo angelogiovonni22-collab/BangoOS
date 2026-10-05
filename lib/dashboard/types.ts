@@ -53,6 +53,7 @@ export type ProjectHealthRow = {
   id: string;
   projectName: string;
   healthScore: number;
+  completionPercent?: number;
   budgetStatusKey: string;
   scheduleStatusKey: string;
   lastPhotoUpload: string;
