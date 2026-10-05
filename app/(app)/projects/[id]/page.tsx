@@ -852,6 +852,7 @@ export default function ProjectWorkspacePage() {
                 userId={workspace.workspaceContext.userId}
                 locale={locale}
                 tasks={workspace.tasks}
+                onTasksChanged={(tasks) => setWorkspace((previous) => previous ? { ...previous, tasks } : previous)}
                 profiles={workspace.profilesById}
                 briefing={superintendentBriefing}
                 formatCurrency={(amount) => formatProjectCurrency(amount, localeTag, "$0")}

@@ -44,13 +44,14 @@ type ProjectWorkWorkspaceProps = {
   userId: string;
   locale: string;
   tasks: WorkTaskSummary[];
+  onTasksChanged?: (tasks: WorkTaskSummary[]) => void;
   profiles: Record<string, string>;
   briefing: ProjectSuperintendentBriefing;
   formatCurrency: (amount: number) => string;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-export function ProjectWorkWorkspace({ companyId, projectId, projectName, projectStatus, customerId, userId, locale, tasks, profiles, briefing, formatCurrency, t }: ProjectWorkWorkspaceProps) {
+export function ProjectWorkWorkspace({ companyId, projectId, projectName, projectStatus, customerId, userId, locale, tasks, onTasksChanged, profiles, briefing, formatCurrency, t }: ProjectWorkWorkspaceProps) {
   const supabase = useMemo(() => createClient(), []);
   const isProjectCompleted = normalizeStatus(projectStatus) === "completed";
   const completedBriefing = useMemo<ProjectSuperintendentBriefing>(() => {
@@ -92,6 +93,8 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
   const [taskDraftById, setTaskDraftById] = useState<Record<string, TaskDetailsDraft>>({});
   const [phaseNameById, setPhaseNameById] = useState<Record<string, string>>({});
+  const [phaseRefreshToken, setPhaseRefreshToken] = useState(0);
+  const handlePhasesChanged = useCallback(() => setPhaseRefreshToken((value) => value + 1), []);
   const [dependencySummary, setDependencySummary] = useState<DependencySummary | null>(null);
   const [dependencyRefreshToken, setDependencyRefreshToken] = useState(0);
   const [executionFilters, setExecutionFilters] = useState<{
@@ -215,7 +218,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     return () => {
       isSubscribed = false;
     };
-  }, [companyId, projectId, selectedPhaseId, supabase]);
+  }, [companyId, projectId, selectedPhaseId, supabase, phaseRefreshToken]);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -325,7 +328,9 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
 
     const updatedTask = updateResponse.data as WorkTaskSummary;
 
-    setWorkspaceTasks((previous) => previous.map((task) => (task.id === updatedTask.id ? { ...task, ...updatedTask } : task)));
+    const updatedTasks = workspaceTasks.map((task) => (task.id === updatedTask.id ? { ...task, ...updatedTask } : task));
+    setWorkspaceTasks(updatedTasks);
+    onTasksChanged?.(updatedTasks);
     setTaskDraftById((previous) => {
       const next = { ...previous };
       delete next[updatedTask.id];
@@ -390,7 +395,9 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
     }
 
     const createdTask = insertResponse.data as WorkTaskSummary;
-    setWorkspaceTasks((previous) => [...previous, createdTask]);
+    const updatedTasks = [...workspaceTasks, createdTask];
+    setWorkspaceTasks(updatedTasks);
+    onTasksChanged?.(updatedTasks);
     setSelectedTaskId(createdTask.id);
     setIsMobileDetailsOpen(true);
     setNewTaskTitle("");
@@ -532,6 +539,7 @@ export function ProjectWorkWorkspace({ companyId, projectId, projectName, projec
                 tasks={workspaceTasks}
                 selectedPhaseId={selectedPhaseId}
                 onSelectedPhaseChange={handleSelectedPhaseChange}
+                onPhasesChanged={handlePhasesChanged}
                 t={t}
               />
             </StatusPulse>
