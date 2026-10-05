@@ -919,6 +919,19 @@ function buildProjectHealthRow(
     projectName: project.name,
     healthScore: intelligence.summary.healthScore ?? 0,
     completionPercent: intelligence.summary.completionPercent,
+    phases: Array.from(phaseById.values())
+      .filter((phase) => phase.project_id === project.id)
+      .sort((left, right) => left.sort_order - right.sort_order)
+      .map((phase) => ({
+        id: phase.id,
+        name: phase.name,
+        completionPercent: calculateProjectIntelligence({
+          project,
+          tasks: tasks.filter((task) => task.phase_id === phase.id),
+          invoices: [],
+          counts: { estimates: 0, changeOrders: 0, photos: 0 },
+        }).summary.completionPercent,
+      })),
     budgetStatusKey: toBudgetStatusKey(project, invoices),
     scheduleStatusKey: toScheduleStatusKey(intelligence.summary.overdueTasks),
     lastPhotoUpload: recentPhoto ? formatRelativeTime(recentPhoto) : "--",

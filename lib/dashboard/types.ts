@@ -54,6 +54,7 @@ export type ProjectHealthRow = {
   projectName: string;
   healthScore: number;
   completionPercent?: number;
+  phases?: Array<{ id: string; name: string; completionPercent: number }>;
   budgetStatusKey: string;
   scheduleStatusKey: string;
   lastPhotoUpload: string;
