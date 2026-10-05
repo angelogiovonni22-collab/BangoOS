@@ -827,8 +827,8 @@ export function SiteCamWorkspace({
         <EmptyState
           compact
           icon="SC"
-          title={t("projects.sitecamEmptyTitle")}
-          description={t("projects.sitecamEmptyDescription")}
+          title={t(photos.length ? "projects.sitecamFilteredEmptyTitle" : "projects.sitecamEmptyTitle")}
+          description={t(photos.length ? "projects.sitecamFilteredEmptyDescription" : "projects.sitecamEmptyDescription")}
         />
       ) : viewMode === "grid" ? (
         <div ref={menuContainerRef} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

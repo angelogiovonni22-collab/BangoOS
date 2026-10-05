@@ -81,7 +81,7 @@ export function ProjectTimelineFilters({
   t,
 }: ProjectTimelineFiltersProps) {
   return (
-    <div className="space-y-3 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4">
+    <div className="space-y-3 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t("projects.intelligenceFilters")}</p>
         <button

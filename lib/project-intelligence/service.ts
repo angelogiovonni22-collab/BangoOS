@@ -123,16 +123,17 @@ export function createProjectIntelligenceService(params: {
 }
 
 function mapTimelineToProjectEvent(projectId: string, item: Awaited<ReturnType<ReturnType<typeof createOrionTimelineService>["listProjectTimeline"]>>["items"][number]): ProjectEvent {
-  const eventType = toProjectEventType(item.eventType);
-  const category = toProjectCategory(item.category);
+  const isSitePhoto = item.eventType === "document.uploaded" && typeof item.displayData.photo_id === "string";
+  const eventType = isSitePhoto ? "site_photo_uploaded" : toProjectEventType(item.eventType);
+  const category = isSitePhoto ? "sitecam" : toProjectCategory(item.category, item.eventType);
 
   return {
     id: item.id,
     projectId,
     eventType,
     category,
-    title: item.title,
-    description: item.summary,
+    title: isSitePhoto ? "projects.intelligenceSitePhotoUploadedTitle" : item.title,
+    description: isSitePhoto ? "projects.intelligenceSitePhotoUploadedDescription" : item.summary,
     occurredAt: item.occurredAt,
     createdAt: item.occurredAt,
     actor: {
@@ -142,12 +143,14 @@ function mapTimelineToProjectEvent(projectId: string, item: Awaited<ReturnType<R
       role: "System",
       type: "system",
     },
-    source: item.sourceModule === "system" ? "system" : "integration",
+    source: isSitePhoto ? "sitecam" : item.sourceModule === "system" ? "system" : "integration",
     priority: toProjectPriority(item.severity),
     status: "completed",
     impactAreas: [impactAreaForCategory(category)],
     metadata: toEventMetadataRecord(item.displayData),
-    relatedEntity: item.href
+    relatedEntity: isSitePhoto
+      ? { id: String(item.displayData.photo_id), type: "site_photo", label: item.projectName || "SiteCam", href: `/projects/${projectId}?tab=photos` }
+      : item.href
       ? {
           id: item.entityId,
           type: toRelatedEntityType(item.entityType),
@@ -228,7 +231,14 @@ function toProjectEventType(eventType: string): ProjectEvent["eventType"] {
   return map[eventType] || "project_updated";
 }
 
-function toProjectCategory(category: string): ProjectEvent["category"] {
+function toProjectCategory(category: string, eventType: string): ProjectEvent["category"] {
+  const entityCategory: Record<string, ProjectEvent["category"]> = {
+    change_order: "change_order", task: "task", inspection: "inspection", permit: "permit",
+    document: "document", invoice: "invoice", payment: "payment", contract: "contract",
+    schedule: "schedule", budget: "budget", equipment: "equipment", material: "material",
+  };
+  const specificCategory = entityCategory[eventType.split(".")[0]];
+  if (specificCategory) return specificCategory;
   const map: Record<string, ProjectEvent["category"]> = {
     customers: "customer",
     sales: "estimate",
@@ -269,7 +279,7 @@ function impactAreaForCategory(category: ProjectEvent["category"]): ProjectEvent
     return "schedule";
   }
 
-  if (category === "daily_report") {
+  if (category === "daily_report" || category === "sitecam" || category === "document") {
     return "documentation";
   }
 

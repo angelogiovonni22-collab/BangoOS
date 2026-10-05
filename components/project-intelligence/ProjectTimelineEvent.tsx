@@ -22,7 +22,7 @@ export function ProjectTimelineEvent({ event, locale, t, timelineIcon }: Project
   );
 
   return (
-    <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-white p-4 shadow-[var(--shadow-card)] transition-colors hover:border-[var(--color-border-strong)]">
+    <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-4 shadow-[var(--shadow-card)] transition-colors hover:border-[var(--color-border-strong)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-2">
