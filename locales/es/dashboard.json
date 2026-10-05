@@ -289,5 +289,7 @@
   "insightOne": "3 presupuestos están pendientes de aprobación y probablemente se cerrarán esta semana.",
   "insightTwo": "2 facturas tienen más de 7 días de atraso y requieren seguimiento.",
   "insightThree": "El Equipo A podría terminar la Fase 2 de techado un día antes de lo previsto.",
-  "insightFour": "Los ingresos subieron un 18% este mes impulsados por proyectos comerciales."
+  "insightFour": "Los ingresos subieron un 18% este mes impulsados por proyectos comerciales.",
+  "liveScheduleStatus": "Estado del cronograma en vivo",
+  "addProjectScheduleData": "Añade los datos del cronograma del proyecto"
 }
