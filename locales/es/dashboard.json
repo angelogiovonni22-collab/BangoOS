@@ -291,5 +291,6 @@
   "insightThree": "El Equipo A podría terminar la Fase 2 de techado un día antes de lo previsto.",
   "insightFour": "Los ingresos subieron un 18% este mes impulsados por proyectos comerciales.",
   "liveScheduleStatus": "Estado del cronograma en vivo",
-  "addProjectScheduleData": "Añade los datos del cronograma del proyecto"
+  "addProjectScheduleData": "Añade los datos del cronograma del proyecto",
+  "progressHistoryUnavailable": "El historial de avance aún no está disponible."
 }

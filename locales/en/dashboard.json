@@ -291,5 +291,6 @@
   "insightThree": "Crew A may finish Roofing Phase 2 one day earlier than planned.",
   "insightFour": "Revenue is up 18% this month driven by commercial projects.",
   "liveScheduleStatus": "Live schedule status",
-  "addProjectScheduleData": "Add project schedule data"
+  "addProjectScheduleData": "Add project schedule data",
+  "progressHistoryUnavailable": "Progress history is not available yet."
 }
