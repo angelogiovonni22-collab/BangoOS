@@ -19,6 +19,7 @@ type ProjectWorkActivePhasesPanelProps = {
   tasks: ProjectTaskRow[];
   selectedPhaseId: string | null;
   onSelectedPhaseChange: (phaseId: string | null) => void;
+  onPhasesChanged?: () => void;
   t: TranslateFn;
 };
 
@@ -28,6 +29,7 @@ export function ProjectWorkActivePhasesPanel({
   tasks,
   selectedPhaseId,
   onSelectedPhaseChange,
+  onPhasesChanged,
   t,
 }: ProjectWorkActivePhasesPanelProps) {
   const [phases, setPhases] = useState<ProjectPhaseRow[]>([]);
@@ -195,6 +197,7 @@ export function ProjectWorkActivePhasesPanel({
     }
 
     setPhases((previous) => [...previous, result.data]);
+    onPhasesChanged?.();
     onSelectedPhaseChange(result.data.id);
     setPhaseNameInput(result.data.name);
     setPhaseColorInput(result.data.color || "#2563eb");
@@ -234,6 +237,7 @@ export function ProjectWorkActivePhasesPanel({
     }
 
     setPhases((previous) => previous.map((phase) => (phase.id === result.data.id ? result.data : phase)));
+    onPhasesChanged?.();
     setIsSaving(false);
   };
 
@@ -270,6 +274,7 @@ export function ProjectWorkActivePhasesPanel({
 
     const updated = phases.filter((phase) => phase.id !== selectedPhaseId);
     setPhases(updated);
+    onPhasesChanged?.();
 
     if (updated.length === 0) {
       onSelectedPhaseChange(null);
