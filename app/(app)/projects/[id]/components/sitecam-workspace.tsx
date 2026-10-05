@@ -187,7 +187,11 @@ export function SiteCamWorkspace({
 
     filteredPhotos.forEach((photo) => {
       const date = resolvePhotoDate(photo);
-      const groupKey = date.toISOString().slice(0, 10);
+      const groupKey = [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0"),
+      ].join("-");
       const list = groups.get(groupKey) || [];
       list.push(photo);
       groups.set(groupKey, list);
