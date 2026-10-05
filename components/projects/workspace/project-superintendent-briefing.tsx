@@ -120,7 +120,7 @@ export function ProjectSuperintendentBriefingPanel({
               </span>
               <div>
                 <p className="text-[0.7rem] font-bold uppercase tracking-[0.1em] text-[var(--color-text-secondary)]">{t("briefingPanelLabel")}</p>
-                <CardTitle className="text-[1.25rem] font-bold leading-tight tracking-[-0.01em] text-[var(--color-navy-900)]">{greeting.projectName}</CardTitle>
+                <CardTitle className="text-[1.25rem] font-bold leading-tight tracking-[-0.01em] text-[var(--color-text-primary)]">{greeting.projectName}</CardTitle>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -149,7 +149,7 @@ export function ProjectSuperintendentBriefingPanel({
           {!isAI && mode !== "loading" && (
             <div className={`flex items-start gap-3 rounded-[14px] border px-4 py-3.5 ${stateColors.summaryStrip}`}>
               <span className={`mt-0.5 shrink-0 ${isProjectCompleted ? "text-white" : stateColors.summaryIcon}`}><StateIcon state={state} /></span>
-              <p className={`text-sm font-semibold leading-6 ${isProjectCompleted ? "text-white" : "text-[var(--color-navy-900)]"}`}>{t(executiveSummaryKey, executiveSummaryParams)}</p>
+              <p className={`text-sm font-semibold leading-6 ${isProjectCompleted ? "text-white" : "text-[var(--color-text-primary)]"}`}>{t(executiveSummaryKey, executiveSummaryParams)}</p>
             </div>
           )}
 
@@ -169,7 +169,7 @@ export function ProjectSuperintendentBriefingPanel({
                 <span className="text-[0.7rem] font-bold uppercase tracking-[0.1em] text-[var(--color-brand-700)]">{t("briefingAIHeadline")}</span>
                 <ConfidencePill confidence={narration.confidence} t={t} />
               </div>
-              <p className="text-[1.05rem] font-bold leading-tight text-[var(--color-navy-900)]">{narration.headline}</p>
+              <p className="text-[1.05rem] font-bold leading-tight text-[var(--color-text-primary)]">{narration.headline}</p>
               <p className="text-sm leading-6 text-[var(--color-text-secondary)]">{narration.executive_summary}</p>
               {narration.limitations.length > 0 && (
                 <div className="rounded-[10px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-3 py-2">
@@ -208,7 +208,7 @@ export function ProjectSuperintendentBriefingPanel({
                   <RefreshCw size={13} aria-hidden="true" />
                   {t("briefingRefreshAI")}
                 </button>
-                <button type="button" onClick={returnToDeterministic} className="inline-flex items-center gap-1.5 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]">
+                <button type="button" onClick={returnToDeterministic} className="inline-flex items-center gap-1.5 rounded-[10px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]">
                   {t("briefingReturnToStandard")}
                 </button>
               </>
@@ -305,7 +305,7 @@ function FocusSection({ mode, narration, focusItems, t }: { mode: PanelMode; nar
               <li key={i} className={`flex items-start gap-3 rounded-[12px] border px-4 py-3 ${urgencyCardClass(item.priority)}`}>
                 <span className="mt-0.5 shrink-0 text-[0.65rem] font-bold text-[var(--color-text-muted)]">{i + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[var(--color-navy-900)]">{item.title}</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.title}</p>
                   <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{item.explanation}</p>
                 </div>
                 <UrgencyBadge urgency={item.priority} t={t} />
@@ -330,7 +330,7 @@ function FocusSection({ mode, narration, focusItems, t }: { mode: PanelMode; nar
             <li key={item.id} className={`flex items-start gap-3 rounded-[12px] border px-4 py-3 ${urgencyCardClass(item.urgency)}`}>
               <span className="mt-0.5 shrink-0 text-[0.65rem] font-bold text-[var(--color-text-muted)]">{index + 1}</span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-[var(--color-navy-900)]">{t(item.titleKey, item.params)}</p>
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t(item.titleKey, item.params)}</p>
                 <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{t(item.descriptionKey, item.params)}</p>
               </div>
               <UrgencyBadge urgency={item.urgency} t={t} />
@@ -355,7 +355,7 @@ function RisksSection({ mode, narration, riskItems, isProjectCompleted, t }: { m
             {aiRisks.map((item, i) => (
               <li key={i} className={`rounded-[12px] border px-4 py-3 ${severityCardClass(item.severity)}`}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-[var(--color-navy-900)]">{item.title}</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.title}</p>
                   <SeverityBadge severity={item.severity} t={t} />
                 </div>
                 <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{item.explanation}</p>
@@ -367,7 +367,7 @@ function RisksSection({ mode, narration, riskItems, isProjectCompleted, t }: { m
             {riskItems.map((item) => (
               <li key={item.riskId} className={`rounded-[12px] border px-4 py-3 ${severityCardClass(item.severity)}`}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-[var(--color-navy-900)]">{t(item.titleKey, item.params)}</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t(item.titleKey, item.params)}</p>
                   <SeverityBadge severity={item.severity} t={t} />
                 </div>
                 <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{t(item.explanationKey, item.params)}</p>
@@ -535,10 +535,10 @@ function ActionsSection({ mode, narration, recommendedActions, projectId, projec
         <CardContent className="p-5">
           <ol className="space-y-2.5">
             {aiActions.map((action, i) => (
-              <li key={i} className="flex items-start gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-white px-4 py-3">
+              <li key={i} className="flex items-start gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-3">
                 <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-subtle)] text-[0.6rem] font-bold text-[var(--color-text-secondary)]">{i + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[var(--color-navy-900)]">{action.title}</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{action.title}</p>
                   <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{action.explanation}</p>
 
                   {(() => {
@@ -563,7 +563,7 @@ function ActionsSection({ mode, narration, recommendedActions, projectId, projec
                                 type="button"
                                 onClick={() => void setOutcome(actionId, value)}
                                 disabled={state.isBusy}
-                                className={`rounded-[8px] border px-2 py-1 text-[11px] font-semibold ${state.outcome === value ? "border-[var(--color-brand-500)] bg-[var(--color-primary-100)] text-[var(--color-brand-700)]" : "border-[var(--color-border-subtle)] bg-white text-[var(--color-text-secondary)]"}`}
+                                className={`rounded-[8px] border px-2 py-1 text-[11px] font-semibold ${state.outcome === value ? "border-[var(--color-brand-500)] bg-[var(--color-primary-100)] text-[var(--color-brand-700)]" : "border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] text-[var(--color-text-secondary)]"}`}
                               >
                                 {t(`projects.memoryOutcome_${value}`)}
                               </button>
@@ -595,14 +595,14 @@ function ActionsSection({ mode, narration, recommendedActions, projectId, projec
       <CardContent className="p-5">
         <ol className="space-y-2.5">
           {recommendedActions.map((action, index) => (
-            <li key={action.id} className="flex items-start gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-white px-4 py-3 shadow-[var(--shadow-small)]">
+            <li key={action.id} className="flex items-start gap-3 rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-4 py-3 shadow-[var(--shadow-small)]">
               <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-subtle)] text-[0.6rem] font-bold text-[var(--color-text-secondary)]">{index + 1}</span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-[var(--color-navy-900)]">{t(action.titleKey)}</p>
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t(action.titleKey)}</p>
                 <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{t(action.explanationKey)}</p>
               </div>
               {action.isActionable && action.href && (
-                <a href={action.href} className="shrink-0 inline-flex items-center gap-1 rounded-[8px] border border-[var(--color-border-subtle)] bg-white px-2.5 py-1 text-xs font-semibold text-[var(--color-brand-700)] hover:bg-[var(--color-surface-subtle)]">
+                <a href={action.href} className="shrink-0 inline-flex items-center gap-1 rounded-[8px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-2.5 py-1 text-xs font-semibold text-[var(--color-brand-700)] hover:bg-[var(--color-surface-subtle)]">
                   {t("briefingActionOpen")}<ChevronRight size={12} aria-hidden="true" />
                 </a>
               )}
@@ -622,7 +622,7 @@ function SectionHeader({ icon, iconClass, title, aiLabel }: { icon: React.ReactN
   return (
     <div className="flex items-center gap-2.5">
       <span className={`inline-flex h-7 w-7 items-center justify-center rounded-[8px] ${iconClass}`}>{icon}</span>
-      <CardTitle className="text-[1.05rem] font-bold text-[var(--color-navy-900)]">{title}</CardTitle>
+      <CardTitle className="text-[1.05rem] font-bold text-[var(--color-text-primary)]">{title}</CardTitle>
       {aiLabel && (
         <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-primary-100)] px-2 py-0.5 text-[0.6rem] font-bold text-[var(--color-brand-700)]">
           <Sparkles size={9} aria-hidden="true" />{aiLabel}
@@ -651,7 +651,7 @@ function ConfidencePill({ confidence, t }: { confidence: "high" | "medium" | "lo
 function SnapshotMetric({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "danger" | "warning" }) {
   const valueClass = tone === "danger" ? "text-[#fecaca]" : tone === "warning" ? "text-[#fde68a]" : "text-white";
   return (
-    <div className="rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-2.5">
+    <div className="rounded-[10px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-2.5">
       <dt className="text-[0.68rem] font-semibold uppercase tracking-[0.07em] text-[var(--color-text-muted)]">{label}</dt>
       <dd className={`mt-1 text-base font-bold ${valueClass}`}>{value}</dd>
     </div>
@@ -683,7 +683,7 @@ function urgencyCardClass(urgency: string): string {
   if (urgency === "critical") return "border-[var(--color-danger-200)] bg-[var(--color-danger-50)]";
   if (urgency === "high") return "border-[var(--color-warning-200)] bg-[var(--color-warning-50)]";
   if (urgency === "medium") return "border-[var(--color-info-100)] bg-[var(--color-info-50)]";
-  return "border-[var(--color-border-subtle)] bg-white";
+  return "border-[var(--color-border-subtle)] bg-[var(--color-surface-card)]";
 }
 
 function severityCardClass(severity: string): string {
