@@ -45,7 +45,8 @@ export function formatEstimateDate(
     return missingLabel;
   }
 
-  const normalizedValue = value.includes("T") ? value : `${value}T00:00:00`;
+  const isCalendarDate = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const normalizedValue = isCalendarDate ? `${value}T00:00:00Z` : value;
   const date = new Date(normalizedValue);
 
   if (Number.isNaN(date.getTime())) {
@@ -56,7 +57,7 @@ export function formatEstimateDate(
     month: "short",
     day: "numeric",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone: isCalendarDate ? "UTC" : undefined,
   }).format(date);
 }
 
