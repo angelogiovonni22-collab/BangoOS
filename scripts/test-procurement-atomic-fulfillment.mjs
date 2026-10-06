@@ -420,7 +420,7 @@ for(const table of ['materials','cost_codes','vendors','supplier_price_entries']
     create policy scope_read on public.${table} for select to authenticated using(company_id=current_setting('bos.company')::uuid);
     create policy scope_insert on public.${table} for insert to authenticated with check(public.has_company_role(company_id,array['owner','administrator','operations_manager','office_manager','accountant','estimator']));
     create policy scope_update on public.${table} for update to authenticated using(public.has_company_role(company_id,array['owner','administrator','operations_manager','office_manager','accountant','estimator']))
-      with check(public.has_company_role(company_id,array['owner','administrator','operations_manager','office_manager','accountant','estimator']));`);
+      with check(public.has_company_role(company_id,array['owner','administrator','operations_manager','office_manager','accountant','estimator']) ${table==='cost_codes'?'and (updated_by is null or updated_by=auth.uid())':''});`);
 }
 await db.exec("set bos.membership='project_manager'; set role authenticated;");
 await assert.rejects(draft({...draftInput,requestId:null}),/active vendor/);
@@ -472,6 +472,23 @@ await transition('issue',operationId(),readOnlyOrder);
 await db.exec("set bos.membership='superintendent'; set bos.materials_manage='true';");
 await transition('cancel',operationId(),readOnlyOrder);
 await db.exec("set bos.materials_manage='';");
+// General financial roles skip the limited-role trigger, so recalculation must
+// stamp its own actor when a different user originally created the cost code.
+await db.exec("reset role; set bos.membership='owner';");
+await db.query('update cost_codes set updated_by=$1 where id=$2',[otherCompany,costCode]);
+await db.exec("set bos.membership='operations_manager'; set role authenticated;");
+const operationsOrder=(await draft({...draftInput,requestId:null,lines:[{...draftInput.lines[0],quantityOrdered:0.25,costCodeId:costCode}]})).rows[0].id;
+const operationsLine=(await db.query('select id from purchase_order_line_items where purchase_order_id=$1',[operationsOrder])).rows[0].id;
+await assert.rejects(transition('approve',operationId(),operationsOrder),/row-level security/);
+assert.equal((await db.query('select status from purchase_orders where id=$1',[operationsOrder])).rows[0].status,'draft');
+await db.exec('reset role;');
+await db.exec(readFileSync('supabase/migrations/20261006223715_audit_purchasing_cost_actor.sql','utf8'));
+await db.exec('set role authenticated;');
+await transition('approve',operationId(),operationsOrder);
+await transition('issue',operationId(),operationsOrder);
+await call('receive',{...receive,purchaseOrderId:operationsOrder,lineItemId:operationsLine,quantityReceived:0.25});
+await call('allocate',{...allocate,purchaseOrderId:operationsOrder,lineItemId:operationsLine,quantityAllocated:0.25});
+assert.equal((await db.query('select updated_by from cost_codes where id=$1',[costCode])).rows[0].updated_by,user);
 await db.exec('reset role; set role anon;');
 await assert.rejects(transition('approve'),/permission denied/);
 
