@@ -5367,6 +5367,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_procurement_fulfillment: {
+        Args: { p_company_id: string; p_operation_id: string; p_kind: string; p_payload: Json }
+        Returns: string
+      }
       allocate_change_order_number: {
         Args: { p_company_id: string }
         Returns: string

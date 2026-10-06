@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { fulfillmentOperation } from "./fulfillment-operation";
+const saved = new Map<string, string>();
+const storage = { getItem: (key: string) => saved.get(key) || null, setItem: (key: string, value: string) => { saved.set(key, value); }, removeItem: (key: string) => { saved.delete(key); } };
+let serial = 0;
+const newId = () => `00000000-0000-0000-0000-${String(++serial).padStart(12,"0")}`;
+const input = { line: "synthetic", quantity: 1 };
+const first = fulfillmentOperation("company", "user", "receive", input, new Date("2026-10-05T12:00:00"), storage, newId);
+const retry = fulfillmentOperation("company", "user", "receive", input, new Date("2026-10-06T12:00:00"), storage, newId);
+assert.equal(retry.id, first.id);
+assert.equal(retry.receivedDate, "2026-10-05");
+assert.equal(serial, 1);
+assert.notEqual(fulfillmentOperation("company", "other-user", "receive", input, undefined, storage, newId).id, first.id);
+assert.notEqual(fulfillmentOperation("company", "user", "receive", {...input, quantity: 2}, undefined, storage, newId).id, first.id);
+first.complete();
+assert.notEqual(fulfillmentOperation("company", "user", "receive", input, undefined, storage, newId).id, first.id);
+// A key read from session storage after reload must survive the local date change.
+const restoredKey = 'bos:fulfillment:restored:user:receive:{"line":"synthetic","quantity":1}';
+storage.setItem(restoredKey, JSON.stringify({id:first.id, receivedDate:first.receivedDate}));
+const restored = fulfillmentOperation("restored", "user", "receive", input, undefined, storage, newId);
+assert.equal(restored.id, first.id);
+assert.equal(restored.receivedDate, first.receivedDate);
+console.log("Fulfillment retry key persistence and reset fixtures passed");
