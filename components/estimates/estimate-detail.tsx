@@ -15,6 +15,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
 import { SendContractButton } from "@/components/estimates/send-contract-button";
 import { PreviewEstimateButton } from "@/components/estimates/preview-estimate-button";
+import { loadEstimateActivity, estimateActivityLabel, type EstimateActivity } from "@/lib/estimates/activity";
 import { BlueprintSourceLink } from "@/components/plans/blueprint-source-link";
 
 export function EstimateDetail({ estimateId, sendIssue, createdForReview = false }: { estimateId: string; sendIssue?: string; createdForReview?: boolean }) {
@@ -32,6 +33,8 @@ export function EstimateDetail({ estimateId, sendIssue, createdForReview = false
   const [userId, setUserId] = useState<string>("");
 
   const [estimate, setEstimate] = useState<EstimateRow | null>(null);
+  const [activity, setActivity] = useState<EstimateActivity[]>([]);
+  const [activityError, setActivityError] = useState<string | null>(null);
   const [lineItems, setLineItems] = useState<EstimateLineItemRow[]>([]);
   const [customerName, setCustomerName] = useState("Not linked");
   const [projectName, setProjectName] = useState("Not linked");
@@ -71,9 +74,14 @@ export function EstimateDetail({ estimateId, sendIssue, createdForReview = false
         return;
       }
 
-      const optionsResult = await loadEstimateFormOptions(supabase, workspace.context.companyId);
+      const [optionsResult, activityResult] = await Promise.all([
+        loadEstimateFormOptions(supabase, workspace.context.companyId),
+        loadEstimateActivity(supabase, workspace.context.companyId, estimateId),
+      ]);
 
       if (isSubscribed) {
+        setActivity(activityResult.data || []);
+        setActivityError(activityResult.error ? "Unable to load recorded estimate activity." : null);
         setCompanyId(workspace.context.companyId);
         setUserId(workspace.context.userId);
         setEstimate(estimateResult.data.estimate);
@@ -292,7 +300,13 @@ export function EstimateDetail({ estimateId, sendIssue, createdForReview = false
           <CardTitle>Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-[var(--color-text-secondary)]">Status history and estimate activity timeline will be expanded in a future sprint.</p>
+          {activityError ? <div role="alert" className="space-y-2"><p className="text-sm text-[var(--color-danger-700)]">{activityError}</p><Button variant="secondary" size="sm" onClick={() => setRefreshVersion((version) => version + 1)}>Retry Activity</Button></div> : activity.length ? <>
+            <p className="mb-3 text-xs text-[var(--color-text-muted)]">Latest recorded activity · up to 50 events</p>
+            <ol className="divide-y divide-[var(--color-border-subtle)]">{activity.map((event) => <li key={event.id} className="flex flex-wrap justify-between gap-2 py-3">
+              <div><p className="text-sm font-semibold">{estimateActivityLabel(event)}</p>{event.current_state && event.next_state ? <p className="text-xs text-[var(--color-text-secondary)]">{formatEstimateStatusLabel(event.current_state)} → {formatEstimateStatusLabel(event.next_state)}</p> : null}</div>
+              <time dateTime={event.occurred_at} className="text-xs text-[var(--color-text-secondary)]">{new Intl.DateTimeFormat(localeTag, { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.occurred_at))}</time>
+            </li>)}</ol>
+          </> : <div className="space-y-3"><p className="text-sm text-[var(--color-text-secondary)]">No recorded workflow events for this estimate.</p><DetailRow label="Created" value={formatEstimateDate(estimate.created_at, localeTag)} /><DetailRow label="Last updated" value={formatEstimateDate(estimate.updated_at, localeTag)} /></div>}
         </CardContent>
       </Card>
     </div>
