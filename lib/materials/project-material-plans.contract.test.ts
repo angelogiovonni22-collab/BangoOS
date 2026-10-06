@@ -26,7 +26,9 @@ assert.match(planService, /orderStatus\.get\(line\.purchase_order_id\) !== "draf
 assert.match(planService, /quantityRemaining = Math\.max\(0, quantityToPurchase - quantityReserved\)/i, "Draft quantities must still reserve material demand to prevent duplicate drafts.");
 assert.match(planService, /Inventory allocation cannot exceed available stock/i, "Project inventory allocation must respect live available stock.");
 assert.match(planService, /Inventory allocation cannot exceed the approved material requirement/i, "Project inventory allocation must respect the approved estimate quantity.");
-assert.match(procurementService, /project_material_plan_item_id: line\.projectMaterialPlanItemId \|\| null/i, "Procurement must persist the material-plan link.");
+assert.match(procurementService, /projectMaterialPlanItemId: line\.projectMaterialPlanItemId \|\| null/i, "Procurement must pass the material-plan link to its atomic draft operation.");
+const atomicDraft = readFileSync(join(root, "supabase/migrations/20261006140120_audit_procurement_atomic_drafts.sql"), "utf8");
+assert.match(atomicDraft, /project_id,cost_code_id,project_material_plan_item_id/, "The atomic draft must persist the material-plan link.");
 
 assert.match(procurementGuard, /guard_project_material_plan_receiving/i, "Linked project material POs need a receiving lifecycle guard.");
 assert.match(procurementGuard, /v_status not in \('issued', 'partially_received'\)/i, "Receiving must be blocked until the linked PO has been issued.");
