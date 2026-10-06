@@ -220,7 +220,72 @@ await assert.rejects(transition('approve'),/Only draft/);
 await assert.rejects(transition('cancel',operationId(),order),/Only an open/);
 await db.exec("set bos.membership='employee';");
 await assert.rejects(transition('approve'),/Not authorized/);
-await db.exec("set bos.membership='owner'; reset role; set role anon;");
+await db.exec("set bos.membership='owner'; reset role;");
+await db.exec(readFileSync('supabase/migrations/20261006144816_audit_allocation_inventory_reconciliation.sql','utf8'));
+await db.exec('grant delete on public.project_material_allocations to authenticated; set role authenticated;');
+// Legacy allocation tracking is deliberately unknown: never guess its stock return.
+await assert.rejects(db.query('update project_material_allocations set quantity_allocated=1,total_cost=2 where id=$1',[allocation]),/Legacy allocation inventory/);
+await assert.rejects(db.query('delete from project_material_allocations where id=$1',[allocation]),/Legacy allocation inventory/);
+const correctionKey=operationId();
+const correction=(await call('allocate',{...allocate,quantityAllocated:0.6},correctionKey)).rows[0].id;
+const correctionState=async()=>({
+  allocation:(await db.query('select quantity_allocated,inventory_quantity_consumed,cost_code_id,total_cost from project_material_allocations where id=$1',[correction])).rows[0],
+  stock:(await db.query('select current_stock from materials where id=$1',[material])).rows[0].current_stock,
+  cost:(await db.query('select actual_cost from cost_codes where id=$1',[costCode])).rows[0].actual_cost,
+});
+assert.equal((await correctionState()).stock,'0.400');
+assert.equal((await correctionState()).allocation.inventory_quantity_consumed,'0.600');
+assert.equal((await correctionState()).cost,'3.20');
+// Direct API quantity corrections, not only RPC submissions, return/consume stock.
+await db.query('update project_material_allocations set quantity_allocated=0.4,total_cost=0.8,inventory_quantity_consumed=0 where id=$1',[correction]);
+assert.equal((await correctionState()).stock,'0.600');
+assert.equal((await correctionState()).allocation.inventory_quantity_consumed,'0.400');
+assert.equal((await correctionState()).cost,'2.80');
+await db.query('update project_material_allocations set quantity_allocated=0.8,total_cost=1.6 where id=$1',[correction]);
+assert.equal((await correctionState()).stock,'0.200');
+await db.exec('reset role;');
+await db.query('update materials set current_stock=0 where id=$1',[material]);
+await db.exec('set role authenticated;');
+await assert.rejects(db.query('update project_material_allocations set quantity_allocated=0.9,total_cost=1.8 where id=$1',[correction]),/Insufficient inventory/);
+assert.equal((await correctionState()).allocation.quantity_allocated,'0.800');
+await db.exec('reset role;');
+await db.query('update materials set current_stock=0.2 where id=$1',[material]);
+await db.exec('set role authenticated;');
+const beforeCorrection=await correctionState();
+await db.exec('reset role; create trigger test_fail_correction_cost before update on cost_codes for each row execute function fail_stock(); set role authenticated;');
+await assert.rejects(db.query('update project_material_allocations set quantity_allocated=0.3,total_cost=0.6 where id=$1',[correction]),/injected stock failure/);
+assert.deepEqual(await correctionState(),beforeCorrection);
+await assert.rejects(db.query('delete from project_material_allocations where id=$1',[correction]),/injected stock failure/);
+assert.deepEqual(await correctionState(),beforeCorrection);
+await db.exec('reset role; drop trigger test_fail_correction_cost on cost_codes; set role authenticated;');
+// Attribution updates refresh both old and new cost codes without moving stock.
+const secondCode='00000000-0000-0000-0000-000000000030';
+await db.query('insert into cost_codes values($1,$2,0,0)',[secondCode,company]);
+await db.query('update project_material_allocations set cost_code_id=$1 where id=$2',[secondCode,correction]);
+assert.equal((await correctionState()).cost,'2.00');
+assert.equal((await db.query('select actual_cost from cost_codes where id=$1',[secondCode])).rows[0].actual_cost,'1.60');
+assert.equal((await correctionState()).stock,'0.200');
+await db.query('delete from project_material_allocations where id=$1',[correction]);
+assert.equal((await correctionState()).stock,'1.000');
+assert.equal((await db.query('select actual_cost from cost_codes where id=$1',[secondCode])).rows[0].actual_cost,'0.00');
+// A delivery retry cannot recreate an allocation intentionally removed later.
+await call('allocate',{...allocate,quantityAllocated:0.6},correctionKey);
+assert.equal((await correctionState()).allocation,undefined);
+// Tracking changes after allocation do not rewrite its recorded inventory effect.
+await db.query('update materials set track_inventory=false where id=$1',[material]);
+const untracked=(await call('allocate',{...allocate,quantityAllocated:0.5})).rows[0].id;
+assert.equal((await correctionState()).stock,'1.000');
+await db.query('update materials set track_inventory=true where id=$1',[material]);
+await db.query('update project_material_allocations set quantity_allocated=0.3,total_cost=0.6 where id=$1',[untracked]);
+assert.equal((await correctionState()).stock,'1.000');
+await db.query('delete from project_material_allocations where id=$1',[untracked]);
+assert.equal((await correctionState()).stock,'1.000');
+const tracked=(await call('allocate',{...allocate,quantityAllocated:0.5})).rows[0].id;
+assert.equal((await correctionState()).stock,'0.500');
+await db.query('update materials set track_inventory=false where id=$1',[material]);
+await db.query('delete from project_material_allocations where id=$1',[tracked]);
+assert.equal((await correctionState()).stock,'1.000');
+await db.exec('reset role; set role anon;');
 await assert.rejects(transition('approve'),/permission denied/);
 
 await assert.rejects(call('receive',receive),/permission denied/);
