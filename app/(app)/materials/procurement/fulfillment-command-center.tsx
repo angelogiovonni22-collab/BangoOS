@@ -1,11 +1,7 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect */
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Card, CardContent, CardHeader, CardTitle, ErrorState, SkeletonLoader, SummaryCard } from "@/components/ui";
+import { Badge, Card, CardContent, CardHeader, CardTitle, SummaryCard } from "@/components/ui";
 import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
-import { createProcurementService } from "@/lib/materials/procurement-service";
 import type { ProcurementOverviewPayload } from "@/lib/materials/procurement-types";
 import { buildFulfillmentDashboard } from "@/lib/materials/purchasing-fulfillment-intelligence";
 
@@ -20,30 +16,10 @@ const STAGE_TONE = {
   cancelled: "danger",
 } as const;
 
-export function FulfillmentCommandCenter() {
-  const service = useMemo(() => createProcurementService(), []);
+export function FulfillmentCommandCenter({ payload }: { payload: ProcurementOverviewPayload }) {
   const { term } = useAdaptiveBos();
   const materialsLabel = term("materials", "Materials");
   const vendorLabel = term("vendor", "Supplier");
-  const [payload, setPayload] = useState<ProcurementOverviewPayload | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setError(null);
-      setPayload(await service.loadOverview());
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to load fulfillment intelligence.");
-    }
-  }, [service]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  if (error) return <ErrorState compact title="Fulfillment intelligence unavailable" description={error} />;
-  if (!payload) return <SkeletonLoader className="h-64 w-full" />;
-
   const dashboard = buildFulfillmentDashboard(payload);
 
   return (

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { summarizePurchaseOrderFulfillment } from "./purchasing-fulfillment-intelligence";
+import { buildFulfillmentDashboard, summarizePurchaseOrderFulfillment } from "./purchasing-fulfillment-intelligence";
 import type { ProcurementPurchaseOrder, ProcurementPurchaseOrderLine } from "./procurement-types";
 
 const order: ProcurementPurchaseOrder = { id:"po", poNumber:"PO-1", vendorId:"v", vendorName:"Supplier", projectId:"p", projectName:"Project", costCodeId:null, costCodeLabel:null, status:"partially_received", subtotalAmount:100, taxAmount:0, shippingAmount:10, totalAmount:110, issuedAt:"2026-08-27", createdAt:"2026-08-27", notes:null };
@@ -11,4 +11,15 @@ assert.equal(result.receivedPercent, 60);
 assert.equal(result.receivedCost, 60);
 assert.equal(result.risk, "critical");
 assert.match(result.riskReason ?? "", /damaged/);
+const cancelled = summarizePurchaseOrderFulfillment({ ...order, status: "cancelled" }, lines);
+assert.equal(cancelled.remainingQuantity, 0, "cancelled orders retain history without pending deliveries");
+assert.equal(cancelled.committedCost, 0);
+assert.equal(cancelled.risk, "none");
+assert.equal(cancelled.receivedCost, 60, "cancellation does not erase physically received history");
+assert.equal(summarizePurchaseOrderFulfillment({ ...order, status: "draft" }, lines).committedCost, 0, "drafts are not approved commitments");
+const dashboard = buildFulfillmentDashboard({ requests: [], vendors: [], projects: [], materials: [], costCodes: [], purchaseOrders: [{ ...order, status: "cancelled" }, { ...order, id: "draft", status: "draft" }, { ...order, id: "live" }], lineItems: [...lines, { ...lines[0], id: "draft-line", purchaseOrderId: "draft", quantityReceived: 0, quantityDamaged: 0, quantityBackordered: 0 }, { ...lines[0], id: "live-line", purchaseOrderId: "live" }] });
+assert.equal(dashboard.totals.committedCost, 110, "only approved/live commitment contributes");
+assert.equal(dashboard.totals.outstandingUnits, 13, "cancelled quantities excluded; draft and live pending quantities retained");
+assert.equal(dashboard.totals.receivedCost, 120);
+assert.equal(dashboard.totals.atRiskOrders, 1);
 console.log("purchasing fulfillment intelligence contract: ok");

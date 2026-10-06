@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { localCalendarDate } from "@/lib/dates/calendar-date";
 import type {
   AllocateMaterialInput,
   CreateMaterialRequestInput,
@@ -70,7 +71,7 @@ type ProjectRow = { id: string; name: string };
 
 type VendorRow = { id: string; display_name: string; company_name: string };
 
-type MaterialRow = { id: string; name: string; unit_of_measure: string; current_stock: number; track_inventory: boolean; last_purchase_cost: number; last_purchase_date: string | null };
+type MaterialRow = { id: string; name: string; status: string; unit_of_measure: string; current_stock: number; track_inventory: boolean; last_purchase_cost: number; last_purchase_date: string | null };
 
 type CostCodeRow = { id: string; code: string; name: string };
 
@@ -333,7 +334,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
         .order("name", { ascending: true }),
       supabase
         .from("materials")
-        .select("id, name, unit_of_measure, current_stock")
+        .select("id, name, status, unit_of_measure, current_stock")
         .eq("company_id", context.companyId)
         .order("name", { ascending: true }),
       supabase
@@ -428,7 +429,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
       })),
       vendors: vendors.map((vendor) => ({ id: vendor.id, name: vendor.display_name || vendor.company_name })),
       projects: projects.map((project) => ({ id: project.id, name: project.name })),
-      materials: materials.map((material) => ({
+      materials: materials.filter((material) => material.status === "active").map((material) => ({
         id: material.id,
         name: material.name,
         unitOfMeasure: material.unit_of_measure,
@@ -513,6 +514,18 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
 
       if (!input.vendorId.trim() || !input.projectId.trim() || input.lines.length === 0) {
         throw new ProcurementServiceError("VALIDATION", "Vendor, project, and at least one line are required.");
+      }
+
+      if (![input.taxAmount, input.shippingAmount].every((amount) => Number.isFinite(amount) && amount >= 0)
+        || input.lines.some((line) => !line.description.trim() || !Number.isFinite(line.quantityOrdered) || line.quantityOrdered <= 0 || !Number.isFinite(line.unitCost) || line.unitCost < 0)) {
+        throw new ProcurementServiceError("VALIDATION", "Use positive quantities and non-negative costs, tax, and shipping for every line.");
+      }
+
+      const materialIds = [...new Set(input.lines.map((line) => line.materialId).filter((id): id is string => Boolean(id)))];
+      if (materialIds.length > 0) {
+        const { data, error } = await supabase.from("materials").select("id").eq("company_id", context.companyId).eq("status", "active").in("id", materialIds);
+        if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
+        if ((data ?? []).length !== materialIds.length) throw new ProcurementServiceError("VALIDATION", "Only active materials in this company can be added to a new purchase order.");
       }
 
       const subtotalAmount = toNumber(input.lines.reduce((sum, line) => sum + line.quantityOrdered * line.unitCost, 0));
@@ -683,9 +696,14 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
 
     async receivePurchaseOrderLine(input) {
       const context = await ensureWorkspace(supabase, resolveWorkspace);
+      const existing = await ensurePurchaseOrderExists(context.companyId, input.purchaseOrderId);
+      if (existing.status !== "issued" && existing.status !== "partially_received") {
+        throw new ProcurementServiceError("VALIDATION", "Receipts require an issued purchase order with outstanding quantities.");
+      }
 
-      if (input.quantityReceived < 0 || input.quantityDamaged < 0 || input.quantityBackordered < 0) {
-        throw new ProcurementServiceError("VALIDATION", "Received, damaged, and backordered quantities must be non-negative.");
+      const quantities = [input.quantityReceived, input.quantityDamaged, input.quantityBackordered];
+      if (!quantities.every((quantity) => Number.isFinite(quantity) && quantity >= 0) || quantities.every((quantity) => quantity === 0)) {
+        throw new ProcurementServiceError("VALIDATION", "Enter at least one positive received, damaged, or backordered quantity.");
       }
 
       const { data: line, error: lineError } = await supabase
@@ -735,7 +753,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
         .insert({
           company_id: context.companyId,
           purchase_order_id: input.purchaseOrderId,
-          received_date: now().slice(0, 10),
+          received_date: localCalendarDate(new Date(now())),
           notes: input.notes,
           received_by: context.userId,
           created_by: context.userId,
@@ -905,7 +923,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
       let receivedTotal = 0;
       let outstandingBalanceAmount = 0;
 
-      for (const order of orders) {
+      for (const order of orders.filter((order) => order.status !== "cancelled" && order.status !== "draft")) {
         const lines = linesByOrderId.get(order.id) ?? [];
 
         for (const line of lines) {
@@ -973,10 +991,12 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
       const orders = (ordersResponse.data ?? []) as Array<{ id: string; status: PurchaseOrderStatus }>;
       const lines = (linesResponse.data ?? []) as Array<{ purchase_order_id: string; project_id: string; quantity_ordered: number; quantity_received: number; quantity_damaged: number }>;
 
-      const materialsOrdered = lines.reduce((sum, line) => sum + Number(line.quantity_ordered ?? 0), 0);
+      const activeOrderIds = new Set(orders.filter((order) => order.status !== "cancelled").map((order) => order.id));
+      const pendingOrderIds = new Set(orders.filter((order) => order.status !== "cancelled" && order.status !== "fully_received").map((order) => order.id));
+      const materialsOrdered = lines.filter((line) => activeOrderIds.has(line.purchase_order_id)).reduce((sum, line) => sum + Number(line.quantity_ordered ?? 0), 0);
       const materialsReceived = lines.reduce((sum, line) => sum + Number(line.quantity_received ?? 0) + Number(line.quantity_damaged ?? 0), 0);
       const outstandingOrders = orders.filter((order) => order.status === "draft" || order.status === "approved" || order.status === "issued" || order.status === "partially_received").length;
-      const pendingDeliveries = lines.filter((line) => Number(line.quantity_ordered ?? 0) > Number(line.quantity_received ?? 0) + Number(line.quantity_damaged ?? 0)).length;
+      const pendingDeliveries = lines.filter((line) => pendingOrderIds.has(line.purchase_order_id) && Number(line.quantity_ordered ?? 0) > Number(line.quantity_received ?? 0) + Number(line.quantity_damaged ?? 0)).length;
       const materialCost = toNumber((allocationsResponse.data ?? []).reduce((sum: number, row: { total_cost: number }) => sum + Number(row.total_cost ?? 0), 0));
 
       return {

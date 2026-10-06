@@ -3,7 +3,8 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { FulfillmentCommandCenter } from "./fulfillment-command-center";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, FormField, Input, PageHeader, SectionHeader, Select, SkeletonLoader, SummaryCard, Textarea, getButtonClassName } from "@/components/ui";
 import { createProcurementService, ProcurementServiceError } from "@/lib/materials/procurement-service";
 import type {
@@ -79,7 +80,7 @@ const EMPTY_PO_FORM: PurchaseOrderFormState = {
   lines: [{ ...EMPTY_PO_LINE }],
 };
 
-export function ProcurementWorkflowClient({ initialProjectId }: { initialProjectId?: string }) {
+export function ProcurementWorkflowClient({ initialProjectId, introduction }: { initialProjectId?: string; introduction?: ReactNode }) {
   const service = useMemo(() => createProcurementService(), []);
   const { companyName } = useCompany();
 
@@ -161,7 +162,8 @@ export function ProcurementWorkflowClient({ initialProjectId }: { initialProject
     const requestCount = payload.requests.filter((item) => item.status === "submitted" || item.status === "approved").length;
     const draftPoCount = payload.purchaseOrders.filter((item) => item.status === "draft").length;
     const openPoCount = payload.purchaseOrders.filter((item) => item.status === "approved" || item.status === "issued" || item.status === "partially_received").length;
-    const pendingDeliveryCount = payload.lineItems.filter((line) => line.quantityOrdered > line.quantityReceived + line.quantityDamaged).length;
+    const activeOrderIds = new Set(payload.purchaseOrders.filter((order) => order.status !== "cancelled" && order.status !== "fully_received").map((order) => order.id));
+    const pendingDeliveryCount = payload.lineItems.filter((line) => activeOrderIds.has(line.purchaseOrderId) && line.quantityOrdered > line.quantityReceived + line.quantityDamaged).length;
 
     return {
       requestCount,
@@ -371,6 +373,8 @@ export function ProcurementWorkflowClient({ initialProjectId }: { initialProject
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
+      <FulfillmentCommandCenter payload={payload} />
+      {introduction}
       <PageHeader
         eyebrow="Materials"
         title="Procurement Workflow"
@@ -676,8 +680,9 @@ export function ProcurementWorkflowClient({ initialProjectId }: { initialProject
             </FormField>
 
             <div className="flex justify-end">
-              <Button onClick={receiveLine} disabled={isSaving || !selectedPoId || !selectedLineId}>{isSaving ? "Saving..." : "Record Receipt"}</Button>
+              <Button onClick={receiveLine} disabled={isSaving || !selectedLineId || !selectedPurchaseOrder || !["issued", "partially_received"].includes(selectedPurchaseOrder.status)}>{isSaving ? "Saving..." : "Record Receipt"}</Button>
             </div>
+            {selectedPurchaseOrder && !["issued", "partially_received"].includes(selectedPurchaseOrder.status) ? <p className="text-sm text-[var(--color-text-secondary)]">Receipts require an issued purchase order with outstanding quantities.</p> : null}
 
             <SectionHeader title="Allocate to Project" description="Allocation decreases inventory and updates project cost tracking." />
 
