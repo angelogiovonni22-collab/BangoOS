@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createDailyReportsService, type DailyReportsService } from "./service";
 import type { DailyReportStatus, DailyReportUpsertInput } from "./types";
 import { validateDailyReportInput } from "./validation";
+import { dailyReportDate } from "./date";
 
 type UseDailyReportParams = {
   reportId?: string;
@@ -68,7 +69,7 @@ export function useDailyReport({ reportId, initialDate, initialProjectId, initia
         setStatus(report.header.overallStatus);
         setResolvedReportId(report.id);
       } else {
-        const date = initialDate || new Date().toISOString().slice(0, 10);
+        const date = initialDate || dailyReportDate();
         const seeded = await serviceRef.current.createDraftFromSchedule(date);
 
         if (unmountedRef.current || requestId !== activeRequestRef.current) {
