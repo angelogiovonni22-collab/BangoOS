@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Button, PageHeader } from "@/components/ui";
+import { getInputClassName } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -139,20 +140,20 @@ export default function NewVendorBillPage() {
         {isLoading ? <p className="text-sm text-[var(--bos-text-secondary)]">Loading finance options…</p> : workspace ? (
           <>
             <div className="grid gap-5 md:grid-cols-2">
-              <Field label="Vendor" required><select value={vendorId} onChange={(e) => setVendorId(e.target.value)} className="bos-input" required><option value="">Select vendor</option>{vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.display_name || vendor.company_name || "Vendor"}</option>)}</select></Field>
-              <Field label="Project"><select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="bos-input"><option value="">Company overhead / not project specific</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name || project.project_number || "Project"}</option>)}</select></Field>
-              <Field label="B.O.S. Bill Number" required><input value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className="bos-input" placeholder="AP-0001" required /></Field>
-              <Field label="Vendor Invoice Number"><input value={vendorInvoiceNumber} onChange={(e) => setVendorInvoiceNumber(e.target.value)} className="bos-input" placeholder="Vendor invoice/reference" /></Field>
-              <Field label="Bill Date" required><input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} className="bos-input" required /></Field>
-              <Field label="Due Date"><input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="bos-input" /></Field>
+              <Field label="Vendor" required><select value={vendorId} onChange={(e) => setVendorId(e.target.value)} className={getInputClassName()} required><option value="">Select vendor</option>{vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.display_name || vendor.company_name || "Vendor"}</option>)}</select></Field>
+              <Field label="Project"><select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={getInputClassName()}><option value="">Company overhead / not project specific</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name || project.project_number || "Project"}</option>)}</select></Field>
+              <Field label="B.O.S. Bill Number" required><input value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className={getInputClassName()} placeholder="AP-0001" required /></Field>
+              <Field label="Vendor Invoice Number"><input value={vendorInvoiceNumber} onChange={(e) => setVendorInvoiceNumber(e.target.value)} className={getInputClassName()} placeholder="Vendor invoice/reference" /></Field>
+              <Field label="Bill Date" required><input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} className={getInputClassName()} required /></Field>
+              <Field label="Due Date"><input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={getInputClassName()} /></Field>
             </div>
 
             <div className="border-t border-[var(--bos-border-subtle)] pt-5">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--bos-text-muted)]">Initial cost line</p>
               <div className="mt-4 grid gap-5 md:grid-cols-[1.6fr_1fr_1fr]">
-                <Field label="Description" required><input value={description} onChange={(e) => setDescription(e.target.value)} className="bos-input" placeholder="Material, subcontractor, equipment, service…" required /></Field>
-                <Field label="Category"><select value={category} onChange={(e) => setCategory(e.target.value)} className="bos-input"><option value="materials">Materials</option><option value="subcontractor">Subcontractor</option><option value="equipment">Equipment</option><option value="rental">Rental</option><option value="permit">Permit</option><option value="professional_service">Professional service</option><option value="overhead">Overhead</option><option value="other">Other</option></select></Field>
-                <Field label="Amount" required><input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="bos-input" placeholder="0.00" required /></Field>
+                <Field label="Description" required><input value={description} onChange={(e) => setDescription(e.target.value)} className={getInputClassName()} placeholder="Material, subcontractor, equipment, service…" required /></Field>
+                <Field label="Category"><select value={category} onChange={(e) => setCategory(e.target.value)} className={getInputClassName()}><option value="materials">Materials</option><option value="subcontractor">Subcontractor</option><option value="equipment">Equipment</option><option value="rental">Rental</option><option value="permit">Permit</option><option value="professional_service">Professional service</option><option value="overhead">Overhead</option><option value="other">Other</option></select></Field>
+                <Field label="Amount" required><input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={getInputClassName()} placeholder="0.00" required /></Field>
               </div>
             </div>
 
@@ -168,5 +169,5 @@ export default function NewVendorBillPage() {
 }
 
 function Field({ label, required = false, children }: { label: string; required?: boolean; children: ReactNode }) {
-  return <label className="space-y-2"><span className="text-sm font-semibold text-[var(--bos-text-primary)]">{label}{required ? <span className="ml-1 text-red-400">*</span> : null}</span>{children}</label>;
+  return <label className="block space-y-2"><span className="block text-sm font-semibold text-[var(--bos-text-primary)]">{label}{required ? <span className="ml-1 text-red-400">*</span> : null}</span>{children}</label>;
 }

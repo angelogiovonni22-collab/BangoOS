@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Button, PageHeader } from "@/components/ui";
+import { getInputClassName, getSelectClassName } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -194,14 +195,14 @@ function PrevailingWageSetupForm({ initialProjectId }: { initialProjectId: strin
         {errorMessage ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMessage}</div> : null}
         {isLoading ? <p className="text-sm text-[var(--bos-text-secondary)]">Loading projects…</p> : workspace ? <>
           <div className="grid gap-5 md:grid-cols-2">
-            <Field label="Project" required><select className="bos-input" value={projectId} onChange={(e) => setProjectId(e.target.value)} required><option value="">Select project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name || project.project_number || "Project"}{project.city || project.state ? ` · ${[project.city, project.state].filter(Boolean).join(", ")}` : ""}</option>)}</select></Field>
-            <Field label="Applicability" required><select className="bos-input" value={applicability} onChange={(e) => setApplicability(e.target.value)} disabled={isLoadingProfile}><option value="federal_dbra">Federal Davis-Bacon / Related Acts</option><option value="ohio_public_improvement">Ohio Public Improvement</option><option value="state_local_other">Other State / Local Prevailing Wage</option><option value="not_applicable">Not Applicable</option></select></Field>
-            <Field label="Wage Determination Number"><input className="bos-input" value={determinationNumber} onChange={(e) => setDeterminationNumber(e.target.value)} placeholder="Example: OH2026-0001" disabled={isLoadingProfile} /></Field>
-            <Field label="Determination / Schedule Title"><input className="bos-input" value={determinationTitle} onChange={(e) => setDeterminationTitle(e.target.value)} placeholder="Building, highway, heavy, county schedule…" disabled={isLoadingProfile} /></Field>
-            <Field label="Contracting Agency"><input className="bos-input" value={contractingAgency} onChange={(e) => setContractingAgency(e.target.value)} placeholder="Public authority / federal agency" disabled={isLoadingProfile} /></Field>
-            <Field label="Official Wage Source"><input type="url" className="bos-input" value={wageSourceUrl} onChange={(e) => setWageSourceUrl(e.target.value)} placeholder="https://…" disabled={isLoadingProfile} /></Field>
-            <Field label="Effective Date"><input type="date" className="bos-input" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} disabled={isLoadingProfile} /></Field>
-            <Field label="Expiration Date"><input type="date" className="bos-input" value={expirationDate} onChange={(e) => setExpirationDate(e.target.value)} disabled={isLoadingProfile} /></Field>
+            <Field label="Project" required><select className={getSelectClassName()} value={projectId} onChange={(e) => setProjectId(e.target.value)} required><option value="">Select project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name || project.project_number || "Project"}{project.city || project.state ? ` · ${[project.city, project.state].filter(Boolean).join(", ")}` : ""}</option>)}</select></Field>
+            <Field label="Applicability" required><select className={getSelectClassName()} value={applicability} onChange={(e) => setApplicability(e.target.value)} disabled={isLoadingProfile}><option value="federal_dbra">Federal Davis-Bacon / Related Acts</option><option value="ohio_public_improvement">Ohio Public Improvement</option><option value="state_local_other">Other State / Local Prevailing Wage</option><option value="not_applicable">Not Applicable</option></select></Field>
+            <Field label="Wage Determination Number"><input className={getInputClassName()} value={determinationNumber} onChange={(e) => setDeterminationNumber(e.target.value)} placeholder="Example: OH2026-0001" disabled={isLoadingProfile} /></Field>
+            <Field label="Determination / Schedule Title"><input className={getInputClassName()} value={determinationTitle} onChange={(e) => setDeterminationTitle(e.target.value)} placeholder="Building, highway, heavy, county schedule…" disabled={isLoadingProfile} /></Field>
+            <Field label="Contracting Agency"><input className={getInputClassName()} value={contractingAgency} onChange={(e) => setContractingAgency(e.target.value)} placeholder="Public authority / federal agency" disabled={isLoadingProfile} /></Field>
+            <Field label="Official Wage Source"><input type="url" className={getInputClassName()} value={wageSourceUrl} onChange={(e) => setWageSourceUrl(e.target.value)} placeholder="https://…" disabled={isLoadingProfile} /></Field>
+            <Field label="Effective Date"><input type="date" className={getInputClassName()} value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} disabled={isLoadingProfile} /></Field>
+            <Field label="Expiration Date"><input type="date" className={getInputClassName()} value={expirationDate} onChange={(e) => setExpirationDate(e.target.value)} disabled={isLoadingProfile} /></Field>
           </div>
 
           {isLoadingProfile ? <div className="rounded-xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] p-4 text-sm text-[var(--bos-text-secondary)]">Loading the saved compliance profile…</div> : null}
@@ -210,7 +211,7 @@ function PrevailingWageSetupForm({ initialProjectId }: { initialProjectId: strin
             {federal ? "Federal DBRA defaults on weekly certified payroll, a signed Statement of Compliance, wage posting, and lower-tier tracking." : ohio ? "Ohio public-improvement defaults on certified payroll tracking, wage-schedule posting, lower-tier tracking, and the completion affidavit. Ohio filing cadence depends on project duration and the statutory reporting schedule." : "B.O.S. stores project-specific controls so the contract and governing authority remain the source of truth."}
           </div>
 
-          <Field label="Compliance Notes"><textarea className="bos-input min-h-28" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Agency instructions, coordinator, special wage determination notes, reporting cadence…" disabled={isLoadingProfile} /></Field>
+          <Field label="Compliance Notes"><textarea className={`${getInputClassName()} min-h-28 py-3`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Agency instructions, coordinator, special wage determination notes, reporting cadence…" disabled={isLoadingProfile} /></Field>
 
           <div className="flex flex-wrap justify-end gap-3 border-t border-[var(--bos-border-subtle)] pt-5">
             <Link href="/invoices/prevailing-wage" className="inline-flex h-10 items-center rounded-lg border border-[var(--bos-border-default)] px-4 text-sm font-semibold hover:bg-[var(--bos-bg-hover)]">Cancel</Link>
@@ -223,5 +224,5 @@ function PrevailingWageSetupForm({ initialProjectId }: { initialProjectId: strin
 }
 
 function Field({ label, required = false, children }: { label: string; required?: boolean; children: ReactNode }) {
-  return <label className="space-y-2"><span className="text-sm font-semibold text-[var(--bos-text-primary)]">{label}{required ? <span className="ml-1 text-red-400">*</span> : null}</span>{children}</label>;
+  return <label className="block space-y-2"><span className="block text-sm font-semibold text-[var(--bos-text-primary)]">{label}{required ? <span className="ml-1 text-red-400">*</span> : null}</span>{children}</label>;
 }
