@@ -48,7 +48,7 @@ export function summarizePurchaseOrderFulfillment(
     },
     { ordered: 0, received: 0, damaged: 0, backordered: 0, receivedCost: 0 },
   );
-  const remaining = Math.max(0, totals.ordered - totals.received - totals.damaged);
+  const remaining = order.status === "cancelled" ? 0 : Math.max(0, totals.ordered - totals.received - totals.damaged);
   const receivedPercent =
     totals.ordered > 0 ? Math.min(100, (totals.received / totals.ordered) * 100) : 0;
 
@@ -65,7 +65,9 @@ export function summarizePurchaseOrderFulfillment(
 
   let risk: PurchaseOrderFulfillment["risk"] = "none";
   let riskReason: string | null = null;
-  if (totals.damaged > 0) {
+  if (order.status === "cancelled") {
+    risk = "none";
+  } else if (totals.damaged > 0) {
     risk = "critical";
     riskReason = `${totals.damaged} damaged unit${totals.damaged === 1 ? "" : "s"} require resolution.`;
   } else if (totals.backordered > 0) {
@@ -88,7 +90,7 @@ export function summarizePurchaseOrderFulfillment(
     backorderedQuantity: totals.backordered,
     remainingQuantity: remaining,
     receivedPercent: Number(receivedPercent.toFixed(1)),
-    committedCost: roundMoney(order.totalAmount),
+    committedCost: order.status === "draft" || order.status === "cancelled" ? 0 : roundMoney(order.totalAmount),
     receivedCost: roundMoney(totals.receivedCost),
     risk,
     riskReason,
