@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Button, PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
@@ -35,11 +35,21 @@ type LooseClient = { from: (table: string) => QueryBuilder };
 const PREVAILING_WRITE_ROLES = new Set(["owner", "administrator", "operations_manager", "office_manager", "accountant", "project_manager", "superintendent"]);
 
 export default function PrevailingWageSetupPage() {
+  return <Suspense fallback={<div className="container-content py-10 text-sm text-[var(--bos-text-secondary)]">Loading project setup…</div>}><PrevailingWageSetupRoute /></Suspense>;
+}
+
+function PrevailingWageSetupRoute() {
+  const searchParams = useSearchParams();
+  const initialProjectId = searchParams.get("projectId") || "";
+  return <PrevailingWageSetupForm key={initialProjectId} initialProjectId={initialProjectId} />;
+}
+
+function PrevailingWageSetupForm({ initialProjectId }: { initialProjectId: string }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [workspace, setWorkspace] = useState<WorkspaceContext | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
-  const [projectId, setProjectId] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("projectId") || "");
+  const [projectId, setProjectId] = useState(initialProjectId);
   const [existingCreatedBy, setExistingCreatedBy] = useState<string | null>(null);
   const [applicability, setApplicability] = useState("federal_dbra");
   const [determinationNumber, setDeterminationNumber] = useState("");
