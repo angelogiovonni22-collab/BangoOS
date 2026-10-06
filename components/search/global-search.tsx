@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SearchBar } from "@/components/ui";
 
@@ -15,12 +15,23 @@ type GlobalSearchResult = {
 export function GlobalSearch({ placeholder }: { placeholder: string }) {
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const queryRef = useRef("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GlobalSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const open = query.trim().length >= 2;
+
+  const updateQuery = useCallback((value: string) => {
+    if (value === queryRef.current) return;
+    queryRef.current = value;
+    setQuery(value);
+    setResults([]);
+    setError(null);
+    setLoading(value.trim().length >= 2);
+    setActiveIndex(0);
+  }, []);
 
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
@@ -40,20 +51,19 @@ export function GlobalSearch({ placeholder }: { placeholder: string }) {
 
     const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
-      setLoading(true);
-      setError(null);
       try {
         const response = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`, { signal: controller.signal, cache: "no-store" });
         const payload = await response.json() as { ok?: boolean; results?: GlobalSearchResult[]; error?: string };
+        if (controller.signal.aborted || queryRef.current !== query) return;
         if (!response.ok || !payload.ok) throw new Error(payload.error || "Search is unavailable.");
         setResults(payload.results || []);
         setActiveIndex(0);
       } catch (caught) {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || queryRef.current !== query) return;
         setResults([]);
         setError(caught instanceof Error ? caught.message : "Search is unavailable.");
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted && queryRef.current === query) setLoading(false);
       }
     }, 250);
 
@@ -65,26 +75,15 @@ export function GlobalSearch({ placeholder }: { placeholder: string }) {
 
   useEffect(() => {
     const close = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setQuery("");
+      if (!rootRef.current?.contains(event.target as Node)) updateQuery("");
     };
     window.addEventListener("pointerdown", close);
     return () => window.removeEventListener("pointerdown", close);
-  }, []);
+  }, [updateQuery]);
 
   function navigate(result: GlobalSearchResult) {
-    setQuery("");
-    setResults([]);
+    updateQuery("");
     router.push(result.href);
-  }
-
-  function updateQuery(value: string) {
-    setQuery(value);
-    if (value.trim().length < 2) {
-      setResults([]);
-      setError(null);
-      setLoading(false);
-      setActiveIndex(0);
-    }
   }
 
   return (
@@ -105,11 +104,11 @@ export function GlobalSearch({ placeholder }: { placeholder: string }) {
           } else if (event.key === "ArrowUp") {
             event.preventDefault();
             setActiveIndex((current) => Math.max(current - 1, 0));
-          } else if (event.key === "Enter" && results[activeIndex]) {
+          } else if (event.key === "Enter" && !loading && results[activeIndex]) {
             event.preventDefault();
             navigate(results[activeIndex]);
           } else if (event.key === "Escape") {
-            setQuery("");
+            updateQuery("");
           }
         }}
       />
