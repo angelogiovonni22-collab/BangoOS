@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status";
 import { formatInvoiceDate } from "@/lib/invoices";
@@ -18,10 +17,12 @@ import { useI18n } from "@/lib/i18n/provider";
 export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const { locale } = useI18n();
   const localeTag = locale === "es" ? "es-ES" : "en-US";
-  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
@@ -122,58 +123,26 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
     return () => {
       isSubscribed = false;
     };
-  }, [supabase, invoiceId]);
+  }, [supabase, invoiceId, refreshVersion]);
 
-  async function handleSend() {
-    if (!supabase || !companyId || !userId || !invoice) {
-      return;
-    }
-
-    const result = await sendInvoice({
-      supabase,
-      companyId,
-      invoiceId,
-      userId,
-    });
-
-    if (!result.error) {
-      router.refresh();
+  async function runInvoiceAction(action: typeof sendInvoice) {
+    if (!supabase || !companyId || !userId || !invoice || isSaving) return;
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      const result = await action({ supabase, companyId, invoiceId, userId });
+      if (result.error) setActionError(result.error);
+      else setRefreshVersion((version) => version + 1);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update invoice. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   }
 
-  async function handleMarkPaid() {
-    if (!supabase || !companyId || !userId || !invoice) {
-      return;
-    }
-
-    const result = await markInvoicePaid({
-      supabase,
-      companyId,
-      invoiceId,
-      userId,
-    });
-
-    if (!result.error) {
-      router.refresh();
-    }
-  }
-
-  async function handleVoid() {
-    if (!supabase || !companyId || !userId || !invoice) {
-      return;
-    }
-
-    const result = await voidInvoice({
-      supabase,
-      companyId,
-      invoiceId,
-      userId,
-    });
-
-    if (!result.error) {
-      router.refresh();
-    }
-  }
+  const handleSend = () => runInvoiceAction(sendInvoice);
+  const handleMarkPaid = () => runInvoiceAction(markInvoicePaid);
+  const handleVoid = () => runInvoiceAction(voidInvoice);
 
   if (isLoading) {
     return (
@@ -207,7 +176,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
             <Link href={`/invoices/${invoiceId}/print`}>
               <Button type="button" variant="secondary" size="md">Print</Button>
             </Link>
-            <Button type="button" variant="secondary" size="md" onClick={handleSend} disabled={!canSend}>Send</Button>
+            <Button type="button" variant="secondary" size="md" onClick={handleSend} disabled={isSaving || !canSend}>Send</Button>
             {canRecordPayment ? (
               <Link href={`/invoices/${invoiceId}/payment/new`} className={getButtonClassName({ variant: "secondary", size: "md" })}>
                 Record Payment
@@ -215,14 +184,17 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
             ) : (
               <Button type="button" variant="secondary" size="md" disabled>Record Payment</Button>
             )}
-            <Button type="button" variant="secondary" size="md" onClick={handleMarkPaid} disabled={!canMarkPaid}>Mark Paid</Button>
-            <Button type="button" variant="secondary" size="md" onClick={handleVoid} disabled={!canVoid}>Void</Button>
+            <Button type="button" variant="secondary" size="md" onClick={handleMarkPaid} disabled={isSaving || !canMarkPaid}>Mark Paid</Button>
+            <Button type="button" variant="secondary" size="md" onClick={handleVoid} disabled={isSaving || !canVoid}>Void</Button>
           </>
         )}
         primaryAction={(
           <Link href={`/invoices/${invoiceId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Invoice</Link>
         )}
       />
+
+      {actionError && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm">{actionError}</p>}
+      {isSaving && <p role="status" className="text-sm text-[var(--color-text-secondary)]">Updating invoice…</p>}
 
       <Card as="section" variant="elevated">
         <CardHeader>

@@ -1,5 +1,6 @@
 "use client";
 
+import { localCalendarDate } from "@/lib/dates/calendar-date";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
@@ -36,7 +37,7 @@ export default function VendorBillDetailPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [vendorName, setVendorName] = useState("Vendor");
   const [projectName, setProjectName] = useState("Company overhead");
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [paymentDate, setPaymentDate] = useState(localCalendarDate());
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("check");
   const [referenceNumber, setReferenceNumber] = useState("");
@@ -107,7 +108,7 @@ export default function VendorBillDetailPage() {
       <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title={bill ? `${bill.bill_number} · ${vendorName}` : "Vendor Bill"} description={`${projectName}${bill?.vendor_invoice_number ? ` · Vendor invoice ${bill.vendor_invoice_number}` : ""}`} primaryAction={<Link href="/invoices/accounts-payable" className={getButtonClassName({ size: "md" })}>Back to AP</Link>} />
       {errorMessage ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMessage}</div> : null}
       {bill ? <>
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Status" value={bill.status.replaceAll("_", " ")} detail={bill.approved_at ? `Approved ${new Date(bill.approved_at).toLocaleDateString()}` : "Approval pending"} /><Metric label="Bill Total" value={currency2(bill.total_amount)} detail={`Bill date ${bill.bill_date}`} /><Metric label="Paid" value={currency2(bill.amount_paid)} detail={`${payments.length} payment${payments.length === 1 ? "" : "s"}`} /><Metric label="Balance Due" value={currency2(bill.balance_due)} detail={bill.due_date ? `Due ${bill.due_date}` : "No due date"} danger={bill.balance_due > 0 && Boolean(bill.due_date && bill.due_date < new Date().toISOString().slice(0,10))} /></section>
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Status" value={bill.status.replaceAll("_", " ")} detail={bill.approved_at ? `Approved ${new Date(bill.approved_at).toLocaleDateString()}` : "Approval pending"} /><Metric label="Bill Total" value={currency2(bill.total_amount)} detail={`Bill date ${bill.bill_date}`} /><Metric label="Paid" value={currency2(bill.amount_paid)} detail={`${payments.length} payment${payments.length === 1 ? "" : "s"}`} /><Metric label="Balance Due" value={currency2(bill.balance_due)} detail={bill.due_date ? `Due ${bill.due_date}` : "No due date"} danger={bill.balance_due > 0 && Boolean(bill.due_date && bill.due_date < localCalendarDate())} /></section>
 
         <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-card)]"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Bill Cost Lines</h2>{canManage && ["draft","submitted","disputed"].includes(bill.status) ? <Button size="sm" disabled={isSaving} onClick={() => void approve()}>{isSaving ? "Saving…" : "Approve Bill"}</Button> : null}</div><div className="mt-4 space-y-2">{lines.map((line) => <div key={line.id} className="grid grid-cols-[1fr_auto] gap-3 rounded-xl bg-[var(--bos-bg-control)] p-3"><div><p className="font-semibold">{line.description}</p><p className="text-xs capitalize text-[var(--bos-text-muted)]">{line.category.replaceAll("_", " ")} · {line.quantity} × {currency2(line.unit_cost)}</p></div><p className="font-bold">{currency2(line.line_amount)}</p></div>)}</div></div>
