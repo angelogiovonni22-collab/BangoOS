@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { localCalendarDate } from "@/lib/dates/calendar-date";
 import { useRouter } from "next/navigation";
 import { Button, ConfirmDialog, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
 import { EstimateCustomerProjectSection } from "@/components/estimates/estimate-customer-project-section";
@@ -25,7 +26,7 @@ const DEFAULT_FORM_VALUES: EstimateFormValues = {
   estimateNumber: "",
   customerId: "",
   projectId: "",
-  issueDate: new Date().toISOString().slice(0, 10),
+  issueDate: "",
   expirationDate: "",
   preparedBy: "",
   status: "draft",
@@ -77,7 +78,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
   const [companyId, setCompanyId] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
 
-  const [values, setValues] = useState<EstimateFormValues>(DEFAULT_FORM_VALUES);
+  const [values, setValues] = useState<EstimateFormValues>(() => ({ ...DEFAULT_FORM_VALUES, issueDate: localCalendarDate() }));
   const [prospect, setProspect] = useState<EstimateProspectValues>(EMPTY_ESTIMATE_PROSPECT);
   const [lineItems, setLineItems] = useState<EstimateLineItemDraft[]>(DEFAULT_LINE_ITEMS);
   const [isDirty, setIsDirty] = useState(false);

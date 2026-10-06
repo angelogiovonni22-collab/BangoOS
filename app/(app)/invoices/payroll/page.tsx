@@ -1,5 +1,6 @@
 "use client";
 
+import { addCalendarDays, currentWeekMonday } from "@/lib/dates/calendar-date";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
@@ -10,9 +11,8 @@ type Period={id:string;period_start:string;period_end:string;pay_date:string;sta
 type Workspace={employees:Employee[];periods:Period[];approved_unprocessed_hours:number;employees_needing_rates:number};
 type RpcResult<T>={data:T|null;error:{message:string}|null};
 const money=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"});
-const today=()=>new Date().toISOString().slice(0,10);
-function mondayOfCurrentWeek(){const d=new Date();const day=d.getDay();d.setDate(d.getDate()-(day===0?6:day-1));return d.toISOString().slice(0,10);}
-function plusDays(date:string,days:number){const d=new Date(`${date}T12:00:00`);d.setDate(d.getDate()+days);return d.toISOString().slice(0,10);}
+const mondayOfCurrentWeek = currentWeekMonday;
+const plusDays = addCalendarDays;
 
 export default function PayrollWorkspace(){
  const supabase=useMemo(()=>createClient(),[]);const[companyId,setCompanyId]=useState("");const[data,setData]=useState<Workspace|null>(null);const[loading,setLoading]=useState(true);const[error,setError]=useState<string|null>(null);const[busy,setBusy]=useState(false);

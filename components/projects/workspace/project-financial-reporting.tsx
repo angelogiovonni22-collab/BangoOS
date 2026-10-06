@@ -15,7 +15,7 @@ export function ProjectFinancialReporting({ report }: ProjectFinancialReportingP
     <div className="space-y-5">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Revised Contract Value" value={formatMoney(summary.revisedContractValue)} context="Original estimate + approved change orders" />
-        <MetricCard label="Forecast Final Cost" value={formatMoney(summary.forecastFinalCost)} context="Actual + committed baseline" />
+        <MetricCard label="Forecast Final Cost" value={formatMoney(summary.forecastFinalCost)} context="Higher of revised budget or actual + committed cost" />
         <MetricCard label="Projected Gross Profit" value={formatMoney(summary.grossProfit)} context={`Projected margin ${formatPercent(summary.grossMarginPercent)}`} />
         <MetricCard label="Outstanding Receivables" value={formatMoney(summary.outstandingReceivables)} context="Invoiced less payments received" />
       </section>
@@ -51,6 +51,7 @@ export function ProjectFinancialReporting({ report }: ProjectFinancialReportingP
           <CardTitle className="text-section-title">Job Cost By Category</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
+          <p className="px-3 py-3 text-xs text-[var(--bos-text-medium-on-light)]">Category forecasts are tracked separately. Trade partner commitments are not allocated to scope labor or materials, so category forecasts may overlap. Use Forecast Final Cost for the project total.</p>
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--bos-border-light)] bg-[var(--color-neutral-50)] text-left text-xs uppercase tracking-[0.08em] text-[var(--bos-text-medium-on-light)]">
@@ -67,14 +68,14 @@ export function ProjectFinancialReporting({ report }: ProjectFinancialReportingP
             <tbody>
               {jobCostByCategory.map((row) => (
                 <tr key={row.category} className="border-b border-[var(--bos-border-light)] text-[var(--bos-text-strong-on-light)]">
-                  <td className="px-3 py-2.5 font-semibold">{toTitleCase(row.category)}</td>
+                  <td className="px-3 py-2.5 font-semibold">{toTitleCase(row.category)}{row.note && <p className="mt-1 max-w-64 text-xs font-normal text-[var(--bos-text-medium-on-light)]">{row.note}</p>}</td>
                   <td className="px-3 py-2.5">{formatMoney(row.budget)}</td>
                   <td className="px-3 py-2.5">{formatMoney(row.committed)}</td>
                   <td className="px-3 py-2.5">{formatMoney(row.actual)}</td>
                   <td className="px-3 py-2.5">{formatMoney(row.forecast)}</td>
                   <td className="px-3 py-2.5">{formatMoney(row.varianceAmount)}</td>
                   <td className="px-3 py-2.5">{formatPercent(row.variancePercent)}</td>
-                  <td className="px-3 py-2.5"><span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusClass(row.status)}`}>{toStatusLabel(row.status)}</span></td>
+                  <td className="px-3 py-2.5"><span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusClass(row.status)}`}>{row.budget === 0 && row.forecast > 0 ? "Unallocated Budget" : toStatusLabel(row.status)}</span>{row.dataStatus === "partial" && <p className="mt-1 text-xs text-[var(--bos-text-medium-on-light)]">Partial cost data</p>}</td>
                 </tr>
               ))}
             </tbody>

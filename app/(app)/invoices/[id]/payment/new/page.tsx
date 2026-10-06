@@ -1,5 +1,6 @@
 "use client";
 
+import { localCalendarDate } from "@/lib/dates/calendar-date";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -22,7 +23,7 @@ export default function RecordCustomerPaymentPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [amount, setAmount] = useState("");
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [paymentDate, setPaymentDate] = useState(localCalendarDate());
   const [method, setMethod] = useState("check");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [notes, setNotes] = useState("");

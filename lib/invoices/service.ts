@@ -1,3 +1,4 @@
+import { addCalendarDays, localCalendarDate } from "@/lib/dates/calendar-date";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculateInvoiceTotals, invoiceLineItemMoney } from "@/lib/invoices/calculations";
 import { getNextInvoiceNumber } from "@/lib/invoices/numbering";
@@ -338,7 +339,7 @@ export async function saveInvoice(params: {
     created_by: params.userId,
     updated_by: params.userId,
     sent_at: status === "sent" ? new Date().toISOString() : null,
-    paid_date: status === "paid" ? new Date().toISOString().slice(0, 10) : null,
+    paid_date: status === "paid" ? localCalendarDate() : null,
     archived_at: status === "void" ? new Date().toISOString() : null,
   };
 
@@ -775,8 +776,8 @@ export async function ensureProjectCompletionInvoice(params: {
     return { error: null, invoiceId: null, created: false };
   }
 
-  const issueDate = new Date().toISOString().slice(0, 10);
-  const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const issueDate = localCalendarDate();
+  const dueDate = addCalendarDays(issueDate, 30);
   const lineItems: InvoiceLineItemDraft[] = [
     {
       id: `project-${params.projectId}-completion`,

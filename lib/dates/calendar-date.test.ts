@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { addCalendarDays, currentWeekMonday, localCalendarDate } from "./calendar-date";
+process.env.TZ = "America/New_York";
+assert.equal(localCalendarDate(new Date("2026-10-06T00:30:00Z")), "2026-10-05");
+assert.equal(currentWeekMonday(new Date("2026-10-05T00:30:00Z")), "2026-09-28", "Sunday local week stays in preceding Monday");
+assert.equal(addCalendarDays("2026-03-07", 2), "2026-03-09");
+assert.equal(addCalendarDays("2026-10-31", 2), "2026-11-02");
+assert.equal(addCalendarDays("2026-12-31", 1), "2027-01-01");
+assert.equal(addCalendarDays("", 6), "", "clearing a date input cannot throw");
+process.env.TZ = "Pacific/Kiritimati";
+assert.equal(addCalendarDays("2026-10-05", 6), "2026-10-11", "positive UTC offset must not shift dates backwards");
+process.env.TZ = "Asia/Tokyo";
+assert.equal(localCalendarDate(new Date("2026-10-05T18:00:00Z")), "2026-10-06");
+console.log("Finance local calendar fixtures: 8 passed");

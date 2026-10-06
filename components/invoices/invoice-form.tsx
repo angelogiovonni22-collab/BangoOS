@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { localCalendarDate } from "@/lib/dates/calendar-date";
 import { useRouter } from "next/navigation";
 import { Button, ConfirmDialog, ErrorState, PageHeader, SkeletonLoader } from "@/components/ui";
 import { InvoiceBillingDetailsSection } from "@/components/invoices/invoice-billing-details-section";
@@ -28,7 +29,7 @@ const DEFAULT_FORM_VALUES: InvoiceFormValues = {
   projectId: "",
   estimateId: "",
   preparedBy: "",
-  issueDate: new Date().toISOString().slice(0, 10),
+  issueDate: "",
   dueDate: "",
   status: "draft",
   description: "",
@@ -81,7 +82,7 @@ export function InvoiceForm({
   const [companyId, setCompanyId] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
 
-  const [values, setValues] = useState<InvoiceFormValues>(DEFAULT_FORM_VALUES);
+  const [values, setValues] = useState<InvoiceFormValues>(() => ({ ...DEFAULT_FORM_VALUES, issueDate: localCalendarDate() }));
   const [lineItems, setLineItems] = useState<InvoiceLineItemDraft[]>(DEFAULT_LINE_ITEMS);
   const [amountPaid, setAmountPaid] = useState(0);
   const [paymentSummary, setPaymentSummary] = useState<{ count: number; latestAmount: number | null; latestDate: string | null; latestMethod: string | null }>({ count: 0, latestAmount: null, latestDate: null, latestMethod: null });

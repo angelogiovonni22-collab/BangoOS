@@ -1,5 +1,6 @@
 "use client";
 
+import { localCalendarDate } from "@/lib/dates/calendar-date";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
@@ -33,7 +34,7 @@ export default function NewVendorBillPage() {
   const [projectId, setProjectId] = useState("");
   const [billNumber, setBillNumber] = useState("");
   const [vendorInvoiceNumber, setVendorInvoiceNumber] = useState("");
-  const [billDate, setBillDate] = useState(new Date().toISOString().slice(0, 10));
+  const [billDate, setBillDate] = useState(localCalendarDate());
   const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
