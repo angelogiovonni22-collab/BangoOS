@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import { localCalendarDate } from "@/lib/dates/calendar-date";
+import { fulfillmentOperation } from "./fulfillment-operation";
 import type {
   AllocateMaterialInput,
   CreateMaterialRequestInput,
@@ -128,31 +128,6 @@ function toNumber(value: number) {
   return Number(value.toFixed(2));
 }
 
-function computePurchaseOrderStatus(lines: PurchaseOrderLineRow[]): PurchaseOrderStatus {
-  if (lines.length === 0) {
-    return "draft";
-  }
-
-  const totals = lines.reduce(
-    (acc, line) => {
-      acc.ordered += line.quantity_ordered;
-      acc.progress += line.quantity_received + line.quantity_damaged;
-      return acc;
-    },
-    { ordered: 0, progress: 0 },
-  );
-
-  if (totals.progress <= 0) {
-    return "issued";
-  }
-
-  if (totals.progress >= totals.ordered) {
-    return "fully_received";
-  }
-
-  return "partially_received";
-}
-
 async function ensureWorkspace(
   supabase: QueryableSupabase,
   resolveWorkspace: typeof resolveWorkspaceContext,
@@ -237,48 +212,6 @@ async function updateCostCodeTotals(supabase: QueryableSupabase, companyId: stri
     if (updateError) {
       throw new ProcurementServiceError("PERSISTENCE", updateError.message);
     }
-  }
-}
-
-async function recalculatePurchaseOrderStatus(supabase: QueryableSupabase, companyId: string, purchaseOrderId: string) {
-  const { data: lines, error: lineError } = await supabase
-    .from("purchase_order_line_items")
-    .select("id, quantity_ordered, quantity_received, quantity_damaged, quantity_backordered")
-    .eq("company_id", companyId)
-    .eq("purchase_order_id", purchaseOrderId);
-
-  if (lineError) {
-    throw new ProcurementServiceError("PERSISTENCE", lineError.message);
-  }
-
-  const normalizedLines = (lines ?? []) as Array<Pick<PurchaseOrderLineRow, "id" | "quantity_ordered" | "quantity_received" | "quantity_damaged" | "quantity_backordered">>;
-  const nextStatus = computePurchaseOrderStatus(
-    normalizedLines.map((row) => ({
-      id: row.id,
-      purchase_order_id: purchaseOrderId,
-      project_material_plan_item_id: null,
-      material_id: null,
-      description: "",
-      quantity_ordered: row.quantity_ordered,
-      quantity_received: row.quantity_received,
-      quantity_damaged: row.quantity_damaged,
-      quantity_backordered: row.quantity_backordered,
-      unit_cost: 0,
-      line_subtotal: 0,
-      project_id: "",
-      cost_code_id: null,
-    })),
-  );
-
-  const { error: updatePoError } = await supabase
-    .from("purchase_orders")
-    .update({ status: nextStatus })
-    .eq("company_id", companyId)
-    .eq("id", purchaseOrderId)
-    .in("status", ["issued", "partially_received", "approved"]);
-
-  if (updatePoError) {
-    throw new ProcurementServiceError("PERSISTENCE", updatePoError.message);
   }
 }
 
@@ -696,182 +629,39 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
 
     async receivePurchaseOrderLine(input) {
       const context = await ensureWorkspace(supabase, resolveWorkspace);
-      const existing = await ensurePurchaseOrderExists(context.companyId, input.purchaseOrderId);
-      if (existing.status !== "issued" && existing.status !== "partially_received") {
-        throw new ProcurementServiceError("VALIDATION", "Receipts require an issued purchase order with outstanding quantities.");
-      }
-
       const quantities = [input.quantityReceived, input.quantityDamaged, input.quantityBackordered];
       if (!quantities.every((quantity) => Number.isFinite(quantity) && quantity >= 0) || quantities.every((quantity) => quantity === 0)) {
         throw new ProcurementServiceError("VALIDATION", "Enter at least one positive received, damaged, or backordered quantity.");
       }
-
-      const { data: line, error: lineError } = await supabase
-        .from("purchase_order_line_items")
-        .select("*")
-        .eq("company_id", context.companyId)
-        .eq("id", input.lineItemId)
-        .eq("purchase_order_id", input.purchaseOrderId)
-        .maybeSingle();
-
-      if (lineError) {
-        throw new ProcurementServiceError("PERSISTENCE", lineError.message);
-      }
-
-      const lineRow = line as PurchaseOrderLineRow | null;
-
-      if (!lineRow) {
-        throw new ProcurementServiceError("NOT_FOUND", "Purchase order line not found.");
-      }
-
-      const nextReceived = lineRow.quantity_received + input.quantityReceived;
-      const nextDamaged = lineRow.quantity_damaged + input.quantityDamaged;
-      const nextBackordered = lineRow.quantity_backordered + input.quantityBackordered;
-
-      if (nextReceived + nextDamaged > lineRow.quantity_ordered) {
-        throw new ProcurementServiceError("VALIDATION", "Received plus damaged quantity cannot exceed ordered quantity.");
-      }
-
-      const { error: updateLineError } = await supabase
-        .from("purchase_order_line_items")
-        .update({
-          quantity_received: nextReceived,
-          quantity_damaged: nextDamaged,
-          quantity_backordered: nextBackordered,
-          updated_by: context.userId,
-          updated_at: now(),
-        })
-        .eq("company_id", context.companyId)
-        .eq("id", lineRow.id);
-
-      if (updateLineError) {
-        throw new ProcurementServiceError("PERSISTENCE", updateLineError.message);
-      }
-
-      const { error: receiptError } = await supabase
-        .from("purchase_order_receipts")
-        .insert({
-          company_id: context.companyId,
-          purchase_order_id: input.purchaseOrderId,
-          received_date: localCalendarDate(new Date(now())),
-          notes: input.notes,
-          received_by: context.userId,
-          created_by: context.userId,
-          updated_by: context.userId,
-        });
-
-      if (receiptError) {
-        throw new ProcurementServiceError("PERSISTENCE", receiptError.message);
-      }
-
-      if (lineRow.material_id && input.quantityReceived > 0) {
-        const { data: material, error: materialError } = await supabase
-          .from("materials")
-          .select("id, current_stock, track_inventory")
-          .eq("company_id", context.companyId)
-          .eq("id", lineRow.material_id)
-          .maybeSingle();
-
-        if (materialError) {
-          throw new ProcurementServiceError("PERSISTENCE", materialError.message);
-        }
-
-        const materialRow = material as Pick<MaterialRow, "id" | "current_stock" | "track_inventory"> | null;
-
-        if (materialRow?.id && materialRow.track_inventory) {
-          const { error: materialUpdateError } = await supabase
-            .from("materials")
-            .update({
-              current_stock: toNumber(Number(materialRow.current_stock) + input.quantityReceived),
-              last_purchase_cost: lineRow.unit_cost,
-              last_purchase_date: now().slice(0, 10),
-              updated_by: context.userId,
-            })
-            .eq("company_id", context.companyId)
-            .eq("id", materialRow.id);
-
-          if (materialUpdateError) {
-            throw new ProcurementServiceError("PERSISTENCE", materialUpdateError.message);
-          }
-        }
-      }
-
-      await recalculatePurchaseOrderStatus(supabase, context.companyId, input.purchaseOrderId);
-      await updateCostCodeTotals(supabase, context.companyId, [lineRow.cost_code_id || ""]);
-
-      return loadOverviewInternal(context);
+      const operation = fulfillmentOperation(context.companyId, context.userId, "receive", input, new Date(now()));
+      const { error } = await supabase.rpc("apply_procurement_fulfillment", {
+        p_company_id: context.companyId,
+        p_operation_id: operation.id,
+        p_kind: "receive",
+        p_payload: { ...input, receivedDate: operation.receivedDate },
+      });
+      if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
+      const overview = await loadOverviewInternal(context);
+      operation.complete();
+      return overview;
     },
 
     async allocateMaterialToProject(input) {
       const context = await ensureWorkspace(supabase, resolveWorkspace);
-
-      if (input.quantityAllocated <= 0) {
-        throw new ProcurementServiceError("VALIDATION", "Allocated quantity must be greater than zero.");
+      if (!Number.isFinite(input.quantityAllocated) || input.quantityAllocated <= 0 || !Number.isFinite(input.unitCost) || input.unitCost < 0) {
+        throw new ProcurementServiceError("VALIDATION", "Enter a positive allocated quantity and a finite, non-negative unit cost.");
       }
-
-      const { data: material, error: materialError } = await supabase
-        .from("materials")
-        .select("id, current_stock, track_inventory")
-        .eq("company_id", context.companyId)
-        .eq("id", input.materialId)
-        .maybeSingle();
-
-      if (materialError) {
-        throw new ProcurementServiceError("PERSISTENCE", materialError.message);
-      }
-
-      const materialRow = material as Pick<MaterialRow, "id" | "current_stock" | "track_inventory"> | null;
-
-      if (!materialRow?.id) {
-        throw new ProcurementServiceError("NOT_FOUND", "Material not found.");
-      }
-
-      if (materialRow.track_inventory && Number(materialRow.current_stock) < input.quantityAllocated) {
-        throw new ProcurementServiceError("VALIDATION", "Insufficient inventory for allocation.");
-      }
-
-      const totalCost = toNumber(input.quantityAllocated * input.unitCost);
-
-      const { error: allocationError } = await supabase
-        .from("project_material_allocations")
-        .insert({
-          company_id: context.companyId,
-          purchase_order_id: input.purchaseOrderId,
-          purchase_order_line_item_id: input.lineItemId,
-          material_id: input.materialId,
-          project_id: input.projectId,
-          cost_code_id: input.costCodeId,
-          quantity_allocated: input.quantityAllocated,
-          unit_cost: input.unitCost,
-          total_cost: totalCost,
-          notes: input.notes,
-          allocated_at: now(),
-          allocated_by: context.userId,
-          created_by: context.userId,
-          updated_by: context.userId,
-        });
-
-      if (allocationError) {
-        throw new ProcurementServiceError("PERSISTENCE", allocationError.message);
-      }
-
-      if (materialRow.track_inventory) {
-        const { error: materialUpdateError } = await supabase
-          .from("materials")
-          .update({
-            current_stock: toNumber(Number(materialRow.current_stock) - input.quantityAllocated),
-            updated_by: context.userId,
-          })
-          .eq("company_id", context.companyId)
-          .eq("id", materialRow.id);
-
-        if (materialUpdateError) {
-          throw new ProcurementServiceError("PERSISTENCE", materialUpdateError.message);
-        }
-      }
-
-      await updateCostCodeTotals(supabase, context.companyId, [input.costCodeId || ""]);
-      return loadOverviewInternal(context);
+      const operation = fulfillmentOperation(context.companyId, context.userId, "allocate", input, new Date(now()));
+      const { error } = await supabase.rpc("apply_procurement_fulfillment", {
+        p_company_id: context.companyId,
+        p_operation_id: operation.id,
+        p_kind: "allocate",
+        p_payload: { ...input },
+      });
+      if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
+      const overview = await loadOverviewInternal(context);
+      operation.complete();
+      return overview;
     },
 
     async getVendorSummary(vendorId) {
