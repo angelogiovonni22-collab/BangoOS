@@ -21,11 +21,11 @@ export function AiSummaryPanel({ summary, onRegenerate, t }: AiSummaryPanelProps
   };
 
   return (
-    <section className="rounded-[var(--radius-2xl)] border border-[var(--color-info-200)] bg-[var(--color-info-50)] p-5">
+    <section className="rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{t("dailyReports.ai.title")}</h3>
-          <p className="text-sm text-[var(--color-info-700)]">{t("dailyReports.ai.simulated")}</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">{t("dailyReports.ai.simulated")}</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -40,7 +40,7 @@ export function AiSummaryPanel({ summary, onRegenerate, t }: AiSummaryPanelProps
       </div>
 
       {expanded ? (
-        <pre className="mt-3 whitespace-pre-wrap rounded-[var(--radius-lg)] border border-[var(--color-info-200)] bg-white p-3 text-sm text-[var(--color-text-primary)]">
+        <pre className="mt-3 whitespace-pre-wrap rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3 text-sm text-[var(--color-text-primary)]">
           {summary}
         </pre>
       ) : null}
