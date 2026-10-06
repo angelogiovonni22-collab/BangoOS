@@ -454,6 +454,24 @@ assert.equal((await db.query('select id from materials where id=$1 for update',[
 await assert.rejects(draft({...draftInput,requestId:null}),/active vendor/);
 await db.exec("set bos.materials_manage=''; set bos.membership='superintendent';");
 assert.equal((await db.query('select id from materials where id=$1 for update',[material])).rows.length,0);
+// The old role array also let a read-only superintendent approve an order.
+await db.exec("reset role; set bos.membership='owner'; set role authenticated;");
+const readOnlyOrder=(await draft({...draftInput,requestId:null})).rows[0].id;
+await db.exec("set bos.membership='superintendent';");
+await transition('approve',operationId(),readOnlyOrder);
+await db.exec('reset role;');
+await db.exec(readFileSync('supabase/migrations/20261006223258_audit_purchasing_write_permission_guard.sql','utf8'));
+await db.exec('set role authenticated;');
+await assert.rejects(transition('issue',operationId(),readOnlyOrder),/row-level security/);
+assert.equal((await db.query("update purchase_orders set status='issued' where id=$1 returning id",[readOnlyOrder])).rows.length,0);
+assert.equal((await db.query('select status from purchase_orders where id=$1',[readOnlyOrder])).rows[0].status,'approved');
+await db.exec("set bos.membership='project_manager'; set bos.materials_manage='false';");
+await assert.rejects(transition('issue',operationId(),readOnlyOrder),/row-level security/);
+await db.exec("set bos.materials_manage='';");
+await transition('issue',operationId(),readOnlyOrder);
+await db.exec("set bos.membership='superintendent'; set bos.materials_manage='true';");
+await transition('cancel',operationId(),readOnlyOrder);
+await db.exec("set bos.materials_manage='';");
 await db.exec('reset role; set role anon;');
 await assert.rejects(transition('approve'),/permission denied/);
 
