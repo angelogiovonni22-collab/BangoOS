@@ -501,79 +501,95 @@ export function ProcurementWorkflowClient({ initialProjectId, introduction }: { 
 
             <div className="space-y-3">
               {poForm.lines.map((line, index) => (
-                <div key={`${index}-${line.materialId}-${line.description}`} className="grid gap-2 rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] p-3 sm:grid-cols-2 lg:grid-cols-6">
-                  <Select
-                    value={line.materialId}
-                    onChange={(event) => {
-                      const nextMaterialId = event.target.value;
-                      const material = payload.materials.find((item) => item.id === nextMaterialId);
-                      setPoForm((current) => ({
+                <div key={index} className="grid gap-3 rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] p-3 sm:grid-cols-2">
+                  <div className="flex items-center justify-between gap-2 sm:col-span-2">
+                    <p className="text-sm font-semibold text-[var(--color-text-primary)]">Line {index + 1}</p>
+                    {poForm.lines.length > 1 ? <Button type="button" size="sm" variant="outline" disabled={isSaving} onClick={() => setPoForm((current) => ({ ...current, lines: current.lines.filter((_, rowIndex) => rowIndex !== index) }))}>Remove Line {index + 1}</Button> : null}
+                  </div>
+                  <FormField label="Material" className="sm:col-span-2">
+                    <Select
+                      value={line.materialId}
+                      onChange={(event) => {
+                        const nextMaterialId = event.target.value;
+                        const material = payload.materials.find((item) => item.id === nextMaterialId);
+                        setPoForm((current) => ({
+                          ...current,
+                          lines: current.lines.map((row, rowIndex) => rowIndex === index
+                            ? { ...row, materialId: nextMaterialId, description: material?.name || row.description }
+                            : row),
+                        }));
+                      }}
+                    >
+                      <option value="">Material</option>
+                      {payload.materials.map((material) => (
+                        <option key={material.id} value={material.id}>{material.name}</option>
+                      ))}
+                    </Select>
+                  </FormField>
+                  <FormField label="Description" className="sm:col-span-2">
+                    <Input
+                      placeholder="Description"
+                      value={line.description}
+                      onChange={(event) => setPoForm((current) => ({
                         ...current,
-                        lines: current.lines.map((row, rowIndex) => rowIndex === index
-                          ? { ...row, materialId: nextMaterialId, description: material?.name || row.description }
-                          : row),
-                      }));
-                    }}
-                  >
-                    <option value="">Material</option>
-                    {payload.materials.map((material) => (
-                      <option key={material.id} value={material.id}>{material.name}</option>
-                    ))}
-                  </Select>
-                  <Input
-                    placeholder="Description"
-                    value={line.description}
-                    onChange={(event) => setPoForm((current) => ({
-                      ...current,
-                      lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, description: event.target.value } : row),
-                    }))}
-                  />
-                  <Input
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    placeholder="Qty"
-                    value={line.quantityOrdered}
-                    onChange={(event) => setPoForm((current) => ({
-                      ...current,
-                      lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, quantityOrdered: event.target.value } : row),
-                    }))}
-                  />
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="Unit cost"
-                    value={line.unitCost}
-                    onChange={(event) => setPoForm((current) => ({
-                      ...current,
-                      lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, unitCost: event.target.value } : row),
-                    }))}
-                  />
-                  <Select
-                    value={line.projectId}
-                    onChange={(event) => setPoForm((current) => ({
-                      ...current,
-                      lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, projectId: event.target.value } : row),
-                    }))}
-                  >
-                    <option value="">Project</option>
-                    {payload.projects.map((project) => (
-                      <option key={project.id} value={project.id}>{project.name}</option>
-                    ))}
-                  </Select>
-                  <Select
-                    value={line.costCodeId}
-                    onChange={(event) => setPoForm((current) => ({
-                      ...current,
-                      lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, costCodeId: event.target.value } : row),
-                    }))}
-                  >
-                    <option value="">Cost code</option>
-                    {payload.costCodes.map((costCode) => (
-                      <option key={costCode.id} value={costCode.id}>{costCode.label}</option>
-                    ))}
-                  </Select>
+                        lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, description: event.target.value } : row),
+                      }))}
+                    />
+                  </FormField>
+                  <FormField label="Quantity">
+                    <Input
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      placeholder="Qty"
+                      value={line.quantityOrdered}
+                      onChange={(event) => setPoForm((current) => ({
+                        ...current,
+                        lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, quantityOrdered: event.target.value } : row),
+                      }))}
+                    />
+                  </FormField>
+                  <FormField label="Unit cost">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Unit cost"
+                      value={line.unitCost}
+                      onChange={(event) => setPoForm((current) => ({
+                        ...current,
+                        lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, unitCost: event.target.value } : row),
+                      }))}
+                    />
+                  </FormField>
+                  <FormField label="Line project">
+                    <Select
+                      value={line.projectId}
+                      onChange={(event) => setPoForm((current) => ({
+                        ...current,
+                        lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, projectId: event.target.value } : row),
+                      }))}
+                    >
+                      <option value="">Project</option>
+                      {payload.projects.map((project) => (
+                        <option key={project.id} value={project.id}>{project.name}</option>
+                      ))}
+                    </Select>
+                  </FormField>
+                  <FormField label="Line cost code">
+                    <Select
+                      value={line.costCodeId}
+                      onChange={(event) => setPoForm((current) => ({
+                        ...current,
+                        lines: current.lines.map((row, rowIndex) => rowIndex === index ? { ...row, costCodeId: event.target.value } : row),
+                      }))}
+                    >
+                      <option value="">Cost code</option>
+                      {payload.costCodes.map((costCode) => (
+                        <option key={costCode.id} value={costCode.id}>{costCode.label}</option>
+                      ))}
+                    </Select>
+                  </FormField>
                 </div>
               ))}
             </div>
@@ -582,6 +598,7 @@ export function ProcurementWorkflowClient({ initialProjectId, introduction }: { 
               <Button
                 type="button"
                 variant="outline"
+                disabled={isSaving}
                 onClick={() => setPoForm((current) => ({ ...current, lines: [...current.lines, { ...EMPTY_PO_LINE }] }))}
               >
                 Add Line

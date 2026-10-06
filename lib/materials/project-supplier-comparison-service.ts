@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { localCalendarDate } from "@/lib/dates/calendar-date";
 import { compareSupplierPrices, effectiveSupplierUnitCost, type SupplierPriceComparison, type SupplierPriceOption } from "./supplier-price-comparison";
 
 type QueryableSupabase = NonNullable<ReturnType<typeof createClient>> & {
@@ -46,7 +47,7 @@ export function createProjectSupplierComparisonService(client = createClient()) 
 
     const vendorNames = new Map((vendors.data ?? []).map((row: { id: string; display_name: string }) => [row.id, row.display_name]));
     const listRows = new Map(((lists.data ?? []) as ListRow[]).map((row) => [row.id, row]));
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localCalendarDate();
     const byMaterial = new Map<string, SupplierPriceOption[]>();
     for (const entry of (entries.data ?? []) as EntryRow[]) {
       if (!entry.material_id) continue;
@@ -82,7 +83,7 @@ export function createProjectSupplierComparisonService(client = createClient()) 
 
     const { data: list, error: listError } = await supabase.from("supplier_price_lists").select("id, status, effective_on, expires_on").eq("company_id", workspace.companyId).eq("id", entry.price_list_id).eq("status", "active").maybeSingle();
     if (listError) throw new ProjectSupplierComparisonError(listError.message);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localCalendarDate();
     if (!list || list.effective_on > today || (list.expires_on && list.expires_on < today)) throw new ProjectSupplierComparisonError("The selected supplier price list is not currently active.");
 
     const { data: plan, error: planError } = await supabase.from("project_material_plan_items").select("id, material_id").eq("company_id", workspace.companyId).eq("project_id", projectId).eq("id", planItemId).maybeSingle();

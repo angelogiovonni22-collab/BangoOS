@@ -7,6 +7,7 @@ import { Badge, Button, Card, CardContent, EmptyState, ErrorState, FormField, In
 import { parseSupplierPriceCsv, type SupplierPriceImportRow } from "@/lib/materials/supplier-price-lists";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { localCalendarDate } from "@/lib/dates/calendar-date";
 
 type VendorOption = { id: string; display_name: string };
 type PriceListRow = {
@@ -23,7 +24,7 @@ type PriceListRow = {
   created_at: string;
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localCalendarDate();
 
 export function SupplierPriceListsClient() {
   const supabase = useMemo(() => createClient(), []);
