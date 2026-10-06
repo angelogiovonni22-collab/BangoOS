@@ -394,7 +394,7 @@ export function ProcurementWorkflowClient({ initialProjectId, introduction }: { 
         <SummaryCard icon={<span>P</span>} label="Pending Deliveries" value={String(summary.pendingDeliveryCount)} context="Line items not fully received" tone="info" />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className="grid items-start gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>1. Material Request</CardTitle>
