@@ -14,7 +14,7 @@ const initialFilters: DailyReportFilters = {
   pageSize: 6,
 };
 
-function makeWorkflowEventsQuery(onExecute: () => void) {
+function makeWorkflowEventsQuery(onExecute: () => void, data: unknown[] = []) {
   const query: {
     select: (columns: string) => typeof query;
     eq: (column: string, value: unknown) => typeof query;
@@ -36,7 +36,7 @@ function makeWorkflowEventsQuery(onExecute: () => void) {
     },
     then(onFulfilled, onRejected) {
       onExecute();
-      return Promise.resolve({ data: [], error: null }).then(onFulfilled, onRejected);
+      return Promise.resolve({ data, error: null }).then(onFulfilled, onRejected);
     },
   };
 
@@ -80,9 +80,9 @@ async function main() {
 
     const supabaseClient = {
       from(table: string) {
-        assert.equal(table, "workflow_events");
+        assert.ok(["workflow_events", "projects", "profiles"].includes(table));
         return makeWorkflowEventsQuery(() => {
-          workflowEventQueryCalls += 1;
+          if (table === "workflow_events") workflowEventQueryCalls += 1;
         });
       },
     };
@@ -150,6 +150,40 @@ async function main() {
     await service.listReports(initialFilters);
 
     assert.equal(resolveWorkspaceCalls, 2);
+  });
+
+  await test("5. first report has live project and supervisor choices without report history", async () => {
+    const scopedTables = new Set<string>();
+    const service = createDailyReportsService({
+      supabaseClient: {
+        from(table: string) {
+          const data = table === "projects" ? [{ id: "project-1", name: "First project" }]
+            : table === "profiles" ? [
+              { id: "owner-1", first_name: "Company", last_name: "Owner", role: "owner" },
+              { id: "super-1", first_name: "Field", last_name: "Lead", role: "superintendent" },
+              { id: "customer-1", first_name: "External", last_name: "Customer", role: "customer" },
+            ] : [];
+          const query = makeWorkflowEventsQuery(() => undefined, data);
+          query.eq = (column, value) => {
+            if (column === "company_id") {
+              assert.equal(value, "company-1");
+              scopedTables.add(table);
+            }
+            return query;
+          };
+          return query;
+        },
+      } as never,
+      resolveWorkspace: async () => ({
+        context: { userId: "owner-1", companyId: "company-1", role: "owner", companyName: "Acme", companySlug: "acme", membershipId: "membership-1", membershipStatus: "active" },
+        errorMessage: null, errorCode: null,
+      } as const),
+    });
+    const dashboard = await service.getDashboard();
+    assert.equal(dashboard.metrics.reportsCreatedToday, 0);
+    assert.deepEqual(dashboard.projectOptions, [{ id: "project-1", name: "First project" }]);
+    assert.deepEqual(dashboard.superintendentOptions.map((option) => option.id), ["owner-1", "super-1"]);
+    assert.deepEqual([...scopedTables].sort(), ["profiles", "projects", "workflow_events"]);
   });
 
   console.log(`\nRequest-loop regression results: ${passed} passed, ${failed} failed`);

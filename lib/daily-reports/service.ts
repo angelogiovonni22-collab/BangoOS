@@ -437,8 +437,15 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
 
   return {
     async getDashboard() {
-      const { workspace } = await resolveContext();
-      const reports = await loadReportsFromEventsShared(workspace.companyId);
+      const { supabase: client, workspace } = await resolveContext();
+      const [reports, projectsResponse, profilesResponse] = await Promise.all([
+        loadReportsFromEventsShared(workspace.companyId),
+        client.from("projects").select("id, name").eq("company_id", workspace.companyId).order("name"),
+        client.from("profiles").select("id, first_name, last_name, role").eq("company_id", workspace.companyId).order("last_name"),
+      ]);
+      if (projectsResponse.error) throw new Error(projectsResponse.error.message);
+      if (profilesResponse.error) throw new Error(profilesResponse.error.message);
+      const supervisoryRoles = new Set(["owner", "admin", "administrator", "operations_manager", "project_manager", "superintendent", "foreman"]);
       const today = new Date().toISOString().slice(0, 10);
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
@@ -471,8 +478,10 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
           averageSubmissionHours: 0,
         },
         weatherSnapshotText: weatherSnapshot,
-        projectOptions: Array.from(new Map(reports.map((item) => [item.header.projectId, { id: item.header.projectId, name: item.header.projectName }])).values()),
-        superintendentOptions: Array.from(new Map(reports.map((item) => [item.header.superintendentId, { id: item.header.superintendentId, name: item.header.superintendentName }])).values()),
+        projectOptions: (projectsResponse.data ?? []).map((project) => ({ id: project.id, name: project.name || "Project" })),
+        superintendentOptions: (profilesResponse.data ?? [])
+          .filter((profile) => supervisoryRoles.has(profile.role.trim().toLowerCase()))
+          .map((profile) => ({ id: profile.id, name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Team member" })),
       };
     },
 
