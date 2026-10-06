@@ -109,7 +109,73 @@ const completed=await state();
 await call('receive',finalPayload,finalKey);
 assert.deepEqual(await state(),completed);
 await assert.rejects(call('receive',{...receive,quantityReceived:0.001}),/outstanding quantities/);
+// Extend the same authenticated fixture with draft headers, request conversion,
+// actual line-total trigger and project-plan supplier guard.
+await db.exec(`reset role;
+ create table public.vendors(id uuid primary key,company_id uuid,status text,unique(id,company_id));
+ create table public.projects(id uuid primary key,company_id uuid,unique(id,company_id));
+ create table public.material_requests(id uuid primary key,company_id uuid,project_id uuid,status text,converted_purchase_order_id uuid,updated_by uuid);
+ create table public.project_material_plan_items(id uuid primary key,company_id uuid,project_id uuid,material_id uuid,status text,
+   estimated_quantity numeric(14,4),inventory_quantity numeric(14,4),selected_vendor_id uuid,current_unit_cost numeric(14,4),selected_supplier_price_entry_id uuid);
+ create table public.supplier_price_entries(id uuid primary key,company_id uuid,vendor_id uuid,material_id uuid,unit_price numeric,contractor_price numeric,match_status text);
+ alter table public.purchase_orders add column po_number text,add column request_id uuid,add column vendor_id uuid,add column project_id uuid,
+   add column cost_code_id uuid,add column updated_at timestamptz,add column subtotal_amount numeric(14,2) default 0,add column tax_amount numeric(14,2) default 0,
+   add column shipping_amount numeric(14,2) default 0,add column total_amount numeric(14,2) default 0,add column notes text,add column attachments jsonb,add column created_by uuid;
+ alter table public.purchase_orders add constraint fixture_vendor_scope foreign key(vendor_id,company_id) references public.vendors(id,company_id),
+   add constraint fixture_project_scope foreign key(project_id,company_id) references public.projects(id,company_id);
+ alter table public.purchase_order_line_items alter column id set default gen_random_uuid(),add column description text,
+   add column line_subtotal numeric(14,2),add column project_id uuid,add column project_material_plan_item_id uuid,add column created_by uuid;
+ grant select,insert,update on public.vendors,public.projects,public.material_requests,public.project_material_plan_items,public.supplier_price_entries to authenticated;
+`);
+for(const table of ['vendors','projects','material_requests','project_material_plan_items','supplier_price_entries']) {
+  await db.exec(`alter table public.${table} enable row level security;
+    create policy scope on public.${table} to authenticated using(company_id=current_setting('bos.company')::uuid)
+    with check(company_id=current_setting('bos.company')::uuid);`);
+}
+await db.exec(readFileSync('supabase/migrations/20260823010000_procurement_purchase_order_totals.sql','utf8'));
+await db.exec(readFileSync('supabase/migrations/20260827031500_project_material_supplier_po_guard.sql','utf8'));
+await db.exec(readFileSync('supabase/migrations/20261006140120_audit_procurement_atomic_drafts.sql','utf8'));
+const vendor='00000000-0000-0000-0000-000000000020';
+const request='00000000-0000-0000-0000-000000000021';
+const plan='00000000-0000-0000-0000-000000000022';
+const price='00000000-0000-0000-0000-000000000023';
+await db.query("insert into vendors values($1,$2,'active')",[vendor,company]);
+await db.query('insert into projects values($1,$2)',[project,company]);
+await db.query("insert into material_requests values($1,$2,$3,'approved',null,null)",[request,company,project]);
+await db.query("insert into supplier_price_entries values($1,$2,$3,$4,2,2,'confirmed')",[price,company,vendor,material]);
+await db.query("insert into project_material_plan_items values($1,$2,$3,$4,'ready_to_order',3,0,$5,2,$6)",[plan,company,project,material,vendor,price]);
+await db.exec('set role authenticated;');
+const draftInput={vendorId:vendor,projectId:project,costCodeId:null,taxAmount:0.25,shippingAmount:0.5,notes:'Synthetic atomic draft',requestId:request,attachments:[],
+  lines:[{projectMaterialPlanItemId:null,materialId:material,description:'Synthetic line',quantityOrdered:1.111,unitCost:2,projectId:project,costCodeId:null}]};
+const draft=(payload,id=operationId())=>db.query('select public.create_procurement_draft($1,$2,$3::jsonb) as id',[company,id,JSON.stringify(payload)]);
+const counts=async()=>({orders:(await db.query('select count(*)::int n from purchase_orders')).rows[0].n,
+  lines:(await db.query('select count(*)::int n from purchase_order_line_items')).rows[0].n,
+  ops:(await db.query('select count(*)::int n from procurement_fulfillment_operations')).rows[0].n});
+const beforeDraft=await counts();
+await assert.rejects(draft({...draftInput,lines:[...draftInput.lines,{...draftInput.lines[0],quantityOrdered:0}]}),/Every line/);
+assert.deepEqual(await counts(),beforeDraft);
+assert.equal((await db.query('select status from material_requests where id=$1',[request])).rows[0].status,'approved');
+const draftKey=operationId();
+const draftId=(await draft(draftInput,draftKey)).rows[0].id;
+assert.equal((await db.query('select total_amount from purchase_orders where id=$1',[draftId])).rows[0].total_amount,'2.97');
+assert.equal((await db.query('select converted_purchase_order_id from material_requests where id=$1',[request])).rows[0].converted_purchase_order_id,draftId);
+const afterDraft=await counts();
+assert.equal((await draft(draftInput,draftKey)).rows[0].id,draftId);
+assert.deepEqual(await counts(),afterDraft);
+await assert.rejects(draft(draftInput),/Only an approved request/);
+await assert.rejects(draft({...draftInput,taxAmount:3},draftKey),/original purchasing operation details/);
+const planDraft={...draftInput,requestId:null,lines:[{...draftInput.lines[0],projectMaterialPlanItemId:plan,quantityOrdered:2,costCodeId:costCode}]};
+const beforePlan=await counts();
+await assert.rejects(draft({...planDraft,lines:[{...planDraft.lines[0],materialId:null}]}),/match its project material/);
+assert.deepEqual(await counts(),beforePlan);
+await draft(planDraft);
+const afterPlan=await counts();
+await assert.rejects(draft(planDraft),/exceeds the remaining/);
+assert.deepEqual(await counts(),afterPlan);
+await db.query('select public.recalculate_procurement_cost_code($1,$2)',[company,costCode]);
+assert.equal((await db.query('select committed_cost from cost_codes where id=$1',[costCode])).rows[0].committed_cost,'0.00');
 await db.exec('reset role; set role anon;');
 await assert.rejects(call('receive',receive),/permission denied/);
+await assert.rejects(draft(draftInput),/permission denied/);
 await db.close();
-console.log('Atomic fulfillment rollback, retry, precision, state and role fixtures passed');
+console.log('Atomic fulfillment and draft rollback, retry, precision, request conversion, demand reservation, totals and role fixtures passed');

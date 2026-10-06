@@ -42,11 +42,20 @@ export function PurchasingExecutionClient({ projectId }: { projectId: string }) 
   const prepareDrafts = async () => {
     if (!execution?.readyToPrepare) return;
     setPreparing(true); setError(null); setMessage(null);
+    let preparedCount = 0;
     try {
-      for (const draft of execution.drafts) await procurementService.createDraftPurchaseOrder(draft.input);
+      for (const draft of execution.drafts) {
+        await procurementService.createDraftPurchaseOrder(draft.input);
+        preparedCount += 1;
+      }
       setMessage(`${execution.drafts.length} supplier purchase order${execution.drafts.length === 1 ? "" : "s"} prepared as draft. Review tax, delivery, quantities, and totals before approval or issue.`);
       await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to prepare draft purchase orders."); }
+    } catch (cause) {
+      // Refresh reserved demand after a partial supplier batch before retrying.
+      await load();
+      if (preparedCount) setMessage(`${preparedCount} supplier draft${preparedCount === 1 ? " was" : "s were"} prepared. Review the remaining purchasing plan before retrying.`);
+      setError(cause instanceof Error ? cause.message : "Unable to prepare draft purchase orders.");
+    }
     finally { setPreparing(false); }
   };
 

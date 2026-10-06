@@ -113,13 +113,6 @@ function buildRequestNumber() {
   return `MR-${datePart}-${randomPart}`;
 }
 
-function buildPoNumber() {
-  const now = new Date();
-  const datePart = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`;
-  const randomPart = Math.floor(Math.random() * 9000 + 1000);
-  return `PO-${datePart}-${randomPart}`;
-}
-
 function toNumber(value: number) {
   if (!Number.isFinite(value)) {
     return 0;
@@ -145,73 +138,12 @@ async function ensureWorkspace(
 }
 
 async function updateCostCodeTotals(supabase: QueryableSupabase, companyId: string, costCodeIds: string[]) {
-  const scopedIds = Array.from(new Set(costCodeIds.filter(Boolean)));
-
-  for (const costCodeId of scopedIds) {
-    const { data: openLineRows, error: openLineError } = await supabase
-      .from("purchase_order_line_items")
-      .select("quantity_ordered, quantity_received, quantity_damaged, unit_cost, purchase_order_id")
-      .eq("company_id", companyId)
-      .eq("cost_code_id", costCodeId);
-
-    if (openLineError) {
-      throw new ProcurementServiceError("PERSISTENCE", openLineError.message);
-    }
-
-    const purchaseOrderIds = Array.from(
-      new Set((openLineRows ?? []).map((row: { purchase_order_id: string }) => row.purchase_order_id)),
-    );
-
-    let activeOrderStatusById = new Map<string, string>();
-
-    if (purchaseOrderIds.length > 0) {
-      const { data: orderStatusRows, error: orderStatusError } = await supabase
-        .from("purchase_orders")
-        .select("id, status")
-        .eq("company_id", companyId)
-        .in("id", purchaseOrderIds);
-
-      if (orderStatusError) {
-        throw new ProcurementServiceError("PERSISTENCE", orderStatusError.message);
-      }
-
-      activeOrderStatusById = new Map((orderStatusRows ?? []).map((row: { id: string; status: string }) => [row.id, row.status]));
-    }
-
-    const committedCost = (openLineRows ?? []).reduce((sum: number, row: { quantity_ordered: number; quantity_received: number; quantity_damaged: number; unit_cost: number; purchase_order_id: string }) => {
-      const status = activeOrderStatusById.get(row.purchase_order_id);
-      if (!status || status === "cancelled" || status === "fully_received") {
-        return sum;
-      }
-
-      const remaining = Math.max(0, row.quantity_ordered - row.quantity_received - row.quantity_damaged);
-      return sum + remaining * row.unit_cost;
-    }, 0);
-
-    const { data: allocationRows, error: allocationError } = await supabase
-      .from("project_material_allocations")
-      .select("total_cost")
-      .eq("company_id", companyId)
-      .eq("cost_code_id", costCodeId);
-
-    if (allocationError) {
-      throw new ProcurementServiceError("PERSISTENCE", allocationError.message);
-    }
-
-    const actualCost = (allocationRows ?? []).reduce((sum: number, row: { total_cost: number }) => sum + Number(row.total_cost ?? 0), 0);
-
-    const { error: updateError } = await supabase
-      .from("cost_codes")
-      .update({
-        committed_cost: toNumber(committedCost),
-        actual_cost: toNumber(actualCost),
-      })
-      .eq("company_id", companyId)
-      .eq("id", costCodeId);
-
-    if (updateError) {
-      throw new ProcurementServiceError("PERSISTENCE", updateError.message);
-    }
+  for (const costCodeId of new Set(costCodeIds.filter(Boolean))) {
+    const { error } = await supabase.rpc("recalculate_procurement_cost_code", {
+      p_company_id: companyId,
+      p_cost_code_id: costCodeId,
+    });
+    if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
   }
 }
 
@@ -454,84 +386,20 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
         throw new ProcurementServiceError("VALIDATION", "Use positive quantities and non-negative costs, tax, and shipping for every line.");
       }
 
-      const materialIds = [...new Set(input.lines.map((line) => line.materialId).filter((id): id is string => Boolean(id)))];
-      if (materialIds.length > 0) {
-        const { data, error } = await supabase.from("materials").select("id").eq("company_id", context.companyId).eq("status", "active").in("id", materialIds);
-        if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
-        if ((data ?? []).length !== materialIds.length) throw new ProcurementServiceError("VALIDATION", "Only active materials in this company can be added to a new purchase order.");
-      }
-
-      const subtotalAmount = toNumber(input.lines.reduce((sum, line) => sum + line.quantityOrdered * line.unitCost, 0));
-      const taxAmount = toNumber(input.taxAmount);
-      const shippingAmount = toNumber(input.shippingAmount);
-      const totalAmount = toNumber(subtotalAmount + taxAmount + shippingAmount);
-
-      const { data: poRow, error: poError } = await supabase
-        .from("purchase_orders")
-        .insert({
-          company_id: context.companyId,
-          po_number: buildPoNumber(),
-          request_id: input.requestId,
-          vendor_id: input.vendorId,
-          project_id: input.projectId,
-          cost_code_id: input.costCodeId,
-          status: "draft",
-          subtotal_amount: subtotalAmount,
-          tax_amount: taxAmount,
-          shipping_amount: shippingAmount,
-          total_amount: totalAmount,
-          notes: input.notes,
-          attachments: input.attachments,
-          created_by: context.userId,
-          updated_by: context.userId,
-        })
-        .select("id")
-        .single();
-
-      if (poError || !(poRow as { id?: string } | null)?.id) {
-        throw new ProcurementServiceError("PERSISTENCE", poError?.message || "Unable to create purchase order.");
-      }
-
-      const purchaseOrder = poRow as { id: string };
-
-      const linePayload = input.lines.map((line) => ({
-        company_id: context.companyId,
-        purchase_order_id: purchaseOrder.id,
-        material_id: line.materialId,
-        description: line.description,
-        quantity_ordered: line.quantityOrdered,
-        quantity_received: 0,
-        quantity_damaged: 0,
-        quantity_backordered: 0,
-        unit_cost: line.unitCost,
-        line_subtotal: toNumber(line.quantityOrdered * line.unitCost),
-        project_id: line.projectId,
-        cost_code_id: line.costCodeId,
-        project_material_plan_item_id: line.projectMaterialPlanItemId || null,
-        created_by: context.userId,
-        updated_by: context.userId,
-      }));
-
-      const { error: lineError } = await supabase.from("purchase_order_line_items").insert(linePayload);
-      if (lineError) {
-        throw new ProcurementServiceError("PERSISTENCE", lineError.message);
-      }
-
-      if (input.requestId) {
-        const { error: requestError } = await supabase
-          .from("material_requests")
-          .update({ status: "converted", converted_purchase_order_id: purchaseOrder.id, updated_by: context.userId, updated_at: now() })
-          .eq("company_id", context.companyId)
-          .eq("id", input.requestId)
-          .eq("status", "approved");
-
-        if (requestError) {
-          throw new ProcurementServiceError("PERSISTENCE", requestError.message);
-        }
-      }
-
-      await updateCostCodeTotals(supabase, context.companyId, input.lines.map((line) => line.costCodeId || "").filter(Boolean));
-      return loadOverviewInternal(context);
+      const payload = {
+        ...input,
+        lines: input.lines.map((line) => ({ ...line, projectMaterialPlanItemId: line.projectMaterialPlanItemId || null })),
+      };
+      const operation = fulfillmentOperation(context.companyId, context.userId, "draft", payload, new Date(now()));
+      const { error } = await supabase.rpc("create_procurement_draft", {
+        p_company_id: context.companyId,
+        p_operation_id: operation.id,
+        p_payload: payload,
+      });
+      if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
+      const overview = await loadOverviewInternal(context);
+      operation.complete();
+      return overview;
     },
 
     async convertRequestToDraftPurchaseOrder(requestId, input) {

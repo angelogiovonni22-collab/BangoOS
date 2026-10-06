@@ -11,7 +11,7 @@ function browserStorage(): RetryStorage | undefined {
 
 /** Keep the same operation after a lost response or failed overview refresh. */
 export function fulfillmentOperation(
-  companyId: string, userId: string, kind: "receive" | "allocate", input: object,
+  companyId: string, userId: string, kind: "receive" | "allocate" | "draft", input: object,
   date = new Date(), storage = browserStorage(), newId: () => string = () => crypto.randomUUID(),
 ) {
   const key = `bos:fulfillment:${companyId}:${userId}:${kind}:${JSON.stringify(input)}`;
