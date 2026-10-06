@@ -1,6 +1,6 @@
 # BOS production audit continuation — 2026-10-06
 
-Overall BOS completion is **not yet established**. This checkpoint preserves verified results and the next work item after the execution workspace disconnected.
+Overall BOS completion is **not yet established**. This checkpoint preserves verified results and remaining acceptance work after the execution workspace was restored.
 
 ## Repairs completed this segment
 
@@ -27,10 +27,11 @@ Exact SQL MD5 was checked before narrow migration-version metadata alignment. No
 | Atomic draft | 20261006140755 | 20261006140120 | 8b06d5b0f635c1001cdd370c13314bb7 |
 | State transactions | 20261006143709 | 20261006143221 | fde7d47a0d54232a5ad17678537f67d3 |
 | Allocation reconciliation | 20261006145500 | 20261006144816 | 794e10f7e99fb92ecfc3b09de2328462 |
+| Direct API boundaries | 20261006215427 | 20261006145822 | b9ba7a86688bebc8aca7bf9bd5e9831f |
 
 The linked CLI dry-run remains unavailable because the workspace lacks a CLI project link. It was not counted as passed. Official telemetry opt-outs were used for CLI migration generation after a previous telemetry transmission was rejected.
 
-## Next repair: direct API lifecycle and demand boundaries
+## Verified repair: direct API lifecycle and demand boundaries
 
 Authenticated owner rollback reproduced reopening a cancelled synthetic PO by directly setting its status to draft. The original cancelled state was restored by rollback.
 
@@ -40,17 +41,22 @@ CLI generated `20261006145822_audit_procurement_direct_api_boundaries.sql` befor
 - Direct approval cost failure rollback and authenticated actor records replacing supplied forged fields.
 - Normal draft/approve/issue/receive/allocate RPC traversal through the guards.
 
-The migration and fixture edits in this draft were reconstructed from their known applied patches after the workspace disconnected. **Local-byte comparison, final lint/diff verification, Production apply/rollback tests, advisors, migration history alignment, final review and deployment remain pending. Do not merge or apply on the strength of this draft alone.**
+The recovered draft matches its saved source hashes: migration `a6ee427c177090b9b62a9eb5eecdc2b0b8d9b2d9` and fixture `70d0184a1f2959526426dde1656d5068a519faa8`. Work resumed in an isolated worktree; the older original checkout and its uncommitted edits were preserved.
 
-## Resume sequence
+Fresh verification after recovery:
+- Actual PostgreSQL/PGlite fixture passed against the exact recovered migration and fixture.
+- Full lint passed with zero errors and 27 existing warnings; application build completed successfully. UI inventory gate passed (135 pages, 118 authenticated); this is not full interactive acceptance.
+- Migration applied to Production. Authenticated owner BEGIN/DO/ROLLBACK passed cancelled/fully-received reopening rejection, approval skipping rejection, excess reservations, requirement reduction, forged actor fields, false full receipt state and normal draft/approve/issue/receive/allocate traversal. All rollback test orders, price lists and requirements were absent afterward.
+- Exact migration-history SQL MD5 matched `b9ba7a86688bebc8aca7bf9bd5e9831f`; connector timestamp was narrowly aligned to repository version without schema/business-data reexecution.
+- Advisors retained the existing three internal RLS INFO notices, pg_net WARN and existing security-definer WARN notices. The new trigger functions use invoker security, fixed search paths and revoked direct execute privileges; RLS and table grants were not weakened.
+- Live owner UI created zero-cost synthetic `PO-20261006-87a3d43feaa3`, approved, issued, received 0.500 and allocated 0.500. Service-side verification confirmed one receipt, one allocation, recorded inventory consumption 0.500, stock zero, fully-received status and total zero. No supplier submission, goods or payment occurred. Open orders, pending deliveries, outstanding quantities and risk returned to zero.
+- Audit material restored to archived/not-tracked/stock-zero state. Synthetic closed history retained for evidence.
 
-1. Restore the execution workspace and authenticated visual browser. Native Opera is unavailable in this environment; the user previously approved cloud-browser fallback.
-2. Compare this draft's migration and fixture with the local edits, or restore them from this branch if the scratch workspace was lost.
-3. Rerun the actual PostgreSQL fixture using PGlite, review diff, lint and required checks.
-4. Apply the direct-API migration; run scoped synthetic Production rollback cases, verify unchanged real/synthetic data, advisors and exact history version/SQL bytes.
-5. Review/merge/deploy the verified repair; visually repeat purchasing with zero-cost synthetic records and reversible cleanup.
-6. Complete remaining direct receipt stock corrections, deletion/history boundaries, true concurrent sessions and full purchasing roles.
-7. Continue the corrected completion register below without adding future scope.
+PR781 final review, merge and deployment verification are the immediate release steps. Native Opera is unavailable in this environment; the user previously approved cloud-browser fallback and the authenticated visual regression used that browser.
+
+## Next work
+
+Complete remaining direct receipt stock corrections, deletion/history boundaries, true concurrent sessions and full purchasing roles, then continue the corrected register below. These remaining checks are not evidence that the corresponding features are unbuilt.
 
 ## Remaining acceptance register
 
@@ -71,8 +77,10 @@ The migration and fixture edits in this draft were reconstructed from their know
 
 Confirmed next finance source defect: Stripe webhook records the event before processing; any23505 duplicate currently gets200, including a previously failed event. A failed delivery retry can therefore skip recovery. Completion-update errors and zero-match account updates also need testing. Official Stripe retry/duplicate guidance was rechecked at https://docs.stripe.com/webhooks. No live payment or signed runtime failure/retry proof was claimed.
 
-## Evidence and disconnection
+## Evidence and recovery
 
 The persistent main audit checkpoint last successfully saved was version13 of BOS_Production_Audit_Checkpoint_2026-10-05.md. A later local append was interrupted and must not be assumed saved. Earlier receiving/allocation/cleanup visual evidence was saved. The state screenshot was captured and embedded during the audit; persistent upload still needs completion after reconnection.
 
 Browser transport explicitly reported409 environment_offline: “Environment is not connected.” Local shell calls also stopped returning. Two waiting script cells were terminated; no new Production migration was applied after this disconnection. GitHub/Supabase connector reads remain available and reconfirmed PR780 deployment success and zero synthetic stock/test residue.
+
+The workspace and authenticated browser recovered. Fresh visual regression evidence: `BOS_Guards_Visual_Regression_20261006.jpg`; final material cleanup is independently checked in Production. The earlier disconnection paragraph above records the historical interruption, not a current blocker.
