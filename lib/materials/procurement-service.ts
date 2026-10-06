@@ -137,16 +137,6 @@ async function ensureWorkspace(
   };
 }
 
-async function updateCostCodeTotals(supabase: QueryableSupabase, companyId: string, costCodeIds: string[]) {
-  for (const costCodeId of new Set(costCodeIds.filter(Boolean))) {
-    const { error } = await supabase.rpc("recalculate_procurement_cost_code", {
-      p_company_id: companyId,
-      p_cost_code_id: costCodeId,
-    });
-    if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
-  }
-}
-
 export function createProcurementService(deps: ServiceDependencies = {}): ProcurementService {
   const baseClient = deps.supabaseClient ?? createClient();
   const resolveWorkspace = deps.resolveWorkspace ?? resolveWorkspaceContext;
@@ -304,23 +294,19 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
     };
   }
 
-  async function ensurePurchaseOrderExists(companyId: string, purchaseOrderId: string) {
-    const { data, error } = await supabase
-      .from("purchase_orders")
-      .select("id, status")
-      .eq("company_id", companyId)
-      .eq("id", purchaseOrderId)
-      .maybeSingle();
-
-    if (error) {
-      throw new ProcurementServiceError("PERSISTENCE", error.message);
-    }
-
-    if (!data?.id) {
-      throw new ProcurementServiceError("NOT_FOUND", "Purchase order not found.");
-    }
-
-    return data as { id: string; status: PurchaseOrderStatus };
+  async function transitionOrder(purchaseOrderId: string, action: "approve" | "issue" | "cancel") {
+    const context = await ensureWorkspace(supabase, resolveWorkspace);
+    const operation = fulfillmentOperation(context.companyId, context.userId, action, { purchaseOrderId }, new Date(now()));
+    const { error } = await supabase.rpc("transition_procurement_order", {
+      p_company_id: context.companyId,
+      p_operation_id: operation.id,
+      p_purchase_order_id: purchaseOrderId,
+      p_action: action,
+    });
+    if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
+    const overview = await loadOverviewInternal(context);
+    operation.complete();
+    return overview;
   }
 
   return {
@@ -407,92 +393,15 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
     },
 
     async approvePurchaseOrder(purchaseOrderId) {
-      const context = await ensureWorkspace(supabase, resolveWorkspace);
-      const existing = await ensurePurchaseOrderExists(context.companyId, purchaseOrderId);
-
-      if (existing.status !== "draft") {
-        throw new ProcurementServiceError("VALIDATION", "Only draft purchase orders can be approved.");
-      }
-
-      const { error } = await supabase
-        .from("purchase_orders")
-        .update({ status: "approved", approved_at: now(), approved_by: context.userId, updated_by: context.userId })
-        .eq("company_id", context.companyId)
-        .eq("id", purchaseOrderId);
-
-      if (error) {
-        throw new ProcurementServiceError("PERSISTENCE", error.message);
-      }
-
-      const { data: lines, error: linesError } = await supabase
-        .from("purchase_order_line_items")
-        .select("cost_code_id")
-        .eq("company_id", context.companyId)
-        .eq("purchase_order_id", purchaseOrderId);
-
-      if (linesError) {
-        throw new ProcurementServiceError("PERSISTENCE", linesError.message);
-      }
-
-      await updateCostCodeTotals(
-        supabase,
-        context.companyId,
-        (lines ?? []).map((line: { cost_code_id: string | null }) => line.cost_code_id || ""),
-      );
-
-      return loadOverviewInternal(context);
+      return transitionOrder(purchaseOrderId, "approve");
     },
 
     async issuePurchaseOrder(purchaseOrderId) {
-      const context = await ensureWorkspace(supabase, resolveWorkspace);
-      const existing = await ensurePurchaseOrderExists(context.companyId, purchaseOrderId);
-
-      if (existing.status !== "approved") {
-        throw new ProcurementServiceError("VALIDATION", "Only approved purchase orders can be issued.");
-      }
-
-      const { error } = await supabase
-        .from("purchase_orders")
-        .update({ status: "issued", issued_at: now(), issued_by: context.userId, updated_by: context.userId })
-        .eq("company_id", context.companyId)
-        .eq("id", purchaseOrderId);
-
-      if (error) {
-        throw new ProcurementServiceError("PERSISTENCE", error.message);
-      }
-
-      return loadOverviewInternal(context);
+      return transitionOrder(purchaseOrderId, "issue");
     },
 
     async cancelPurchaseOrder(purchaseOrderId) {
-      const context = await ensureWorkspace(supabase, resolveWorkspace);
-      const { error } = await supabase
-        .from("purchase_orders")
-        .update({ status: "cancelled", updated_by: context.userId, updated_at: now() })
-        .eq("company_id", context.companyId)
-        .eq("id", purchaseOrderId);
-
-      if (error) {
-        throw new ProcurementServiceError("PERSISTENCE", error.message);
-      }
-
-      const { data: lines, error: linesError } = await supabase
-        .from("purchase_order_line_items")
-        .select("cost_code_id")
-        .eq("company_id", context.companyId)
-        .eq("purchase_order_id", purchaseOrderId);
-
-      if (linesError) {
-        throw new ProcurementServiceError("PERSISTENCE", linesError.message);
-      }
-
-      await updateCostCodeTotals(
-        supabase,
-        context.companyId,
-        (lines ?? []).map((line: { cost_code_id: string | null }) => line.cost_code_id || ""),
-      );
-
-      return loadOverviewInternal(context);
+      return transitionOrder(purchaseOrderId, "cancel");
     },
 
     async receivePurchaseOrderLine(input) {

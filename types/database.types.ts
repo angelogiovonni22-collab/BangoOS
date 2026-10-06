@@ -5367,6 +5367,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      transition_procurement_order: {
+        Args: { p_company_id: string; p_operation_id: string; p_purchase_order_id: string; p_action: string }
+        Returns: string
+      }
       create_procurement_draft: {
         Args: { p_company_id: string; p_operation_id: string; p_payload: Json }
         Returns: string
