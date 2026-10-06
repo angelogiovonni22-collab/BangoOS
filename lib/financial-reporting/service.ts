@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeChangeOrderStatus } from "@/lib/change-orders/statuses";
 import { normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import type { Database } from "@/types/database.types";
+import { loadCompanyProjectCosts } from "./company-project-costs";
 import type {
   CompanyFinancialReport,
   CostCodeVarianceRow,
@@ -129,6 +130,19 @@ function toMoney(value: number) {
 
 function safeNumber(value: number | null | undefined) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+/** Prefer each invoice's history independently; ignore void invoices and orphan payments. */
+function receivedPayments(invoices: InvoiceRow[], payments: InvoicePaymentRow[]): number {
+  const history = new Map<string, number>();
+  for (const payment of payments) {
+    const recorded = payment.status.trim().toLowerCase() === "recorded" ? safeNumber(payment.amount) : 0;
+    history.set(payment.invoice_id, (history.get(payment.invoice_id) ?? 0) + recorded);
+  }
+  return toMoney(invoices.reduce((sum, invoice) => {
+    if (normalizeInvoiceStatus(invoice.status) === "void") return sum;
+    return sum + (history.has(invoice.id) ? history.get(invoice.id)! : safeNumber(invoice.amount_paid));
+  }, 0));
 }
 
 function isApprovedChangeOrder(status: string) {
@@ -552,28 +566,18 @@ export async function buildProjectFinancialReport(params: {
     }, 0),
   );
 
-  const paymentsReceivedFromHistory = toMoney(
-    payments.reduce((sum, payment) => {
-      const status = payment.status.trim().toLowerCase();
-      if (status !== "recorded") {
-        return sum;
-      }
-
-      return sum + safeNumber(payment.amount);
-    }, 0),
-  );
-
-  const fallbackAmountPaid = toMoney(
-    invoices.reduce((sum, invoice) => sum + safeNumber(invoice.amount_paid), 0),
-  );
-
-  const paymentsReceived = payments.length > 0 ? paymentsReceivedFromHistory : fallbackAmountPaid;
+  const paymentsReceived = receivedPayments(invoices, payments);
   const outstandingReceivables = toMoney(Math.max(amountInvoiced - paymentsReceived, 0));
   const unbilledContractValue = toMoney(Math.max(revisedContractValue - amountInvoiced, 0));
 
   const categories = createBaseCategoryRows();
 
-  if (latestEstimateRow) {
+  if (scopeCostRows.length > 0) {
+    categories.labor.budget = toMoney(scopeCostRows.reduce((sum, row) => sum + safeNumber(row.labor_cost), 0));
+    categories.materials.budget = toMoney(scopeCostRows.reduce((sum, row) => sum + safeNumber(row.material_cost), 0));
+    categories.labor.dataStatus = "partial";
+    categories.labor.note = "Working scope labor budget; actual labor cost still requires linked timesheets and rates.";
+  } else if (latestEstimateRow) {
     const lineItemsForLatestEstimate = estimateLineItems.filter((lineItem) => lineItem.estimate_id === latestEstimateRow.id);
 
     for (const lineItem of lineItemsForLatestEstimate) {
@@ -608,9 +612,7 @@ export async function buildProjectFinancialReport(params: {
   categories.equipment.forecast = categories.equipment.budget;
 
   for (const row of Object.values(categories)) {
-    if (row.forecast === 0) {
-      row.forecast = row.budget;
-    }
+    row.forecast = toMoney(Math.max(row.forecast, row.budget));
 
     row.varianceAmount = toMoney(row.budget - row.forecast);
     row.variancePercent = row.budget > 0 ? toMoney((row.varianceAmount / row.budget) * 100) : null;
@@ -796,7 +798,7 @@ export async function buildCompanyFinancialReport(params: {
 }): Promise<CompanyFinancialReport> {
   const marginTargetPercent = params.marginTargetPercent ?? 15;
 
-  const [projectsResponse, estimatesResponse, changeOrdersResponse, invoicesResponse, paymentsResponse, costCodesResponse, tradePartnersResponse] = await Promise.all([
+  const [projectsResponse, estimatesResponse, changeOrdersResponse, invoicesResponse, paymentsResponse, tradePartnersResponse] = await Promise.all([
     params.supabase
       .from("projects")
       .select("id, name, status, contract_amount, estimated_cost")
@@ -819,10 +821,6 @@ export async function buildCompanyFinancialReport(params: {
       .select("invoice_id, amount, status")
       .eq("company_id", params.companyId),
     params.supabase
-      .from("cost_codes")
-      .select("id, code, name, budget, committed_cost, actual_cost")
-      .eq("company_id", params.companyId),
-    params.supabase
       .from("trade_partner_assignments")
       .select("id, project_id, assignment_status, contract_status, contract_amount, retainage_percent")
       .eq("company_id", params.companyId),
@@ -843,9 +841,6 @@ export async function buildCompanyFinancialReport(params: {
   if (paymentsResponse.error) {
     throw new Error(paymentsResponse.error.message);
   }
-  if (costCodesResponse.error) {
-    throw new Error(costCodesResponse.error.message);
-  }
   if (tradePartnersResponse.error) {
     throw new Error(tradePartnersResponse.error.message);
   }
@@ -855,7 +850,6 @@ export async function buildCompanyFinancialReport(params: {
   const changeOrders = (changeOrdersResponse.data ?? []) as ChangeOrderRow[];
   const invoices = (invoicesResponse.data ?? []) as InvoiceRow[];
   const payments = (paymentsResponse.data ?? []) as InvoicePaymentRow[];
-  const costCodes = (costCodesResponse.data ?? []) as CostCodeRow[];
   const tradePartners = (tradePartnersResponse.data ?? []) as TradePartnerAssignmentRow[];
 
   const estimatesByProject = new Map<string, EstimateRow[]>();
@@ -894,9 +888,18 @@ export async function buildCompanyFinancialReport(params: {
 
   let totalBacklog = 0;
   let revisedContractTotal = 0;
-  let baselineCostTotal = 0;
+  const projectCosts = await loadCompanyProjectCosts({ ...params, changeOrders });
+  let forecastCostTotal = 0;
+  let companyCommittedCost = 0;
+  let companyActualCost = 0;
   let jobsOverBudget = 0;
   let jobsUnderMarginTarget = 0;
+
+  const vendorCommitments = new Map<string, number>();
+  for (const assignment of tradePartners) {
+    if (!assignment.project_id || assignment.assignment_status === "archived" || assignment.contract_status === "cancelled") continue;
+    vendorCommitments.set(assignment.project_id, (vendorCommitments.get(assignment.project_id) ?? 0) + safeNumber(assignment.contract_amount));
+  }
 
   for (const project of projects) {
     const projectEstimates = (estimatesByProject.get(project.id) || [])
@@ -904,7 +907,13 @@ export async function buildCompanyFinancialReport(params: {
       .sort((left, right) => left.created_at.localeCompare(right.created_at));
 
     const firstEstimate = projectEstimates[0] ?? null;
-    const baselineBudget = safeNumber(project.estimated_cost) || safeNumber(firstEstimate?.internal_cost_total);
+    const baselineBudget = safeNumber(project.estimated_cost) || safeNumber(firstEstimate?.internal_cost_total) || safeNumber(firstEstimate?.total_amount);
+    const costs = projectCosts.get(project.id);
+    const revisedBudget = toMoney(toMoney(costs?.scopeBudget ?? baselineBudget) + toMoney(costs?.changeOrderCost ?? 0));
+    const vendorCommitted = toMoney(vendorCommitments.get(project.id) ?? 0);
+    const projectCommitted = toMoney(toMoney(costs?.committedMaterials ?? 0) + vendorCommitted);
+    const projectActual = toMoney(costs?.actual ?? 0);
+    const forecast = toMoney(Math.max(projectActual + projectCommitted, revisedBudget));
     const originalEstimate = safeNumber(firstEstimate?.total_amount);
     const revisedContract = (safeNumber(project.contract_amount) || originalEstimate) + safeNumber(approvedChangeOrdersByProject.get(project.id));
     const projectInvoiced = (invoicesByProject.get(project.id) || []).reduce((sum, invoice) => {
@@ -916,31 +925,25 @@ export async function buildCompanyFinancialReport(params: {
     }, 0);
 
     revisedContractTotal += revisedContract;
-    baselineCostTotal += baselineBudget;
+    forecastCostTotal += forecast;
+    companyCommittedCost += projectCommitted;
+    companyActualCost += projectActual;
 
     if (ACTIVE_PROJECT_STATUSES.has(project.status.trim().toLowerCase())) {
       totalBacklog += Math.max(revisedContract - projectInvoiced, 0);
     }
 
-    if (baselineBudget > revisedContract && revisedContract > 0) {
+    if (forecast > revisedBudget) {
       jobsOverBudget += 1;
     }
 
     if (revisedContract > 0) {
-      const marginPercent = ((revisedContract - baselineBudget) / revisedContract) * 100;
+      const marginPercent = ((revisedContract - forecast) / revisedContract) * 100;
       if (marginPercent < marginTargetPercent) {
         jobsUnderMarginTarget += 1;
       }
     }
   }
-
-  const paymentsRecorded = payments.reduce((sum, payment) => {
-    if (payment.status.trim().toLowerCase() !== "recorded") {
-      return sum;
-    }
-
-    return sum + safeNumber(payment.amount);
-  }, 0);
 
   const totalInvoiced = invoices.reduce((sum, invoice) => {
     if (normalizeInvoiceStatus(invoice.status) === "void") {
@@ -950,22 +953,12 @@ export async function buildCompanyFinancialReport(params: {
     return sum + safeNumber(invoice.total_amount);
   }, 0);
 
-  const totalAmountPaidFallback = invoices.reduce((sum, invoice) => sum + safeNumber(invoice.amount_paid), 0);
-  const companyRevenue = toMoney(payments.length > 0 ? paymentsRecorded : totalAmountPaidFallback);
+  const companyRevenue = receivedPayments(invoices, payments);
 
   const totalOutstandingReceivables = toMoney(Math.max(totalInvoiced - companyRevenue, 0));
-  const committedCost = toMoney(
-    costCodes.reduce((sum, code) => sum + safeNumber(code.committed_cost), 0)
-      + tradePartners.reduce((sum, assignment) => {
-        if (assignment.assignment_status === "archived" || assignment.contract_status === "cancelled") {
-          return sum;
-        }
-
-        return sum + safeNumber(assignment.contract_amount);
-      }, 0),
-  );
-  const actualCost = toMoney(costCodes.reduce((sum, code) => sum + safeNumber(code.actual_cost), 0));
-  const projectGrossProfit = toMoney(revisedContractTotal - Math.max(actualCost, baselineCostTotal));
+  const committedCost = toMoney(companyCommittedCost);
+  const actualCost = toMoney(companyActualCost);
+  const projectGrossProfit = toMoney(revisedContractTotal - forecastCostTotal);
   const projectMarginPercent = revisedContractTotal > 0
     ? toMoney((projectGrossProfit / revisedContractTotal) * 100)
     : null;
@@ -976,13 +969,13 @@ export async function buildCompanyFinancialReport(params: {
       key: "company_committed_actual",
       label: "Company Committed vs Actual Cost",
       status: "partial",
-      detail: "Committed and actual totals combine cost code rollups with active trade partner contracts.",
+      detail: "Totals use project procurement commitments, active trade partner contracts, approved receipts, and approved non-PO vendor bill costs. Company cost-code rollups are excluded to avoid counting project costs twice.",
     },
     {
       key: "project_margin_baseline",
-      label: "Project Margin Baseline",
+      label: "Project Forecast Margin",
       status: "partial",
-      detail: "Margin and over-budget thresholds are based on project estimated cost baseline until full project actual-cost capture is available.",
+      detail: "Forecast margins use current working scope plus approved internal change-order costs, with actual plus committed cost as a floor, matching project reports. Labor and equipment actual-cost capture remains partial.",
     },
   ];
 
@@ -1004,7 +997,14 @@ export async function buildCompanyFinancialReport(params: {
         "change_orders.total_amount",
         "invoices.total_amount",
         "invoice_payment_history.amount",
-        "cost_codes",
+        "project_scope_items",
+        "change_order_line_items.cost_amount",
+        "purchase_orders",
+        "purchase_order_line_items",
+        "project_material_allocations",
+        "project_receipts",
+        "vendor_bills",
+        "vendor_bill_line_items",
         "trade_partner_assignments",
         "derived",
       ],

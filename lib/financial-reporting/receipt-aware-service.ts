@@ -29,7 +29,7 @@ function uniqueSources(values: FinancialMetricSource[]): FinancialMetricSource[]
 
 function applyReceiptCostToMaterials(row: JobCostCategoryRow, receiptCost: number): JobCostCategoryRow {
   const actual = toMoney(row.actual + receiptCost);
-  const forecast = toMoney(row.committed + actual);
+  const forecast = toMoney(Math.max(row.committed + actual, row.budget));
   const varianceAmount = toMoney(row.budget - forecast);
   const variancePercent = row.budget > 0 ? toMoney((varianceAmount / row.budget) * 100) : null;
 
