@@ -610,7 +610,7 @@ export function ProcurementWorkflowClient({ initialProjectId, introduction }: { 
         </Card>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
+      <section className="grid items-start gap-4 xl:grid-cols-[1.3fr_1fr]">
         <Card>
           <CardHeader>
             <CardTitle>3. Purchase Orders</CardTitle>
