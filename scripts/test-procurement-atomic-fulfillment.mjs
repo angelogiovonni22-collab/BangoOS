@@ -404,6 +404,56 @@ const noCostBefore=(await correctionState()).stock;
 await call('receive',{...receive,purchaseOrderId:noCostOrder,lineItemId:noCostLine,quantityReceived:0.5});
 assert.equal(Number((await correctionState()).stock),Number(noCostBefore)+0.5);
 assert.equal((await db.query('select status from purchase_orders where id=$1',[noCostOrder])).rows[0].status,'fully_received');
+// Match the Production UPDATE policies instead of the earlier company-only fixture.
+await db.exec(`reset role;
+  alter table materials add column preferred_vendor_id uuid;
+  alter table cost_codes add column name text,add column budget numeric default 0,add column updated_by uuid,add column updated_at timestamptz;
+  create function public.bos_role_has_permission(scope uuid,permission text) returns boolean language sql as $$
+    select scope=current_setting('bos.company')::uuid and case
+      when permission='materials.manage' then coalesce(nullif(current_setting('bos.materials_manage',true),'')::boolean,
+        current_setting('bos.membership')=any(array['owner','administrator','operations_manager','project_manager']))
+      else false end
+  $$;
+`);
+for(const table of ['materials','cost_codes','vendors','supplier_price_entries']) {
+  await db.exec(`drop policy scope on public.${table};
+    create policy scope_read on public.${table} for select to authenticated using(company_id=current_setting('bos.company')::uuid);
+    create policy scope_insert on public.${table} for insert to authenticated with check(public.has_company_role(company_id,array['owner','administrator','operations_manager','office_manager','accountant','estimator']));
+    create policy scope_update on public.${table} for update to authenticated using(public.has_company_role(company_id,array['owner','administrator','operations_manager','office_manager','accountant','estimator']))
+      with check(public.has_company_role(company_id,array['owner','administrator','operations_manager','office_manager','accountant','estimator']));`);
+}
+await db.exec("set bos.membership='project_manager'; set role authenticated;");
+await assert.rejects(draft({...draftInput,requestId:null}),/active vendor/);
+assert.equal((await db.query('select id from materials where id=$1 for update',[material])).rows.length,0);
+await db.exec('reset role;');
+await db.exec(readFileSync('supabase/migrations/20261006222311_audit_purchasing_permission_locks.sql','utf8'));
+await db.exec('set role authenticated;');
+assert.equal((await db.query('select id from vendors where id=$1 for update',[vendor])).rows.length,1);
+assert.equal((await db.query('select id from supplier_price_entries where id=$1 for update',[price])).rows.length,1);
+await assert.rejects(db.query("update vendors set status='inactive' where id=$1",[vendor]),/row-level security/);
+await assert.rejects(db.query('update supplier_price_entries set unit_price=77 where id=$1',[price]),/row-level security/);
+const managerPlanOrder=(await draft(planDraft)).rows[0].id;
+await transition('approve',operationId(),managerPlanOrder);
+await transition('issue',operationId(),managerPlanOrder);
+await transition('cancel',operationId(),managerPlanOrder);
+const managerOrder=(await draft({...draftInput,requestId:null,lines:[{...draftInput.lines[0],quantityOrdered:0.5,costCodeId:costCode}]})).rows[0].id;
+const managerLine=(await db.query('select id from purchase_order_line_items where purchase_order_id=$1',[managerOrder])).rows[0].id;
+await transition('approve',operationId(),managerOrder);
+await transition('issue',operationId(),managerOrder);
+await call('receive',{...receive,purchaseOrderId:managerOrder,lineItemId:managerLine,quantityReceived:0.5});
+await call('allocate',{...allocate,purchaseOrderId:managerOrder,lineItemId:managerLine,quantityAllocated:0.5});
+assert.equal((await db.query('select status from purchase_orders where id=$1',[managerOrder])).rows[0].status,'fully_received');
+assert.equal((await db.query('select updated_by from cost_codes where id=$1',[costCode])).rows[0].updated_by,user);
+await assert.rejects(db.query('update cost_codes set budget=999 where id=$1',[costCode]),/cannot edit financial/);
+await assert.rejects(db.query('update cost_codes set actual_cost=999 where id=$1',[costCode]),/must match their order and allocation/);
+await db.query('update cost_codes set updated_by=$1 where id=$2',[otherCompany,costCode]);
+assert.equal((await db.query('select updated_by from cost_codes where id=$1',[costCode])).rows[0].updated_by,user);
+await assert.rejects(db.query('update materials set preferred_vendor_id=$1 where id=$2',[otherCompany,material]),/row-level security/);
+await db.exec("set bos.materials_manage='false';");
+assert.equal((await db.query('select id from materials where id=$1 for update',[material])).rows.length,0);
+await assert.rejects(draft({...draftInput,requestId:null}),/active vendor/);
+await db.exec("set bos.materials_manage=''; set bos.membership='superintendent';");
+assert.equal((await db.query('select id from materials where id=$1 for update',[material])).rows.length,0);
 await db.exec('reset role; set role anon;');
 await assert.rejects(transition('approve'),/permission denied/);
 
