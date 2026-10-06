@@ -148,8 +148,8 @@ export function ProjectSuperintendentBriefingPanel({
           {/* Deterministic executive summary */}
           {!isAI && mode !== "loading" && (
             <div className={`flex items-start gap-3 rounded-[14px] border px-4 py-3.5 ${stateColors.summaryStrip}`}>
-              <span className={`mt-0.5 shrink-0 ${isProjectCompleted ? "text-white" : stateColors.summaryIcon}`}><StateIcon state={state} /></span>
-              <p className={`text-sm font-semibold leading-6 ${isProjectCompleted ? "text-white" : "text-[var(--color-text-primary)]"}`}>{t(executiveSummaryKey, executiveSummaryParams)}</p>
+              <span className={`mt-0.5 shrink-0 ${stateColors.summaryIcon}`}><StateIcon state={state} /></span>
+              <p className="text-sm font-semibold leading-6 text-[var(--color-text-primary)]">{t(executiveSummaryKey, executiveSummaryParams)}</p>
             </div>
           )}
 
@@ -696,10 +696,10 @@ function severityCardClass(severity: string): string {
 type StateColorMap = { headerGradient: string; iconBg: string; scoreBadge: string; summaryStrip: string; summaryIcon: string };
 function stateColorMap(state: BriefingState): StateColorMap {
   switch (state) {
-    case "critical": return { headerGradient: "bg-[linear-gradient(145deg,rgba(239,68,68,0.1),rgba(255,255,255,0.98)_50%,rgba(249,115,22,0.08))]", iconBg: "bg-[var(--color-danger-100)] text-[var(--color-danger-700)]", scoreBadge: "bg-[var(--color-danger-100)] text-[var(--color-danger-700)]", summaryStrip: "border-[var(--color-danger-200)] bg-[var(--color-danger-50)]", summaryIcon: "text-[var(--color-danger-600)]" };
-    case "attention": return { headerGradient: "bg-[linear-gradient(145deg,rgba(249,115,22,0.1),rgba(255,255,255,0.98)_50%,rgba(234,179,8,0.08))]", iconBg: "bg-[var(--color-warning-100)] text-[var(--color-warning-700)]", scoreBadge: "bg-[var(--color-warning-100)] text-[var(--color-warning-700)]", summaryStrip: "border-[var(--color-warning-200)] bg-[var(--color-warning-50)]", summaryIcon: "text-[var(--color-warning-600)]" };
-    case "healthy": return { headerGradient: "bg-[linear-gradient(145deg,rgba(34,197,94,0.1),rgba(255,255,255,0.98)_50%,rgba(37,99,235,0.08))]", iconBg: "bg-[var(--color-success-100)] text-[var(--color-success-700)]", scoreBadge: "bg-[var(--color-success-100)] text-[var(--color-success-700)]", summaryStrip: "border-[var(--color-success-200)] bg-[var(--color-success-50)]", summaryIcon: "text-[var(--color-success-600)]" };
-    default: return { headerGradient: "bg-[linear-gradient(145deg,rgba(148,163,184,0.1),rgba(255,255,255,0.98))]", iconBg: "bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]", scoreBadge: "bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]", summaryStrip: "border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)]", summaryIcon: "text-[var(--color-text-secondary)]" };
+    case "critical": return { headerGradient: "bg-[var(--color-surface-subtle)]", iconBg: "bg-[var(--color-danger-100)] text-[var(--color-danger-700)]", scoreBadge: "bg-[var(--color-danger-100)] text-[var(--color-danger-700)]", summaryStrip: "border-[var(--color-danger-200)] bg-[var(--color-surface-subtle)]", summaryIcon: "text-[var(--color-text-primary)]" };
+    case "attention": return { headerGradient: "bg-[var(--color-surface-subtle)]", iconBg: "bg-[var(--color-warning-100)] text-[var(--color-warning-700)]", scoreBadge: "bg-[var(--color-warning-100)] text-[var(--color-warning-700)]", summaryStrip: "border-[var(--color-warning-200)] bg-[var(--color-surface-subtle)]", summaryIcon: "text-[var(--color-text-primary)]" };
+    case "healthy": return { headerGradient: "bg-[var(--color-surface-subtle)]", iconBg: "bg-[var(--color-success-100)] text-[var(--color-success-700)]", scoreBadge: "bg-[var(--color-success-100)] text-[var(--color-success-700)]", summaryStrip: "border-[var(--color-success-200)] bg-[var(--color-surface-subtle)]", summaryIcon: "text-[var(--color-text-primary)]" };
+    default: return { headerGradient: "bg-[var(--color-surface-subtle)]", iconBg: "bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]", scoreBadge: "bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]", summaryStrip: "border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)]", summaryIcon: "text-[var(--color-text-secondary)]" };
   }
 }
 
