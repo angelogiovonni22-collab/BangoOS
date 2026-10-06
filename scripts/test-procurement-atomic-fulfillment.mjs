@@ -324,6 +324,86 @@ await call('receive',{...receive,purchaseOrderId:guardedOrder,lineItemId:guarded
 assert.equal((await db.query('select status from purchase_orders where id=$1',[guardedOrder])).rows[0].status,'fully_received');
 await call('allocate',{...allocate,purchaseOrderId:guardedOrder,lineItemId:guardedLine,quantityAllocated:0.5});
 assert.equal((await correctionState()).stock,'1.000');
+await db.exec('reset role;');
+await db.exec(readFileSync('supabase/migrations/20261006220425_audit_receipt_ledger_integrity.sql','utf8'));
+await db.exec(readFileSync('supabase/migrations/20261006220836_audit_receipt_optional_cost_code.sql','utf8'));
+await db.exec('grant delete on purchase_orders,purchase_order_line_items,purchase_order_receipts to authenticated; set role authenticated;');
+const ledgerOrder=(await draft({...draftInput,requestId:null,lines:[{...draftInput.lines[0],quantityOrdered:2,costCodeId:costCode}]})).rows[0].id;
+const ledgerLine=(await db.query('select id from purchase_order_line_items where purchase_order_id=$1',[ledgerOrder])).rows[0].id;
+await transition('approve',operationId(),ledgerOrder);
+await transition('issue',operationId(),ledgerOrder);
+await assert.rejects(db.query('update purchase_order_line_items set quantity_received=0.5 where id=$1',[ledgerLine]),/receipt workflow/);
+await assert.rejects(db.query('delete from purchase_orders where id=$1',[ledgerOrder]),/retain purchasing history/);
+await assert.rejects(db.query('delete from purchase_order_line_items where id=$1',[ledgerLine]),/retain purchasing history/);
+const ledgerState=async()=>({
+  stock:(await correctionState()).stock,
+  line:(await db.query('select quantity_received,quantity_damaged,quantity_backordered from purchase_order_line_items where id=$1',[ledgerLine])).rows[0],
+  status:(await db.query('select status from purchase_orders where id=$1',[ledgerOrder])).rows[0].status,
+  count:(await db.query('select count(*)::int n from purchase_order_receipts where purchase_order_id=$1',[ledgerOrder])).rows[0].n,
+  cost:(await db.query('select committed_cost from cost_codes where id=$1',[costCode])).rows[0].committed_cost,
+});
+await db.exec('reset role; create trigger test_fail_ledger_cost before update on cost_codes for each row execute function fail_stock(); set role authenticated;');
+const ledgerBefore=await ledgerState();
+const ledgerPayload={...receive,purchaseOrderId:ledgerOrder,lineItemId:ledgerLine,quantityReceived:0.5};
+await assert.rejects(call('receive',ledgerPayload),/injected stock failure/);
+assert.deepEqual(await ledgerState(),ledgerBefore);
+await db.exec('reset role; drop trigger test_fail_ledger_cost on cost_codes; set role authenticated;');
+const ledgerKey=operationId();
+const ledgerReceipt=(await call('receive',ledgerPayload,ledgerKey)).rows[0].id;
+const ledgerAfter=await ledgerState();
+assert.equal(ledgerAfter.stock,'1.500');
+assert.equal(ledgerAfter.line.quantity_received,'0.500');
+assert.equal(ledgerAfter.status,'partially_received');
+assert.equal(ledgerAfter.count,1);
+assert.equal((await db.query('select inventory_quantity_received,quantity_received from purchase_order_receipts where id=$1',[ledgerReceipt])).rows[0].inventory_quantity_received,'0.500');
+await call('receive',ledgerPayload,ledgerKey);
+assert.deepEqual(await ledgerState(),ledgerAfter);
+await assert.rejects(db.query('update purchase_order_line_items set quantity_received=0.25 where id=$1',[ledgerLine]),/receipt workflow/);
+await assert.rejects(db.query('update purchase_order_receipts set inventory_quantity_received=5 where id=$1',[ledgerReceipt]),/immutable/);
+await assert.rejects(db.query('update purchase_order_receipts set received_by=$1 where id=$2',[otherCompany,ledgerReceipt]),/immutable/);
+await assert.rejects(db.query('delete from purchase_order_receipts where id=$1',[ledgerReceipt]),/cannot be deleted/);
+await db.query("update purchase_order_receipts set notes='Reviewed synthetic receipt' where id=$1",[ledgerReceipt]);
+// A direct receipt API insert follows the same ledger and cannot forge stock effects.
+await db.query('insert into purchase_order_receipts(company_id,purchase_order_id,purchase_order_line_item_id,received_date,quantity_received,quantity_damaged,quantity_backordered,inventory_quantity_received,received_by) values($1,$2,$3,\'2026-10-05\',0.5,0,0,9,$4)',[company,ledgerOrder,ledgerLine,otherCompany]);
+assert.equal((await ledgerState()).stock,'2.000');
+assert.equal((await ledgerState()).line.quantity_received,'1.000');
+assert.equal((await ledgerState()).count,2);
+assert.equal((await db.query('select count(*)::int n from purchase_order_receipts where purchase_order_id=$1 and inventory_quantity_received=0.5 and received_by=$2',[ledgerOrder,user])).rows[0].n,2);
+await assert.rejects(db.query('insert into purchase_order_receipts(company_id,purchase_order_id,received_date) values($1,$2,\'2026-10-05\')',[company,ledgerOrder]),/identify a line/);
+await assert.rejects(db.query('insert into purchase_order_receipts(company_id,purchase_order_id,purchase_order_line_item_id,received_date,quantity_received,quantity_damaged,quantity_backordered) values($1,$2,$3,\'2026-10-05\',2,0,0)',[company,ledgerOrder,ledgerLine]),/within the order/);
+await db.exec("set bos.membership='employee';");
+await assert.rejects(call('receive',ledgerPayload),/Not authorized/);
+await assert.rejects(db.query('insert into purchase_order_receipts(company_id,purchase_order_id,purchase_order_line_item_id,received_date,quantity_received,quantity_damaged,quantity_backordered) values($1,$2,$3,\'2026-10-05\',0.1,0,0)',[company,ledgerOrder,ledgerLine]),/Not authorized/);
+await db.exec("set bos.membership='owner';");
+await assert.rejects(call('receive',ledgerPayload,operationId(),otherCompany),/Not authorized/);
+for(const membership of ['owner','administrator','operations_manager','project_manager','superintendent','office_manager','accountant']) {
+  await db.exec(`set bos.membership='${membership}';`);
+  await call('receive',{...ledgerPayload,quantityReceived:0.001});
+}
+await db.exec("set bos.membership='owner';");
+assert.equal((await ledgerState()).line.quantity_received,'1.007');
+// Tracked and untracked receipts both record the actual effect, never client guesses.
+await db.query('update materials set track_inventory=false where id=$1',[material]);
+const untrackedReceipt=(await call('receive',{...ledgerPayload,quantityReceived:0.993})).rows[0].id;
+assert.equal((await db.query('select inventory_quantity_received from purchase_order_receipts where id=$1',[untrackedReceipt])).rows[0].inventory_quantity_received,'0.000');
+assert.equal((await ledgerState()).stock,'2.007');
+assert.equal((await ledgerState()).status,'fully_received');
+const finalLedger=await ledgerState();
+await assert.rejects(call('receive',ledgerPayload),/issued purchase order/);
+assert.deepEqual(await ledgerState(),finalLedger);
+await db.exec('reset role; alter table purchase_order_line_items add constraint fixture_order_fk foreign key(purchase_order_id) references purchase_orders(id) on delete cascade; set role authenticated;');
+const unusedDraft=(await draft({...draftInput,requestId:null})).rows[0].id;
+await db.query('delete from purchase_orders where id=$1',[unusedDraft]);
+assert.equal((await db.query('select count(*)::int n from purchase_order_line_items where purchase_order_id=$1',[unusedDraft])).rows[0].n,0);
+const noCostOrder=(await draft({...draftInput,requestId:null,lines:[{...draftInput.lines[0],quantityOrdered:0.5,costCodeId:null}]})).rows[0].id;
+const noCostLine=(await db.query('select id from purchase_order_line_items where purchase_order_id=$1',[noCostOrder])).rows[0].id;
+await transition('approve',operationId(),noCostOrder);
+await transition('issue',operationId(),noCostOrder);
+await db.query('update materials set track_inventory=true where id=$1',[material]);
+const noCostBefore=(await correctionState()).stock;
+await call('receive',{...receive,purchaseOrderId:noCostOrder,lineItemId:noCostLine,quantityReceived:0.5});
+assert.equal(Number((await correctionState()).stock),Number(noCostBefore)+0.5);
+assert.equal((await db.query('select status from purchase_orders where id=$1',[noCostOrder])).rows[0].status,'fully_received');
 await db.exec('reset role; set role anon;');
 await assert.rejects(transition('approve'),/permission denied/);
 
