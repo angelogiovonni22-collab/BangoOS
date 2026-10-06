@@ -4,7 +4,7 @@ import { localCalendarDate } from "@/lib/dates/calendar-date";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Button, PageHeader, getButtonClassName } from "@/components/ui";
+import { Button, ConfirmDialog, PageHeader, getButtonClassName } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext, type WorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -44,6 +44,7 @@ export default function VendorBillDetailPage() {
   const [paymentNotes, setPaymentNotes] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [voidConfirmationOpen, setVoidConfirmationOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -83,8 +84,23 @@ export default function VendorBillDetailPage() {
     setIsSaving(true); setErrorMessage(null);
     const db = supabase as unknown as LooseClient;
     const result = await db.from("vendor_bills").update({ status: "approved", approved_at: new Date().toISOString(), approved_by: workspace.userId, updated_by: workspace.userId }).eq("company_id", workspace.companyId).eq("id", bill.id);
-    if (result.error) setErrorMessage(result.error.message || "Unable to approve vendor bill.");
+    if (result.error) { setErrorMessage(result.error.message || "Unable to approve vendor bill."); setIsSaving(false); return; }
     setIsSaving(false); await load();
+  };
+
+  const voidBill = async () => {
+    if (!supabase || !workspace || !bill || !canManage || isSaving || bill.amount_paid > 0 || !["draft", "submitted", "approved", "disputed"].includes(bill.status)) return;
+    setIsSaving(true); setErrorMessage(null);
+    try {
+      const db = supabase as unknown as LooseClient;
+      const result = await db.from("vendor_bills").update({ status: "voided", voided_at: new Date().toISOString(), voided_by: workspace.userId, updated_by: workspace.userId })
+        .eq("company_id", workspace.companyId).eq("id", bill.id).eq("status", bill.status).eq("amount_paid", 0).select("id").maybeSingle();
+      if (result.error || !result.data) { setErrorMessage(result.error?.message || "Bill changed before it could be voided. Refresh and review its payment status."); return; }
+      setVoidConfirmationOpen(false);
+      await load();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to void vendor bill.");
+    } finally { setIsSaving(false); }
   };
 
   const recordPayment = async (event: FormEvent<HTMLFormElement>) => {
@@ -106,6 +122,8 @@ export default function VendorBillDetailPage() {
   return (
     <div className="container-content space-y-[var(--space-section)]">
       <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title={bill ? `${bill.bill_number} · ${vendorName}` : "Vendor Bill"} description={`${projectName}${bill?.vendor_invoice_number ? ` · Vendor invoice ${bill.vendor_invoice_number}` : ""}`} primaryAction={<Link href="/invoices/accounts-payable" className={getButtonClassName({ size: "md" })}>Back to AP</Link>} />
+      {canManage && bill && bill.amount_paid === 0 && ["draft", "submitted", "approved", "disputed"].includes(bill.status) && <Button variant="secondary" disabled={isSaving} onClick={() => setVoidConfirmationOpen(true)}>Void Unpaid Bill</Button>}
+      <ConfirmDialog open={voidConfirmationOpen} title="Void unpaid bill?" description="This removes the bill from active payables and project actual costs while preserving its history. Bills with recorded payments cannot be voided." confirmLabel="Void Bill" cancelLabel="Keep Bill" onConfirm={() => void voidBill()} onCancel={() => { if (!isSaving) setVoidConfirmationOpen(false); }} isConfirming={isSaving} />
       {errorMessage ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMessage}</div> : null}
       {bill ? <>
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Status" value={bill.status.replaceAll("_", " ")} detail={bill.approved_at ? `Approved ${new Date(bill.approved_at).toLocaleDateString()}` : "Approval pending"} /><Metric label="Bill Total" value={currency2(bill.total_amount)} detail={`Bill date ${bill.bill_date}`} /><Metric label="Paid" value={currency2(bill.amount_paid)} detail={`${payments.length} payment${payments.length === 1 ? "" : "s"}`} /><Metric label="Balance Due" value={currency2(bill.balance_due)} detail={bill.due_date ? `Due ${bill.due_date}` : "No due date"} danger={bill.balance_due > 0 && Boolean(bill.due_date && bill.due_date < localCalendarDate())} /></section>

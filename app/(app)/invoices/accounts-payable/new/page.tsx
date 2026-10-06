@@ -132,7 +132,7 @@ export default function NewVendorBillPage() {
 
   return (
     <div className="container-content space-y-[var(--space-section)]">
-      <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title="New Vendor Bill" description="Create the bill header and first cost line atomically, with company-role authorization and database overpayment protections intact." />
+      <PageHeader compact eyebrow="FINANCE · ACCOUNTS PAYABLE" title="New Vendor Bill" description="Record a vendor bill and its first cost line for a project or company overhead." />
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-6 shadow-[var(--shadow-card)]">
         {errorMessage ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{errorMessage}</div> : null}
