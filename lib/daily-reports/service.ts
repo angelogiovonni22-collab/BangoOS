@@ -1,3 +1,4 @@
+import { dailyReportDate, previousDailyReportDate } from "./date";
 import { buildDeterministicDailySummary } from "./ai-summary";
 import { createSchedulingService } from "@/lib/scheduling";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
@@ -446,8 +447,9 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
       if (projectsResponse.error) throw new Error(projectsResponse.error.message);
       if (profilesResponse.error) throw new Error(profilesResponse.error.message);
       const supervisoryRoles = new Set(["owner", "admin", "administrator", "operations_manager", "project_manager", "superintendent", "foreman"]);
-      const today = new Date().toISOString().slice(0, 10);
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const now = new Date();
+      const today = dailyReportDate(now);
+      const yesterday = previousDailyReportDate(now);
 
       const reportsCreatedToday = reports.filter((item) => item.header.date === today).length;
       const reportsPendingReview = reports.filter((item) => item.header.overallStatus === "submitted").length;
