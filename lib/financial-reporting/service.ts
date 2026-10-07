@@ -1,3 +1,4 @@
+import { readAllSupabaseRows, readAllSupabaseRowsForIds } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeChangeOrderStatus } from "@/lib/change-orders/statuses";
 import { normalizeInvoiceStatus } from "@/lib/invoices/statuses";
@@ -265,26 +266,26 @@ async function loadProcurementRows(
   materialRequests: MaterialRequestRow[];
 }> {
   const [purchaseOrdersResponse, purchaseOrderLinesResponse, allocationsResponse, requestsResponse] = await Promise.all([
-    supabase
+    readAllSupabaseRows((from, to) => supabase
       .from("purchase_orders")
       .select("id, project_id, vendor_id, status, total_amount, cost_code_id")
       .eq("company_id", companyId)
-      .eq("project_id", projectId),
-    supabase
+      .eq("project_id", projectId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => supabase
       .from("purchase_order_line_items")
       .select("id, purchase_order_id, project_id, cost_code_id, quantity_ordered, quantity_received, quantity_damaged, unit_cost")
       .eq("company_id", companyId)
-      .eq("project_id", projectId),
-    supabase
+      .eq("project_id", projectId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => supabase
       .from("project_material_allocations")
       .select("project_id, cost_code_id, total_cost")
       .eq("company_id", companyId)
-      .eq("project_id", projectId),
-    supabase
+      .eq("project_id", projectId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => supabase
       .from("material_requests")
       .select("id")
       .eq("company_id", companyId)
-      .eq("project_id", projectId),
+      .eq("project_id", projectId).order("id", { ascending: true }).range(from, to)),
   ]);
 
   if (purchaseOrdersResponse.error) {
@@ -347,46 +348,46 @@ export async function buildProjectFinancialReport(params: {
     scopeItemsResponse,
     procurement,
   ] = await Promise.all([
-    supabase
+    readAllSupabaseRows((from, to) => supabase
       .from("estimates")
       .select("id, project_id, status, total_amount, internal_cost_total, created_at")
       .eq("company_id", params.companyId)
       .eq("project_id", params.projectId)
-      .order("created_at", { ascending: true }),
-    supabase
+      .order("created_at", { ascending: true }).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => supabase
       .from("change_orders")
       .select("id, project_id, status, total_amount")
       .eq("company_id", params.companyId)
-      .eq("project_id", params.projectId),
-    supabase
+      .eq("project_id", params.projectId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => supabase
       .from("invoices")
       .select("id, project_id, status, total_amount, amount_paid, company_id")
       .eq("company_id", params.companyId)
-      .eq("project_id", params.projectId),
-    supabase
+      .eq("project_id", params.projectId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => supabase
       .from("cost_codes")
       .select("id, code, name, budget, committed_cost, actual_cost")
-      .eq("company_id", params.companyId),
-    supabase
+      .eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => supabase
       .from("trade_partner_assignments")
       .select("id, project_id, assignment_status, contract_status, contract_amount, retainage_percent")
       .eq("company_id", params.companyId)
-      .eq("project_id", params.projectId),
-    supabase
+      .eq("project_id", params.projectId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => supabase
       .from("tasks")
       .select("actual_hours")
       .eq("company_id", params.companyId)
-      .eq("project_id", params.projectId),
-    supabase
+      .eq("project_id", params.projectId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => supabase
       .from("equipment")
       .select("id, daily_internal_cost, rental_daily_cost, maintenance_cost_per_hour")
       .eq("company_id", params.companyId)
-      .eq("assigned_job_id", params.projectId),
-    queryable
+      .eq("assigned_job_id", params.projectId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => queryable
       .from("project_scope_items")
       .select("material_cost,labor_cost")
       .eq("company_id", params.companyId)
-      .eq("project_id", params.projectId),
+      .eq("project_id", params.projectId).order("id", { ascending: true }).range(from, to)),
     loadProcurementRows(queryable, params.companyId, params.projectId),
   ]);
 
@@ -426,11 +427,11 @@ export async function buildProjectFinancialReport(params: {
   const estimateIds = estimates.map((estimate) => estimate.id);
 
   const estimateLineItemsResponse = estimateIds.length > 0
-    ? await supabase
+    ? await readAllSupabaseRowsForIds(estimateIds, (ids, from, to) => supabase
       .from("estimate_line_items")
       .select("estimate_id, category, quantity, unit_cost")
       .eq("company_id", params.companyId)
-      .in("estimate_id", estimateIds)
+      .in("estimate_id", ids).order("id", { ascending: true }).range(from, to))
     : { data: [], error: null };
 
   if (estimateLineItemsResponse.error) {
@@ -443,11 +444,11 @@ export async function buildProjectFinancialReport(params: {
     .map((changeOrder) => changeOrder.id);
 
   const changeOrderLineItemsResponse = approvedChangeOrderIds.length > 0
-    ? await supabase
+    ? await readAllSupabaseRowsForIds(approvedChangeOrderIds, (ids, from, to) => supabase
       .from("change_order_line_items")
       .select("change_order_id, cost_amount")
       .eq("company_id", params.companyId)
-      .in("change_order_id", approvedChangeOrderIds)
+      .in("change_order_id", ids).order("id", { ascending: true }).range(from, to))
     : { data: [], error: null };
 
   if (changeOrderLineItemsResponse.error) {
@@ -458,11 +459,11 @@ export async function buildProjectFinancialReport(params: {
   const invoiceIds = invoices.map((invoice) => invoice.id);
 
   const paymentResponse = invoiceIds.length > 0
-    ? await supabase
+    ? await readAllSupabaseRowsForIds(invoiceIds, (ids, from, to) => supabase
       .from("invoice_payment_history")
       .select("invoice_id, amount, status")
       .eq("company_id", params.companyId)
-      .in("invoice_id", invoiceIds)
+      .in("invoice_id", ids).order("id", { ascending: true }).range(from, to))
     : { data: [], error: null };
 
   if (paymentResponse.error) {
@@ -799,31 +800,31 @@ export async function buildCompanyFinancialReport(params: {
   const marginTargetPercent = params.marginTargetPercent ?? 15;
 
   const [projectsResponse, estimatesResponse, changeOrdersResponse, invoicesResponse, paymentsResponse, tradePartnersResponse] = await Promise.all([
-    params.supabase
+    readAllSupabaseRows((from, to) => params.supabase
       .from("projects")
       .select("id, name, status, contract_amount, estimated_cost")
-      .eq("company_id", params.companyId),
-    params.supabase
+      .eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => params.supabase
       .from("estimates")
       .select("id, project_id, status, total_amount, internal_cost_total, created_at")
       .eq("company_id", params.companyId)
-      .not("project_id", "is", null),
-    params.supabase
+      .not("project_id", "is", null).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => params.supabase
       .from("change_orders")
       .select("id, project_id, status, total_amount")
-      .eq("company_id", params.companyId),
-    params.supabase
+      .eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => params.supabase
       .from("invoices")
       .select("id, project_id, status, total_amount, amount_paid, company_id")
-      .eq("company_id", params.companyId),
-    params.supabase
+      .eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => params.supabase
       .from("invoice_payment_history")
       .select("invoice_id, amount, status")
-      .eq("company_id", params.companyId),
-    params.supabase
+      .eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => params.supabase
       .from("trade_partner_assignments")
       .select("id, project_id, assignment_status, contract_status, contract_amount, retainage_percent")
-      .eq("company_id", params.companyId),
+      .eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
   ]);
 
   if (projectsResponse.error) {

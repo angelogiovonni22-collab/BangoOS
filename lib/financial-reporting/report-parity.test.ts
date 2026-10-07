@@ -3,7 +3,7 @@ import { buildProjectFinancialReport } from "./ap-aware-service";
 import { buildCompanyFinancialReport } from "./service";
 
 type Row = Record<string, unknown>;
-function fixture(receiptCost = 20) {
+function fixture(receiptCost = 20, failTable?: string, failCode = "XX000", failFirst = false) {
   const tables: Record<string, Row[]> = {
     projects: [{ id: "p1", name: "Audit", status: "in_progress", contract_amount: 1000, estimated_cost: 900 }],
     estimates: [{ id: "e1", project_id: "p1", status: "approved", total_amount: 1000, internal_cost_total: 900, created_at: "2026-01-01" }],
@@ -24,29 +24,74 @@ function fixture(receiptCost = 20) {
   for (const rows of Object.values(tables)) for (const row of rows) row.company_id = "co1";
   tables.project_receipts.push({ company_id: "other-company", project_id: "p1", total_amount: 50000, status: "approved" });
   const executed: string[] = [];
+  const pages: { table: string; from: number; lastId?: unknown }[] = [];
+  const filterBatches = new Map<string, number>();
   const client = {
     from(table: string) {
       let rows = tables[table] ?? [];
       let scoped = false;
       let single = false;
+      let range: [number, number] | null = null;
+      let idOrdered = false;
       const query = {
         select() { return query; },
         eq(column: string, value: unknown) { if (column === "company_id") scoped = true; rows = rows.filter((row) => row[column] === value); return query; },
         neq(column: string, value: unknown) { rows = rows.filter((row) => row[column] !== value); return query; },
-        in(column: string, values: unknown[]) { rows = rows.filter((row) => values.includes(row[column])); return query; },
+        in(column: string, values: unknown[]) { assert.ok(values.length <= 100, "parent-ID filters must be bounded"); filterBatches.set(table, (filterBatches.get(table) ?? 0) + 1); rows = rows.filter((row) => values.includes(row[column])); return query; },
         not(column: string, _operator: string, value: unknown) { rows = rows.filter((row) => row[column] !== value); return query; },
-        order() { return query; },
+        order(column: string) { if (column === "id") idOrdered = true; return query; },
+        range(from: number, to: number) { range = [from, to]; assert.ok(idOrdered, `${table} pages must have stable ID ordering`); return query; },
         maybeSingle() { single = true; return query; },
-        then(resolve: (value: { data: Row[] | Row | null; error: null }) => unknown) {
+        then(resolve: (value: { data: Row[] | Row | null; error: { message: string; code?: string } | null }) => unknown) {
           assert.ok(scoped, `${table} must be company scoped`);
           executed.push(table);
-          return Promise.resolve({ data: single ? rows[0] ?? null : rows, error: null }).then(resolve);
+          const from = range?.[0] ?? 0;
+          pages.push({ table, from, lastId: rows.slice(from, (range?.[1] ?? 999) + 1).at(-1)?.id });
+          if (table === failTable && (failFirst || from >= 500 || (filterBatches.get(table) ?? 0) > 1)) return Promise.resolve({ data: null, error: { message: `${table} history unavailable`, code: failCode } }).then(resolve);
+          return Promise.resolve({ data: single ? rows[0] ?? null : rows.slice(from, (range?.[1] ?? 999) + 1), error: null }).then(resolve);
         },
       };
       return query;
     },
   };
-  return { client: client as never, executed, tables };
+  return { client: client as never, executed, tables, pages };
+}
+
+function historyFixture(failTable?: string) {
+  const result = fixture(20, failTable);
+  const sources: Record<string, Row> = {
+    estimates: { status: "approved", total_amount: 1000, internal_cost_total: 900, created_at: "2026-01-01" },
+    estimate_line_items: { estimate_id: "e1", category: "materials", quantity: 1, unit_cost: 1 },
+    project_scope_items: { material_cost: 1, labor_cost: 1 },
+    change_orders: { status: "approved", total_amount: 1 },
+    change_order_line_items: { change_order_id: "c1", cost_amount: 1 },
+    purchase_orders: { status: "approved" },
+    purchase_order_line_items: { purchase_order_id: "po1", cost_code_id: "cc1", quantity_ordered: 1, quantity_received: 0, quantity_damaged: 0, unit_cost: 1 },
+    project_material_allocations: { cost_code_id: "cc1", total_cost: 1 },
+    project_receipts: { total_amount: 1, status: "approved" },
+    trade_partner_assignments: { assignment_status: "active", contract_status: "signed", contract_amount: 1, retainage_percent: 0 },
+    vendor_bills: { status: "approved", total_amount: 1, amount_paid: 1, balance_due: 0, match_status: "matched" },
+    vendor_bill_line_items: { vendor_bill_id: "b1", purchase_order_line_item_id: null, category: "rental", line_amount: 1 },
+    invoices: { status: "paid", total_amount: 1, amount_paid: 1 },
+    invoice_payment_history: { invoice_id: "i1", status: "recorded", amount: 1 },
+    tasks: { actual_hours: 1 },
+    equipment: { assigned_job_id: "p1", daily_internal_cost: 1 },
+    material_requests: {},
+    cost_codes: { code: "HISTORY", name: "History", budget: 1 },
+  };
+  const prefixes: Record<string, string> = { estimates: "e1", change_orders: "c1", purchase_orders: "po1", vendor_bills: "b1", invoices: "i1", cost_codes: "cc1" };
+  for (const [table, source] of Object.entries(sources)) {
+    result.tables[table] = Array.from({ length: 1501 }, (_, index) => {
+      const suffix = String(index).padStart(4, "0");
+      const row: Row = { ...source, id: `${prefixes[table] ?? table}-${suffix}`, company_id: "co1", project_id: "p1" };
+      for (const key of ["estimate_id", "change_order_id", "purchase_order_id", "vendor_bill_id", "invoice_id", "cost_code_id"]) {
+        if (row[key]) row[key] = `${row[key]}-${suffix}`;
+      }
+      return row;
+    });
+    result.tables[table].push({ ...result.tables[table][0], id: "foreign", company_id: "other-company" });
+  }
+  return { ...result, sourceTables: Object.keys(sources) };
 }
 
 async function main() {
@@ -104,6 +149,48 @@ async function main() {
   const centsCompany = await buildCompanyFinancialReport({ supabase: cents.client, companyId: "co1" });
   assert.equal(centsCompany.summary.projectGrossProfit, centsProject.summary.grossProfit, "cent rounding matches each canonical cost source");
   assert.equal(centsCompany.summary.committedCost, centsProject.summary.committedCost);
-  console.log("Financial report parity: working scope, budget floor, approved costs, tenant isolation, AP de-duplication, and multi-project fixtures passed");
+  const history = historyFixture();
+  const historyProject = await buildProjectFinancialReport({ supabase: history.client, companyId: "co1", projectId: "p1" });
+  assert.equal(historyProject.summary.revisedBudget, 4503, "full scope and approved change-order cost history");
+  assert.equal(historyProject.summary.revisedContractValue, 2501);
+  assert.equal(historyProject.summary.committedCost, 3002);
+  assert.equal(historyProject.summary.actualCost, 4503);
+  assert.equal(historyProject.summary.forecastFinalCost, 7505);
+  assert.equal(historyProject.summary.grossProfit, -5004);
+  assert.equal(historyProject.summary.paymentsReceived, 1501);
+  assert.equal(historyProject.materials.purchaseOrderCount, 1501);
+  assert.equal(historyProject.materials.requestCount, 1501);
+  assert.equal(historyProject.labor.employeeHours, 1501);
+  assert.equal(historyProject.equipment.assignedEquipmentCount, 1501);
+  assert.equal(historyProject.accountsPayable?.approvedBillCost, 1501);
+  assert.equal(historyProject.costCodeVariance.find((row) => row.costCodeId === "cc1-1500")?.code, "HISTORY", "last-page cost-code reference loaded");
+  for (const table of history.sourceTables) assert.ok(history.pages.some((page) => page.table === table && String(page.lastId).endsWith("-1500")), `${table} must load its last history page`);
+  const historyCompany = await buildCompanyFinancialReport({ supabase: history.client, companyId: "co1" });
+  assert.equal(historyCompany.summary.projectGrossProfit, historyProject.summary.grossProfit);
+  assert.equal(historyCompany.summary.committedCost, historyProject.summary.committedCost);
+  assert.equal(historyCompany.summary.companyRevenue, 1501);
+  for (const table of history.sourceTables) {
+    const failed = historyFixture(table);
+    await assert.rejects(buildProjectFinancialReport({ supabase: failed.client, companyId: "co1", projectId: "p1" }), new RegExp(`${table} history unavailable`));
+  }
+  for (const table of ["estimates", "change_orders", "invoices", "invoice_payment_history", "trade_partner_assignments", "project_scope_items", "change_order_line_items", "purchase_orders", "purchase_order_line_items", "project_material_allocations", "project_receipts", "vendor_bills", "vendor_bill_line_items"]) {
+    const failed = historyFixture(table);
+    await assert.rejects(buildCompanyFinancialReport({ supabase: failed.client, companyId: "co1" }), new RegExp(`${table} history unavailable`));
+  }
+  for (const table of ["project_receipts", "vendor_bills"]) {
+    for (const code of ["42P01", "PGRST205", "42501"]) {
+      const unavailable = fixture(20, table, code, true);
+      await assert.rejects(buildProjectFinancialReport({ supabase: unavailable.client, companyId: "co1", projectId: "p1" }), new RegExp(`${table} history unavailable`), "unavailable approved costs must not silently disappear");
+    }
+  }
+  const manyProjects = fixture();
+  manyProjects.tables.projects = Array.from({ length: 1501 }, (_, index) => ({ ...manyProjects.tables.projects[0], id: `project-${index}`, contract_amount: 2, estimated_cost: 1 }));
+  const projectsReport = await buildCompanyFinancialReport({ supabase: manyProjects.client, companyId: "co1" });
+  assert.equal(projectsReport.projectsReviewed, 1501);
+  assert.equal(projectsReport.summary.projectGrossProfit, 1501);
+  const failedProjects = fixture(20, "projects");
+  failedProjects.tables.projects = manyProjects.tables.projects;
+  await assert.rejects(buildCompanyFinancialReport({ supabase: failedProjects.client, companyId: "co1" }), /projects history unavailable/);
+  console.log("Financial report parity: working scope, budget floor, approved costs, tenant isolation, AP de-duplication, multi-project and 1501-row history/failure fixtures passed");
 }
 void main().catch((error) => { console.error(error); process.exitCode = 1; });

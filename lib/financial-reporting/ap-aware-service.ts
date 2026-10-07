@@ -1,3 +1,4 @@
+import { readAllSupabaseRows, readAllSupabaseRowsForIds } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { buildProjectFinancialReport as buildReceiptAwareProjectFinancialReport } from "./receipt-aware-service";
@@ -103,29 +104,26 @@ export async function buildProjectFinancialReport(params: {
     from: (table: string) => any;
   };
 
-  const billsResponse = await db
+  const billsResponse = await readAllSupabaseRows((from, to) => db
     .from("vendor_bills")
     .select("id,status,total_amount,amount_paid,balance_due,match_status")
     .eq("company_id", params.companyId)
     .eq("project_id", params.projectId)
-    .neq("status", "voided");
+    .neq("status", "voided").order("id", { ascending: true }).range(from, to));
 
-  if (billsResponse.error) {
-    if (String(billsResponse.error.message || "").toLowerCase().includes("vendor_bills")) return base;
-    throw new Error(billsResponse.error.message);
-  }
+  if (billsResponse.error) throw new Error(billsResponse.error.message);
 
   const bills = (billsResponse.data ?? []) as VendorBillRow[];
   const actualBills = bills.filter((bill) => ACTUAL_BILL_STATUSES.has(String(bill.status || "")));
   const actualBillIds = actualBills.map((bill) => bill.id);
 
   const linesResponse = actualBillIds.length > 0
-    ? await db
+    ? await readAllSupabaseRowsForIds(actualBillIds, (ids, from, to) => db
       .from("vendor_bill_line_items")
       .select("vendor_bill_id,purchase_order_line_item_id,category,line_amount")
       .eq("company_id", params.companyId)
       .eq("project_id", params.projectId)
-      .in("vendor_bill_id", actualBillIds)
+      .in("vendor_bill_id", ids).order("id", { ascending: true }).range(from, to))
     : { data: [], error: null };
 
   if (linesResponse.error) throw new Error(linesResponse.error.message);

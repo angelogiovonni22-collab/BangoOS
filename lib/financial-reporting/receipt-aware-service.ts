@@ -1,3 +1,4 @@
+import { readAllSupabaseRows } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { buildProjectFinancialReport as buildBaseProjectFinancialReport } from "./service";
@@ -61,21 +62,14 @@ export async function buildProjectFinancialReport(params: {
     from: (table: string) => any;
   };
 
-  const receiptResponse = await queryable
+  const receiptResponse = await readAllSupabaseRows((from, to) => queryable
     .from("project_receipts")
     .select("total_amount")
     .eq("company_id", params.companyId)
     .eq("project_id", params.projectId)
-    .eq("status", "approved");
+    .eq("status", "approved").order("id", { ascending: true }).range(from, to));
 
-  if (receiptResponse.error) {
-    // During a rolling deployment, the application may briefly run before the additive receipt migration.
-    // Preserve the existing project report rather than taking Financials offline.
-    if (String(receiptResponse.error.message || "").toLowerCase().includes("project_receipts")) {
-      return base;
-    }
-    throw new Error(receiptResponse.error.message);
-  }
+  if (receiptResponse.error) throw new Error(receiptResponse.error.message);
 
   const receiptCost = toMoney(
     ((receiptResponse.data ?? []) as ReceiptCostRow[]).reduce((sum, row) => sum + safeMoney(row.total_amount), 0),
