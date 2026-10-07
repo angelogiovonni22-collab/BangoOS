@@ -110,6 +110,7 @@ async function main() {
     const company = await buildCompanyFinancialReport({ supabase: client, companyId: "co1" });
     assert.equal(company.summary.projectGrossProfit, project.summary.grossProfit, "company and project forecast profit agree");
     assert.equal(company.summary.committedCost, project.summary.committedCost);
+    assert.equal(company.summary.cashExposure, 90, "outstanding commitments must not subtract unrelated actual costs again");
     assert.equal(company.summary.jobsOverBudget, receiptCost === 700 ? 1 : 0);
     assert.ok(executed.length <= 14, "company cost reads must be batched, not per-project reports");
   }
@@ -137,6 +138,7 @@ async function main() {
   assert.equal(mixedCompany.summary.companyRevenue, 70);
   assert.equal(mixedProject.summary.outstandingReceivables, 140);
   assert.equal(mixedCompany.summary.totalOutstandingReceivables, 140);
+  assert.equal(mixedCompany.summary.cashExposure, 230, "receivables plus remaining commitments without double subtraction");
 
   const cents = fixture(20.004);
   cents.tables.project_material_allocations[0].total_cost = 25.004;
@@ -169,6 +171,7 @@ async function main() {
   assert.equal(historyCompany.summary.projectGrossProfit, historyProject.summary.grossProfit);
   assert.equal(historyCompany.summary.committedCost, historyProject.summary.committedCost);
   assert.equal(historyCompany.summary.companyRevenue, 1501);
+  assert.equal(historyCompany.summary.cashExposure, 3002);
   for (const table of history.sourceTables) {
     const failed = historyFixture(table);
     await assert.rejects(buildProjectFinancialReport({ supabase: failed.client, companyId: "co1", projectId: "p1" }), new RegExp(`${table} history unavailable`));
