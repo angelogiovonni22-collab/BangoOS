@@ -892,7 +892,6 @@ export async function buildCompanyFinancialReport(params: {
   const projectCosts = await loadCompanyProjectCosts({ ...params, changeOrders });
   let forecastCostTotal = 0;
   let companyCommittedCost = 0;
-  let companyActualCost = 0;
   let jobsOverBudget = 0;
   let jobsUnderMarginTarget = 0;
 
@@ -928,7 +927,6 @@ export async function buildCompanyFinancialReport(params: {
     revisedContractTotal += revisedContract;
     forecastCostTotal += forecast;
     companyCommittedCost += projectCommitted;
-    companyActualCost += projectActual;
 
     if (ACTIVE_PROJECT_STATUSES.has(project.status.trim().toLowerCase())) {
       totalBacklog += Math.max(revisedContract - projectInvoiced, 0);
@@ -958,12 +956,12 @@ export async function buildCompanyFinancialReport(params: {
 
   const totalOutstandingReceivables = toMoney(Math.max(totalInvoiced - companyRevenue, 0));
   const committedCost = toMoney(companyCommittedCost);
-  const actualCost = toMoney(companyActualCost);
   const projectGrossProfit = toMoney(revisedContractTotal - forecastCostTotal);
   const projectMarginPercent = revisedContractTotal > 0
     ? toMoney((projectGrossProfit / revisedContractTotal) * 100)
     : null;
-  const cashExposure = toMoney(totalOutstandingReceivables + Math.max(committedCost - actualCost, 0));
+  // Procurement commitments already exclude received/damaged quantities; actual costs are separate.
+  const cashExposure = toMoney(totalOutstandingReceivables + committedCost);
 
   const availability: DataAvailability[] = [
     {
