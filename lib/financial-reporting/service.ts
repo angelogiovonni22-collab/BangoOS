@@ -108,7 +108,7 @@ type QueryableSupabase = SupabaseClient<Database> & {
 };
 
 const APPROVED_CHANGE_ORDER_STATUSES = new Set(["approved", "invoiced"]);
-const TERMINAL_PURCHASE_ORDER_STATUSES = new Set(["cancelled", "fully_received"]);
+const NON_COMMITTED_PURCHASE_ORDER_STATUSES = new Set(["draft", "cancelled", "fully_received"]);
 const RELEVANT_ESTIMATE_STATUSES = new Set([
   "draft",
   "internal_review",
@@ -511,7 +511,7 @@ export async function buildProjectFinancialReport(params: {
   const committedMaterialCost = toMoney(
     procurement.purchaseOrderLines.reduce((sum, line) => {
       const status = purchaseOrderStatusById.get(line.purchase_order_id) || "draft";
-      if (TERMINAL_PURCHASE_ORDER_STATUSES.has(status)) {
+      if (NON_COMMITTED_PURCHASE_ORDER_STATUSES.has(status)) {
         return sum;
       }
 
@@ -628,7 +628,7 @@ export async function buildProjectFinancialReport(params: {
     }
 
     const status = purchaseOrderStatusById.get(line.purchase_order_id) || "draft";
-    if (TERMINAL_PURCHASE_ORDER_STATUSES.has(status)) {
+    if (NON_COMMITTED_PURCHASE_ORDER_STATUSES.has(status)) {
       continue;
     }
 

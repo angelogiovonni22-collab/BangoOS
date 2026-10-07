@@ -63,7 +63,7 @@ export async function loadCompanyProjectCosts(params: {
   }
   const orderStatuses = new Map(orders.map((row) => [row.id, String(row.status ?? "").trim().toLowerCase()]));
   for (const row of orderLines) {
-    if (["cancelled", "fully_received"].includes(orderStatuses.get(row.purchase_order_id) ?? "draft")) continue;
+    if (["draft", "cancelled", "fully_received"].includes(orderStatuses.get(row.purchase_order_id) ?? "draft")) continue;
     get(row.project_id).committedMaterials += Math.max(0, amount(row.quantity_ordered) - amount(row.quantity_received) - amount(row.quantity_damaged)) * amount(row.unit_cost);
   }
   const actualSources = [new Map<string, number>(), new Map<string, number>(), new Map<string, number>()];
