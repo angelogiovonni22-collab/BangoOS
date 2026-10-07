@@ -1,3 +1,4 @@
+import { loadPayrollJobCosts } from "./payroll-costs";
 import { readAllSupabaseRows, readAllSupabaseRowsForIds } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeChangeOrderStatus } from "@/lib/change-orders/statuses";
@@ -889,7 +890,7 @@ export async function buildCompanyFinancialReport(params: {
 
   let totalBacklog = 0;
   let revisedContractTotal = 0;
-  const projectCosts = await loadCompanyProjectCosts({ ...params, changeOrders });
+  const [projectCosts, payroll] = await Promise.all([loadCompanyProjectCosts({ ...params, changeOrders }), loadPayrollJobCosts(params)]);
   let forecastCostTotal = 0;
   let companyCommittedCost = 0;
   let jobsOverBudget = 0;
@@ -912,7 +913,7 @@ export async function buildCompanyFinancialReport(params: {
     const revisedBudget = toMoney(toMoney(costs?.scopeBudget ?? baselineBudget) + toMoney(costs?.changeOrderCost ?? 0));
     const vendorCommitted = toMoney(vendorCommitments.get(project.id) ?? 0);
     const projectCommitted = toMoney(toMoney(costs?.committedMaterials ?? 0) + vendorCommitted);
-    const projectActual = toMoney(costs?.actual ?? 0);
+    const projectActual = toMoney(toMoney(costs?.actual ?? 0) + (payroll.projects.get(project.id)?.grossPay ?? 0));
     const forecast = toMoney(Math.max(projectActual + projectCommitted, revisedBudget));
     const originalEstimate = safeNumber(firstEstimate?.total_amount);
     const revisedContract = (safeNumber(project.contract_amount) || originalEstimate) + safeNumber(approvedChangeOrdersByProject.get(project.id));
@@ -964,11 +965,12 @@ export async function buildCompanyFinancialReport(params: {
   const cashExposure = toMoney(totalOutstandingReceivables + committedCost);
 
   const availability: DataAvailability[] = [
+    payroll.availability,
     {
       key: "company_committed_actual",
       label: "Company Committed vs Actual Cost",
       status: "partial",
-      detail: "Totals use project procurement commitments, active trade partner contracts, approved receipts, and approved non-PO vendor bill costs. Company cost-code rollups are excluded to avoid counting project costs twice.",
+      detail: "Totals use project procurement commitments, active trade partner contracts, approved receipts, approved non-PO vendor bills, and accessible approved payroll snapshots. Company cost-code rollups are excluded to avoid counting project costs twice.",
     },
     {
       key: "project_margin_baseline",
@@ -1005,6 +1007,7 @@ export async function buildCompanyFinancialReport(params: {
         "vendor_bills",
         "vendor_bill_line_items",
         "trade_partner_assignments",
+        ...(payroll.accessible ? ["payroll_lines.project_allocations" as const] : []),
         "derived",
       ],
     },

@@ -18,6 +18,7 @@ export type FinancialMetricSource =
   | "vendor_bills"
   | "vendor_bill_line_items"
   | "trade_partner_assignments"
+  | "payroll_lines.project_allocations"
   | "tasks.actual_hours"
   | "equipment"
   | "derived";
@@ -82,6 +83,7 @@ export type CostCodeVarianceRow = {
 
 export type LaborCostSnapshot = {
   employeeHours: number | null;
+  approvedPayrollHours?: number | null;
   crewHours: number | null;
   regularLaborCost: number | null;
   overtimeCost: number | null;

@@ -12,6 +12,8 @@ const employee = '00000000-0000-4000-8000-000000000003';
 const source = '00000000-0000-4000-8000-000000000004';
 const project = '00000000-0000-4000-8000-000000000005';
 const snapshotMigration = process.argv[3];
+const totalsMigration = process.argv[4];
+const totals = async () => (await query('select public.get_payroll_job_cost_totals($1) data',[company]))[0].data;
 const migration = 'supabase/migrations/20261007222345_audit_payroll_time_claims_and_void_recovery.sql';
 const query = async (sql, values = []) => (await db.query(sql, values)).rows;
 const build = async (end = '2026-10-04') => (await query('select public.build_weekly_payroll($1,$2,$3,$4) id', [company,'2026-09-28',end,'2026-10-09']))[0].id;
@@ -22,11 +24,13 @@ try {
     create schema auth;
     create function auth.uid() returns uuid language sql as $$select '00000000-0000-4000-8000-000000000001'::uuid$$;
     create table public.companies(id uuid primary key);
+    create table public.projects(id uuid primary key,company_id uuid not null);
     create table public.profiles(id uuid primary key,first_name text,last_name text);
     create table public.employees(id uuid primary key,company_id uuid not null,profile_id uuid,employee_number text,position_title text,employment_status text,unique(id,company_id));
     create table public.workforce_time_entries(id uuid primary key,company_id uuid not null,employee_id uuid not null,project_id uuid,started_at timestamptz,ended_at timestamptz,break_minutes integer,status text,approved_at timestamptz,approved_by uuid,unique(id,company_id));
     create function public.has_company_role(c uuid,r text[]) returns boolean language sql as $$select c='${company}'::uuid and coalesce(current_setting('bos.test.authorized',true),'true')='true'$$;
     insert into public.companies values('${company}');
+    insert into public.projects values('${project}','${company}'),('00000000-0000-4000-8000-000000000007','${company}');
     insert into public.employees values('${employee}','${company}',null,'AUDIT-1','Test','active');
     insert into public.workforce_time_entries values('${source}','${company}','${employee}','${project}','2026-09-28 09:00Z','2026-09-28 10:00Z',0,'approved','2026-09-28 11:00Z',null);
   `);
@@ -40,6 +44,8 @@ try {
   await db.exec('rollback; truncate public.payroll_periods cascade;');
   await db.exec(await readFile(migration,'utf8'));
   if (snapshotMigration) await db.exec(await readFile(snapshotMigration,'utf8'));
+  if (totalsMigration) await db.exec(await readFile(totalsMigration,'utf8'));
+  await db.exec('grant select on public.projects to authenticated;');
   await db.exec('grant usage on schema public,auth to authenticated; grant select,insert,update,delete on public.companies,public.profiles,public.employees,public.workforce_time_entries,public.payroll_periods,public.payroll_lines,public.payroll_employee_settings to authenticated; set role authenticated;');
   assert.equal(Number((await workspace()).approved_unprocessed_hours),1);
   const first = await build();
@@ -101,6 +107,29 @@ try {
     assert.equal(Number(costLine.project_allocations.find(a=>a.project_id===null).gross_pay),10.51);
     assert.equal(costLine.project_allocations.flatMap(a=>a.source_time_entries).length,3);
     const originalSnapshots=costLine.project_allocations;
+    if (totalsMigration) {
+      assert.equal((await totals()).approved_gross_pay,20,'draft snapshots are not actual costs');
+      await query("select public.set_payroll_status($1,$2,'approved')",[company,costPeriod]);
+      const approved=await totals();
+      assert.equal(approved.approved_gross_pay,83.09);
+      assert.equal(approved.unassigned_gross_pay,10.51);
+      assert.equal(approved.projects.find(p=>p.project_id===project).gross_pay,41.03);
+      assert.equal(approved.projects.find(p=>p.project_id==='00000000-0000-4000-8000-000000000007').gross_pay,31.55);
+      await query("select public.set_payroll_status($1,$2,'review')",[company,costPeriod]);
+      const corrupt=structuredClone(originalSnapshots); corrupt[0].gross_pay+=1;
+      await query('update public.payroll_lines set project_allocations=$1 where payroll_period_id=$2',[JSON.stringify(corrupt),costPeriod]);
+      await query("select public.set_payroll_status($1,$2,'approved')",[company,costPeriod]);
+      await assert.rejects(totals(),/do not reconcile/);
+      await query("select public.set_payroll_status($1,$2,'review')",[company,costPeriod]);
+      await query("update public.payroll_lines set project_allocations='[]' where payroll_period_id=$1",[costPeriod]);
+      await query("select public.set_payroll_status($1,$2,'approved')",[company,costPeriod]);
+      const legacy=await totals();
+      assert.equal(legacy.status,'partial'); assert.equal(legacy.unknown_line_count,1); assert.equal(legacy.unknown_gross_pay,63.09);
+      assert.equal(legacy.projects.find(p=>p.project_id===project).gross_pay,20,'unsupported history is disclosed, not guessed');
+      await query("select public.set_payroll_status($1,$2,'review')",[company,costPeriod]);
+      await query('update public.payroll_lines set project_allocations=$1 where payroll_period_id=$2',[JSON.stringify(originalSnapshots),costPeriod]);
+      await query("select public.set_payroll_status($1,$2,'approved')",[company,costPeriod]);
+    }
     await query("update public.payroll_employee_settings set hourly_rate=100");
     assert.deepEqual((await query('select project_allocations from public.payroll_lines where payroll_period_id=$1',[costPeriod]))[0].project_allocations,originalSnapshots);
     // Many projects share a tiny wage: allocated cents never become negative.
@@ -111,6 +140,13 @@ try {
     assert.equal(Number(tinyLine.gross_pay),0.06);
     assert.equal(tinyLine.project_allocations.reduce((n,a)=>n+Math.round(Number(a.gross_pay)*100),0),6);
     assert.ok(tinyLine.project_allocations.every(a=>Number(a.gross_pay)>=0));
+    if (totalsMigration) {
+      await db.exec('reset role');
+      await query('insert into public.projects select distinct project_id,company_id from public.workforce_time_entries where project_id is not null on conflict do nothing');
+      await db.exec('set role authenticated');
+      await query("select public.set_payroll_status($1,$2,'approved')",[company,tinyPeriod]);
+      assert.equal((await totals()).approved_gross_pay,83.15);
+    }
     await query("update public.payroll_employee_settings set hourly_rate=20.0175,fringe_hourly=1.0123");
     await query("insert into public.workforce_time_entries(id,company_id,employee_id,project_id,started_at,ended_at,break_minutes,status) values(gen_random_uuid(),$1,$2,$3,'2026-10-19 00:00Z','2026-10-20 00:00Z',0,'approved'),(gen_random_uuid(),$1,$2,null,'2026-10-21 00:00Z','2026-10-21 20:00Z',0,'approved')",[company,employee,project]);
     const overtimePeriod=(await query("select public.build_weekly_payroll($1,'2026-10-19','2026-10-25','2026-10-30') id",[company]))[0].id;
@@ -124,13 +160,33 @@ try {
     const zeroLine=(await query('select * from public.payroll_lines where payroll_period_id=$1',[zeroPeriod]))[0];
     assert.equal(Number(zeroLine.gross_pay),0);
     assert.equal(Number(zeroLine.project_allocations[0].gross_pay),0);
+    if (totalsMigration) {
+      // Real aggregate boundary: 1,501 separately claimed/approved wage lines.
+      await db.exec(`
+        insert into public.workforce_time_entries(id,company_id,employee_id,project_id,started_at,ended_at,break_minutes,status)
+        select gen_random_uuid(),'${company}','${employee}','${project}',('2044-01-01'::date+i*7)::timestamptz+interval '9 hours',('2044-01-01'::date+i*7)::timestamptz+interval '10 hours',0,'approved' from generate_series(0,1500) i;
+        insert into public.payroll_periods(company_id,period_start,period_end,pay_date)
+        select '${company}',t.started_at::date,t.started_at::date+6,t.started_at::date+11 from public.workforce_time_entries t where t.started_at>='2044-01-01';
+        insert into public.payroll_lines(company_id,payroll_period_id,employee_id,employee_name,regular_hours,hourly_rate,regular_pay,gross_pay,source_time_entry_ids,project_allocations)
+        select '${company}',p.id,'${employee}','AUDIT',1,0.01,0.01,0.01,array[t.id],jsonb_build_array(jsonb_build_object('version',1,'allocation_method','gross_pay_proportional_approved_hours_v1','project_id',t.project_id,'hours',1,'gross_pay',0.01,'source_time_entry_ids',jsonb_build_array(t.id),'source_time_entries',jsonb_build_array(jsonb_build_object('id',t.id,'project_id',t.project_id,'net_hours',1))))
+        from public.payroll_periods p join public.workforce_time_entries t on t.company_id=p.company_id and t.started_at::date=p.period_start where p.period_start>='2044-01-01';
+        update public.payroll_periods set status='approved' where period_start>='2044-01-01';
+      `);
+      const complete=await totals();
+      assert.equal(complete.approved_line_count,1504);
+      assert.equal(complete.approved_gross_pay,98.16);
+      assert.equal(complete.projects.find(p=>p.project_id===project).gross_pay,56.04);
+      console.log('PASS: approved/exported cost aggregates exclude drafts/voids, disclose unsupported history, reject inconsistent snapshots, enforce denied-role responses, and include all 1,501 additional approved lines.');
+    }
     console.log('PASS: per-project snapshots conserve exact gross cents, preserve breaks/source IDs/unassigned work, and do not change with later rates; ten tiny-cost allocations stay nonnegative.');
   }
   await db.exec("set bos.test.authorized='false'");
+  if (totalsMigration) assert.deepEqual(await totals(),{status:'unavailable',reason:'finance_role_required'});
   assert.equal((await query('select * from public.payroll_time_entry_claims')).length,0);
   await assert.rejects(build('2026-10-03'), /Not authorized/);
   await assert.rejects(workspace(), /Not authorized/);
   await db.exec('reset role; set role anon;');
   await assert.rejects(workspace(), /permission denied/);
+  if (totalsMigration) await assert.rejects(totals(),/permission denied/);
   console.log('PASS: pre-fix double counting reproduced; conflicting legacy migration fails closed; active source uniqueness, direct-write RLS, void recovery, retained history, approved/exported guards, and denied-role checks passed.');
 } finally { await db.close(); }
