@@ -99,6 +99,8 @@ export function ProcurementWorkflowClient({ initialProjectId, introduction }: { 
   const [receiveDamaged, setReceiveDamaged] = useState("0");
   const [receiveBackordered, setReceiveBackordered] = useState("0");
   const [receiveNotes, setReceiveNotes] = useState("");
+  const [reversalReceiptId, setReversalReceiptId] = useState("");
+  const [reversalReason, setReversalReason] = useState("");
 
   const [allocateQuantity, setAllocateQuantity] = useState("0");
   const [allocateProjectId, setAllocateProjectId] = useState("");
@@ -314,6 +316,21 @@ export function ProcurementWorkflowClient({ initialProjectId, introduction }: { 
       setReceiveBackordered("0");
       setReceiveNotes("");
       setActionMessage("Receipt recorded and purchase order progress updated.");
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const reverseReceipt = async () => {
+    setIsSaving(true);
+    setErrorMessage(null);
+    try {
+      setPayload(await service.reverseReceipt(reversalReceiptId, reversalReason));
+      setReversalReceiptId("");
+      setReversalReason("");
+      setActionMessage("Receipt reversed. History retained; quantities, inventory and order progress reconciled. Record the corrected receipt when ready.");
     } catch (error) {
       setErrorMessage(toMessage(error));
     } finally {
@@ -700,6 +717,32 @@ export function ProcurementWorkflowClient({ initialProjectId, introduction }: { 
               <Button onClick={receiveLine} disabled={isSaving || !selectedLineId || !selectedPurchaseOrder || !["issued", "partially_received"].includes(selectedPurchaseOrder.status)}>{isSaving ? "Saving..." : "Record Receipt"}</Button>
             </div>
             {selectedPurchaseOrder && !["issued", "partially_received"].includes(selectedPurchaseOrder.status) ? <p className="text-sm text-[var(--color-text-secondary)]">Receipts require an issued purchase order with outstanding quantities.</p> : null}
+
+            <SectionHeader title="Receipt History & Corrections" description="Reverse an incorrect receipt, then record its corrected quantities. Original history is retained. Correct project allocations first." />
+            {selectedPurchaseOrder ? (
+              <div className="space-y-2">
+                {(payload.receipts ?? []).filter((receipt) => receipt.purchaseOrderId === selectedPoId).map((receipt) => (
+                  <div key={receipt.id} className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] p-3 text-sm">
+                    <p className="font-semibold text-[var(--color-text-primary)]">{receipt.receivedDate} · {payload.lineItems.find((line) => line.id === receipt.lineItemId)?.description || "Historical receipt"}</p>
+                    <p className="text-[var(--color-text-secondary)]">{receipt.quantityReceived === null ? "Legacy quantities unknown — reconciliation required." : `Received ${receipt.quantityReceived} · Damaged ${receipt.quantityDamaged} · Backordered ${receipt.quantityBackordered}`}</p>
+                    {receipt.reversalId ? <p className="text-[var(--color-text-secondary)]">Reversed · {receipt.reversalReason}</p> : receipt.lineItemId && receipt.quantityReceived !== null && receipt.inventoryQuantityReceived !== null ? (
+                      <Button size="sm" variant="outline" className="mt-2" disabled={isSaving} onClick={() => setReversalReceiptId(receipt.id)}>Correct this receipt</Button>
+                    ) : null}
+                  </div>
+                ))}
+                {!(payload.receipts ?? []).some((receipt) => receipt.purchaseOrderId === selectedPoId) ? <p className="text-sm text-[var(--color-text-secondary)]">No recent receipt history for this order.</p> : null}
+              </div>
+            ) : <p className="text-sm text-[var(--color-text-secondary)]">Select a purchase order to view its recent receipts.</p>}
+            {reversalReceiptId && (payload.receipts ?? []).some((receipt) => receipt.id === reversalReceiptId && receipt.purchaseOrderId === selectedPoId && !receipt.reversalId) ? (
+              <div className="space-y-2 rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] p-3">
+                <FormField label="Receipt reversal reason" required><Input maxLength={1000} value={reversalReason} onChange={(event) => setReversalReason(event.target.value)} /></FormField>
+                <p className="text-sm text-[var(--color-text-secondary)]">Reverse all quantities from the selected receipt. Its recorded stock effect will be removed; the order may reopen for receiving.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => void reverseReceipt()} disabled={isSaving || !reversalReason.trim()}>{isSaving ? "Saving..." : "Reverse Receipt"}</Button>
+                  <Button variant="outline" onClick={() => setReversalReceiptId("")} disabled={isSaving}>Keep Receipt</Button>
+                </div>
+              </div>
+            ) : null}
 
             <SectionHeader title="Allocate to Project" description="Allocation decreases inventory and updates project cost tracking." />
 
