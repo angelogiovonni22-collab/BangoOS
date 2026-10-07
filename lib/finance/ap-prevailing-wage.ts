@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readAllSupabaseRows } from "@/lib/supabase/pagination";
 import type { Database } from "@/types/database.types";
 
 type UntypedQueryBuilder = {
@@ -6,6 +7,8 @@ type UntypedQueryBuilder = {
   eq: (column: string, value: unknown) => UntypedQueryBuilder;
   neq: (column: string, value: unknown) => UntypedQueryBuilder;
   in: (column: string, values: unknown[]) => UntypedQueryBuilder;
+  order: (column: string, options: { ascending: boolean }) => UntypedQueryBuilder;
+  range: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
   maybeSingle: () => Promise<{ data: unknown; error: { message?: string } | null }>;
   then: PromiseLike<{ data: unknown; error: { message?: string } | null }>["then"];
 };
@@ -145,17 +148,13 @@ export async function loadAccountsPayableSnapshot(params: {
   projectId?: string | null;
 }): Promise<AccountsPayableSnapshot> {
   const db = asUntypedClient(params.supabase);
-  let query = db
-    .from("vendor_bills")
-    .select("status, total_amount, amount_paid, balance_due, due_date")
-    .eq("company_id", params.companyId)
-    .neq("status", "voided");
-
-  if (params.projectId) {
-    query = query.eq("project_id", params.projectId);
-  }
-
-  const { data, error } = await query;
+  const { data, error } = await readAllSupabaseRows((from, to) => {
+    let query = db.from("vendor_bills")
+      .select("status, total_amount, amount_paid, balance_due, due_date")
+      .eq("company_id", params.companyId).neq("status", "voided");
+    if (params.projectId) query = query.eq("project_id", params.projectId);
+    return query.order("id", { ascending: true }).range(from, to);
+  });
   if (error) {
     throw new Error(error.message || "Unable to load accounts payable.");
   }

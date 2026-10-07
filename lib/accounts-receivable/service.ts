@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readAllSupabaseRows } from "@/lib/supabase/pagination";
 import { authorizeInvoicePaymentCollection } from "@/lib/compliance/deposit-payment-service";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import type { Database } from "@/types/database.types";
@@ -44,10 +45,10 @@ export function resolveAgingBucket(dueDate:string|null,now=new Date()):AgingBuck
 export async function loadAccountsReceivable(supabase:SupabaseClient<Database>,companyId:string,now=new Date()):Promise<{data:AccountsReceivableData|null;error:string|null}>{
  const monthStart=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;
  const [invoiceResult,customerResult,projectResult,paymentResult]=await Promise.all([
-  supabase.from("invoices").select("id, invoice_number, title, customer_id, project_id, status, issue_date, due_date, total_amount, amount_paid").eq("company_id",companyId).is("archived_at",null).order("due_date",{ascending:true}),
-  supabase.from("customers").select("id, first_name, last_name, company_name, customer_type").eq("company_id",companyId),
-  supabase.from("projects").select("id, name").eq("company_id",companyId),
-  supabase.from("invoice_payment_history").select("amount, payment_date, status").eq("company_id",companyId).eq("status","recorded").gte("payment_date",monthStart),
+  readAllSupabaseRows((from,to)=>supabase.from("invoices").select("id, invoice_number, title, customer_id, project_id, status, issue_date, due_date, total_amount, amount_paid").eq("company_id",companyId).is("archived_at",null).order("due_date",{ascending:true}).order("id",{ascending:true}).range(from,to)),
+  readAllSupabaseRows((from,to)=>supabase.from("customers").select("id, first_name, last_name, company_name, customer_type").eq("company_id",companyId).order("id",{ascending:true}).range(from,to)),
+  readAllSupabaseRows((from,to)=>supabase.from("projects").select("id, name").eq("company_id",companyId).order("id",{ascending:true}).range(from,to)),
+  readAllSupabaseRows((from,to)=>supabase.from("invoice_payment_history").select("amount, payment_date, status").eq("company_id",companyId).eq("status","recorded").gte("payment_date",monthStart).order("id",{ascending:true}).range(from,to)),
  ]);
  const error=invoiceResult.error||customerResult.error||projectResult.error||paymentResult.error;if(error)return{data:null,error:error.message};
  const customers=new Map((customerResult.data??[]).map(row=>[row.id,row]));const projects=new Map((projectResult.data??[]).map(row=>[row.id,row]));

@@ -4,15 +4,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader, getButtonClassName } from "@/components/ui";
 import { loadAccountsPayableSnapshot, type AccountsPayableSnapshot } from "@/lib/finance/ap-prevailing-wage";
+import { loadAccountsPayableRegister, type BillRow } from "@/lib/finance/accounts-payable-register";
 import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
-type BillRow = { id: string; vendor_id: string; project_id: string | null; bill_number: string; vendor_invoice_number: string | null; bill_date: string; due_date: string | null; status: string; total_amount: number; amount_paid: number; balance_due: number };
-type VendorRow = { id: string; display_name: string | null; company_name: string | null };
-type ProjectRow = { id: string; name: string | null; project_number: string | null };
-type QueryBuilder = { select: (columns: string) => QueryBuilder; eq: (column: string, value: unknown) => QueryBuilder; then: PromiseLike<{ data: unknown; error: { message?: string } | null }>["then"] };
-type LooseClient = { from: (table: string) => QueryBuilder };
 
 const EMPTY_SNAPSHOT: AccountsPayableSnapshot = { totalOpenBills: 0, totalApproved: 0, totalPaid: 0, totalOutstanding: 0, overdueOutstanding: 0, billCount: 0, overdueBillCount: 0 };
 const AP_WRITE_ROLES = new Set(["owner", "administrator", "operations_manager", "office_manager", "accountant"]);
@@ -39,19 +35,11 @@ export default function AccountsPayablePage() {
 
     try {
       const companyId = workspace.context.companyId;
-      const db = supabase as unknown as LooseClient;
-      const [nextSnapshot, billsResult, vendorsResult, projectsResult] = await Promise.all([
+      const [nextSnapshot, register] = await Promise.all([
         loadAccountsPayableSnapshot({ supabase, companyId }),
-        db.from("vendor_bills").select("id,vendor_id,project_id,bill_number,vendor_invoice_number,bill_date,due_date,status,total_amount,amount_paid,balance_due").eq("company_id", companyId),
-        db.from("vendors").select("id,display_name,company_name").eq("company_id", companyId),
-        db.from("projects").select("id,name,project_number").eq("company_id", companyId),
+        loadAccountsPayableRegister(supabase, companyId),
       ]);
-      if (billsResult.error) throw new Error(billsResult.error.message || (es ? "No se pudieron cargar las facturas de proveedores." : "Unable to load vendor bills."));
-      if (vendorsResult.error) throw new Error(vendorsResult.error.message || (es ? "No se pudieron cargar los proveedores." : "Unable to load vendors."));
-      if (projectsResult.error) throw new Error(projectsResult.error.message || (es ? "No se pudieron cargar los proyectos." : "Unable to load projects."));
-      const nextBills = Array.isArray(billsResult.data) ? billsResult.data as BillRow[] : [];
-      const vendors = Array.isArray(vendorsResult.data) ? vendorsResult.data as VendorRow[] : [];
-      const projects = Array.isArray(projectsResult.data) ? projectsResult.data as ProjectRow[] : [];
+      const { bills: nextBills, vendors, projects } = register;
       nextBills.sort((a, b) => String(b.bill_date || "").localeCompare(String(a.bill_date || "")));
       setSnapshot(nextSnapshot); setBills(nextBills); setCanManage(AP_WRITE_ROLES.has((workspace.context.role || "").toLowerCase()));
       setVendorNames(Object.fromEntries(vendors.map((row) => [row.id, row.display_name || row.company_name || (es ? "Proveedor" : "Vendor")])));
