@@ -1,3 +1,4 @@
+import { readAllSupabaseRows } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { normalizeChangeOrderStatus } from "@/lib/change-orders/statuses";
@@ -30,14 +31,14 @@ export async function loadCompanyProjectCosts(params: {
     from: (table: string) => any;
   };
   const responses = await Promise.all([
-    db.from("project_scope_items").select("project_id,material_cost,labor_cost").eq("company_id", params.companyId),
-    db.from("change_order_line_items").select("change_order_id,cost_amount").eq("company_id", params.companyId),
-    db.from("purchase_orders").select("id,status").eq("company_id", params.companyId),
-    db.from("purchase_order_line_items").select("project_id,purchase_order_id,quantity_ordered,quantity_received,quantity_damaged,unit_cost").eq("company_id", params.companyId),
-    db.from("project_material_allocations").select("project_id,total_cost").eq("company_id", params.companyId),
-    db.from("project_receipts").select("project_id,total_amount").eq("company_id", params.companyId).eq("status", "approved"),
-    db.from("vendor_bills").select("id,project_id,status").eq("company_id", params.companyId),
-    db.from("vendor_bill_line_items").select("project_id,vendor_bill_id,purchase_order_line_item_id,line_amount").eq("company_id", params.companyId),
+    readAllSupabaseRows((from, to) => db.from("project_scope_items").select("project_id,material_cost,labor_cost").eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => db.from("change_order_line_items").select("change_order_id,cost_amount").eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => db.from("purchase_orders").select("id,status").eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => db.from("purchase_order_line_items").select("project_id,purchase_order_id,quantity_ordered,quantity_received,quantity_damaged,unit_cost").eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => db.from("project_material_allocations").select("project_id,total_cost").eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => db.from("project_receipts").select("project_id,total_amount").eq("company_id", params.companyId).eq("status", "approved").order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => db.from("vendor_bills").select("id,project_id,status").eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows((from, to) => db.from("vendor_bill_line_items").select("project_id,vendor_bill_id,purchase_order_line_item_id,line_amount").eq("company_id", params.companyId).order("id", { ascending: true }).range(from, to)),
   ]);
   for (const response of responses) {
     if (response.error) throw new Error(response.error.message);
