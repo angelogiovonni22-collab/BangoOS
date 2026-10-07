@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { fulfillmentOperation } from "./fulfillment-operation";
+import { readAllProcurementRows } from "./procurement-pagination";
 import type {
   AllocateMaterialInput,
   CreateMaterialRequestInput,
@@ -161,51 +162,51 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
       profileResponse,
       receiptResponse,
     ] = await Promise.all([
-      supabase
+      readAllProcurementRows((from, to) => supabase
         .from("material_requests")
         .select("id, request_number, project_id, priority, status, needed_by_date, notes, created_at, requested_by")
         .eq("company_id", context.companyId)
         .order("created_at", { ascending: false })
-        .limit(120),
-      supabase
+        .order("id", { ascending: true }).range(from, to)),
+      readAllProcurementRows((from, to) => supabase
         .from("purchase_orders")
         .select("id, po_number, vendor_id, project_id, cost_code_id, status, subtotal_amount, tax_amount, shipping_amount, total_amount, issued_at, created_at, notes")
         .eq("company_id", context.companyId)
         .order("created_at", { ascending: false })
-        .limit(120),
-      supabase
+        .order("id", { ascending: true }).range(from, to)),
+      readAllProcurementRows((from, to) => supabase
         .from("purchase_order_line_items")
         .select("id, purchase_order_id, material_id, description, quantity_ordered, quantity_received, quantity_damaged, quantity_backordered, unit_cost, line_subtotal, project_id, cost_code_id, project_material_plan_item_id")
         .eq("company_id", context.companyId)
         .order("created_at", { ascending: false })
-        .limit(600),
-      supabase
+        .order("id", { ascending: true }).range(from, to)),
+      readAllProcurementRows((from, to) => supabase
         .from("vendors")
         .select("id, display_name, company_name")
         .eq("company_id", context.companyId)
-        .order("display_name", { ascending: true }),
-      supabase
+        .order("display_name", { ascending: true }).order("id", { ascending: true }).range(from, to)),
+      readAllProcurementRows((from, to) => supabase
         .from("projects")
         .select("id, name")
         .eq("company_id", context.companyId)
-        .order("name", { ascending: true }),
-      supabase
+        .order("name", { ascending: true }).order("id", { ascending: true }).range(from, to)),
+      readAllProcurementRows((from, to) => supabase
         .from("materials")
         .select("id, name, status, unit_of_measure, current_stock")
         .eq("company_id", context.companyId)
-        .order("name", { ascending: true }),
-      supabase
+        .order("name", { ascending: true }).order("id", { ascending: true }).range(from, to)),
+      readAllProcurementRows((from, to) => supabase
         .from("cost_codes")
         .select("id, code, name")
         .eq("company_id", context.companyId)
-        .order("code", { ascending: true }),
-      supabase
+        .order("code", { ascending: true }).order("id", { ascending: true }).range(from, to)),
+      readAllProcurementRows((from, to) => supabase
         .from("profiles")
         .select("id, first_name, last_name")
-        .eq("company_id", context.companyId),
-      supabase.from("purchase_order_receipts")
+        .eq("company_id", context.companyId).order("id", { ascending: true }).range(from, to)),
+      readAllProcurementRows((from, to) => supabase.from("purchase_order_receipts")
         .select("id, purchase_order_id, purchase_order_line_item_id, received_date, quantity_received, quantity_damaged, quantity_backordered, inventory_quantity_received, purchase_order_receipt_reversals(id, reason)")
-        .eq("company_id", context.companyId).order("created_at", { ascending: false }).limit(600),
+        .eq("company_id", context.companyId).order("created_at", { ascending: false }).order("id", { ascending: true }).range(from, to)),
     ]);
 
     if (requestResponse.error || purchaseOrderResponse.error || lineItemResponse.error || vendorResponse.error || projectResponse.error || materialResponse.error || costCodeResponse.error || profileResponse.error || receiptResponse.error) {
