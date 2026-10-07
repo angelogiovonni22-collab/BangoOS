@@ -730,9 +730,9 @@ export function ProcurementWorkflowClient({ initialProjectId, introduction }: { 
                     ) : null}
                   </div>
                 ))}
-                {!(payload.receipts ?? []).some((receipt) => receipt.purchaseOrderId === selectedPoId) ? <p className="text-sm text-[var(--color-text-secondary)]">No recent receipt history for this order.</p> : null}
+                {!(payload.receipts ?? []).some((receipt) => receipt.purchaseOrderId === selectedPoId) ? <p className="text-sm text-[var(--color-text-secondary)]">No receipt history for this order.</p> : null}
               </div>
-            ) : <p className="text-sm text-[var(--color-text-secondary)]">Select a purchase order to view its recent receipts.</p>}
+            ) : <p className="text-sm text-[var(--color-text-secondary)]">Select a purchase order to view its receipts.</p>}
             {reversalReceiptId && (payload.receipts ?? []).some((receipt) => receipt.id === reversalReceiptId && receipt.purchaseOrderId === selectedPoId && !receipt.reversalId) ? (
               <div className="space-y-2 rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] p-3">
                 <FormField label="Receipt reversal reason" required><Input maxLength={1000} value={reversalReason} onChange={(event) => setReversalReason(event.target.value)} /></FormField>
