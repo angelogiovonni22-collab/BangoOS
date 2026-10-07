@@ -26,7 +26,16 @@ function fixture(receiptCost = 20, failTable?: string, failCode = "XX000", failF
   const executed: string[] = [];
   const pages: { table: string; from: number; lastId?: unknown }[] = [];
   const filterBatches = new Map<string, number>();
+  const payroll: { data: unknown; error: { message: string } | null; calls: number } = {
+    data: { status: "available", company_id: "co1", projects: [], unassigned_gross_pay: 0, unknown_gross_pay: 0, unknown_line_count: 0, approved_gross_pay: 0, approved_line_count: 0 }, error: null, calls: 0,
+  };
   const client = {
+    rpc(name: string, args: { p_company_id: string }) {
+      assert.equal(name, "get_payroll_job_cost_totals");
+      assert.deepEqual(args, { p_company_id: "co1" }, "payroll costs must be company scoped");
+      payroll.calls++;
+      return Promise.resolve({ data: payroll.data, error: payroll.error });
+    },
     from(table: string) {
       let rows = tables[table] ?? [];
       let scoped = false;
@@ -54,7 +63,7 @@ function fixture(receiptCost = 20, failTable?: string, failCode = "XX000", failF
       return query;
     },
   };
-  return { client: client as never, executed, tables, pages };
+  return { client: client as never, executed, tables, pages, payroll };
 }
 
 function historyFixture(failTable?: string) {
@@ -94,7 +103,46 @@ function historyFixture(failTable?: string) {
   return { ...result, sourceTables: Object.keys(sources) };
 }
 
+async function payrollReportTests() {
+  const wages = fixture();
+  wages.payroll.data = { status: "available", company_id: "co1", projects: [{ project_id: "p1", gross_pay: 700, hours: 35 }], unassigned_gross_pay: 40, unknown_gross_pay: 0, unknown_line_count: 0, approved_gross_pay: 740, approved_line_count: 2 };
+  const project = await buildProjectFinancialReport({ supabase: wages.client, companyId: "co1", projectId: "p1" });
+  const company = await buildCompanyFinancialReport({ supabase: wages.client, companyId: "co1" });
+  assert.equal(project.summary.actualCost,775,"recorded approved payroll adds to existing $75 actuals exactly once");
+  assert.equal(project.summary.forecastFinalCost,865);
+  assert.equal(project.summary.grossProfit,135);
+  assert.equal(company.summary.projectGrossProfit,135,"company and project payroll forecasts agree");
+  assert.equal(project.jobCostByCategory.find(row=>row.category==='labor')?.actual,700);
+  assert.equal(project.labor.totalLaborCost,700);
+  assert.equal(project.labor.approvedPayrollHours,35);
+  assert.equal(project.labor.regularLaborCost,null,"do not infer project-specific overtime splits from a proportional gross snapshot");
+  assert.ok(project.availability.some(row=>row.key==='payroll_job_cost'&&row.detail.includes('$40.00')));
+  assert.equal(wages.payroll.calls,2,"one aggregate request per report, no per-project payroll reads");
+  const limited = fixture();
+  limited.payroll.data={status:'unavailable',reason:'finance_role_required'};
+  const limitedProject=await buildProjectFinancialReport({supabase:limited.client,companyId:'co1',projectId:'p1'});
+  const limitedCompany=await buildCompanyFinancialReport({supabase:limited.client,companyId:'co1'});
+  assert.equal(limitedProject.summary.actualCost,75);
+  assert.equal(limitedProject.labor.totalLaborCost,null);
+  assert.ok(limitedProject.availability.some(row=>row.key==='payroll_job_cost'&&row.status==='unavailable'));
+  assert.ok(limitedCompany.availability.some(row=>row.key==='payroll_job_cost'&&row.status==='unavailable'));
+  const legacy=fixture();
+  legacy.payroll.data={status:'partial',company_id:'co1',projects:[{project_id:'p1',gross_pay:100,hours:5}],unassigned_gross_pay:0,unknown_gross_pay:200,unknown_line_count:1,approved_gross_pay:300,approved_line_count:2};
+  const legacyProject=await buildProjectFinancialReport({supabase:legacy.client,companyId:'co1',projectId:'p1'});
+  assert.equal(legacyProject.summary.actualCost,175);
+  assert.ok(legacyProject.availability.some(row=>row.detail.includes('$200.00')&&row.detail.includes('excluded rather than reconstructed')));
+  for (const invalid of [null,{status:'available',company_id:'foreign',projects:[]},{status:'available',company_id:'co1',projects:[{project_id:'p1',gross_pay:700,hours:35}],unassigned_gross_pay:0,unknown_gross_pay:0,unknown_line_count:0,approved_gross_pay:600,approved_line_count:1}]) {
+    const broken=fixture(); broken.payroll.data=invalid;
+    await assert.rejects(buildProjectFinancialReport({supabase:broken.client,companyId:'co1',projectId:'p1'}),/Payroll/);
+    await assert.rejects(buildCompanyFinancialReport({supabase:broken.client,companyId:'co1'}),/Payroll/);
+  }
+  const unavailable=fixture(); unavailable.payroll.error={message:'Payroll history unavailable'};
+  await assert.rejects(buildProjectFinancialReport({supabase:unavailable.client,companyId:'co1',projectId:'p1'}),/Payroll history unavailable/);
+  await assert.rejects(buildCompanyFinancialReport({supabase:unavailable.client,companyId:'co1'}),/Payroll history unavailable/);
+}
+
 async function main() {
+  await payrollReportTests();
   for (const receiptCost of [20, 700]) {
     const { client, executed } = fixture(receiptCost);
     const project = await buildProjectFinancialReport({ supabase: client, companyId: "co1", projectId: "p1" });

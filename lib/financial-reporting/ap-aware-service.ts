@@ -1,3 +1,4 @@
+import { loadPayrollJobCosts } from "./payroll-costs";
 import { readAllSupabaseRows, readAllSupabaseRowsForIds } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
@@ -97,7 +98,9 @@ export async function buildProjectFinancialReport(params: {
   companyId: string;
   projectId: string;
 }): Promise<ProjectFinancialReport> {
-  const base = await buildReceiptAwareProjectFinancialReport(params);
+  const [base, payroll] = await Promise.all([buildReceiptAwareProjectFinancialReport(params), loadPayrollJobCosts(params)]);
+  const payrollCost = payroll.projects.get(params.projectId);
+  const payrollGross = payrollCost?.grossPay ?? 0;
   const db = params.supabase as SupabaseClient<Database> & {
     // Finance tables are migration-backed and intentionally queried without generated-type coupling.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,7 +133,7 @@ export async function buildProjectFinancialReport(params: {
   const lines = (linesResponse.data ?? []) as VendorBillLineRow[];
 
   const incrementalByCategory: Record<JobCostCategoryKey, number> = {
-    labor: 0,
+    labor: payrollGross,
     materials: 0,
     equipment: 0,
     vendors: 0,
@@ -177,11 +180,24 @@ export async function buildProjectFinancialReport(params: {
           ...(base.summary.metricSources.actualCost || []),
           "vendor_bills",
           "vendor_bill_line_items",
+          ...(payroll.accessible ? ["payroll_lines.project_allocations" as const] : []),
           "derived",
         ]),
       },
     },
-    jobCostByCategory: base.jobCostByCategory.map((row) => applyActualCost(row, incrementalByCategory[row.category])),
+    jobCostByCategory: base.jobCostByCategory.map((row) => {
+      const updated = applyActualCost(row, incrementalByCategory[row.category]);
+      return row.category === "labor" && payroll.accessible
+        ? { ...updated, dataStatus: "partial" as const, note: payroll.availability.detail }
+        : updated;
+    }),
+    labor: payroll.accessible ? {
+      ...base.labor,
+      approvedPayrollHours: payrollCost?.hours ?? 0,
+      totalLaborCost: payrollGross,
+      source: uniqueSources([...base.labor.source, "payroll_lines.project_allocations"]),
+      note: payroll.availability.detail,
+    } : base.labor,
     vendors: {
       ...base.vendors,
       actualVendorCost: money((base.vendors.actualVendorCost || 0) + incrementalByCategory.vendors),
@@ -195,7 +211,8 @@ export async function buildProjectFinancialReport(params: {
     },
     accountsPayable,
     availability: [
-      ...base.availability.filter((item) => item.key !== "accounts_payable_job_cost"),
+      ...base.availability.filter((item) => item.key !== "accounts_payable_job_cost" && (item.key !== "labor_cost" || !payroll.accessible)),
+      payroll.availability,
       {
         key: "accounts_payable_job_cost",
         label: "Accounts Payable Job Cost",
