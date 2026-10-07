@@ -608,9 +608,9 @@ export type Database = {
         ]
       }
       bos_billing_webhook_events: {
-        Row: { company_id: string | null; error_message: string | null; event_created_at: string | null; event_type: string; livemode: boolean; processed_at: string | null; processing_status: string; received_at: string; stripe_event_id: string }
-        Insert: { company_id?: string | null; error_message?: string | null; event_created_at?: string | null; event_type: string; livemode?: boolean; processed_at?: string | null; processing_status?: string; received_at?: string; stripe_event_id: string }
-        Update: { company_id?: string | null; error_message?: string | null; event_created_at?: string | null; event_type?: string; livemode?: boolean; processed_at?: string | null; processing_status?: string; received_at?: string; stripe_event_id?: string }
+        Row: { payload_fingerprint: string | null; processing_attempts: number; company_id: string | null; error_message: string | null; event_created_at: string | null; event_type: string; livemode: boolean; processed_at: string | null; processing_status: string; received_at: string; stripe_event_id: string }
+        Insert: { payload_fingerprint?: string | null; processing_attempts?: number; company_id?: string | null; error_message?: string | null; event_created_at?: string | null; event_type: string; livemode?: boolean; processed_at?: string | null; processing_status?: string; received_at?: string; stripe_event_id: string }
+        Update: { payload_fingerprint?: string | null; processing_attempts?: number; company_id?: string | null; error_message?: string | null; event_created_at?: string | null; event_type?: string; livemode?: boolean; processed_at?: string | null; processing_status?: string; received_at?: string; stripe_event_id?: string }
         Relationships: [{ foreignKeyName: "bos_billing_webhook_events_company_id_fkey"; columns: ["company_id"]; isOneToOne: false; referencedRelation: "companies"; referencedColumns: ["id"] }]
       }
       bos_intelligence_usage_ledger: {
@@ -5367,6 +5367,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_billing_webhook_event: {
+        Args: { p_event: Json; p_company_id: string | null; p_update: Json; p_processing_error?: string | null }
+        Returns: Json
+      }
+
       reverse_procurement_receipt: {
         Args: { p_company_id: string; p_operation_id: string; p_receipt_id: string; p_reason: string }
         Returns: string

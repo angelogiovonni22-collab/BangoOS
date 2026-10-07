@@ -7,7 +7,8 @@ const read = (path: string) => readFileSync(resolve(root, path), "utf8");
 const migration = read("supabase/migrations/20260823033000_stripe_subscription_billing_foundation.sql");
 const checkout = read("app/api/billing/checkout/route.ts");
 const portal = read("app/api/billing/portal/route.ts");
-const webhook = read("app/api/stripe/webhook/route.ts");
+const webhook = read("app/api/stripe/webhook/route.ts") + read("lib/billing/webhook-processing.ts");
+const recovery = read("supabase/migrations/20261007014421_audit_billing_webhook_atomic_recovery.sql");
 const stripeRest = read("lib/billing/stripe-rest.ts");
 const page = read("app/(app)/settings/billing/page.tsx");
 
@@ -26,7 +27,11 @@ assert.match(portal, /return_url: `\$\{origin\}\/settings\/billing`/, "Billing p
 
 assert.match(webhook, /stripe-signature/);
 assert.match(webhook, /verifyStripeSignature/);
-assert.match(webhook, /code === "23505"/, "Webhook processing must be idempotent by Stripe event ID");
+assert.match(webhook, /apply_billing_webhook_event/, "Webhook completion must use the atomic retry-safe RPC");
+assert.match(recovery, /on conflict \(stripe_event_id\) do nothing/);
+assert.match(recovery, /for update/);
+assert.match(recovery, /security invoker/);
+assert.match(recovery, /from public, anon, authenticated/);
 assert.match(webhook, /customer\.subscription\./, "Subscription create/update/delete lifecycle events must be processed");
 assert.match(webhook, /status === "trialing"/, "Trial lifecycle must be represented");
 assert.match(webhook, /status === "active"/, "Active subscription lifecycle must be represented");
@@ -39,7 +44,7 @@ assert.match(webhook, /payment_method_status: paid \? "current" : "action_requir
 assert.match(webhook, /seat_limit: plan\.seatLimit/, "Plan changes must refresh tenant seat entitlements");
 assert.match(webhook, /orion_text_allowance: plan\.orionTextAllowance/, "Plan changes must refresh Orion text entitlements");
 assert.match(webhook, /orion_voice_minutes: plan\.orionVoiceMinutes/, "Plan changes must refresh Orion voice entitlements");
-assert.match(webhook, /processing_status: "failed"/, "Failed webhook processing must remain auditable");
+assert.match(recovery, /processing_status='failed'/, "Failed webhook processing must remain auditable");
 
 assert.match(page, /owner.*administrator/);
 assert.match(stripeRest, /crypto\.subtle\.sign\("HMAC"/);
