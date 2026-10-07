@@ -86,6 +86,18 @@ export type ProcurementVendorSummary = {
 };
 
 export type ProcurementOverviewPayload = {
+  receipts?: Array<{
+    id: string;
+    purchaseOrderId: string;
+    lineItemId: string | null;
+    receivedDate: string;
+    quantityReceived: number | null;
+    quantityDamaged: number | null;
+    quantityBackordered: number | null;
+    inventoryQuantityReceived: number | null;
+    reversalId: string | null;
+    reversalReason: string | null;
+  }>;
   requests: ProcurementMaterialRequest[];
   purchaseOrders: ProcurementPurchaseOrder[];
   lineItems: ProcurementPurchaseOrderLine[];

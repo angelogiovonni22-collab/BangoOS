@@ -412,6 +412,7 @@ await db.exec(`reset role;
     select scope=current_setting('bos.company')::uuid and case
       when permission='materials.manage' then coalesce(nullif(current_setting('bos.materials_manage',true),'')::boolean,
         current_setting('bos.membership')=any(array['owner','administrator','operations_manager','project_manager']))
+      when permission='materials.view' then current_setting('bos.membership')=any(array['owner','administrator','operations_manager','project_manager','superintendent','foreman','estimator'])
       else false end
   $$;
 `);
@@ -489,7 +490,78 @@ await transition('issue',operationId(),operationsOrder);
 await call('receive',{...receive,purchaseOrderId:operationsOrder,lineItemId:operationsLine,quantityReceived:0.25});
 await call('allocate',{...allocate,purchaseOrderId:operationsOrder,lineItemId:operationsLine,quantityAllocated:0.25});
 assert.equal((await db.query('select updated_by from cost_codes where id=$1',[costCode])).rows[0].updated_by,user);
+await db.exec('reset role;');
+await db.exec(readFileSync('supabase/migrations/20261007010219_audit_procurement_receipt_reversals.sql','utf8'));
+await db.exec("set bos.membership='owner'; set role authenticated;");
+const reversalOrder=(await draft({...draftInput,requestId:null,lines:[{...draftInput.lines[0],quantityOrdered:0.5,costCodeId:costCode}]})).rows[0].id;
+const reversalLine=(await db.query('select id from purchase_order_line_items where purchase_order_id=$1',[reversalOrder])).rows[0].id;
+await transition('approve',operationId(),reversalOrder);
+await transition('issue',operationId(),reversalOrder);
+const initialReversalReceiveKey=operationId();
+const initialReversalReceivePayload={...receive,purchaseOrderId:reversalOrder,lineItemId:reversalLine,quantityReceived:0.5};
+const reversalReceipt=(await call('receive',initialReversalReceivePayload,initialReversalReceiveKey)).rows[0].id;
+const reverse=(receiptId,id=operationId(),reason='Synthetic correction',scope=company)=>db.query('select public.reverse_procurement_receipt($1,$2,$3,$4) as id',[scope,id,receiptId,reason]);
+const reversalState=async()=>({
+  stock:(await correctionState()).stock,
+  line:(await db.query('select quantity_received,quantity_damaged,quantity_backordered from purchase_order_line_items where id=$1',[reversalLine])).rows[0],
+  status:(await db.query('select status from purchase_orders where id=$1',[reversalOrder])).rows[0].status,
+  code:(await db.query('select committed_cost,actual_cost from cost_codes where id=$1',[costCode])).rows[0],
+  reversals:(await db.query('select count(*)::int n from purchase_order_receipt_reversals')).rows[0].n,
+});
+const beforeReversal=await reversalState();
+await db.exec('reset role; create trigger test_reversal_fail_cost before update on cost_codes for each row execute function fail_stock(); set role authenticated;');
+await assert.rejects(reverse(reversalReceipt),/injected stock failure/);
+assert.deepEqual(await reversalState(),beforeReversal);
+await db.exec('reset role; drop trigger test_reversal_fail_cost on cost_codes; set role authenticated;');
+await db.query('update materials set current_stock=0 where id=$1',[material]);
+await assert.rejects(reverse(reversalReceipt),/Insufficient inventory/);
+assert.equal((await reversalState()).reversals,beforeReversal.reversals);
+await db.query('update materials set current_stock=$1 where id=$2',[beforeReversal.stock,material]);
+await call('allocate',{...allocate,purchaseOrderId:reversalOrder,lineItemId:reversalLine,quantityAllocated:0.5});
+await assert.rejects(reverse(reversalReceipt),/Correct the project allocations/);
+await db.query('delete from project_material_allocations where company_id=$1 and purchase_order_line_item_id=$2',[company,reversalLine]);
+// Recorded inventory effect survives a later tracking toggle.
+await db.query('update materials set track_inventory=false where id=$1',[material]);
+const reversalKey=operationId();
+const reversed=(await reverse(reversalReceipt,reversalKey)).rows[0].id;
+const afterReversal=await reversalState();
+assert.equal(afterReversal.line.quantity_received,'0.000');
+assert.equal(afterReversal.status,'issued');
+assert.equal(Number(afterReversal.stock),Number(beforeReversal.stock)-0.5);
+assert.equal(Number(afterReversal.code.committed_cost),Number(beforeReversal.code.committed_cost)+1);
+assert.equal(afterReversal.code.actual_cost,beforeReversal.code.actual_cost);
+assert.equal((await reverse(reversalReceipt,reversalKey)).rows[0].id,reversed);
+assert.deepEqual(await reversalState(),afterReversal);
+assert.equal((await call('receive',initialReversalReceivePayload,initialReversalReceiveKey)).rows[0].id,reversalReceipt);
+assert.deepEqual(await reversalState(),afterReversal);
+await assert.rejects(reverse(reversalReceipt,reversalKey,'Changed reason'),/original receipt reversal/);
+await assert.rejects(reverse(reversalReceipt),/already been reversed/);
+await assert.rejects(reverse(receipt),/Legacy receipt effects/);
+await assert.rejects(reverse(reversalReceipt,operationId(),'Synthetic correction',otherCompany),/Not authorized/);
+await assert.rejects(db.query('update purchase_order_line_items set quantity_received=0.5 where id=$1',[reversalLine]),/receipt workflow/);
+await assert.rejects(db.query("update purchase_orders set status='fully_received' where id=$1",[reversalOrder]),/receipt state/);
+await assert.rejects(db.query('update purchase_order_receipt_reversals set quantity_received=999 where id=$1',[reversed]),/permission denied/);
+await assert.rejects(db.query('delete from purchase_order_receipt_reversals where id=$1',[reversed]),/permission denied/);
+await db.exec("set bos.membership='superintendent';");
+await assert.rejects(reverse(reversalReceipt),/Not authorized/);
+await db.exec("set bos.membership='project_manager';");
+await db.query('update materials set track_inventory=true where id=$1',[material]);
+const replacementReceipt=(await call('receive',{...receive,purchaseOrderId:reversalOrder,lineItemId:reversalLine,quantityReceived:0.5})).rows[0].id;
+await reverse(replacementReceipt);
+assert.equal((await reversalState()).status,'issued');
+const partialOrder=(await draft({...draftInput,requestId:null,lines:[{...draftInput.lines[0],quantityOrdered:1,costCodeId:null}]})).rows[0].id;
+const partialLine=(await db.query('select id from purchase_order_line_items where purchase_order_id=$1',[partialOrder])).rows[0].id;
+await transition('approve',operationId(),partialOrder); await transition('issue',operationId(),partialOrder);
+const mixedReceipt=(await call('receive',{...receive,purchaseOrderId:partialOrder,lineItemId:partialLine,quantityReceived:0.4,quantityDamaged:0.1,quantityBackordered:0.5})).rows[0].id;
+const finalPartialReceipt=(await call('receive',{...receive,purchaseOrderId:partialOrder,lineItemId:partialLine,quantityReceived:0.5})).rows[0].id;
+await reverse(mixedReceipt);
+assert.equal((await db.query('select status from purchase_orders where id=$1',[partialOrder])).rows[0].status,'partially_received');
+assert.deepEqual((await db.query('select quantity_received,quantity_damaged,quantity_backordered from purchase_order_line_items where id=$1',[partialLine])).rows[0],{quantity_received:'0.500',quantity_damaged:'0.000',quantity_backordered:'0.000'});
+await reverse(finalPartialReceipt);
+assert.equal((await db.query('select status from purchase_orders where id=$1',[partialOrder])).rows[0].status,'issued');
+assert.equal((await db.query('select quantity_received from purchase_order_line_items where id=$1',[partialLine])).rows[0].quantity_received,'0.000');
 await db.exec('reset role; set role anon;');
+await assert.rejects(reverse(replacementReceipt),/permission denied/);
 await assert.rejects(transition('approve'),/permission denied/);
 
 await assert.rejects(call('receive',receive),/permission denied/);

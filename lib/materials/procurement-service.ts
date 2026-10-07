@@ -101,6 +101,7 @@ export type ProcurementService = {
   issuePurchaseOrder: (purchaseOrderId: string) => Promise<ProcurementOverviewPayload>;
   cancelPurchaseOrder: (purchaseOrderId: string) => Promise<ProcurementOverviewPayload>;
   receivePurchaseOrderLine: (input: ReceivePurchaseOrderLineInput) => Promise<ProcurementOverviewPayload>;
+  reverseReceipt: (receiptId: string, reason: string) => Promise<ProcurementOverviewPayload>;
   allocateMaterialToProject: (input: AllocateMaterialInput) => Promise<ProcurementOverviewPayload>;
   getVendorSummary: (vendorId: string) => Promise<ProcurementVendorSummary>;
   getProjectSummary: (projectId: string) => Promise<ProcurementProjectSummary>;
@@ -158,6 +159,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
       materialResponse,
       costCodeResponse,
       profileResponse,
+      receiptResponse,
     ] = await Promise.all([
       supabase
         .from("material_requests")
@@ -201,9 +203,12 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
         .from("profiles")
         .select("id, first_name, last_name")
         .eq("company_id", context.companyId),
+      supabase.from("purchase_order_receipts")
+        .select("id, purchase_order_id, purchase_order_line_item_id, received_date, quantity_received, quantity_damaged, quantity_backordered, inventory_quantity_received, purchase_order_receipt_reversals(id, reason)")
+        .eq("company_id", context.companyId).order("created_at", { ascending: false }).limit(600),
     ]);
 
-    if (requestResponse.error || purchaseOrderResponse.error || lineItemResponse.error || vendorResponse.error || projectResponse.error || materialResponse.error || costCodeResponse.error || profileResponse.error) {
+    if (requestResponse.error || purchaseOrderResponse.error || lineItemResponse.error || vendorResponse.error || projectResponse.error || materialResponse.error || costCodeResponse.error || profileResponse.error || receiptResponse.error) {
       throw new ProcurementServiceError("PERSISTENCE", requestResponse.error?.message
         || purchaseOrderResponse.error?.message
         || lineItemResponse.error?.message
@@ -212,6 +217,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
         || materialResponse.error?.message
         || costCodeResponse.error?.message
         || profileResponse.error?.message
+        || receiptResponse.error?.message
         || "Unable to load procurement data.");
     }
 
@@ -236,6 +242,15 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
     );
 
     return {
+      receipts: ((receiptResponse.data ?? []) as Array<{ id: string; purchase_order_id: string; purchase_order_line_item_id: string | null; received_date: string; quantity_received: number | null; quantity_damaged: number | null; quantity_backordered: number | null; inventory_quantity_received: number | null; purchase_order_receipt_reversals?: Array<{ id: string; reason: string }> }>).map((receipt) => {
+        const reversal = receipt.purchase_order_receipt_reversals?.[0];
+        return { id: receipt.id, purchaseOrderId: receipt.purchase_order_id, lineItemId: receipt.purchase_order_line_item_id,
+          receivedDate: receipt.received_date, quantityReceived: receipt.quantity_received === null ? null : Number(receipt.quantity_received),
+          quantityDamaged: receipt.quantity_damaged === null ? null : Number(receipt.quantity_damaged),
+          quantityBackordered: receipt.quantity_backordered === null ? null : Number(receipt.quantity_backordered),
+          inventoryQuantityReceived: receipt.inventory_quantity_received === null ? null : Number(receipt.inventory_quantity_received),
+          reversalId: reversal?.id ?? null, reversalReason: reversal?.reason ?? null };
+      }),
       requests: requests.map((request) => ({
         id: request.id,
         requestNumber: request.request_number,
@@ -416,6 +431,22 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
         p_operation_id: operation.id,
         p_kind: "receive",
         p_payload: { ...input, receivedDate: operation.receivedDate },
+      });
+      if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
+      const overview = await loadOverviewInternal(context);
+      operation.complete();
+      return overview;
+    },
+
+    async reverseReceipt(receiptId, reason) {
+      const context = await ensureWorkspace(supabase, resolveWorkspace);
+      const details = { receiptId, reason: reason.trim() };
+      if (!receiptId || !details.reason || details.reason.length > 1000) {
+        throw new ProcurementServiceError("VALIDATION", "Select a receipt and enter a reversal reason of up to 1,000 characters.");
+      }
+      const operation = fulfillmentOperation(context.companyId, context.userId, "reverse_receipt", details, new Date(now()));
+      const { error } = await supabase.rpc("reverse_procurement_receipt", {
+        p_company_id: context.companyId, p_operation_id: operation.id, p_receipt_id: receiptId, p_reason: details.reason,
       });
       if (error) throw new ProcurementServiceError("PERSISTENCE", error.message);
       const overview = await loadOverviewInternal(context);
