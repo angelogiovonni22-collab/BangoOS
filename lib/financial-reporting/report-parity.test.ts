@@ -11,8 +11,8 @@ function fixture(receiptCost = 20) {
     project_scope_items: [{ project_id: "p1", material_cost: 350, labor_cost: 150 }],
     change_orders: [{ id: "c1", project_id: "p1", status: "approved", total_amount: 0 }, { id: "c2", project_id: "p1", status: "draft", total_amount: 500 }],
     change_order_line_items: [{ change_order_id: "c1", cost_amount: 100 }, { change_order_id: "c2", cost_amount: 500 }],
-    purchase_orders: [{ id: "po1", project_id: "p1", status: "approved" }, { id: "po2", project_id: "p1", status: "cancelled" }],
-    purchase_order_line_items: [{ id: "pol1", project_id: "p1", purchase_order_id: "po1", quantity_ordered: 10, quantity_received: 4, quantity_damaged: 1, unit_cost: 10 }, { project_id: "p1", purchase_order_id: "po2", quantity_ordered: 100, quantity_received: 0, quantity_damaged: 0, unit_cost: 10 }],
+    purchase_orders: [{ id: "po1", project_id: "p1", status: "approved" }, { id: "po2", project_id: "p1", status: "cancelled" }, { id: "po3", project_id: "p1", status: "draft" }],
+    purchase_order_line_items: [{ id: "pol1", project_id: "p1", purchase_order_id: "po1", cost_code_id: "cc1", quantity_ordered: 10, quantity_received: 4, quantity_damaged: 1, unit_cost: 10 }, { project_id: "p1", purchase_order_id: "po2", quantity_ordered: 100, quantity_received: 0, quantity_damaged: 0, unit_cost: 10 }, { project_id: "p1", purchase_order_id: "po3", cost_code_id: "cc1", quantity_ordered: 100, quantity_received: 0, quantity_damaged: 0, unit_cost: 25 }, { project_id: "p1", purchase_order_id: "missing-order", cost_code_id: "cc1", quantity_ordered: 100, quantity_received: 0, quantity_damaged: 0, unit_cost: 30 }],
     project_material_allocations: [{ project_id: "p1", total_cost: 25 }],
     project_receipts: [{ project_id: "p1", total_amount: receiptCost, status: "approved" }, { project_id: "p1", total_amount: 10000, status: "needs_review" }],
     trade_partner_assignments: [{ id: "v1", project_id: "p1", assignment_status: "active", contract_status: "signed", contract_amount: 40, retainage_percent: 0 }, { id: "v2", project_id: "p1", assignment_status: "archived", contract_status: "signed", contract_amount: 1000 }],
@@ -56,7 +56,8 @@ async function main() {
     assert.equal(project.summary.revisedBudget, 600, "working scope + approved internal CO cost");
     assert.equal(project.summary.revisedContractValue, 1000, "unpriced CO does not increase customer contract");
     assert.equal(project.summary.actualCost, 25 + receiptCost + 30, "PO-linked AP and unapproved/foreign costs excluded");
-    assert.equal(project.summary.committedCost, 90, "only outstanding PO quantity and active vendor contract");
+    assert.equal(project.summary.committedCost, 90, "draft, cancelled and orphan PO lines are excluded from commitments");
+    assert.equal(project.costCodeVariance.find((row) => row.costCodeId === "cc1")?.committed, 50, "cost-code commitments exclude drafts and missing parents");
     assert.equal(project.jobCostByCategory.reduce((sum, row) => sum + row.budget, 0), 600, "category budgets reconcile to working scope");
     const materials = project.jobCostByCategory.find((row) => row.category === "materials")!;
     assert.equal(materials.forecast, Math.max(350, 50 + 25 + receiptCost), "small receipt cannot erase remaining materials budget");
