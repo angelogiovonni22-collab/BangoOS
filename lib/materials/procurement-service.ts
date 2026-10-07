@@ -477,24 +477,32 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
       const context = await ensureWorkspace(supabase, resolveWorkspace);
 
       const [ordersResponse, lineItemsResponse, tradePartnersResponse, projectsResponse] = await Promise.all([
-        supabase
+        readAllProcurementRows((from, to) => supabase
           .from("purchase_orders")
           .select("id, status, total_amount, project_id")
           .eq("company_id", context.companyId)
-          .eq("vendor_id", vendorId),
-        supabase
+          .eq("vendor_id", vendorId)
+          .order("id", { ascending: true })
+          .range(from, to)),
+        readAllProcurementRows((from, to) => supabase
           .from("purchase_order_line_items")
           .select("purchase_order_id, quantity_ordered, quantity_received, quantity_damaged")
-          .eq("company_id", context.companyId),
-        supabase
+          .eq("company_id", context.companyId)
+          .order("id", { ascending: true })
+          .range(from, to)),
+        readAllProcurementRows((from, to) => supabase
           .from("trade_partner_assignments")
           .select("project_id")
           .eq("company_id", context.companyId)
-          .eq("vendor_id", vendorId),
-        supabase
+          .eq("vendor_id", vendorId)
+          .order("id", { ascending: true })
+          .range(from, to)),
+        readAllProcurementRows((from, to) => supabase
           .from("projects")
           .select("id, name")
-          .eq("company_id", context.companyId),
+          .eq("company_id", context.companyId)
+          .order("id", { ascending: true })
+          .range(from, to)),
       ]);
 
       if (ordersResponse.error || lineItemsResponse.error || tradePartnersResponse.error || projectsResponse.error) {
@@ -563,21 +571,27 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
       const context = await ensureWorkspace(supabase, resolveWorkspace);
 
       const [ordersResponse, linesResponse, allocationsResponse] = await Promise.all([
-        supabase
+        readAllProcurementRows((from, to) => supabase
           .from("purchase_orders")
           .select("id, status")
           .eq("company_id", context.companyId)
-          .eq("project_id", projectId),
-        supabase
+          .eq("project_id", projectId)
+          .order("id", { ascending: true })
+          .range(from, to)),
+        readAllProcurementRows((from, to) => supabase
           .from("purchase_order_line_items")
           .select("purchase_order_id, project_id, quantity_ordered, quantity_received, quantity_damaged")
           .eq("company_id", context.companyId)
-          .eq("project_id", projectId),
-        supabase
+          .eq("project_id", projectId)
+          .order("id", { ascending: true })
+          .range(from, to)),
+        readAllProcurementRows<{ total_cost: number | null }>((from, to) => supabase
           .from("project_material_allocations")
           .select("total_cost")
           .eq("company_id", context.companyId)
-          .eq("project_id", projectId),
+          .eq("project_id", projectId)
+          .order("id", { ascending: true })
+          .range(from, to)),
       ]);
 
       if (ordersResponse.error || linesResponse.error || allocationsResponse.error) {
@@ -596,7 +610,7 @@ export function createProcurementService(deps: ServiceDependencies = {}): Procur
       const materialsReceived = lines.reduce((sum, line) => sum + Number(line.quantity_received ?? 0) + Number(line.quantity_damaged ?? 0), 0);
       const outstandingOrders = orders.filter((order) => order.status === "draft" || order.status === "approved" || order.status === "issued" || order.status === "partially_received").length;
       const pendingDeliveries = lines.filter((line) => pendingOrderIds.has(line.purchase_order_id) && Number(line.quantity_ordered ?? 0) > Number(line.quantity_received ?? 0) + Number(line.quantity_damaged ?? 0)).length;
-      const materialCost = toNumber((allocationsResponse.data ?? []).reduce((sum: number, row: { total_cost: number }) => sum + Number(row.total_cost ?? 0), 0));
+      const materialCost = toNumber((allocationsResponse.data ?? []).reduce((sum, row) => sum + Number(row.total_cost ?? 0), 0));
 
       return {
         materialsOrdered,
