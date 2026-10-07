@@ -1,0 +1,34 @@
+name: Invoice Payment Integrity
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/*invoice_payment_integrity*"
+      - "scripts/test-invoice-payment-integrity.mjs"
+      - ".github/workflows/invoice-payment-integrity.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*invoice_payment_integrity*"
+      - "scripts/test-invoice-payment-integrity.mjs"
+      - ".github/workflows/invoice-payment-integrity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare isolated PostgreSQL runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/invoice-postgres"
+          npm pack @electric-sql/pglite@0.3.14 --pack-destination "$RUNNER_TEMP/invoice-postgres"
+          tar -xzf "$RUNNER_TEMP/invoice-postgres/electric-sql-pglite-0.3.14.tgz" -C "$RUNNER_TEMP/invoice-postgres"
+      - name: Verify invoice receipt boundaries and balance recovery
+        run: node scripts/test-invoice-payment-integrity.mjs "$RUNNER_TEMP/invoice-postgres/package/dist/index.js"
