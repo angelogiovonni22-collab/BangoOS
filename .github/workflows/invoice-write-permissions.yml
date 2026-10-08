@@ -1,0 +1,38 @@
+name: Invoice Write Permissions
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/*invoice_write_permissions*"
+      - "supabase/migrations/*invoice_payment_integrity*"
+      - "supabase/migrations/20260815163000_role_department_access_control.sql"
+      - "scripts/test-invoice-write-permissions.mjs"
+      - ".github/workflows/invoice-write-permissions.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*invoice_write_permissions*"
+      - "supabase/migrations/*invoice_payment_integrity*"
+      - "supabase/migrations/20260815163000_role_department_access_control.sql"
+      - "scripts/test-invoice-write-permissions.mjs"
+      - ".github/workflows/invoice-write-permissions.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare isolated PostgreSQL runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/invoice-postgres"
+          npm pack @electric-sql/pglite@0.3.14 --pack-destination "$RUNNER_TEMP/invoice-postgres"
+          tar -xzf "$RUNNER_TEMP/invoice-postgres/electric-sql-pglite-0.3.14.tgz" -C "$RUNNER_TEMP/invoice-postgres"
+      - name: Verify invoice mutation roles and receipt rollup
+        run: node scripts/test-invoice-write-permissions.mjs "$RUNNER_TEMP/invoice-postgres/package/dist/index.js"
