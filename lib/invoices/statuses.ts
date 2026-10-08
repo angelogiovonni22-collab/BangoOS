@@ -32,3 +32,14 @@ export function normalizeInvoiceStatus(status: string) {
 
   return normalized;
 }
+
+/** Collectible balance; void history retains its original amounts. */
+export function invoiceBalanceDue(invoice: {
+  status: string;
+  total_amount: number;
+  amount_paid: number;
+}) {
+  return normalizeInvoiceStatus(invoice.status) === "void"
+    ? 0
+    : Math.max(invoice.total_amount - invoice.amount_paid, 0);
+}

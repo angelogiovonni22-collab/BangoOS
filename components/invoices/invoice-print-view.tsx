@@ -1,11 +1,12 @@
 "use client";
 
+
 import { useEffect, useMemo, useState } from "react";
 import { ErrorState, SkeletonLoader } from "@/components/ui";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { formatUsd } from "@/lib/invoices/calculations";
 import { getCustomerDisplayName, getProjectDisplayName, loadInvoiceById, loadInvoiceFormOptions } from "@/lib/invoices/service";
-import { formatInvoiceStatusLabel } from "@/lib/invoices/statuses";
+import { formatInvoiceStatusLabel, invoiceBalanceDue } from "@/lib/invoices/statuses";
 import type { InvoiceLineItemRow, InvoiceRow } from "@/lib/invoices/types";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -198,7 +199,7 @@ export function InvoicePrintView({ invoiceId }: { invoiceId: string }) {
           <TotalRow label="Additional Fee" value={formatUsd(invoice.additional_fee, localeTag)} />
           <TotalRow label="Total" value={formatUsd(invoice.total_amount, localeTag)} emphasized />
           <TotalRow label="Paid" value={formatUsd(invoice.amount_paid, localeTag)} />
-          <TotalRow label="Balance Due" value={formatUsd(Math.max(invoice.total_amount - invoice.amount_paid, 0), localeTag)} emphasized />
+          <TotalRow label="Balance Due" value={formatUsd(invoiceBalanceDue(invoice), localeTag)} emphasized />
         </section>
       </div>
     </div>

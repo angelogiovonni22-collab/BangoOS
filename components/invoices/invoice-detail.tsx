@@ -9,7 +9,7 @@ import { formatInvoiceDate } from "@/lib/invoices";
 import { formatUsd } from "@/lib/invoices/calculations";
 import { getCustomerDisplayName, getProjectDisplayName, loadInvoiceById, loadInvoiceFormOptions, markInvoicePaid, sendInvoice, voidInvoice } from "@/lib/invoices/service";
 import type { InvoiceLineItemRow, InvoicePaymentRow, InvoiceRow } from "@/lib/invoices/types";
-import { normalizeInvoiceStatus } from "@/lib/invoices/statuses";
+import { invoiceBalanceDue, normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
@@ -158,7 +158,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
     return <ErrorState title="Unable to load invoice" description={errorMessage || "Invoice not found."} />;
   }
 
-  const balanceDue = Math.max(invoice.total_amount - invoice.amount_paid, 0);
+  const balanceDue = invoiceBalanceDue(invoice);
   const status = normalizeInvoiceStatus(invoice.status);
   const canSend = status === "draft";
   const canRecordPayment = status !== "void" && status !== "paid" && balanceDue > 0;

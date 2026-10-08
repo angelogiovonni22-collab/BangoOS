@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader, getButtonClassName } from "@/components/ui";
 import { InvoicesDirectory } from "@/components/invoices";
 import { loadInvoiceDirectoryData, getCustomerDisplayName, getProjectDisplayName } from "@/lib/invoices/service";
-import { normalizeInvoiceStatus } from "@/lib/invoices/statuses";
+import { invoiceBalanceDue, normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
@@ -38,7 +38,7 @@ export default function InvoicesPage() {
       const isOverdue = normalizedStatus !== "paid" && normalizedStatus !== "void" && dueDate && dueDate < now;
       const unassigned = es ? "Sin asignar" : "Unassigned";
       const notLinked = es ? "Sin vincular" : "Not linked";
-      return { id: invoice.id, invoiceNumber: invoice.invoice_number || unassigned, title: invoice.title, customerName: invoice.customer_id ? customerMap.get(invoice.customer_id) || notLinked : notLinked, customerId: invoice.customer_id, projectName: invoice.project_id ? projectMap.get(invoice.project_id) || notLinked : notLinked, projectId: invoice.project_id, status: isOverdue ? "overdue" : normalizedStatus, issueDate: invoice.issue_date, dueDate: invoice.due_date, totalAmount: invoice.total_amount || 0, amountPaid: invoice.amount_paid || 0, balanceDue: Math.max((invoice.total_amount || 0) - (invoice.amount_paid || 0), 0), updatedAt: invoice.updated_at };
+      return { id: invoice.id, invoiceNumber: invoice.invoice_number || unassigned, title: invoice.title, customerName: invoice.customer_id ? customerMap.get(invoice.customer_id) || notLinked : notLinked, customerId: invoice.customer_id, projectName: invoice.project_id ? projectMap.get(invoice.project_id) || notLinked : notLinked, projectId: invoice.project_id, status: isOverdue ? "overdue" : normalizedStatus, issueDate: invoice.issue_date, dueDate: invoice.due_date, totalAmount: invoice.total_amount || 0, amountPaid: invoice.amount_paid || 0, balanceDue: invoiceBalanceDue(invoice), updatedAt: invoice.updated_at };
     }));
     setCustomerOptions(result.customers.map((customer) => ({ value: customer.id, label: getCustomerDisplayName(customer) })));
     setProjectOptions(result.projects.map((project) => ({ value: project.id, label: getProjectDisplayName(project) })));

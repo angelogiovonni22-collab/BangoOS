@@ -1,4 +1,5 @@
 import { addCalendarDays, localCalendarDate } from "@/lib/dates/calendar-date";
+import { readAllSupabaseRows } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculateInvoiceTotals, invoiceLineItemMoney } from "@/lib/invoices/calculations";
 import { getNextInvoiceNumber } from "@/lib/invoices/numbering";
@@ -80,21 +81,24 @@ export async function loadInvoiceDirectoryData(
   companyId: string,
 ) {
   const [invoicesResponse, customersResponse, projectsResponse] = await Promise.all([
-    supabase
+    readAllSupabaseRows<InvoiceDirectoryRecord>((from, to) => supabase
       .from("invoices")
       .select("id, title, invoice_number, customer_id, project_id, status, issue_date, due_date, total_amount, amount_paid, updated_at, archived_at")
       .eq("company_id", companyId)
-      .order("updated_at", { ascending: false }),
-    supabase
+      .order("updated_at", { ascending: false })
+      .order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows<CustomerSummaryRow>((from, to) => supabase
       .from("customers")
       .select("id, first_name, last_name, company_name, customer_type, email, phone, address_line_1, address_line_2, city, state, postal_code")
       .eq("company_id", companyId)
-      .order("created_at", { ascending: false }),
-    supabase
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows<ProjectSummaryRow>((from, to) => supabase
       .from("projects")
       .select("id, name, customer_id")
       .eq("company_id", companyId)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true }).range(from, to)),
   ]);
 
   if (invoicesResponse.error) {
