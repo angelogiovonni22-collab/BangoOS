@@ -161,7 +161,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   }
 
   if (errorMessage || !invoice) {
-    return <ErrorState title="Unable to load invoice" description={errorMessage || "Invoice not found."} />;
+    return <ErrorState title={actionNotice ? "Payment recorded; invoice could not be refreshed" : "Unable to load invoice"} description={actionNotice ? `${actionNotice} ${errorMessage || "Invoice not found."}` : errorMessage || "Invoice not found."} />;
   }
 
   const balanceDue = invoiceBalanceDue(invoice);
