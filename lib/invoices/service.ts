@@ -76,6 +76,19 @@ export type InvoiceRecordWithChildren = {
   payments: InvoicePaymentRow[];
 };
 
+type InvoicePermissionRpc = (name: "bos_role_has_permission", args: { p_company_id: string; p_permission: "invoices.manage" }) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+
+/** Use the database's active membership and overrides; unavailable checks deny writes. */
+export async function canManageInvoices(supabase: SupabaseClient<Database>, companyId: string) {
+  try {
+    const rpc = supabase.rpc.bind(supabase) as unknown as InvoicePermissionRpc;
+    const result = await rpc("bos_role_has_permission", { p_company_id: companyId, p_permission: "invoices.manage" });
+    return !result.error && result.data === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function loadInvoiceDirectoryData(
   supabase: SupabaseClient<Database>,
   companyId: string,

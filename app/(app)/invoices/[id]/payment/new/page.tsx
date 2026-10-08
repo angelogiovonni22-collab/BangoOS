@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
+import { canManageInvoices } from "@/lib/invoices/service";
 import { recordCustomerPayment } from "@/lib/accounts-receivable/service";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -21,6 +22,7 @@ export default function RecordCustomerPaymentPage() {
   const [userId, setUserId] = useState("");
   const [invoice, setInvoice] = useState<{ invoice_number: string | null; title: string; total_amount: number; amount_paid: number; status: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [canManage, setCanManage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [recordedWarning, setRecordedWarning] = useState<string | null>(null);
@@ -32,6 +34,8 @@ export default function RecordCustomerPaymentPage() {
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true);
+      setCanManage(false);
       if (!supabase || !invoiceId) {
         setError("Invoice not found.");
         setLoading(false);
@@ -43,18 +47,19 @@ export default function RecordCustomerPaymentPage() {
         setLoading(false);
         return;
       }
-      const result = await supabase
+      const [result, manage] = await Promise.all([supabase
         .from("invoices")
         .select("invoice_number, title, total_amount, amount_paid, status")
         .eq("company_id", workspace.context.companyId)
         .eq("id", invoiceId)
-        .maybeSingle();
+        .maybeSingle(), canManageInvoices(supabase, workspace.context.companyId)]);
       if (result.error || !result.data) {
         setError(result.error?.message || "Invoice not found.");
         setLoading(false);
         return;
       }
       const balance = invoiceBalanceDue(result.data);
+      setCanManage(manage);
       setCompanyId(workspace.context.companyId);
       setUserId(workspace.context.userId);
       setInvoice(result.data);
@@ -71,6 +76,7 @@ export default function RecordCustomerPaymentPage() {
   const status = normalizeInvoiceStatus(invoice.status);
   const isDraft = status === "draft";
   if (recordedWarning) return <div className="container-content max-w-3xl space-y-6"><PageHeader title="Payment recorded" description={recordedWarning} /><Link href={`/invoices/${invoiceId}`} className={getButtonClassName({ variant: "primary" })}>View Invoice</Link></div>;
+  if (!canManage) return <div className="container-content max-w-3xl space-y-6"><PageHeader title="Invoice management access required" description="You can review this invoice, but your account cannot record payments." /><Link href={`/invoices/${invoiceId}`} className={getButtonClassName({ variant: "secondary" })}>View Invoice</Link></div>;
   if (status === "void" || status === "paid" || balance <= 0) return <div className="container-content max-w-3xl space-y-6"><PageHeader title="No payment to record" description="This invoice has no collectible balance." /><Link href={`/invoices/${invoiceId}`} className={getButtonClassName({ variant: "secondary" })}>View Invoice</Link></div>;
 
   async function submit(event: FormEvent) {

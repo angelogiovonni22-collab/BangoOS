@@ -19,6 +19,7 @@ import type { InvoiceDirectoryItem } from "@/components/invoices/types";
 type SortField = "invoiceNumber" | "customerName" | "projectName" | "status" | "issueDate" | "dueDate" | "totalAmount" | "balanceDue" | "updatedAt";
 
 type InvoicesTableProps = {
+  canManage: boolean;
   items: InvoiceDirectoryItem[];
   localeTag: string;
   sortField: SortField;
@@ -27,6 +28,7 @@ type InvoicesTableProps = {
 };
 
 export function InvoicesTable({
+  canManage,
   items,
   localeTag,
   sortField,
@@ -69,9 +71,9 @@ export function InvoicesTable({
                 <Link href={`/invoices/${item.id}`} className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">
                   View
                 </Link>
-                <Link href={`/invoices/${item.id}/edit`} className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">
+                {canManage ? <Link href={`/invoices/${item.id}/edit`} className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">
                   Edit
-                </Link>
+                </Link> : null}
               </div>
             </EnterpriseTableCell>
           </EnterpriseTableRow>
