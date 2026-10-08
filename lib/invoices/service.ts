@@ -139,26 +139,30 @@ export async function loadInvoiceFormOptions(
   companyId: string,
 ): Promise<{ error: string | null; data: InvoiceFormOptions | null }> {
   const [customersResponse, projectsResponse, profilesResponse, estimatesResponse] = await Promise.all([
-    supabase
+    readAllSupabaseRows<CustomerSummaryRow>((from, to) => supabase
       .from("customers")
       .select("id, first_name, last_name, company_name, customer_type, email, phone, address_line_1, address_line_2, city, state, postal_code")
       .eq("company_id", companyId)
-      .order("created_at", { ascending: false }),
-    supabase
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows<ProjectSummaryRow>((from, to) => supabase
       .from("projects")
       .select("id, name, customer_id")
       .eq("company_id", companyId)
-      .order("created_at", { ascending: false }),
-    supabase
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows<ProfileSummaryRow>((from, to) => supabase
       .from("profiles")
       .select("id, first_name, last_name")
       .eq("company_id", companyId)
-      .order("first_name", { ascending: true }),
-    supabase
+      .order("first_name", { ascending: true })
+      .order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows<EstimateSummaryRow>((from, to) => supabase
       .from("estimates")
       .select("id, title, estimate_number, status, customer_id, project_id, total_amount")
       .eq("company_id", companyId)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true }).range(from, to)),
   ]);
 
   if (customersResponse.error) {
@@ -200,18 +204,20 @@ export async function loadInvoiceById(
       .eq("company_id", companyId)
       .eq("id", invoiceId)
       .maybeSingle<InvoiceRow>(),
-    supabase
+    readAllSupabaseRows<InvoiceLineItemRow>((from, to) => supabase
       .from("invoice_line_items")
       .select("*")
       .eq("company_id", companyId)
       .eq("invoice_id", invoiceId)
-      .order("sort_order", { ascending: true }),
-    supabase
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true }).range(from, to)),
+    readAllSupabaseRows<InvoicePaymentRow>((from, to) => supabase
       .from("invoice_payment_history")
       .select("*")
       .eq("company_id", companyId)
       .eq("invoice_id", invoiceId)
-      .order("payment_date", { ascending: false }),
+      .order("payment_date", { ascending: false })
+      .order("id", { ascending: true }).range(from, to)),
   ]);
 
   if (invoiceResponse.error) {

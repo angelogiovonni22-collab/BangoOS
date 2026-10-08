@@ -1,21 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { invoiceBalanceDue } from "../invoices/statuses";
-import { loadInvoiceDirectoryData } from "../invoices/service";
+import { loadInvoiceDirectoryData, loadInvoiceFormOptions, loadInvoiceById } from "../invoices/service";
 import { loadAccountsReceivable } from "../accounts-receivable/service";
 import { loadAccountsPayableSnapshot } from "./ap-prevailing-wage";
 import { loadAccountsPayableRegister } from "./accounts-payable-register";
 
 type Row = Record<string, unknown>;
 function history(failTable?: string) {
-  const tables: Record<string, Row[]> = { invoices: [], customers: [], projects: [], invoice_payment_history: [], vendor_bills: [], vendors: [] };
+  const tables: Record<string, Row[]> = { invoices: [], customers: [], projects: [], invoice_payment_history: [], vendor_bills: [], vendors: [], profiles: [], estimates: [], invoice_line_items: [] };
   for (let index = 0; index < 1501; index++) {
     const id = String(index).padStart(4, "0");
     tables.invoices.push({ id, company_id: "co1", invoice_number: id, title: id, customer_id: id, project_id: id, status: "sent", issue_date: "2026-09-01", due_date: "2026-09-01", total_amount: 2, amount_paid: 1, archived_at: null });
     tables.customers.push({ id, company_id: "co1", first_name: `Customer ${id}`, last_name: "", customer_type: "residential" });
     tables.projects.push({ id, company_id: "co1", name: `Project ${id}` });
+    tables.profiles.push({ id, company_id: "co1", first_name: `Worker ${id}`, last_name: "" });
+    tables.estimates.push({ id, company_id: "co1", title: `Estimate ${id}` });
+    tables.invoice_line_items.push({ id, company_id: "co1", invoice_id: "1500", sort_order: index, description: `Line ${id}` });
     tables.vendors.push({ id, company_id: "co1", display_name: `Vendor ${id}` });
-    tables.invoice_payment_history.push({ id, company_id: "co1", amount: 1, payment_date: "2026-10-02", status: "recorded" });
+    tables.invoice_payment_history.push({ id, company_id: "co1", invoice_id: "1500", amount: 1, payment_date: "2026-10-02", status: "recorded" });
     tables.vendor_bills.push({ id, company_id: "co1", vendor_id: id, project_id: id, bill_date: "2026-09-01", status: "approved", total_amount: 2, amount_paid: 1, balance_due: 1, due_date: "2026-09-01" });
   }
   for (const rows of Object.values(tables)) rows.push({ ...rows[0], id: "foreign", company_id: "other" });
@@ -23,6 +26,7 @@ function history(failTable?: string) {
   tables.invoices.push({ ...tables.invoices[0], id: "archived", archived_at: "2026-10-01", total_amount: 9999 });
   tables.vendor_bills.push({ ...tables.vendor_bills[0], id: "voided", status: "voided", balance_due: 9999 });
   tables.invoice_payment_history.push({ ...tables.invoice_payment_history[0], id: "old", payment_date: "2026-09-30", amount: 9999 }, { ...tables.invoice_payment_history[0], id: "voided", status: "voided", amount: 9999 });
+  for (const table of ["invoice_line_items", "invoice_payment_history"]) tables[table].push({ ...tables[table][0], id: "other-invoice", invoice_id: "elsewhere", payment_date: "2026-09-01" });
   const pages: { table: string; from: number }[] = [];
   const client = { from(table: string) {
     let rows = [...tables[table]];
@@ -30,6 +34,7 @@ function history(failTable?: string) {
     let ordered = false;
     let range: [number, number] | null = null;
     const query = {
+      maybeSingle() { assert.ok(scoped); return Promise.resolve({ data: rows[0] ?? null, error: null }); },
       select() { return query; },
       eq(column: string, value: unknown) { if (column === "company_id") scoped = true; rows = rows.filter(row => row[column] === value); return query; },
       neq(column: string, value: unknown) { rows = rows.filter(row => row[column] !== value); return query; },
@@ -120,5 +125,36 @@ test("invoice directory preserves complete company history and late lookup names
     assert.equal(failed.invoices, undefined);
     assert.equal(failed.customers, undefined);
     assert.equal(failed.projects, undefined);
+  }
+});
+
+
+test("invoice forms include all 1501 options and detail retains full scoped line and receipt history", async () => {
+  const f = history();
+  const options = await loadInvoiceFormOptions(f.client, "co1");
+  assert.equal(options.error, null);
+  for (const table of ["customers", "projects", "profiles", "estimates"] as const) {
+    assert.equal(options.data?.[table].length, 1501, table);
+    assert.ok(options.data?.[table].some(row => row.id === "1500"));
+  }
+  const detail = await loadInvoiceById(f.client, "co1", "1500");
+  assert.equal(detail.error, null);
+  assert.equal(detail.data?.invoice.id, "1500");
+  assert.equal(detail.data?.invoice.total_amount, 2);
+  assert.equal(detail.data?.lineItems.length, 1501);
+  assert.equal(detail.data?.payments.length, 1503);
+  for (const rows of [detail.data!.lineItems, detail.data!.payments]) {
+    assert.ok(rows.some(row => row.id === "1500"));
+    assert.ok(!rows.some(row => row.id === "foreign" || row.id === "other-invoice"));
+  }
+  for (const table of ["customers", "projects", "profiles", "estimates"]) {
+    const failed = await loadInvoiceFormOptions(history(table).client, "co1");
+    assert.equal(failed.data, null);
+    assert.equal(failed.error, `${table} later page unavailable`);
+  }
+  for (const table of ["invoice_line_items", "invoice_payment_history"]) {
+    const failed = await loadInvoiceById(history(table).client, "co1", "1500");
+    assert.equal(failed.data, null);
+    assert.equal(failed.error, `${table} later page unavailable`);
   }
 });
