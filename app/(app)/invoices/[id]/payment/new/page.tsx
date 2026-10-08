@@ -1,5 +1,6 @@
 "use client";
 
+import { invoiceBalanceDue, normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import { localCalendarDate } from "@/lib/dates/calendar-date";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -22,6 +23,7 @@ export default function RecordCustomerPaymentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [recordedWarning, setRecordedWarning] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(localCalendarDate());
   const [method, setMethod] = useState("check");
@@ -52,7 +54,7 @@ export default function RecordCustomerPaymentPage() {
         setLoading(false);
         return;
       }
-      const balance = Math.max(Number(result.data.total_amount) - Number(result.data.amount_paid), 0);
+      const balance = invoiceBalanceDue(result.data);
       setCompanyId(workspace.context.companyId);
       setUserId(workspace.context.userId);
       setInvoice(result.data);
@@ -65,12 +67,15 @@ export default function RecordCustomerPaymentPage() {
   if (loading) return <SkeletonLoader className="h-80 w-full" />;
   if (error || !invoice || !invoiceId) return <ErrorState title="Unable to record payment" description={error || "Invoice not found."} />;
 
-  const balance = Math.max(Number(invoice.total_amount) - Number(invoice.amount_paid), 0);
-  const isDraft = invoice.status === "draft";
+  const balance = invoiceBalanceDue(invoice);
+  const status = normalizeInvoiceStatus(invoice.status);
+  const isDraft = status === "draft";
+  if (recordedWarning) return <div className="container-content max-w-3xl space-y-6"><PageHeader title="Payment recorded" description={recordedWarning} /><Link href={`/invoices/${invoiceId}`} className={getButtonClassName({ variant: "primary" })}>View Invoice</Link></div>;
+  if (status === "void" || status === "paid" || balance <= 0) return <div className="container-content max-w-3xl space-y-6"><PageHeader title="No payment to record" description="This invoice has no collectible balance." /><Link href={`/invoices/${invoiceId}`} className={getButtonClassName({ variant: "secondary" })}>View Invoice</Link></div>;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!supabase || !invoiceId) return;
+    if (!supabase || !invoiceId || saving || recordedWarning) return;
     setSaving(true);
     setError(null);
     const result = await recordCustomerPayment({
@@ -86,6 +91,11 @@ export default function RecordCustomerPaymentPage() {
     });
     if (result.error) {
       setError(result.error);
+      setSaving(false);
+      return;
+    }
+    if (result.warning) {
+      setRecordedWarning(result.warning);
       setSaving(false);
       return;
     }
