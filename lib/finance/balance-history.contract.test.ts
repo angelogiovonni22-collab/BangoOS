@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { invoiceBalanceDue } from "../invoices/statuses";
+import { loadInvoiceDirectoryData } from "../invoices/service";
 import { loadAccountsReceivable } from "../accounts-receivable/service";
 import { loadAccountsPayableSnapshot } from "./ap-prevailing-wage";
 import { loadAccountsPayableRegister } from "./accounts-payable-register";
@@ -93,5 +95,30 @@ test("payable register keeps late bills, vendor names, project names and voided 
   assert.ok(result.bills.some(row => row.status === "voided"));
   for (const table of ["vendor_bills", "vendors", "projects"]) {
     await assert.rejects(loadAccountsPayableRegister(history(table).client, "co1"), new RegExp(`${table} later page unavailable`));
+  }
+});
+
+
+test("invoice directory preserves complete company history and late lookup names", async () => {
+  const result = await loadInvoiceDirectoryData(history().client, "co1");
+  assert.equal(result.error, null);
+  assert.equal(result.invoices?.length, 1505);
+  assert.equal(result.customers?.length, 1501);
+  assert.equal(result.projects?.length, 1501);
+  assert.equal(result.customers?.find(row => row.id === "1500")?.first_name, "Customer 1500");
+  assert.equal(result.projects?.find(row => row.id === "1500")?.name, "Project 1500");
+  const voided = result.invoices?.find(row => row.status === "void");
+  assert.ok(voided);
+  assert.equal(voided.total_amount, 9999);
+  assert.equal(invoiceBalanceDue(voided), 0);
+  assert.equal(invoiceBalanceDue(result.invoices!.find(row => row.id === "1500")!), 1);
+  assert.ok(result.invoices?.some(row => row.archived_at));
+  assert.ok(!result.invoices?.some(row => row.id === "foreign"));
+  for (const table of ["invoices", "customers", "projects"]) {
+    const failed = await loadInvoiceDirectoryData(history(table).client, "co1");
+    assert.equal(failed.error, `${table} later page unavailable`);
+    assert.equal(failed.invoices, undefined);
+    assert.equal(failed.customers, undefined);
+    assert.equal(failed.projects, undefined);
   }
 });
