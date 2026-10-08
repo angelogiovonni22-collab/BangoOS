@@ -13,7 +13,7 @@ import { InvoiceTotalsSection } from "@/components/invoices/invoice-totals";
 import { calculateInvoiceTotals } from "@/lib/invoices/calculations";
 import { createEstimateConversionDraft } from "@/lib/invoices/conversion";
 import { getNextInvoiceNumber } from "@/lib/invoices/numbering";
-import { getCustomerDisplayName, getProfileDisplayName, getProjectDisplayName, loadInvoiceById, loadInvoiceFormOptions, saveInvoice, sendInvoice } from "@/lib/invoices/service";
+import { canManageInvoices, getCustomerDisplayName, getProfileDisplayName, getProjectDisplayName, loadInvoiceById, loadInvoiceFormOptions, saveInvoice, sendInvoice } from "@/lib/invoices/service";
 import type { InvoiceFormMode } from "@/components/invoices/types";
 import type { InvoiceFormErrors, InvoiceFormValues, InvoiceLineItemDraft } from "@/lib/invoices/types";
 import { validateInvoiceForm } from "@/lib/invoices/validation";
@@ -125,6 +125,15 @@ export function InvoiceForm({
       if (workspace.errorMessage || !workspace.context) {
         if (isSubscribed) {
           setErrorMessage(workspace.errorMessage || "Unable to resolve workspace.");
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (!await canManageInvoices(supabase, workspace.context.companyId)) {
+        if (isSubscribed) {
+          setCompanyId("");
+          setErrorMessage("Invoice management access is required to create or edit an invoice.");
           setIsLoading(false);
         }
         return;

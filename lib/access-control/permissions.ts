@@ -73,7 +73,7 @@ const ALL_PERMISSIONS: BosPermission[] = [
 const ROLE_PERMISSIONS: Record<CompanyRole, readonly BosPermission[]> = {
   owner: ALL_PERMISSIONS,
   administrator: ALL_PERMISSIONS,
-  operations_manager: ALL_PERMISSIONS.filter((permission) => permission !== "access_control.manage" && permission !== "orion.use"),
+  operations_manager: ALL_PERMISSIONS.filter((permission) => permission !== "access_control.manage" && permission !== "orion.use" && permission !== "invoices.manage"),
   project_manager: [
     "dashboard.view", "operations.view", "projects.view", "projects.manage", "project_financials.view",
     "schedule.view", "schedule.manage", "daily_reports.view", "daily_reports.manage",

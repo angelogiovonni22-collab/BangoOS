@@ -7,7 +7,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, ErrorStat
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status";
 import { formatInvoiceDate } from "@/lib/invoices";
 import { formatUsd } from "@/lib/invoices/calculations";
-import { getCustomerDisplayName, getProjectDisplayName, loadInvoiceById, loadInvoiceFormOptions, markInvoicePaid, sendInvoice, voidInvoice } from "@/lib/invoices/service";
+import { canManageInvoices, getCustomerDisplayName, getProjectDisplayName, loadInvoiceById, loadInvoiceFormOptions, markInvoicePaid, sendInvoice, voidInvoice } from "@/lib/invoices/service";
 import type { InvoiceLineItemRow, InvoicePaymentRow, InvoiceRow } from "@/lib/invoices/types";
 import { invoiceBalanceDue, normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +20,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const supabase = useMemo(() => createClient(), []);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [canManage, setCanManage] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
       }
 
       setIsLoading(true);
+      setCanManage(false);
       setErrorMessage(null);
 
       const workspace = await resolveWorkspaceContext(supabase);
@@ -69,8 +71,9 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
         return;
       }
 
-      const [optionsResult, changeOrderLinksResult] = await Promise.all([
+      const [optionsResult, manage, changeOrderLinksResult] = await Promise.all([
         loadInvoiceFormOptions(supabase, workspace.context.companyId),
+        canManageInvoices(supabase, workspace.context.companyId),
         supabase
           .from("change_order_invoice_links")
           .select("change_order_id")
@@ -79,6 +82,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
       ]);
 
       if (isSubscribed) {
+        setCanManage(manage);
         setCompanyId(workspace.context.companyId);
         setUserId(workspace.context.userId);
         setInvoice(invoiceResult.data.invoice);
@@ -160,10 +164,10 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 
   const balanceDue = invoiceBalanceDue(invoice);
   const status = normalizeInvoiceStatus(invoice.status);
-  const canSend = status === "draft";
-  const canRecordPayment = status !== "void" && status !== "paid" && balanceDue > 0;
-  const canMarkPaid = ["sent", "viewed", "partially_paid", "overdue"].includes(status) && balanceDue > 0;
-  const canVoid = status !== "paid" && status !== "void";
+  const canSend = canManage && status === "draft";
+  const canRecordPayment = canManage && status !== "void" && status !== "paid" && balanceDue > 0;
+  const canMarkPaid = canManage && ["sent", "viewed", "partially_paid", "overdue"].includes(status) && balanceDue > 0;
+  const canVoid = canManage && status !== "paid" && status !== "void";
 
   return (
     <div className="space-y-6">
@@ -188,9 +192,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
             <Button type="button" variant="secondary" size="md" onClick={handleVoid} disabled={isSaving || !canVoid}>Void</Button>
           </>
         )}
-        primaryAction={(
-          <Link href={`/invoices/${invoiceId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Invoice</Link>
-        )}
+        primaryAction={canManage ? <Link href={`/invoices/${invoiceId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Invoice</Link> : undefined}
       />
 
       {actionError && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm">{actionError}</p>}
