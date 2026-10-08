@@ -23,6 +23,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const [canManage, setCanManage] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string>("");
@@ -129,14 +130,15 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
     };
   }, [supabase, invoiceId, refreshVersion]);
 
-  async function runInvoiceAction(action: typeof sendInvoice) {
+  async function runInvoiceAction(action: (params: { supabase: NonNullable<typeof supabase>; companyId: string; invoiceId: string; userId: string }) => Promise<{ error: string | null; warning?: string }>) {
     if (!supabase || !companyId || !userId || !invoice || isSaving) return;
     setIsSaving(true);
     setActionError(null);
+    setActionNotice(null);
     try {
       const result = await action({ supabase, companyId, invoiceId, userId });
       if (result.error) setActionError(result.error);
-      else setRefreshVersion((version) => version + 1);
+      else { setActionNotice(result.warning || null); setRefreshVersion((version) => version + 1); }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update invoice. Please try again.");
     } finally {
@@ -159,7 +161,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   }
 
   if (errorMessage || !invoice) {
-    return <ErrorState title="Unable to load invoice" description={errorMessage || "Invoice not found."} />;
+    return <ErrorState title={actionNotice ? "Payment recorded; invoice could not be refreshed" : "Unable to load invoice"} description={actionNotice ? `${actionNotice} ${errorMessage || "Invoice not found."}` : errorMessage || "Invoice not found."} />;
   }
 
   const balanceDue = invoiceBalanceDue(invoice);
@@ -195,6 +197,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
         primaryAction={canManage ? <Link href={`/invoices/${invoiceId}/edit`} className={getButtonClassName({ size: "md" })}>Edit Invoice</Link> : undefined}
       />
 
+      {actionNotice && <p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">{actionNotice}</p>}
       {actionError && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm">{actionError}</p>}
       {isSaving && <p role="status" className="text-sm text-[var(--color-text-secondary)]">Updating invoice…</p>}
 

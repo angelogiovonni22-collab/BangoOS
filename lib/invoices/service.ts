@@ -1,3 +1,4 @@
+import { recordCustomerPayment, type CustomerPaymentResult } from "@/lib/accounts-receivable/service";
 import { addCalendarDays, localCalendarDate } from "@/lib/dates/calendar-date";
 import { readAllSupabaseRows } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -563,112 +564,21 @@ export async function markInvoicePaid(params: {
   companyId: string;
   invoiceId: string;
   userId: string;
-}) {
-  const record = await loadInvoiceById(params.supabase, params.companyId, params.invoiceId);
-
-  if (record.error || !record.data) {
-    return { error: record.error || "Invoice not found." };
-  }
-
-  const now = new Date().toISOString();
-  const remainingBalance = Math.max(record.data.invoice.total_amount - record.data.invoice.amount_paid, 0);
-
-  if (remainingBalance <= 0) {
-    return { error: null };
-  }
-
-  const paymentResult = await params.supabase
-    .from("invoice_payment_history")
-    .insert({
-      company_id: params.companyId,
-      invoice_id: params.invoiceId,
-      payment_date: now.slice(0, 10),
-      amount: remainingBalance,
-      method: "manual",
-      status: "recorded",
-      notes: "Marked paid from invoice profile.",
-      created_by: params.userId,
-    })
-    .select("id")
-    .single();
-
-  if (paymentResult.error) {
-    return { error: paymentResult.error.message };
-  }
-
-  const updateResult = await params.supabase
-    .from("invoices")
-    .update({
-      status: "paid",
-      amount_paid: record.data.invoice.total_amount,
-      paid_date: now.slice(0, 10),
-      updated_by: params.userId,
-    })
-    .eq("company_id", params.companyId)
-    .eq("id", params.invoiceId)
-    .eq("amount_paid", record.data.invoice.amount_paid)
-    .select("id")
-    .maybeSingle();
-
-  if (updateResult.error || !updateResult.data) {
-    await params.supabase
-      .from("invoice_payment_history")
-      .delete()
-      .eq("company_id", params.companyId)
-      .eq("id", paymentResult.data.id);
-
-    return {
-      error: updateResult.error?.message || "Invoice balance changed while marking the invoice paid. Refresh and try again.",
-    };
-  }
-
-  {
-    const orion = createSupabaseOrionEventPublisher(params.supabase);
-    await orion.publishEvent({
-      company_id: params.companyId,
-      actor_profile_id: params.userId,
-      event_type: "invoice.paid",
-      aggregate_type: "invoice",
-      aggregate_id: params.invoiceId,
-      source_module: "invoices",
-      payload: {
-        invoice_id: params.invoiceId,
-        amount_paid: record.data.invoice.total_amount,
-        paid_date: now.slice(0, 10),
-        deep_link: `/invoices/${params.invoiceId}`,
-      },
-      metadata: {
-        workflow_name: "invoice_lifecycle",
-        event_category: "finance",
-        event_severity: "success",
-        deep_link: `/invoices/${params.invoiceId}`,
-      },
-    });
-
-    await orion.publishEvent({
-      company_id: params.companyId,
-      actor_profile_id: params.userId,
-      event_type: "payment.received",
-      aggregate_type: "payment",
-      aggregate_id: params.invoiceId,
-      source_module: "payments",
-      occurred_at: now,
-      payload: {
-        invoice_id: params.invoiceId,
-        amount: remainingBalance,
-        paid_date: now.slice(0, 10),
-        deep_link: `/invoices/${params.invoiceId}`,
-      },
-      metadata: {
-        workflow_name: "invoice_lifecycle",
-        event_category: "finance",
-        event_severity: "success",
-        deep_link: `/invoices/${params.invoiceId}`,
-      },
-    });
-  }
-
-  return { error: null };
+}): Promise<CustomerPaymentResult> {
+  const result = await params.supabase.from("invoices")
+    .select("id, total_amount, amount_paid, status")
+    .eq("company_id", params.companyId).eq("id", params.invoiceId).maybeSingle();
+  if (result.error || !result.data) return { error: result.error?.message || "Invoice not found." };
+  const invoice = result.data;
+  const status = normalizeInvoiceStatus(invoice.status);
+  if (status === "void" || status === "draft") return { error: "Only issued invoices can be marked paid." };
+  const remainingBalance = Math.max(invoice.total_amount - invoice.amount_paid, 0);
+  if (remainingBalance <= 0) return { error: null };
+  // Receipt insertion performs the atomic database rollup. Never follow it with
+  // a stale balance update or erase a committed receipt after confirmation fails.
+  return recordCustomerPayment({ ...params, amount: remainingBalance,
+    paymentDate: new Date().toISOString().slice(0, 10), method: "manual",
+    notes: "Marked paid from invoice profile." });
 }
 
 export async function voidInvoice(params: {
