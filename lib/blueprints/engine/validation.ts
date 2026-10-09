@@ -1,5 +1,6 @@
 import { clampBosConfidence, type BosBuildingGraph, type BosValidationIssue, type BosValidationReport } from "./building-graph";
 import { footprintComplexity, topologyMetrics } from "./geometry";
+import { openingAwareWallCenterlines } from "./opening-topology";
 
 export type BosValidationThresholds = {
   reconstructedScore: number;
@@ -36,8 +37,8 @@ export function validateBosBuildingGraph(
   const issues: BosValidationIssue[] = [];
   const exterior = graph.walls.filter((wall) => wall.type === "exterior");
   const perimeterSource = exterior.length >= 3 ? exterior : graph.walls;
-  const fullTopology = topologyMetrics(graph.walls.map((wall) => wall.centerline));
-  const perimeterTopology = topologyMetrics(perimeterSource.map((wall) => wall.centerline));
+  const fullTopology = topologyMetrics(openingAwareWallCenterlines(graph));
+  const perimeterTopology = topologyMetrics(openingAwareWallCenterlines(graph, perimeterSource));
   const complexity = footprintComplexity(perimeterSource.map((wall) => wall.centerline));
   const fidelityMetrics = graph.validation.metrics as FidelityMetrics;
   const sourceAlignment = typeof fidelityMetrics.sourceAlignment === "number"
@@ -52,7 +53,7 @@ export function validateBosBuildingGraph(
     issues.push(issue("EXTERIOR_UNDERTRACE", "error", `Only ${exterior.length} exterior wall segments were reconstructed.`));
   }
   if (fullTopology.closure < thresholds.minClosure) {
-    issues.push(issue("OPEN_TOPOLOGY", "warning", "The reconstructed wall topology contains too many dangling endpoints."));
+    issues.push(issue("OPEN_TOPOLOGY", "warning", "The reconstructed wall topology contains too many unexplained dangling endpoints after verified door/window gaps are accounted for."));
   }
   if (graph.scale.confidence < thresholds.minScaleConfidence || !graph.scale.drawingUnitsPerMeter) {
     issues.push(issue("LOW_SCALE_CONFIDENCE", "warning", "Drawing scale is missing or insufficiently verified."));
