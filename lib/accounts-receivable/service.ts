@@ -59,29 +59,45 @@ export async function loadAccountsReceivable(supabase:SupabaseClient<Database>,c
 
 export type CustomerPaymentResult = { error: string | null; paymentId?: string; warning?: string; isPaid?: boolean; amountPaid?: number; balanceDue?: number };
 
-export async function recordCustomerPayment(params:{supabase:SupabaseClient<Database>;companyId:string;userId:string;invoiceId:string;amount:number;paymentDate:string;method:string;referenceNumber?:string;notes?:string;}):Promise<CustomerPaymentResult>{
+type PaymentOperationArgs = { p_company_id:string; p_operation_id:string; p_invoice_id:string; p_payload:Record<string,unknown> };
+type PaymentOperationRpc = (name:"lookup_invoice_payment_operation"|"record_invoice_payment_idempotent",args:PaymentOperationArgs)=>PromiseLike<{data:unknown;error:{message:string}|null}>;
+async function paymentOperationRpc(supabase:SupabaseClient<Database>,name:"lookup_invoice_payment_operation"|"record_invoice_payment_idempotent",args:PaymentOperationArgs){
+ try{return await (supabase.rpc.bind(supabase) as unknown as PaymentOperationRpc)(name,args);}catch(error){return{data:null,error:{message:error instanceof Error?error.message:"Invoice payment operation failed."}};}
+}
+
+export async function recordCustomerPayment(params:{supabase:SupabaseClient<Database>;companyId:string;userId:string;invoiceId:string;amount:number;paymentDate:string;method:string;referenceNumber?:string;notes?:string;operationId?:string;}):Promise<CustomerPaymentResult>{
  if(!Number.isFinite(params.amount)||params.amount<=0)return{error:"Payment amount must be greater than zero."};if(!/^\d{4}-\d{2}-\d{2}$/.test(params.paymentDate))return{error:"A valid payment date is required."};
- const invoiceResult=await params.supabase.from("invoices").select("id, invoice_number, total_amount, amount_paid, status, updated_at").eq("company_id",params.companyId).eq("id",params.invoiceId).maybeSingle();if(invoiceResult.error||!invoiceResult.data)return{error:invoiceResult.error?.message||"Invoice not found."};if(["void","paid"].includes(invoiceResult.data.status))return{error:"Payments cannot be recorded against a paid or void invoice."};
- const total=Number(invoiceResult.data.total_amount||0),alreadyPaid=Number(invoiceResult.data.amount_paid||0),balance=Math.max(total-alreadyPaid,0);if(params.amount>balance+0.005)return{error:"Payment cannot exceed the invoice balance."};
- try{await authorizeInvoicePaymentCollection(params.supabase,{companyId:params.companyId,invoiceId:params.invoiceId,actorProfileId:params.userId,requestedAmount:params.amount,source:"accounts_receivable_manual_receipt"});}catch(error){return{error:error instanceof Error?error.message:"Payment compliance review is required."};}
- const paymentResult=await params.supabase.from("invoice_payment_history").insert({company_id:params.companyId,invoice_id:params.invoiceId,payment_date:params.paymentDate,amount:params.amount,method:params.method.trim()||"manual",reference_number:params.referenceNumber?.trim()||null,status:"recorded",notes:params.notes?.trim()||null,created_by:params.userId}).select("id").single();if(paymentResult.error)return{error:paymentResult.error.message};
+ const method=params.method.trim()||"manual",referenceNumber=params.referenceNumber?.trim()||null,notes=params.notes?.trim()||null;
+ const operationId=params.operationId||((method==="manual"&&notes==="Marked paid from invoice profile.")?params.invoiceId:crypto.randomUUID());
+ const payload={amount:params.amount,paymentDate:params.paymentDate,method,referenceNumber,notes};
+ const operationArgs={p_company_id:params.companyId,p_operation_id:operationId,p_invoice_id:params.invoiceId,p_payload:payload};
+ const prior=await paymentOperationRpc(params.supabase,"lookup_invoice_payment_operation",operationArgs);if(prior.error)return{error:prior.error.message};
+ let paymentId=typeof prior.data==="string"?prior.data:"";
+ if(!paymentId){
+  const invoiceResult=await params.supabase.from("invoices").select("id, invoice_number, total_amount, amount_paid, status, updated_at").eq("company_id",params.companyId).eq("id",params.invoiceId).maybeSingle();if(invoiceResult.error||!invoiceResult.data)return{error:invoiceResult.error?.message||"Invoice not found."};if(["void","paid"].includes(invoiceResult.data.status))return{error:"Payments cannot be recorded against a paid or void invoice."};
+  const total=Number(invoiceResult.data.total_amount||0),alreadyPaid=Number(invoiceResult.data.amount_paid||0),balance=Math.max(total-alreadyPaid,0);if(params.amount>balance+0.005)return{error:"Payment cannot exceed the invoice balance."};
+  try{await authorizeInvoicePaymentCollection(params.supabase,{companyId:params.companyId,invoiceId:params.invoiceId,actorProfileId:params.userId,requestedAmount:params.amount,source:"accounts_receivable_manual_receipt"});}catch(error){return{error:error instanceof Error?error.message:"Payment compliance review is required."};}
+  const recorded=await paymentOperationRpc(params.supabase,"record_invoice_payment_idempotent",operationArgs);
+  if(recorded.error){
+   const recovered=await paymentOperationRpc(params.supabase,"lookup_invoice_payment_operation",operationArgs);
+   if(recovered.error||typeof recovered.data!=="string")return{error:recorded.error.message||"Payment could not be confirmed. Retry the unchanged payment; B.O.S. will not duplicate it."};
+   paymentId=recovered.data;
+  }else if(typeof recorded.data==="string")paymentId=recorded.data;
+  if(!paymentId)return{error:"Payment could not be confirmed. Retry the unchanged payment; B.O.S. will not duplicate it."};
+ }
  // The successful receipt insert and database rollup have already committed.
  // A later read or activity event failure must never erase that receipt.
- const receipt = { error: null, paymentId: paymentResult.data.id };
- const confirmationWarning = "Payment recorded. The updated balance could not be loaded. Open the invoice to confirm before recording another payment.";
- let syncedInvoice: { data: { amount_paid: number; status: string; paid_date: string | null } | null; error: { message: string } | null };
- try {
-   syncedInvoice = await params.supabase.from("invoices").select("amount_paid, status, paid_date").eq("company_id",params.companyId).eq("id",params.invoiceId).maybeSingle();
- } catch {
-   return { ...receipt, warning: confirmationWarning };
- }
- if(syncedInvoice.error||!syncedInvoice.data) return { ...receipt, warning: confirmationWarning };
- const nextPaid=Number(syncedInvoice.data.amount_paid||0),isPaid=nextPaid>=total-0.005,balanceDue=Math.max(total-nextPaid,0);
- try {
- const orion=createSupabaseOrionEventPublisher(params.supabase);await orion.publishEvent({company_id:params.companyId,actor_profile_id:params.userId,event_type:"payment.received",aggregate_type:"payment",aggregate_id:paymentResult.data.id,source_module:"payments",payload:{invoice_id:params.invoiceId,invoice_number:invoiceResult.data.invoice_number,amount:params.amount,payment_date:params.paymentDate,method:params.method,resulting_balance:balanceDue,deep_link:`/invoices/${params.invoiceId}`},metadata:{workflow_name:"accounts_receivable",event_category:"finance",event_severity:"success",deep_link:`/invoices/${params.invoiceId}`}});
- await orion.publishEvent({company_id:params.companyId,actor_profile_id:params.userId,event_type:isPaid?"invoice.paid":"invoice.partial_payment",aggregate_type:"invoice",aggregate_id:params.invoiceId,source_module:"invoices",payload:{invoice_id:params.invoiceId,amount_received:params.amount,amount_paid:nextPaid,balance_due:balanceDue,paid_date:syncedInvoice.data.paid_date,payment_date:params.paymentDate,deep_link:`/invoices/${params.invoiceId}`},metadata:{workflow_name:"accounts_receivable",event_category:"finance",event_severity:"success",deep_link:`/invoices/${params.invoiceId}`}});
- } catch {
-   return { ...receipt, isPaid, amountPaid: nextPaid, balanceDue, warning: "Payment recorded. Activity updates could not be completed. Review the invoice before recording another payment." };
- }
- return { ...receipt, isPaid, amountPaid: nextPaid, balanceDue };
+ const receipt={error:null,paymentId};
+ const confirmationWarning="Payment recorded. The updated balance could not be loaded. Open the invoice to confirm before recording another payment.";
+ let syncedInvoice:{data:{invoice_number:string|null;total_amount:number;amount_paid:number;status:string;paid_date:string|null}|null;error:{message:string}|null};
+ try{
+  syncedInvoice=await params.supabase.from("invoices").select("invoice_number, total_amount, amount_paid, status, paid_date").eq("company_id",params.companyId).eq("id",params.invoiceId).maybeSingle();
+ }catch{return{...receipt,warning:confirmationWarning};}
+ if(syncedInvoice.error||!syncedInvoice.data)return{...receipt,warning:confirmationWarning};
+ const total=Number(syncedInvoice.data.total_amount||0),nextPaid=Number(syncedInvoice.data.amount_paid||0),isPaid=nextPaid>=total-0.005,balanceDue=Math.max(total-nextPaid,0);
+ try{
+  const orion=createSupabaseOrionEventPublisher(params.supabase);await orion.publishEvent({company_id:params.companyId,actor_profile_id:params.userId,event_type:"payment.received",aggregate_type:"payment",aggregate_id:paymentId,source_module:"payments",payload:{invoice_id:params.invoiceId,invoice_number:syncedInvoice.data.invoice_number,amount:params.amount,payment_date:params.paymentDate,method,resulting_balance:balanceDue,deep_link:`/invoices/${params.invoiceId}`},metadata:{workflow_name:"accounts_receivable",event_category:"finance",event_severity:"success",deep_link:`/invoices/${params.invoiceId}`}});
+  await orion.publishEvent({company_id:params.companyId,actor_profile_id:params.userId,event_type:isPaid?"invoice.paid":"invoice.partial_payment",aggregate_type:"invoice",aggregate_id:params.invoiceId,source_module:"invoices",payload:{invoice_id:params.invoiceId,amount_received:params.amount,amount_paid:nextPaid,balance_due:balanceDue,paid_date:syncedInvoice.data.paid_date,payment_date:params.paymentDate,deep_link:`/invoices/${params.invoiceId}`},metadata:{workflow_name:"accounts_receivable",event_category:"finance",event_severity:"success",deep_link:`/invoices/${params.invoiceId}`}});
+ }catch{return{...receipt,isPaid,amountPaid:nextPaid,balanceDue,warning:"Payment recorded. Activity updates could not be completed. Review the invoice before recording another payment."};}
+ return{...receipt,isPaid,amountPaid:nextPaid,balanceDue};
 }
