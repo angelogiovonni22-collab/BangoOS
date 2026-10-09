@@ -3,7 +3,7 @@
 import { invoiceBalanceDue, normalizeInvoiceStatus } from "@/lib/invoices/statuses";
 import { localCalendarDate } from "@/lib/dates/calendar-date";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button, Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader, SkeletonLoader, getButtonClassName } from "@/components/ui";
 import { canManageInvoices } from "@/lib/invoices/service";
@@ -18,6 +18,7 @@ export default function RecordCustomerPaymentPage() {
   const invoiceId = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const operationRef = useRef<{ id: string; fingerprint: string } | null>(null);
   const [companyId, setCompanyId] = useState("");
   const [userId, setUserId] = useState("");
   const [invoice, setInvoice] = useState<{ invoice_number: string | null; title: string; total_amount: number; amount_paid: number; status: string } | null>(null);
@@ -84,6 +85,10 @@ export default function RecordCustomerPaymentPage() {
     if (!supabase || !invoiceId || saving || recordedWarning) return;
     setSaving(true);
     setError(null);
+    const fingerprint = JSON.stringify([Number(amount), paymentDate, method.trim(), referenceNumber.trim(), notes.trim()]);
+    if (!operationRef.current || operationRef.current.fingerprint !== fingerprint) {
+      operationRef.current = { id: crypto.randomUUID(), fingerprint };
+    }
     const result = await recordCustomerPayment({
       supabase,
       companyId,
@@ -94,6 +99,7 @@ export default function RecordCustomerPaymentPage() {
       method,
       referenceNumber,
       notes,
+      operationId: operationRef.current.id,
     });
     if (result.error) {
       setError(result.error);
