@@ -3,43 +3,73 @@ import type { OrionEventType } from "./event-types";
 
 export type OrionEventSubscriber = (event: OrionEventRecord) => Promise<void> | void;
 
+export type OrionSubscriberRegistration = {
+  key: string;
+  handler: OrionEventSubscriber;
+};
+
 export type OrionSubscriberRegistry = {
-  register: (eventType: OrionEventType, handler: OrionEventSubscriber) => () => void;
-  unregister: (eventType: OrionEventType, handler: OrionEventSubscriber) => void;
+  register: (eventType: OrionEventType, subscriberKey: string, handler: OrionEventSubscriber) => () => void;
+  unregister: (eventType: OrionEventType, subscriberKey: string) => void;
+  list: (eventType: OrionEventType) => OrionSubscriberRegistration[];
   dispatch: (event: OrionEventRecord) => Promise<void>;
 };
 
-export function createOrionSubscriberRegistry(): OrionSubscriberRegistry {
-  const byType = new Map<OrionEventType, OrionEventSubscriber[]>();
+function normalizeSubscriberKey(subscriberKey: string) {
+  const normalized = subscriberKey.trim();
+  if (!normalized) {
+    throw new Error("Orion subscriber key is required.");
+  }
+  return normalized;
+}
 
-  function register(eventType: OrionEventType, handler: OrionEventSubscriber) {
+export function createOrionSubscriberRegistry(): OrionSubscriberRegistry {
+  const byType = new Map<OrionEventType, OrionSubscriberRegistration[]>();
+
+  function register(
+    eventType: OrionEventType,
+    subscriberKey: string,
+    handler: OrionEventSubscriber,
+  ) {
+    const key = normalizeSubscriberKey(subscriberKey);
     const existing = byType.get(eventType) || [];
-    byType.set(eventType, [...existing, handler]);
+
+    if (existing.some((registration) => registration.key === key)) {
+      throw new Error(`Orion subscriber key already registered for ${eventType}: ${key}`);
+    }
+
+    byType.set(eventType, [...existing, { key, handler }]);
 
     return () => {
-      unregister(eventType, handler);
+      unregister(eventType, key);
     };
   }
 
-  function unregister(eventType: OrionEventType, handler: OrionEventSubscriber) {
+  function unregister(eventType: OrionEventType, subscriberKey: string) {
+    const key = normalizeSubscriberKey(subscriberKey);
     const existing = byType.get(eventType) || [];
     byType.set(
       eventType,
-      existing.filter((registered) => registered !== handler),
+      existing.filter((registration) => registration.key !== key),
     );
   }
 
-  async function dispatch(event: OrionEventRecord) {
-    const handlers = byType.get(event.event_type) || [];
+  function list(eventType: OrionEventType) {
+    return [...(byType.get(eventType) || [])];
+  }
 
-    for (const handler of handlers) {
-      await handler(event);
+  async function dispatch(event: OrionEventRecord) {
+    const registrations = list(event.event_type);
+
+    for (const registration of registrations) {
+      await registration.handler(event);
     }
   }
 
   return {
     register,
     unregister,
+    list,
     dispatch,
   };
 }
