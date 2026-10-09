@@ -1,3 +1,50 @@
+body:has(.bos-login-page) {
+  background: #050b16 !important;
+  color-scheme: dark;
+}
+
+.bos-login-page[data-login-theme="locked-dark"] {
+  color-scheme: dark;
+  background: #050b16;
+  color: #eff6ff;
+  --bos-bg-root: #050b16;
+  --bos-bg-shell: #091427;
+  --bos-bg-panel: #0d182b;
+  --bos-bg-panel-elevated: #12203a;
+  --bos-bg-control: #14243f;
+  --bos-bg-hover: #1a2c4a;
+  --bos-border-subtle: rgb(99 130 174 / 0.22);
+  --bos-border-default: rgb(121 156 206 / 0.32);
+  --bos-border-strong: rgb(144 180 230 / 0.48);
+  --bos-text-primary: #eff6ff;
+  --bos-text-secondary: #c2d2ea;
+  --bos-text-muted: #8ba1bf;
+  --color-background-app: #050b16;
+  --color-background-root: #050b16;
+  --color-background-workspace: #07111f;
+  --color-surface-card: #0d182b;
+  --color-surface-subtle: #14243f;
+  --color-surface-muted: #1a2c4a;
+  --color-surface-elevated: #12203a;
+  --color-text-primary: #eff6ff;
+  --color-text-secondary: #c2d2ea;
+  --color-text-muted: #8ba1bf;
+  --color-text-inverse: #031122;
+  --color-border-subtle: rgb(99 130 174 / 0.22);
+  --color-border-strong: rgb(121 156 206 / 0.38);
+  --color-action-primary: #3b82f6;
+  --color-action-primary-hover: #1d4ed8;
+  --color-brand-700: #2563eb;
+  --color-brand-800: #1d4ed8;
+  --color-focus: #4a90ff;
+  --color-disabled-bg: #0d182b;
+  --color-disabled-text: #8ba1bf;
+  --color-disabled-border: rgb(99 130 174 / 0.22);
+  --shadow-small: 0 1px 2px rgb(0 0 0 / 0.24);
+  --shadow-medium: 0 18px 42px -24px rgb(0 0 0 / 0.72);
+  --shadow-large: 0 28px 60px -34px rgb(0 0 0 / 0.82);
+}
+
 @media (max-width: 1023px) {
   body:has(.bos-login-page) {
     background: #050b12 !important;
