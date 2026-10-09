@@ -180,7 +180,7 @@ as $$
 declare
   v_company_id uuid;
   v_snapshot text[];
-  v_inserted boolean := false;
+  v_inserted_count integer := 0;
 begin
   select event.company_id
   into v_company_id
@@ -213,14 +213,14 @@ begin
   )
   on conflict (event_id) do nothing;
 
-  get diagnostics v_inserted = row_count;
+  get diagnostics v_inserted_count = row_count;
 
   select batch.subscriber_keys
   into v_snapshot
   from public.workflow_event_delivery_batches as batch
   where batch.event_id = p_event_id;
 
-  if v_inserted then
+  if v_inserted_count > 0 then
     insert into public.workflow_event_deliveries (
       event_id,
       company_id,
