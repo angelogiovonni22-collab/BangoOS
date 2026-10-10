@@ -3,6 +3,53 @@ begin;
 -- Weekly payroll must classify approved time by the company's configured local
 -- date, not by the database session timezone (UTC in Production). This avoids
 -- moving late-evening local shifts into the wrong payroll period.
+-- Keep the payroll-line source guard on the same local-date rule so the insert
+-- trigger does not reject a time entry that the builder correctly selected.
+create or replace function public.guard_payroll_line_time_claims()
+returns trigger language plpgsql security invoker set search_path=pg_catalog as $$
+declare
+  v_period public.payroll_periods%rowtype;
+  v_id uuid;
+  v_time public.workforce_time_entries%rowtype;
+  v_timezone text;
+begin
+  select * into v_period from public.payroll_periods
+  where id=coalesce(new.payroll_period_id,old.payroll_period_id)
+    and company_id=coalesce(new.company_id,old.company_id) for update;
+  -- Parent cascade deletion has already removed the parent. Its FK releases claims.
+  if tg_op='DELETE' and not found then return old; end if;
+  if not found then raise exception 'Payroll period does not belong to this company'; end if;
+  if v_period.status not in ('draft','review') then raise exception 'Only draft or review payroll lines can be changed'; end if;
+  if tg_op='DELETE' then return old; end if;
+  if tg_op='UPDATE' then
+    if (new.id,new.company_id,new.payroll_period_id,new.employee_id,new.source_time_entry_ids)
+       is distinct from (old.id,old.company_id,old.payroll_period_id,old.employee_id,old.source_time_entry_ids) then
+      raise exception 'Payroll source identity is immutable; void and rebuild the period';
+    end if;
+    return new;
+  end if;
+
+  select nullif(trim(c.timezone),'') into v_timezone
+  from public.companies c where c.id=v_period.company_id;
+  if v_timezone is null or not exists(select 1 from pg_catalog.pg_timezone_names z where z.name=v_timezone) then
+    raise exception 'Company payroll timezone is not configured';
+  end if;
+
+  if cardinality(new.source_time_entry_ids)=0 then raise exception 'Payroll lines require approved source time'; end if;
+  if cardinality(new.source_time_entry_ids) <> (select count(distinct id) from unnest(new.source_time_entry_ids) id) then
+    raise exception 'Payroll source time IDs must be distinct and non-null';
+  end if;
+  for v_id in select id from unnest(new.source_time_entry_ids) id order by id loop
+    select * into v_time from public.workforce_time_entries where id=v_id and company_id=new.company_id for update;
+    if not found or v_time.employee_id<>new.employee_id or v_time.status<>'approved' or v_time.ended_at is null
+       or (v_time.started_at at time zone v_timezone)::date not between v_period.period_start and v_period.period_end then
+      raise exception 'Payroll source time must be approved, completed, and belong to this employee, company, and period';
+    end if;
+  end loop;
+  return new;
+end $$;
+revoke all on function public.guard_payroll_line_time_claims() from public,anon,authenticated;
+
 create or replace function public.build_weekly_payroll(p_company_id uuid,p_period_start date,p_period_end date,p_pay_date date)
 returns uuid language plpgsql security invoker set search_path=pg_catalog as $$
 declare v_period uuid; v_missing integer; v_timezone text;
