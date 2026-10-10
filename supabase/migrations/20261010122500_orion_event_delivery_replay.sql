@@ -37,16 +37,17 @@ as $$
 declare
   v_status text;
   v_lease_expires_at timestamptz;
+  v_is_service_role boolean := coalesce((select auth.jwt() ->> 'role'), '') = 'service_role';
 begin
   if p_company_id is null or p_event_id is null or nullif(btrim(p_subscriber_key), '') is null then
     raise exception 'Invalid Orion delivery claim';
   end if;
 
-  if coalesce(auth.role(), '') <> 'service_role'
+  if not v_is_service_role
      and not exists (
        select 1
        from public.profiles p
-       where p.id = auth.uid()
+       where p.id = (select auth.uid())
          and p.company_id = p_company_id
      ) then
     raise exception 'Unauthorized Orion delivery access';
@@ -117,12 +118,14 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_is_service_role boolean := coalesce((select auth.jwt() ->> 'role'), '') = 'service_role';
 begin
-  if coalesce(auth.role(), '') <> 'service_role'
+  if not v_is_service_role
      and not exists (
        select 1
        from public.profiles p
-       where p.id = auth.uid()
+       where p.id = (select auth.uid())
          and p.company_id = p_company_id
      ) then
     raise exception 'Unauthorized Orion delivery access';
@@ -156,12 +159,14 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_is_service_role boolean := coalesce((select auth.jwt() ->> 'role'), '') = 'service_role';
 begin
-  if coalesce(auth.role(), '') <> 'service_role'
+  if not v_is_service_role
      and not exists (
        select 1
        from public.profiles p
-       where p.id = auth.uid()
+       where p.id = (select auth.uid())
          and p.company_id = p_company_id
      ) then
     raise exception 'Unauthorized Orion delivery access';
