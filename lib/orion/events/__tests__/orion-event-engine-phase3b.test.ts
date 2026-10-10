@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import {
   createOrionEventPublisher,
   createOrionSubscriberRegistry,
+  type OrionDeliveryClaim,
+  type OrionEventDeliveryStore,
   type OrionEventInput,
   type OrionEventRecord,
   validateOrionEventInput,
@@ -88,6 +90,32 @@ function inMemoryStore() {
   };
 }
 
+function inMemoryDeliveryStore(): OrionEventDeliveryStore {
+  const states = new Map<string, OrionDeliveryClaim | "failed">();
+
+  function key(event: OrionEventRecord, subscriberKey: string) {
+    return `${event.company_id}:${event.event_id}:${subscriberKey}`;
+  }
+
+  return {
+    async claim(event, subscriberKey) {
+      const deliveryKey = key(event, subscriberKey);
+      const state = states.get(deliveryKey);
+      if (state === "delivered") {
+        return "delivered";
+      }
+      states.set(deliveryKey, "claimed");
+      return "claimed";
+    },
+    async markDelivered(event, subscriberKey) {
+      states.set(key(event, subscriberKey), "delivered");
+    },
+    async markFailed(event, subscriberKey) {
+      states.set(key(event, subscriberKey), "failed");
+    },
+  };
+}
+
 async function main() {
   await test("1. event contracts enforce required validation", () => {
     const valid = validateOrionEventInput(baseInput());
@@ -118,7 +146,7 @@ async function main() {
 
     let dispatchCount = 0;
 
-    subscribers.register("estimate.created", () => {
+    subscribers.register("estimate.created", "test-estimate-created", () => {
       dispatchCount += 1;
     });
 
@@ -148,7 +176,42 @@ async function main() {
     check(store.records.length === 1, "concurrent duplicate does not create another event");
   });
 
-  await test("5. source integrations call Orion publisher in key mutation paths", () => {
+  await test("5. durable delivery replays only the subscriber that failed", async () => {
+    const store = inMemoryStore();
+    const deliveryStore = inMemoryDeliveryStore();
+    const subscribers = createOrionSubscriberRegistry();
+    const publisher = createOrionEventPublisher({ store, subscribers, deliveryStore });
+
+    let stableCount = 0;
+    let retryCount = 0;
+
+    subscribers.register("estimate.created", "stable-subscriber", () => {
+      stableCount += 1;
+    });
+    subscribers.register("estimate.created", "retry-subscriber", () => {
+      retryCount += 1;
+      if (retryCount === 1) {
+        throw new Error("temporary subscriber failure");
+      }
+    });
+
+    let firstFailed = false;
+    try {
+      await publisher.publishEvent(baseInput({ idempotency_key: "delivery-replay-key" }));
+    } catch {
+      firstFailed = true;
+    }
+
+    const retry = await publisher.publishEvent(baseInput({ idempotency_key: "delivery-replay-key" }));
+
+    check(firstFailed, "initial subscriber failure is surfaced to the caller");
+    check(retry.idempotent, "retry reuses the already-persisted event");
+    check(store.records.length === 1, "delivery retry does not duplicate the event ledger row");
+    check(stableCount === 1, "already delivered subscriber is not replayed");
+    check(retryCount === 2, "failed subscriber is replayed exactly once on retry");
+  });
+
+  await test("6. source integrations call Orion publisher in key mutation paths", () => {
     const files = [
       resolve(process.cwd(), "app", "(app)", "customers", "new", "page.tsx"),
       resolve(process.cwd(), "app", "(app)", "projects", "new", "page.tsx"),
@@ -169,16 +232,22 @@ async function main() {
     check(combined.includes("source_module: \"workflows\""), "workflow bridge enriches workflow event rows");
   });
 
-  await test("6. migration extends existing workflow ledger for Orion metadata", () => {
-    const migrationPath = resolve(process.cwd(), "supabase", "migrations", "20260803150000_orion_event_engine_foundation.sql");
-    const migration = readFileSync(migrationPath, "utf8").toLowerCase();
+  await test("7. migrations cover the Orion event ledger and durable delivery replay", () => {
+    const foundationPath = resolve(process.cwd(), "supabase", "migrations", "20260803150000_orion_event_engine_foundation.sql");
+    const foundation = readFileSync(foundationPath, "utf8").toLowerCase();
+    const deliveryPath = resolve(process.cwd(), "supabase", "migrations", "20261010122500_orion_event_delivery_replay.sql");
+    const delivery = readFileSync(deliveryPath, "utf8").toLowerCase();
 
-    check(migration.includes("alter table public.workflow_events"), "migration extends existing workflow_events table");
-    check(migration.includes("add column if not exists source_module text"), "source_module column is present");
-    check(migration.includes("add column if not exists payload jsonb"), "payload column is present");
-    check(migration.includes("add column if not exists idempotency_key text"), "idempotency_key column is present");
-    check(migration.includes("idx_workflow_events_company_event_idempotency"), "idempotency index is present");
-    check(!migration.includes("create table public.orion"), "migration does not introduce a second Orion event table");
+    check(foundation.includes("alter table public.workflow_events"), "migration extends existing workflow_events table");
+    check(foundation.includes("add column if not exists source_module text"), "source_module column is present");
+    check(foundation.includes("add column if not exists payload jsonb"), "payload column is present");
+    check(foundation.includes("add column if not exists idempotency_key text"), "idempotency_key column is present");
+    check(foundation.includes("idx_workflow_events_company_event_idempotency"), "idempotency index is present");
+    check(!foundation.includes("create table public.orion"), "foundation does not introduce a second Orion event table");
+    check(delivery.includes("create table if not exists public.orion_event_deliveries"), "delivery ledger is durable in Postgres");
+    check(delivery.includes("claim_orion_event_delivery"), "delivery claim RPC is present");
+    check(delivery.includes("lease_expires_at"), "delivery claims have an expiry lease for crash recovery");
+    check(delivery.includes("revoke all on table public.orion_event_deliveries from public, anon, authenticated"), "delivery ledger is not directly writable by browser roles");
   });
 
   console.log(`\nOrion event engine phase 3B results: ${passed} passed, ${failed} failed`);
