@@ -35,7 +35,7 @@ export async function loadPayrollJobCosts(params: { supabase: SupabaseClient<Dat
   if (data.status === "unavailable" && data.reason === "finance_role_required") {
     return { projects: new Map(), accessible: false, availability: {
       key: "payroll_job_cost", label: "Approved Payroll Job Cost", status: "unavailable",
-      detail: "Payroll wage costs require the existing owner, administrator, or office manager role. This report excludes payroll wages for this account.",
+      detail: "Payroll wage costs require an owner, administrator, office manager, or accountant role. This report excludes payroll wages for this account.",
     } };
   }
   if ((data.status !== "available" && data.status !== "partial") || data.company_id !== params.companyId || !Array.isArray(data.projects)) {
