@@ -215,8 +215,10 @@ async function main() {
     const files = [
       resolve(process.cwd(), "app", "(app)", "customers", "new", "page.tsx"),
       resolve(process.cwd(), "app", "(app)", "projects", "new", "page.tsx"),
+      resolve(process.cwd(), "lib", "customers", "customer-create-service.ts"),
       resolve(process.cwd(), "lib", "estimates", "service.ts"),
       resolve(process.cwd(), "lib", "invoices", "service.ts"),
+      resolve(process.cwd(), "lib", "accounts-receivable", "service.ts"),
       resolve(process.cwd(), "lib", "workforce", "workforce-event-repository.ts"),
       resolve(process.cwd(), "lib", "workflows", "workflow-engine.ts"),
     ];
