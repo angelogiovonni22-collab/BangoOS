@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
-import type { OrionEventInput, OrionPublishResult } from "./event-contracts";
+import type { OrionEventInput, OrionEventRecord, OrionPublishResult } from "./event-contracts";
+import { createSupabaseOrionEventDeliveryStore, type OrionEventDeliveryStore } from "./event-delivery-store";
 import { computeDefaultIdempotencyKey, normalizeIdempotencyKey } from "./event-idempotency";
 import { createSupabaseOrionEventStore, type OrionEventStore } from "./event-store";
 import { createOrionSubscriberRegistry, type OrionSubscriberRegistry } from "./event-subscribers";
@@ -11,11 +12,54 @@ export type OrionEventPublisher = {
   subscribers: OrionSubscriberRegistry;
 };
 
+async function dispatchWithDeliveryTracking(params: {
+  event: OrionEventRecord;
+  subscribers: OrionSubscriberRegistry;
+  deliveryStore: OrionEventDeliveryStore;
+}) {
+  for (const subscriber of params.subscribers.list(params.event.event_type)) {
+    const claim = await params.deliveryStore.claim(params.event, subscriber.key);
+
+    if (claim === "delivered" || claim === "leased") {
+      continue;
+    }
+
+    try {
+      await subscriber.handler(params.event);
+      await params.deliveryStore.markDelivered(params.event, subscriber.key);
+    } catch (error) {
+      try {
+        await params.deliveryStore.markFailed(params.event, subscriber.key, error);
+      } catch (deliveryError) {
+        throw new AggregateError(
+          [error, deliveryError],
+          `Orion subscriber ${subscriber.key} failed and delivery state could not be recorded.`,
+        );
+      }
+      throw error;
+    }
+  }
+}
+
 export function createOrionEventPublisher(params: {
   store: OrionEventStore;
   subscribers?: OrionSubscriberRegistry;
+  deliveryStore?: OrionEventDeliveryStore;
 }): OrionEventPublisher {
   const subscribers = params.subscribers || createOrionSubscriberRegistry();
+
+  async function dispatchPersisted(event: OrionEventRecord) {
+    if (params.deliveryStore) {
+      await dispatchWithDeliveryTracking({
+        event,
+        subscribers,
+        deliveryStore: params.deliveryStore,
+      });
+      return;
+    }
+
+    await subscribers.dispatch(event);
+  }
 
   return {
     subscribers,
@@ -35,6 +79,9 @@ export function createOrionEventPublisher(params: {
       );
 
       if (existing) {
+        if (params.deliveryStore) {
+          await dispatchPersisted(existing);
+        }
         return {
           event: existing,
           idempotent: true,
@@ -59,13 +106,17 @@ export function createOrionEventPublisher(params: {
           throw error;
         }
 
+        if (params.deliveryStore) {
+          await dispatchPersisted(concurrent);
+        }
+
         return {
           event: concurrent,
           idempotent: true,
         };
       }
 
-      await subscribers.dispatch(persisted);
+      await dispatchPersisted(persisted);
 
       return {
         event: persisted,
@@ -77,5 +128,6 @@ export function createOrionEventPublisher(params: {
 
 export function createSupabaseOrionEventPublisher(supabase: SupabaseClient<Database>) {
   const store = createSupabaseOrionEventStore(supabase);
-  return createOrionEventPublisher({ store });
+  const deliveryStore = createSupabaseOrionEventDeliveryStore(supabase);
+  return createOrionEventPublisher({ store, deliveryStore });
 }
