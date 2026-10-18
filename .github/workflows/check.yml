@@ -175,17 +175,7 @@ jobs:
         run: npx -y tsx components/ui/full-system-ui-cleanup.contract.test.ts
 
       - name: Run repository checks
-        shell: bash
-        run: |
-          set +e
-          npm run check > /tmp/bangos-check.log 2>&1
-          status=$?
-          if [ "$status" -ne 0 ]; then
-            echo "=== npm run check failure tail ==="
-            tail -n 250 /tmp/bangos-check.log
-            exit "$status"
-          fi
-          cat /tmp/bangos-check.log
+        run: npm run check
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
