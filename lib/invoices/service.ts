@@ -577,7 +577,7 @@ export async function markInvoicePaid(params: {
   // Receipt insertion performs the atomic database rollup. Never follow it with
   // a stale balance update or erase a committed receipt after confirmation fails.
   return recordCustomerPayment({ ...params, amount: remainingBalance,
-    paymentDate: new Date().toISOString().slice(0, 10), method: "manual",
+    paymentDate: localCalendarDate(), method: "manual",
     notes: "Marked paid from invoice profile." });
 }
 
