@@ -21,9 +21,11 @@ test("customer payment recording preserves compliance and balance safety boundar
   assert.match(service, /Payment cannot exceed the invoice balance/);
   assert.match(service, /select\("[^"]*amount_paid, status, paid_date"\)/);
   assert.match(service, /invoice_payment_history/);
-  assert.match(service, /invoice\.partial_payment/);
-  assert.match(service, /payment\.received/);
-  assert.match(service, /invoice\.paid/);
+  const migration = readFileSync("supabase/migrations/20261018132706_atomic_receipt_events_and_delivery_monitor.sql", "utf8");
+  assert.match(migration, /invoice\.partial_payment/);
+  assert.match(migration, /payment\.received/);
+  assert.match(migration, /invoice\.paid/);
+  assert.doesNotMatch(service, /publishEvent/);
   assert.doesNotMatch(service, /\["draft","void","paid"\]/);
   assert.doesNotMatch(service, /Invoice balance changed while recording the payment/);
 });

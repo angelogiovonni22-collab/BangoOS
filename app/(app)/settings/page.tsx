@@ -35,6 +35,11 @@ export default function SettingsPage() {
         <CardContent className="p-5"><Link href="/settings/access-control" className="inline-flex items-center rounded-[10px] bg-[var(--color-action-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105">{t("settings.openAccessControl")}</Link></CardContent>
       </Card> : null}
 
+      {canManageOperatingProfile ? <Card as="section" variant="elevated">
+        <CardHeader><CardTitle>{es ? "Entregas de Orion" : "Orion delivery monitoring"}</CardTitle></CardHeader>
+        <CardContent className="p-5"><Link href="/settings/orion-delivery">{es ? "Supervisar y reintentar avisos de pago" : "Monitor and retry payment notifications"}</Link></CardContent>
+      </Card> : null}
+
       {canManageBilling ? <Card as="section" variant="elevated">
         <CardHeader className="bg-[var(--color-surface-subtle)]">
           <CardTitle>{t("settings.billingTitle")}</CardTitle>

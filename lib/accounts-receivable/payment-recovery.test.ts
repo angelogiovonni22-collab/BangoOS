@@ -125,7 +125,7 @@ test("reusing an operation id with changed payment details is rejected", async (
   assert.equal(f.payments.length, 1);
 });
 
-test("event failures after commit return recorded receipt and confirmed balances", async () => {
+test("browser event outages do not affect database-owned receipt activity", async () => {
   for (const fault of ["event", "second-event", "none"] as const) {
     const f = fixture(fault);
     const result = await recordCustomerPayment({ ...params, supabase: f.client });
@@ -134,7 +134,8 @@ test("event failures after commit return recorded receipt and confirmed balances
     assert.equal(result.amountPaid, 25);
     assert.equal(result.balanceDue, 75);
     assert.equal(result.isPaid, false);
-    assert.equal(Boolean(result.warning), fault !== "none");
+    assert.equal(Boolean(result.warning), false);
+    assert.equal(f.events(), 0);
     assert.equal(f.payments.length, 1);
     assert.equal(f.deletes(), 0);
   }
@@ -158,7 +159,7 @@ test("Mark Paid retains the committed final receipt without a stale second invoi
     assert.equal(f.deletes(), 0, fault);
     assert.equal(f.updates(), 0, fault);
     assert.equal((result as {paymentId?:string}).paymentId, paymentId);
-    assert.equal(Boolean((result as {warning?:string}).warning), fault !== "none");
+    assert.equal(Boolean((result as {warning?:string}).warning), ["read", "missing", "throw"].includes(fault));
   }
 });
 

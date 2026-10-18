@@ -1,3 +1,6 @@
+import { recordCustomerPayment } from "@/lib/accounts-receivable/service";
+import { receiptCommandOperationId } from "@/lib/accounts-receivable/receipt-operation-id";
+import { localCalendarDate } from "@/lib/dates/calendar-date";
 import { saveEstimate } from "@/lib/estimates/service";
 import { createEstimateWorkflowService } from "@/lib/estimates/workflow-service";
 import { escapeContractEmailText, estimateContractPublicUrl, sendContractEmail } from "@/lib/estimates/contract-email";
@@ -1114,128 +1117,37 @@ export async function executeRecordInvoicePaymentCommand(
   const notes = optionalString(params, "notes") || null;
   const isDeposit = context.commandId === "invoice.record_deposit" || optionalBoolean(params, "isDeposit") === true;
 
-  const { data: invoice, error: readError } = await deps.supabase
-    .from("invoices")
-    .select("id, status, total_amount, amount_paid, customer_id, project_id")
-    .eq("company_id", context.companyId)
-    .eq("id", invoiceId)
-    .maybeSingle();
-
-  if (readError || !invoice) {
-    throw new Error(readError?.message || "Invoice not found.");
-  }
-
-  const remaining = Number(Math.max(0, invoice.total_amount - invoice.amount_paid).toFixed(2));
-  if (remaining <= 0) {
-    throw new Error("Invoice is already fully paid.");
-  }
-
-  if (amount > remaining) {
-    throw new Error("Payment amount exceeds remaining invoice balance.");
-  }
-
-  const paymentDate = new Date().toISOString().slice(0, 10);
-  const { error: paymentError } = await deps.supabase
-    .from("invoice_payment_history")
-    .insert({
-      company_id: context.companyId,
-      invoice_id: invoiceId,
-      payment_date: paymentDate,
-      amount,
-      method,
-      reference_number: referenceNumber,
-      notes,
-      status: "recorded",
-      created_by: context.actorProfileId,
-      updated_by: context.actorProfileId,
-    });
-
-  if (paymentError) {
-    throw new Error(paymentError.message || "Unable to record invoice payment.");
-  }
-
-  const nextAmountPaid = Number((invoice.amount_paid + amount).toFixed(2));
-  const isPaid = nextAmountPaid >= Number(invoice.total_amount);
-  const nextStatus = isPaid ? "paid" : "partially_paid";
-
-  const { error: updateError } = await deps.supabase
-    .from("invoices")
-    .update({
-      amount_paid: nextAmountPaid,
-      status: nextStatus,
-      paid_date: isPaid ? paymentDate : null,
-      updated_by: context.actorProfileId,
-    })
-    .eq("company_id", context.companyId)
-    .eq("id", invoiceId);
-
-  if (updateError) {
-    throw new Error(updateError.message || "Unable to update invoice balance.");
-  }
-
-  const orion = createSupabaseOrionEventPublisher(deps.supabase);
-  await orion.publishEvent({
-    company_id: context.companyId,
-    actor_profile_id: context.actorProfileId,
-    event_type: isPaid ? "invoice.paid" : "invoice.partial_payment",
-    aggregate_type: "invoice",
-    aggregate_id: invoiceId,
-    source_module: "invoices",
-    correlation_id: context.correlationId,
-    idempotency_key: `${context.idempotencyKey}:invoice-payment`,
-    payload: {
-      invoice_id: invoiceId,
-      amount,
-      amount_paid: nextAmountPaid,
-      total_amount: invoice.total_amount,
-      remaining_balance: Number(Math.max(0, invoice.total_amount - nextAmountPaid).toFixed(2)),
-      deep_link: `/invoices/${invoiceId}`,
-    },
-    metadata: {
-      event_category: "finance",
-      event_severity: isPaid ? "success" : "info",
-      deep_link: `/invoices/${invoiceId}`,
-    },
+  if (!context.actorProfileId) throw new Error("An authenticated payment recorder is required.");
+  const paymentDate = optionalString(params, "paymentDate") || localCalendarDate();
+  const operationId = await receiptCommandOperationId(context.companyId, context.idempotencyKey);
+  const result = await recordCustomerPayment({
+    supabase: deps.supabase, companyId: context.companyId, userId: context.actorProfileId,
+    invoiceId, amount, paymentDate, method, referenceNumber: referenceNumber || undefined,
+    notes: notes || undefined, operationId,
   });
-
-  await orion.publishEvent({
-    company_id: context.companyId,
-    actor_profile_id: context.actorProfileId,
-    event_type: isDeposit ? "deposit.received" : "payment.received",
-    aggregate_type: isDeposit ? "deposit" : "payment",
-    aggregate_id: invoiceId,
-    source_module: "payments",
-    correlation_id: context.correlationId,
-    idempotency_key: `${context.idempotencyKey}:${isDeposit ? "deposit" : "payment"}-received`,
-    payload: {
-      invoice_id: invoiceId,
-      customer_id: invoice.customer_id,
-      project_id: invoice.project_id,
-      amount,
-      method,
-      payment_date: paymentDate,
-      deep_link: `/invoices/${invoiceId}`,
-    },
-    metadata: {
-      event_category: "finance",
-      event_severity: "success",
-      deep_link: `/invoices/${invoiceId}`,
-    },
-  });
-
+  if (result.error) throw new Error(result.error);
+  const warnings = result.warning ? [result.warning] : [];
+  // Receipt and invoice events are database-owned. Preserve the additional
+  // deposit classification without duplicating the canonical payment event.
+  if (isDeposit && result.paymentId) {
+    try {
+      await createSupabaseOrionEventPublisher(deps.supabase).publishEvent({
+        company_id: context.companyId, actor_profile_id: context.actorProfileId,
+        event_type: "deposit.received", aggregate_type: "deposit", aggregate_id: result.paymentId,
+        source_module: "payments", correlation_id: context.correlationId,
+        idempotency_key: `${context.idempotencyKey}:deposit-received`,
+        payload: { invoice_id: invoiceId, amount, method, payment_date: paymentDate, deep_link: `/invoices/${invoiceId}` },
+        metadata: { event_category: "finance", event_severity: "success", deep_link: `/invoices/${invoiceId}` },
+      });
+    } catch { warnings.push("Payment recorded. Deposit activity could not be updated."); }
+  }
   return {
     entityUpdated: { type: "invoice", id: invoiceId },
-    publishedEvent: isPaid ? "invoice.paid" : "invoice.partial_payment",
+    publishedEvent: result.isPaid === undefined ? null : result.isPaid ? "invoice.paid" : "invoice.partial_payment",
     deepLink: `/invoices/${invoiceId}`,
-    details: {
-      amount,
-      amountPaid: nextAmountPaid,
-      status: nextStatus,
-      remainingBalance: Number(Math.max(0, invoice.total_amount - nextAmountPaid).toFixed(2)),
-    },
-    userMessage: isPaid
-      ? "Invoice marked paid from recorded payment."
-      : "Payment recorded and invoice balance updated.",
+    warnings,
+    details: { amount, amountPaid: result.amountPaid, remainingBalance: result.balanceDue, paymentId: result.paymentId },
+    userMessage: result.warning || (result.isPaid ? "Invoice marked paid from recorded payment." : "Payment recorded and invoice balance updated."),
   };
 }
 
