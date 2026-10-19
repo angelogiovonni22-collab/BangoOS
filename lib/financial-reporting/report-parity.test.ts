@@ -188,6 +188,25 @@ async function main() {
   assert.equal(mixedCompany.summary.totalOutstandingReceivables, 140);
   assert.equal(mixedCompany.summary.cashExposure, 230, "receivables plus remaining commitments without double subtraction");
 
+  const draftBilling = fixture();
+  draftBilling.tables.invoices.push({ id: "draft-invoice", company_id: "co1", project_id: "p1", status: "draft", total_amount: 120, amount_paid: 0 });
+  const draftProject = await buildProjectFinancialReport({ supabase: draftBilling.client, companyId: "co1", projectId: "p1" });
+  const draftCompany = await buildCompanyFinancialReport({ supabase: draftBilling.client, companyId: "co1" });
+  assert.equal(draftProject.billing.draftInvoices, 1, "draft records remain visible in billing counts");
+  assert.equal(draftProject.summary.amountInvoiced, 0, "an unsent draft is not issued billing");
+  assert.equal(draftProject.summary.outstandingReceivables, 0, "an unsent draft must match AR exclusion");
+  assert.equal(draftProject.summary.unbilledContractValue, 1000, "drafts do not consume unbilled contract value");
+  assert.equal(draftCompany.summary.totalOutstandingReceivables, 0, "company reporting must match project and AR reporting");
+  assert.equal(draftCompany.summary.totalBacklog, 1000, "drafts do not consume active-project backlog");
+  draftBilling.tables.invoices[0].status = "sent";
+  const issuedProject = await buildProjectFinancialReport({ supabase: draftBilling.client, companyId: "co1", projectId: "p1" });
+  const issuedCompany = await buildCompanyFinancialReport({ supabase: draftBilling.client, companyId: "co1" });
+  assert.equal(issuedProject.summary.amountInvoiced, 120, "issued billing is still recognized");
+  assert.equal(issuedProject.summary.outstandingReceivables, 120);
+  assert.equal(issuedProject.summary.unbilledContractValue, 880);
+  assert.equal(issuedCompany.summary.totalOutstandingReceivables, 120);
+  assert.equal(issuedCompany.summary.totalBacklog, 880);
+
   const cents = fixture(20.004);
   cents.tables.project_material_allocations[0].total_cost = 25.004;
   cents.tables.vendor_bill_line_items[0].line_amount = 30.004;

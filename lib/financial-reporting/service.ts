@@ -560,7 +560,7 @@ export async function buildProjectFinancialReport(params: {
 
   const amountInvoiced = toMoney(
     invoices.reduce((sum, invoice) => {
-      if (normalizeInvoiceStatus(invoice.status) === "void") {
+      if (["draft", "void"].includes(normalizeInvoiceStatus(invoice.status))) {
         return sum;
       }
 
@@ -918,7 +918,7 @@ export async function buildCompanyFinancialReport(params: {
     const originalEstimate = safeNumber(firstEstimate?.total_amount);
     const revisedContract = (safeNumber(project.contract_amount) || originalEstimate) + safeNumber(approvedChangeOrdersByProject.get(project.id));
     const projectInvoiced = (invoicesByProject.get(project.id) || []).reduce((sum, invoice) => {
-      if (normalizeInvoiceStatus(invoice.status) === "void") {
+      if (["draft", "void"].includes(normalizeInvoiceStatus(invoice.status))) {
         return sum;
       }
 
@@ -946,7 +946,7 @@ export async function buildCompanyFinancialReport(params: {
   }
 
   const totalInvoiced = invoices.reduce((sum, invoice) => {
-    if (normalizeInvoiceStatus(invoice.status) === "void") {
+    if (["draft", "void"].includes(normalizeInvoiceStatus(invoice.status))) {
       return sum;
     }
 
