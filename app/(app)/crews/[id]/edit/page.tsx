@@ -16,6 +16,7 @@ export default function EditCrewPage() {
   const crewService = useMemo(() => createCrewService(), []);
 
   const [profile, setProfile] = useState<CrewProfile | null>(null);
+  const [profileOptions, setProfileOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [employeeOptions, setEmployeeOptions] = useState<CrewEmployeeOption[]>([]);
   const [specialtyOptions, setSpecialtyOptions] = useState<string[]>([]);
   const [projectOptions, setProjectOptions] = useState<string[]>([]);
@@ -37,11 +38,12 @@ export default function EditCrewPage() {
       setErrorMessage(null);
 
       try {
-        const [loadedProfile, employees, specialties, projects] = await Promise.all([
+        const [loadedProfile, employees, specialties, projects, profiles] = await Promise.all([
           crewService.getCrew(crewId),
           crewService.getEmployeeOptions(),
           crewService.getSpecialtyOptions(),
           crewService.getProjectOptions(),
+          crewService.getProfileOptions(),
         ]);
 
         if (!active) {
@@ -56,6 +58,7 @@ export default function EditCrewPage() {
 
         setProfile(loadedProfile);
         setEmployeeOptions(employees);
+        setProfileOptions(profiles);
         setSpecialtyOptions(specialties.length > 0 ? specialties : ["General Labor"]);
         setProjectOptions(projects.map((project) => project.label));
       } catch {
@@ -183,6 +186,7 @@ export default function EditCrewPage() {
         mode="edit"
         initialValue={initialValue}
         employeeOptions={employeeOptions}
+        profileOptions={profileOptions}
         specialtyOptions={specialtyOptions}
         projectOptions={projectOptions}
         isSaving={isSaving}

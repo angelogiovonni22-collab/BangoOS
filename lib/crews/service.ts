@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
-import { createWorkforceService } from "@/lib/workforce";
+import { createWorkforceRepository, createWorkforceService } from "@/lib/workforce";
 import type {
   Crew,
   CrewDashboardSummary,
@@ -22,6 +22,7 @@ export type CrewService = {
   getSupervisorOptions: () => Promise<Array<{ id: string; label: string }>>;
   getProjectOptions: () => Promise<Array<{ id: string; label: string }>>;
   getEmployeeOptions: () => Promise<CrewEmployeeOption[]>;
+  getProfileOptions: () => Promise<Array<{ id: string; label: string }>>;
   getCrewsForProject: (projectName: string) => Promise<ProjectCrewAssignmentSummary[]>;
   createCrew: (input: UpsertCrewInput) => Promise<Crew>;
   updateCrew: (crewId: string, input: UpsertCrewInput) => Promise<Crew | null>;
@@ -127,6 +128,7 @@ async function resolveContext() {
 
   return {
     workforce: createWorkforceService(supabase),
+    repository: createWorkforceRepository(supabase),
     workspace: workspace.context,
   };
 }
@@ -311,6 +313,15 @@ export function createCrewService(deps: CrewServiceDeps = {}): CrewService {
       const directory = await loadDefaultDirectory();
 
       return directory.options.projectOptions;
+    },
+
+    async getProfileOptions() {
+      const { repository, workspace } = await resolveContext();
+      const profiles = await repository.listProfiles(workspace.companyId);
+      return profiles.map((profile) => ({
+        id: profile.id,
+        label: [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() || profile.id,
+      }));
     },
 
     async getEmployeeOptions(): Promise<CrewEmployeeOption[]> {
