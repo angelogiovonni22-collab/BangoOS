@@ -346,6 +346,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         </div>
 
         <AssignmentForm
+          submitError={scheduling.errorMessage ? t(scheduling.errorMessage) : null}
           timeZone={payload.timeZone}
           projectOptions={payload.projectOptions}
           crewOptions={payload.crewOptions}
@@ -395,6 +396,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
             </div>
 
             <AssignmentForm
+              submitError={scheduling.errorMessage ? t(scheduling.errorMessage) : null}
               key={selectedAssignment.id}
               initialDraft={assignmentToDraft(selectedAssignment)}
               submitLabel={saveAssignmentLabel}

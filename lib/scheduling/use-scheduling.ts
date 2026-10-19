@@ -27,6 +27,12 @@ const initialFilters: ScheduleFilterState = {
   groupBy: "project",
 };
 
+function assignmentErrorKey(error: unknown) {
+  return error instanceof Error && error.message === "Assignment conflicts with an existing schedule for this resource."
+    ? "scheduling.validation.resourceConflict"
+    : "scheduling.errorSaveAssignment";
+}
+
 export function useScheduling({ service, initialProjectId }: UseSchedulingParams = {}) {
   const schedulingService = useMemo(() => service ?? createSchedulingService(), [service]);
   const [payload, setPayload] = useState<SchedulingPayload | null>(null);
@@ -84,8 +90,8 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
       setPayload(next);
       setLastActionMessage("scheduling.feedback.assignmentCreated");
       return true;
-    } catch {
-      setErrorMessage("scheduling.errorSaveAssignment");
+    } catch (error) {
+      setErrorMessage(assignmentErrorKey(error));
       return false;
     } finally {
       if (!hadPayload) {
@@ -106,8 +112,8 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
       setPayload(next);
       setLastActionMessage("scheduling.feedback.assignmentMoved");
       return true;
-    } catch {
-      setErrorMessage("scheduling.errorSaveAssignment");
+    } catch (error) {
+      setErrorMessage(assignmentErrorKey(error));
       return false;
     } finally {
       setIsLoading(false);

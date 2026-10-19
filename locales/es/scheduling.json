@@ -260,7 +260,7 @@
   "validation.employeeRequired": "Selecciona un empleado para este tipo de asignacion.",
 
   "feedback.assignmentCreated": "Asignacion creada con exito.",
-  "feedback.assignmentMoved": "Asignacion movida con actualizacion optimista.",
+  "feedback.assignmentMoved": "Asignación actualizada.",
   "feedback.openShiftDismissed": "Turno abierto descartado.",
   "feedback.dispatchUpdated": "Estado de despacho actualizado.",
   "feedback.openShiftFilled": "Turno abierto cubierto.",
@@ -288,5 +288,6 @@
   "errorOpenShift": "No se pudo cubrir el turno abierto.",
   "errorConflictUpdate": "No se pudo actualizar el conflicto.",
   "errorInsightUpdate": "No se pudo actualizar la recomendacion.",
-  "errorAssignmentMove": "No se pudo mover la asignacion."
+  "errorAssignmentMove": "No se pudo mover la asignacion.",
+  "validation.resourceConflict": "Esta cuadrilla o empleado ya tiene una asignación durante estas horas. Elige otro horario o recurso."
 }

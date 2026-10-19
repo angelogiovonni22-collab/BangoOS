@@ -176,5 +176,11 @@
   "errorLoad": "We couldn't load crew data right now. Please try again.",
   "errorLoadProfile": "We couldn't load this crew profile.",
   "errorMissingId": "Crew ID is missing.",
-  "errorSave": "We couldn't save this crew. Please try again."
+  "errorSave": "We couldn't save this crew. Please try again.",
+  "assignmentHistory": "Assignment history",
+  "assignmentStatus.planned": "Planned",
+  "assignmentStatus.confirmed": "Confirmed",
+  "assignmentStatus.in_progress": "In progress",
+  "assignmentStatus.completed": "Completed",
+  "assignmentStatus.cancelled": "Cancelled"
 }
