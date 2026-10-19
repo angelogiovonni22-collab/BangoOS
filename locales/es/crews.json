@@ -42,6 +42,7 @@
   "sort.utilizationDesc": "Mayor utilización",
   "sort.lastActivityDesc": "Actividad más reciente",
 
+  "status.archived": "Archivada",
   "status.active": "Activa",
   "status.standby": "En espera",
   "status.inactive": "Inactiva",

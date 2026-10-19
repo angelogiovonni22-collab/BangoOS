@@ -12,6 +12,7 @@ export default function NewCrewPage() {
   const router = useRouter();
   const crewService = useMemo(() => createCrewService(), []);
 
+  const [profileOptions, setProfileOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [employeeOptions, setEmployeeOptions] = useState<CrewEmployeeOption[]>([]);
   const [specialtyOptions, setSpecialtyOptions] = useState<string[]>([]);
   const [projectOptions, setProjectOptions] = useState<string[]>([]);
@@ -27,10 +28,11 @@ export default function NewCrewPage() {
       setErrorMessage(null);
 
       try {
-        const [employees, specialties, projects] = await Promise.all([
+        const [employees, specialties, projects, profiles] = await Promise.all([
           crewService.getEmployeeOptions(),
           crewService.getSpecialtyOptions(),
           crewService.getProjectOptions(),
+          crewService.getProfileOptions(),
         ]);
 
         if (!active) {
@@ -38,6 +40,7 @@ export default function NewCrewPage() {
         }
 
         setEmployeeOptions(employees);
+        setProfileOptions(profiles);
         setSpecialtyOptions(specialties.length > 0 ? specialties : ["General Labor"]);
         setProjectOptions(projects.map((project) => project.label));
       } catch {
@@ -91,6 +94,7 @@ export default function NewCrewPage() {
       <CrewForm
         mode="create"
         employeeOptions={employeeOptions}
+        profileOptions={profileOptions}
         specialtyOptions={specialtyOptions}
         projectOptions={projectOptions}
         isSaving={isSaving}

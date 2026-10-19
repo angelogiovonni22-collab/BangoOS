@@ -16,6 +16,7 @@ type CrewFormProps = {
   mode: "create" | "edit";
   initialValue?: Crew;
   employeeOptions: CrewEmployeeOption[];
+  profileOptions: Array<{ id: string; label: string }>;
   specialtyOptions: string[];
   projectOptions: string[];
   isSaving: boolean;
@@ -27,8 +28,8 @@ type CrewFormProps = {
 type CrewFormState = {
   name: string;
   code: string;
-  lead: string;
-  supervisor: string;
+  leadProfileId: string;
+  supervisorProfileId: string;
   primarySpecialty: string;
   secondarySpecialties: string;
   status: CrewStatus;
@@ -42,6 +43,7 @@ export function CrewForm({
   mode,
   initialValue,
   employeeOptions,
+  profileOptions,
   specialtyOptions,
   projectOptions,
   isSaving,
@@ -52,8 +54,8 @@ export function CrewForm({
   const [state, setState] = useState<CrewFormState>(() => ({
     name: initialValue?.name || "",
     code: initialValue?.code || "",
-    lead: initialValue?.lead || "",
-    supervisor: initialValue?.supervisor || "",
+    leadProfileId: initialValue?.leadProfileId || "",
+    supervisorProfileId: initialValue?.supervisorProfileId || "",
     primarySpecialty: initialValue?.primarySpecialty || specialtyOptions[0] || "",
     secondarySpecialties: (initialValue?.secondarySpecialties || []).join(", "),
     status: initialValue?.status || "active",
@@ -67,7 +69,7 @@ export function CrewForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const requiredMissing = useMemo(
-    () => !state.name.trim() || !state.code.trim() || !state.lead.trim() || !state.supervisor.trim() || !state.primarySpecialty.trim(),
+    () => !state.name.trim() || !state.code.trim() || !state.primarySpecialty.trim(),
     [state],
   );
 
@@ -106,10 +108,6 @@ export function CrewForm({
         joinedOn: new Date().toISOString().slice(0, 10),
       },
     ]);
-
-    if (!state.lead.trim()) {
-      updateField("lead", employee.fullName);
-    }
 
     setPickerId("");
   };
@@ -152,8 +150,10 @@ export function CrewForm({
       await onSubmit({
         name: state.name.trim(),
         code: state.code.trim().toUpperCase(),
-        lead: state.lead.trim(),
-        supervisor: state.supervisor.trim(),
+        leadProfileId: state.leadProfileId || null,
+        supervisorProfileId: state.supervisorProfileId || null,
+        lead: profileOptions.find((profile) => profile.id === state.leadProfileId)?.label || "",
+        supervisor: profileOptions.find((profile) => profile.id === state.supervisorProfileId)?.label || "",
         status: state.status,
         availability: state.availability,
         primarySpecialty: state.primarySpecialty.trim(),
@@ -181,11 +181,17 @@ export function CrewForm({
           <Field label={t("crews.form.code")} required>
             <Input value={state.code} onChange={(event) => updateField("code", event.target.value)} required />
           </Field>
-          <Field label={t("crews.form.lead")} required>
-            <Input value={state.lead} onChange={(event) => updateField("lead", event.target.value)} required />
+          <Field label={t("crews.form.lead")}>
+            <Select aria-label={t("crews.form.lead")} value={state.leadProfileId} onChange={(event) => updateField("leadProfileId", event.target.value)}>
+              <option value="">{t("crews.unassigned")}</option>
+              {profileOptions.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+            </Select>
           </Field>
-          <Field label={t("crews.form.supervisor")} required>
-            <Input value={state.supervisor} onChange={(event) => updateField("supervisor", event.target.value)} required />
+          <Field label={t("crews.form.supervisor")}>
+            <Select aria-label={t("crews.form.supervisor")} value={state.supervisorProfileId} onChange={(event) => updateField("supervisorProfileId", event.target.value)}>
+              <option value="">{t("crews.unassigned")}</option>
+              {profileOptions.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+            </Select>
           </Field>
           <Field label={t("crews.form.primarySpecialty")} required>
             <Select value={state.primarySpecialty} onChange={(event) => updateField("primarySpecialty", event.target.value)} required>
@@ -200,7 +206,7 @@ export function CrewForm({
           <Field label={t("crews.form.status")}>
             <Select value={state.status} onChange={(event) => updateField("status", event.target.value as CrewStatus)}>
               <option value="active">{t("crews.status.active")}</option>
-              <option value="standby">{t("crews.status.standby")}</option>
+              <option value="archived">{t("crews.status.archived")}</option>
               <option value="inactive">{t("crews.status.inactive")}</option>
             </Select>
           </Field>
