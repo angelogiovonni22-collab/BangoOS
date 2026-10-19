@@ -578,6 +578,7 @@
   "projectName": "Nombre del proyecto",
   "projectNameExample": "Renovacion de cocina",
   "projectType": "Tipo de proyecto",
+  "projectNumberAutomatic": "Se asigna automáticamente al guardar",
   "projectNumberLabel": "Numero de proyecto",
   "projectNumberExample": "PRJ-1024",
   "projectTypeSelect": "Selecciona tipo de proyecto",

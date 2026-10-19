@@ -72,7 +72,6 @@ const initialSnapshotTouchedState: SnapshotTouchedState = {
 type ProjectFormData = {
   projectName: string;
   customerId: string;
-  projectNumber: string;
   projectType: string;
   status: string;
   description: string;
@@ -95,7 +94,6 @@ type ProjectFormData = {
 const initialFormData: ProjectFormData = {
   projectName: "",
   customerId: "",
-  projectNumber: "",
   projectType: "",
   status: "lead",
   description: "",
@@ -503,9 +501,8 @@ export default function NewProjectPage() {
             <FormField label={t("projects.projectNumberLabel")} htmlFor="projectNumber">
               <Input
                 id="projectNumber"
-                value={formData.projectNumber}
-                onChange={(event) => updateField("projectNumber", event.target.value)}
-                placeholder={t("projects.projectNumberExample")}
+                value={t("projects.projectNumberAutomatic")}
+                readOnly
               />
             </FormField>
 

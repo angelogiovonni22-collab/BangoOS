@@ -67,8 +67,9 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
   }
 
   const handleSubmit=async(event:React.FormEvent<HTMLFormElement>)=>{
-    event.preventDefault();setLocalError(null);setSuccess(null);
+    event.preventDefault();if(saving||loadingPay)return;setLocalError(null);setSuccess(null);
     if(!projectId){setLocalError("Select a project before assigning this crew.");return;} if(!date){setLocalError("Select an assignment date.");return;} if(hours<=0){setLocalError("Enter a valid assignment start and end time.");return;}
+    if(method==="payroll_rate"&&!crewPay.length){setLocalError("This crew has no active members with payroll setup.");return;}
     if(method==="payroll_rate"&&crewPay.some((row)=>row.hourlyRate==null)){setLocalError("Every active crew member needs an employee pay rate before this assignment can use Payroll rates.");return;}
     if(["hourly","day_rate","piece_rate","prevailing_wage"].includes(method)&&(!Number.isFinite(Number(rate))||Number(rate)<0)){setLocalError("Enter a valid compensation rate.");return;} if(method==="piece_rate"&&Number(plannedUnits)<=0){setLocalError("Enter the planned quantity for piece/unit rate work.");return;} if(method==="lump_sum"&&Number(lumpSum)<=0){setLocalError("Enter the lump-sum amount.");return;}
     const projectName=selectedProject?.name||"Project"; const trade=payload?.tradeOptions[0]||"General Labor";

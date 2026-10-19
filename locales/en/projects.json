@@ -578,6 +578,7 @@
   "projectName": "Project Name",
   "projectNameExample": "Kitchen renovation",
   "projectType": "Project Type",
+  "projectNumberAutomatic": "Assigned automatically when saved",
   "projectNumberLabel": "Project Number",
   "projectNumberExample": "PRJ-1024",
   "projectTypeSelect": "Select project type",
