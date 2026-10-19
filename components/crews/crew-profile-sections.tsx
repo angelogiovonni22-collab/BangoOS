@@ -55,9 +55,9 @@ export function CrewProfileSections({ crew, locale, t }: CrewProfileSectionsProp
           <CardTitle>Assignments</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <AssignmentGroup title="Current" items={crew.assignments.current} locale={locale} />
-          <AssignmentGroup title="Upcoming" items={crew.assignments.upcoming} locale={locale} />
-          <AssignmentGroup title="Completed" items={crew.assignments.completed} locale={locale} />
+          <AssignmentGroup title="Current" items={crew.assignments.current} locale={locale} t={t} />
+          <AssignmentGroup title="Upcoming" items={crew.assignments.upcoming} locale={locale} t={t} />
+          <AssignmentGroup title={t("crews.assignmentHistory")} items={crew.assignments.completed} locale={locale} t={t} />
         </CardContent>
       </Card>
 
@@ -117,7 +117,7 @@ function MembershipGroup({ title, items }: { title: string; items: CrewProfile["
   );
 }
 
-function AssignmentGroup({ title, items, locale }: { title: string; items: CrewProfile["assignments"]["current"]; locale: string }) {
+function AssignmentGroup({ title, items, locale, t }: { title: string; items: CrewProfile["assignments"]["current"]; locale: string; t: CrewProfileSectionsProps["t"] }) {
   return (
     <section className="space-y-2">
       <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{title}</h3>
@@ -127,6 +127,7 @@ function AssignmentGroup({ title, items, locale }: { title: string; items: CrewP
         items.map((assignment) => (
           <article key={assignment.id} className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3">
             <p className="font-semibold text-[var(--color-text-primary)]">{assignment.title}</p>
+            <p className="mt-1 text-xs font-semibold text-[var(--color-text-secondary)]">{t(`crews.assignmentStatus.${assignment.status}`)}</p>
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{assignment.projectName}</p>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{assignment.phaseName || assignment.taskName || "No phase/task"}</p>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{formatDateTime(assignment.startsAt, locale)} - {formatDateTime(assignment.endsAt, locale)}</p>

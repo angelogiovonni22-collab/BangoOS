@@ -260,7 +260,7 @@
   "validation.employeeRequired": "Select an employee for this assignment type.",
 
   "feedback.assignmentCreated": "Assignment created successfully.",
-  "feedback.assignmentMoved": "Assignment moved with optimistic update.",
+  "feedback.assignmentMoved": "Assignment updated.",
   "feedback.openShiftDismissed": "Open shift dismissed.",
   "feedback.dispatchUpdated": "Dispatch status updated.",
   "feedback.openShiftFilled": "Open shift filled.",
@@ -288,5 +288,6 @@
   "errorOpenShift": "Unable to fill open shift.",
   "errorConflictUpdate": "Unable to update conflict.",
   "errorInsightUpdate": "Unable to update recommendation.",
-  "errorAssignmentMove": "Unable to move assignment."
+  "errorAssignmentMove": "Unable to move assignment.",
+  "validation.resourceConflict": "This crew or employee already has an assignment during these hours. Choose another time or resource."
 }

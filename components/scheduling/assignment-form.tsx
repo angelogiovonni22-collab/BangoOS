@@ -13,6 +13,7 @@ type AssignmentFormProps = {
   tradeOptions: string[];
   initialDraft?: AssignmentDraft;
   submitLabel?: string;
+  submitError?: string | null;
   onSubmit: (draft: AssignmentDraft) => Promise<boolean>;
   onCancel: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -52,6 +53,7 @@ export function AssignmentForm({
   tradeOptions,
   initialDraft,
   submitLabel,
+  submitError,
   onSubmit,
   onCancel,
   t,
@@ -59,6 +61,7 @@ export function AssignmentForm({
   const resolvedTimeZone = resolveScheduleTimeZone(timeZone);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitFailed, setSubmitFailed] = useState(false);
   const [form, setForm] = useState<AssignmentDraft>(() => initialDraft ?? defaultDraft(projectOptions, tradeOptions, resolvedTimeZone));
 
   const update = <K extends keyof AssignmentDraft>(key: K, value: AssignmentDraft[K]) => {
@@ -68,6 +71,7 @@ export function AssignmentForm({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setSubmitFailed(false);
 
     if (!form.title.trim() || !form.projectId || !form.requiredTrade) {
       setError(t("scheduling.validation.required"));
@@ -106,13 +110,15 @@ export function AssignmentForm({
     setIsSaving(true);
     try {
       const saved = await onSubmit(form);
-      if (!saved) setError(t("scheduling.errorSaveAssignment"));
+      setSubmitFailed(!saved);
     } catch {
       setError(t("scheduling.errorSaveAssignment"));
     } finally {
       setIsSaving(false);
     }
   };
+
+  const formError = error || (submitFailed ? submitError || t("scheduling.errorSaveAssignment") : null);
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
@@ -211,9 +217,9 @@ export function AssignmentForm({
         />
       </Field>
 
-      {error ? (
+      {formError ? (
         <p className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-3 py-2 text-sm text-[var(--color-danger-700)]">
-          {error}
+          {formError}
         </p>
       ) : null}
 

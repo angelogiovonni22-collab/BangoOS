@@ -176,5 +176,11 @@
   "errorLoad": "No pudimos cargar los datos de cuadrilla. Intenta nuevamente.",
   "errorLoadProfile": "No pudimos cargar este perfil de cuadrilla.",
   "errorMissingId": "Falta el ID de la cuadrilla.",
-  "errorSave": "No pudimos guardar la cuadrilla. Intenta nuevamente."
+  "errorSave": "No pudimos guardar la cuadrilla. Intenta nuevamente.",
+  "assignmentHistory": "Historial de asignaciones",
+  "assignmentStatus.planned": "Planificada",
+  "assignmentStatus.confirmed": "Confirmada",
+  "assignmentStatus.in_progress": "En curso",
+  "assignmentStatus.completed": "Completada",
+  "assignmentStatus.cancelled": "Cancelada"
 }
