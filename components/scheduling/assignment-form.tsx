@@ -218,9 +218,9 @@ export function AssignmentForm({
       </Field>
 
       {formError ? (
-        <p className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-3 py-2 text-sm text-[var(--color-danger-700)]">
+        <div role="alert" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-3 py-2 text-sm text-[var(--color-danger-700)]">
           {formError}
-        </p>
+        </div>
       ) : null}
 
       <div className="flex flex-wrap justify-end gap-2">
