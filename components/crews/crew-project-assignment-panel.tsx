@@ -48,7 +48,7 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
       const profiles=new Map(((profileResult.data||[]) as Array<{id:string;first_name:string|null;last_name:string|null}>).map((p)=>[p.id,p])); const pays=new Map(((payResult.data||[]) as Array<{employee_id:string;hourly_rate:number|null;fringe_hourly:number|null}>).map((p)=>[p.employee_id,p]));
       setCrewPay(employees.map((e)=>{const p=e.profile_id?profiles.get(e.profile_id):null;const pay=pays.get(e.id);return{employeeId:e.id,name:[p?.first_name,p?.last_name].filter(Boolean).join(" ")||e.employee_number,hourlyRate:pay?.hourly_rate??null,fringeHourly:pay?.fringe_hourly??null};}));
     } else setCrewPay([]);
-    if(projectOptions.length){const result=await db.from("projects").select("id,contract_amount,estimated_cost").eq("company_id",companyId).in("id",projectOptions.map((p)=>p.id));const budgets:Record<string,number>={};for(const row of result.data||[])budgets[String(row.id)]=Number(row.contract_amount??row.estimated_cost??0);setProjectBudgets(budgets);}
+    if(projectOptions.length){const result=await db.from("projects").select("id,contract_amount,estimated_cost").eq("company_id",companyId).in("id",projectOptions.map((p)=>p.id));const budgets:Record<string,number>={};for(const row of result.data||[]){if(row.estimated_cost!=null)budgets[String(row.id)]=Number(row.estimated_cost);}setProjectBudgets(budgets);}
     setLoadingPay(false);
   }
 
