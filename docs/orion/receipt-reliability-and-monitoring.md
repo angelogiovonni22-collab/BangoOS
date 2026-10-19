@@ -1,0 +1,17 @@
+# Atomic receipt events and delivery monitoring
+
+Receipt insertion and transition from pending to recorded now publish canonical `payment.received` and invoice rollup events through a private database trigger. The existing event trigger enqueues server delivery in the same transaction. Failure in either publication or enqueue rolls back the receipt, financial rollup and idempotency operation. Existing receipts are not backfilled. The publisher runs after the existing invoice rollup; payload balances come from database rows. Recorded-to-recorded updates do not republish. A unique company/receipt event index rejects duplicate publication from older open clients; those clients may briefly show their existing activity warning until refreshed.
+
+Invoice forms and Mark Paid no longer publish these events from the browser. Orion payment commands use the same compliant, retry-safe receipt service instead of independently inserting a receipt and writing a potentially stale balance. A SHA-256-derived UUID scopes the command's operation identity by company and command idempotency key. Additional deposit classification remains a separate, best-effort event; the canonical receipt event is atomic for deposits too.
+
+Company owners and administrators can open Settings → Orion delivery monitoring. The page lists 50 deliveries at a time, company-wide totals, attempts, last/next attempt, error and invoice link. Only failed deliveries whose five automatic attempts are exhausted can be requeued. The guarded RPC locks the exact company/event/subscriber, records the previous failure and requesting administrator in a private audit table, then starts a fresh retry budget. A second click cannot requeue pending/delivered work. The existing worker and notification uniqueness constraint prevent a retried delivery from duplicating its effect. A retry never creates or changes a financial record.
+
+The browser has no access to the private worker/audit schema or ledger writes. New SECURITY DEFINER RPCs exist only to expose this narrow admin operation; both check auth.uid plus active company owner/administrator membership, pin search_path, validate bounds and reject anon. Do not expand their grants to bypass authorization.
+
+## Validation and rollout
+
+Run the migration and `supabase/tests/atomic-receipt-events-and-monitor.sql` together inside BEGIN/ROLLBACK. The test faults the first and second event writes, verifies complete rollback, checks canonical events/idempotent receipt retry, pending transition, post-rollup payload, queue and notification, audit/retry/double-click/dedup, authenticated API use, anon/private schema denial and cross-company denial. All fixtures roll back.
+
+Apply the database migration before deploying the client that removes browser publication. Verify the actual Production commit. On a labeled disposable invoice, record a payment through the UI, confirm one canonical event/queue row, allow scheduled delivery with the app closed, inspect the monitor and inbox, and remove only those fixtures. Verify original finance totals afterward. Never run fault injection against committed customer receipts.
+
+Local dependencies are absent in the verification workspace; lint/build attempts fail because eslint/next are unavailable. No npm install was run. Required full lint/build must pass in repository CI before merge. Linked CLI dry-run requires project linkage; transactional actual-schema validation is evidence, not a claimed dry-run pass.

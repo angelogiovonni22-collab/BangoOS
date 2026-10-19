@@ -1,4 +1,8 @@
 -- Run after the migration, inside BEGIN ... ROLLBACK. Never commit these fixtures.
+-- Isolate worker tests from the later receipt-publisher trigger. The separate
+-- atomic-receipt suite exercises their integration. ROLLBACK restores it.
+drop trigger if exists z_orion_recorded_receipt_events on public.invoice_payment_history;
+drop index if exists public.workflow_events_payment_receipt_once;
 create temp table orion_receipt_test_context as
 select p.company_id, p.id as user_id, gen_random_uuid() as invoice_id,
        gen_random_uuid() as receipt_id, gen_random_uuid() as event_id,

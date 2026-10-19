@@ -5367,6 +5367,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      list_orion_receipt_deliveries: {
+        Args: { p_company_id: string; p_offset?: number }
+        Returns: Json
+      }
+      retry_orion_receipt_delivery: {
+        Args: { p_company_id: string; p_event_id: string }
+        Returns: boolean
+      }
       apply_billing_webhook_event: {
         Args: { p_event: Json; p_company_id: string | null; p_update: Json; p_processing_error?: string | null }
         Returns: Json

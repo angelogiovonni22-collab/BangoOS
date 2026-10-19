@@ -230,7 +230,10 @@ async function main() {
     check(combined.includes("project.created"), "project.created event publish exists");
     check(combined.includes("estimate.created"), "estimate.created event publish exists");
     check(combined.includes("invoice.created"), "invoice.created event publish exists");
-    check(combined.includes("invoice.paid"), "invoice.paid event publish exists");
+    const receiptPublisher = readFileSync(resolve(process.cwd(), "supabase", "migrations", "20261018132706_atomic_receipt_events_and_delivery_monitor.sql"), "utf8");
+    check(receiptPublisher.includes("'invoice.paid'") && receiptPublisher.includes("'payment.received'")
+      && receiptPublisher.includes("create trigger z_orion_recorded_receipt_events"),
+    "receipt and invoice payment events are published atomically by the database");
     check(combined.includes("source_module: \"workflows\""), "workflow bridge enriches workflow event rows");
   });
 

@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readAllSupabaseRows } from "@/lib/supabase/pagination";
 import { authorizeInvoicePaymentCollection } from "@/lib/compliance/deposit-payment-service";
-import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import type { Database } from "@/types/database.types";
 
 export type AgingBucket = "current" | "1-30" | "31-60" | "61-90" | "90+";
@@ -95,9 +94,6 @@ export async function recordCustomerPayment(params:{supabase:SupabaseClient<Data
  }catch{return{...receipt,warning:confirmationWarning};}
  if(syncedInvoice.error||!syncedInvoice.data)return{...receipt,warning:confirmationWarning};
  const total=Number(syncedInvoice.data.total_amount||0),nextPaid=Number(syncedInvoice.data.amount_paid||0),isPaid=nextPaid>=total-0.005,balanceDue=Math.max(total-nextPaid,0);
- try{
-  const orion=createSupabaseOrionEventPublisher(params.supabase);await orion.publishEvent({company_id:params.companyId,actor_profile_id:params.userId,event_type:"payment.received",aggregate_type:"payment",aggregate_id:paymentId,source_module:"payments",payload:{invoice_id:params.invoiceId,invoice_number:syncedInvoice.data.invoice_number,amount:params.amount,payment_date:params.paymentDate,method,resulting_balance:balanceDue,deep_link:`/invoices/${params.invoiceId}`},metadata:{workflow_name:"accounts_receivable",event_category:"finance",event_severity:"success",deep_link:`/invoices/${params.invoiceId}`}});
-  await orion.publishEvent({company_id:params.companyId,actor_profile_id:params.userId,event_type:isPaid?"invoice.paid":"invoice.partial_payment",aggregate_type:"invoice",aggregate_id:params.invoiceId,source_module:"invoices",payload:{invoice_id:params.invoiceId,amount_received:params.amount,amount_paid:nextPaid,balance_due:balanceDue,paid_date:syncedInvoice.data.paid_date,payment_date:params.paymentDate,deep_link:`/invoices/${params.invoiceId}`},metadata:{workflow_name:"accounts_receivable",event_category:"finance",event_severity:"success",deep_link:`/invoices/${params.invoiceId}`}});
- }catch{return{...receipt,isPaid,amountPaid:nextPaid,balanceDue,warning:"Payment recorded. Activity updates could not be completed. Review the invoice before recording another payment."};}
+ // Receipt events and the delivery enqueue commit in the database receipt transaction.
  return{...receipt,isPaid,amountPaid:nextPaid,balanceDue};
 }
