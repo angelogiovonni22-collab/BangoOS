@@ -36,6 +36,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
   const supabase = useMemo(() => createClient(), []);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState("");
@@ -156,7 +157,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
     return () => {
       isSubscribed = false;
     };
-  }, [supabase, changeOrderId]);
+  }, [supabase, changeOrderId, refreshVersion]);
 
   async function runAction(action: "submit" | "approve" | "reject" | "reopen" | "void" | "archive" | "restore") {
     if (!supabase || !companyId || !userId || !changeOrder) {
@@ -218,7 +219,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
       return;
     }
 
-    router.refresh();
+    setRefreshVersion((current) => current + 1);
   }
 
   async function confirmApproveAction() {
@@ -236,7 +237,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
       return;
     }
 
-    router.refresh();
+    setRefreshVersion((current) => current + 1);
   }
 
   async function handleSendToCustomer() {
@@ -281,7 +282,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
       return;
     }
 
-    router.refresh();
+    setRefreshVersion((current) => current + 1);
   }
 
   async function handleCreateInvoiceFromChangeOrder() {
