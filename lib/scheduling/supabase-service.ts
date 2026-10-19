@@ -15,6 +15,8 @@ import type {
   WorkforceTaskRow,
 } from "@/lib/workforce/workforce-types";
 import { buildScheduleHealth, detectSchedulingConflicts } from "./conflict-engine";
+import { createScheduleWindow, moveScheduleWindow, scheduleClock } from "./time-zone";
+import { loadScheduleTimeZone } from "./workspace-time-zone";
 import { buildAvailableContractorsOrVendors } from "./contractor-vendor-availability";
 import type { SchedulingService } from "./service";
 import type {
@@ -66,39 +68,6 @@ type EventStateMaps = {
 };
 
 type SchedulingSupabaseClient = NonNullable<ReturnType<typeof createClient>>;
-
-function toIsoDate(iso: string) {
-  return iso.slice(0, 10);
-}
-
-function toTime(iso: string) {
-  return iso.slice(11, 16);
-}
-
-function combineDateAndTime(date: string, time: string) {
-  return `${date}T${time}:00Z`;
-}
-
-const shiftStartTimes = { day: "07:00", swing: "15:00", night: "23:00" } as const;
-
-function moveWindow(params: { startsAt: string; endsAt: string; date?: string; startTime?: string; endTime?: string; shift?: "day" | "swing" | "night" }) {
-  const durationMs = Math.max(0, new Date(params.endsAt).getTime() - new Date(params.startsAt).getTime());
-  const date = params.date ?? toIsoDate(params.startsAt);
-  const startTime = params.startTime ?? (params.shift ? shiftStartTimes[params.shift] : toTime(params.startsAt));
-  const startsAt = combineDateAndTime(date, startTime);
-
-  if (params.endTime) {
-    let endsAt = combineDateAndTime(date, params.endTime);
-    if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
-      const nextDay = new Date(`${date}T00:00:00Z`);
-      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-      endsAt = combineDateAndTime(nextDay.toISOString().slice(0, 10), params.endTime);
-    }
-    return { startsAt, endsAt };
-  }
-
-  return { startsAt, endsAt: new Date(new Date(startsAt).getTime() + durationMs).toISOString() };
-}
 
 function durationHours(startIso: string, endIso: string) {
   const start = new Date(startIso).getTime();
@@ -159,8 +128,8 @@ function mapDraftStatus(status: AssignmentDraft["status"]): WorkforceAssignmentR
   return status;
 }
 
-function mapShift(start: string): "day" | "swing" | "night" {
-  const hour = Number.parseInt(start.slice(11, 13), 10);
+function mapShift(start: string, timeZone: string): "day" | "swing" | "night" {
+  const hour = Number.parseInt(scheduleClock(start, timeZone).time.slice(0, 2), 10);
   if (Number.isNaN(hour)) {
     return "day";
   }
@@ -299,6 +268,7 @@ function toScheduleAssignment(
   employees: Map<string, WorkforceEmployeeRow>,
   profileNames: Map<string, string>,
   crewMembershipsByCrew: Map<string, WorkforceMembershipRow[]>,
+  timeZone: string,
 ): ScheduleAssignment {
   const project = projects.get(row.project_id);
   const phase = row.phase_id ? phases.get(row.phase_id) : null;
@@ -320,11 +290,11 @@ function toScheduleAssignment(
     title: row.title,
     type: mapAssignmentType(row.source_type, row.assignment_type),
     status: mapAssignmentStatus(row.status),
-    shift: mapShift(row.starts_at),
+    shift: mapShift(row.starts_at, timeZone),
     priority: mapPriority(row.status),
-    date: toIsoDate(row.starts_at),
-    startTime: toTime(row.starts_at),
-    endTime: toTime(row.ends_at),
+    date: scheduleClock(row.starts_at, timeZone).date,
+    startTime: scheduleClock(row.starts_at, timeZone).time,
+    endTime: scheduleClock(row.ends_at, timeZone).time,
     plannedStart: row.starts_at,
     plannedEnd: row.ends_at,
     plannedLaborHours: Number(row.planned_hours ?? 0),
@@ -440,9 +410,9 @@ function buildAvailability(
   return [...employeeAvailability, ...crewAvailability];
 }
 
-function toResourceCurrentAssignment(assignments: ScheduleAssignment[], predicate: (assignment: ScheduleAssignment) => boolean) {
+function toResourceCurrentAssignment(assignments: ScheduleAssignment[], predicate: (assignment: ScheduleAssignment) => boolean, timeZone: string) {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = scheduleClock(now.toISOString(), timeZone).date;
   const candidates = assignments.filter((assignment) => predicate(assignment));
   const sameDay = candidates.filter((assignment) => assignment.date === today);
 
@@ -464,11 +434,12 @@ function buildDispatchResources(
   equipment: WorkforceEquipmentRow[],
   profiles: Map<string, string>,
   events: EventStateMaps,
+  timeZone: string,
 ): DispatchResource[] {
   const resources: DispatchResource[] = [];
 
   for (const crew of crews) {
-    const current = toResourceCurrentAssignment(assignments, (assignment) => assignment.assignedCrewIds.includes(crew.id));
+    const current = toResourceCurrentAssignment(assignments, (assignment) => assignment.assignedCrewIds.includes(crew.id), timeZone);
     const key = `crew:${crew.id}`;
     const status = events.dispatchByResource.get(key) ?? mapDispatchStatusFromAssignment(current);
 
@@ -497,7 +468,7 @@ function buildDispatchResources(
   }
 
   for (const employee of employees) {
-    const current = toResourceCurrentAssignment(assignments, (assignment) => assignment.assignedEmployeeIds.includes(employee.id));
+    const current = toResourceCurrentAssignment(assignments, (assignment) => assignment.assignedEmployeeIds.includes(employee.id), timeZone);
     const key = `employee:${employee.id}`;
     const status = events.dispatchByResource.get(key)
       ?? (employee.availability_status === "unavailable" || employee.employment_status === "leave" ? "off_shift" : mapDispatchStatusFromAssignment(current));
@@ -542,7 +513,7 @@ function buildDispatchResources(
       }
 
       return false;
-    });
+    }, timeZone);
 
     const key = `equipment:${item.id}`;
     const maintenanceIssue = item.maintenance_status.toLowerCase().includes("due") || item.maintenance_status.toLowerCase().includes("overdue");
@@ -835,7 +806,7 @@ function buildAnalytics(
   };
 }
 
-function buildPayloadFromRows(rows: LoadedRows): SchedulingPayload {
+function buildPayloadFromRows(rows: LoadedRows, timeZone: string): SchedulingPayload {
   const projectsById = new Map(rows.projects.map((project) => [project.id, project]));
   const phasesById = new Map(rows.phases.map((phase) => [phase.id, phase]));
   const tasksById = new Map(rows.tasks.map((task) => [task.id, task]));
@@ -866,11 +837,12 @@ function buildPayloadFromRows(rows: LoadedRows): SchedulingPayload {
       employeesById,
       profilesById,
       membershipsByCrew,
+      timeZone,
     ),
   );
 
   const events = toEventStateMaps(rows.events);
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = scheduleClock(new Date().toISOString(), timeZone).date;
   const timeOff = buildTimeOffFromEmployees(rows.employees, profilesById, todayIso);
   const availability = buildAvailability(assignments, rows.employees, rows.crews, profilesById);
   const contractorVendors = buildAvailableContractorsOrVendors(rows.vendors, rows.tradePartnerAssignments, todayIso);
@@ -882,7 +854,7 @@ function buildPayloadFromRows(rows: LoadedRows): SchedulingPayload {
     timeOff,
   });
   const conflicts = applyConflictResolutions(baseConflicts, events);
-  const dispatch = buildDispatchResources(assignments, rows.crews, rows.employees, rows.equipment, profilesById, events);
+  const dispatch = buildDispatchResources(assignments, rows.crews, rows.employees, rows.equipment, profilesById, events, timeZone);
   const insights = buildInsights(conflicts, openShifts, events);
 
   const health = buildScheduleHealth({ assignments, conflicts, openShifts, dispatch });
@@ -897,6 +869,7 @@ function buildPayloadFromRows(rows: LoadedRows): SchedulingPayload {
   }
 
   return {
+    timeZone,
     summary,
     assignments,
     dispatch,
@@ -953,6 +926,7 @@ async function loadLivePayload() {
     vendorsResponse,
     tradePartnerAssignmentsResponse,
     eventsResponse,
+    timeZone,
   ] = await Promise.all([
     repository.listWorkforceAssignments(companyId),
     repository.listProjects(companyId),
@@ -987,6 +961,7 @@ async function loadLivePayload() {
       ])
       .order("occurred_at", { ascending: false })
       .limit(500),
+    loadScheduleTimeZone(supabase, companyId),
   ]);
 
   const loadError = vendorsResponse.error || tradePartnerAssignmentsResponse.error || eventsResponse.error;
@@ -1008,7 +983,8 @@ async function loadLivePayload() {
       vendors: (vendorsResponse.data ?? []) as VendorRow[],
       tradePartnerAssignments: (tradePartnerAssignmentsResponse.data ?? []) as TradePartnerAssignmentRow[],
       events: (eventsResponse.data ?? []) as SchedulingEventRow[],
-    }),
+    }, timeZone),
+    timeZone,
     companyId,
     userId: workspace.context.userId,
     supabase,
@@ -1018,8 +994,9 @@ async function loadLivePayload() {
 function assignmentUpdateFromChanges(
   base: WorkforceAssignmentRow,
   changes: Partial<Pick<ScheduleAssignment, "date" | "shift" | "assignedCrewIds" | "assignedEmployeeIds" | "startTime" | "endTime">>,
+  timeZone: string,
 ): Partial<WorkforceAssignmentRow> {
-  const movedWindow = moveWindow({ startsAt: base.starts_at, endsAt: base.ends_at, date: changes.date, startTime: changes.startTime, endTime: changes.endTime, shift: changes.shift });
+  const movedWindow = moveScheduleWindow({ timeZone, startsAt: base.starts_at, endsAt: base.ends_at, date: changes.date, startTime: changes.startTime, endTime: changes.endTime, shift: changes.shift });
   const nextStartsAt = movedWindow.startsAt;
   const nextEndsAt = movedWindow.endsAt;
 
@@ -1131,11 +1108,10 @@ export function createSupabaseSchedulingService(): SchedulingService {
     },
 
     async createAssignment(draft) {
-      const { companyId, userId, supabase } = await loadLivePayload();
+      const { companyId, userId, supabase, timeZone } = await loadLivePayload();
       const orion = createSupabaseOrionEventPublisher(supabase);
 
-      const startsAt = combineDateAndTime(draft.date, draft.startTime);
-      const endsAt = combineDateAndTime(draft.date, draft.endTime);
+      const { startsAt, endsAt } = createScheduleWindow(draft.date, draft.startTime, draft.endTime, timeZone);
       const useEmployee = draft.assignedEmployeeIds.length > 0;
       const employeeId = useEmployee ? draft.assignedEmployeeIds[0] ?? null : null;
       const crewId = useEmployee ? null : draft.assignedCrewIds[0] ?? null;
@@ -1428,7 +1404,7 @@ export function createSupabaseSchedulingService(): SchedulingService {
     },
 
     async moveAssignment(assignmentId, changes) {
-      const { companyId, userId, supabase } = await loadLivePayload();
+      const { companyId, userId, supabase, timeZone } = await loadLivePayload();
       const orion = createSupabaseOrionEventPublisher(supabase);
 
       const { data: current, error: fetchError } = await supabase
@@ -1446,7 +1422,7 @@ export function createSupabaseSchedulingService(): SchedulingService {
         throw new Error("Scheduling assignment not found.");
       }
 
-      const patch = assignmentUpdateFromChanges(current, changes);
+      const patch = assignmentUpdateFromChanges(current, changes, timeZone);
 
       await validateNoOverlap({
         supabase,

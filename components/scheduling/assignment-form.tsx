@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { Button, FormField, Input, Select } from "@/components/ui";
 import type { AssignmentDraft, AssignmentType } from "@/lib/scheduling";
+import { createScheduleWindow, resolveScheduleTimeZone, scheduleClock } from "@/lib/scheduling/time-zone";
 
 type AssignmentFormProps = {
+  timeZone?: string;
   projectOptions: Array<{ id: string; name: string }>;
   crewOptions: Array<{ id: string; name: string }>;
   employeeOptions: Array<{ id: string; name: string; trade: string }>;
@@ -16,13 +18,13 @@ type AssignmentFormProps = {
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-function defaultDraft(projectOptions: AssignmentFormProps["projectOptions"], tradeOptions: string[]): AssignmentDraft {
+function defaultDraft(projectOptions: AssignmentFormProps["projectOptions"], tradeOptions: string[], timeZone: string): AssignmentDraft {
   return {
     title: "",
     type: "project_work",
     projectId: projectOptions[0]?.id || "",
     location: "",
-    date: new Date().toISOString().slice(0, 10),
+    date: scheduleClock(new Date().toISOString(), timeZone).date,
     startTime: "07:00",
     endTime: "15:30",
     shift: "day",
@@ -43,6 +45,7 @@ function defaultDraft(projectOptions: AssignmentFormProps["projectOptions"], tra
 }
 
 export function AssignmentForm({
+  timeZone,
   projectOptions,
   crewOptions,
   employeeOptions,
@@ -53,9 +56,10 @@ export function AssignmentForm({
   onCancel,
   t,
 }: AssignmentFormProps) {
+  const resolvedTimeZone = resolveScheduleTimeZone(timeZone);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<AssignmentDraft>(() => initialDraft ?? defaultDraft(projectOptions, tradeOptions));
+  const [form, setForm] = useState<AssignmentDraft>(() => initialDraft ?? defaultDraft(projectOptions, tradeOptions, resolvedTimeZone));
 
   const update = <K extends keyof AssignmentDraft>(key: K, value: AssignmentDraft[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -92,6 +96,13 @@ export function AssignmentForm({
       return;
     }
 
+    try {
+      createScheduleWindow(form.date, form.startTime, form.endTime, resolvedTimeZone);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : t("scheduling.validation.timeOrder"));
+      return;
+    }
+
     setIsSaving(true);
     try {
       const saved = await onSubmit(form);
@@ -105,6 +116,7 @@ export function AssignmentForm({
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
+      <p className="text-xs text-[var(--color-text-secondary)]">{t("scheduling.form.timeZone", { timeZone: resolvedTimeZone })}</p>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label={t("scheduling.form.title")}>
           <Input value={form.title} onChange={(event) => update("title", event.target.value)} required />

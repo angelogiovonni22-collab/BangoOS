@@ -3,14 +3,12 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 import type { AssignmentDraft, SchedulingPayload } from "./types";
+import { createScheduleWindow } from "./time-zone";
+import { loadScheduleTimeZone } from "./workspace-time-zone";
 
 type WorkforceAssignmentRow = Database["public"]["Tables"]["workforce_assignments"]["Row"];
 
 type RefreshScheduling = () => Promise<SchedulingPayload>;
-
-function combineDateAndTime(date: string, time: string) {
-  return `${date}T${time}:00Z`;
-}
 
 function durationHours(startIso: string, endIso: string) {
   const hours = (new Date(endIso).getTime() - new Date(startIso).getTime()) / 3_600_000;
@@ -23,19 +21,6 @@ function mapDraftStatus(status: AssignmentDraft["status"]): WorkforceAssignmentR
   return status;
 }
 
-function buildWindow(draft: AssignmentDraft) {
-  const startsAt = combineDateAndTime(draft.date, draft.startTime);
-  let endsAt = combineDateAndTime(draft.date, draft.endTime);
-
-  if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
-    const nextDay = new Date(`${draft.date}T00:00:00Z`);
-    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-    endsAt = combineDateAndTime(nextDay.toISOString().slice(0, 10), draft.endTime);
-  }
-
-  return { startsAt, endsAt };
-}
-
 async function resolveSchedulingWorkspace() {
   const supabase = createClient();
   if (!supabase) throw new Error("Unable to connect to Supabase for scheduling.");
@@ -45,7 +30,8 @@ async function resolveSchedulingWorkspace() {
     throw new Error(workspace.errorMessage || "Unable to resolve workspace for scheduling.");
   }
 
-  return { supabase, companyId: workspace.context.companyId, userId: workspace.context.userId };
+  const timeZone = await loadScheduleTimeZone(supabase, workspace.context.companyId);
+  return { supabase, companyId: workspace.context.companyId, userId: workspace.context.userId, timeZone };
 }
 
 async function validateNoOverlap(params: {
@@ -88,7 +74,7 @@ async function validateNoOverlap(params: {
 export function createSchedulingCompletionService(refreshScheduling: RefreshScheduling) {
   return {
     async updateAssignment(assignmentId: string, draft: AssignmentDraft) {
-      const { supabase, companyId, userId } = await resolveSchedulingWorkspace();
+      const { supabase, companyId, userId, timeZone } = await resolveSchedulingWorkspace();
       const { data: current, error: fetchError } = await supabase
         .from("workforce_assignments")
         .select("*")
@@ -99,7 +85,7 @@ export function createSchedulingCompletionService(refreshScheduling: RefreshSche
       if (fetchError) throw fetchError;
       if (!current) throw new Error("Scheduling assignment not found.");
 
-      const { startsAt, endsAt } = buildWindow(draft);
+      const { startsAt, endsAt } = createScheduleWindow(draft.date, draft.startTime, draft.endTime, timeZone);
       const useEmployee = draft.assignedEmployeeIds.length > 0;
       const employeeId = useEmployee ? draft.assignedEmployeeIds[0] ?? null : null;
       const crewId = useEmployee ? null : draft.assignedCrewIds[0] ?? null;

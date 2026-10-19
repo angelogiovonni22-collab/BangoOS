@@ -45,6 +45,9 @@ jobs:
       - name: Run core UI foundation regression
         run: npx -y tsx components/ui/core-ui-foundation.test.ts
 
+      - name: Run scheduling company time zone regression
+        run: npx -y tsx lib/scheduling/time-zone.test.ts
+
       - name: Run receipt command retry identity regression
         run: npx -y tsx lib/accounts-receivable/receipt-operation-id.test.ts
 

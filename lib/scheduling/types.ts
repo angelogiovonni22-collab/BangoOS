@@ -345,6 +345,7 @@ export type SchedulingSummary = {
 };
 
 export type SchedulingPayload = {
+  timeZone?: string;
   summary: SchedulingSummary;
   assignments: ScheduleAssignment[];
   dispatch: DispatchResource[];
