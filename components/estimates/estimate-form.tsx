@@ -60,7 +60,7 @@ const DEFAULT_LINE_ITEMS: EstimateLineItemDraft[] = [
   },
 ];
 
-export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; estimateId?: string }) {
+export function EstimateForm({ mode, estimateId, defaultCustomerId }: { mode: EstimateFormMode; estimateId?: string; defaultCustomerId?: string }) {
   const { locale } = useI18n();
   const localeTag = locale === "es" ? "es-ES" : "en-US";
   const router = useRouter();
@@ -216,7 +216,11 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
         const estimateNumber = await getNextEstimateNumber(supabase, workspace.context.companyId);
 
         if (isSubscribed) {
-          setValues((current) => ({ ...current, estimateNumber }));
+          const linkedCustomer = nextCustomerOptions.find((customer) => customer.id === defaultCustomerId);
+          setValues((current) => ({ ...current, estimateNumber, customerId: linkedCustomer?.id || "" }));
+          if (defaultCustomerId && !linkedCustomer) {
+            setErrorMessage("The requested customer is unavailable in this workspace. Select a customer or enter prospect details.");
+          }
           setIsLoading(false);
         }
         return;
@@ -305,7 +309,7 @@ export function EstimateForm({ mode, estimateId }: { mode: EstimateFormMode; est
 
     void load();
     return () => { isSubscribed = false; };
-  }, [supabase, mode, estimateId]);
+  }, [supabase, mode, estimateId, defaultCustomerId]);
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
