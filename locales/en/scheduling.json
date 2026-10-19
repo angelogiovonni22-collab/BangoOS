@@ -1,4 +1,5 @@
 {
+  "form.timeZone": "Assignment times use {{timeZone}}.",
   "pageTitleDispatch": "Dispatch Center",
   "pageTitleSchedule": "Schedule",
   "header.badge": "Construction Dispatch Center",

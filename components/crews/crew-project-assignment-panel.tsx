@@ -3,20 +3,27 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button, FormField, Input, Select } from "@/components/ui";
+import { useI18n } from "@/lib/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { type CompensationMethod } from "@/lib/projects/project-commitments";
 import { useScheduling, type AssignmentDraft } from "@/lib/scheduling";
+import { createScheduleWindow, resolveScheduleTimeZone, scheduleClock } from "@/lib/scheduling/time-zone";
 
 type CrewProjectAssignmentPanelProps = { crewId: string; crewName: string; activeMemberCount: number; supervisorName: string | null };
 type CrewPayRow = { employeeId:string; name:string; hourlyRate:number|null; fringeHourly:number|null };
 type RpcResult<T>={data:T|null;error:{message?:string}|null};
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
-function shiftHours(start:string,end:string,shift:AssignmentDraft["shift"]){const [sh,sm]=start.split(":").map(Number);const [eh,em]=end.split(":").map(Number);let minutes=(eh*60+em)-(sh*60+sm);if(minutes<=0&&shift==="night")minutes+=1440;return Math.max(0,minutes/60);}
+function shiftHours(date:string,start:string,end:string,shift:AssignmentDraft["shift"],timeZone:string){
+  if(end<=start&&shift!=="night")return 0;
+  try{const window=createScheduleWindow(date,start,end,timeZone);return(Date.parse(window.endsAt)-Date.parse(window.startsAt))/3_600_000;}catch{return 0;}
+}
 const money=(value:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(value);
 
 export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount, supervisorName }: CrewProjectAssignmentPanelProps) {
+  const { t } = useI18n();
+  const [openedOnce,setOpenedOnce]=useState(false);
   const { payload, isLoading, errorMessage, createNewAssignment } = useScheduling();
   const supabase=useMemo(()=>createClient(),[]);
   const [open,setOpen]=useState(false); const [projectId,setProjectId]=useState(""); const [date,setDate]=useState(todayIso());
@@ -25,7 +32,8 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
   const [crewPay,setCrewPay]=useState<CrewPayRow[]>([]); const [projectBudgets,setProjectBudgets]=useState<Record<string,number>>({});
   const [saving,setSaving]=useState(false); const [loadingPay,setLoadingPay]=useState(false); const [localError,setLocalError]=useState<string|null>(null); const [success,setSuccess]=useState<string|null>(null);
   const projectOptions=useMemo(()=>payload?.projectOptions??[],[payload?.projectOptions]); const selectedProject=useMemo(()=>projectOptions.find((p)=>p.id===projectId)??null,[projectId,projectOptions]);
-  const hours=shiftHours(startTime,endTime,shift);
+  const timeZone=payload?.timeZone||resolveScheduleTimeZone(null);
+  const hours=shiftHours(date,startTime,endTime,shift,timeZone);
   const payrollHourly=crewPay.reduce((sum,row)=>sum+Number(row.hourlyRate||0)+Number(row.fringeHourly||0),0);
   const projectedCost=method==="payroll_rate"?payrollHourly*hours:method==="lump_sum"?Number(lumpSum||0):method==="day_rate"?Number(rate||0)*Number(plannedDays||0):method==="piece_rate"?Number(rate||0)*Number(plannedUnits||0):Number(rate||0)*hours;
   const selectedBudget=projectBudgets[projectId]; const remaining=Number.isFinite(selectedBudget)?selectedBudget-projectedCost:null;
@@ -52,7 +60,7 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
     setLoadingPay(false);
   }
 
-  const handleOpen=()=>{setOpen(true);setLocalError(null);setSuccess(null);if(!projectId&&projectOptions[0]?.id)setProjectId(projectOptions[0].id);void loadFinancialSetup();};
+  const handleOpen=()=>{if(!openedOnce){setDate(scheduleClock(new Date().toISOString(),timeZone).date);setOpenedOnce(true);}setOpen(true);setLocalError(null);setSuccess(null);if(!projectId&&projectOptions[0]?.id)setProjectId(projectOptions[0].id);void loadFinancialSetup();};
 
   async function saveCompensation(companyId:string){
     if(!supabase)throw new Error("B.O.S. database is unavailable.");
@@ -68,7 +76,7 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
 
   const handleSubmit=async(event:React.FormEvent<HTMLFormElement>)=>{
     event.preventDefault();if(saving||loadingPay)return;setLocalError(null);setSuccess(null);
-    if(!projectId){setLocalError("Select a project before assigning this crew.");return;} if(!date){setLocalError("Select an assignment date.");return;} if(hours<=0){setLocalError("Enter a valid assignment start and end time.");return;}
+    if(!projectId){setLocalError("Select a project before assigning this crew.");return;} if(!date){setLocalError("Select an assignment date.");return;} try{createScheduleWindow(date,startTime,endTime,timeZone);}catch(caught){setLocalError(caught instanceof Error?caught.message:"Enter a valid assignment date and time.");return;} if(hours<=0){setLocalError("Enter a valid assignment start and end time.");return;}
     if(method==="payroll_rate"&&!crewPay.length){setLocalError("This crew has no active members with payroll setup.");return;}
     if(method==="payroll_rate"&&crewPay.some((row)=>row.hourlyRate==null)){setLocalError("Every active crew member needs an employee pay rate before this assignment can use Payroll rates.");return;}
     if(["hourly","day_rate","piece_rate","prevailing_wage"].includes(method)&&(!Number.isFinite(Number(rate))||Number(rate)<0)){setLocalError("Enter a valid compensation rate.");return;} if(method==="piece_rate"&&Number(plannedUnits)<=0){setLocalError("Enter the planned quantity for piece/unit rate work.");return;} if(method==="lump_sum"&&Number(lumpSum)<=0){setLocalError("Enter the lump-sum amount.");return;}
@@ -90,6 +98,7 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
     {errorMessage?<p className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-3 py-2 text-sm text-[var(--color-danger-700)]">Scheduling data could not be loaded.</p>:null}
     {success?<p className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-3 py-2 text-sm font-medium text-[var(--color-success-800)]">{success}</p>:null}
     {open?<form onSubmit={handleSubmit} className="mt-5 space-y-4 border-t border-[var(--color-border-subtle)] pt-5">
+      <p className="text-xs text-[var(--color-text-secondary)]">{t("scheduling.form.timeZone", { timeZone })}</p>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"><FormField label="Project"><Select value={projectId} onChange={(e)=>setProjectId(e.target.value)} required><option value="">Select project</option>{projectOptions.map((p)=><option key={p.id} value={p.id}>{p.name}</option>)}</Select></FormField><FormField label="Assignment date"><Input type="date" value={date} onChange={(e)=>setDate(e.target.value)} required/></FormField><FormField label="Shift"><Select value={shift} onChange={(e)=>setShift(e.target.value as AssignmentDraft["shift"])}><option value="day">Day</option><option value="swing">Swing</option><option value="night">Night</option></Select></FormField><FormField label="Start time"><Input type="time" value={startTime} onChange={(e)=>setStartTime(e.target.value)} required/></FormField><FormField label="End time"><Input type="time" value={endTime} onChange={(e)=>setEndTime(e.target.value)} required/></FormField><FormField label="Crew"><Input value={crewName} readOnly/></FormField></div>
       <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-4"><h3 className="font-bold text-[var(--color-text-primary)]">Project compensation</h3><p className="mt-1 text-xs text-[var(--color-text-secondary)]">This creates the project labor commitment. It does not change the employee payroll rate.</p><div className="mt-3 grid gap-3 md:grid-cols-3"><FormField label="How are we paying?"><Select value={method} onChange={(e)=>setMethod(e.target.value as CompensationMethod)}><option value="payroll_rate">Payroll rates</option><option value="hourly">Hourly crew rate</option><option value="day_rate">Day rate</option><option value="piece_rate">Piece / unit rate</option><option value="lump_sum">Lump sum</option><option value="prevailing_wage">Prevailing wage</option></Select></FormField>{["hourly","day_rate","piece_rate","prevailing_wage"].includes(method)?<FormField label={method==="day_rate"?"Rate per day":method==="piece_rate"?"Rate per unit":"Hourly rate"}><Input type="number" min="0" step="0.01" value={rate} onChange={(e)=>setRate(e.target.value)}/></FormField>:null}{method==="day_rate"?<FormField label="Planned days"><Input type="number" min="0" step="0.5" value={plannedDays} onChange={(e)=>setPlannedDays(e.target.value)}/></FormField>:null}{method==="piece_rate"?<FormField label="Planned quantity"><Input type="number" min="0" step="0.01" value={plannedUnits} onChange={(e)=>setPlannedUnits(e.target.value)}/></FormField>:null}{method==="lump_sum"?<FormField label="Lump-sum amount"><Input type="number" min="0" step="0.01" value={lumpSum} onChange={(e)=>setLumpSum(e.target.value)}/></FormField>:null}</div>
         {method==="payroll_rate"?<div className="mt-3 space-y-2"><p className="text-xs font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">Crew member pay snapshot</p>{loadingPay?<p className="text-sm">Loading employee rates…</p>:crewPay.length?crewPay.map((row)=><div key={row.employeeId} className="flex flex-wrap justify-between gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] px-3 py-2 text-sm"><span className="font-semibold">{row.name}</span><span>{row.hourlyRate==null?"Rate missing":`${money(Number(row.hourlyRate))}/hr${Number(row.fringeHourly||0)>0?` + ${money(Number(row.fringeHourly))} fringe`:""}`}</span></div>):<p className="text-sm">No active crew members found.</p>}</div>:null}

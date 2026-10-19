@@ -346,6 +346,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
         </div>
 
         <AssignmentForm
+          timeZone={payload.timeZone}
           projectOptions={payload.projectOptions}
           crewOptions={payload.crewOptions}
           employeeOptions={payload.employeeOptions}
@@ -397,6 +398,7 @@ export function SchedulingDashboard({ initialSection = "overview", workspace = "
               key={selectedAssignment.id}
               initialDraft={assignmentToDraft(selectedAssignment)}
               submitLabel={saveAssignmentLabel}
+              timeZone={payload.timeZone}
               projectOptions={payload.projectOptions}
               crewOptions={payload.crewOptions}
               employeeOptions={payload.employeeOptions}
