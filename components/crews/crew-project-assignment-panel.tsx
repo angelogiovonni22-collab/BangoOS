@@ -48,7 +48,7 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
       const profiles=new Map(((profileResult.data||[]) as Array<{id:string;first_name:string|null;last_name:string|null}>).map((p)=>[p.id,p])); const pays=new Map(((payResult.data||[]) as Array<{employee_id:string;hourly_rate:number|null;fringe_hourly:number|null}>).map((p)=>[p.employee_id,p]));
       setCrewPay(employees.map((e)=>{const p=e.profile_id?profiles.get(e.profile_id):null;const pay=pays.get(e.id);return{employeeId:e.id,name:[p?.first_name,p?.last_name].filter(Boolean).join(" ")||e.employee_number,hourlyRate:pay?.hourly_rate??null,fringeHourly:pay?.fringe_hourly??null};}));
     } else setCrewPay([]);
-    if(projectOptions.length){const result=await db.from("projects").select("id,contract_amount,estimated_cost").eq("company_id",companyId).in("id",projectOptions.map((p)=>p.id));const budgets:Record<string,number>={};for(const row of result.data||[])budgets[String(row.id)]=Number(row.contract_amount??row.estimated_cost??0);setProjectBudgets(budgets);}
+    if(projectOptions.length){const result=await db.from("projects").select("id,contract_amount,estimated_cost").eq("company_id",companyId).in("id",projectOptions.map((p)=>p.id));const budgets:Record<string,number>={};for(const row of result.data||[]){if(row.estimated_cost!=null)budgets[String(row.id)]=Number(row.estimated_cost);}setProjectBudgets(budgets);}
     setLoadingPay(false);
   }
 
@@ -67,8 +67,9 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
   }
 
   const handleSubmit=async(event:React.FormEvent<HTMLFormElement>)=>{
-    event.preventDefault();setLocalError(null);setSuccess(null);
+    event.preventDefault();if(saving||loadingPay)return;setLocalError(null);setSuccess(null);
     if(!projectId){setLocalError("Select a project before assigning this crew.");return;} if(!date){setLocalError("Select an assignment date.");return;} if(hours<=0){setLocalError("Enter a valid assignment start and end time.");return;}
+    if(method==="payroll_rate"&&!crewPay.length){setLocalError("This crew has no active members with payroll setup.");return;}
     if(method==="payroll_rate"&&crewPay.some((row)=>row.hourlyRate==null)){setLocalError("Every active crew member needs an employee pay rate before this assignment can use Payroll rates.");return;}
     if(["hourly","day_rate","piece_rate","prevailing_wage"].includes(method)&&(!Number.isFinite(Number(rate))||Number(rate)<0)){setLocalError("Enter a valid compensation rate.");return;} if(method==="piece_rate"&&Number(plannedUnits)<=0){setLocalError("Enter the planned quantity for piece/unit rate work.");return;} if(method==="lump_sum"&&Number(lumpSum)<=0){setLocalError("Enter the lump-sum amount.");return;}
     const projectName=selectedProject?.name||"Project"; const trade=payload?.tradeOptions[0]||"General Labor";
