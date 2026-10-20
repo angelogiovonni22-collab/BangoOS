@@ -10,7 +10,7 @@ import { type CompensationMethod } from "@/lib/projects/project-commitments";
 import { useScheduling, type AssignmentDraft } from "@/lib/scheduling";
 import { createScheduleWindow, resolveScheduleTimeZone, scheduleClock } from "@/lib/scheduling/time-zone";
 
-type CrewProjectAssignmentPanelProps = { crewId: string; crewName: string; activeMemberCount: number; supervisorName: string | null };
+type CrewProjectAssignmentPanelProps = { crewId: string; crewName: string; activeMemberCount: number; supervisorName: string | null; onAssigned?: () => void };
 type CrewPayRow = { employeeId:string; name:string; hourlyRate:number|null; fringeHourly:number|null };
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
@@ -20,7 +20,7 @@ function shiftHours(date:string,start:string,end:string,shift:AssignmentDraft["s
 }
 const money=(value:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(value);
 
-export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount, supervisorName }: CrewProjectAssignmentPanelProps) {
+export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount, supervisorName, onAssigned }: CrewProjectAssignmentPanelProps) {
   const { t } = useI18n();
   const [openedOnce,setOpenedOnce]=useState(false);
   const { payload, isLoading, errorMessage, createNewAssignment } = useScheduling();
@@ -74,7 +74,7 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
       if(!supabase)throw new Error("B.O.S. database is unavailable.");
       const workspace=await resolveWorkspaceContext(supabase);if(!workspace.context)throw new Error(workspace.errorMessage||"Unable to resolve workspace.");
       const saved=await createNewAssignment(draft);if(!saved){setLocalError("B.O.S. could not save the assignment and compensation. Check the schedule and pay setup, then retry.");return;}
-      setSuccess(`${crewName} is assigned to ${projectName}. Projected labor commitment: ${money(projectedCost)}.`);setOpen(false);
+      setSuccess(`${crewName} is assigned to ${projectName}. Projected labor commitment: ${money(projectedCost)}.`);setOpen(false);onAssigned?.();
     }catch(caught){setLocalError(caught instanceof Error?caught.message:"Unable to save crew compensation.");}finally{setSaving(false);}
   };
 

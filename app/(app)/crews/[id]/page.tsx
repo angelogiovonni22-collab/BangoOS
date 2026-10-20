@@ -12,7 +12,7 @@ export default function CrewProfilePage() {
   const params = useParams<{ id?: string | string[] }>();
   const crewId = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
   const { t, locale } = useI18n();
-  const { crew, isLoading, errorMessage, notFound } = useCrewProfile({ crewId });
+  const { crew, isLoading, errorMessage, notFound, refresh } = useCrewProfile({ crewId });
 
   if (isLoading) {
     return <CrewLoadingState />;
@@ -67,6 +67,7 @@ export default function CrewProfilePage() {
 
       <CrewProjectAssignmentPanel
         crewId={crewId}
+        onAssigned={() => void refresh()}
         crewName={crew.overview.name}
         activeMemberCount={crew.overview.activeMemberCount}
         supervisorName={crew.overview.supervisorName}

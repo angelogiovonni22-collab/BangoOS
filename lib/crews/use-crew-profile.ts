@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createCrewService, type CrewService } from "./service";
 import type { CrewProfile } from "./types";
 
@@ -60,7 +60,19 @@ export function useCrewProfile({ crewId, service }: UseCrewProfileParams) {
     };
   }, [crewId, crewService]);
 
+  const refresh = useCallback(async () => {
+    try {
+      const result = await crewService.getCrew(crewId);
+      setCrew(result);
+      setNotFound(!result);
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage("crews.errorLoadProfile");
+    }
+  }, [crewId, crewService]);
+
   return {
+    refresh,
     crew,
     isLoading,
     errorMessage,
