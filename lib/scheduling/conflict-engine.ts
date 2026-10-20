@@ -6,6 +6,7 @@ import type {
   SchedulingPayload,
   TimeOffEntry,
 } from "./types";
+import { isActiveScheduleAssignment } from "./assignment-lifecycle";
 
 type ConflictEngineInput = {
   assignments: ScheduleAssignment[];
@@ -38,7 +39,9 @@ function pushUnique(target: ScheduleConflict[], conflict: ScheduleConflict) {
 }
 
 export function detectSchedulingConflicts(input: ConflictEngineInput): ScheduleConflict[] {
-  const { assignments, openShifts, availability, timeOff } = input;
+  const { openShifts, availability, timeOff } = input;
+  const assignments = input.assignments.filter(isActiveScheduleAssignment);
+  const inactiveIds = new Set(input.assignments.filter(item => !isActiveScheduleAssignment(item)).map(item => item.id));
   const conflicts: ScheduleConflict[] = [];
 
   for (let i = 0; i < assignments.length; i += 1) {
@@ -211,6 +214,7 @@ export function detectSchedulingConflicts(input: ConflictEngineInput): ScheduleC
   }
 
   for (const shift of openShifts) {
+    if (shift.dismissed || inactiveIds.has(shift.assignmentId)) continue;
     if (shift.workersNeeded > 2) {
       pushUnique(conflicts, {
         id: `conf-open-shift-${shift.id}`,

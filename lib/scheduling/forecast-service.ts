@@ -4,6 +4,7 @@ import type {
   LaborForecastRange,
   ScheduleAssignment,
 } from "./types";
+import { isActiveScheduleAssignment } from "./assignment-lifecycle";
 
 function aggregateDemand(
   assignments: ScheduleAssignment[],
@@ -79,7 +80,7 @@ function inRange(date: string, start: Date, days: number) {
 export function buildLaborForecast(assignments: ScheduleAssignment[], range: LaborForecastRange): LaborForecast {
   const start = new Date();
   const days = rangeDays(range);
-  const scoped = assignments.filter((item) => inRange(item.date, start, days));
+  const scoped = assignments.filter((item) => isActiveScheduleAssignment(item) && inRange(item.date, start, days));
 
   const demandByTrade = aggregateDemand(scoped, (item) => item.requiredTrade, (item) => item.requiredTrade);
   const demandByProject = aggregateDemand(scoped, (item) => item.scope.projectId, (item) => item.scope.projectName);
