@@ -1,4 +1,5 @@
-﻿import { createClient } from "@/lib/supabase/client";
+﻿import { activeAssignmentsOnDate, openStaffingCount } from "@/lib/scheduling/workforce-summary";
+import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createSchedulingService, type SchedulingPayload } from "@/lib/scheduling";
 import { createWorkforceIntelligenceService, createWorkforceService } from "@/lib/workforce";
@@ -110,10 +111,6 @@ function createInMemoryShiftStateProvider(): WorkforceShiftStateProvider {
       statuses.set(input.crewId, input.status);
     },
   };
-}
-
-function toTodayIso(asOf: Date) {
-  return asOf.toISOString().slice(0, 10);
 }
 
 function toShiftProgressPercent(startIso: string, endIso: string, asOf: Date) {
@@ -351,6 +348,7 @@ function buildDailyAssignments(input: {
       : null,
     assignedEmployeeIds: assignment.assignedEmployeeIds,
     assignedEmployeeNames: assignment.assignedEmployeeIds.map((employeeId) => input.employeeNamesById.get(employeeId) || employeeId),
+    plannedHours: assignment.plannedLaborHours,
     requiredHeadcount: assignment.requiredHeadcount,
     missingHeadcount: Math.max(assignment.requiredHeadcount - assignment.assignedEmployeeIds.length, 0),
     status: assignment.status,
@@ -602,7 +600,7 @@ export function createWorkforceOperationsService(deps: WorkforceOperationsDeps =
         shiftState.getCrewStatuses({ companyId, asOf }).catch(() => ({} as Record<string, WorkforceShiftStatus>)),
       ]);
 
-      const assignmentsToday = (schedulingPayload?.assignments || []).filter((assignment) => assignment.date === toTodayIso(asOf));
+      const assignmentsToday = schedulingPayload ? activeAssignmentsOnDate(schedulingPayload, asOf) : [];
       const assignmentByCrewId = new Map<string, (typeof assignmentsToday)[number]>();
       const assignmentByEmployeeId = new Map<string, (typeof assignmentsToday)[number]>();
 
@@ -738,8 +736,7 @@ export function createWorkforceOperationsService(deps: WorkforceOperationsDeps =
       const absentCount = employeeStatus.filter((employee) => employee.currentStatus === "absent").length;
       const offCount = employeeStatus.filter((employee) => employee.currentStatus === "off").length;
 
-      const openAssignments = (schedulingPayload?.openShifts.length || 0)
-        + assignmentsToday.filter((assignment) => assignment.requiredHeadcount > assignment.assignedEmployeeIds.length).length;
+      const openAssignments = schedulingPayload ? openStaffingCount(schedulingPayload) : 0;
 
       const summary = {
         activeEmployees: employeeDirectory.summary.activeToday,

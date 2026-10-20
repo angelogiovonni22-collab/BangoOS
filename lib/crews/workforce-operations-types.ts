@@ -103,6 +103,7 @@ export type WorkforceOperationsDashboardData = {
 };
 
 export type DailyAssignmentRow = {
+  plannedHours?: number;
   assignmentId: string;
   title: string;
   projectId: string;

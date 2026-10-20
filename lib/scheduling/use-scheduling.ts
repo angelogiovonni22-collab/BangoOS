@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createSchedulingService, type SchedulingService } from "./service";
 import type {
   AssignmentDraft,
@@ -78,6 +78,8 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
     setFilters((current) => ({ ...current, [key]: value }));
   }, []);
 
+  const pendingCreation = useRef<{ fingerprint: string; id: string } | null>(null);
+
   const createNewAssignment = useCallback(async (draft: AssignmentDraft) => {
     const hadPayload = Boolean(payload);
     if (!hadPayload) {
@@ -86,7 +88,10 @@ export function useScheduling({ service, initialProjectId }: UseSchedulingParams
     setErrorMessage(null);
 
     try {
-      const next = await schedulingService.createAssignment(draft);
+      const fingerprint = JSON.stringify({ ...draft, requestId: undefined });
+      if (pendingCreation.current?.fingerprint !== fingerprint) pendingCreation.current = { fingerprint, id: crypto.randomUUID() };
+      const next = await schedulingService.createAssignment({ ...draft, requestId: pendingCreation.current.id });
+      pendingCreation.current = null;
       setPayload(next);
       setLastActionMessage("scheduling.feedback.assignmentCreated");
       return true;

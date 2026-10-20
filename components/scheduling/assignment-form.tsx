@@ -21,6 +21,7 @@ type AssignmentFormProps = {
 
 function defaultDraft(projectOptions: AssignmentFormProps["projectOptions"], tradeOptions: string[], timeZone: string): AssignmentDraft {
   return {
+    requestId: crypto.randomUUID(),
     title: "",
     type: "project_work",
     projectId: projectOptions[0]?.id || "",
@@ -35,7 +36,7 @@ function defaultDraft(projectOptions: AssignmentFormProps["projectOptions"], tra
     requiredHeadcount: 1,
     supervisor: "",
     priority: "medium",
-    status: "draft",
+    status: "published",
     notes: "",
     travelTimeMinutes: 30,
     recurrence: { enabled: false, frequency: "weekly", interval: 1, endDate: null },
@@ -65,11 +66,12 @@ export function AssignmentForm({
   const [form, setForm] = useState<AssignmentDraft>(() => initialDraft ?? defaultDraft(projectOptions, tradeOptions, resolvedTimeZone));
 
   const update = <K extends keyof AssignmentDraft>(key: K, value: AssignmentDraft[K]) => {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => ({ ...current, requestId: crypto.randomUUID(), [key]: value }));
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSaving) return;
     setError(null);
     setSubmitFailed(false);
 

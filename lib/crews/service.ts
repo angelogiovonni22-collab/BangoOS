@@ -1,3 +1,4 @@
+import { loadScheduleTimeZone } from "@/lib/scheduling/workspace-time-zone";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createWorkforceRepository, createWorkforceService } from "@/lib/workforce";
@@ -218,7 +219,8 @@ async function loadCrewProfile(crewId: string): Promise<CrewProfile | null> {
   }
 
   const workforce = createWorkforceService(supabase);
-  return workforce.getCrewProfile(workspace.context.companyId, crewId);
+  const [profile, timeZone] = await Promise.all([workforce.getCrewProfile(workspace.context.companyId, crewId), loadScheduleTimeZone(supabase, workspace.context.companyId)]);
+  return profile ? { ...profile, timeZone } : null;
 }
 
 async function loadEmployeeRows(): Promise<WorkforceEmployeeRow[]> {

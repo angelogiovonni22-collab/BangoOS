@@ -71,6 +71,9 @@ export type WorkforceMembershipRow = {
 };
 
 export type WorkforceAssignmentRow = {
+  schedule_kind?: string | null;
+  required_headcount?: number | null;
+  required_trade?: string | null;
   id: string;
   company_id: string;
   assignment_type: WorkforceAssignmentType;
@@ -426,6 +429,7 @@ export type EmployeeProfileData = {
 };
 
 export type CrewProfileData = {
+  timeZone?: string;
   overview: CrewDirectoryRow;
   memberships: {
     current: CrewMembershipView[];
