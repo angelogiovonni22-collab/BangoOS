@@ -1,3 +1,4 @@
+import { assignmentAssignee } from "./assignment-assignee";
 import assert from "node:assert/strict";
 import { activeAssignmentsOnDate, openStaffingCount } from "./workforce-summary";
 import { scheduleClock } from "./time-zone";
@@ -23,3 +24,7 @@ assert.deepEqual(scheduleClock("2026-10-20T13:00:00Z",payload.timeZone),{date:"2
 assert.equal(activeAssignmentsOnDate(payload,"2026-10-21T02:00:00Z").reduce((sum,row)=>sum+row.plannedLaborHours,0),2,"planned duration uses recorded hours, not an eight-hour assumption");
 assert.deepEqual(payload,before,"history data is not mutated");
 console.log("Workforce summary deduplication, lifecycle, company-date boundary, planned duration and history regressions passed.");
+
+assert.deepEqual(assignmentAssignee({assignedCrewIds:["crew"],assignedEmployeeIds:["member1","member2"]}),{crewId:"crew",employeeId:null,useEmployee:false},"editing a staffed crew retains the booked crew");
+assert.deepEqual(assignmentAssignee({assignedCrewIds:[],assignedEmployeeIds:["employee"]}),{crewId:null,employeeId:"employee",useEmployee:true});
+assert.deepEqual(assignmentAssignee({assignedCrewIds:[],assignedEmployeeIds:[]}),{crewId:null,employeeId:null,useEmployee:false});

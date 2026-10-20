@@ -1,3 +1,4 @@
+import { assignmentAssignee } from "./assignment-assignee";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -86,9 +87,7 @@ export function createSchedulingCompletionService(refreshScheduling: RefreshSche
       if (!current) throw new Error("Scheduling assignment not found.");
 
       const { startsAt, endsAt } = createScheduleWindow(draft.date, draft.startTime, draft.endTime, timeZone);
-      const useEmployee = draft.assignedEmployeeIds.length > 0;
-      const employeeId = useEmployee ? draft.assignedEmployeeIds[0] ?? null : null;
-      const crewId = useEmployee ? null : draft.assignedCrewIds[0] ?? null;
+      const { crewId, employeeId, useEmployee } = assignmentAssignee(draft);
 
       await validateNoOverlap({
         supabase,
