@@ -1,6 +1,6 @@
 import { assignmentAssignee } from "./assignment-assignee";
 import assert from "node:assert/strict";
-import { activeAssignmentsOnDate, openStaffingCount } from "./workforce-summary";
+import { activeAssignmentsOnDate, openStaffingCount, staffingProjectCount } from "./workforce-summary";
 import { scheduleClock } from "./time-zone";
 import type { ScheduleAssignment, OpenShift } from "./types";
 
@@ -33,6 +33,11 @@ assert.deepEqual(activeAssignmentsOnDate(payload,new Date("2026-10-21T05:00:00Z"
 assert.deepEqual(scheduleClock("2026-10-20T13:00:00Z",payload.timeZone),{date:"2026-10-20",time:"09:00"});
 assert.equal(activeAssignmentsOnDate(payload,"2026-10-21T02:00:00Z").reduce((sum,row)=>sum+row.plannedLaborHours,0),2,"planned duration uses recorded hours, not an eight-hour assumption");
 assert.deepEqual(payload,before,"history data is not mutated");
+assert.equal(staffingProjectCount([
+  {id:"gap1",type:"understaffed_project",relatedProjectId:"project",resolutionStatus:"open"},
+  {id:"gap2",type:"understaffed_project",relatedProjectId:"project",resolutionStatus:"open"},
+  {id:"gap3",type:"understaffed_project",relatedProjectId:"other",resolutionStatus:"resolved"},
+],"understaffed_project"),1,"two staffing gaps in the same project are one understaffed project");
 
 assert.deepEqual(assignmentAssignee({assignedCrewIds:["crew"],assignedEmployeeIds:["member1","member2"]}),{crewId:"crew",employeeId:null,useEmployee:false},"editing a staffed crew retains the booked crew");
 assert.deepEqual(assignmentAssignee({assignedCrewIds:[],assignedEmployeeIds:["employee"]}),{crewId:null,employeeId:"employee",useEmployee:true});

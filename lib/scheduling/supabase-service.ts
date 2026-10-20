@@ -1,4 +1,5 @@
 import { assignmentAssignee } from "./assignment-assignee";
+import { staffingProjectCount } from "./workforce-summary";
 ﻿import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -678,8 +679,8 @@ function summarize(
   const openShiftCount = openShifts.filter((item) => !item.dismissed).length;
   const unresolvedConflicts = conflicts.filter((item) => item.resolutionStatus === "open").length;
   const overtimeRisk = conflicts.filter((item) => item.type === "overtime_threshold_risk" && item.resolutionStatus === "open").length;
-  const understaffed = conflicts.filter((item) => item.type === "understaffed_project" && item.resolutionStatus === "open").length;
-  const overstaffed = conflicts.filter((item) => item.type === "overstaffed_project" && item.resolutionStatus === "open").length;
+  const understaffed = staffingProjectCount(conflicts, "understaffed_project");
+  const overstaffed = staffingProjectCount(conflicts, "overstaffed_project");
 
   return {
     dateRangeLabel: "scheduling.dateRange.currentWeek",

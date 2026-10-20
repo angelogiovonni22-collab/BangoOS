@@ -1,6 +1,10 @@
 import { isActiveScheduleAssignment } from "./assignment-lifecycle";
 import { resolveScheduleTimeZone, scheduleClock } from "./time-zone";
-import type { SchedulingPayload } from "./types";
+import type { ScheduleConflict, SchedulingPayload } from "./types";
+
+export function staffingProjectCount(conflicts: Array<Pick<ScheduleConflict, "type" | "relatedProjectId" | "id" | "resolutionStatus">>, type: "understaffed_project" | "overstaffed_project"): number {
+  return new Set(conflicts.filter(row => row.type === type && row.resolutionStatus === "open").map(row => row.relatedProjectId || row.id)).size;
+}
 
 /** Count each staffing gap once, including standalone unfilled demand. */
 export function openStaffingCount(payload: Pick<SchedulingPayload, "assignments" | "openShifts">): number {
