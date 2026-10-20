@@ -1,4 +1,5 @@
 import { loadPayrollJobCosts } from "./payroll-costs";
+import { LABOR_PLAN_DETAIL, loadProjectLaborPlans, outstandingLaborPlanCost } from "./labor-commitments";
 import { readAllSupabaseRows, readAllSupabaseRowsForIds } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeChangeOrderStatus } from "@/lib/change-orders/statuses";
@@ -891,6 +892,7 @@ export async function buildCompanyFinancialReport(params: {
   let totalBacklog = 0;
   let revisedContractTotal = 0;
   const [projectCosts, payroll] = await Promise.all([loadCompanyProjectCosts({ ...params, changeOrders }), loadPayrollJobCosts(params)]);
+  const laborPlans = payroll.accessible ? await loadProjectLaborPlans(params) : new Map<string, number>();
   let forecastCostTotal = 0;
   let companyCommittedCost = 0;
   let jobsOverBudget = 0;
@@ -912,7 +914,8 @@ export async function buildCompanyFinancialReport(params: {
     const costs = projectCosts.get(project.id);
     const revisedBudget = toMoney(toMoney(costs?.scopeBudget ?? baselineBudget) + toMoney(costs?.changeOrderCost ?? 0));
     const vendorCommitted = toMoney(vendorCommitments.get(project.id) ?? 0);
-    const projectCommitted = toMoney(toMoney(costs?.committedMaterials ?? 0) + vendorCommitted);
+    const laborCommitted = outstandingLaborPlanCost(laborPlans.get(project.id) ?? 0, payroll.projects.get(project.id)?.grossPay ?? 0);
+    const projectCommitted = toMoney(toMoney(costs?.committedMaterials ?? 0) + vendorCommitted + laborCommitted);
     const projectActual = toMoney(toMoney(costs?.actual ?? 0) + (payroll.projects.get(project.id)?.grossPay ?? 0));
     const forecast = toMoney(Math.max(projectActual + projectCommitted, revisedBudget));
     const originalEstimate = safeNumber(firstEstimate?.total_amount);
@@ -967,6 +970,10 @@ export async function buildCompanyFinancialReport(params: {
   const availability: DataAvailability[] = [
     payroll.availability,
     {
+      key: "labor_commitment_forecast", label: "Labor Plan Commitments", status: payroll.accessible ? "partial" : "unavailable",
+      detail: payroll.accessible ? LABOR_PLAN_DETAIL : "Labor plan reconciliation requires access to approved payroll costs. Labor plans and wages are excluded for this account rather than assuming no payroll has been recorded.",
+    },
+    {
       key: "company_committed_actual",
       label: "Company Committed vs Actual Cost",
       status: "partial",
@@ -1008,6 +1015,7 @@ export async function buildCompanyFinancialReport(params: {
         "vendor_bill_line_items",
         "trade_partner_assignments",
         ...(payroll.accessible ? ["payroll_lines.project_allocations" as const] : []),
+        ...(payroll.accessible ? ["project_labor_commitments" as const] : []),
         "derived",
       ],
     },

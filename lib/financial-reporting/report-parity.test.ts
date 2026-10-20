@@ -142,6 +142,7 @@ async function payrollReportTests() {
 }
 
 async function main() {
+  await laborPlanReportTests();
   await payrollReportTests();
   for (const receiptCost of [20, 700]) {
     const { client, executed } = fixture(receiptCost);
@@ -160,7 +161,8 @@ async function main() {
     assert.equal(company.summary.committedCost, project.summary.committedCost);
     assert.equal(company.summary.cashExposure, 90, "outstanding commitments must not subtract unrelated actual costs again");
     assert.equal(company.summary.jobsOverBudget, receiptCost === 700 ? 1 : 0);
-    assert.ok(executed.length <= 14, "company cost reads must be batched, not per-project reports");
+    assert.ok(executed.length <= 15, "company cost reads, including labor plans, must be batched, not per-project reports");
+    assert.equal(executed.filter(table => table === "project_labor_commitments").length, 1);
   }
   const { client, tables } = fixture();
   tables.projects.push({ ...tables.projects[0], id: "p2", name: "Second", contract_amount: 500, estimated_cost: 200 });
@@ -258,9 +260,75 @@ async function main() {
   const projectsReport = await buildCompanyFinancialReport({ supabase: manyProjects.client, companyId: "co1" });
   assert.equal(projectsReport.projectsReviewed, 1501);
   assert.equal(projectsReport.summary.projectGrossProfit, 1501);
+  assert.equal(manyProjects.executed.filter(table => table === "project_labor_commitments").length, 1, "1501 projects still use one company labor-plan read");
   const failedProjects = fixture(20, "projects");
   failedProjects.tables.projects = manyProjects.tables.projects;
   await assert.rejects(buildCompanyFinancialReport({ supabase: failedProjects.client, companyId: "co1" }), /projects history unavailable/);
   console.log("Financial report parity: working scope, budget floor, approved costs, tenant isolation, AP de-duplication, multi-project and 1501-row history/failure fixtures passed");
+}
+
+async function laborPlanReportTests() {
+  for (const [planned, paid] of [[80, 0], [1000, 400], [1000, 1000], [1000, 1200], [0, 400], [0.3, 0.1]]) {
+    const sample = fixture();
+    sample.tables.project_labor_commitments = [
+      { id: "plan-1", company_id: "co1", project_id: "p1", projected_cost: planned.toFixed(2), actual_cost: 99999 },
+      { id: "foreign-plan", company_id: "foreign", project_id: "p1", projected_cost: 50000 },
+    ];
+    sample.payroll.data = { status: "available", company_id: "co1", projects: paid ? [{ project_id: "p1", gross_pay: paid, hours: 2 }] : [], unassigned_gross_pay: 0, unknown_gross_pay: 0, unknown_line_count: 0, approved_gross_pay: paid, approved_line_count: paid ? 1 : 0 };
+    const project = await buildProjectFinancialReport({ supabase: sample.client, companyId: "co1", projectId: "p1" });
+    const company = await buildCompanyFinancialReport({ supabase: sample.client, companyId: "co1" });
+    const outstanding = Math.max(Math.round(planned * 100) - Math.round(paid * 100), 0) / 100;
+    assert.equal(project.labor.plannedLaborCost, planned);
+    assert.equal(project.labor.outstandingLaborCommitment, outstanding);
+    assert.equal(project.summary.committedCost, 90 + outstanding);
+    assert.equal(project.jobCostByCategory.find(row => row.category === "labor")?.committed, outstanding);
+    assert.equal(project.summary.actualCost, 75 + paid, "manual labor actuals and plans must never become another actual-wage source");
+    assert.equal(project.summary.forecastFinalCost, Math.max(600, 75 + paid + 90 + outstanding));
+    assert.equal(company.summary.committedCost, project.summary.committedCost);
+    assert.equal(company.summary.projectGrossProfit, project.summary.grossProfit, "company and project plans/payroll must reconcile");
+  }
+  const separate = fixture();
+  const noCategoryBudget = fixture();
+  noCategoryBudget.tables.estimates = [];
+  noCategoryBudget.tables.project_scope_items = [];
+  noCategoryBudget.tables.project_labor_commitments = [{ company_id: "co1", project_id: "p1", projected_cost: 80 }];
+  const unallocated = await buildProjectFinancialReport({ supabase: noCategoryBudget.client, companyId: "co1", projectId: "p1" });
+  const unallocatedLabor = unallocated.jobCostByCategory.find(row => row.category === "labor");
+  assert.equal(unallocatedLabor?.committed, 80);
+  assert.equal(unallocatedLabor?.status, "unavailable", "an unallocated category budget must not become a false over-budget alarm");
+  assert.match(unallocatedLabor?.note ?? "", /No labor category budget/);
+  separate.tables.projects.push({ ...separate.tables.projects[0], id: "p2" });
+  separate.tables.project_labor_commitments = [
+    { id: "plan-p1", company_id: "co1", project_id: "p1", projected_cost: 1000 },
+    { id: "plan-p2", company_id: "co1", project_id: "p2", projected_cost: 300 },
+  ];
+  separate.payroll.data = { status: "available", company_id: "co1", projects: [{ project_id: "p2", gross_pay: 700, hours: 35 }], unassigned_gross_pay: 0, unknown_gross_pay: 0, unknown_line_count: 0, approved_gross_pay: 700, approved_line_count: 1 };
+  const separateCompany = await buildCompanyFinancialReport({ supabase: separate.client, companyId: "co1" });
+  assert.equal(separateCompany.summary.committedCost, 1090, "payroll from another project cannot consume this project's plan");
+
+  const history = fixture();
+  history.tables.project_labor_commitments = Array.from({ length: 1501 }, (_, id) => ({ id: `plan-${id}`, company_id: "co1", project_id: "p1", projected_cost: "0.01" }));
+  const paged = await buildProjectFinancialReport({ supabase: history.client, companyId: "co1", projectId: "p1" });
+  assert.equal(paged.labor.plannedLaborCost, 15.01, "all plan pages and exact cents are included");
+  assert.equal((await buildCompanyFinancialReport({ supabase: history.client, companyId: "co1" })).summary.committedCost, paged.summary.committedCost);
+  for (const first of [false, true]) {
+    const failed = fixture(20, "project_labor_commitments", "42501", first);
+    failed.tables.project_labor_commitments = history.tables.project_labor_commitments;
+    await assert.rejects(buildProjectFinancialReport({ supabase: failed.client, companyId: "co1", projectId: "p1" }), /Project labor plans could not be loaded/);
+    await assert.rejects(buildCompanyFinancialReport({ supabase: failed.client, companyId: "co1" }), /Project labor plans could not be loaded/);
+  }
+  for (const invalid of [null, "no amount", -1, 0.001, Infinity, 1e20]) {
+    const broken = fixture();
+    broken.tables.project_labor_commitments = [{ company_id: "co1", project_id: "p1", projected_cost: invalid }];
+    await assert.rejects(buildProjectFinancialReport({ supabase: broken.client, companyId: "co1", projectId: "p1" }), /labor plan cost is invalid/);
+    await assert.rejects(buildCompanyFinancialReport({ supabase: broken.client, companyId: "co1" }), /labor plan cost is invalid/);
+  }
+  const limited = fixture(20, "project_labor_commitments", "42501", true);
+  limited.payroll.data = { status: "unavailable", reason: "finance_role_required" };
+  const report = await buildProjectFinancialReport({ supabase: limited.client, companyId: "co1", projectId: "p1" });
+  await buildCompanyFinancialReport({ supabase: limited.client, companyId: "co1" });
+  assert.ok(!limited.executed.includes("project_labor_commitments"), "no plan reads or salary reconciliation for accounts denied payroll cost access");
+  assert.equal(report.labor.plannedLaborCost, undefined);
+  assert.ok(report.availability.some(row => row.key === "labor_commitment_forecast" && row.status === "unavailable"));
 }
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
