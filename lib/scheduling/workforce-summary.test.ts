@@ -4,10 +4,20 @@ import { activeAssignmentsOnDate, openStaffingCount } from "./workforce-summary"
 import { scheduleClock } from "./time-zone";
 import type { ScheduleAssignment, OpenShift } from "./types";
 
-const assignment = (id: string, status: ScheduleAssignment["status"], date = "2026-10-20") => ({
-  id, status, date, requiredHeadcount: 1, assignedEmployeeIds: [], plannedLaborHours: 2,
-} as ScheduleAssignment);
-const shift = (assignmentId: string, dismissed = false) => ({ id: `open-${assignmentId}`, assignmentId, dismissed } as OpenShift);
+const assignment = (id: string, status: ScheduleAssignment["status"], date = "2026-10-20"): ScheduleAssignment => ({
+  id, status, date, title: id, type: "project_work", shift: "day", priority: "medium",
+  startTime: "09:00", endTime: "11:00", plannedStart: `${date}T13:00:00Z`, plannedEnd: `${date}T15:00:00Z`,
+  requiredHeadcount: 1, requiredTrade: "General", assignedCrewIds: ["crew"], assignedEmployeeIds: [], plannedLaborHours: 2,
+  scope: { projectId: "project", projectName: "Synthetic", location: "Synthetic", supervisor: "" }, notes: "",
+  travelTimeMinutes: 0, recurrence: { enabled: false, frequency: "weekly", interval: 1, endDate: null },
+  safetyRequirement: "", certificationRequirement: "", equipment: { requiredEquipment: [], assignedEquipment: [], operatorRequired: false },
+  isOpenShift: true, createdAt: `${date}T00:00:00Z`, updatedAt: `${date}T00:00:00Z`,
+});
+const shift = (assignmentId: string, dismissed = false): OpenShift => ({
+  id: `open-${assignmentId}`, assignmentId, dismissed, projectId: "project", projectName: "Synthetic", tradeRequired: "General", workersNeeded: 1,
+  date: "2026-10-20", shift: "day", startTime: "09:00", endTime: "11:00", location: "Synthetic", urgency: "medium",
+  supervisor: "", certificationRequirements: [], estimatedHours: 2, reason: "Synthetic", candidateEmployeeIds: [], candidateCrewIds: [],
+});
 const active = assignment("active", "published");
 const cancelled = assignment("cancelled", "cancelled");
 const completed = assignment("completed", "completed");
@@ -23,8 +33,9 @@ assert.deepEqual(activeAssignmentsOnDate(payload,new Date("2026-10-21T05:00:00Z"
 assert.deepEqual(scheduleClock("2026-10-20T13:00:00Z",payload.timeZone),{date:"2026-10-20",time:"09:00"});
 assert.equal(activeAssignmentsOnDate(payload,"2026-10-21T02:00:00Z").reduce((sum,row)=>sum+row.plannedLaborHours,0),2,"planned duration uses recorded hours, not an eight-hour assumption");
 assert.deepEqual(payload,before,"history data is not mutated");
-console.log("Workforce summary deduplication, lifecycle, company-date boundary, planned duration and history regressions passed.");
 
 assert.deepEqual(assignmentAssignee({assignedCrewIds:["crew"],assignedEmployeeIds:["member1","member2"]}),{crewId:"crew",employeeId:null,useEmployee:false},"editing a staffed crew retains the booked crew");
 assert.deepEqual(assignmentAssignee({assignedCrewIds:[],assignedEmployeeIds:["employee"]}),{crewId:null,employeeId:"employee",useEmployee:true});
 assert.deepEqual(assignmentAssignee({assignedCrewIds:[],assignedEmployeeIds:[]}),{crewId:null,employeeId:null,useEmployee:false});
+
+console.log("Workforce summary, crew identity, lifecycle, company-date boundary, planned duration and history regressions passed.");
