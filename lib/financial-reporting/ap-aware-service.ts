@@ -1,4 +1,5 @@
 import { loadPayrollJobCosts } from "./payroll-costs";
+import { LABOR_PLAN_DETAIL, loadProjectLaborPlans, outstandingLaborPlanCost } from "./labor-commitments";
 import { readAllSupabaseRows, readAllSupabaseRowsForIds } from "@/lib/supabase/pagination";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
@@ -64,15 +65,17 @@ function deriveVarianceStatus(variancePercent: number | null): "on_track" | "at_
   return "on_track";
 }
 
-function applyActualCost(row: JobCostCategoryRow, additionalActual: number): JobCostCategoryRow {
-  if (additionalActual <= 0) return row;
+function applyActualCost(row: JobCostCategoryRow, additionalActual: number, additionalCommitted = 0): JobCostCategoryRow {
+  if (additionalActual <= 0 && additionalCommitted <= 0) return row;
   const actual = money(row.actual + additionalActual);
-  const forecast = money(Math.max(actual + row.committed, row.budget));
+  const committed = money(row.committed + additionalCommitted);
+  const forecast = money(Math.max(actual + committed, row.budget));
   const varianceAmount = money(row.budget - forecast);
   const variancePercent = row.budget > 0 ? money((varianceAmount / row.budget) * 100) : null;
   return {
     ...row,
     actual,
+    committed,
     forecast,
     varianceAmount,
     variancePercent,
@@ -101,6 +104,10 @@ export async function buildProjectFinancialReport(params: {
   const [base, payroll] = await Promise.all([buildReceiptAwareProjectFinancialReport(params), loadPayrollJobCosts(params)]);
   const payrollCost = payroll.projects.get(params.projectId);
   const payrollGross = payrollCost?.grossPay ?? 0;
+  const laborPlans = payroll.accessible ? await loadProjectLaborPlans(params) : new Map<string, number>();
+  const plannedLaborCost = laborPlans.get(params.projectId) ?? 0;
+  const outstandingLaborCommitment = outstandingLaborPlanCost(plannedLaborCost, payrollGross);
+  const committedCost = money(base.summary.committedCost + outstandingLaborCommitment);
   const db = params.supabase as SupabaseClient<Database> & {
     // Finance tables are migration-backed and intentionally queried without generated-type coupling.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,7 +156,7 @@ export async function buildProjectFinancialReport(params: {
   const incrementalActual = money(Object.values(incrementalByCategory).reduce((sum, value) => sum + value, 0));
   const actualCost = money(base.summary.actualCost + incrementalActual);
   const remainingCostToComplete = money(Math.max(base.summary.revisedBudget - actualCost, 0));
-  const forecastFinalCost = money(Math.max(actualCost + base.summary.committedCost, base.summary.revisedBudget));
+  const forecastFinalCost = money(Math.max(actualCost + committedCost, base.summary.revisedBudget));
   const grossProfit = money(base.summary.revisedContractValue - forecastFinalCost);
   const grossMarginPercent = base.summary.revisedContractValue > 0
     ? money((grossProfit / base.summary.revisedContractValue) * 100)
@@ -169,6 +176,7 @@ export async function buildProjectFinancialReport(params: {
     ...base,
     summary: {
       ...base.summary,
+      committedCost,
       actualCost,
       remainingCostToComplete,
       forecastFinalCost,
@@ -176,6 +184,7 @@ export async function buildProjectFinancialReport(params: {
       grossMarginPercent,
       metricSources: {
         ...base.summary.metricSources,
+        committedCost: uniqueSources([...(base.summary.metricSources.committedCost || []), ...(payroll.accessible ? ["project_labor_commitments" as const, "payroll_lines.project_allocations" as const] : [])]),
         actualCost: uniqueSources([
           ...(base.summary.metricSources.actualCost || []),
           "vendor_bills",
@@ -186,17 +195,19 @@ export async function buildProjectFinancialReport(params: {
       },
     },
     jobCostByCategory: base.jobCostByCategory.map((row) => {
-      const updated = applyActualCost(row, incrementalByCategory[row.category]);
+      const updated = applyActualCost(row, incrementalByCategory[row.category], row.category === "labor" ? outstandingLaborCommitment : 0);
       return row.category === "labor" && payroll.accessible
-        ? { ...updated, dataStatus: "partial" as const, note: payroll.availability.detail }
+        ? { ...updated, dataStatus: "partial" as const, note: `${payroll.availability.detail} ${LABOR_PLAN_DETAIL}` }
         : updated;
     }),
     labor: payroll.accessible ? {
       ...base.labor,
+      plannedLaborCost,
+      outstandingLaborCommitment,
       approvedPayrollHours: payrollCost?.hours ?? 0,
       totalLaborCost: payrollGross,
-      source: uniqueSources([...base.labor.source, "payroll_lines.project_allocations"]),
-      note: payroll.availability.detail,
+      source: uniqueSources([...base.labor.source, "payroll_lines.project_allocations", "project_labor_commitments"]),
+      note: `${payroll.availability.detail} ${LABOR_PLAN_DETAIL}`,
     } : base.labor,
     vendors: {
       ...base.vendors,
@@ -213,6 +224,10 @@ export async function buildProjectFinancialReport(params: {
     availability: [
       ...base.availability.filter((item) => item.key !== "accounts_payable_job_cost" && (item.key !== "labor_cost" || !payroll.accessible)),
       payroll.availability,
+      {
+        key: "labor_commitment_forecast", label: "Labor Plan Commitments", status: payroll.accessible ? "partial" : "unavailable",
+        detail: payroll.accessible ? LABOR_PLAN_DETAIL : "Labor plan reconciliation requires access to approved payroll costs. Labor plans and wages are excluded for this account rather than assuming no payroll has been recorded.",
+      },
       {
         key: "accounts_payable_job_cost",
         label: "Accounts Payable Job Cost",

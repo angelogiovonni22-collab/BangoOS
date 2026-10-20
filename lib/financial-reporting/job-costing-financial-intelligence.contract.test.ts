@@ -12,7 +12,7 @@ assert.match(service, /\.from\("vendor_bills"\)/, "Project job costing must load
 assert.match(service, /\.from\("vendor_bill_line_items"\)/, "Project job costing must classify AP line items.");
 assert.match(service, /if \(line\.purchase_order_line_item_id\) continue;/, "PO-linked AP lines must not double-count procurement/inventory actual cost.");
 assert.match(service, /actualCost = money\(base\.summary\.actualCost \+ incrementalActual\)/, "Approved non-PO AP cost must increase canonical actual cost.");
-assert.match(service, /forecastFinalCost = money\(Math\.max\(actualCost \+ base\.summary\.committedCost, base\.summary\.revisedBudget\)\)/, "Forecast at completion must react to actual plus committed cost.");
+assert.match(service, /forecastFinalCost = money\(Math\.max\(actualCost \+ committedCost, base\.summary\.revisedBudget\)\)/, "Forecast at completion must react to actual plus committed cost, including outstanding labor plans.");
 assert.match(service, /grossProfit = money\(base\.summary\.revisedContractValue - forecastFinalCost\)/, "Forecast gross profit must use revised contract value minus forecast final cost.");
 assert.match(service, /matchedBillCount/, "Job costing must expose AP reconciliation readiness.");
 assert.match(service, /needsReviewBillCount/, "Job costing must expose unresolved AP reconciliation risk.");
