@@ -1,4 +1,5 @@
 {
+  "plannedShiftHours": "Horas de turno planificadas",
   "form.timeZone": "Los horarios de asignación usan {{timeZone}}.",
   "pageTitleDispatch": "Centro de Despacho",
   "pageTitleSchedule": "Calendario",

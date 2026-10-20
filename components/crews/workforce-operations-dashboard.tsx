@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n/provider";
 import { ArrowUpRight } from "lucide-react";
 import { AlertTriangle, HardHat, Users } from "./crew-icons";
 import { Badge } from "@/components/ui/badge";
@@ -155,6 +156,7 @@ function DailyAssignmentBoard({
 }
 
 function CrewWorkspace({ crews, assignments }: { crews: CrewStatusRow[]; assignments: WorkforceOperationsDashboardData["dailyAssignments"] }) {
+  const { t } = useI18n();
   return (
     <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -182,7 +184,7 @@ function CrewWorkspace({ crews, assignments }: { crews: CrewStatusRow[]; assignm
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">Supervisor: {crew.supervisorName || "Unassigned"}</p>
                 <p className="text-xs text-[var(--text-secondary)]">Equipment assigned: {crew.equipmentAssignedCount}</p>
                 <p className="text-xs text-[var(--text-secondary)]">Today&apos;s assignments: {todaysAssignments.length}</p>
-                <p className="text-xs text-[var(--text-secondary)]">Planned shift hours: {plannedHours}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{t("scheduling.plannedShiftHours")}: {plannedHours}</p>
                 <p className="text-xs text-[var(--text-secondary)]">Schedule progress: {crew.shiftProgressPercent}%</p>
               </Link>
             );
