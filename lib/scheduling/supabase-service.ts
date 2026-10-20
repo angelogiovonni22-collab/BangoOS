@@ -15,6 +15,7 @@ import type {
   WorkforceTaskRow,
 } from "@/lib/workforce/workforce-types";
 import { buildScheduleHealth, detectSchedulingConflicts } from "./conflict-engine";
+import { isActiveScheduleAssignment } from "./assignment-lifecycle";
 import { createScheduleWindow, moveScheduleWindow, scheduleClock } from "./time-zone";
 import { loadScheduleTimeZone } from "./workspace-time-zone";
 import { buildAvailableContractorsOrVendors } from "./contractor-vendor-availability";
@@ -775,20 +776,21 @@ function buildAnalytics(
   openShifts: OpenShift[],
   dispatch: DispatchResource[],
 ): SchedulingPayload["analytics"] {
-  const totalAssignments = assignments.length;
-  const totalScheduled = assignments.reduce((sum, assignment) => sum + assignment.assignedEmployeeIds.length, 0);
-  const required = assignments.reduce((sum, assignment) => sum + assignment.requiredHeadcount, 0);
+  const activeAssignments = assignments.filter(isActiveScheduleAssignment);
+  const totalAssignments = assignments.filter(assignment => assignment.status !== "cancelled").length;
+  const totalScheduled = activeAssignments.reduce((sum, assignment) => sum + assignment.assignedEmployeeIds.length, 0);
+  const required = activeAssignments.reduce((sum, assignment) => sum + assignment.requiredHeadcount, 0);
   const openShiftCount = openShifts.filter((item) => !item.dismissed).length;
   const delayedDispatch = dispatch.filter((item) => item.status === "delayed").length;
   const activeDispatch = dispatch.filter((item) => item.status !== "off_shift").length;
 
   return {
     laborUtilization: required > 0 ? Math.min(100, Math.round((totalScheduled / required) * 100)) : 0,
-    crewUtilization: totalAssignments > 0 ? Math.min(100, Math.round((new Set(assignments.flatMap((item) => item.assignedCrewIds)).size / totalAssignments) * 100)) : 0,
+    crewUtilization: activeAssignments.length > 0 ? Math.min(100, Math.round((new Set(activeAssignments.flatMap((item) => item.assignedCrewIds)).size / activeAssignments.length) * 100)) : 0,
     idleTimeHours: 0,
     overtimeRiskCount: conflicts.filter((item) => item.type === "overtime_threshold_risk" && item.resolutionStatus === "open").length,
     assignmentCompletionRate: totalAssignments > 0 ? Math.round((assignments.filter((item) => item.status === "completed").length / totalAssignments) * 100) : 0,
-    openShiftFillRate: assignments.length > 0 ? Math.max(0, Math.round(((assignments.length - openShiftCount) / assignments.length) * 100)) : 100,
+    openShiftFillRate: activeAssignments.length > 0 ? Math.max(0, Math.round(((activeAssignments.length - openShiftCount) / activeAssignments.length) * 100)) : 100,
     scheduleConflictCount: conflicts.length,
     averageReassignmentCount: 0,
     understaffingCount: conflicts.filter((item) => item.type === "understaffed_project" && item.resolutionStatus === "open").length,
@@ -844,7 +846,8 @@ function buildPayloadFromRows(rows: LoadedRows, timeZone: string): SchedulingPay
   const events = toEventStateMaps(rows.events);
   const todayIso = scheduleClock(new Date().toISOString(), timeZone).date;
   const timeOff = buildTimeOffFromEmployees(rows.employees, profilesById, todayIso);
-  const availability = buildAvailability(assignments, rows.employees, rows.crews, profilesById);
+  const activeAssignments = assignments.filter(isActiveScheduleAssignment);
+  const availability = buildAvailability(activeAssignments, rows.employees, rows.crews, profilesById);
   const contractorVendors = buildAvailableContractorsOrVendors(rows.vendors, rows.tradePartnerAssignments, todayIso);
   const openShifts = buildOpenShifts(assignments, availability, events);
   const baseConflicts = detectSchedulingConflicts({
@@ -854,14 +857,14 @@ function buildPayloadFromRows(rows: LoadedRows, timeZone: string): SchedulingPay
     timeOff,
   });
   const conflicts = applyConflictResolutions(baseConflicts, events);
-  const dispatch = buildDispatchResources(assignments, rows.crews, rows.employees, rows.equipment, profilesById, events, timeZone);
+  const dispatch = buildDispatchResources(activeAssignments, rows.crews, rows.employees, rows.equipment, profilesById, events, timeZone);
   const insights = buildInsights(conflicts, openShifts, events);
 
   const health = buildScheduleHealth({ assignments, conflicts, openShifts, dispatch });
   const analytics = buildAnalytics(assignments, conflicts, openShifts, dispatch);
   analytics.scheduleHealth = health.score;
 
-  const summary = summarize(assignments, conflicts, openShifts, availability);
+  const summary = summarize(activeAssignments, conflicts, openShifts, availability);
   const scheduleHealthKpi = summary.kpis.find((kpi) => kpi.id === "scheduleHealth");
   if (scheduleHealthKpi) {
     scheduleHealthKpi.value = `${health.score}%`;
