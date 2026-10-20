@@ -197,7 +197,12 @@ export async function buildProjectFinancialReport(params: {
     jobCostByCategory: base.jobCostByCategory.map((row) => {
       const updated = applyActualCost(row, incrementalByCategory[row.category], row.category === "labor" ? outstandingLaborCommitment : 0);
       return row.category === "labor" && payroll.accessible
-        ? { ...updated, dataStatus: "partial" as const, note: `${payroll.availability.detail} ${LABOR_PLAN_DETAIL}` }
+        ? {
+          ...updated,
+          status: row.dataStatus === "unavailable" && row.budget === 0 ? "unavailable" as const : updated.status,
+          dataStatus: "partial" as const,
+          note: `${payroll.availability.detail} ${LABOR_PLAN_DETAIL}${row.dataStatus === "unavailable" && row.budget === 0 ? " No labor category budget has been allocated; use the project forecast for the total budget comparison." : ""}`,
+        }
         : updated;
     }),
     labor: payroll.accessible ? {

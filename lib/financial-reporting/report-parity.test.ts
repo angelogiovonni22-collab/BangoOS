@@ -288,6 +288,15 @@ async function laborPlanReportTests() {
     assert.equal(company.summary.projectGrossProfit, project.summary.grossProfit, "company and project plans/payroll must reconcile");
   }
   const separate = fixture();
+  const noCategoryBudget = fixture();
+  noCategoryBudget.tables.estimates = [];
+  noCategoryBudget.tables.project_scope_items = [];
+  noCategoryBudget.tables.project_labor_commitments = [{ company_id: "co1", project_id: "p1", projected_cost: 80 }];
+  const unallocated = await buildProjectFinancialReport({ supabase: noCategoryBudget.client, companyId: "co1", projectId: "p1" });
+  const unallocatedLabor = unallocated.jobCostByCategory.find(row => row.category === "labor");
+  assert.equal(unallocatedLabor?.committed, 80);
+  assert.equal(unallocatedLabor?.status, "unavailable", "an unallocated category budget must not become a false over-budget alarm");
+  assert.match(unallocatedLabor?.note ?? "", /No labor category budget/);
   separate.tables.projects.push({ ...separate.tables.projects[0], id: "p2" });
   separate.tables.project_labor_commitments = [
     { id: "plan-p1", company_id: "co1", project_id: "p1", projected_cost: 1000 },
