@@ -5195,6 +5195,10 @@ export type Database = {
           planned_hours: number
           project_id: string
           source_id: string | null
+          required_headcount: number | null
+          required_trade: string | null
+          schedule_kind: string | null
+          creation_request_hash: string | null
           source_type: string
           starts_at: string
           status: string
@@ -5218,6 +5222,10 @@ export type Database = {
           planned_hours?: number
           project_id: string
           source_id?: string | null
+          required_headcount?: number | null
+          required_trade?: string | null
+          schedule_kind?: string | null
+          creation_request_hash?: string | null
           source_type?: string
           starts_at: string
           status?: string
@@ -5241,6 +5249,10 @@ export type Database = {
           planned_hours?: number
           project_id?: string
           source_id?: string | null
+          required_headcount?: number | null
+          required_trade?: string | null
+          schedule_kind?: string | null
+          creation_request_hash?: string | null
           source_type?: string
           starts_at?: string
           status?: string
@@ -5367,6 +5379,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_schedule_assignment_atomic: {
+        Args: { p_company_id: string; p_request_id: string; p_assignment: Json; p_compensation?: Json | null }
+        Returns: string
+      }
       list_orion_receipt_deliveries: {
         Args: { p_company_id: string; p_offset?: number }
         Returns: Json

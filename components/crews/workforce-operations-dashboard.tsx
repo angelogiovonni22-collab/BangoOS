@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n/provider";
 import { ArrowUpRight } from "lucide-react";
 import { AlertTriangle, HardHat, Users } from "./crew-icons";
 import { Badge } from "@/components/ui/badge";
@@ -155,6 +156,7 @@ function DailyAssignmentBoard({
 }
 
 function CrewWorkspace({ crews, assignments }: { crews: CrewStatusRow[]; assignments: WorkforceOperationsDashboardData["dailyAssignments"] }) {
+  const { t } = useI18n();
   return (
     <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -168,7 +170,7 @@ function CrewWorkspace({ crews, assignments }: { crews: CrewStatusRow[]; assignm
         <div className="grid gap-3 xl:grid-cols-2">
           {crews.map((crew) => {
             const todaysAssignments = assignments.filter((assignment) => assignment.crewId === crew.crewId);
-            const plannedHours = todaysAssignments.reduce((sum, assignment) => sum + Math.max(0, assignment.requiredHeadcount * 8), 0);
+            const plannedHours = todaysAssignments.reduce((sum, assignment) => sum + Math.max(0, assignment.plannedHours ?? 0), 0);
 
             return (
               <Link key={crew.crewId} href={`/crews/${crew.crewId}`} className={`group rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3 ${interactiveCardClass}`}>
@@ -182,7 +184,7 @@ function CrewWorkspace({ crews, assignments }: { crews: CrewStatusRow[]; assignm
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">Supervisor: {crew.supervisorName || "Unassigned"}</p>
                 <p className="text-xs text-[var(--text-secondary)]">Equipment assigned: {crew.equipmentAssignedCount}</p>
                 <p className="text-xs text-[var(--text-secondary)]">Today&apos;s assignments: {todaysAssignments.length}</p>
-                <p className="text-xs text-[var(--text-secondary)]">Planned labor hours: {plannedHours}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{t("scheduling.plannedShiftHours")}: {plannedHours}</p>
                 <p className="text-xs text-[var(--text-secondary)]">Schedule progress: {crew.shiftProgressPercent}%</p>
               </Link>
             );

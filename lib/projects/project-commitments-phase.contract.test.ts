@@ -29,7 +29,8 @@ assert.match(controlDetails, /ProjectCrewCompensationWorkspace/);
 for (const method of ["payroll_rate", "hourly", "day_rate", "piece_rate", "lump_sum", "prevailing_wage"]) {
   assert.ok(crewAssignment.includes(method), `crew assignment must support ${method}`);
 }
-assert.match(crewAssignment, /save_project_labor_commitment/);
+assert.match(crewAssignment, /compensation:\{method/);
+assert.doesNotMatch(crewAssignment, /save_project_labor_commitment/);
 assert.match(crewAssignment, /Budget after assignment/);
 assert.match(crewWorkspace, /Actual approved-time labor/);
 assert.match(crewWorkspace, /Compensation & payment terms/);

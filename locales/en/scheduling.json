@@ -1,4 +1,5 @@
 {
+  "plannedShiftHours": "Planned shift hours",
   "form.timeZone": "Assignment times use {{timeZone}}.",
   "pageTitleDispatch": "Dispatch Center",
   "pageTitleSchedule": "Schedule",
@@ -118,16 +119,16 @@
   "kpiInsight.overstaffedProjects": "Projects above planned headcount",
   "kpiInsight.scheduleHealth": "Composite scheduling score",
 
-  "kpiTrend.employeesScheduled": "+3 vs previous period",
-  "kpiTrend.crewsAssigned": "Stable crew footprint",
-  "kpiTrend.availableEmployees": "2 moved to open shift pool",
-  "kpiTrend.availableCrews": "One crew freed from closeout",
-  "kpiTrend.openShifts": "Open shifts holding steady",
-  "kpiTrend.conflicts": "1 new high-severity conflict",
-  "kpiTrend.overtimeRisk": "Elevated in night operations",
-  "kpiTrend.understaffedProjects": "Risk concentrated in two scopes",
-  "kpiTrend.overstaffedProjects": "Down after reassignment",
-  "kpiTrend.scheduleHealth": "+4 points after dispatch adjustment",
+  "kpiTrend.employeesScheduled": "Current schedule; no prior-period comparison",
+  "kpiTrend.crewsAssigned": "Current schedule; no prior-period comparison",
+  "kpiTrend.availableEmployees": "Current schedule; no prior-period comparison",
+  "kpiTrend.availableCrews": "Current schedule; no prior-period comparison",
+  "kpiTrend.openShifts": "Current schedule; no prior-period comparison",
+  "kpiTrend.conflicts": "Current schedule; no prior-period comparison",
+  "kpiTrend.overtimeRisk": "Current schedule; no prior-period comparison",
+  "kpiTrend.understaffedProjects": "Current schedule; no prior-period comparison",
+  "kpiTrend.overstaffedProjects": "Current schedule; no prior-period comparison",
+  "kpiTrend.scheduleHealth": "Current schedule; no prior-period comparison",
 
   "calendar.title": "Scheduling Calendar",
 

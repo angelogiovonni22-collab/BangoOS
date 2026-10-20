@@ -48,6 +48,9 @@ jobs:
       - name: Run scheduling company time zone regression
         run: npx -y tsx lib/scheduling/time-zone.test.ts
 
+      - name: Run scheduling workforce consistency regression
+        run: npx -y tsx lib/scheduling/workforce-summary.test.ts
+
       - name: Run scheduling inactive assignment regression
         run: npx -y tsx lib/scheduling/assignment-lifecycle.test.ts
 

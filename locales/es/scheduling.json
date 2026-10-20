@@ -1,4 +1,5 @@
 {
+  "plannedShiftHours": "Horas de turno planificadas",
   "form.timeZone": "Los horarios de asignación usan {{timeZone}}.",
   "pageTitleDispatch": "Centro de Despacho",
   "pageTitleSchedule": "Calendario",
@@ -118,16 +119,16 @@
   "kpiInsight.overstaffedProjects": "Proyectos por encima de dotacion planificada",
   "kpiInsight.scheduleHealth": "Puntaje compuesto de programacion",
 
-  "kpiTrend.employeesScheduled": "+3 vs periodo anterior",
-  "kpiTrend.crewsAssigned": "Huella de cuadrillas estable",
-  "kpiTrend.availableEmployees": "2 movidos al pool de turnos abiertos",
-  "kpiTrend.availableCrews": "Una cuadrilla liberada de cierre",
-  "kpiTrend.openShifts": "Turnos abiertos estables",
-  "kpiTrend.conflicts": "1 nuevo conflicto de alta severidad",
-  "kpiTrend.overtimeRisk": "Elevado en operaciones nocturnas",
-  "kpiTrend.understaffedProjects": "Riesgo concentrado en dos frentes",
-  "kpiTrend.overstaffedProjects": "Baja tras reasignacion",
-  "kpiTrend.scheduleHealth": "+4 puntos tras ajuste de despacho",
+  "kpiTrend.employeesScheduled": "Calendario actual; sin comparación con el período anterior",
+  "kpiTrend.crewsAssigned": "Calendario actual; sin comparación con el período anterior",
+  "kpiTrend.availableEmployees": "Calendario actual; sin comparación con el período anterior",
+  "kpiTrend.availableCrews": "Calendario actual; sin comparación con el período anterior",
+  "kpiTrend.openShifts": "Calendario actual; sin comparación con el período anterior",
+  "kpiTrend.conflicts": "Calendario actual; sin comparación con el período anterior",
+  "kpiTrend.overtimeRisk": "Calendario actual; sin comparación con el período anterior",
+  "kpiTrend.understaffedProjects": "Calendario actual; sin comparación con el período anterior",
+  "kpiTrend.overstaffedProjects": "Calendario actual; sin comparación con el período anterior",
+  "kpiTrend.scheduleHealth": "Calendario actual; sin comparación con el período anterior",
 
   "calendar.title": "Calendario de programacion",
 

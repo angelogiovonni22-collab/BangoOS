@@ -21,6 +21,7 @@ type AssignmentFormProps = {
 
 function defaultDraft(projectOptions: AssignmentFormProps["projectOptions"], tradeOptions: string[], timeZone: string): AssignmentDraft {
   return {
+    requestId: crypto.randomUUID(),
     title: "",
     type: "project_work",
     projectId: projectOptions[0]?.id || "",
@@ -35,7 +36,7 @@ function defaultDraft(projectOptions: AssignmentFormProps["projectOptions"], tra
     requiredHeadcount: 1,
     supervisor: "",
     priority: "medium",
-    status: "draft",
+    status: "published",
     notes: "",
     travelTimeMinutes: 30,
     recurrence: { enabled: false, frequency: "weekly", interval: 1, endDate: null },
@@ -65,11 +66,12 @@ export function AssignmentForm({
   const [form, setForm] = useState<AssignmentDraft>(() => initialDraft ?? defaultDraft(projectOptions, tradeOptions, resolvedTimeZone));
 
   const update = <K extends keyof AssignmentDraft>(key: K, value: AssignmentDraft[K]) => {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => ({ ...current, requestId: crypto.randomUUID(), [key]: value }));
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSaving) return;
     setError(null);
     setSubmitFailed(false);
 
@@ -190,7 +192,7 @@ export function AssignmentForm({
         </Field>
 
         <Field label={t("scheduling.form.assignedCrew")}>
-          <Select value={form.assignedCrewIds[0] || ""} onChange={(event) => update("assignedCrewIds", event.target.value ? [event.target.value] : [])}>
+          <Select value={form.assignedCrewIds[0] || ""} onChange={(event) => { update("assignedCrewIds", event.target.value ? [event.target.value] : []); update("assignedEmployeeIds", []); }}>
             <option value="">{t("scheduling.common.none")}</option>
             {crewOptions.map((crew) => (
               <option key={crew.id} value={crew.id}>{crew.name}</option>
@@ -199,7 +201,7 @@ export function AssignmentForm({
         </Field>
 
         <Field label={t("scheduling.form.assignedEmployee")}>
-          <Select value={form.assignedEmployeeIds[0] || ""} onChange={(event) => update("assignedEmployeeIds", event.target.value ? [event.target.value] : [])}>
+          <Select value={form.assignedCrewIds.length ? "" : form.assignedEmployeeIds[0] || ""} onChange={(event) => { update("assignedEmployeeIds", event.target.value ? [event.target.value] : []); update("assignedCrewIds", []); }}>
             <option value="">{t("scheduling.common.none")}</option>
             {employeeOptions.map((employee) => (
               <option key={employee.id} value={employee.id}>{employee.name} - {employee.trade}</option>

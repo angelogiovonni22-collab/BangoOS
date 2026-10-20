@@ -10,9 +10,8 @@ import { type CompensationMethod } from "@/lib/projects/project-commitments";
 import { useScheduling, type AssignmentDraft } from "@/lib/scheduling";
 import { createScheduleWindow, resolveScheduleTimeZone, scheduleClock } from "@/lib/scheduling/time-zone";
 
-type CrewProjectAssignmentPanelProps = { crewId: string; crewName: string; activeMemberCount: number; supervisorName: string | null };
+type CrewProjectAssignmentPanelProps = { crewId: string; crewName: string; activeMemberCount: number; supervisorName: string | null; onAssigned?: () => void };
 type CrewPayRow = { employeeId:string; name:string; hourlyRate:number|null; fringeHourly:number|null };
-type RpcResult<T>={data:T|null;error:{message?:string}|null};
 
 function todayIso() { return new Date().toISOString().slice(0, 10); }
 function shiftHours(date:string,start:string,end:string,shift:AssignmentDraft["shift"],timeZone:string){
@@ -21,7 +20,7 @@ function shiftHours(date:string,start:string,end:string,shift:AssignmentDraft["s
 }
 const money=(value:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(value);
 
-export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount, supervisorName }: CrewProjectAssignmentPanelProps) {
+export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount, supervisorName, onAssigned }: CrewProjectAssignmentPanelProps) {
   const { t } = useI18n();
   const [openedOnce,setOpenedOnce]=useState(false);
   const { payload, isLoading, errorMessage, createNewAssignment } = useScheduling();
@@ -62,40 +61,27 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
 
   const handleOpen=()=>{if(!openedOnce){setDate(scheduleClock(new Date().toISOString(),timeZone).date);setOpenedOnce(true);}setOpen(true);setLocalError(null);setSuccess(null);if(!projectId&&projectOptions[0]?.id)setProjectId(projectOptions[0].id);void loadFinancialSetup();};
 
-  async function saveCompensation(companyId:string){
-    if(!supabase)throw new Error("B.O.S. database is unavailable.");
-    const call=async(args:Record<string,unknown>)=>{const result=await supabase.rpc("save_project_labor_commitment" as never,args as never) as unknown as RpcResult<string>;if(result.error)throw new Error(result.error.message||"Unable to save project compensation.");};
-    if(method==="payroll_rate"){
-      const missing=crewPay.filter((row)=>row.hourlyRate==null); if(missing.length)throw new Error(`Set payroll rates for ${missing.map((r)=>r.name).join(", ")} before using Payroll rates.`);
-      if(!crewPay.length)throw new Error("This crew has no active members with payroll setup.");
-      for(const row of crewPay){await call({p_company_id:companyId,p_project_id:projectId,p_employee_id:row.employeeId,p_crew_id:null,p_compensation_method:"payroll_rate",p_rate:Number(row.hourlyRate||0)+Number(row.fringeHourly||0),p_projected_hours:hours,p_projected_days:0,p_projected_units:0,p_lump_sum_amount:0,p_rate_details:{crewId,crewName,baseHourly:Number(row.hourlyRate||0),fringeHourly:Number(row.fringeHourly||0),employeeName:row.name},p_notes:notes});}
-      return;
-    }
-    await call({p_company_id:companyId,p_project_id:projectId,p_employee_id:null,p_crew_id:crewId,p_compensation_method:method,p_rate:Number(rate||0),p_projected_hours:["hourly","prevailing_wage"].includes(method)?hours:0,p_projected_days:method==="day_rate"?Number(plannedDays||0):0,p_projected_units:method==="piece_rate"?Number(plannedUnits||0):0,p_lump_sum_amount:method==="lump_sum"?Number(lumpSum||0):0,p_rate_details:{crewId,crewName},p_notes:notes});
-  }
-
   const handleSubmit=async(event:React.FormEvent<HTMLFormElement>)=>{
     event.preventDefault();if(saving||loadingPay)return;setLocalError(null);setSuccess(null);
     if(!projectId){setLocalError("Select a project before assigning this crew.");return;} if(!date){setLocalError("Select an assignment date.");return;} try{createScheduleWindow(date,startTime,endTime,timeZone);}catch(caught){setLocalError(caught instanceof Error?caught.message:"Enter a valid assignment date and time.");return;} if(hours<=0){setLocalError("Enter a valid assignment start and end time.");return;}
     if(method==="payroll_rate"&&!crewPay.length){setLocalError("This crew has no active members with payroll setup.");return;}
     if(method==="payroll_rate"&&crewPay.some((row)=>row.hourlyRate==null)){setLocalError("Every active crew member needs an employee pay rate before this assignment can use Payroll rates.");return;}
-    if(["hourly","day_rate","piece_rate","prevailing_wage"].includes(method)&&(!Number.isFinite(Number(rate))||Number(rate)<0)){setLocalError("Enter a valid compensation rate.");return;} if(method==="piece_rate"&&Number(plannedUnits)<=0){setLocalError("Enter the planned quantity for piece/unit rate work.");return;} if(method==="lump_sum"&&Number(lumpSum)<=0){setLocalError("Enter the lump-sum amount.");return;}
+    if(["hourly","day_rate","piece_rate","prevailing_wage"].includes(method)&&(!Number.isFinite(Number(rate))||Number(rate)<0)){setLocalError("Enter a valid compensation rate.");return;} if(method==="day_rate"&&(!Number.isFinite(Number(plannedDays))||Number(plannedDays)<=0)){setLocalError("Enter the planned days for day-rate work.");return;} if(method==="piece_rate"&&(!Number.isFinite(Number(plannedUnits))||Number(plannedUnits)<=0)){setLocalError("Enter the planned quantity for piece/unit rate work.");return;} if(method==="lump_sum"&&(!Number.isFinite(Number(lumpSum))||Number(lumpSum)<=0)){setLocalError("Enter the lump-sum amount.");return;}
     const projectName=selectedProject?.name||"Project"; const trade=payload?.tradeOptions[0]||"General Labor";
-    const draft:AssignmentDraft={title:`${crewName} - ${projectName}`,type:"project_work",projectId,location:"",date,startTime,endTime,shift,assignedCrewIds:[crewId],assignedEmployeeIds:[],requiredTrade:trade,requiredHeadcount:Math.max(1,activeMemberCount),supervisor:supervisorName||"",priority:"medium",status:"published",notes,travelTimeMinutes:30,recurrence:{enabled:false,frequency:"weekly",interval:1,endDate:null},equipment:{requiredEquipment:[],assignedEquipment:[],operatorRequired:false},safetyRequirement:"",certificationRequirement:""};
+    const draft:AssignmentDraft={compensation:{method,rate:Number(rate||0),days:Number(plannedDays||0),units:Number(plannedUnits||0),lumpSum:Number(lumpSum||0)},title:`${crewName} - ${projectName}`,type:"project_work",projectId,location:"",date,startTime,endTime,shift,assignedCrewIds:[crewId],assignedEmployeeIds:[],requiredTrade:trade,requiredHeadcount:Math.max(1,activeMemberCount),supervisor:supervisorName||"",priority:"medium",status:"published",notes,travelTimeMinutes:30,recurrence:{enabled:false,frequency:"weekly",interval:1,endDate:null},equipment:{requiredEquipment:[],assignedEquipment:[],operatorRequired:false},safetyRequirement:"",certificationRequirement:""};
     setSaving(true);
     try{
       if(!supabase)throw new Error("B.O.S. database is unavailable.");
       const workspace=await resolveWorkspaceContext(supabase);if(!workspace.context)throw new Error(workspace.errorMessage||"Unable to resolve workspace.");
-      const saved=await createNewAssignment(draft);if(!saved){setLocalError("B.O.S. could not assign this crew. Check for a scheduling conflict and try again.");return;}
-      await saveCompensation(workspace.context.companyId);
-      setSuccess(`${crewName} is assigned to ${projectName}. Projected labor commitment: ${money(projectedCost)}.`);setOpen(false);
+      const saved=await createNewAssignment(draft);if(!saved){setLocalError("B.O.S. could not save the assignment and compensation. Check the schedule and pay setup, then retry.");return;}
+      setSuccess(`${crewName} is assigned to ${projectName}. Projected labor commitment: ${money(projectedCost)}.`);setOpen(false);onAssigned?.();
     }catch(caught){setLocalError(caught instanceof Error?caught.message:"Unable to save crew compensation.");}finally{setSaving(false);}
   };
 
   return <section className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-5 shadow-[var(--shadow-small)]">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Project Assignment</h2><p className="mt-1 text-sm text-[var(--color-text-secondary)]">Assign this crew and commit how the project will pay for the work before it hits the schedule.</p></div><div className="flex flex-wrap gap-2"><Button type="button" onClick={handleOpen} disabled={isLoading||projectOptions.length===0}>Assign to Project</Button><Link href={`/schedule?crew=${encodeURIComponent(crewId)}`} className="inline-flex h-10 items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-4 text-sm font-semibold text-[var(--color-brand-700)] transition hover:bg-[var(--color-surface-subtle)]">View Schedule</Link></div></div>
     {projectOptions.length===0&&!isLoading?<p className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-warning-200)] bg-[var(--color-warning-50)] px-3 py-2 text-sm text-[var(--color-warning-800)]">No projects are available to assign.</p>:null}
-    {errorMessage?<p className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-3 py-2 text-sm text-[var(--color-danger-700)]">Scheduling data could not be loaded.</p>:null}
+    {errorMessage?<div role="alert" className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-3 py-2 text-sm text-[var(--color-danger-700)]">{t(errorMessage)}</div>:null}
     {success?<p className="mt-4 rounded-[var(--radius-md)] border border-[var(--color-success-200)] bg-[var(--color-success-50)] px-3 py-2 text-sm font-medium text-[var(--color-success-800)]">{success}</p>:null}
     {open?<form onSubmit={handleSubmit} className="mt-5 space-y-4 border-t border-[var(--color-border-subtle)] pt-5">
       <p className="text-xs text-[var(--color-text-secondary)]">{t("scheduling.form.timeZone", { timeZone })}</p>
@@ -106,7 +92,7 @@ export function CrewProjectAssignmentPanel({ crewId, crewName, activeMemberCount
         <div className="mt-3 grid gap-2 sm:grid-cols-3"><Preview label="Planned duration" value={`${hours.toFixed(2)} hrs`}/><Preview label="Projected labor" value={money(projectedCost)}/><Preview label="Budget after assignment" value={remaining===null?"Budget unavailable":money(remaining)} danger={remaining!==null&&remaining<0}/></div>
       </div>
       <FormField label="Assignment notes"><textarea rows={3} value={notes} onChange={(e)=>setNotes(e.target.value)} placeholder="Optional instructions, scope, meeting point, or compensation notes" className="w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-surface-card)] px-3 py-2 text-sm text-[var(--color-text-primary)]"/></FormField>
-      {localError?<p className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-3 py-2 text-sm text-[var(--color-danger-700)]">{localError}</p>:null}
+      {localError?<div role="alert" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] px-3 py-2 text-sm text-[var(--color-danger-700)]">{localError}</div>:null}
       <p className="text-xs text-[var(--color-text-secondary)]">B.O.S. checks overlapping schedule assignments. Project compensation is kept separate from employee payroll settings so job-specific prevailing wage, lump sum, day rate, or unit-rate work cannot corrupt payroll.</p>
       <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setOpen(false)}>Cancel</Button><Button type="submit" disabled={saving||loadingPay}>{saving?"Assigning…":"Assign Crew & Commit Labor"}</Button></div>
     </form>:null}

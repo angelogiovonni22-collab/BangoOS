@@ -296,6 +296,8 @@ export type ScheduleFilterState = {
 };
 
 export type AssignmentDraft = {
+  requestId?: string;
+  compensation?: { method: "payroll_rate" | "hourly" | "day_rate" | "piece_rate" | "lump_sum" | "prevailing_wage"; rate: number; days: number; units: number; lumpSum: number };
   title: string;
   type: AssignmentType;
   projectId: string;

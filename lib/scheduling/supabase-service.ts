@@ -1,3 +1,5 @@
+import { assignmentAssignee } from "./assignment-assignee";
+import { staffingProjectCount } from "./workforce-summary";
 ﻿import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -289,7 +291,7 @@ function toScheduleAssignment(
   return {
     id: row.id,
     title: row.title,
-    type: mapAssignmentType(row.source_type, row.assignment_type),
+    type: (row.schedule_kind as ScheduleAssignment["type"] | null) ?? mapAssignmentType(row.source_type, row.assignment_type),
     status: mapAssignmentStatus(row.status),
     shift: mapShift(row.starts_at, timeZone),
     priority: mapPriority(row.status),
@@ -299,8 +301,8 @@ function toScheduleAssignment(
     plannedStart: row.starts_at,
     plannedEnd: row.ends_at,
     plannedLaborHours: Number(row.planned_hours ?? 0),
-    requiredHeadcount: Math.max(employeeIds.length, row.assignment_type === "crew" ? 1 : 0),
-    requiredTrade,
+    requiredHeadcount: row.required_headcount ?? Math.max(employeeIds.length, row.assignment_type === "crew" ? 1 : 0),
+    requiredTrade: row.required_trade ?? requiredTrade,
     assignedCrewIds: row.crew_id ? [row.crew_id] : [],
     assignedEmployeeIds: employeeIds,
     scope: {
@@ -677,8 +679,8 @@ function summarize(
   const openShiftCount = openShifts.filter((item) => !item.dismissed).length;
   const unresolvedConflicts = conflicts.filter((item) => item.resolutionStatus === "open").length;
   const overtimeRisk = conflicts.filter((item) => item.type === "overtime_threshold_risk" && item.resolutionStatus === "open").length;
-  const understaffed = conflicts.filter((item) => item.type === "understaffed_project" && item.resolutionStatus === "open").length;
-  const overstaffed = conflicts.filter((item) => item.type === "overstaffed_project" && item.resolutionStatus === "open").length;
+  const understaffed = staffingProjectCount(conflicts, "understaffed_project");
+  const overstaffed = staffingProjectCount(conflicts, "overstaffed_project");
 
   return {
     dateRangeLabel: "scheduling.dateRange.currentWeek",
@@ -1115,48 +1117,22 @@ export function createSupabaseSchedulingService(): SchedulingService {
       const orion = createSupabaseOrionEventPublisher(supabase);
 
       const { startsAt, endsAt } = createScheduleWindow(draft.date, draft.startTime, draft.endTime, timeZone);
-      const useEmployee = draft.assignedEmployeeIds.length > 0;
-      const employeeId = useEmployee ? draft.assignedEmployeeIds[0] ?? null : null;
-      const crewId = useEmployee ? null : draft.assignedCrewIds[0] ?? null;
+      const { crewId, employeeId, useEmployee } = assignmentAssignee(draft);
       const assignmentType: WorkforceAssignmentRow["assignment_type"] = useEmployee ? "employee" : "crew";
 
-      await validateNoOverlap({
-        supabase,
-        companyId,
-        startsAt,
-        endsAt,
-        employeeId,
-        crewId,
+      const { data: assignmentId, error } = await supabase.rpc("create_schedule_assignment_atomic", {
+        p_company_id: companyId,
+        p_request_id: draft.requestId ?? crypto.randomUUID(),
+        p_assignment: {
+          project_id: draft.projectId, crew_id: crewId, employee_id: employeeId,
+          title: draft.title, notes: draft.notes, starts_at: startsAt, ends_at: endsAt,
+          status: mapDraftStatus(draft.status), schedule_kind: draft.type,
+          required_headcount: draft.requiredHeadcount, required_trade: draft.requiredTrade,
+        },
+        p_compensation: draft.compensation ?? null,
       });
-
-      const { data: inserted, error } = await supabase
-        .from("workforce_assignments")
-        .insert({
-          company_id: companyId,
-          assignment_type: assignmentType,
-          crew_id: crewId,
-          employee_id: employeeId,
-          project_id: draft.projectId,
-          phase_id: null,
-          task_id: null,
-          title: draft.title,
-          description: draft.notes || null,
-          starts_at: startsAt,
-          ends_at: endsAt,
-          planned_hours: durationHours(startsAt, endsAt),
-          status: mapDraftStatus(draft.status),
-          source_type: "manual",
-          source_id: null,
-          notes: draft.notes || null,
-          created_by: userId,
-          updated_by: userId,
-        })
-        .select("id")
-        .single();
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw new Error(error.message);
+      const inserted = assignmentId ? { id: assignmentId } : null;
 
       if (inserted?.id) {
         await orion.publishEvent({
@@ -1175,12 +1151,12 @@ export function createSupabaseSchedulingService(): SchedulingService {
             assignment_type: assignmentType,
             crew_id: crewId,
             employee_id: employeeId,
-            deep_link: "/scheduling",
+            deep_link: "/schedule",
           },
           metadata: {
             event_category: "scheduling",
             event_severity: "info",
-            deep_link: "/scheduling",
+            deep_link: "/schedule",
           },
         });
       }
@@ -1464,12 +1440,12 @@ export function createSupabaseSchedulingService(): SchedulingService {
           ends_at: patch.ends_at,
           crew_id: patch.crew_id,
           employee_id: patch.employee_id,
-          deep_link: "/scheduling",
+          deep_link: "/schedule",
         },
         metadata: {
           event_category: "scheduling",
           event_severity: "info",
-          deep_link: "/scheduling",
+          deep_link: "/schedule",
         },
       });
 

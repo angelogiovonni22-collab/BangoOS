@@ -29,7 +29,7 @@ export function CrewProfileSections({ crew, locale, t }: CrewProfileSectionsProp
           <Field label="Current project" value={overview.currentProjectName || "Unassigned"} />
           <Field label="Current assignment" value={overview.currentAssignmentTitle || "Unassigned"} />
           <Field label="Next assignment" value={overview.nextAssignmentTitle || "None"} />
-          <Field label="Updated" value={formatDateTime(overview.updatedAt, locale)} />
+          <Field label="Updated" value={formatDateTime(overview.updatedAt, locale, crew.timeZone)} />
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Status</p>
             <div className="mt-1">
@@ -55,9 +55,9 @@ export function CrewProfileSections({ crew, locale, t }: CrewProfileSectionsProp
           <CardTitle>Assignments</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <AssignmentGroup title="Current" items={crew.assignments.current} locale={locale} t={t} />
-          <AssignmentGroup title="Upcoming" items={crew.assignments.upcoming} locale={locale} t={t} />
-          <AssignmentGroup title={t("crews.assignmentHistory")} items={crew.assignments.completed} locale={locale} t={t} />
+          <AssignmentGroup title="Current" items={crew.assignments.current} locale={locale} timeZone={crew.timeZone} t={t} />
+          <AssignmentGroup title="Upcoming" items={crew.assignments.upcoming} locale={locale} timeZone={crew.timeZone} t={t} />
+          <AssignmentGroup title={t("crews.assignmentHistory")} items={crew.assignments.completed} locale={locale} timeZone={crew.timeZone} t={t} />
         </CardContent>
       </Card>
 
@@ -117,7 +117,7 @@ function MembershipGroup({ title, items }: { title: string; items: CrewProfile["
   );
 }
 
-function AssignmentGroup({ title, items, locale, t }: { title: string; items: CrewProfile["assignments"]["current"]; locale: string; t: CrewProfileSectionsProps["t"] }) {
+function AssignmentGroup({ title, items, locale, timeZone, t }: { timeZone?: string; title: string; items: CrewProfile["assignments"]["current"]; locale: string; t: CrewProfileSectionsProps["t"] }) {
   return (
     <section className="space-y-2">
       <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{title}</h3>
@@ -130,7 +130,7 @@ function AssignmentGroup({ title, items, locale, t }: { title: string; items: Cr
             <p className="mt-1 text-xs font-semibold text-[var(--color-text-secondary)]">{t(`crews.assignmentStatus.${assignment.status}`)}</p>
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{assignment.projectName}</p>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{assignment.phaseName || assignment.taskName || "No phase/task"}</p>
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{formatDateTime(assignment.startsAt, locale)} - {formatDateTime(assignment.endsAt, locale)}</p>
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{formatDateTime(assignment.startsAt, locale, timeZone)} - {formatDateTime(assignment.endsAt, locale, timeZone)}</p>
           </article>
         ))
       )}
@@ -160,8 +160,10 @@ function EquipmentGroup({ title, items }: { title: string; items: CrewProfile["e
   );
 }
 
-function formatDateTime(value: string, locale: string) {
+function formatDateTime(value: string, locale: string, timeZone?: string) {
   return new Intl.DateTimeFormat(locale, {
+    timeZone,
+    timeZoneName: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
