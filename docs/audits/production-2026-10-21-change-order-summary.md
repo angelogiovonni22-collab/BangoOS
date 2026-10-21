@@ -21,6 +21,13 @@ NULL with a returned row before any child replacement, activity or event.
 This also covers an archive arriving between initial read and parent update.
 Restore remains the explicit existing recovery path. No protected pilot action
 is exercised to demonstrate this defect.
+The send-approval route also checks archive state before creating a token or
+sending email. Shared public approval context checks the parent before either
+returning a customer package or recording a decision. These guards have source
+and CI validation; no actual customer email or legally binding approval is used
+as a production test. Approval/email multi-transaction concurrency remains a
+separate acceptance boundary; this change does not claim transactional locking
+of a customer decision or external send against a concurrent archive.
 
 Production acceptance steps:
 

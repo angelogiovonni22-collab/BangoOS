@@ -18,6 +18,11 @@ async function loadApprovalContext(token: string) {
   if (tokenRow.revoked_at) throw new Error("This approval link has been revoked.");
   if (new Date(tokenRow.expires_at).getTime() < Date.now()) throw new Error("This approval link has expired.");
 
+  const { data: order, error: orderError } = await admin.from("change_orders")
+    .select("id, archived_at").eq("company_id", tokenRow.company_id).eq("id", tokenRow.change_order_id).maybeSingle();
+  if (orderError || !order) throw new Error("Change order not found.");
+  if (order.archived_at) throw new Error("This change order is archived. Contact the sender before continuing.");
+
   return { admin, tokenRow };
 }
 
