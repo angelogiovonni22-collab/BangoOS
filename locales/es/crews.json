@@ -63,6 +63,7 @@
   "table.utilization": "Utilización",
   "table.lastActivity": "Última actividad",
   "table.actions": "Acciones",
+  "table.updated": "Actualizado",
 
   "pagination.showing": "Página {{page}} de {{totalPages}} · {{total}} cuadrillas",
   "pagination.rowsPerPage": "Filas",

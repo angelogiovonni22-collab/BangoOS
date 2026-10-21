@@ -77,7 +77,8 @@ function main() {
   assert(operator.includes("!inViewport(element)") && operator.includes("scrollRequired: true"), "single-control interactions still require visible viewport placement");
   assert(session.includes("After every scroll, you MUST observe again") && session.includes("/projects/{id}/edit"), "Realtime policy requires re-observation and visible project editing");
   assert(projectEditor.includes('data-orion-control="project.addressLine1"') && projectEditor.includes('data-orion-action="project.save"'), "project editor exposes visible semantic address and verified save controls");
-  assert(projectEditor.includes('data-orion-confirmation="required"') && commandRegistry.includes('id: "project.update_status"') && commandRegistry.includes('confirmationLevel: "REQUIRED"'), "project status changes remain behind canonical confirmation");
+  assert(/<Input id="project-status"[^\n]*\breadOnly\b/.test(projectEditor) && !projectEditor.includes('data-orion-control="project.status"'), "project editor exposes status as read-only instead of an unsupported editable control");
+  assert(projectEditor.includes('form.status !== originalStatus') && commandRegistry.includes('id: "project.update_status"') && commandRegistry.includes('confirmationLevel: "REQUIRED"'), "project status changes remain behind the save guard and canonical command confirmation");
 
   console.log(`\nOrion UI operator results: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exitCode = 1;
