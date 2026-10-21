@@ -63,6 +63,7 @@
   "table.utilization": "Utilization",
   "table.lastActivity": "Last Activity",
   "table.actions": "Actions",
+  "table.updated": "Updated",
 
   "pagination.showing": "Page {{page}} of {{totalPages}} · {{total}} crews",
   "pagination.rowsPerPage": "Rows",
