@@ -372,6 +372,12 @@ export async function saveChangeOrder(params: {
   lineItems: ChangeOrderLineItemDraft[];
   changeOrderId?: string;
 }) {
+  if (params.changeOrderId) {
+    const { data: existing, error } = await params.supabase.from("change_orders")
+      .select("id, archived_at").eq("company_id", params.companyId).eq("id", params.changeOrderId).maybeSingle();
+    if (error || !existing) return { error: error?.message || "Change order not found.", changeOrderId: null };
+    if (existing.archived_at) return { error: "Restore this change order before editing it.", changeOrderId: null };
+  }
   const orion = createSupabaseOrionEventPublisher(params.supabase);
   const totals = calculateChangeOrderTotals({
     lineItems: params.lineItems,
@@ -415,7 +421,7 @@ export async function saveChangeOrder(params: {
   let changeOrderId = params.changeOrderId;
 
   if (changeOrderId) {
-    const { error: updateError } = await params.supabase
+    const { data: updated, error: updateError } = await params.supabase
       .from("change_orders")
       .update({
         ...payload,
@@ -423,10 +429,13 @@ export async function saveChangeOrder(params: {
         created_by: undefined,
       })
       .eq("company_id", params.companyId)
-      .eq("id", changeOrderId);
+      .eq("id", changeOrderId)
+      .is("archived_at", null)
+      .select("id")
+      .maybeSingle();
 
-    if (updateError) {
-      return { error: updateError.message, changeOrderId: null };
+    if (updateError || !updated) {
+      return { error: updateError?.message || "Change order changed or was archived. Reload before editing.", changeOrderId: null };
     }
 
     await logChangeOrderActivity({
@@ -563,6 +572,10 @@ async function updateWorkflowStatus(params: {
     return { error: record.error || "Change order not found." };
   }
 
+  if (record.data.changeOrder.archived_at) {
+    return { error: "Restore this change order before changing its status." };
+  }
+
   const current = normalizeStatusForSave(record.data.changeOrder.status);
 
   if (!canTransition(current, params.nextStatus)) {
@@ -608,14 +621,17 @@ async function updateWorkflowStatus(params: {
     updatePayload.archived_at = new Date().toISOString();
   }
 
-  const { error } = await params.supabase
+  const { data: updated, error } = await params.supabase
     .from("change_orders")
     .update(updatePayload)
     .eq("company_id", params.companyId)
-    .eq("id", params.changeOrderId);
+    .eq("id", params.changeOrderId)
+    .is("archived_at", null)
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
-    return { error: error.message };
+  if (error || !updated) {
+    return { error: error?.message || "Change order changed or was archived. Reload before changing its status." };
   }
 
   await logChangeOrderActivity({

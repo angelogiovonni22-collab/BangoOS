@@ -164,6 +164,11 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
       return;
     }
 
+    if (changeOrder.archived_at && action !== "restore") {
+      setActionMessage("Restore this change order before changing its status.");
+      return;
+    }
+
     let error: string | null = null;
 
     if (action === "submit") {
@@ -223,7 +228,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
   }
 
   async function confirmApproveAction() {
-    if (!supabase || !companyId || !userId || !changeOrder || isApproving) {
+    if (!supabase || !companyId || !userId || !changeOrder || changeOrder.archived_at || isApproving) {
       return;
     }
 
@@ -325,10 +330,10 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
 
   const status = normalizeChangeOrderStatus(changeOrder.status);
   const isArchived = !!changeOrder.archived_at;
-  const canSubmit = status === "draft";
-  const canApprove = status === "pending_approval";
-  const canReject = status === "pending_approval";
-  const canReopen = status === "approved" || status === "rejected";
+  const canSubmit = status === "draft" && !isArchived;
+  const canApprove = status === "pending_approval" && !isArchived;
+  const canReject = status === "pending_approval" && !isArchived;
+  const canReopen = (status === "approved" || status === "rejected") && !isArchived;
   const canAddToInvoice = status === "approved" && !isArchived;
   const canSendToCustomer = !["void", "invoiced"].includes(status) && !isArchived;
   const customerTotalMissing = Number(changeOrder.total_amount || 0) <= 0;
@@ -348,7 +353,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
             <Button type="button" variant="secondary" size="md" onClick={() => void runAction("approve")} disabled={!canApprove}>Mark Approved</Button>
             <Button type="button" variant="secondary" size="md" onClick={() => void runAction("reject")} disabled={!canReject}>Reject</Button>
             <Button type="button" variant="secondary" size="md" onClick={() => void runAction("reopen")} disabled={!canReopen}>Reopen</Button>
-            <Button type="button" variant="danger" size="md" onClick={() => void runAction("void")} disabled={status === "void"}>Void</Button>
+            <Button type="button" variant="danger" size="md" onClick={() => void runAction("void")} disabled={status === "void" || isArchived}>Void</Button>
             {isArchived ? (
               <Button type="button" variant="secondary" size="md" onClick={() => void runAction("restore")}>Restore</Button>
             ) : (
@@ -367,6 +372,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
       />
 
       <BlueprintSourceLink targetType="change_order" targetIds={[changeOrder.id]} />
+
+      {isArchived ? <div role="status" className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">{locale === "es" ? "Orden de cambio archivada. Restáurala antes de editarla o cambiar su estado." : "Archived change order. Restore it before editing or changing its status."}</div> : null}
 
       {actionMessage ? <ErrorState title="Action result" description={actionMessage} compact /> : null}
       {customerTotalMissing ? <div className="rounded-[var(--radius-lg)] border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200">Customer total is $0.00. Edit the change order and enter the Customer Price for each line item before sending it for approval.</div> : null}

@@ -89,6 +89,7 @@ export function ChangeOrderForm({
   const [values, setValues] = useState<ChangeOrderFormValues>(DEFAULT_FORM_VALUES);
   const [lineItems, setLineItems] = useState<ChangeOrderLineItemDraft[]>(DEFAULT_LINE_ITEMS);
   const [isDirty, setIsDirty] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
 
   const [customerOptions, setCustomerOptions] = useState<Array<{ id: string; label: string; email: string | null; phone: string | null; billingAddress: string }>>([]);
   const [projectOptions, setProjectOptions] = useState<Array<{ id: string; label: string; customerId: string | null }>>([]);
@@ -210,6 +211,7 @@ export function ChangeOrderForm({
 
       if (isSubscribed) {
         const row = changeOrderResult.data.changeOrder;
+        setIsArchived(!!row.archived_at);
 
         setValues({
           title: row.title,
@@ -289,7 +291,7 @@ export function ChangeOrderForm({
   }
 
   async function submit(action: "draft" | "submit" | "save" | "approve" | "reject" | "reopen" | "void") {
-    if (isSaving) {
+    if (isSaving || isArchived) {
       return;
     }
 
@@ -476,6 +478,18 @@ export function ChangeOrderForm({
 
   if (errorMessage && !companyId) {
     return <ErrorState title="Unable to load change order" description={errorMessage} />;
+  }
+
+  if (isArchived) {
+    return (
+      <div className="space-y-6">
+        <PageHeader compact eyebrow="COMPANY WORKSPACE"
+          title={locale === "es" ? "Orden de cambio archivada" : "Archived change order"}
+          description={locale === "es" ? "Restaura esta orden desde su vista de detalle antes de editarla o cambiar su estado." : "Restore this order from its detail view before editing it or changing its status."}
+          primaryAction={<Link href={`/change-orders/${changeOrderId}`} className={getButtonClassName({ variant: "secondary", size: "md" })}>{locale === "es" ? "Ver orden de cambio" : "View Change Order"}</Link>}
+        />
+      </div>
+    );
   }
 
   const canSubmitForApproval = values.status === "draft";
