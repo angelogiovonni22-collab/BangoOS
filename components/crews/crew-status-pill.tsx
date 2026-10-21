@@ -11,7 +11,7 @@ export function CrewStatusPill({ status, availability, t }: CrewStatusPillProps)
   return (
     <div className="flex flex-wrap gap-2">
       <Badge tone={statusTone(status)}>{statusLabel(status, t)}</Badge>
-      <Badge tone={availabilityTone(availability)}>{availability === "assigned" ? "Assigned" : "Available"}</Badge>
+      {status === "active" ? <Badge tone={availabilityTone(availability)}>{t(`crews.availability.${availability}`)}</Badge> : null}
     </div>
   );
 }

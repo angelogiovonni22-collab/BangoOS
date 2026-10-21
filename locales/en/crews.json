@@ -4,6 +4,7 @@
   "directoryTitle": "Crew Directory",
   "directoryDescription": "Search, filter, and monitor every active construction crew.",
   "unassigned": "Unassigned",
+  "assignmentInactive": "Only active crews can receive new assignments. This crew's assignment history remains available.",
 
   "dashboard.title": "Crew Operations",
   "dashboard.totalCrews": "Total Crews",

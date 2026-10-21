@@ -890,7 +890,7 @@ function buildPayloadFromRows(rows: LoadedRows, timeZone: string): SchedulingPay
     },
     analytics,
     projectOptions: rows.projects.map((project) => ({ id: project.id, name: project.name })),
-    crewOptions: rows.crews.map((crew) => ({ id: crew.id, name: crew.name })),
+    crewOptions: rows.crews.map((crew) => ({ id: crew.id, name: crew.name, disabled: crew.status !== "active" })),
     employeeOptions: rows.employees.map((employee) => {
       const profileName = employee.profile_id ? profilesById.get(employee.profile_id) ?? "" : "";
       return {

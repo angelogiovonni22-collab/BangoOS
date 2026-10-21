@@ -8,7 +8,7 @@ import { createScheduleWindow, resolveScheduleTimeZone, scheduleClock } from "@/
 type AssignmentFormProps = {
   timeZone?: string;
   projectOptions: Array<{ id: string; name: string }>;
-  crewOptions: Array<{ id: string; name: string }>;
+  crewOptions: Array<{ id: string; name: string; disabled?: boolean }>;
   employeeOptions: Array<{ id: string; name: string; trade: string }>;
   tradeOptions: string[];
   initialDraft?: AssignmentDraft;
@@ -195,7 +195,7 @@ export function AssignmentForm({
           <Select value={form.assignedCrewIds[0] || ""} onChange={(event) => { update("assignedCrewIds", event.target.value ? [event.target.value] : []); update("assignedEmployeeIds", []); }}>
             <option value="">{t("scheduling.common.none")}</option>
             {crewOptions.map((crew) => (
-              <option key={crew.id} value={crew.id}>{crew.name}</option>
+              <option key={crew.id} value={crew.id} disabled={crew.disabled}>{crew.name}</option>
             ))}
           </Select>
         </Field>

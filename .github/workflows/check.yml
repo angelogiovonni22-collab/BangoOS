@@ -51,6 +51,9 @@ jobs:
       - name: Run scheduling workforce consistency regression
         run: npx -y tsx lib/scheduling/workforce-summary.test.ts
 
+      - name: Run crew active availability regression
+        run: npx -y tsx lib/workforce/crew-availability.test.ts
+
       - name: Run scheduling inactive assignment regression
         run: npx -y tsx lib/scheduling/assignment-lifecycle.test.ts
 

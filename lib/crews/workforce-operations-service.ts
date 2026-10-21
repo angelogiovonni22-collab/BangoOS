@@ -833,7 +833,7 @@ export function createWorkforceOperationsService(deps: WorkforceOperationsDeps =
         },
         overdueItems,
         options: {
-          crewOptions: crewDirectory.items.map((crew) => ({ id: crew.id, label: crew.name })),
+          crewOptions: crewDirectory.items.filter((crew) => crew.isActive).map((crew) => ({ id: crew.id, label: crew.name })),
           employeeOptions: employeeDirectory.items.map((employee) => ({ id: employee.id, label: employee.fullName })),
           supervisorOptions: crewDirectory.options.supervisorOptions.map((option) => ({ id: option.id, label: option.label })),
           assignmentOptions: assignmentsToday.map((assignment) => ({

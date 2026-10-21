@@ -702,8 +702,8 @@ export function normalizeCrewDirectory(input: {
     summary: {
       totalCrews: rows.length,
       activeCrews: rows.filter((row) => row.isActive).length,
-      availableCrews: rows.filter((row) => row.availability === "available").length,
-      assignedCrews: rows.filter((row) => row.availability === "assigned").length,
+      availableCrews: rows.filter((row) => row.isActive && row.availability === "available").length,
+      assignedCrews: rows.filter((row) => row.isActive && row.availability === "assigned").length,
     },
     options: {
       supervisorOptions,

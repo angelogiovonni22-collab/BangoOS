@@ -69,8 +69,8 @@ export function useCrews({ service }: UseCrewsParams = {}) {
 
       let nextItems = listResult.items;
       if (quickFilter === "active") nextItems = nextItems.filter((crew) => crew.isActive);
-      if (quickFilter === "available") nextItems = nextItems.filter((crew) => crew.availability === "available");
-      if (quickFilter === "assigned") nextItems = nextItems.filter((crew) => crew.availability === "assigned");
+      if (quickFilter === "available") nextItems = nextItems.filter((crew) => crew.isActive && crew.availability === "available");
+      if (quickFilter === "assigned") nextItems = nextItems.filter((crew) => crew.isActive && crew.availability === "assigned");
 
       if (usesQuickFilter) {
         const filteredTotal = nextItems.length;

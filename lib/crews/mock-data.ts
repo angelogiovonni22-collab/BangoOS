@@ -899,8 +899,8 @@ export function getCrewDashboardSummary() {
   return {
     totalCrews: crews.length,
     activeCrews: crews.filter((crew) => crew.status === "active").length,
-    availableCrews: crews.filter((crew) => crew.availability === "available").length,
-    assignedCrews: crews.filter((crew) => crew.availability === "assigned").length,
+    availableCrews: crews.filter((crew) => crew.status === "active" && crew.availability === "available").length,
+    assignedCrews: crews.filter((crew) => crew.status === "active" && crew.availability === "assigned").length,
     averageCrewSize: avgCrewSize,
     utilization: avgUtilization,
     certificationCompliance: avgCompliance,
