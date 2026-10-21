@@ -67,6 +67,7 @@ export default function CrewProfilePage() {
 
       <CrewProjectAssignmentPanel
         crewId={crewId}
+        crewIsActive={crew.overview.isActive}
         onAssigned={() => void refresh()}
         crewName={crew.overview.name}
         activeMemberCount={crew.overview.activeMemberCount}

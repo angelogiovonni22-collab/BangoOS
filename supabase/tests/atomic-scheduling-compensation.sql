@@ -7,6 +7,10 @@ join public.projects j on j.company_id=p.company_id and j.name='BOS Pilot 202610
 join public.crews c on c.company_id=p.company_id and c.name='BOS Pilot Crew 20261019 — synthetic'
 where m.role='owner' and m.status='active' limit 1;
 grant select on schedule_atomic_context to authenticated;
+-- The pilot may already be archived by supported closeout. Restore only this
+-- labelled test crew inside the enclosing rollback-only transaction.
+update public.crews set status='active'
+where (company_id,id) in (select company_id,crew_id from schedule_atomic_context);
 create function pg_temp.schedule_compensation_fault() returns trigger language plpgsql as $$
 begin
   if new.notes='BOS ATOMIC PAYROLL FAULT' and exists(select 1 from public.project_labor_commitments where company_id=new.company_id and project_id=new.project_id and notes=new.notes) then raise exception 'Synthetic second payroll fault'; end if;

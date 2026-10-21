@@ -4,6 +4,7 @@
   "directoryTitle": "Directorio de Cuadrillas",
   "directoryDescription": "Busca, filtra y monitorea cada cuadrilla de construcción activa.",
   "unassigned": "Sin asignar",
+  "assignmentInactive": "Solo las cuadrillas activas pueden recibir nuevas asignaciones. El historial de asignaciones de esta cuadrilla sigue disponible.",
 
   "dashboard.title": "Operaciones de Cuadrillas",
   "dashboard.totalCrews": "Cuadrillas totales",

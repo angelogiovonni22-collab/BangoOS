@@ -360,7 +360,7 @@ export type SchedulingPayload = {
   health: ScheduleHealth;
   analytics: SchedulingAnalytics;
   projectOptions: Array<{ id: string; name: string }>;
-  crewOptions: Array<{ id: string; name: string }>;
+  crewOptions: Array<{ id: string; name: string; disabled?: boolean }>;
   employeeOptions: Array<{ id: string; name: string; trade: string }>;
   tradeOptions: string[];
 };
