@@ -31,12 +31,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const admin = createAdminClient();
   const { data: changeOrder, error: changeOrderError } = await admin
     .from("change_orders")
-    .select("id,company_id,customer_id,project_id,change_order_number,title,status,total_amount,customers(email,first_name,last_name)")
+    .select("id,company_id,customer_id,project_id,change_order_number,title,status,archived_at,total_amount,customers(email,first_name,last_name)")
     .eq("company_id", workspace.context.companyId)
     .eq("id", changeOrderId)
     .maybeSingle();
 
   if (changeOrderError || !changeOrder) return NextResponse.json({ error: "Change order not found." }, { status: 404 });
+  if (changeOrder.archived_at) return NextResponse.json({ error: "Restore this change order before sending it for approval." }, { status: 409 });
   if (["void", "invoiced"].includes(changeOrder.status)) return NextResponse.json({ error: "Void or invoiced change orders cannot be sent for customer approval." }, { status: 409 });
 
   const customer = Array.isArray(changeOrder.customers) ? changeOrder.customers[0] : changeOrder.customers;

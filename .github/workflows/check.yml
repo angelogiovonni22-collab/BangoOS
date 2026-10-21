@@ -189,6 +189,9 @@ jobs:
       - name: Run full-system UI cleanup regression
         run: npx -y tsx components/ui/full-system-ui-cleanup.contract.test.ts
 
+      - name: Run change order archive integrity regression
+        run: npx -y tsx lib/change-orders/archive-integrity.test.ts
+
       - name: Run repository checks
         run: npm run check
 

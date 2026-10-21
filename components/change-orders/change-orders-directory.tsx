@@ -49,6 +49,12 @@ export function ChangeOrdersDirectory({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
 
+  // Cards and rows describe the same record lifecycle view. Keep status cards
+  // independent of status/search filters so they remain useful navigation.
+  const archiveScopedItems = useMemo(() => items.filter((item) =>
+    archivedValue === "all" || (archivedValue === "archived" ? !!item.archivedAt : !item.archivedAt)
+  ), [items, archivedValue]);
+
   const localizeStatus = (status: string) => {
     if (!es) return formatChangeOrderStatusLabel(status);
     const labels: Record<string, string> = {
@@ -77,7 +83,7 @@ export function ChangeOrdersDirectory({
   const filteredAndSortedItems = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    const filtered = items.filter((item) => {
+    const filtered = archiveScopedItems.filter((item) => {
       const searchText = [item.changeOrderNumber, item.title, item.customerName, item.projectName, item.description || ""].join(" ").toLowerCase();
       const matchesSearch = !normalizedSearch || searchText.includes(normalizedSearch);
       const matchesStatus = statusValue === "all" || normalizeChangeOrderStatus(item.status) === statusValue;
@@ -91,10 +97,7 @@ export function ChangeOrdersDirectory({
       const matchesDateFrom = !startDate || (!!requestedDate && requestedDate >= startDate);
       const matchesDateTo = !endDate || (!!requestedDate && requestedDate <= endDate);
 
-      const isArchived = !!item.archivedAt;
-      const matchesArchived = archivedValue === "all" || (archivedValue === "archived" ? isArchived : !isArchived);
-
-      return matchesSearch && matchesStatus && matchesCustomer && matchesProject && matchesDateFrom && matchesDateTo && matchesArchived;
+      return matchesSearch && matchesStatus && matchesCustomer && matchesProject && matchesDateFrom && matchesDateTo;
     });
 
     return [...filtered].sort((a, b) => {
@@ -116,20 +119,20 @@ export function ChangeOrdersDirectory({
       if (sortField === "requestedDate") return compareDate(a.requestedDate, b.requestedDate);
       return compareDate(a.updatedAt, b.updatedAt);
     });
-  }, [items, searchValue, statusValue, customerValue, projectValue, dateFrom, dateTo, archivedValue, sortField, sortDirection]);
+  }, [archiveScopedItems, searchValue, statusValue, customerValue, projectValue, dateFrom, dateTo, sortField, sortDirection]);
 
   const summary = useMemo(() => {
-    const total = items.length;
-    const draft = items.filter((item) => normalizeChangeOrderStatus(item.status) === "draft").length;
-    const pending = items.filter((item) => normalizeChangeOrderStatus(item.status) === "pending_approval").length;
-    const approved = items.filter((item) => normalizeChangeOrderStatus(item.status) === "approved").length;
-    const rejected = items.filter((item) => normalizeChangeOrderStatus(item.status) === "rejected").length;
-    const approvedValue = items
+    const total = archiveScopedItems.length;
+    const draft = archiveScopedItems.filter((item) => normalizeChangeOrderStatus(item.status) === "draft").length;
+    const pending = archiveScopedItems.filter((item) => normalizeChangeOrderStatus(item.status) === "pending_approval").length;
+    const approved = archiveScopedItems.filter((item) => normalizeChangeOrderStatus(item.status) === "approved").length;
+    const rejected = archiveScopedItems.filter((item) => normalizeChangeOrderStatus(item.status) === "rejected").length;
+    const approvedValue = archiveScopedItems
       .filter((item) => ["approved", "invoiced"].includes(normalizeChangeOrderStatus(item.status)))
       .reduce((sum, item) => sum + item.totalAmount, 0);
 
     return { total, draft, pending, approved, rejected, approvedValue };
-  }, [items]);
+  }, [archiveScopedItems]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSortedItems.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
