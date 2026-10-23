@@ -5,12 +5,14 @@ on:
     paths:
       - "supabase/migrations/*payroll*"
       - "scripts/test-payroll-time-claims.mjs"
+      - "scripts/test-payroll-company-timezone.mjs"
       - ".github/workflows/payroll-time-claims.yml"
   push:
     branches: [main]
     paths:
       - "supabase/migrations/*payroll*"
       - "scripts/test-payroll-time-claims.mjs"
+      - "scripts/test-payroll-company-timezone.mjs"
       - ".github/workflows/payroll-time-claims.yml"
 
 permissions:
@@ -32,3 +34,5 @@ jobs:
           tar -xzf "$RUNNER_TEMP/payroll-postgres/electric-sql-pglite-0.3.14.tgz" -C "$RUNNER_TEMP/payroll-postgres"
       - name: Verify payroll source integrity and void recovery
         run: node scripts/test-payroll-time-claims.mjs "$RUNNER_TEMP/payroll-postgres/package/dist/index.js" supabase/migrations/20261007223036_audit_payroll_project_cost_snapshots.sql supabase/migrations/20261007223901_audit_payroll_financial_cost_totals.sql
+      - name: Verify company-local payroll date boundaries
+        run: node scripts/test-payroll-company-timezone.mjs "$RUNNER_TEMP/payroll-postgres/package/dist/index.js" supabase/migrations/20261009235600_audit_payroll_company_timezone.sql
