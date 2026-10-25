@@ -7,6 +7,7 @@ for (const locale of ["en", "es"] as const) {
   for (const name of names) assert.equal(translateLiteral(locale, name, true), name);
 }
 assert.equal(translateLiteral("es", "Project"), "Proyecto", "Interface labels still translate");
+assert.equal(translateLiteral("es", "Customer"), "Cliente", "Accessible label prefixes translate independently of raw names");
 assert.equal(translateLiteral("es", "  Project  "), "  Proyecto  ");
 assert.notEqual(translateLiteral("es", names[2]), names[2], "Control reproduces the original name/template collision");
 
@@ -24,6 +25,7 @@ assert.ok(project.includes("{ label: projectName, userContent: true }"));
 assert.ok(project.includes("{ label: customerLabel, href: customerProjectsHref, userContent: true }"));
 const table = read("components/projects/project-table.tsx");
 assert.ok(table.includes('data-user-content-attributes="true"'));
+assert.ok(table.includes('translateLiteral(locale, term("customer", "Customer"))'));
 assert.ok(table.includes('<Link data-user-content href={`/projects/${project.id}`}'));
 const localizer = read("lib/i18n/legacy-text-localizer.tsx");
 assert.ok(localizer.includes('[data-user-content]'));
