@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { subscribeToBlueprintCollaboration } from "@/lib/blueprints/realtime";
 import { loadBlueprintMedia, uploadBlueprintMedia, type BlueprintMediaAttachment } from "@/lib/blueprints/media-attachments";
 import { loadBlueprintSymbols, type BlueprintSymbol } from "@/lib/blueprints/symbols";
+import { compatibleMeasurementSource, drawingArea, drawingDistance, MEASUREMENT_METRIC_VERSION, validMeasurementMetric } from "@/lib/blueprints/measurement-metric";
 import { BLUEPRINT_SYMBOL_MIME, BlueprintSymbolLibrary } from "./blueprint-symbol-library";
 import { blueprintWallEndpoints, snapBlueprintPoint } from "@/lib/blueprints/snapping";
 import { createBlueprintLayer, loadBlueprintLayers, type BlueprintLayer } from "@/lib/blueprints/layers";
@@ -400,6 +401,26 @@ export function BlueprintMarkupSurface({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     const points = activeDraft.points;
     if (points.length > 1) {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const coordinateAspectRatio = bounds.width / bounds.height;
+      if (!Number.isFinite(coordinateAspectRatio) || coordinateAspectRatio <= 0) {
+        setError("The plan surface is not ready. Try again when the page is visible.");
+        setDraft([]); draftRef.current = null; return;
+      }
+      const media = event.currentTarget.parentElement?.querySelector("canvas, img") as HTMLCanvasElement | HTMLImageElement | null;
+      const nativeWidth = media instanceof HTMLCanvasElement ? media.width : media?.naturalWidth ?? 0;
+      const nativeHeight = media instanceof HTMLCanvasElement ? media.height : media?.naturalHeight ?? 0;
+      const mediaBounds = media?.getBoundingClientRect();
+      const sourceAspectRatio = nativeWidth / nativeHeight;
+      // object-contain can letterbox a canvas/image inside its CSS box. Use
+      // source-width units so toolbar reflow, resize and zoom do not change scale.
+      const sourceWidth = mediaBounds ? Math.min(mediaBounds.width, mediaBounds.height * sourceAspectRatio) : 0;
+      if (!Number.isFinite(sourceAspectRatio) || sourceAspectRatio <= 0 || sourceWidth <= 0) {
+        setError("Wait for the plan to render before measuring.");
+        setDraft([]); draftRef.current = null; return;
+      }
+      const surfaceToSourceWidthRatio = bounds.width / sourceWidth;
+      const measurementMetric = { measurementMetricVersion: MEASUREMENT_METRIC_VERSION, coordinateAspectRatio, sourceAspectRatio, surfaceToSourceWidthRatio };
       const line = { x1: points[0].x, y1: points[0].y, x2: points.at(-1)!.x, y2: points.at(-1)!.y };
       if (tool === "wall") {
         void persist(tool, { ...line, snapped: snapEnabled });
@@ -409,33 +430,33 @@ export function BlueprintMarkupSurface({
         void persist(tool, { ...line, lockedValue, unit: measurementUnit, snapped: snapEnabled });
       } else if (tool === "calibration") {
         const realLength = Number(knownLength);
-        const drawingLength = normalizedDistance(line);
+        const drawingLength = drawingDistance(line, coordinateAspectRatio, surfaceToSourceWidthRatio);
         if (!Number.isFinite(realLength) || realLength <= 0 || drawingLength <= 0) {
           setError("Enter a valid known length before calibrating.");
           setDraft([]);
           draftRef.current = null;
           return;
         }
-        void persist(tool, { ...line, realLength, unit: measurementUnit, unitsPerDrawingUnit: realLength / drawingLength });
+        void persist(tool, { ...line, ...measurementMetric, realLength, unit: measurementUnit, unitsPerDrawingUnit: realLength / drawingLength });
       } else if (tool === "distance") {
         const calibration = currentCalibration(markups, pageNumber);
-        if (!calibration) {
-          setError("Calibrate this page before measuring distance.");
+        if (!calibration || !compatibleMeasurementSource(calibration.geometry, sourceAspectRatio)) {
+          setError("Calibrate this page in the current view before measuring distance.");
           setDraft([]);
           draftRef.current = null;
           return;
         }
-        void persist(tool, { ...line, value: normalizedDistance(line) * calibration.unitsPerDrawingUnit, unit: calibration.unit });
+        void persist(tool, { ...line, ...measurementMetric, calibrationId: calibration.id, value: drawingDistance(line, coordinateAspectRatio, surfaceToSourceWidthRatio) * calibration.unitsPerDrawingUnit, unit: calibration.unit });
       } else if (tool === "area") {
         const calibration = currentCalibration(markups, pageNumber);
-        if (!calibration) {
-          setError("Calibrate this page before measuring area.");
+        if (!calibration || !compatibleMeasurementSource(calibration.geometry, sourceAspectRatio)) {
+          setError("Calibrate this page in the current view before measuring area.");
           setDraft([]);
           draftRef.current = null;
           return;
         }
-        const normalizedArea = Math.abs((line.x2 - line.x1) * (line.y2 - line.y1));
-        void persist(tool, { ...line, value: normalizedArea * calibration.unitsPerDrawingUnit ** 2, unit: `${calibration.unit}²` });
+        const normalizedArea = drawingArea(line, coordinateAspectRatio, surfaceToSourceWidthRatio);
+        void persist(tool, { ...line, ...measurementMetric, calibrationId: calibration.id, value: normalizedArea * calibration.unitsPerDrawingUnit ** 2, unit: `${calibration.unit}²` });
       } else {
         const drawingTool: BlueprintMarkupType = tool === "arrow" ? "arrow" : "freehand";
         void persist(drawingTool, drawingTool === "arrow" ? line : { points: points.map((point) => [point.x, point.y]) });
@@ -477,6 +498,7 @@ export function BlueprintMarkupSurface({
   const layeredMarkups = visibleMarkups.filter((markup) => markup.discipline === discipline && visibleLayers.has(layerForMarkup(markup.type)) && (!markup.layerId || !hiddenLayerIds.has(markup.layerId)));
   const registerMarkups = visibleMarkups.filter((markup) => registerFilter === "all" || (registerFilter === "mine" ? markup.createdBy === userId : markup.status === "open"));
   const calibration = currentCalibration(markups, pageNumber);
+  const hasLegacyMeasurements = visibleMarkups.some((markup) => ["calibration", "distance", "area"].includes(markup.type) && !validMeasurementMetric(markup.geometry));
   const lastOwnedMarkup = [...visibleMarkups].reverse().find((markup) => markup.createdBy === userId);
 
   return (
@@ -538,6 +560,7 @@ export function BlueprintMarkupSurface({
         {toolbarExtra}
       </div>
 
+      {hasLegacyMeasurements ? <div role="status" className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950">Earlier measurements need verification. Recalibrate and redraw takeoffs before using their quantities. Saved history is retained.</div> : null}
       {error ? <div className="border-b border-red-400/30 bg-red-950 px-3 py-2 text-xs text-red-100" role="alert">{error}</div> : null}
 
       <div className="flex items-center gap-2 border-b border-white/10 bg-slate-900 px-3 py-1.5 text-[10px] text-slate-300" data-orion-region="blueprint-layer-controls">
@@ -588,7 +611,7 @@ export function BlueprintMarkupSurface({
             {projectEstimates.length ? <div className="border-b border-white/10 p-2"><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400" htmlFor="blueprint-estimate-target">Takeoff estimate</label><select id="blueprint-estimate-target" value={selectedEstimateId} onChange={(event) => setSelectedEstimateId(event.target.value)} className="w-full rounded-md border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white">{projectEstimates.map((estimate) => <option key={estimate.id} value={estimate.id}>{estimate.label} · {estimate.status}</option>)}</select></div> : null}
             {workforceOptions.length ? <div className="border-b border-white/10 p-2"><label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400" htmlFor="blueprint-workforce-target">Issue responsibility</label><select id="blueprint-workforce-target" value={selectedWorkforceKey} onChange={(event) => setSelectedWorkforceKey(event.target.value)} className="w-full rounded-md border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white">{workforceOptions.map((option) => <option key={`${option.type}:${option.id}`} value={`${option.type}:${option.id}`}>{option.type === "crew" ? "Crew" : "Employee"} · {option.label}</option>)}</select></div> : null}
             <div className="grid grid-cols-2 gap-2 border-b border-white/10 p-2"><label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Task start<input type="date" value={scheduleStart} onChange={(event) => setScheduleStart(event.target.value)} className="mt-1 w-full rounded-md border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white" /></label><label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Task finish<input type="date" min={scheduleStart || undefined} value={scheduleFinish} onChange={(event) => setScheduleFinish(event.target.value)} className="mt-1 w-full rounded-md border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white" /></label></div>
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} companyId={companyId} projectId={projectId} versionId={versionId} onReload={reload} mine={markup.createdBy === userId} saving={saving || creatingTaskFor === markup.id || creatingEstimateItemFor === markup.id || creatingChangeOrderFor === markup.id || assigningWorkforceFor === markup.id || creatingPunchItemFor === markup.id || creatingRfiFor === markup.id || creatingSubmittalFor === markup.id || schedulingTaskFor === markup.id} taskLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "task")} changeOrderLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "change_order")} punchItemLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "punch_item")} rfiLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "rfi")} submittalLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "submittal")} workforceLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "workforce_assignment")} estimateItemLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "estimate_line_item")} canAddToEstimate={Boolean(selectedEstimateId)} canAssignWorkforce={Boolean(selectedWorkforceKey)} canSchedule={Boolean(scheduleStart && scheduleFinish)} onAddToEstimate={() => void addTakeoffToEstimate(markup)} onAssignWorkforce={() => void assignWorkforce(markup)} onCreatePunchItem={() => void createPunchItem(markup)} onCreateRfi={() => void createRfi(markup)} onCreateSubmittal={() => void createSubmittal(markup)} onCreateTask={() => void createTask(markup)} onScheduleTask={() => void scheduleTask(markup)} onStartChangeOrder={() => void startChangeOrder(markup)} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">{registerMarkups.length ? registerMarkups.map((markup) => <RegisterItem key={markup.id} markup={markup} companyId={companyId} projectId={projectId} versionId={versionId} onReload={reload} mine={markup.createdBy === userId} saving={saving || creatingTaskFor === markup.id || creatingEstimateItemFor === markup.id || creatingChangeOrderFor === markup.id || assigningWorkforceFor === markup.id || creatingPunchItemFor === markup.id || creatingRfiFor === markup.id || creatingSubmittalFor === markup.id || schedulingTaskFor === markup.id} taskLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "task")} changeOrderLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "change_order")} punchItemLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "punch_item")} rfiLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "rfi")} submittalLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "submittal")} workforceLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "workforce_assignment")} estimateItemLinked={operationalLinks.some((link) => link.annotationId === markup.id && link.targetType === "estimate_line_item")} canAddToEstimate={Boolean(selectedEstimateId) && validMeasurementMetric(markup.geometry)} canAssignWorkforce={Boolean(selectedWorkforceKey)} canSchedule={Boolean(scheduleStart && scheduleFinish)} onAddToEstimate={() => void addTakeoffToEstimate(markup)} onAssignWorkforce={() => void assignWorkforce(markup)} onCreatePunchItem={() => void createPunchItem(markup)} onCreateRfi={() => void createRfi(markup)} onCreateSubmittal={() => void createSubmittal(markup)} onCreateTask={() => void createTask(markup)} onScheduleTask={() => void scheduleTask(markup)} onStartChangeOrder={() => void startChangeOrder(markup)} onStatus={(status) => void updateStatus(markup, status)} />) : <p className="p-3 text-xs text-slate-400">No annotations match this filter.</p>}</div>
           </aside>
         ) : null}
         {symbolLibraryOpen ? <BlueprintSymbolLibrary symbols={symbols} selected={selectedSymbol} onSelect={(symbol) => { setSelectedSymbol(symbol); chooseTool("symbol"); }} onClose={() => setSymbolLibraryOpen(false)} /> : null}
@@ -640,11 +663,12 @@ function DraftShape({ tool, points, color }: { tool: MarkupTool; points: Point[]
   return <polyline points={points.map((point) => `${point.x * 1000},${point.y * 1000}`).join(" ")} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />;
 }
 
-function normalizedDistance(line: { x1: number; y1: number; x2: number; y2: number }) { return Math.hypot(line.x2 - line.x1, line.y2 - line.y1); }
 function currentCalibration(markups: BlueprintMarkup[], page: number) {
   const markup = [...markups].reverse().find((item) => item.type === "calibration" && Number(item.geometry.page ?? 1) === page);
-  if (!markup) return null;
-  return { unitsPerDrawingUnit: Number(markup.geometry.unitsPerDrawingUnit), unit: String(markup.geometry.unit) };
+  if (!markup || !validMeasurementMetric(markup.geometry)) return null;
+  const unitsPerDrawingUnit = Number(markup.geometry.unitsPerDrawingUnit);
+  if (!Number.isFinite(unitsPerDrawingUnit) || unitsPerDrawingUnit <= 0) return null;
+  return { id: markup.id, geometry: markup.geometry, unitsPerDrawingUnit, unit: String(markup.geometry.unit) };
 }
 function formatMeasurement(value: number) { return Number.isFinite(value) ? value.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "0"; }
 

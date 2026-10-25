@@ -192,6 +192,9 @@ jobs:
       - name: Run change order archive integrity regression
         run: npx -y tsx lib/change-orders/archive-integrity.test.ts
 
+      - name: Blueprint calibrated measurement geometry
+        run: npx -y tsx lib/blueprints/measurement-metric.test.ts
+
       - name: Run repository checks
         run: npm run check
 

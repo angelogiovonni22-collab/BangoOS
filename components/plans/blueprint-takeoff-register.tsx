@@ -5,7 +5,7 @@ import { Calculator, Ruler, SquareDashed } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { loadBlueprintTakeoffSummary, type BlueprintTakeoffSummary } from "@/lib/blueprints/takeoff-register";
 
-const empty: BlueprintTakeoffSummary = { distances: 0, areas: 0, linearFeet: 0, squareFeet: 0, linked: 0, unlinked: 0 };
+const empty: BlueprintTakeoffSummary = { distances: 0, areas: 0, linearFeet: 0, squareFeet: 0, linked: 0, unlinked: 0, unverified: 0 };
 
 export function BlueprintTakeoffRegister({ companyId, projectId }: { companyId: string; projectId: string }) {
   const supabase = useMemo(() => createClient(), []);
@@ -28,11 +28,12 @@ export function BlueprintTakeoffRegister({ companyId, projectId }: { companyId: 
   const cards = [
     { label: "Distance takeoffs", value: summary.distances, detail: `${summary.linearFeet.toFixed(2)} linear ft`, icon: Ruler },
     { label: "Area takeoffs", value: summary.areas, detail: `${summary.squareFeet.toFixed(2)} sq ft`, icon: SquareDashed },
-    { label: "Estimate coverage", value: summary.linked, detail: summary.unlinked ? `${summary.unlinked} awaiting estimate linkage` : "All takeoffs linked", icon: Calculator },
+    { label: "Estimate coverage", value: summary.linked, detail: summary.unverified ? `${summary.unverified} need measurement verification` : summary.unlinked ? `${summary.unlinked} awaiting estimate linkage` : "All takeoffs linked", icon: Calculator },
   ];
 
   return (
     <section aria-label="Blueprint takeoff register" data-orion-region="blueprint-takeoff-register" className="grid gap-3 sm:grid-cols-3">
+      {summary.unverified > 0 ? <p role="status" className="col-span-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950">{summary.unverified} earlier or invalid takeoffs are excluded from these quantities. Recalibrate and redraw them before use.</p> : null}
       {cards.map((card) => (
         <article key={card.label} className="rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-3.5 shadow-[var(--shadow-small)]">
           <div className="flex items-center justify-between gap-3">
