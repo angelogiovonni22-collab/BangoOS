@@ -19,3 +19,17 @@ Convert both normalized axes to surface-width units: distance=hypot(dx,dy/aspect
 64 numerical scenarios passed: observed letterboxed surface, landscape, portrait, square/image surfaces, four zoom levels, horizontal/vertical/diagonal calibration, horizontal/vertical/diagonal distance, positive/reversed rectangle area. Invalid and legacy metric rejection, source mismatch rejection and four independent cross-layout/letterbox scenarios, and component integration checks passed. Existing Blueprints foundation contract passed. Full repository CI/lint/build and deployed visual/function regression remain required before completion.
 
 Local tsx CLI hit the known IPC EPERM restriction; running Node with the official tsx import loader passed. No npm install was run. Browser file-selection first failed because the nested fixture was absent in the browser shared directory; an identical root shared-directory copy was verified46,212bytes and selected successfully. No product validation weakening.
+
+## Release security gate discovered during CI
+
+PR head ba2a4c1 passed repository checks (lint/build/contracts), but main job121046829520/run40152516014 failed npm audit: Next16.3.8 affected by GHSA-2464-fhr4-w9xw/GHSA-p3m5-59mp-jv5r/GHSA-673q-mjm6-r5xr; Zod4.4.3 affected by GHSA-mrhx-c7xc-m3w5. No merge or Production update at that point.
+
+Verified current GitHub vendor advisories/releases: Next patched16.4.1, current stable16.4.3 (Oct23); Zod patched4.6.6. Update Next and paired eslint-config-next to16.4.3; override transitive Zod to4.6.6, supported by OpenAI7.3.0/react-hooks peers. Existing sharp0.35.5 remains. Regenerated lockfile with npm update --package-lock-only --ignore-scripts --no-audit next eslint-config-next zod; no npm install or node_modules installation. Full final-head CI and actual Production regression remain mandatory.
+
+Primary references:
+- https://github.com/advisories/GHSA-2464-fhr4-w9xw
+- https://github.com/advisories/GHSA-p3m5-59mp-jv5r
+- https://github.com/advisories/GHSA-673q-mjm6-r5xr
+- https://github.com/advisories/GHSA-mrhx-c7xc-m3w5
+- https://github.com/vercel/next.js/releases/tag/v16.4.3
+- https://github.com/colinhacks/zod/releases/tag/v4.6.6
