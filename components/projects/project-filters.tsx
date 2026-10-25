@@ -93,7 +93,7 @@ export function ProjectFilters({
           aria-label={customerLabel}
         >
           {customerOptions.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
+            <option key={option.value} value={option.value} data-user-content={option.value !== "all" || undefined}>{option.label}</option>
           ))}
         </Select>
       </label>

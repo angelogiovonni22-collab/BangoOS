@@ -26,6 +26,11 @@ assert.ok(project.includes("{ label: customerLabel, href: customerProjectsHref, 
 const table = read("components/projects/project-table.tsx");
 assert.ok(table.includes('data-user-content-attributes="true"'));
 assert.ok(table.includes('translateLiteral(locale, term("customer", "Customer"))'));
+const filters = read("components/change-orders/change-orders-filters.tsx");
+assert.ok(filters.includes("options={customerOptions} userContentOptions"));
+assert.ok(filters.includes("options={projectOptions} userContentOptions"));
+assert.ok(filters.includes('userContentOptions && option.value !== "all"'), "Named options are protected while All/status options retain translation");
+assert.ok(read("components/projects/project-filters.tsx").includes('data-user-content={option.value !== "all" || undefined}'));
 assert.ok(table.includes('<Link data-user-content href={`/projects/${project.id}`}'));
 const localizer = read("lib/i18n/legacy-text-localizer.tsx");
 assert.ok(localizer.includes('[data-user-content]'));
