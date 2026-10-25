@@ -343,6 +343,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
       <PageHeader
         eyebrow="COMPANY WORKSPACE"
         title={`${changeOrder.change_order_number} · ${changeOrder.title}`}
+        titleIsUserContent
         description="Central command view for scope, approvals, schedule impact, and invoice conversion."
         secondaryActions={(
           <>
@@ -399,8 +400,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-4">
           <DetailRow label="Status" value={<ChangeOrderStatusBadge status={changeOrder.status} />} />
-          <DetailRow label="Customer" value={customerName} />
-          <DetailRow label="Project" value={projectName} />
+          <DetailRow label="Customer" value={<span data-user-content>{customerName}</span>} />
+          <DetailRow label="Project" value={<span data-user-content>{projectName}</span>} />
           <DetailRow label="Total" value={formatUsd(changeOrder.total_amount, localeTag)} />
           <DetailRow label="Schedule Impact" value={`${changeOrder.schedule_impact_days > 0 ? "+" : ""}${changeOrder.schedule_impact_days} days`} />
           <DetailRow label="Requested Date" value={changeOrder.requested_date || "Not set"} />
@@ -414,7 +415,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
           <CardTitle>Scope / Description</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.description || "No scope description provided."}</p>
+          <p data-user-content={Boolean(changeOrder.description) || undefined} className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.description || "No scope description provided."}</p>
         </CardContent>
       </Card>
 
@@ -423,7 +424,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
           <CardTitle>Reason</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.reason || "No reason provided."}</p>
+          <p data-user-content={Boolean(changeOrder.reason) || undefined} className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.reason || "No reason provided."}</p>
         </CardContent>
       </Card>
 
@@ -447,7 +448,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
             <tbody>
               {lineItems.map((lineItem) => (
                 <tr key={lineItem.id} className="border-t border-[var(--color-border-subtle)]">
-                  <td className="px-3 py-2 text-sm text-[var(--color-text-primary)]">{lineItem.description}</td>
+                  <td data-user-content className="px-3 py-2 text-sm text-[var(--color-text-primary)]">{lineItem.description}</td>
                   <td className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">{lineItem.quantity}</td>
                   <td className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">{formatChangeOrderStatusLabel(lineItem.unit)}</td>
                   <td className="px-3 py-2 text-sm text-[var(--color-text-secondary)]">{formatUsd(lineItem.unit_cost, localeTag)}</td>

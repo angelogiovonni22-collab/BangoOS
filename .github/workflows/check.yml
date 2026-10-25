@@ -198,6 +198,9 @@ jobs:
       - name: Blueprint pointer release and cancellation
         run: npx -y tsx lib/blueprints/markup-stroke.test.ts
 
+      - name: User content localization boundaries
+        run: npx -y tsx lib/i18n/user-content.test.ts
+
       - name: Run repository checks
         run: npm run check
 

@@ -507,7 +507,7 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
                 return (
                   <div key={changeOrder.id} className="grid gap-3 rounded-xl border border-cyan-300/20 bg-[#082033] p-3 md:grid-cols-[minmax(0,1fr)_120px_120px_120px_auto] md:items-center">
                     <div className="min-w-0">
-                      <Link href={`/change-orders/${changeOrder.id}`} className="text-xs font-extrabold text-cyan-100 hover:underline">{changeOrder.change_order_number} · {changeOrder.title}</Link>
+                      <Link data-user-content href={`/change-orders/${changeOrder.id}`} className="text-xs font-extrabold text-cyan-100 hover:underline">{changeOrder.change_order_number} · {changeOrder.title}</Link>
                       <p className="mt-1 text-xs leading-5 text-[#bfd4e2]">{changeOrderScopeDetails(changeOrder)}</p>
                     </div>
                     <MetricMini label="Customer Price" value={money(changeOrder.total_amount, localeTag)} />

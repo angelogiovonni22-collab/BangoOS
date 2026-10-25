@@ -55,8 +55,8 @@ function buildIndex(locale: AppLocale) {
   return { direct, templates };
 }
 
-export function translateLiteral(locale: AppLocale, value: string) {
-  if (locale === "en" || !value.trim()) return value;
+export function translateLiteral(locale: AppLocale, value: string, userContent = false) {
+  if (userContent || locale === "en" || !value.trim()) return value;
 
   let index = cache.get(locale);
   if (!index) {

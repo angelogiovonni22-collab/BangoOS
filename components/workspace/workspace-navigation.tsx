@@ -6,6 +6,7 @@ import type { WorkspaceBadgeTone } from "./workspace-shell";
 export type WorkspaceBreadcrumbItem = {
   label: string;
   href?: string;
+  userContent?: boolean;
 };
 
 export function WorkspaceHeader({
@@ -17,6 +18,7 @@ export function WorkspaceHeader({
   actions,
   className = "",
   compact = false,
+  titleIsUserContent = false,
 }: {
   breadcrumbs: WorkspaceBreadcrumbItem[];
   title: string;
@@ -26,6 +28,7 @@ export function WorkspaceHeader({
   actions?: ReactNode;
   className?: string;
   compact?: boolean;
+  titleIsUserContent?: boolean;
 }) {
   return (
     <Card data-bos-surface="dark" as="section" variant="elevated" className={["min-w-0 max-w-full overflow-hidden rounded-[20px] border-[var(--workspace-header-border)] [background:var(--workspace-header-surface)] shadow-[0_28px_52px_-30px_rgba(2,6,17,0.88)]", className].filter(Boolean).join(" ")}>
@@ -33,7 +36,7 @@ export function WorkspaceHeader({
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-body-secondary font-medium text-[var(--workspace-header-text)]">
             {breadcrumbs.map((item, index) => (
-              <span key={`${item.label}-${index}`} className="flex items-center gap-2">
+              <span key={`${item.label}-${index}`} data-user-content={item.userContent || undefined} className="flex items-center gap-2">
                 {item.href ? <Link href={item.href} className="font-semibold text-[var(--workspace-header-text-strong)] transition hover:text-white">{item.label}</Link> : <span className="font-semibold text-[var(--workspace-header-text-strong)]">{item.label}</span>}
                 {index < breadcrumbs.length - 1 ? <span aria-hidden="true">/</span> : null}
               </span>
@@ -45,7 +48,7 @@ export function WorkspaceHeader({
         <div className="space-y-3">
           <div className="flex min-w-0 flex-wrap items-start gap-3">
             <div className="min-w-0 space-y-2">
-              <h1 className={compact ? "break-words text-[1.75rem] font-extrabold leading-tight tracking-[-0.025em] text-[var(--workspace-header-title)]" : "text-h1 break-words text-[var(--workspace-header-title)] sm:text-[2.4rem]"}>{title}</h1>
+              <h1 data-user-content={titleIsUserContent || undefined} className={compact ? "break-words text-[1.75rem] font-extrabold leading-tight tracking-[-0.025em] text-[var(--workspace-header-title)]" : "text-h1 break-words text-[var(--workspace-header-title)] sm:text-[2.4rem]"}>{title}</h1>
             </div>
             {badgeLabel ? <Badge tone={badgeTone} className="mt-2 rounded-full border px-3 py-1 text-xs font-bold tracking-[0.05em]">{badgeLabel}</Badge> : null}
           </div>

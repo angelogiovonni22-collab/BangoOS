@@ -114,6 +114,7 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                 className="cursor-pointer transition-all duration-200 hover:-translate-y-px hover:bg-[var(--color-surface-subtle)]/80 hover:shadow-[0_10px_24px_-20px_rgba(15,23,42,0.28)]"
                 role="link"
                 tabIndex={0}
+                data-user-content-attributes="true"
                 aria-label={`${t("projects.viewWorkspace")} ${project.projectName}`}
                 onClick={(event) => {
                   const target = event.target as HTMLElement;
@@ -130,10 +131,10 @@ export function ProjectTable({ items, t, canManageProjects, showFinancials }: Pr
                   <div className="flex min-w-[170px] items-start gap-3">
                     <ProjectAvatar name={project.projectName} />
                     <div className="min-w-0">
-                      <Link href={`/projects/${project.id}`} className="block truncate text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
+                      <Link data-user-content href={`/projects/${project.id}`} className="block truncate text-sm font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]">
                         {project.projectName}
                       </Link>
-                      <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]" aria-label={`${customerLabel}: ${project.customerName}`}>{project.customerName}</p>
+                      <p data-user-content className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]" aria-label={`${customerLabel}: ${project.customerName}`}>{project.customerName}</p>
                     </div>
                   </div>
                 </EnterpriseTableCell>
