@@ -62,12 +62,12 @@ export function ChangeOrdersTable({
           <EnterpriseTableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/change-orders/${item.id}`)}>
             <EnterpriseTableCell className="font-semibold">{item.changeOrderNumber}</EnterpriseTableCell>
             <EnterpriseTableCell>
-              <Link href={`/change-orders/${item.id}`} className="font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]" onClick={(event) => event.stopPropagation()}>
+              <Link data-user-content href={`/change-orders/${item.id}`} className="font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-brand-700)]" onClick={(event) => event.stopPropagation()}>
                 {item.title}
               </Link>
             </EnterpriseTableCell>
-            <EnterpriseTableCell>{item.customerName}</EnterpriseTableCell>
-            <EnterpriseTableCell>{item.projectName}</EnterpriseTableCell>
+            <EnterpriseTableCell><span data-user-content>{item.customerName}</span></EnterpriseTableCell>
+            <EnterpriseTableCell><span data-user-content>{item.projectName}</span></EnterpriseTableCell>
             <EnterpriseTableCell>
               <ChangeOrderStatusBadge status={item.status} />
             </EnterpriseTableCell>
@@ -81,7 +81,7 @@ export function ChangeOrdersTable({
             <EnterpriseTableCell className="text-[var(--color-text-secondary)]">{new Date(item.updatedAt).toLocaleDateString(localeTag)}</EnterpriseTableCell>
             <EnterpriseTableCell align="right">
               <div className="flex items-center justify-end gap-2" onClick={(event) => event.stopPropagation()}>
-                <Link href={`/change-orders/${item.id}`} className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">
+                <Link data-user-content href={`/change-orders/${item.id}`} className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">
                   View
                 </Link>
                 <Link href={`/change-orders/${item.id}/edit`} className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]">

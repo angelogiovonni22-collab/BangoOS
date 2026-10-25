@@ -169,7 +169,7 @@ export function LegacyTextLocalizer({ locale }: { locale: AppLocale }) {
     };
 
     const translateAttributes = (element: Element) => {
-      if (shouldSkip(element)) return;
+      if (shouldSkip(element) || element.hasAttribute("data-user-content-attributes")) return;
       for (const attribute of TRANSLATABLE_ATTRIBUTES) {
         const current = element.getAttribute(attribute);
         if (!current) continue;

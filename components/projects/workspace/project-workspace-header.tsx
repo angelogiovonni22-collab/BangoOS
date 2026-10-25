@@ -151,10 +151,11 @@ export function ProjectWorkspaceHeader({
         compact
         breadcrumbs={[
           { label: l("Projects", "Proyectos"), href: "/projects" },
-          { label: customerLabel, href: customerProjectsHref },
-          { label: projectName },
+          { label: customerLabel, href: customerProjectsHref, userContent: true },
+          { label: projectName, userContent: true },
         ]}
         title={projectName}
+        titleIsUserContent
         subtitle={projectNumber ? `${l("Project Workspace", "Espacio de trabajo del proyecto")} · ${projectNumber}` : l("Project Workspace", "Espacio de trabajo del proyecto")}
         badgeLabel={statusKey === "approved" ? l("Ready to Start", "Listo para comenzar") : statusLabel}
         badgeTone={statusTone}
