@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { subscribeToBlueprintCollaboration } from "@/lib/blueprints/realtime";
 import { loadBlueprintMedia, uploadBlueprintMedia, type BlueprintMediaAttachment } from "@/lib/blueprints/media-attachments";
 import { loadBlueprintSymbols, type BlueprintSymbol } from "@/lib/blueprints/symbols";
-import { compatibleMeasurementSurface, drawingArea, drawingDistance, MEASUREMENT_METRIC_VERSION, validMeasurementMetric } from "@/lib/blueprints/measurement-metric";
+import { compatibleMeasurementSource, drawingArea, drawingDistance, MEASUREMENT_METRIC_VERSION, validMeasurementMetric } from "@/lib/blueprints/measurement-metric";
 import { BLUEPRINT_SYMBOL_MIME, BlueprintSymbolLibrary } from "./blueprint-symbol-library";
 import { blueprintWallEndpoints, snapBlueprintPoint } from "@/lib/blueprints/snapping";
 import { createBlueprintLayer, loadBlueprintLayers, type BlueprintLayer } from "@/lib/blueprints/layers";
@@ -407,7 +407,20 @@ export function BlueprintMarkupSurface({
         setError("The plan surface is not ready. Try again when the page is visible.");
         setDraft([]); draftRef.current = null; return;
       }
-      const measurementMetric = { measurementMetricVersion: MEASUREMENT_METRIC_VERSION, coordinateAspectRatio };
+      const media = event.currentTarget.parentElement?.querySelector("canvas, img") as HTMLCanvasElement | HTMLImageElement | null;
+      const nativeWidth = media instanceof HTMLCanvasElement ? media.width : media?.naturalWidth ?? 0;
+      const nativeHeight = media instanceof HTMLCanvasElement ? media.height : media?.naturalHeight ?? 0;
+      const mediaBounds = media?.getBoundingClientRect();
+      const sourceAspectRatio = nativeWidth / nativeHeight;
+      // object-contain can letterbox a canvas/image inside its CSS box. Use
+      // source-width units so toolbar reflow, resize and zoom do not change scale.
+      const sourceWidth = mediaBounds ? Math.min(mediaBounds.width, mediaBounds.height * sourceAspectRatio) : 0;
+      if (!Number.isFinite(sourceAspectRatio) || sourceAspectRatio <= 0 || sourceWidth <= 0) {
+        setError("Wait for the plan to render before measuring.");
+        setDraft([]); draftRef.current = null; return;
+      }
+      const surfaceToSourceWidthRatio = bounds.width / sourceWidth;
+      const measurementMetric = { measurementMetricVersion: MEASUREMENT_METRIC_VERSION, coordinateAspectRatio, sourceAspectRatio, surfaceToSourceWidthRatio };
       const line = { x1: points[0].x, y1: points[0].y, x2: points.at(-1)!.x, y2: points.at(-1)!.y };
       if (tool === "wall") {
         void persist(tool, { ...line, snapped: snapEnabled });
@@ -417,7 +430,7 @@ export function BlueprintMarkupSurface({
         void persist(tool, { ...line, lockedValue, unit: measurementUnit, snapped: snapEnabled });
       } else if (tool === "calibration") {
         const realLength = Number(knownLength);
-        const drawingLength = drawingDistance(line, coordinateAspectRatio);
+        const drawingLength = drawingDistance(line, coordinateAspectRatio, surfaceToSourceWidthRatio);
         if (!Number.isFinite(realLength) || realLength <= 0 || drawingLength <= 0) {
           setError("Enter a valid known length before calibrating.");
           setDraft([]);
@@ -427,22 +440,22 @@ export function BlueprintMarkupSurface({
         void persist(tool, { ...line, ...measurementMetric, realLength, unit: measurementUnit, unitsPerDrawingUnit: realLength / drawingLength });
       } else if (tool === "distance") {
         const calibration = currentCalibration(markups, pageNumber);
-        if (!calibration || !compatibleMeasurementSurface(calibration.geometry, coordinateAspectRatio)) {
+        if (!calibration || !compatibleMeasurementSource(calibration.geometry, sourceAspectRatio)) {
           setError("Calibrate this page in the current view before measuring distance.");
           setDraft([]);
           draftRef.current = null;
           return;
         }
-        void persist(tool, { ...line, ...measurementMetric, calibrationId: calibration.id, value: drawingDistance(line, coordinateAspectRatio) * calibration.unitsPerDrawingUnit, unit: calibration.unit });
+        void persist(tool, { ...line, ...measurementMetric, calibrationId: calibration.id, value: drawingDistance(line, coordinateAspectRatio, surfaceToSourceWidthRatio) * calibration.unitsPerDrawingUnit, unit: calibration.unit });
       } else if (tool === "area") {
         const calibration = currentCalibration(markups, pageNumber);
-        if (!calibration || !compatibleMeasurementSurface(calibration.geometry, coordinateAspectRatio)) {
+        if (!calibration || !compatibleMeasurementSource(calibration.geometry, sourceAspectRatio)) {
           setError("Calibrate this page in the current view before measuring area.");
           setDraft([]);
           draftRef.current = null;
           return;
         }
-        const normalizedArea = drawingArea(line, coordinateAspectRatio);
+        const normalizedArea = drawingArea(line, coordinateAspectRatio, surfaceToSourceWidthRatio);
         void persist(tool, { ...line, ...measurementMetric, calibrationId: calibration.id, value: normalizedArea * calibration.unitsPerDrawingUnit ** 2, unit: `${calibration.unit}²` });
       } else {
         const drawingTool: BlueprintMarkupType = tool === "arrow" ? "arrow" : "freehand";

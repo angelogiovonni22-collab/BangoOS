@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { compatibleMeasurementSurface, drawingArea, drawingDistance, MEASUREMENT_METRIC_VERSION, validMeasurementMetric, type MeasurementLine } from "./measurement-metric";
+import { compatibleMeasurementSource, drawingArea, drawingDistance, MEASUREMENT_METRIC_VERSION, validMeasurementMetric, type MeasurementLine } from "./measurement-metric";
 
 function close(actual: number, expected: number) {
   assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
@@ -21,23 +21,34 @@ for (const [width, height] of [[1216.32, 720], [932, 720], [556, 720], [800, 800
       close(drawingDistance(normalized(360, 216), aspect) * scale, Math.hypot(20, 12));
       close(drawingArea(normalized(360, 216), aspect) * scale ** 2, 240);
       close(drawingArea(normalized(-360, -216), aspect) * scale ** 2, 240);
-      const metric = { measurementMetricVersion: MEASUREMENT_METRIC_VERSION, coordinateAspectRatio: aspect };
-      assert.ok(compatibleMeasurementSurface(metric, aspect));
-      assert.ok(!compatibleMeasurementSurface(metric, aspect * 1.2));
+      const metric = { measurementMetricVersion: MEASUREMENT_METRIC_VERSION, coordinateAspectRatio: aspect, sourceAspectRatio: aspect, surfaceToSourceWidthRatio: 1 };
+      assert.ok(compatibleMeasurementSource(metric, aspect));
+      assert.ok(!compatibleMeasurementSource(metric, aspect * 1.2));
       cases++;
     }
   }
 }
+// A fixed 792pt source appears at different sizes in letterboxed viewports.
+// Calibration and measurement happen after different toolbar/viewport layouts.
+const sourceAspect = 792 / 612;
+const calibrationScale = 4 / (72 / 792);
+for (const [w, h, renderedWidth] of [[1216,720,932],[1216,690,893],[600,450,582],[1400,800,1035]]) {
+  const line = { x1: 0, y1: 0, x2: (360 / 792) * renderedWidth / w, y2: (216 / 792) * renderedWidth / h };
+  close(drawingDistance({ ...line, y2: 0 }, w/h, w/renderedWidth) * calibrationScale, 20);
+  close(drawingDistance({ ...line, x2: 0 }, w/h, w/renderedWidth) * calibrationScale, 12);
+  close(drawingArea(line, w/h, w/renderedWidth) * calibrationScale ** 2, 240);
+  assert.ok(compatibleMeasurementSource({measurementMetricVersion:2,coordinateAspectRatio:w/h,sourceAspectRatio:sourceAspect,surfaceToSourceWidthRatio:w/renderedWidth},sourceAspect));
+}
 for (const bad of [{}, { measurementMetricVersion: 1, coordinateAspectRatio: 1 }, { measurementMetricVersion: 2, coordinateAspectRatio: 0 }, { measurementMetricVersion: 2, coordinateAspectRatio: NaN }, { measurementMetricVersion: 2, coordinateAspectRatio: "1" }]) {
   assert.equal(validMeasurementMetric(bad), false);
-  assert.equal(compatibleMeasurementSurface(bad, 1), false);
+  assert.equal(compatibleMeasurementSource(bad, 1), false);
 }
 const source = readFileSync("components/plans/blueprint-markup-surface.tsx", "utf8");
-assert.ok(source.includes("drawingDistance(line, coordinateAspectRatio)"));
-assert.ok(source.includes("drawingArea(line, coordinateAspectRatio)"));
-assert.ok(source.includes("compatibleMeasurementSurface(calibration.geometry, coordinateAspectRatio)"));
+assert.ok(source.includes("drawingDistance(line, coordinateAspectRatio, surfaceToSourceWidthRatio)"));
+assert.ok(source.includes("drawingArea(line, coordinateAspectRatio, surfaceToSourceWidthRatio)"));
+assert.ok(source.includes("compatibleMeasurementSource(calibration.geometry, sourceAspectRatio)"));
 assert.ok(source.includes("calibrationId: calibration.id"));
 assert.ok(source.includes("Earlier measurements need verification."));
 assert.ok(source.includes("Boolean(selectedEstimateId) && validMeasurementMetric(markup.geometry)"));
 assert.ok(!source.includes("normalizedDistance("));
-console.log(`PASS: ${cases} calibrated geometry scenarios, invalid/legacy metric rejection, layout guards, and viewer integration`);
+console.log(`PASS: ${cases + 4} calibrated geometry scenarios, invalid/legacy metric rejection, source guards, and viewer integration`);
