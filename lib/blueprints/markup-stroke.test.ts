@@ -23,6 +23,9 @@ assert.deepEqual(finishBlueprintStroke(moveHistory, endpoint, true), [start, par
 assert.deepEqual(finishBlueprintStroke(moveHistory, start, true), [start, partial, start], "Closed freehand strokes remain valid");
 
 const source = readFileSync("components/plans/blueprint-markup-surface.tsx", "utf8");
+const pointerDown = source.slice(source.indexOf("const handlePointerDown"), source.indexOf("const handlePointerMove"));
+assert.ok(pointerDown.indexOf("event.preventDefault()") > pointerDown.indexOf('tool === "pan"'), "Active drawing must suppress native selection after respecting the pan/saving guard");
+assert.ok(source.includes("h-full w-full select-none"), "Existing SVG labels must not start native text selection");
 assert.ok(source.includes("const rawEndpoint = pointFromEvent(event)"));
 assert.ok(source.includes('finishBlueprintStroke(activeDraft.points, endpoint, tool === "freehand")'));
 assert.ok(source.includes("snapBlueprintPoint(rawEndpoint, activeDraft.start"));
