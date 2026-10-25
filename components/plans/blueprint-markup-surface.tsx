@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { subscribeToBlueprintCollaboration } from "@/lib/blueprints/realtime";
 import { loadBlueprintMedia, uploadBlueprintMedia, type BlueprintMediaAttachment } from "@/lib/blueprints/media-attachments";
 import { loadBlueprintSymbols, type BlueprintSymbol } from "@/lib/blueprints/symbols";
+import { finishBlueprintStroke } from "@/lib/blueprints/markup-stroke";
 import { compatibleMeasurementSource, drawingArea, drawingDistance, MEASUREMENT_METRIC_VERSION, validMeasurementMetric } from "@/lib/blueprints/measurement-metric";
 import { BLUEPRINT_SYMBOL_MIME, BlueprintSymbolLibrary } from "./blueprint-symbol-library";
 import { blueprintWallEndpoints, snapBlueprintPoint } from "@/lib/blueprints/snapping";
@@ -399,7 +400,10 @@ export function BlueprintMarkupSurface({
     const activeDraft = draftRef.current;
     if (!activeDraft || activeDraft.pointerId !== event.pointerId || !["freehand", "arrow", "calibration", "distance", "area", "wall", "locked_dimension"].includes(tool)) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    const points = activeDraft.points;
+    const rawEndpoint = pointFromEvent(event);
+    const endpoint = snapEnabled && ["wall", "locked_dimension"].includes(tool)
+      ? snapBlueprintPoint(rawEndpoint, activeDraft.start, blueprintWallEndpoints(markups, pageNumber)) : rawEndpoint;
+    const points = finishBlueprintStroke(activeDraft.points, endpoint, tool === "freehand");
     if (points.length > 1) {
       const bounds = event.currentTarget.getBoundingClientRect();
       const coordinateAspectRatio = bounds.width / bounds.height;
@@ -465,6 +469,13 @@ export function BlueprintMarkupSurface({
       setDraft([]);
       draftRef.current = null;
     }
+  };
+
+  const handlePointerCancel = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (draftRef.current?.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    draftRef.current = null;
+    setDraft([]);
   };
 
   const removeMarkup = async (markup: BlueprintMarkup) => {
@@ -592,7 +603,7 @@ export function BlueprintMarkupSurface({
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
         >
           <defs>
             <marker id="blueprint-arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
