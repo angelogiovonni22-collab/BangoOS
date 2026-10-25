@@ -197,3 +197,6 @@ jobs:
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+
+      - name: Blueprint calibrated measurement geometry
+        run: npx -y tsx lib/blueprints/measurement-metric.test.ts
