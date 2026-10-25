@@ -1,3 +1,4 @@
+import { summarizeBlueprintTakeoffs } from "./takeoff-register";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { compatibleMeasurementSource, drawingArea, drawingDistance, MEASUREMENT_METRIC_VERSION, validMeasurementMetric, type MeasurementLine } from "./measurement-metric";
@@ -52,3 +53,18 @@ assert.ok(source.includes("Earlier measurements need verification."));
 assert.ok(source.includes("Boolean(selectedEstimateId) && validMeasurementMetric(markup.geometry)"));
 assert.ok(!source.includes("normalizedDistance("));
 console.log(`PASS: ${cases + 4} calibrated geometry scenarios, invalid/legacy metric rejection, source guards, and viewer integration`);
+
+const metric = { measurementMetricVersion:2, coordinateAspectRatio:1.6, sourceAspectRatio:1.3, surfaceToSourceWidthRatio:1.2, calibrationId:"calibration-1" };
+const totals = summarizeBlueprintTakeoffs([
+  { id:"legacy", annotation_type:"area", geometry:{value:412.55,unit:"ft²"} },
+  { id:"length", annotation_type:"distance", geometry:{...metric,value:20,unit:"ft"} },
+  { id:"area", annotation_type:"area", geometry:{...metric,value:240,unit:"ft²"} },
+  { id:"metric-length", annotation_type:"distance", geometry:{...metric,value:1,unit:"m"} },
+  { id:"metric-area", annotation_type:"area", geometry:{...metric,value:1,unit:"m²"} },
+  { id:"invalid", annotation_type:"area", geometry:{...metric,value:Infinity,unit:"ft²"} },
+  { id:"unknown-unit", annotation_type:"distance", geometry:{...metric,value:100,unit:"yards"} },
+], new Set(["legacy","length"]));
+assert.equal(totals.distances,2); assert.equal(totals.areas,2);
+close(totals.linearFeet,23.280839895); close(totals.squareFeet,250.763910417);
+assert.equal(totals.linked,1); assert.equal(totals.unlinked,3); assert.equal(totals.unverified,3);
+console.log("PASS: legacy/invalid takeoffs excluded from totals and coverage; valid ft/m conversions preserved");
