@@ -356,6 +356,9 @@ export function BlueprintMarkupSurface({
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (tool === "pan" || saving || event.button !== 0) return;
+    // Native selection/dragging of existing SVG labels can cancel the pointer
+    // stream midway through a calibration or markup gesture.
+    event.preventDefault();
     const point = pointFromEvent(event);
 
     if (selectedSymbol) { void persist("symbol", { ...point, symbolKey: selectedSymbol.key, glyph: selectedSymbol.glyph, label: selectedSymbol.label }); setSelectedSymbol(null); chooseTool("pan"); return; }
@@ -599,7 +602,7 @@ export function BlueprintMarkupSurface({
           viewBox="0 0 1000 1000"
           preserveAspectRatio="none"
           aria-label="Blueprint markup layer"
-          className={`absolute inset-0 h-full w-full ${tool === "pan" ? "pointer-events-none" : "cursor-crosshair touch-none"}`}
+          className={`absolute inset-0 h-full w-full select-none ${tool === "pan" ? "pointer-events-none" : "cursor-crosshair touch-none"}`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
