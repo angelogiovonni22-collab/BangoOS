@@ -28,21 +28,15 @@ jobs:
           printf '%s\n' "$headers" | grep -qi '^x-content-type-options: nosniff$'
           printf '%s\n' "$headers" | grep -qi '^x-frame-options: DENY$'
           printf '%s\n' "$headers" | grep -qi '^referrer-policy: strict-origin-when-cross-origin$'
-          printf '%s\n' "$headers" | grep -qi '^content-security-policy: frame-ancestors '\''none'\''$'
+          printf '%s\n' "$headers" | grep -qi "^content-security-policy: frame-ancestors 'none'$"
           printf '%s\n' "$headers" | grep -qi '^strict-transport-security: max-age=31536000; includeSubDomains$'
 
       - name: Verify anonymous commercial entry
         run: |
-          root_headers="$(curl --silent --show-error --head --max-time 20 https://bango-os.vercel.app/ | tr -d '\r')"
-          entry_headers="$(curl --silent --show-error --head --max-time 20 https://bango-os.vercel.app/app-entry | tr -d '\r')"
-          printf '%s\n' "$root_headers" | grep -Eqi '^location: (https://bango-os\.vercel\.app)?/app-entry
-      - name: Verify developer diagnostic remains unavailable
-        run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' https://bango-os.vercel.app/supabase-test)" = "404"
-
-          printf '%s\n' "$entry_headers" | grep -Eqi '^location: (https://bango-os\.vercel\.app)?/login
-      - name: Verify developer diagnostic remains unavailable
-        run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' https://bango-os.vercel.app/supabase-test)" = "404"
-
+          root_headers="$(curl --fail --silent --show-error --head --max-time 20 https://bango-os.vercel.app/ | tr -d '\r')"
+          entry_headers="$(curl --fail --silent --show-error --head --max-time 20 https://bango-os.vercel.app/app-entry | tr -d '\r')"
+          printf '%s\n' "$root_headers" | grep -Eqi '^location: (https://bango-os\.vercel\.app)?/app-entry/?$'
+          printf '%s\n' "$entry_headers" | grep -Eqi '^location: (https://bango-os\.vercel\.app)?/login/?$'
 
       - name: Verify developer diagnostic remains unavailable
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' https://bango-os.vercel.app/supabase-test)" = "404"
