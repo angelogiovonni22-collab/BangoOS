@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { translateLiteral } from "./literal";
+import { translate } from "./config";
 
 const names = ["Project", "Change Orders", "BOS Pilot 20261019 — synthetic project", "CO-2026-0003 · synthetic project", "  Customer  ", "Proyecto de María & Sons"];
 for (const locale of ["en", "es"] as const) {
@@ -44,3 +45,20 @@ assert.ok(changeOrder.includes('data-user-content={Boolean(changeOrder.reason) |
 const scope = read("components/projects/workspace/project-scope-of-work.tsx");
 assert.ok(scope.includes('<Link href={`/change-orders/${changeOrder.id}`} className={outlineButton}>View</Link>'), "Static View action remains translatable");
 console.log("PASS: 12 exact user-name cases, original translation collision control, static-label translation, header/breadcrumb/row/description boundaries");
+
+// New interface phrases must translate while identical customer-entered names stay raw.
+const directoryLabels = [
+  ["requestedDate", "Requested Date", "Fecha solicitada"],
+  ["restore", "Restore", "Restaurar"],
+  ["view", "View", "Ver"],
+  ["day", "day", "día"],
+  ["days", "days", "días"],
+  ["noChangeOrdersFiltered", "No matching change orders", "No hay órdenes de cambio que coincidan"],
+  ["noChangeOrdersFilteredDescription", "Adjust filters or search terms to find existing change orders.", "Ajuste los filtros o los términos de búsqueda para encontrar órdenes de cambio existentes."],
+] as const;
+for (const [key, english, spanish] of directoryLabels) {
+  assert.equal(translate("en", `finance.${key}`), english);
+  assert.equal(translate("es", `finance.${key}`), spanish);
+  assert.equal(translateLiteral("es", english, true), english, "Customer content matching interface text remains unchanged");
+}
+console.log("PASS: directory labels/empty states translate in both languages and colliding customer names remain exact");
