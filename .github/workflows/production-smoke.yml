@@ -1,6 +1,8 @@
 name: B.O.S. Production Smoke
 
 on:
+  push:
+    branches: [main]
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
@@ -34,9 +36,13 @@ jobs:
       - name: Verify anonymous commercial entry
         run: |
           root_headers="$(curl --fail --silent --show-error --head --max-time 20 https://bango-os.vercel.app/ | tr -d '\r')"
-          entry_headers="$(curl --fail --silent --show-error --head --max-time 20 https://bango-os.vercel.app/app-entry | tr -d '\r')"
+          curl --fail --silent --show-error --max-time 20 --dump-header /tmp/bos-entry-headers --output /tmp/bos-entry-body https://bango-os.vercel.app/app-entry
+          entry_headers="$(tr -d '\r' < /tmp/bos-entry-headers)"
           printf '%s\n' "$root_headers" | grep -Eqi '^location: (https://bango-os\.vercel\.app)?/app-entry/?$'
-          printf '%s\n' "$entry_headers" | grep -Eqi '^location: (https://bango-os\.vercel\.app)?/login/?$'
+          # App Router can stream its redirect after the loading boundary (HTTP 200).
+          if ! printf '%s\n' "$entry_headers" | grep -Eqi '^location: (https://bango-os\.vercel\.app)?/login/?$'; then
+            grep -Eq '<meta id="__next-page-redirect" http-equiv="refresh" content="[01];url=/login"/>' /tmp/bos-entry-body
+          fi
 
       - name: Verify developer diagnostic remains unavailable
         run: test "$(curl --silent --output /dev/null --write-out '%{http_code}' https://bango-os.vercel.app/supabase-test)" = "404"

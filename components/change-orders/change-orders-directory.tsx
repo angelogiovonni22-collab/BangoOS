@@ -155,7 +155,7 @@ export function ChangeOrdersDirectory({
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-6" aria-label={l("Change order summary filters", "Filtros de resumen de órdenes de cambio")}>
+      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-label={l("Change order summary filters", "Filtros de resumen de órdenes de cambio")}>
         <SummaryCard icon={<span className="text-sm font-bold">#</span>} label={l("Total", "Total")} value={String(summary.total)} onClick={() => chooseStatus("all")} selected={statusValue === "all"} actionLabel={l("Show all change orders", "Mostrar todas las órdenes de cambio")} />
         <SummaryCard icon={<span className="text-sm font-bold">D</span>} label={l("Draft", "Borrador")} value={String(summary.draft)} tone="neutral" onClick={() => chooseStatus("draft")} selected={statusValue === "draft"} actionLabel={l("Show draft change orders", "Mostrar órdenes de cambio en borrador")} />
         <SummaryCard icon={<span className="text-sm font-bold">P</span>} label={l("Pending Approval", "Pendiente de aprobación")} value={String(summary.pending)} tone="warning" onClick={() => chooseStatus("pending_approval")} selected={statusValue === "pending_approval"} actionLabel={l("Show change orders pending approval", "Mostrar órdenes de cambio pendientes de aprobación")} />
