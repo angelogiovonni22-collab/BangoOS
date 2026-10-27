@@ -13,6 +13,8 @@ import {
   TableContainer,
 } from "@/components/ui";
 import { useAdaptiveBos } from "@/lib/adaptive-bos/provider";
+import { useI18n } from "@/lib/i18n/provider";
+import { translateLiteral } from "@/lib/i18n/literal";
 import { ProjectActions } from "./project-actions";
 import { ProjectAvatar } from "./project-avatar";
 import { ProjectProgress } from "./project-progress";
@@ -48,9 +50,10 @@ type DeletedProjectResponse = {
 export function ProjectTable({ items, t, canManageProjects, showFinancials }: ProjectTableProps) {
   const router = useRouter();
   const { term } = useAdaptiveBos();
+  const { locale } = useI18n();
   const projectLabel = term("project", "Project");
   const projectsLabel = term("projects", "Projects");
-  const customerLabel = term("customer", "Customer");
+  const customerLabel = translateLiteral(locale, term("customer", "Customer"));
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {

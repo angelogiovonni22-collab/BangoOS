@@ -55,8 +55,8 @@ export function ChangeOrdersFilters({
       </label>
 
       <FilterSelect label="Status" value={statusValue} onChange={onStatusChange} options={statusOptions} />
-      <FilterSelect label="Customer" value={customerValue} onChange={onCustomerChange} options={customerOptions} />
-      <FilterSelect label="Project" value={projectValue} onChange={onProjectChange} options={projectOptions} />
+      <FilterSelect label="Customer" value={customerValue} onChange={onCustomerChange} options={customerOptions} userContentOptions />
+      <FilterSelect label="Project" value={projectValue} onChange={onProjectChange} options={projectOptions} userContentOptions />
 
       <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)]">
         <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">Date From</span>
@@ -87,18 +87,20 @@ function FilterSelect({
   value,
   onChange,
   options,
+  userContentOptions = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
+  userContentOptions?: boolean;
 }) {
   return (
     <label className="space-y-1 text-sm font-semibold text-[var(--color-text-primary)] min-w-0">
       <span className="text-xs uppercase tracking-[0.04em] text-[var(--color-text-secondary)]">{label}</span>
       <Select value={value} onChange={(event) => onChange(event.target.value)} aria-label={`Filter by ${label.toLowerCase()}`} className="h-10 min-w-0 py-2">
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} data-user-content={(userContentOptions && option.value !== "all") || undefined}>
             {option.label}
           </option>
         ))}
