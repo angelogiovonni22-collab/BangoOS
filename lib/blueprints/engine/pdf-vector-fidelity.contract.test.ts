@@ -74,3 +74,18 @@ assert.deepEqual(result.segments[0].end, { x: 18, y: 38 });
 assert.equal(result.segments[0].sourceObjectId, primitive.id);
 
 console.log("pdf vector fidelity contract passed");
+
+// Actual PDF.js 5.4.624 constructPath shape: paint op + nested Float32Array.
+const packed = new Float32Array([0, 0, 0, 1, 8, 0, 1, 8, 6, 1, 0, 6, 4]);
+const packedResult = extractPdfPathGeometry({ fnArray: [OPS.constructPath], argsArray: [[20, [packed], [0, 0, 8, 6]]] }, OPS, 1);
+assert.equal(packedResult.segments.length, 4, "Packed closed contours must preserve every edge");
+assert.deepEqual(packedResult.segments[3].end, { x: 0, y: 0 });
+assert.deepEqual(Array.from(packed), [0, 0, 0, 1, 8, 0, 1, 8, 6, 1, 0, 6, 4], "Extraction must not mutate renderer data");
+const packedCurve = extractPdfPathGeometry({ fnArray: [OPS.constructPath], argsArray: [[20, [new Float32Array([0, 0, 0, 3, 3, 6, 6, 0])], [0, 0, 6, 6]]] }, OPS, 2);
+assert.equal(packedCurve.segments.length, 0, "Packed curves must not become straight walls");
+assert.deepEqual(packedCurve.primitives[0].commands[1], { kind: "curveTo", control1: { x: 2, y: 4 }, control2: { x: 4, y: 4 }, point: { x: 6, y: 0 } });
+for (const invalid of [[0, 0, 0, 1, 8], [0, 0, 0, 99], [0, 0, NaN]]) {
+  assert.equal(extractPdfPathGeometry({ fnArray: [OPS.constructPath], argsArray: [[20, [invalid], []]] }, OPS, 1).primitives.length, 0,
+    "Malformed packed paths must fail closed instead of emitting partial geometry");
+}
+console.log("PDF.js packed path compatibility passed");

@@ -32,6 +32,49 @@ function asNumbers(value: unknown): number[] {
   return [];
 }
 
+// PDF.js 5.4 constructPath carries [paintOp, [packed DrawOPS], bounds].
+// Earlier versions carried [pathOps, coordinates]. Normalize both without
+// mutating PDF.js data, which may also be consumed by the renderer.
+function readPathData(args: unknown[], ops: PdfOps) {
+  if (typeof args[0] !== "number") return { pathOps: asNumbers(args[0]), coords: asNumbers(args[1]) };
+  const pathOps: number[] = [];
+  const coords: number[] = [];
+  if (!Array.isArray(args[1])) return { pathOps, coords };
+  for (const raw of args[1]) {
+    if (!Array.isArray(raw) && !ArrayBuffer.isView(raw)) return { pathOps: [], coords: [] };
+    const packed = Array.from(raw as ArrayLike<number>);
+    if (!packed.every((value) => typeof value === "number" && Number.isFinite(value))) return { pathOps: [], coords: [] };
+    let current = { x: 0, y: 0 };
+    let start = current;
+    for (let cursor = 0; cursor < packed.length;) {
+      const command = packed[cursor++];
+      const count = command === 0 || command === 1 ? 2 : command === 2 ? 6 : command === 3 ? 4 : command === 4 ? 0 : -1;
+      if (count < 0 || cursor + count > packed.length) return { pathOps: [], coords: [] };
+      const values = packed.slice(cursor, cursor + count);
+      cursor += count;
+      if (command === 4) {
+        pathOps.push(ops.closePath);
+        current = start;
+        continue;
+      }
+      if (command === 3) {
+        // Preserve quadratic curves as equivalent cubics, never as straight walls.
+        const [cx, cy, x, y] = values;
+        pathOps.push(ops.curveTo);
+        coords.push(current.x + 2 / 3 * (cx - current.x), current.y + 2 / 3 * (cy - current.y),
+          x + 2 / 3 * (cx - x), y + 2 / 3 * (cy - y), x, y);
+        current = { x, y };
+      } else {
+        pathOps.push(command === 0 ? ops.moveTo : command === 1 ? ops.lineTo : ops.curveTo);
+        coords.push(...values);
+        current = { x: values[count - 2], y: values[count - 1] };
+        if (command === 0) start = current;
+      }
+    }
+  }
+  return { pathOps, coords };
+}
+
 function readTextItems(content: { items?: unknown[] }, pageNumber: number): BosTextToken[] {
   const output: BosTextToken[] = [];
   for (const raw of content.items || []) {
@@ -98,8 +141,7 @@ export function extractPdfPathGeometry(operatorList: OperatorList, ops: PdfOps, 
     }
     if (fn !== ops.constructPath) continue;
 
-    const pathOps = asNumbers(args[0]);
-    const coords = asNumbers(args[1]);
+    const { pathOps, coords } = readPathData(args, ops);
     if (!pathOps.length) continue;
     let cursor = 0;
     let current: { x: number; y: number } | null = null;
