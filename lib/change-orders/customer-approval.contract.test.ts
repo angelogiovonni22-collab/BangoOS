@@ -11,9 +11,9 @@ const publicPage = readFileSync("app/change-orders/approval/[token]/page.tsx", "
 const migration = readFileSync("supabase/migrations/20260926125500_change_order_customer_approval.sql", "utf8");
 
 test("change order detail can send secure customer approval", () => {
-  assert.match(detail, /Send to Customer/);
+  assert.match(detail, /t\("finance\.sendToCustomer"\)/);
   assert.match(detail, /send-approval/);
-  assert.match(detail, /Customer total is \$0\.00/);
+  assert.match(detail, /t\("finance\.customerTotalMissing"\)/);
   assert.match(sendRoute, /Customer total is \$0\.00/);
   assert.match(sendRoute, /Customer Price/);
   assert.match(sendRoute, /pending_approval/);
