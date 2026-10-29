@@ -198,6 +198,9 @@ jobs:
       - name: Blueprint pointer release and cancellation
         run: npx -y tsx lib/blueprints/markup-stroke.test.ts
 
+      - name: Blueprint wall pairing across spatial boundaries
+        run: npx -y tsx lib/blueprints/engine/wall-detector-spatial-boundary.test.ts
+
       - name: User content localization boundaries
         run: npx -y tsx lib/i18n/user-content.test.ts
 

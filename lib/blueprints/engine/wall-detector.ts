@@ -280,10 +280,14 @@ export function detectWallCenterlines(
   const bucketSize = 2;
   const buckets = new Map<string, number[]>();
   const keysFor = (segment: BosLine2) => {
-    const minX = Math.floor(Math.min(segment.start.x, segment.end.x) / bucketSize);
-    const maxX = Math.floor(Math.max(segment.start.x, segment.end.x) / bucketSize);
-    const minY = Math.floor(Math.min(segment.start.y, segment.end.y) / bucketSize);
-    const maxY = Math.floor(Math.max(segment.start.y, segment.end.y) / bucketSize);
+    // Opposite wall faces can straddle a bucket edge. Include the permitted pairing
+    // distance in the lookup bounds; the exact angle/overlap/thickness checks below
+    // still decide which candidates form a wall.
+    const padding = options.maxWallThickness;
+    const minX = Math.floor((Math.min(segment.start.x, segment.end.x) - padding) / bucketSize);
+    const maxX = Math.floor((Math.max(segment.start.x, segment.end.x) + padding) / bucketSize);
+    const minY = Math.floor((Math.min(segment.start.y, segment.end.y) - padding) / bucketSize);
+    const maxY = Math.floor((Math.max(segment.start.y, segment.end.y) + padding) / bucketSize);
     const keys: string[] = [];
     for (let x = minX; x <= maxX; x += 1) for (let y = minY; y <= maxY; y += 1) keys.push(`${x}:${y}`);
     return keys;
