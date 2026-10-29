@@ -62,3 +62,23 @@ for (const [key, english, spanish] of directoryLabels) {
   assert.equal(translateLiteral("es", english, true), english, "Customer content matching interface text remains unchanged");
 }
 console.log("PASS: directory labels/empty states translate in both languages and colliding customer names remain exact");
+
+// Detail interface localization must not translate similarly named saved content.
+const detailLabels = [
+  ["scopeDescription", "Scope / Description", "Alcance / Descripción"],
+  ["sendToCustomer", "Send to Customer", "Enviar al cliente"],
+  ["markApproved", "Mark Approved", "Marcar como aprobada"],
+  ["selectExistingInvoice", "Select existing invoice", "Seleccionar factura existente"],
+  ["createNewInvoice", "Create New Invoice", "Crear factura nueva"],
+  ["customerNotes", "Customer Notes", "Notas para el cliente"],
+] as const;
+for (const [key, english, spanish] of detailLabels) {
+  assert.equal(translate("en", `finance.${key}`), english);
+  assert.equal(translate("es", `finance.${key}`), spanish);
+  assert.equal(translateLiteral("es", english, true), english);
+}
+assert.ok(changeOrder.includes('data-user-content={Boolean(changeOrder.customer_notes) || undefined}'));
+assert.ok(changeOrder.includes('data-user-content={Boolean(changeOrder.internal_notes) || undefined}'));
+assert.ok(changeOrder.includes('<option data-user-content key={invoiceOption.id}'));
+assert.ok(changeOrder.includes('<p data-user-content className="mt-1 text-sm text-[var(--color-text-secondary)]">{entry.description}</p>'));
+console.log("PASS: detail interface translations and saved note/invoice/activity content boundaries");
