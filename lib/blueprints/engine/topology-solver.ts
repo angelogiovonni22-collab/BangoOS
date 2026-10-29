@@ -185,7 +185,10 @@ export function solveArchitecturalTopology(
   }
 
   const orthogonalized = input.map((segment) => orthogonalize(segment, options.orthogonalToleranceRadians));
-  const firstSnap = snapEndpointClusters(orthogonalized, options.endpointSnapTolerance);
+  // Resolve supported line intersections before averaging endpoint clusters.
+  // Averaging a near corner first tilts both runs and shortens the footprint.
+  const initialRepair = repairNearJunctions(orthogonalized, options.junctionExtensionTolerance);
+  const firstSnap = snapEndpointClusters(initialRepair.segments, options.endpointSnapTolerance);
   const repaired = repairNearJunctions(firstSnap.segments, options.junctionExtensionTolerance);
   const secondSnap = snapEndpointClusters(repaired.segments, options.endpointSnapTolerance * 0.65);
   const merged = mergeCollinearSegments(secondSnap.segments, {
@@ -197,7 +200,7 @@ export function solveArchitecturalTopology(
   }).filter((segment) => length(segment) >= options.minSegmentLength);
 
   const snappedEndpointCount = firstSnap.snappedEndpointCount + secondSnap.snappedEndpointCount;
-  const repairedJunctionCount = repaired.repairedJunctionCount;
+  const repairedJunctionCount = initialRepair.repairedJunctionCount + repaired.repairedJunctionCount;
   const diagnostics: string[] = [];
   if (snappedEndpointCount > 0) diagnostics.push(`Architectural topology solver snapped ${snappedEndpointCount} near-coincident wall endpoints into shared junctions.`);
   if (repairedJunctionCount > 0) diagnostics.push(`Architectural topology solver repaired ${repairedJunctionCount} near-miss corner or T-junction connections.`);
