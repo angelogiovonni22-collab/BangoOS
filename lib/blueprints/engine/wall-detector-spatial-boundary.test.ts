@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { detectWallCenterlines } from "./wall-detector";
 import type { BosRawSegment } from "./geometry";
+import { topologyMetrics } from "./geometry";
+import { solveArchitecturalTopology } from "./topology-solver";
 
 // A wall's two faces may sit on opposite sides of a spatial index boundary.
 // Moving the drawing must not change whether a physically identical pair exists.
@@ -42,5 +44,20 @@ const footprintWalls = detectWallCenterlines(faces);
 assert.equal(footprintWalls.length, 12, "Every paired run of the closed QA footprint must survive lookup");
 assert(footprintWalls.every((wall) => (wall.strokeWidth || 0) >= 0.07 && (wall.strokeWidth || 0) <= 0.45),
   "Recovered source pairs must still pass the unchanged thickness limits");
+
+const solved = solveArchitecturalTopology(footprintWalls).segments;
+assert.equal(solved.length, 12);
+assert.equal(topologyMetrics(solved).closure, 1);
+assert(solved.every((wall) => Math.abs(wall.end.x - wall.start.x) < 1e-8 || Math.abs(wall.end.y - wall.start.y) < 1e-8),
+  "Snapping a near corner must not tilt orthogonal source walls");
+const perimeterFeet = solved.reduce((sum, wall) => sum + Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y), 0) / 0.3048;
+assert(Math.abs(perimeterFeet - 180) < 0.5,
+  `The 180ft source perimeter must survive corner repair within the existing coordinate grid precision, got ${perimeterFeet}`);
+
+const disconnected = solveArchitecturalTopology([
+  { sourcePage: 1, start: { x: 0, y: 0 }, end: { x: 3, y: 0 } },
+  { sourcePage: 1, start: { x: 3.5, y: 0.5 }, end: { x: 3.5, y: 4 } },
+]).segments;
+assert(topologyMetrics(disconnected).dangling > 0, "Corner repair must not bridge gaps beyond the existing tolerance");
 
 console.log("Wall detection spatial boundary tests passed");
