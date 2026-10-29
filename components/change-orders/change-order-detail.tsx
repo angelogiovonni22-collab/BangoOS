@@ -27,10 +27,11 @@ import type { ChangeOrderLineItemRow, ChangeOrderRow } from "@/lib/change-orders
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { useI18n } from "@/lib/i18n/provider";
+import { translateLiteral } from "@/lib/i18n/literal";
 import { BlueprintSourceLink } from "@/components/plans/blueprint-source-link";
 
 export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const localeTag = locale === "es" ? "es-ES" : "en-US";
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -44,8 +45,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
 
   const [changeOrder, setChangeOrder] = useState<ChangeOrderRow | null>(null);
   const [lineItems, setLineItems] = useState<ChangeOrderLineItemRow[]>([]);
-  const [customerName, setCustomerName] = useState("Not linked");
-  const [projectName, setProjectName] = useState("Not linked");
+  const [customerName, setCustomerName] = useState("");
+  const [projectName, setProjectName] = useState("");
   const [invoiceLinks, setInvoiceLinks] = useState<Array<{ id: string; invoiceId: string; amountApplied: number; linkType: string; createdAt: string }>>([]);
   const [activity, setActivity] = useState<Array<{ id: string; activityType: string; description: string; createdAt: string }>>([]);
   const [existingInvoiceOptions, setExistingInvoiceOptions] = useState<Array<{ id: string; label: string }>>([]);
@@ -120,8 +121,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
           const customer = optionsResult.data.customers.find((value) => value.id === row.customer_id);
           const project = optionsResult.data.projects.find((value) => value.id === row.project_id);
 
-          setCustomerName(customer ? getCustomerDisplayName(customer) : "Not linked");
-          setProjectName(project ? getProjectDisplayName(project) : "Not linked");
+          setCustomerName(customer ? getCustomerDisplayName(customer) : "");
+          setProjectName(project ? getProjectDisplayName(project) : "");
 
           const invoiceCandidates = optionsResult.data.invoices.filter((invoice) => {
             if (normalizeChangeOrderStatus(invoice.status) === "void") {
@@ -182,8 +183,8 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
     }
 
     if (action === "reject") {
-      const reason = window.prompt("Enter an optional rejection reason:", "") || "";
-      if (!window.confirm("Reject this change order?")) {
+      const reason = window.prompt(t("finance.rejectionReasonPrompt"), "") || "";
+      if (!window.confirm(t("finance.rejectChangeOrderQuestion"))) {
         return;
       }
       const result = await rejectChangeOrder({ supabase, companyId, changeOrderId, userId, reason });
@@ -191,7 +192,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
     }
 
     if (action === "reopen") {
-      if (!window.confirm("Reopen this change order to draft?")) {
+      if (!window.confirm(t("finance.reopenChangeOrderQuestion"))) {
         return;
       }
       const result = await reopenChangeOrder({ supabase, companyId, changeOrderId, userId });
@@ -199,7 +200,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
     }
 
     if (action === "void") {
-      if (!window.confirm("Void this change order?")) {
+      if (!window.confirm(t("finance.voidChangeOrderQuestion"))) {
         return;
       }
       const result = await voidChangeOrder({ supabase, companyId, changeOrderId, userId });
@@ -207,7 +208,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
     }
 
     if (action === "archive") {
-      if (!window.confirm("Archive this change order?")) {
+      if (!window.confirm(t("finance.archiveChangeOrderQuestion"))) {
         return;
       }
       const result = await archiveChangeOrder({ supabase, companyId, changeOrderId, userId });
@@ -269,7 +270,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
       return;
     }
 
-    if (!window.confirm("Add this change order to the selected invoice?")) {
+    if (!window.confirm(t("finance.addChangeOrderToInvoiceQuestion"))) {
       return;
     }
 
@@ -295,7 +296,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
       return;
     }
 
-    if (!window.confirm("Create a new invoice from this approved change order?")) {
+    if (!window.confirm(t("finance.createInvoiceFromChangeOrderQuestion"))) {
       return;
     }
 
@@ -325,7 +326,7 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
   }
 
   if (errorMessage || !changeOrder) {
-    return <ErrorState title="Unable to load change order" description={errorMessage || "Change order not found."} />;
+    return <ErrorState title={t("finance.loadChangeOrderError")} description={errorMessage || t("finance.changeOrderNotFound")} />;
   }
 
   const status = normalizeChangeOrderStatus(changeOrder.status);
@@ -341,33 +342,33 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="COMPANY WORKSPACE"
+        eyebrow={t("finance.companyWorkspace")}
         title={`${changeOrder.change_order_number} · ${changeOrder.title}`}
         titleIsUserContent
-        description="Central command view for scope, approvals, schedule impact, and invoice conversion."
+        description={t("finance.changeOrderDetailDescription")}
         secondaryActions={(
           <>
             <Link href={`/change-orders/${changeOrderId}/print`}>
-              <Button type="button" variant="secondary" size="md">Print</Button>
+              <Button type="button" variant="secondary" size="md">{t("finance.print")}</Button>
             </Link>
-            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("submit")} disabled={!canSubmit}>Submit Internally</Button>
-            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("approve")} disabled={!canApprove}>Mark Approved</Button>
-            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("reject")} disabled={!canReject}>Reject</Button>
-            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("reopen")} disabled={!canReopen}>Reopen</Button>
-            <Button type="button" variant="danger" size="md" onClick={() => void runAction("void")} disabled={status === "void" || isArchived}>Void</Button>
+            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("submit")} disabled={!canSubmit}>{t("finance.submitInternally")}</Button>
+            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("approve")} disabled={!canApprove}>{t("finance.markApproved")}</Button>
+            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("reject")} disabled={!canReject}>{t("finance.reject")}</Button>
+            <Button type="button" variant="secondary" size="md" onClick={() => void runAction("reopen")} disabled={!canReopen}>{t("finance.reopen")}</Button>
+            <Button type="button" variant="danger" size="md" onClick={() => void runAction("void")} disabled={status === "void" || isArchived}>{t("finance.void")}</Button>
             {isArchived ? (
-              <Button type="button" variant="secondary" size="md" onClick={() => void runAction("restore")}>Restore</Button>
+              <Button type="button" variant="secondary" size="md" onClick={() => void runAction("restore")}>{t("finance.restore")}</Button>
             ) : (
-              <Button type="button" variant="secondary" size="md" onClick={() => void runAction("archive")}>Archive</Button>
+              <Button type="button" variant="secondary" size="md" onClick={() => void runAction("archive")}>{t("finance.archive")}</Button>
             )}
           </>
         )}
         primaryAction={(
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="md" onClick={() => void handleSendToCustomer()} disabled={!canSendToCustomer || customerTotalMissing || isSendingToCustomer}>
-              {isSendingToCustomer ? "Sending…" : "Send to Customer"}
+              {isSendingToCustomer ? t("finance.sending") : t("finance.sendToCustomer")}
             </Button>
-            <Link href={`/change-orders/${changeOrderId}/edit`} className={getButtonClassName({ size: "md", variant: "secondary" })}>Edit Change Order</Link>
+            <Link href={`/change-orders/${changeOrderId}/edit`} className={getButtonClassName({ size: "md", variant: "secondary" })}>{t("finance.editChangeOrder")}</Link>
           </div>
         )}
       />
@@ -376,16 +377,16 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
 
       {isArchived ? <div role="status" className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">{locale === "es" ? "Orden de cambio archivada. Restáurala antes de editarla o cambiar su estado." : "Archived change order. Restore it before editing or changing its status."}</div> : null}
 
-      {actionMessage ? <ErrorState title="Action result" description={actionMessage} compact /> : null}
-      {customerTotalMissing ? <div className="rounded-[var(--radius-lg)] border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200">Customer total is $0.00. Edit the change order and enter the Customer Price for each line item before sending it for approval.</div> : null}
-      {customerApprovalMessage ? <div className="rounded-[var(--radius-lg)] border border-sky-400/30 bg-sky-400/10 px-4 py-3 text-sm text-sky-100" role="status">{customerApprovalMessage}{customerApprovalUrl ? <a href={customerApprovalUrl} target="_blank" rel="noreferrer" className="ml-2 font-bold underline">Open customer approval link</a> : null}</div> : null}
+      {actionMessage ? <ErrorState title={t("finance.actionResult")} description={actionMessage} compact /> : null}
+      {customerTotalMissing ? <div className="rounded-[var(--radius-lg)] border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200">{t("finance.customerTotalMissing")}</div> : null}
+      {customerApprovalMessage ? <div className="rounded-[var(--radius-lg)] border border-sky-400/30 bg-sky-400/10 px-4 py-3 text-sm text-sky-100" role="status">{translateLiteral(locale, customerApprovalMessage)}{customerApprovalUrl ? <a href={customerApprovalUrl} target="_blank" rel="noreferrer" className="ml-2 font-bold underline">{t("finance.openCustomerApprovalLink")}</a> : null}</div> : null}
 
       <ConfirmDialog
         open={isApproveDialogOpen}
-        title="Approve change order"
-        description="Approve this change order?"
-        cancelLabel="Cancel"
-        confirmLabel={isApproving ? "Approving..." : "Approve"}
+        title={t("finance.approveChangeOrder")}
+        description={t("finance.approveChangeOrderQuestion")}
+        cancelLabel={t("finance.cancel")}
+        confirmLabel={isApproving ? t("finance.approving") : t("finance.approve")}
         isConfirming={isApproving}
         confirmVariant="primary"
         onCancel={() => setIsApproveDialogOpen(false)}
@@ -396,53 +397,53 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
 
       <Card as="section" variant="elevated">
         <CardHeader>
-          <CardTitle>Overview</CardTitle>
+          <CardTitle>{t("finance.overview")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-4">
-          <DetailRow label="Status" value={<ChangeOrderStatusBadge status={changeOrder.status} />} />
-          <DetailRow label="Customer" value={<span data-user-content>{customerName}</span>} />
-          <DetailRow label="Project" value={<span data-user-content>{projectName}</span>} />
-          <DetailRow label="Total" value={formatUsd(changeOrder.total_amount, localeTag)} />
-          <DetailRow label="Schedule Impact" value={`${changeOrder.schedule_impact_days > 0 ? "+" : ""}${changeOrder.schedule_impact_days} days`} />
-          <DetailRow label="Requested Date" value={changeOrder.requested_date || "Not set"} />
-          <DetailRow label="Effective Date" value={changeOrder.effective_date || "Not set"} />
-          <DetailRow label="Updated" value={new Date(changeOrder.updated_at).toLocaleString(localeTag)} />
+          <DetailRow label={t("finance.status")} value={<ChangeOrderStatusBadge status={changeOrder.status} />} />
+          <DetailRow label={t("finance.customer")} value={customerName ? <span data-user-content>{customerName}</span> : t("finance.notLinked")} />
+          <DetailRow label={t("finance.project")} value={projectName ? <span data-user-content>{projectName}</span> : t("finance.notLinked")} />
+          <DetailRow label={t("finance.total")} value={formatUsd(changeOrder.total_amount, localeTag)} />
+          <DetailRow label={t("finance.scheduleImpact")} value={`${changeOrder.schedule_impact_days > 0 ? "+" : ""}${changeOrder.schedule_impact_days} ${t(Math.abs(changeOrder.schedule_impact_days) === 1 ? "finance.day" : "finance.days")}`} />
+          <DetailRow label={t("finance.requestedDate")} value={changeOrder.requested_date || t("finance.notSet")} />
+          <DetailRow label={t("finance.effectiveDate")} value={changeOrder.effective_date || t("finance.notSet")} />
+          <DetailRow label={t("finance.updated")} value={new Date(changeOrder.updated_at).toLocaleString(localeTag)} />
         </CardContent>
       </Card>
 
       <Card as="section" variant="elevated">
         <CardHeader>
-          <CardTitle>Scope / Description</CardTitle>
+          <CardTitle>{t("finance.scopeDescription")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p data-user-content={Boolean(changeOrder.description) || undefined} className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.description || "No scope description provided."}</p>
+          <p data-user-content={Boolean(changeOrder.description) || undefined} className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.description || t("finance.noScopeDescription")}</p>
         </CardContent>
       </Card>
 
       <Card as="section" variant="elevated">
         <CardHeader>
-          <CardTitle>Reason</CardTitle>
+          <CardTitle>{t("finance.reason")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p data-user-content={Boolean(changeOrder.reason) || undefined} className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.reason || "No reason provided."}</p>
+          <p data-user-content={Boolean(changeOrder.reason) || undefined} className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.reason || t("finance.noReason")}</p>
         </CardContent>
       </Card>
 
       <Card as="section" variant="elevated">
         <CardHeader>
-          <CardTitle>Line Items</CardTitle>
+          <CardTitle>{t("finance.lineItems")}</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="min-w-[980px] w-full">
             <thead>
               <tr className="text-left text-xs uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
-                <th className="px-3 py-2">Description</th>
-                <th className="px-3 py-2">Qty</th>
-                <th className="px-3 py-2">Unit</th>
-                <th className="px-3 py-2">Unit Cost</th>
-                <th className="px-3 py-2">Unit Price</th>
-                <th className="px-3 py-2">Cost Amount</th>
-                <th className="px-3 py-2">Price Amount</th>
+                <th className="px-3 py-2">{t("finance.description")}</th>
+                <th className="px-3 py-2">{t("finance.quantityShort")}</th>
+                <th className="px-3 py-2">{t("finance.unit")}</th>
+                <th className="px-3 py-2">{t("finance.unitCost")}</th>
+                <th className="px-3 py-2">{t("finance.unitPrice")}</th>
+                <th className="px-3 py-2">{t("finance.costAmount")}</th>
+                <th className="px-3 py-2">{t("finance.priceAmount")}</th>
               </tr>
             </thead>
             <tbody>
@@ -464,63 +465,63 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
 
       <Card as="section" variant="elevated">
         <CardHeader>
-          <CardTitle>Financial Summary</CardTitle>
+          <CardTitle>{t("finance.financialSummary")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
-          <DetailRow label="Subtotal" value={formatUsd(changeOrder.subtotal, localeTag)} />
-          <DetailRow label="Tax" value={formatUsd(changeOrder.tax_amount, localeTag)} />
-          <DetailRow label="Total" value={formatUsd(changeOrder.total_amount, localeTag)} />
+          <DetailRow label={t("finance.subtotal")} value={formatUsd(changeOrder.subtotal, localeTag)} />
+          <DetailRow label={t("finance.tax")} value={formatUsd(changeOrder.tax_amount, localeTag)} />
+          <DetailRow label={t("finance.total")} value={formatUsd(changeOrder.total_amount, localeTag)} />
         </CardContent>
       </Card>
 
       <Card as="section" variant="elevated">
         <CardHeader>
-          <CardTitle>Customer Notes</CardTitle>
+          <CardTitle>{t("finance.customerNotes")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.customer_notes || "No customer notes provided."}</p>
+          <p data-user-content={Boolean(changeOrder.customer_notes) || undefined} className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.customer_notes || t("finance.noCustomerNotes")}</p>
         </CardContent>
       </Card>
 
       <Card as="section" variant="elevated">
         <CardHeader>
-          <CardTitle>Internal Notes</CardTitle>
+          <CardTitle>{t("finance.internalNotes")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.internal_notes || "No internal notes provided."}</p>
+          <p data-user-content={Boolean(changeOrder.internal_notes) || undefined} className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{changeOrder.internal_notes || t("finance.noInternalNotes")}</p>
         </CardContent>
       </Card>
 
       <Card as="section" variant="elevated">
         <CardHeader>
-          <CardTitle>Related Invoice(s)</CardTitle>
+          <CardTitle>{t("finance.relatedInvoices")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {invoiceLinks.length === 0 ? (
-            <EmptyState compact icon="$" title="Not invoiced yet" description="Add this approved change order to an existing invoice or create a new one." />
+            <EmptyState compact icon="$" title={t("finance.notInvoicedYet")} description={t("finance.notInvoicedDescription")} />
           ) : (
             <div className="space-y-2">
               {invoiceLinks.map((link) => (
                 <article key={link.id} className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3">
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Invoice: {link.invoiceId}</p>
-                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Type: {formatChangeOrderStatusLabel(link.linkType)} · Applied: {formatUsd(link.amountApplied, localeTag)}</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t("finance.invoiceLabel")}: {link.invoiceId}</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{t("finance.typeLabel")}: {formatChangeOrderStatusLabel(link.linkType)} · {t("finance.appliedLabel")}: {formatUsd(link.amountApplied, localeTag)}</p>
                 </article>
               ))}
             </div>
           )}
 
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-            <Select value={selectedInvoiceId} onChange={(event) => setSelectedInvoiceId(event.target.value)}>
-              <option value="">Select existing invoice</option>
+            <Select aria-label={t("finance.selectExistingInvoice")} value={selectedInvoiceId} onChange={(event) => setSelectedInvoiceId(event.target.value)}>
+              <option value="">{t("finance.selectExistingInvoice")}</option>
               {existingInvoiceOptions.map((invoiceOption) => (
-                <option key={invoiceOption.id} value={invoiceOption.id}>{invoiceOption.label}</option>
+                <option data-user-content key={invoiceOption.id} value={invoiceOption.id}>{invoiceOption.label}</option>
               ))}
             </Select>
             <Button type="button" variant="secondary" onClick={() => void handleAddToExistingInvoice()} disabled={!canAddToInvoice || !selectedInvoiceId}>
-              Add to Invoice
+              {t("finance.addToInvoice")}
             </Button>
             <Button type="button" onClick={() => void handleCreateInvoiceFromChangeOrder()} disabled={!canAddToInvoice}>
-              Create New Invoice
+              {t("finance.createNewInvoice")}
             </Button>
           </div>
         </CardContent>
@@ -528,17 +529,17 @@ export function ChangeOrderDetail({ changeOrderId }: { changeOrderId: string }) 
 
       <Card as="section" variant="elevated">
         <CardHeader>
-          <CardTitle>Activity Timeline</CardTitle>
+          <CardTitle>{t("finance.activityTimeline")}</CardTitle>
         </CardHeader>
         <CardContent>
           {activity.length === 0 ? (
-            <p className="text-sm text-[var(--color-text-secondary)]">No activity yet.</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">{t("finance.noActivityYet")}</p>
           ) : (
             <div className="space-y-3">
               {activity.map((entry) => (
                 <article key={entry.id} className="rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3">
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{formatChangeOrderStatusLabel(entry.activityType)}</p>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{entry.description}</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{translateLiteral(locale, formatChangeOrderStatusLabel(entry.activityType))}</p>
+                  <p data-user-content className="mt-1 text-sm text-[var(--color-text-secondary)]">{entry.description}</p>
                   <p className="mt-1 text-xs text-[var(--color-text-muted)]">{new Date(entry.createdAt).toLocaleString(localeTag)}</p>
                 </article>
               ))}
