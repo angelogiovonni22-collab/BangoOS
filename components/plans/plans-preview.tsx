@@ -108,7 +108,7 @@ export function PlansPreview({ selectedDocument, projectName, onUploadRevision, 
 
         {previewType === "pdf" || previewType === "image" ? (
           <>
-            <BlueprintAuto3dControl source={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} />
+            <BlueprintAuto3dControl key={selectedDocument.versionId} source={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} />
             <BlueprintVisualMockupControl source={selectedDocument} />
             <BlueprintMultiFloorControl source={selectedDocument} projectName={projectName} companyId={companyId} projectId={projectId} userId={userId} />
           </>
