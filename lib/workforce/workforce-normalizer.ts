@@ -111,7 +111,7 @@ export function normalizeAssignmentViews(input: {
   const views = input.assignments.map((assignment) => {
     const crew = assignment.crew_id ? crewById.get(assignment.crew_id) || null : null;
     const employee = assignment.employee_id ? employeeById.get(assignment.employee_id) || null : null;
-    const employeeName = employee && employee.profile_id ? displayName(profileById.get(employee.profile_id) || null) : null;
+    const employeeName = employee ? buildEmployeeName(employee, profileById) : null;
     const phase = assignment.phase_id ? phaseById.get(assignment.phase_id) || null : null;
     const task = assignment.task_id ? taskById.get(assignment.task_id) || null : null;
     const project = projectById.get(assignment.project_id) || null;
@@ -178,7 +178,7 @@ export function normalizeMembershipViews(input: {
     .map((membership) => {
       const crew = crewById.get(membership.crew_id) || null;
       const employee = employeeById.get(membership.employee_id) || null;
-      const employeeName = employee && employee.profile_id ? displayName(profileById.get(employee.profile_id) || null) : null;
+      const employeeName = employee ? buildEmployeeName(employee, profileById) : null;
 
       return {
         id: membership.id,
@@ -238,7 +238,7 @@ function normalizeEquipment(items: WorkforceEquipmentRow[]) {
 
 function buildEmployeeName(employee: WorkforceEmployeeRow, profileById: Map<string, WorkforceProfileRow>) {
   const profile = employee.profile_id ? profileById.get(employee.profile_id) || null : null;
-  return displayName(profile) || employee.employee_number;
+  return employee.full_name?.trim() || displayName(profile) || employee.employee_number;
 }
 
 function firstCurrentAssignment(assignments: WorkforceAssignmentView[]) {
@@ -325,6 +325,8 @@ export function normalizeEmployeeDirectory(input: {
       id: employee.id,
       employeeNumber: employee.employee_number,
       fullName: employeeName,
+      phone: employee.contact_phone || null,
+      email: employee.contact_email || null,
       positionTitle: employee.position_title,
       trade: employee.trade,
       employmentStatus: employee.employment_status,
@@ -355,6 +357,8 @@ export function normalizeEmployeeDirectory(input: {
       const haystack = [
         row.employeeNumber,
         row.fullName,
+        row.phone || "",
+        row.email || "",
         row.positionTitle,
         row.trade || "",
         row.supervisorName || "",
