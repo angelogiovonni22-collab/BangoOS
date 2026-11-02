@@ -46,8 +46,16 @@ try {
   await db.exec(await readFile(migration,'utf8'));
   if (snapshotMigration) await db.exec(await readFile(snapshotMigration,'utf8'));
   if (totalsMigration) await db.exec(await readFile(totalsMigration,'utf8'));
-  // Install the calendar repair after the existing source/snapshot boundaries.
-  if (calendarMigration) await db.exec(await readFile(calendarMigration,'utf8'));
+  // Preserve existing period values while adding the calendar snapshot.
+  if (calendarMigration) {
+    const legacy=(await query("insert into public.payroll_periods(company_id,period_start,period_end,pay_date) values($1,'2025-01-06','2025-01-12','2025-01-17') returning *",[company]))[0];
+    await db.exec(await readFile(calendarMigration,'utf8'));
+    const restored=(await query('select * from public.payroll_periods where id=$1',[legacy.id]))[0];
+    assert.equal(restored.calendar_timezone,'UTC');
+    delete restored.calendar_timezone;
+    assert.deepEqual(restored,legacy);
+    await query('delete from public.payroll_periods where id=$1',[legacy.id]);
+  }
   await db.exec('grant select on public.projects to authenticated;');
   await db.exec('grant usage on schema public,auth to authenticated; grant select,insert,update,delete on public.companies,public.profiles,public.employees,public.workforce_time_entries,public.payroll_periods,public.payroll_lines,public.payroll_employee_settings to authenticated; set role authenticated;');
   assert.equal(Number((await workspace()).approved_unprocessed_hours),1);
@@ -194,6 +202,11 @@ try {
       values($1,$3,$4,$5,'2026-11-09 04:30Z','2026-11-09 05:30Z',0,'approved'),
       ($2,$3,$4,$5,'2026-11-09 05:30Z','2026-11-09 06:30Z',0,'approved')`,[sunday,monday,company,employee,project]);
     const calendarBuild=async(start,end)=>(await query('select public.build_weekly_payroll($1,$2,$3,$3::date+5) id',[company,start,end]))[0].id;
+    await query("update public.payroll_employee_settings set status='inactive'");
+    await assert.rejects(calendarBuild('2026-11-02','2026-11-08'),/need payroll rates/);
+    assert.equal(Number((await query("select count(*) n from public.payroll_periods where period_start='2026-11-02'"))[0].n),0);
+    await query("update public.payroll_employee_settings set status='active'");
+    const actualBefore=totalsMigration?(await totals()).approved_gross_pay:null;
     const sundayPeriod=await calendarBuild('2026-11-02','2026-11-08');
     const mondayPeriod=await calendarBuild('2026-11-09','2026-11-15');
     const sundayLine=(await query('select * from public.payroll_lines where payroll_period_id=$1',[sundayPeriod]))[0];
@@ -210,6 +223,7 @@ try {
     await assert.rejects(query("update public.payroll_periods set calendar_timezone='UTC' where id=$1",[sundayPeriod]),/immutable/);
     await assert.rejects(query('insert into public.payroll_lines(company_id,payroll_period_id,employee_id,employee_name,source_time_entry_ids) values($1,$2,$3,$4,$5)',[company,mondayPeriod,employee,'AUDIT',[sunday]]),/source time must/);
     await query("select public.set_payroll_status($1,$2,'approved')",[company,sundayPeriod]);
+    if (totalsMigration) assert.equal((await totals()).approved_gross_pay,actualBefore+40,'only approved company-week wages enter actual job cost');
     assert.equal((await query('select calendar_timezone from public.payroll_periods where id=$1',[sundayPeriod]))[0].calendar_timezone,'America/New_York');
     // Daylight-saving gaps/repeated hours use elapsed instants, not wall time.
     await query("update public.companies set timezone='America/New_York' where id=$1",[company]);
