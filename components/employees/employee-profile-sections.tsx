@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, PartialDataNotice } from "@/components/ui";
 import type { EmployeeProfile } from "@/lib/employees";
+import { formatEmployeeCalendarDate } from "@/lib/employees/employee-calendar-date";
 import { EmployeeStatusPill } from "./employee-status-pill";
 
 type EmployeeProfileSectionsProps = {
@@ -30,8 +31,8 @@ export function EmployeeProfileSections({ employee, locale, t }: EmployeeProfile
           <Field label="Current assignment" value={overview.currentAssignmentTitle || "Unassigned"} />
           <Field label="Current project" value={overview.currentProjectName || "Unassigned"} />
           <Field label="Phase / task" value={overview.currentPhaseOrTask || "Unavailable"} />
-          <Field label="Hire date" value={formatDate(overview.hireDate, locale)} />
-          <Field label="Termination date" value={overview.terminationDate ? formatDate(overview.terminationDate, locale) : "Not terminated"} />
+          <Field label="Hire date" value={formatEmployeeCalendarDate(overview.hireDate, locale)} />
+          <Field label="Termination date" value={overview.terminationDate ? formatEmployeeCalendarDate(overview.terminationDate, locale) : "Not terminated"} />
           <Field label="Updated" value={formatDateTime(overview.updatedAt, locale)} />
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">Status</p>
@@ -158,14 +159,6 @@ function EquipmentGroup({ title, items }: { title: string; items: EmployeeProfil
       )}
     </section>
   );
-}
-
-function formatDate(value: string, locale: string) {
-  return new Intl.DateTimeFormat(locale, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
 }
 
 function formatDateTime(value: string, locale: string) {
