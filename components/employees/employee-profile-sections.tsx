@@ -21,6 +21,8 @@ export function EmployeeProfileSections({ employee, locale, t }: EmployeeProfile
       <Card variant="elevated">
         <CardContent className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">
           <Field label="Employee #" value={overview.employeeNumber} />
+          <Field label={t("employees.form.phone")} value={overview.phone || t("employees.form.notProvided")} raw />
+          <Field label={t("employees.form.email")} value={overview.email || t("employees.form.notProvided")} raw />
           <Field label="Position" value={overview.positionTitle} />
           <Field label="Trade" value={overview.trade || "Not provided"} />
           <Field label="Supervisor" value={overview.supervisorName || "Unassigned"} />
@@ -85,11 +87,11 @@ export function EmployeeProfileSections({ employee, locale, t }: EmployeeProfile
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({ label, value, raw = false }: { label: string; value: string; raw?: boolean }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{label}</p>
-      <p className="mt-1 text-sm font-medium text-[var(--color-text-primary)]">{value}</p>
+      <p className="mt-1 break-words text-sm font-medium text-[var(--color-text-primary)]" translate={raw ? "no" : undefined} data-no-auto-translate={raw || undefined}>{value}</p>
     </div>
   );
 }
