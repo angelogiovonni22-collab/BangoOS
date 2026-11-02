@@ -156,5 +156,6 @@
   "recordAvailability.assigned": "Assigned",
   "recordAvailability.unavailable": "Unavailable",
   "recordAvailability.restricted": "Restricted",
-  "recordAvailability.unknown": "Unknown"
+  "recordAvailability.unknown": "Unknown",
+  "validation.duplicateNumber": "This employee number is already in use. Choose a different number."
 }
