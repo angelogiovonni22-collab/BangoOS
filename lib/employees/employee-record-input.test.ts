@@ -76,6 +76,7 @@ assert.ok(service.includes('employeeRecordInput(input, "create")') && service.in
 assert.ok(form.includes('href="/crews"') && !form.includes("crewOptions[0]"));
 assert.ok(form.includes('supervisorProfileId: state.supervisorProfileId || null'));
 assert.ok(form.includes('role="alert"'));
+assert.ok(form.includes('employees.validation.duplicateNumber') && form.includes('"23505"'));
 const en = JSON.parse(read("locales/en/employees.json"));
 const es = JSON.parse(read("locales/es/employees.json"));
 for (const key of Object.keys(en).filter((key) => key.startsWith("recordStatus.") || key.startsWith("recordAvailability."))) assert.ok(es[key], key);
