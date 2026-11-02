@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { TradePartnerMobilizationPanel } from "@/components/trade-partners/trade-partner-mobilization-panel";
+import { PartnerPhotoUploader } from "@/components/trade-partners/partner-photo-uploader";
 
 type TradePartnerJob = {
   assignment_id: string;
@@ -121,42 +122,6 @@ export default async function TradePartnerProjectPage({ params, searchParams }: 
     redirect(`/partner/${projectId}?notice=${encodeURIComponent("Message sent.")}`);
   }
 
-  async function uploadPhoto(formData: FormData) {
-    "use server";
-    const client = await createClient();
-    if (!client) redirect("/login");
-    const context = await resolveWorkspaceContext(client);
-    if (!context.context || (context.context.role || "").toLowerCase() !== "subcontractor") redirect("/app-entry");
-
-    const file = formData.get("photo");
-    if (!(file instanceof File) || file.size === 0) redirect(`/partner/${projectId}?error=${encodeURIComponent("Choose a photo first.")}`);
-    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic"]);
-    if (!allowedTypes.has(file.type)) redirect(`/partner/${projectId}?error=${encodeURIComponent("Use a JPG, PNG, WebP, or HEIC photo.")}`);
-    if (file.size > 10 * 1024 * 1024) redirect(`/partner/${projectId}?error=${encodeURIComponent("Photo must be 10 MB or smaller.")}`);
-
-    const category = String(formData.get("category") || "progress");
-    const note = String(formData.get("note") || "").trim();
-    const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-120) || "photo";
-    const storagePath = `${context.context.companyId}/${projectId}/${crypto.randomUUID()}-${cleanName}`;
-    const upload = await client.storage.from("project-photos").upload(storagePath, file, { contentType: file.type, upsert: false });
-    if (upload.error) redirect(`/partner/${projectId}?error=${encodeURIComponent(upload.error.message)}`);
-
-    const registration = await (client as unknown as PartnerRpcClient).rpc("register_my_trade_partner_photo", {
-      p_project_id: projectId,
-      p_storage_path: storagePath,
-      p_original_filename: file.name,
-      p_mime_type: file.type,
-      p_file_size: file.size,
-      p_category: category,
-      p_note: note || null,
-    });
-    if (registration.error) {
-      await client.storage.from("project-photos").remove([storagePath]);
-      redirect(`/partner/${projectId}?error=${encodeURIComponent(registration.error.message)}`);
-    }
-    revalidatePath(`/partner/${projectId}`);
-    redirect(`/partner/${projectId}?notice=${encodeURIComponent("Photo uploaded.")}`);
-  }
 
   return (
     <div className="container-content space-y-6">
@@ -190,12 +155,7 @@ export default async function TradePartnerProjectPage({ params, searchParams }: 
         <div className="space-y-6">
           <section id="photos" className="rounded-2xl border border-[var(--bos-border-default)] bg-[var(--bos-bg-panel)] p-5 shadow-[var(--shadow-small)]">
             <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8ec3ff]">Field Channel</p><h2 className="mt-1 text-xl font-semibold">Photos</h2></div><span className="text-xs text-[var(--bos-text-muted)]">{photos.length} shared</span></div>
-            <form action={uploadPhoto} encType="multipart/form-data" className="mt-4 grid gap-3 rounded-xl border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-root)] p-4 sm:grid-cols-2">
-              <label className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--bos-text-muted)] sm:col-span-2">Add jobsite photo<input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic" required className="mt-2 block w-full text-sm font-medium normal-case tracking-normal text-[var(--bos-text-primary)]" /></label>
-              <label className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--bos-text-muted)]">Category<select name="category" className="mt-2 h-10 w-full rounded-lg border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 text-sm normal-case tracking-normal text-[var(--bos-text-primary)]"><option value="progress">Progress</option><option value="materials">Materials</option><option value="inspection">Inspection</option><option value="safety">Safety</option><option value="damage">Damage</option><option value="other">Other</option></select></label>
-              <label className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--bos-text-muted)]">Note<input name="note" maxLength={500} placeholder="What does this show?" className="mt-2 h-10 w-full rounded-lg border border-[var(--bos-border-default)] bg-[var(--bos-bg-control)] px-3 text-sm normal-case tracking-normal text-[var(--bos-text-primary)]" /></label>
-              <button type="submit" className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-500 sm:col-span-2">Upload Photo</button>
-            </form>
+            <PartnerPhotoUploader projectId={projectId} />
             {photos.length ? <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{photos.map((photo) => <article key={photo.id} className="overflow-hidden rounded-xl border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-root)]">{photo.url ? <a href={photo.url} target="_blank" rel="noreferrer" className="block"><img src={photo.url} alt={photo.note || photo.original_filename || "Jobsite photo"} className="h-40 w-full object-cover" /></a> : <div className="flex h-40 items-center justify-center text-xs text-[var(--bos-text-muted)]">Preview unavailable</div>}<div className="p-3"><div className="flex items-center justify-between gap-2"><span className="text-xs font-bold uppercase text-[#8ec3ff]">{formatLabel(photo.category)}</span>{photo.is_mine ? <span className="text-[10px] text-[var(--bos-text-muted)]">Uploaded by you</span> : null}</div><p className="mt-2 text-sm text-[var(--bos-text-secondary)]">{photo.note || photo.original_filename || "Jobsite photo"}</p><p className="mt-2 text-[11px] text-[var(--bos-text-muted)]">{formatDateTime(photo.captured_at || photo.created_at)}</p></div></article>)}</div> : <p className="mt-4 rounded-xl border border-dashed border-[var(--bos-border-subtle)] p-5 text-sm text-[var(--bos-text-secondary)]">No field photos have been shared on this assignment yet.</p>}
           </section>
 
