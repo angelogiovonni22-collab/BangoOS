@@ -60,8 +60,9 @@ export function EmployeeForm({ mode, initialValue, supervisorOptions, isSaving, 
         birthDate: "", address: "", emergencyContact: { name: "", relationship: "", phone: "" },
         certifications: [], skills: [], assignedProjects: [], employmentHistory: [],
       });
-    } catch {
-      setErrorMessage(t("employees.errorSave"));
+    } catch (error) {
+      const duplicate = error && typeof error === "object" && "code" in error && error.code === "23505";
+      setErrorMessage(t(duplicate ? "employees.validation.duplicateNumber" : "employees.errorSave"));
     }
   };
   const panel = "rounded-[var(--radius-2xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] p-6 shadow-[var(--shadow-card)]";
