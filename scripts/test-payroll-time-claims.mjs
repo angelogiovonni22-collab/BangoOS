@@ -14,6 +14,7 @@ const project = '00000000-0000-4000-8000-000000000005';
 const snapshotMigration = process.argv[3];
 const totalsMigration = process.argv[4];
 const calendarMigration = process.argv[5];
+const employeeMigration = process.argv[6];
 const totals = async () => (await query('select public.get_payroll_job_cost_totals($1) data',[company]))[0].data;
 const migration = 'supabase/migrations/20261007222345_audit_payroll_time_claims_and_void_recovery.sql';
 const query = async (sql, values = []) => (await db.query(sql, values)).rows;
@@ -56,6 +57,7 @@ try {
     assert.deepEqual(restored,legacy);
     await query('delete from public.payroll_periods where id=$1',[legacy.id]);
   }
+  if (employeeMigration) await db.exec(await readFile(employeeMigration,'utf8'));
   await db.exec('grant select on public.projects to authenticated;');
   await db.exec('grant usage on schema public,auth to authenticated; grant select,insert,update,delete on public.companies,public.profiles,public.employees,public.workforce_time_entries,public.payroll_periods,public.payroll_lines,public.payroll_employee_settings to authenticated; set role authenticated;');
   assert.equal(Number((await workspace()).approved_unprocessed_hours),1);
@@ -252,6 +254,24 @@ try {
     await query("update public.companies set timezone='' where id=$1",[company]);
     assert.equal((await query("insert into public.payroll_periods(company_id,period_start,period_end,pay_date) values($1,'2028-03-06','2028-03-12','2028-03-17') returning calendar_timezone",[company]))[0].calendar_timezone,'UTC');
     console.log('PASS: company-calendar week selection, midnight boundaries in both offset directions, period timezone immutability, direct source guard, DST elapsed hours, invalid-zone rollback and UTC fallback.');
+  }
+  if (employeeMigration) {
+    const standalone='00000000-0000-4000-8000-000000000090';
+    await query("insert into public.employees(id,company_id,employee_number,position_title,employment_status,full_name,contact_phone,contact_email) values($1,$2,'AUDIT-NAMED','Carpenter','active','BOS Standalone Employee','614-555-0100','audit@example.invalid')",[standalone,company]);
+    const row=(await query('select full_name,contact_phone,contact_email,profile_id from public.employees where id=$1',[standalone]))[0];
+    assert.deepEqual(row,{full_name:'BOS Standalone Employee',contact_phone:'614-555-0100',contact_email:'audit@example.invalid',profile_id:null});
+    assert.equal((await workspace()).employees.find(e=>e.id===standalone).name,'BOS Standalone Employee');
+    await query('insert into public.payroll_employee_settings(company_id,employee_id,hourly_rate) values($1,$2,20)',[company,standalone]);
+    await query("insert into public.workforce_time_entries(id,company_id,employee_id,project_id,started_at,ended_at,break_minutes,status) values(gen_random_uuid(),$1,$2,$3,'2031-01-06 09:00Z','2031-01-06 10:00Z',0,'approved')",[company,standalone,project]);
+    const period=(await query("select public.build_weekly_payroll($1,'2031-01-06','2031-01-12','2031-01-17') id",[company]))[0].id;
+    assert.equal((await query('select employee_name from public.payroll_lines where payroll_period_id=$1',[period]))[0].employee_name,'BOS Standalone Employee');
+    await query("update public.employees set full_name='BOS Updated Employee',contact_phone=null,contact_email=null where id=$1",[standalone]);
+    assert.equal((await workspace()).employees.find(e=>e.id===standalone).name,'BOS Updated Employee');
+    assert.equal((await query('select employee_name from public.payroll_lines where payroll_period_id=$1',[period]))[0].employee_name,'BOS Standalone Employee','recorded payroll identity is immutable under later employee edits');
+    await assert.rejects(query("update public.employees set full_name=' ' where id=$1",[standalone]),/employees_full_name_valid/);
+    await assert.rejects(query("update public.employees set contact_phone=repeat('x',65) where id=$1",[standalone]),/employees_contact_phone_valid/);
+    assert.equal((await query('select count(*) n from public.profiles'))[0].n,0,'employee record does not create an auth/profile identity');
+    console.log('PASS: standalone employee identity/contact roundtrip, payroll workspace identity, preserved payroll name snapshot, contact clear and database bounds without account creation.');
   }
   await db.exec("set bos.test.authorized='false'");
   if (totalsMigration) assert.deepEqual(await totals(),{status:'unavailable',reason:'finance_role_required'});
