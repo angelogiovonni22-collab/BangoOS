@@ -5,16 +5,14 @@ import { useRouter } from "next/navigation";
 import { EmployeeForm } from "@/components/employees";
 import { ErrorState, PageHeader } from "@/components/ui";
 import { createEmployeeService } from "@/lib/employees";
-import { createCrewService } from "@/lib/crews";
 import { useI18n } from "@/lib/i18n/provider";
 
 export default function NewEmployeePage() {
   const { t } = useI18n();
   const router = useRouter();
   const employeeService = useMemo(() => createEmployeeService(), []);
-  const crewService = useMemo(() => createCrewService(), []);
 
-  const [crewOptions, setCrewOptions] = useState<string[]>([]);
+  const [supervisorOptions, setSupervisorOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -27,24 +25,13 @@ export default function NewEmployeePage() {
       setErrorMessage(null);
 
       try {
-        const crews = await crewService.getCrews({
-          query: "",
-          status: "all",
-          leadId: "all",
-          supervisorId: "all",
-          projectId: "all",
-          assignmentStatus: "all",
-          sortBy: "name_asc",
-          page: 1,
-          pageSize: 50,
-        });
+        const options = await employeeService.getSupervisorProfileOptions();
 
         if (!active) {
           return;
         }
 
-        const options = crews.items.map((crew) => crew.name).filter(Boolean);
-        setCrewOptions(options.length > 0 ? options : ["General Crew"]);
+        setSupervisorOptions(options);
       } catch {
         if (active) {
           setErrorMessage("employees.errorLoad");
@@ -61,7 +48,7 @@ export default function NewEmployeePage() {
     return () => {
       active = false;
     };
-  }, [crewService]);
+  }, [employeeService]);
 
   const handleSubmit = async (value: Parameters<typeof employeeService.createEmployee>[0]) => {
     if (isSaving) {
@@ -81,7 +68,7 @@ export default function NewEmployeePage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Employee records" description="Create a workforce employee profile." />
+        <PageHeader title={t("employees.form.createTitle")} description={t("employees.form.createDescription")} />
       </div>
     );
   }
@@ -92,10 +79,10 @@ export default function NewEmployeePage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Employee records" description="Create a workforce employee profile." />
+      <PageHeader title={t("employees.form.createTitle")} description={t("employees.form.createDescription")} />
       <EmployeeForm
         mode="create"
-        crewOptions={crewOptions}
+        supervisorOptions={supervisorOptions}
         isSaving={isSaving}
         onSubmit={handleSubmit}
         onCancel={() => router.push("/employees")}

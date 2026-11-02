@@ -330,7 +330,7 @@ export function createCrewService(deps: CrewServiceDeps = {}): CrewService {
       const employees = await loadEmployeeRowsImpl();
       return employees.map((employee) => ({
         employeeId: employee.id,
-        fullName: employee.employee_number,
+        fullName: employee.full_name?.trim() || employee.employee_number,
         position: employee.position_title,
         employmentStatus: employee.employment_status === "terminated"
           ? "inactive"

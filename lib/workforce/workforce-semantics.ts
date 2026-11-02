@@ -9,6 +9,13 @@ export function isActiveEmployee(employee: Pick<WorkforceEmployeeRow, "employmen
   return employee.employment_status === "active";
 }
 
+export function archivedEmployeeState(employee: Pick<WorkforceEmployeeRow, "employment_status">) {
+  return {
+    employment_status: employee.employment_status === "terminated" ? "terminated" as const : "inactive" as const,
+    availability_status: "unavailable" as const,
+  };
+}
+
 export function isAvailableEmployee(employee: Pick<WorkforceEmployeeRow, "employment_status" | "availability_status">) {
   return isActiveEmployee(employee) && employee.availability_status === "available";
 }

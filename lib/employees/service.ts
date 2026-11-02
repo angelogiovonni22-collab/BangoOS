@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { createWorkforceService } from "@/lib/workforce";
+import { createWorkforceRepository } from "@/lib/workforce/workforce-repository";
+import { employeeRecordInput } from "./employee-record-input";
 import type { WorkforceEmployeeRow } from "@/lib/workforce";
 import type {
   EmployeeDirectoryPayload,
@@ -18,6 +20,7 @@ export type EmployeeService = {
   getEmployee: (employeeId: string) => Promise<EmployeeProfile | null>;
   getCrewOptions: () => Promise<Array<{ id: string; label: string }>>;
   getSupervisorOptions: () => Promise<Array<{ id: string; label: string }>>;
+  getSupervisorProfileOptions: () => Promise<Array<{ id: string; label: string }>>;
   getProjectOptions: () => Promise<Array<{ id: string; label: string }>>;
   createEmployee: (input: UpsertEmployeeInput) => Promise<Employee>;
   updateEmployee: (employeeId: string, input: UpsertEmployeeInput) => Promise<Employee | null>;
@@ -40,48 +43,6 @@ const DEFAULT_DIRECTORY_FILTERS: EmployeeFilters = {
   page: 1,
   pageSize: 1,
 };
-
-function toEmploymentStatus(status: string): "active" | "inactive" | "leave" {
-  if (status === "on_leave" || status === "leave") {
-    return "leave";
-  }
-
-  if (status === "inactive") {
-    return "inactive";
-  }
-
-  return "active";
-}
-
-function toAvailabilityStatus(status: string): "available" | "assigned" | "unavailable" {
-  if (status === "assigned") {
-    return "assigned";
-  }
-
-  if (status === "off_shift") {
-    return "unavailable";
-  }
-
-  return "available";
-}
-
-function normalizeEmployeeNumber(input: UpsertEmployeeInput): string {
-  const explicit = input.employeeNumber?.trim();
-  if (explicit) {
-    return explicit;
-  }
-
-  const fromEmail = input.email
-    .split("@")[0]
-    ?.replace(/[^a-zA-Z0-9]/g, "")
-    .toUpperCase();
-
-  if (fromEmail) {
-    return `EMP-${fromEmail}`;
-  }
-
-  throw new Error("Employee number is required.");
-}
 
 async function resolveContext() {
   const supabase = createClient();
@@ -139,17 +100,19 @@ function toEmployee(row: WorkforceEmployeeRow, input: Pick<
   return {
     id: row.id,
     employeeNumber: row.employee_number,
-    fullName: input.fullName,
+    fullName: row.full_name?.trim() || row.employee_number,
+    phone: row.contact_phone || null,
+    email: row.contact_email || null,
     positionTitle: row.position_title,
     trade: row.trade,
     employmentStatus: row.employment_status,
     availabilityStatus: row.availability_status,
-    supervisorName: input.supervisor || null,
-    supervisorProfileId: input.supervisorProfileId ?? null,
+    supervisorName: row.supervisor_profile_id ? input.supervisor || null : null,
+    supervisorProfileId: row.supervisor_profile_id,
     primaryCrewId: row.primary_crew_id,
     primaryCrewName: input.crew || null,
     currentAssignmentId: null,
-    currentAssignmentTitle: input.currentAssignment,
+    currentAssignmentTitle: null,
     currentProjectId: null,
     currentProjectName: null,
     currentPhaseOrTask: null,
@@ -163,8 +126,8 @@ function toEmployee(row: WorkforceEmployeeRow, input: Pick<
     position: row.position_title,
     crew: input.crew,
     supervisor: input.supervisor,
-    currentAssignment: input.currentAssignment,
-    activeToday: input.activeToday,
+    currentAssignment: null,
+    activeToday: false,
     hiredOn: row.hire_date,
   } satisfies Employee;
 }
@@ -217,8 +180,16 @@ export function createEmployeeService(deps: EmployeeServiceDeps = {}): EmployeeS
 
     async getSupervisorOptions() {
       const directory = await loadDefaultDirectory();
-
       return directory.options.supervisorOptions;
+    },
+
+    async getSupervisorProfileOptions() {
+      const { supabase, workspace } = await resolveContext();
+      const profiles = await createWorkforceRepository(supabase).listProfiles(workspace.companyId);
+      return profiles.map((profile) => ({
+        id: profile.id,
+        label: [profile.first_name?.trim(), profile.last_name?.trim()].filter(Boolean).join(" "),
+      })).filter((profile) => profile.label).sort((a, b) => a.label.localeCompare(b.label));
     },
 
     async getProjectOptions() {
@@ -230,17 +201,7 @@ export function createEmployeeService(deps: EmployeeServiceDeps = {}): EmployeeS
     async createEmployee(input) {
       const { workforce, workspace } = await resolveContext();
 
-      const created = await workforce.createEmployee(workspace.companyId, workspace.userId, {
-        employee_number: normalizeEmployeeNumber(input),
-        profile_id: input.profileId ?? null,
-        trade: input.crew?.trim() || null,
-        position_title: input.position.trim(),
-        employment_status: toEmploymentStatus(input.employmentStatus),
-        primary_crew_id: input.primaryCrewId ?? null,
-        hire_date: input.hiredOn,
-        availability_status: toAvailabilityStatus(input.availabilityStatus),
-        notes: input.notes.trim() || null,
-      });
+      const created = await workforce.createEmployee(workspace.companyId, workspace.userId, employeeRecordInput(input, "create"));
 
       return toEmployee(created, {
         fullName: input.fullName,
@@ -256,17 +217,7 @@ export function createEmployeeService(deps: EmployeeServiceDeps = {}): EmployeeS
     async updateEmployee(employeeId, input) {
       const { workforce, workspace } = await resolveContext();
 
-      const updated = await workforce.updateEmployee(workspace.companyId, workspace.userId, employeeId, {
-        employee_number: input.employeeNumber?.trim() || undefined,
-        profile_id: input.profileId ?? undefined,
-        trade: input.crew?.trim() || undefined,
-        position_title: input.position.trim() || undefined,
-        employment_status: toEmploymentStatus(input.employmentStatus),
-        primary_crew_id: input.primaryCrewId ?? undefined,
-        hire_date: input.hiredOn || undefined,
-        availability_status: toAvailabilityStatus(input.availabilityStatus),
-        notes: input.notes.trim() || null,
-      });
+      const updated = await workforce.updateEmployee(workspace.companyId, workspace.userId, employeeId, employeeRecordInput(input, "edit"));
 
       if (!updated) {
         return null;

@@ -7,7 +7,6 @@ import { EmployeeForm } from "@/components/employees";
 import { EmptyState, ErrorState, PageHeader } from "@/components/ui";
 import { createEmployeeService, type Employee } from "@/lib/employees";
 import type { EmployeeProfile } from "@/lib/employees";
-import { createCrewService } from "@/lib/crews";
 import { useI18n } from "@/lib/i18n/provider";
 
 export default function EditEmployeePage() {
@@ -16,10 +15,9 @@ export default function EditEmployeePage() {
   const { t } = useI18n();
   const router = useRouter();
   const employeeService = useMemo(() => createEmployeeService(), []);
-  const crewService = useMemo(() => createCrewService(), []);
 
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
-  const [crewOptions, setCrewOptions] = useState<string[]>([]);
+  const [supervisorOptions, setSupervisorOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -38,19 +36,9 @@ export default function EditEmployeePage() {
       setErrorMessage(null);
 
       try {
-        const [loadedProfile, crews] = await Promise.all([
+        const [loadedProfile, options] = await Promise.all([
           employeeService.getEmployee(employeeId),
-          crewService.getCrews({
-            query: "",
-            status: "all",
-            leadId: "all",
-            supervisorId: "all",
-            projectId: "all",
-            assignmentStatus: "all",
-            sortBy: "name_asc",
-            page: 1,
-            pageSize: 50,
-          }),
+          employeeService.getSupervisorProfileOptions(),
         ]);
 
         if (!active) {
@@ -63,8 +51,7 @@ export default function EditEmployeePage() {
           return;
         }
 
-        const options = crews.items.map((crew) => crew.name).filter(Boolean);
-        setCrewOptions(options.length > 0 ? options : ["General Crew"]);
+        setSupervisorOptions(options);
         setProfile(loadedProfile);
       } catch {
         if (active) {
@@ -82,7 +69,7 @@ export default function EditEmployeePage() {
     return () => {
       active = false;
     };
-  }, [crewService, employeeId, employeeService]);
+  }, [employeeId, employeeService]);
 
   const initialValue = useMemo<Employee | undefined>(() => {
     if (!profile) {
@@ -115,10 +102,10 @@ export default function EditEmployeePage() {
       assignmentBucket: overview.assignmentBucket,
       equipmentCount: overview.equipmentCount,
       position: overview.positionTitle,
-      crew: overview.primaryCrewName || crewOptions[0] || "General Crew",
+      crew: overview.primaryCrewName || "",
       supervisor: overview.supervisorName || "",
-      phone: "",
-      email: "",
+      phone: overview.phone || "",
+      email: overview.email || "",
       currentAssignment: overview.currentAssignmentTitle,
       activeToday: overview.assignmentBucket === "current",
       hiredOn: overview.hireDate,
@@ -135,7 +122,7 @@ export default function EditEmployeePage() {
       employmentHistory: [],
       avatarUrl: null,
     };
-  }, [crewOptions, profile]);
+  }, [profile]);
 
   const handleSubmit = async (value: Parameters<typeof employeeService.updateEmployee>[1]) => {
     if (!employeeId || isSaving) {
@@ -159,7 +146,7 @@ export default function EditEmployeePage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Employee records" description="Update workforce employee details." />
+        <PageHeader title={t("employees.form.editTitle")} description={t("employees.form.editDescription")} />
       </div>
     );
   }
@@ -179,11 +166,11 @@ export default function EditEmployeePage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Employee records" description="Update workforce employee details." />
+      <PageHeader title={t("employees.form.editTitle")} description={t("employees.form.editDescription")} />
       <EmployeeForm
         mode="edit"
         initialValue={initialValue}
-        crewOptions={crewOptions}
+        supervisorOptions={supervisorOptions}
         isSaving={isSaving}
         onSubmit={handleSubmit}
         onCancel={() => router.push(employeeId ? `/employees/${employeeId}` : "/employees")}
