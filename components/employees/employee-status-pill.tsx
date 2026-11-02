@@ -17,31 +17,11 @@ export function EmployeeStatusPill({ employmentStatus, availabilityStatus, t }: 
 }
 
 function employmentLabel(status: EmploymentStatus, t: EmployeeStatusPillProps["t"]) {
-  if (status === "leave") {
-    return "On leave";
-  }
-
-  if (status === "terminated") {
-    return "Terminated";
-  }
-
-  return t(`employees.employmentStatus.${status}`);
+  return t(`employees.recordStatus.${status}`);
 }
 
 function availabilityLabel(status: AvailabilityStatus, t: EmployeeStatusPillProps["t"]) {
-  if (status === "unavailable") {
-    return "Unavailable";
-  }
-
-  if (status === "restricted") {
-    return "Restricted";
-  }
-
-  if (status === "unknown") {
-    return "Unknown";
-  }
-
-  return t(`employees.availabilityStatus.${status}`);
+  return t(`employees.recordAvailability.${status}`);
 }
 
 function employmentTone(status: EmploymentStatus): "success" | "warning" | "neutral" {
