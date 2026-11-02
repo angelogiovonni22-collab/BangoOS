@@ -1233,6 +1233,9 @@ export type Database = {
       }
       employees: {
         Row: {
+          full_name: string | null
+          contact_phone: string | null
+          contact_email: string | null
           availability_status: string
           company_id: string
           created_at: string
@@ -1252,6 +1255,9 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          full_name?: string | null
+          contact_phone?: string | null
+          contact_email?: string | null
           availability_status?: string
           company_id: string
           created_at?: string
@@ -1271,6 +1277,9 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          full_name?: string | null
+          contact_phone?: string | null
+          contact_email?: string | null
           availability_status?: string
           company_id?: string
           created_at?: string
