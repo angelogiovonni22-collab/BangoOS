@@ -156,5 +156,6 @@
   "recordAvailability.assigned": "Asignado",
   "recordAvailability.unavailable": "No disponible",
   "recordAvailability.restricted": "Restringido",
-  "recordAvailability.unknown": "Desconocido"
+  "recordAvailability.unknown": "Desconocido",
+  "validation.duplicateNumber": "Este número de empleado ya está en uso. Elija un número diferente."
 }
