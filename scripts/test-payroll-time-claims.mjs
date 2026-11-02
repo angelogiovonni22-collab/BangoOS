@@ -13,6 +13,7 @@ const source = '00000000-0000-4000-8000-000000000004';
 const project = '00000000-0000-4000-8000-000000000005';
 const snapshotMigration = process.argv[3];
 const totalsMigration = process.argv[4];
+const calendarMigration = process.argv[5];
 const totals = async () => (await query('select public.get_payroll_job_cost_totals($1) data',[company]))[0].data;
 const migration = 'supabase/migrations/20261007222345_audit_payroll_time_claims_and_void_recovery.sql';
 const query = async (sql, values = []) => (await db.query(sql, values)).rows;
@@ -23,13 +24,13 @@ try {
     create role authenticated; create role anon;
     create schema auth;
     create function auth.uid() returns uuid language sql as $$select '00000000-0000-4000-8000-000000000001'::uuid$$;
-    create table public.companies(id uuid primary key);
+    create table public.companies(id uuid primary key,timezone text not null default 'UTC');
     create table public.projects(id uuid primary key,company_id uuid not null);
     create table public.profiles(id uuid primary key,first_name text,last_name text);
     create table public.employees(id uuid primary key,company_id uuid not null,profile_id uuid,employee_number text,position_title text,employment_status text,unique(id,company_id));
     create table public.workforce_time_entries(id uuid primary key,company_id uuid not null,employee_id uuid not null,project_id uuid,started_at timestamptz,ended_at timestamptz,break_minutes integer,status text,approved_at timestamptz,approved_by uuid,unique(id,company_id));
     create function public.has_company_role(c uuid,r text[]) returns boolean language sql as $$select c='${company}'::uuid and coalesce(current_setting('bos.test.authorized',true),'true')='true'$$;
-    insert into public.companies values('${company}');
+    insert into public.companies(id) values('${company}');
     insert into public.projects values('${project}','${company}'),('00000000-0000-4000-8000-000000000007','${company}');
     insert into public.employees values('${employee}','${company}',null,'AUDIT-1','Test','active');
     insert into public.workforce_time_entries values('${source}','${company}','${employee}','${project}','2026-09-28 09:00Z','2026-09-28 10:00Z',0,'approved','2026-09-28 11:00Z',null);
@@ -45,6 +46,16 @@ try {
   await db.exec(await readFile(migration,'utf8'));
   if (snapshotMigration) await db.exec(await readFile(snapshotMigration,'utf8'));
   if (totalsMigration) await db.exec(await readFile(totalsMigration,'utf8'));
+  // Preserve existing period values while adding the calendar snapshot.
+  if (calendarMigration) {
+    const legacy=(await query("insert into public.payroll_periods(company_id,period_start,period_end,pay_date) values($1,'2025-01-06','2025-01-12','2025-01-17') returning *",[company]))[0];
+    await db.exec(await readFile(calendarMigration,'utf8'));
+    const restored=(await query('select * from public.payroll_periods where id=$1',[legacy.id]))[0];
+    assert.equal(restored.calendar_timezone,'UTC');
+    delete restored.calendar_timezone;
+    assert.deepEqual(restored,legacy);
+    await query('delete from public.payroll_periods where id=$1',[legacy.id]);
+  }
   await db.exec('grant select on public.projects to authenticated;');
   await db.exec('grant usage on schema public,auth to authenticated; grant select,insert,update,delete on public.companies,public.profiles,public.employees,public.workforce_time_entries,public.payroll_periods,public.payroll_lines,public.payroll_employee_settings to authenticated; set role authenticated;');
   assert.equal(Number((await workspace()).approved_unprocessed_hours),1);
@@ -179,6 +190,68 @@ try {
       console.log('PASS: approved/exported cost aggregates exclude drafts/voids, disclose unsupported history, reject inconsistent snapshots, enforce denied-role responses, and include all 1,501 additional approved lines.');
     }
     console.log('PASS: per-project snapshots conserve exact gross cents, preserve breaks/source IDs/unassigned work, and do not change with later rates; ten tiny-cost allocations stay nonnegative.');
+  }
+  if (calendarMigration) {
+    assert.ok((await query('select calendar_timezone from public.payroll_periods')).every(p=>p.calendar_timezone==='UTC'));
+    await query("update public.companies set timezone='America/New_York' where id=$1",[company]);
+    await query('update public.payroll_employee_settings set hourly_rate=40,fringe_hourly=0');
+    await db.exec("set timezone='Asia/Tokyo'");
+    const sunday='00000000-0000-4000-8000-000000000080';
+    const monday='00000000-0000-4000-8000-000000000081';
+    await query(`insert into public.workforce_time_entries(id,company_id,employee_id,project_id,started_at,ended_at,break_minutes,status)
+      values($1,$3,$4,$5,'2026-11-09 04:30Z','2026-11-09 05:30Z',0,'approved'),
+      ($2,$3,$4,$5,'2026-11-09 05:30Z','2026-11-09 06:30Z',0,'approved')`,[sunday,monday,company,employee,project]);
+    const calendarBuild=async(start,end)=>(await query('select public.build_weekly_payroll($1,$2,$3,$3::date+5) id',[company,start,end]))[0].id;
+    await query("update public.payroll_employee_settings set status='inactive'");
+    await assert.rejects(calendarBuild('2026-11-02','2026-11-08'),/need payroll rates/);
+    assert.equal(Number((await query("select count(*) n from public.payroll_periods where period_start='2026-11-02'"))[0].n),0);
+    await query("update public.payroll_employee_settings set status='active'");
+    const actualBefore=totalsMigration?(await totals()).approved_gross_pay:null;
+    const sundayPeriod=await calendarBuild('2026-11-02','2026-11-08');
+    const mondayPeriod=await calendarBuild('2026-11-09','2026-11-15');
+    const sundayLine=(await query('select * from public.payroll_lines where payroll_period_id=$1',[sundayPeriod]))[0];
+    const mondayLine=(await query('select * from public.payroll_lines where payroll_period_id=$1',[mondayPeriod]))[0];
+    assert.deepEqual(sundayLine.source_time_entry_ids,[sunday]);
+    assert.deepEqual(mondayLine.source_time_entry_ids,[monday]);
+    assert.equal(Number(sundayLine.gross_pay),40);
+    assert.equal(Number(mondayLine.gross_pay),40);
+    assert.equal(sundayLine.project_allocations[0].source_date_timezone,'America/New_York');
+    assert.equal((await query("select current_setting('TimeZone') zone"))[0].zone,'Asia/Tokyo','no session timezone mutation');
+    // The source guard uses the immutable period snapshot, including after a
+    // company setting change; a direct line cannot claim the wrong calendar day.
+    await query("update public.companies set timezone='UTC' where id=$1",[company]);
+    await assert.rejects(query("update public.payroll_periods set calendar_timezone='UTC' where id=$1",[sundayPeriod]),/immutable/);
+    await assert.rejects(query('insert into public.payroll_lines(company_id,payroll_period_id,employee_id,employee_name,source_time_entry_ids) values($1,$2,$3,$4,$5)',[company,mondayPeriod,employee,'AUDIT',[sunday]]),/source time must/);
+    await query("select public.set_payroll_status($1,$2,'approved')",[company,sundayPeriod]);
+    if (totalsMigration) assert.equal((await totals()).approved_gross_pay,actualBefore+40,'only approved company-week wages enter actual job cost');
+    assert.equal((await query('select calendar_timezone from public.payroll_periods where id=$1',[sundayPeriod]))[0].calendar_timezone,'America/New_York');
+    // Daylight-saving gaps/repeated hours use elapsed instants, not wall time.
+    await query("update public.companies set timezone='America/New_York' where id=$1",[company]);
+    for (const [start,end,from,to] of [
+      ['2027-03-08','2027-03-14','2027-03-14 06:30Z','2027-03-14 07:30Z'],
+      ['2027-11-01','2027-11-07','2027-11-07 05:30Z','2027-11-07 06:30Z'],
+    ]) {
+      await query('insert into public.workforce_time_entries(id,company_id,employee_id,project_id,started_at,ended_at,break_minutes,status) values(gen_random_uuid(),$1,$2,$3,$4,$5,0,$6)',[company,employee,project,from,to,'approved']);
+      const p=await calendarBuild(start,end);
+      const line=(await query('select regular_hours,gross_pay from public.payroll_lines where payroll_period_id=$1',[p]))[0];
+      assert.equal(Number(line.regular_hours),1);
+      assert.equal(Number(line.gross_pay),40);
+    }
+    // Positive UTC offsets must not omit company-Monday work on UTC Sunday.
+    await query("update public.companies set timezone='Pacific/Auckland' where id=$1",[company]);
+    await query("insert into public.workforce_time_entries(id,company_id,employee_id,project_id,started_at,ended_at,break_minutes,status) values(gen_random_uuid(),$1,$2,$3,'2027-05-09 12:30Z','2027-05-09 13:30Z',0,'approved')",[company,employee,project]);
+    const ahead=await calendarBuild('2027-05-10','2027-05-16');
+    assert.equal(Number((await query('select gross_pay from public.payroll_periods where id=$1',[ahead]))[0].gross_pay),40);
+    // Direct period insertion cannot supply a different timezone from the company.
+    const direct=(await query("insert into public.payroll_periods(company_id,period_start,period_end,pay_date,calendar_timezone) values($1,'2028-01-03','2028-01-09','2028-01-14','UTC') returning calendar_timezone",[company]))[0];
+    assert.equal(direct.calendar_timezone,'Pacific/Auckland');
+    await query("update public.companies set timezone='Invalid/BOS-Audit' where id=$1",[company]);
+    await assert.rejects(calendarBuild('2028-02-07','2028-02-13'),/Company timezone is invalid/);
+    await assert.rejects(query("insert into public.payroll_periods(company_id,period_start,period_end,pay_date) values($1,'2028-02-07','2028-02-13','2028-02-18')",[company]),/Company timezone is invalid/);
+    assert.equal(Number((await query("select count(*) n from public.payroll_periods where period_start='2028-02-07'"))[0].n),0);
+    await query("update public.companies set timezone='' where id=$1",[company]);
+    assert.equal((await query("insert into public.payroll_periods(company_id,period_start,period_end,pay_date) values($1,'2028-03-06','2028-03-12','2028-03-17') returning calendar_timezone",[company]))[0].calendar_timezone,'UTC');
+    console.log('PASS: company-calendar week selection, midnight boundaries in both offset directions, period timezone immutability, direct source guard, DST elapsed hours, invalid-zone rollback and UTC fallback.');
   }
   await db.exec("set bos.test.authorized='false'");
   if (totalsMigration) assert.deepEqual(await totals(),{status:'unavailable',reason:'finance_role_required'});
