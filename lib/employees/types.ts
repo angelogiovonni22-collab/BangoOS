@@ -19,8 +19,8 @@ export type Employee = EmployeeDirectoryRow & {
   position?: string;
   crew?: string;
   supervisor?: string;
-  phone?: string;
-  email?: string;
+  phone?: string | null;
+  email?: string | null;
   currentAssignment?: string | null;
   activeToday?: boolean;
   hiredOn?: string;
@@ -106,6 +106,8 @@ export type EmployeeListResult = {
 };
 
 export type UpsertEmployeeInput = {
+  trade?: string;
+  terminationDate?: string | null;
   employeeNumber?: string;
   profileId?: string | null;
   supervisorProfileId?: string | null;
