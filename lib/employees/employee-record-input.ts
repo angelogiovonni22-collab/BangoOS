@@ -15,7 +15,7 @@ function availabilityStatus(value: string) {
 
 export function employeeRecordInput(input: UpsertEmployeeInput, mode: "create"): WorkforceCreateEmployeeInput;
 export function employeeRecordInput(input: UpsertEmployeeInput, mode: "edit"): WorkforceUpdateEmployeeInput;
-export function employeeRecordInput(input: UpsertEmployeeInput, mode: "create" | "edit") {
+export function employeeRecordInput(input: UpsertEmployeeInput, mode: "create" | "edit"): WorkforceUpdateEmployeeInput {
   const name = input.fullName.trim();
   const email = input.email.trim().toLowerCase();
   const phone = input.phone.trim();
