@@ -4,6 +4,7 @@ import path from "node:path";
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
 const portal = read("app/(app)/partner/[projectId]/page.tsx");
+const photoUploader = read("components/trade-partners/partner-photo-uploader.tsx");
 const index = read("app/(app)/partner/page.tsx");
 const inbox = read("app/(app)/trade-partner-messages/page.tsx");
 const shell = read("app/(app)/app-shell.tsx");
@@ -18,8 +19,11 @@ const checks: Array<[string, boolean]> = [
   ["portal loads latest approved plan RPC", portal.includes('rpc("get_my_trade_partner_plans"')],
   ["portal loads project messages RPC", portal.includes('rpc("get_my_trade_partner_messages"')],
   ["portal sends messages through controlled RPC", portal.includes('rpc("send_my_trade_partner_message"')],
-  ["portal registers partner photos through controlled RPC", portal.includes('rpc("register_my_trade_partner_photo"')],
-  ["photo upload is capped at 10MB", portal.includes("10 * 1024 * 1024")],
+  ["portal registers partner photos through controlled RPC", photoUploader.includes('rpc("register_my_trade_partner_photo"')],
+  ["photo upload is capped at 10MB", photoUploader.includes("10 * 1024 * 1024")],
+  ["mobile photo uploads bypass server actions", portal.includes("<PartnerPhotoUploader projectId={projectId}") && !portal.includes("async function uploadPhoto(formData: FormData)")],
+  ["mobile photo uploads preserve scoped storage and registration", photoUploader.includes('storage.from("project-photos").upload') && photoUploader.includes("workspace.context.companyId") && photoUploader.includes("p_project_id: projectId")],
+  ["mobile photos handle iPhone HEIC and actionable errors", photoUploader.includes("image/heic") && photoUploader.includes('role="alert"')],
   ["partner project access derives from linked vendor assignment", migration.includes("bos_can_access_trade_partner_project") && migration.includes("tpa.vendor_id = cm.vendor_id")],
   ["receipts are excluded from partner-safe photos", migration.includes("'before','progress','after','safety','damage','materials','inspection','other'") && !migration.includes("pp.category in ('before','progress','after','safety','damage','materials','receipt")],
   ["trade partner plans require approved status", migration.includes("bv.status = 'approved'")],
