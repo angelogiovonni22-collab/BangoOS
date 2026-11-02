@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 import { createWorkforceEventRepository } from "./workforce-event-repository";
+import { archivedEmployeeState } from "./workforce-semantics";
 import type {
   WorkforceAddMembershipInput,
   WorkforceAssignmentFilters,
@@ -44,6 +45,8 @@ export type WorkforceRepository = {
 };
 
 const EMPLOYEE_FIELDS: Array<keyof WorkforceCreateEmployeeInput> = [
+  "full_name",
+  "supervisor_profile_id",
   "employee_number",
   "profile_id",
   "trade",
@@ -274,8 +277,7 @@ export function createWorkforceRepository(supabase: SupabaseClient<Database>): W
       const { data, error } = await supabase
         .from("employees")
         .update({
-          employment_status: "inactive",
-          availability_status: "unavailable",
+          ...archivedEmployeeState(before),
           updated_by: actorProfileId,
         })
         .eq("company_id", companyId)
