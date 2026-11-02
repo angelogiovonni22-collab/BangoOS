@@ -6,13 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic"]);
 
 function photoContentType(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase();
   if (file.type) return file.type;
   if (extension === "heic") return "image/heic";
-  if (extension === "heif") return "image/heif";
   if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
   if (extension === "png") return "image/png";
   if (extension === "webp") return "image/webp";
@@ -36,7 +35,7 @@ export function PartnerPhotoUploader({ projectId }: { projectId: string }) {
     const file = fileRef.current?.files?.[0];
     if (!file) { setError("Choose a photo first."); return; }
     const mimeType = photoContentType(file);
-    if (!ALLOWED_TYPES.has(mimeType)) { setError("Use a JPG, PNG, WebP, HEIC or HEIF photo."); return; }
+    if (!ALLOWED_TYPES.has(mimeType)) { setError("Use a JPG, PNG, WebP or HEIC photo."); return; }
     if (file.size < 1 || file.size > MAX_PHOTO_BYTES) { setError("Photo must be 10 MB or smaller."); return; }
     const supabase = createClient();
     if (!supabase) { setError("B.O.S. is unable to connect. Please sign in again."); return; }
@@ -55,7 +54,7 @@ export function PartnerPhotoUploader({ projectId }: { projectId: string }) {
       });
       if (uploaded.error) throw new Error(uploaded.error.message || "Unable to upload the photo.");
 
-      const registration = await supabase.rpc("register_my_trade_partner_photo", {
+      const registration = await (supabase as unknown as { rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }> }).rpc("register_my_trade_partner_photo", {
         p_project_id: projectId,
         p_storage_path: storagePath,
         p_original_filename: file.name,
@@ -84,7 +83,7 @@ export function PartnerPhotoUploader({ projectId }: { projectId: string }) {
     <form onSubmit={(event) => void uploadPhoto(event)} className="mt-4 grid gap-3 rounded-xl border border-[var(--bos-border-subtle)] bg-[var(--bos-bg-root)] p-4 sm:grid-cols-2">
       <label className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--bos-text-muted)] sm:col-span-2">
         Add jobsite photo
-        <input ref={fileRef} name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" required disabled={busy}
+        <input ref={fileRef} name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic,.heic" required disabled={busy}
           className="mt-2 block w-full text-sm font-medium normal-case tracking-normal text-[var(--bos-text-primary)]" />
       </label>
       <label className="text-xs font-bold uppercase tracking-[0.08em] text-[var(--bos-text-muted)]">
