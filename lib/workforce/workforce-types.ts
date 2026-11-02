@@ -18,6 +18,9 @@ export type SelectOption = {
 };
 
 export type WorkforceEmployeeRow = {
+  full_name?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
   id: string;
   company_id: string;
   profile_id: string | null;
@@ -148,6 +151,11 @@ export type WorkforceEventInput = {
 };
 
 export type WorkforceCreateEmployeeInput = {
+  full_name?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  supervisor_profile_id?: string | null;
+  termination_date?: string | null;
   employee_number: string;
   profile_id: string | null;
   trade: string | null;
@@ -302,6 +310,8 @@ export type WorkforceEquipmentContext = {
 };
 
 export type EmployeeDirectoryRow = {
+  phone?: string | null;
+  email?: string | null;
   id: string;
   employeeNumber: string;
   fullName: string;
