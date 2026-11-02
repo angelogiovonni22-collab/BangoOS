@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "supabase/migrations/*payroll*"
+      - "supabase/migrations/*employee_record_identity*"
       - "scripts/test-payroll-time-claims.mjs"
       - ".github/workflows/payroll-time-claims.yml"
   push:
     branches: [main]
     paths:
       - "supabase/migrations/*payroll*"
+      - "supabase/migrations/*employee_record_identity*"
       - "scripts/test-payroll-time-claims.mjs"
       - ".github/workflows/payroll-time-claims.yml"
 
@@ -31,4 +33,4 @@ jobs:
           npm pack @electric-sql/pglite@0.3.14 --pack-destination "$RUNNER_TEMP/payroll-postgres"
           tar -xzf "$RUNNER_TEMP/payroll-postgres/electric-sql-pglite-0.3.14.tgz" -C "$RUNNER_TEMP/payroll-postgres"
       - name: Verify payroll source integrity and void recovery
-        run: node scripts/test-payroll-time-claims.mjs "$RUNNER_TEMP/payroll-postgres/package/dist/index.js" supabase/migrations/20261007223036_audit_payroll_project_cost_snapshots.sql supabase/migrations/20261007223901_audit_payroll_financial_cost_totals.sql supabase/migrations/20261102170716_payroll_company_calendar.sql
+        run: node scripts/test-payroll-time-claims.mjs "$RUNNER_TEMP/payroll-postgres/package/dist/index.js" supabase/migrations/20261007223036_audit_payroll_project_cost_snapshots.sql supabase/migrations/20261007223901_audit_payroll_financial_cost_totals.sql supabase/migrations/20261102170716_payroll_company_calendar.sql supabase/migrations/20261102173810_employee_record_identity.sql
