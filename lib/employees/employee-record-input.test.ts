@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { employeeRecordInput } from "./employee-record-input";
+import { formatEmployeeCalendarDate } from "./employee-calendar-date";
 import { normalizeEmployeeDirectory } from "../workforce/workforce-normalizer";
 import { archivedEmployeeState } from "../workforce/workforce-semantics";
 import type { UpsertEmployeeInput } from "./types";
@@ -80,4 +81,21 @@ assert.ok(form.includes('employees.validation.duplicateNumber') && form.includes
 const en = JSON.parse(read("locales/en/employees.json"));
 const es = JSON.parse(read("locales/es/employees.json"));
 for (const key of Object.keys(en).filter((key) => key.startsWith("recordStatus.") || key.startsWith("recordAvailability."))) assert.ok(es[key], key);
-console.log("PASS: employee save/reload identity, contact/search, supervisor/clear, legacy accounts, membership preservation, all status enums and validation.");
+const previousTimezone = process.env.TZ;
+try {
+  process.env.TZ = "America/New_York";
+  assert.equal(new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date("2026-11-02")), "Nov 1, 2026", "reproduce the original previous-day display");
+  for (const timezone of ["UTC", "America/New_York", "Pacific/Honolulu", "Pacific/Kiritimati"]) {
+    process.env.TZ = timezone;
+    for (const [date, expected] of [["2026-11-02", "Nov 2, 2026"], ["2026-03-08", "Mar 8, 2026"], ["2024-02-29", "Feb 29, 2024"]]) {
+      assert.equal(formatEmployeeCalendarDate(date, "en-US"), expected, timezone);
+    }
+    assert.equal(formatEmployeeCalendarDate("2026-11-02", "es-ES"), "2 nov 2026", timezone);
+  }
+} finally {
+  if (previousTimezone === undefined) delete process.env.TZ;
+  else process.env.TZ = previousTimezone;
+}
+const profileSections = read("components/employees/employee-profile-sections.tsx");
+assert.ok(profileSections.includes("formatEmployeeCalendarDate(overview.hireDate, locale)") && profileSections.includes("formatEmployeeCalendarDate(overview.terminationDate, locale)"));
+console.log("PASS: employee save/reload identity, contact/search, supervisor/clear, legacy accounts, membership preservation, all status enums, calendar dates and validation.");
