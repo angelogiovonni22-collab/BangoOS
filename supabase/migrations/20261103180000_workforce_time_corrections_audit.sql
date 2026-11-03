@@ -34,6 +34,27 @@ create policy workforce_time_audit_trigger_insert
 create function public.guard_workforce_time_payroll_history()
 returns trigger language plpgsql security invoker set search_path=pg_catalog as $$
 begin
+  -- Time identity, job allocation and original location evidence cannot change
+  -- as a side effect of approval or a manager's correction.
+  if old.status in ('submitted','rejected') and
+     (new.id,new.company_id,new.employee_id,new.project_id,new.assignment_id,
+      new.created_by,new.created_at,new.clock_in_location,new.clock_out_location,new.source)
+     is distinct from
+     (old.id,old.company_id,old.employee_id,old.project_id,old.assignment_id,
+      old.created_by,old.created_at,old.clock_in_location,old.clock_out_location,old.source) then
+    raise exception 'Time entry identity, project and original clock evidence cannot be rewritten';
+  end if;
+  if old.status='rejected' and new.status not in ('rejected','submitted') then
+    raise exception 'Rejected time must be corrected and resubmitted before approval';
+  end if;
+  if old.status='submitted' and new.status not in ('submitted','approved','rejected') then
+    raise exception 'Submitted time transition is not allowed';
+  end if;
+  if old.status='submitted' and new.status in ('approved','rejected') and
+    (new.started_at,new.ended_at,new.break_minutes,new.notes)
+    is distinct from (old.started_at,old.ended_at,old.break_minutes,old.notes) then
+    raise exception 'Review cannot silently change hours or notes; correct time first';
+  end if;
   if old.status='approved' or exists(
     select 1 from public.payroll_time_entry_claims c
      where c.company_id=old.company_id and c.time_entry_id=old.id
