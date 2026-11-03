@@ -7,6 +7,7 @@ create function public.guard_workforce_time_assignment_link()
 returns trigger language plpgsql security invoker set search_path=pg_catalog as $$
 declare
   v_assignment public.workforce_assignments%rowtype;
+  v_work_date date;
 begin
   if new.assignment_id is null then return new; end if;
 
@@ -21,6 +22,9 @@ begin
     raise exception 'Time entry project must match the workforce assignment project';
   end if;
 
+  select (new.started_at at time zone coalesce(nullif(btrim(c.timezone),''),'UTC'))::date
+    into v_work_date from public.companies c where c.id=new.company_id;
+
   if v_assignment.assignment_type='employee' then
     if v_assignment.employee_id is distinct from new.employee_id then
       raise exception 'Employee does not belong to the selected workforce assignment';
@@ -32,8 +36,8 @@ begin
          and m.crew_id=v_assignment.crew_id
          and m.employee_id=new.employee_id
          and m.status='active'
-         and m.starts_on <= (new.started_at at time zone 'UTC')::date
-         and (m.ends_on is null or m.ends_on >= (new.started_at at time zone 'UTC')::date)
+         and m.starts_on <= v_work_date
+         and (m.ends_on is null or m.ends_on >= v_work_date)
     ) then
       raise exception 'Employee is not an active member of the selected crew assignment';
     end if;
