@@ -41,7 +41,7 @@ assert.match(selfClockOutGuard, /e\.company_id=workforce_time_entries\.company_i
 assert.match(selfClockOutGuard, /old\.status <> 'open' or new\.status <> 'submitted'/);
 assert.match(selfClockOutGuard, /new\.started_at := statement_timestamp\(\)/);
 assert.match(selfClockOutGuard, /new\.ended_at := statement_timestamp\(\)/);
-assert.match(selfClockOutGuard, /new\.assignment_id, new\.started_at/);
-assert.match(selfClockOutGuard, /new\.approved_by, new\.approved_at/);
+assert.match(selfClockOutGuard, /new\.assignment_id,\s*new\.started_at/);
+assert.match(selfClockOutGuard, /new\.approved_by,\s*new\.approved_at/);
 assert.match(selfClockOutGuard, /revoke all on function public\.guard_workforce_self_time_write/);
 console.log("Workforce time, self clock-out and assignment-attribution contract checks passed.");
