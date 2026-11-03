@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const read=(path:string)=>readFileSync(resolve(process.cwd(),path),"utf8");
+const sql=read("supabase/migrations/20261103180000_workforce_time_corrections_audit.sql");
+const service=read("lib/crews/workforce-time.ts");
+const ui=read("components/crews/mobile-time-approvals.tsx");
+
+assert.match(sql,/create table public\.workforce_time_audit/);
+assert.match(sql,/enable row level security/);
+assert.match(sql,/pg_trigger_depth\(\)>0/);
+assert.match(sql,/before_data jsonb not null/);
+assert.match(sql,/after_data jsonb not null/);
+assert.match(sql,/old\.status='approved'/);
+assert.match(sql,/payroll_time_entry_claims/);
+assert.match(sql,/before update on public\.workforce_time_entries/);
+assert.match(sql,/after update on public\.workforce_time_entries/);
+assert.match(sql,/update of company_id,employee_id,project_id,assignment_id,started_at/);
+assert.match(sql,/status in \('submitted','rejected'\)/);
+assert.match(sql,/p_reason/);
+assert.match(sql,/length\(btrim\(coalesce\(p_reason,''\)\)\)<5/);
+assert.match(sql,/p_ended_at>now\(\)\+interval '5 minutes'/);
+assert.match(sql,/revoke all on function public\.correct_workforce_time_entry/);
+assert.match(sql,/grant execute on function public\.correct_workforce_time_entry/);
+assert.match(service,/correctWorkforceTime\(/);
+assert.match(service,/resolveWorkspaceContext/);
+assert.match(service,/canReviewWorkforceTime\(workspace\.context\.role\)/);
+assert.match(service,/rpc\("correct_workforce_time_entry"/);
+assert.match(service,/\.in\("status",\["submitted","rejected"\]\)/);
+assert.match(ui,/Correct time/);
+assert.match(ui,/Save correction & resubmit/);
+assert.match(ui,/draft\.reason\.trim\(\)\.length<5/);
+assert.match(ui,/row\.status==="submitted"/);
+assert.match(ui,/correctWorkforceTime\(/);
+console.log("Workforce corrections, audit, payroll immutability, and mobile review contracts passed.");
