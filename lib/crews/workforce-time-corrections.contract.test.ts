@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const read=(path:string)=>readFileSync(resolve(process.cwd(),path),"utf8");
-const sql=read("supabase/migrations/20261103180000_workforce_time_corrections_audit.sql");
+const sql=read("supabase/migrations/20261103180432_workforce_time_corrections_audit.sql");
 const service=read("lib/crews/workforce-time.ts");
 const ui=read("components/crews/mobile-time-approvals.tsx");
 
