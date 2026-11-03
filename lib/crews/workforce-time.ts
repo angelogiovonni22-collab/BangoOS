@@ -4,7 +4,7 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 type RpcResult = { data: unknown; error: { message?: string } | null };
 type RpcClient = { rpc: (name: string, args: Record<string, unknown>) => Promise<RpcResult> };
 export type WorkforceTimeLocation={latitude:number;longitude:number;accuracy:number};
-export type WorkforceTimeReview={id:string;employeeId:string;employeeName:string;projectId:string|null;projectName:string|null;startedAt:string;endedAt:string;breakMinutes:number;hours:number;notes:string|null;clockInLocation:WorkforceTimeLocation|null;clockOutLocation:WorkforceTimeLocation|null};
+export type WorkforceTimeReview={status:"submitted"|"rejected";id:string;employeeId:string;employeeName:string;projectId:string|null;projectName:string|null;startedAt:string;endedAt:string;breakMinutes:number;hours:number;notes:string|null;clockInLocation:WorkforceTimeLocation|null;clockOutLocation:WorkforceTimeLocation|null};
 export type WorkforceTimeCompliance={regularHours:number;overtimeHours:number;missingBreak:boolean;requiresAttention:boolean};
 export function getWorkforceTimeCompliance(entry:Pick<WorkforceTimeReview,"hours"|"breakMinutes">):WorkforceTimeCompliance{const overtimeHours=Math.max(0,entry.hours-8),missingBreak=entry.hours>=6&&entry.breakMinutes===0;return{regularHours:Math.min(8,entry.hours),overtimeHours,missingBreak,requiresAttention:overtimeHours>0||missingBreak};}
 function toLocation(value:unknown):WorkforceTimeLocation|null{if(!value||typeof value!=="object")return null;const row=value as Record<string,unknown>,latitude=Number(row.latitude),longitude=Number(row.longitude),accuracy=Number(row.accuracy);return Number.isFinite(latitude)&&Number.isFinite(longitude)&&Number.isFinite(accuracy)?{latitude,longitude,accuracy}:null;}
@@ -26,12 +26,36 @@ export async function recordWorkforceTimeEvent(input:{employeeId:string;action:"
 
 export async function listSubmittedWorkforceTime():Promise<WorkforceTimeReview[]>{
   const supabase=createClient(),workspace=await resolveWorkspaceContext(supabase);if(!supabase||!workspace.context)throw new Error(workspace.errorMessage||"Time approvals are unavailable.");if(!canReviewWorkforceTime(workspace.context.role))throw new Error("Your role does not include workforce time approval.");const db=supabase as unknown as LooseDb;
-  const entries:QueryResult=await db.from("workforce_time_entries").select("id, employee_id, project_id, started_at, ended_at, break_minutes, notes, clock_in_location, clock_out_location").eq("company_id",workspace.context.companyId).eq("status","submitted").order("ended_at",{ascending:false}).limit(50);if(entries.error)throw new Error(entries.error.message||"Unable to load submitted time.");
+  const entries:QueryResult=await db.from("workforce_time_entries").select("id, employee_id, project_id, started_at, ended_at, break_minutes, notes, status, clock_in_location, clock_out_location").eq("company_id",workspace.context.companyId).in("status",["submitted","rejected"]).order("ended_at",{ascending:false}).limit(50);if(entries.error)throw new Error(entries.error.message||"Unable to load submitted time.");
   const ids=[...new Set((entries.data||[]).map(row=>String(row.employee_id)))];let names=new Map<string,string>();if(ids.length){const employees:QueryResult=await db.from("employees").select("id, profile_id, employee_number, position_title").eq("company_id",workspace.context.companyId).in("id",ids);if(!employees.error){const profileIds=[...new Set((employees.data||[]).flatMap(row=>row.profile_id?[String(row.profile_id)]:[]))];let profileNames=new Map<string,string>();if(profileIds.length){const profiles:QueryResult=await db.from("profiles").select("id, display_name").eq("company_id",workspace.context.companyId).in("id",profileIds);if(!profiles.error)profileNames=new Map((profiles.data||[]).map(row=>[String(row.id),String(row.display_name||"")]));}names=new Map((employees.data||[]).map(row=>[String(row.id),profileNames.get(String(row.profile_id))||String(row.employee_number||row.position_title||"Employee")]));}}
   const projectIds=[...new Set((entries.data||[]).flatMap(row=>row.project_id?[String(row.project_id)]:[]))];let projects=new Map<string,string>();if(projectIds.length){const projectRows:QueryResult=await db.from("projects").select("id, name").eq("company_id",workspace.context.companyId).in("id",projectIds);if(!projectRows.error)projects=new Map((projectRows.data||[]).map(row=>[String(row.id),String(row.name||"Project")]));}
-  return(entries.data||[]).map(row=>{const started=String(row.started_at),ended=String(row.ended_at),breakMinutes=Number(row.break_minutes||0),projectId=row.project_id?String(row.project_id):null;return{id:String(row.id),employeeId:String(row.employee_id),employeeName:names.get(String(row.employee_id))||"Employee",projectId,projectName:projectId?projects.get(projectId)||"Assigned project":null,startedAt:started,endedAt:ended,breakMinutes,hours:Math.max(0,(new Date(ended).getTime()-new Date(started).getTime())/3600000-breakMinutes/60),notes:row.notes?String(row.notes):null,clockInLocation:toLocation(row.clock_in_location),clockOutLocation:toLocation(row.clock_out_location)};});
+  return(entries.data||[]).map(row=>{const started=String(row.started_at),ended=String(row.ended_at),breakMinutes=Number(row.break_minutes||0),projectId=row.project_id?String(row.project_id):null;return{status:row.status==="rejected"?"rejected":"submitted",id:String(row.id),employeeId:String(row.employee_id),employeeName:names.get(String(row.employee_id))||"Employee",projectId,projectName:projectId?projects.get(projectId)||"Assigned project":null,startedAt:started,endedAt:ended,breakMinutes,hours:Math.max(0,(new Date(ended).getTime()-new Date(started).getTime())/3600000-breakMinutes/60),notes:row.notes?String(row.notes):null,clockInLocation:toLocation(row.clock_in_location),clockOutLocation:toLocation(row.clock_out_location)};});
 }
 
 export async function reviewWorkforceTime(entryId:string,decision:"approved"|"rejected"){
   const supabase=createClient(),workspace=await resolveWorkspaceContext(supabase);if(!supabase||!workspace.context)throw new Error(workspace.errorMessage||"Time approvals are unavailable.");if(!canReviewWorkforceTime(workspace.context.role))throw new Error("Your role does not include workforce time approval.");const values=decision==="approved"?{status:decision,approved_by:workspace.context.userId,approved_at:new Date().toISOString(),updated_at:new Date().toISOString()}:{status:decision,approved_by:null,approved_at:null,updated_at:new Date().toISOString()};const result=await (supabase as unknown as LooseDb).from("workforce_time_entries").update(values).eq("company_id",workspace.context.companyId).eq("id",entryId).eq("status","submitted").select("id").maybeSingle();if(result.error)throw new Error(result.error.message||"Unable to review time entry.");if(!result.data)throw new Error("This time entry was already reviewed. Refreshing approvals.");return result.data;
+}
+
+export async function correctWorkforceTime(input:{
+  entryId:string;startedAt:string;endedAt:string;breakMinutes:number;
+  notes:string;reason:string;
+}){
+  const supabase=createClient(),workspace=await resolveWorkspaceContext(supabase);
+  if(!supabase||!workspace.context)throw new Error(workspace.errorMessage||"Time corrections are unavailable.");
+  if(!canReviewWorkforceTime(workspace.context.role))throw new Error("Your role does not include time corrections.");
+  const reason=input.reason.trim();
+  const start=new Date(input.startedAt),end=new Date(input.endedAt);
+  if(reason.length<5)throw new Error("Enter a correction reason of at least five characters.");
+  if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||end<=start)
+    throw new Error("Clock-out must be after clock-in.");
+  if(!Number.isInteger(input.breakMinutes)||input.breakMinutes<0||
+     input.breakMinutes>=((end.getTime()-start.getTime())/60000))
+    throw new Error("Break minutes must be a whole number less than the shift duration.");
+  const {data,error}=await (supabase as unknown as RpcClient).rpc("correct_workforce_time_entry",{
+    p_company_id:workspace.context.companyId,p_entry_id:input.entryId,
+    p_started_at:start.toISOString(),p_ended_at:end.toISOString(),
+    p_break_minutes:input.breakMinutes,p_notes:input.notes,p_reason:reason
+  });
+  if(error)throw new Error(error.message||"Unable to correct time entry.");
+  return data;
 }
