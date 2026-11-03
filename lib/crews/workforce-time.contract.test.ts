@@ -4,8 +4,8 @@ import { resolve } from "node:path";
 
 const root = process.cwd();
 const initialMigration = readFileSync(resolve(root, "supabase/migrations/20260814113000_workforce_time_entries.sql"), "utf8");
-const assignmentGuard = readFileSync(resolve(root, "supabase/migrations/20261103152000_workforce_time_assignment_link_guard.sql"), "utf8");
-const selfClockOutGuard = readFileSync(resolve(root, "supabase/migrations/20261103160000_workforce_self_clockout_rls.sql"), "utf8");
+const assignmentGuard = readFileSync(resolve(root, "supabase/migrations/20261103153059_workforce_time_assignment_link_guard.sql"), "utf8");
+const selfClockOutGuard = readFileSync(resolve(root, "supabase/migrations/20261103153953_workforce_self_clockout_rls.sql"), "utf8");
 const service = readFileSync(resolve(root, "lib/crews/workforce-time.ts"), "utf8");
 const workspace = readFileSync(resolve(root, "components/crews/mobile-field-operations-workspace.tsx"), "utf8");
 
