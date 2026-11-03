@@ -14,6 +14,11 @@ assert.match(initialMigration, /record_workforce_time_event/);
 assert.match(initialMigration, /created_by=auth\.uid\(\)/);
 assert.match(service, /resolveWorkspaceContext/);
 assert.match(workspace, /MobileWorkforceTimeClock/);
+assert.match(workspace, /selectedTimeAssignmentId/);
+assert.match(workspace, /selectedCrewAssignments\.length > 1/);
+assert.match(workspace, /selectedTimeAssignment\?\.projectId/);
+assert.match(workspace, /selectedTimeAssignment\?\.assignmentId/);
+assert.match(workspace, /assignment\.status === "published" \|\| assignment\.status === "in_progress"/);
 
 // Regression: the database, not just the browser, validates time attribution.
 assert.match(assignmentGuard, /security invoker/);
