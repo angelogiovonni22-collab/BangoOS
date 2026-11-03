@@ -56,6 +56,7 @@ export function MobileFieldOperationsWorkspace() {
   } = useMobileFieldOperations();
 
   const [selectedCrewId, setSelectedCrewId] = useState("");
+  const [selectedTimeAssignmentId, setSelectedTimeAssignmentId] = useState("");
   const [checklistDraftByCrewId, setChecklistDraftByCrewId] = useState<Record<string, DailyChecklist>>({});
   const [mobileReport, setMobileReport] = useState<MobileDailyReportDraft>(createEmptyMobileDailyReportDraft());
   const [reportDate, setReportDate] = useState(todayIso());
@@ -135,8 +136,10 @@ export function MobileFieldOperationsWorkspace() {
       return [];
     }
 
-    return data.workforce.dailyAssignments.filter((assignment) => assignment.crewId === effectiveCrewId);
+    return data.workforce.dailyAssignments.filter((assignment) => assignment.crewId === effectiveCrewId && (assignment.status === "published" || assignment.status === "in_progress"));
   }, [data, effectiveCrewId]);
+
+  const selectedTimeAssignment = useMemo(() => selectedCrewAssignments.find((assignment) => assignment.assignmentId === selectedTimeAssignmentId) || selectedCrewAssignments[0] || null, [selectedCrewAssignments, selectedTimeAssignmentId]);
 
   const checklistProgress = useMemo(() => {
     const total = 3;
@@ -286,7 +289,13 @@ export function MobileFieldOperationsWorkspace() {
       </Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="check-in">
-        <MobileWorkforceTimeClock key={selectedCrewAssignments[0]?.assignmentId||effectiveCrewId||"unassigned"} employees={selectedCrewAssignments[0]?.assignedEmployeeIds.map((id,index)=>({id,name:selectedCrewAssignments[0]?.assignedEmployeeNames[index]||"Employee"}))||[]} projectId={selectedCrewAssignments[0]?.projectId||""} assignmentId={selectedCrewAssignments[0]?.assignmentId||""}/>
+        {selectedCrewAssignments.length > 1 ? <div className="mb-3">
+          <label htmlFor="workforce-time-assignment" className="mb-1 block text-sm font-semibold text-[var(--text-primary)]">Project assignment for time clock</label>
+          <Select id="workforce-time-assignment" value={selectedTimeAssignment?.assignmentId || ""} onChange={(event) => setSelectedTimeAssignmentId(event.target.value)}>
+            {selectedCrewAssignments.map((assignment) => <option key={assignment.assignmentId} value={assignment.assignmentId}>{assignment.projectName} — {assignment.title}</option>)}
+          </Select>
+        </div> : null}
+        <MobileWorkforceTimeClock key={selectedTimeAssignment?.assignmentId||effectiveCrewId||"unassigned"} employees={selectedTimeAssignment?.assignedEmployeeIds.map((id,index)=>({id,name:selectedTimeAssignment?.assignedEmployeeNames[index]||"Employee"}))||[]} projectId={selectedTimeAssignment?.projectId||""} assignmentId={selectedTimeAssignment?.assignmentId||""}/>
         <div className="mb-3 flex items-center gap-2">
           <Users className="h-4 w-4 text-[var(--text-secondary)]" />
           <h2 className="text-base font-semibold text-[var(--text-primary)]">Crew Check-In</h2>
