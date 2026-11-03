@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const initialMigration = readFileSync(resolve(root, "supabase/migrations/20260814113000_workforce_time_entries.sql"), "utf8");
 const assignmentGuard = readFileSync(resolve(root, "supabase/migrations/20261103152000_workforce_time_assignment_link_guard.sql"), "utf8");
+const selfClockOutGuard = readFileSync(resolve(root, "supabase/migrations/20261103160000_workforce_self_clockout_rls.sql"), "utf8");
 const service = readFileSync(resolve(root, "lib/crews/workforce-time.ts"), "utf8");
 const workspace = readFileSync(resolve(root, "components/crews/mobile-field-operations-workspace.tsx"), "utf8");
 
@@ -31,4 +32,16 @@ assert.match(assignmentGuard, /m\.employee_id=new\.employee_id/);
 assert.match(assignmentGuard, /m\.status='active'/);
 assert.match(assignmentGuard, /at time zone coalesce\(nullif\(btrim\(c\.timezone\)/);
 assert.match(assignmentGuard, /revoke all on function/);
-console.log("Workforce time and assignment-attribution contract checks passed.");
+// RLS limits employee self-service writes, while a trigger enforces the
+// clock-in timestamp and the open-to-submitted state transition.
+assert.match(selfClockOutGuard, /create policy workforce_time_entries_employee_clock_out/);
+assert.match(selfClockOutGuard, /status='open'/);
+assert.match(selfClockOutGuard, /status='submitted'/);
+assert.match(selfClockOutGuard, /e\.company_id=workforce_time_entries\.company_id/);
+assert.match(selfClockOutGuard, /old\.status <> 'open' or new\.status <> 'submitted'/);
+assert.match(selfClockOutGuard, /new\.started_at := statement_timestamp\(\)/);
+assert.match(selfClockOutGuard, /new\.ended_at := statement_timestamp\(\)/);
+assert.match(selfClockOutGuard, /new\.assignment_id, new\.started_at/);
+assert.match(selfClockOutGuard, /new\.approved_by, new\.approved_at/);
+assert.match(selfClockOutGuard, /revoke all on function public\.guard_workforce_self_time_write/);
+console.log("Workforce time, self clock-out and assignment-attribution contract checks passed.");
