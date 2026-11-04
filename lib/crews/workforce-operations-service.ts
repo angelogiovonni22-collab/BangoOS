@@ -639,6 +639,7 @@ export function createWorkforceOperationsService(deps: WorkforceOperationsDeps =
         return {
           crewId: crew.id,
           crewName: crew.name,
+          lifecycleStatus: crew.status,
           supervisorName: crew.supervisorName,
           currentProjectName: crew.currentProjectName,
           employeeCount: crew.activeMemberCount,

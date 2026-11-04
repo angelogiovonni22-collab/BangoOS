@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { loadScheduleTimeZone } from "@/lib/scheduling/workspace-time-zone";
+import { activeFieldCrews, effectiveFieldCrewId, mobileReportDate } from "@/lib/crews/mobile-field-context";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ClipboardCheck, HardHat, Mail, Phone, Truck, Users } from "./crew-icons";
 import { Button } from "@/components/ui/button";
@@ -31,10 +33,6 @@ const CHECK_IN_ACTIONS: Array<{ action: CrewCheckInAction; label: string }> = [
   { action: "return_to_work", label: "Return To Work" },
 ];
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function MobileFieldOperationsWorkspace() {
   const {
     data,
@@ -59,7 +57,10 @@ export function MobileFieldOperationsWorkspace() {
   const [selectedTimeAssignmentId, setSelectedTimeAssignmentId] = useState("");
   const [checklistDraftByCrewId, setChecklistDraftByCrewId] = useState<Record<string, DailyChecklist>>({});
   const [mobileReport, setMobileReport] = useState<MobileDailyReportDraft>(createEmptyMobileDailyReportDraft());
-  const [reportDate, setReportDate] = useState(todayIso());
+  const [selectedReportDate, setReportDate] = useState("");
+  const [companyTimeZone, setCompanyTimeZone] = useState<string | null>(null);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+  const reportDate = mobileReportDate(companyTimeZone, selectedReportDate);
   const [equipmentIdsInput, setEquipmentIdsInput] = useState("");
   const [checkoutNotes, setCheckoutNotes] = useState("");
   const [returnCheckoutId, setReturnCheckoutId] = useState("");
@@ -82,7 +83,25 @@ export function MobileFieldOperationsWorkspace() {
     void refresh();
   }, [refresh]);
 
-  const effectiveCrewId = selectedCrewId || data?.workforce.crewStatus[0]?.crewId || "";
+  useEffect(() => {
+    let active = true;
+    const loadCalendar = async () => {
+      try {
+        const client = createClient();
+        const workspace = await resolveWorkspaceContext(client);
+        if (!client || !workspace.context) throw new Error("Company calendar is unavailable.");
+        const zone = await loadScheduleTimeZone(client, workspace.context.companyId);
+        if (active) setCompanyTimeZone(zone);
+      } catch {
+        if (active) setCalendarError("Unable to load the company calendar. Refresh before creating a daily report.");
+      }
+    };
+    void loadCalendar();
+    return () => { active = false; };
+  }, []);
+
+  const fieldCrews = useMemo(() => activeFieldCrews(data?.workforce.crewStatus || []), [data]);
+  const effectiveCrewId = effectiveFieldCrewId(fieldCrews, selectedCrewId);
   const reportDraftKey = `${effectiveCrewId}:${reportDate}`;
 
   useEffect(() => {
@@ -98,7 +117,7 @@ export function MobileFieldOperationsWorkspace() {
   },[checklistDraftStore,effectiveCrewId]);
 
   useEffect(() => {
-    if(!effectiveCrewId)return;
+    if(!effectiveCrewId||!reportDate)return;
     let active=true;
     reportDraftHydrationRef.current="";
     void reportDraftStore.load(effectiveCrewId,reportDate).then(saved=>{
@@ -127,8 +146,8 @@ export function MobileFieldOperationsWorkspace() {
   },[checklistDraftByCrewId,checklistDraftStore,effectiveCrewId]);
 
   const selectedCrew = useMemo(
-    () => data?.workforce.crewStatus.find((crew) => crew.crewId === effectiveCrewId) || null,
-    [data, effectiveCrewId],
+    () => fieldCrews.find((crew) => crew.crewId === effectiveCrewId) || null,
+    [fieldCrews, effectiveCrewId],
   );
 
   const selectedCrewAssignments = useMemo(() => {
@@ -232,8 +251,9 @@ export function MobileFieldOperationsWorkspace() {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Today&apos;s Crew</p>
-            <Select value={selectedCrewId} onChange={(event) => setSelectedCrewId(event.target.value)} aria-label="Select crew">
-              {data.workforce.crewStatus.map((crew) => (
+            <Select value={effectiveCrewId} disabled={fieldCrews.length === 0} onChange={(event) => setSelectedCrewId(event.target.value)} aria-label="Select crew">
+              {fieldCrews.length === 0 ? <option value="">No active crews available</option> : null}
+              {fieldCrews.map((crew) => (
                 <option key={crew.crewId} value={crew.crewId}>{crew.crewName}</option>
               ))}
             </Select>
@@ -388,7 +408,8 @@ export function MobileFieldOperationsWorkspace() {
         <h2 className="mb-3 text-base font-semibold text-[var(--text-primary)]">Mobile Daily Report</h2>
 
         <div className="space-y-3">
-          <Input type="date" value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
+          {calendarError ? <p role="alert" className="text-sm text-[var(--color-danger-700)]">{calendarError}</p> : null}
+          <Input type="date" aria-label="Report date" disabled={!companyTimeZone} value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Attached field photos</p>
             {mobileReport.photos.length ? <ul className="mt-2 space-y-1">{mobileReport.photos.map((photo, index) => <li key={`${photo}-${index}`} className="flex items-center justify-between gap-2 text-sm text-[var(--text-primary)]"><span className="truncate">{photo}</span><Button type="button" size="sm" variant="ghost" aria-label={`Remove ${photo}`} onClick={() => setMobileReport((current) => ({ ...current, photos: current.photos.filter((_, photoIndex) => photoIndex !== index) }))}>Remove</Button></li>)}</ul> : <p className="mt-1 text-xs text-[var(--text-secondary)]">Use Jobsite Photo above to capture evidence directly into this report.</p>}
