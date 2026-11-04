@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, FormLabel, Input } from "@/components/ui";
+import { ProfileMenu } from "@/components/ui/profile-menu";
 import { useI18n } from "@/lib/i18n/provider";
 import type { Database } from "@/types/database.types";
 
@@ -54,6 +55,7 @@ export default function OnboardingPage() {
   const { t } = useI18n();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<OnboardingForm>(initialForm);
   const [error, setError] = useState("");
@@ -69,6 +71,7 @@ export default function OnboardingPage() {
         if (active) setCheckingRole(false);
         return;
       }
+      setUserEmail(user.email || null);
       const { data: membership } = await supabase
         .from("company_memberships")
         .select("role,status")
@@ -281,7 +284,10 @@ export default function OnboardingPage() {
       <div className="mx-auto max-w-5xl">
         <div className="overflow-hidden rounded-[var(--radius-3xl)] border border-[var(--color-border-subtle)] bg-[var(--color-surface-card)] shadow-[var(--shadow-large)]">
           <header className="border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] px-8 py-10 sm:px-12">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--color-brand-700)]">{t("onboarding.eyebrow")}</p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--color-brand-700)]">{t("onboarding.eyebrow")}</p>
+              <ProfileMenu userEmail={userEmail} userName={null} companyName={null} />
+            </div>
             <h1 className="mt-4 text-4xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-5xl">{t("onboarding.title")}</h1>
             <p className="mt-4 max-w-2xl text-lg leading-8 text-[var(--color-text-secondary)]">{t("onboarding.description")}</p>
           </header>
