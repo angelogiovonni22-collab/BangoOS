@@ -251,7 +251,7 @@ export function MobileFieldOperationsWorkspace() {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Today&apos;s Crew</p>
-            <Select value={effectiveCrewId} disabled={fieldCrews.length === 0} onChange={(event) => setSelectedCrewId(event.target.value)} aria-label="Select crew">
+            <Select value={effectiveCrewId} disabled={isMutating || fieldCrews.length === 0} onChange={(event) => setSelectedCrewId(event.target.value)} aria-label="Select crew">
               {fieldCrews.length === 0 ? <option value="">No active crews available</option> : null}
               {fieldCrews.map((crew) => (
                 <option key={crew.crewId} value={crew.crewId}>{crew.crewName}</option>
@@ -407,7 +407,8 @@ export function MobileFieldOperationsWorkspace() {
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="mobile-report">
         <h2 className="mb-3 text-base font-semibold text-[var(--text-primary)]">Mobile Daily Report</h2>
 
-        <div className="space-y-3">
+        <p className="mb-3 text-sm text-[var(--text-secondary)]">Save a draft to keep working, or submit the report for review.</p>
+        <fieldset disabled={isMutating} aria-label="Daily report details" className="min-w-0 space-y-3">
           {calendarError ? <p role="alert" className="text-sm text-[var(--color-danger-700)]">{calendarError}</p> : null}
           <Input type="date" aria-label="Report date" disabled={!companyTimeZone} value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
@@ -463,7 +464,7 @@ export function MobileFieldOperationsWorkspace() {
               Submit Report
             </Button>
           </div>
-        </div>
+        </fieldset>
       </Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="crew-directory">
