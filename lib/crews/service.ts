@@ -1,3 +1,4 @@
+import { syncCrewMemberships } from "./crew-memberships";
 import { loadScheduleTimeZone } from "@/lib/scheduling/workspace-time-zone";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
@@ -128,65 +129,13 @@ async function resolveContext() {
   }
 
   return {
+    supabase,
     workforce: createWorkforceService(supabase),
     repository: createWorkforceRepository(supabase),
     workspace: workspace.context,
   };
 }
 
-async function syncCrewMemberships(params: {
-  companyId: string;
-  actorProfileId: string;
-  crewId: string;
-  input: UpsertCrewInput;
-  workforce: ReturnType<typeof createWorkforceService>;
-}) {
-  const existingActive = await params.workforce.listCrewMemberships(params.companyId, {
-    crewId: params.crewId,
-    status: "active",
-  });
-
-  const byEmployeeId = new Map(existingActive.map((membership) => [membership.employee_id, membership]));
-  const seenEmployees = new Set<string>();
-  const today = new Date().toISOString().slice(0, 10);
-
-  for (const member of params.input.members) {
-    seenEmployees.add(member.employeeId);
-    const existing = byEmployeeId.get(member.employeeId);
-
-    if (!existing) {
-      await params.workforce.addCrewMembership(params.companyId, params.actorProfileId, {
-        crew_id: params.crewId,
-        employee_id: member.employeeId,
-        role: member.role,
-        is_primary: member.primaryCrew,
-        starts_on: member.joinedOn || today,
-        status: "active",
-      });
-      continue;
-    }
-
-    await params.workforce.updateCrewMembership(params.companyId, params.actorProfileId, existing.id, {
-      role: member.role,
-      is_primary: member.primaryCrew,
-      status: "active",
-      ends_on: null,
-    });
-  }
-
-  for (const membership of existingActive) {
-    if (seenEmployees.has(membership.employee_id)) {
-      continue;
-    }
-
-    await params.workforce.endCrewMembership(
-      params.companyId,
-      params.actorProfileId,
-      membership.id,
-      today,
-    );
-  }
-}
 
 async function loadDirectory(filters: CrewFilters) {
   const supabase = createClient();
@@ -350,7 +299,8 @@ export function createCrewService(deps: CrewServiceDeps = {}): CrewService {
     },
 
     async createCrew(input) {
-      const { workforce, workspace } = await resolveContext();
+      const { supabase, workforce, workspace } = await resolveContext();
+      const timeZone = await loadScheduleTimeZone(supabase, workspace.companyId);
       const created = await workforce.createCrew(workspace.companyId, workspace.userId, {
         crew_code: input.code.trim().toUpperCase(),
         name: input.name.trim(),
@@ -363,6 +313,7 @@ export function createCrewService(deps: CrewServiceDeps = {}): CrewService {
       });
 
       await syncCrewMemberships({
+        timeZone,
         companyId: workspace.companyId,
         actorProfileId: workspace.userId,
         crewId: created.id,
@@ -374,7 +325,8 @@ export function createCrewService(deps: CrewServiceDeps = {}): CrewService {
     },
 
     async updateCrew(crewId, input) {
-      const { workforce, workspace } = await resolveContext();
+      const { supabase, workforce, workspace } = await resolveContext();
+      const timeZone = await loadScheduleTimeZone(supabase, workspace.companyId);
       const updated = await workforce.updateCrew(workspace.companyId, workspace.userId, crewId, {
         crew_code: input.code.trim().toUpperCase(),
         name: input.name.trim(),
@@ -391,6 +343,7 @@ export function createCrewService(deps: CrewServiceDeps = {}): CrewService {
       }
 
       await syncCrewMemberships({
+        timeZone,
         companyId: workspace.companyId,
         actorProfileId: workspace.userId,
         crewId: updated.id,
