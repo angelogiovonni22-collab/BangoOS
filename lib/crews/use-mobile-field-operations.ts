@@ -120,7 +120,7 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
 
       try {
         const result = await service.submitMobileDailyReport(input);
-        setActionMessage("Mobile daily report submitted.");
+        setActionMessage(input.status === "draft" ? "Mobile daily report draft saved." : "Mobile daily report submitted.");
         await refresh();
         return result;
       } catch (error) {
