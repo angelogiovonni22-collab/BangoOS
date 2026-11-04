@@ -105,7 +105,8 @@ export function CrewForm({
         availabilityStatus: employee.availabilityStatus,
         assignedCrewId: employee.assignedCrewId || null,
         primaryCrew: current.length === 0,
-        joinedOn: new Date().toISOString().slice(0, 10),
+        // The save service resolves the effective date in the company time zone.
+        joinedOn: "",
       },
     ]);
 
