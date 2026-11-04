@@ -26,6 +26,7 @@ export type WorkforceSummaryMetrics = {
 };
 
 export type CrewStatusRow = {
+  lifecycleStatus?: "active" | "inactive" | "archived";
   crewId: string;
   crewName: string;
   supervisorName: string | null;
