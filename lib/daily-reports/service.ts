@@ -1,4 +1,5 @@
 import { dailyReportDate, previousDailyReportDate } from "./date";
+import { selectDailyReportAssignment } from "./schedule-preload";
 import { buildDeterministicDailySummary } from "./ai-summary";
 import { createSchedulingService } from "@/lib/scheduling";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
@@ -116,7 +117,7 @@ export function calculateLaborTotals(labor: LaborEntry[]): LaborTotals {
 async function buildLiveDraft(date: string): Promise<DailyReportUpsertInput> {
   const scheduling = createSchedulingService();
   const payload = await scheduling.getScheduling();
-  const matchingAssignment = payload.assignments.find((item) => item.date === date) ?? payload.assignments[0] ?? null;
+  const matchingAssignment = selectDailyReportAssignment(payload.assignments, date);
 
   if (!matchingAssignment) {
     return buildBlankDraft(date);
