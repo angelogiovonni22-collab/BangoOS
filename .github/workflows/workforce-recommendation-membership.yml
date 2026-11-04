@@ -1,0 +1,31 @@
+name: Workforce Recommendation Membership History
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/*workforce_recommendation_actor_membership.sql"
+      - "scripts/test-workforce-recommendation-membership.mjs"
+      - ".github/workflows/workforce-recommendation-membership.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*workforce_recommendation_actor_membership.sql"
+      - "scripts/test-workforce-recommendation-membership.mjs"
+      - ".github/workflows/workforce-recommendation-membership.yml"
+permissions:
+  contents: read
+jobs:
+  postgres-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare isolated PostgreSQL runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/workforce-postgres"
+          npm pack @electric-sql/pglite@0.3.14 --pack-destination "$RUNNER_TEMP/workforce-postgres"
+          tar -xzf "$RUNNER_TEMP/workforce-postgres/electric-sql-pglite-0.3.14.tgz" -C "$RUNNER_TEMP/workforce-postgres"
+      - name: Verify revocation preserves recommendation history
+        run: node scripts/test-workforce-recommendation-membership.mjs "$RUNNER_TEMP/workforce-postgres/package/dist/index.js" supabase/migrations/20261104195637_workforce_recommendation_actor_membership.sql
