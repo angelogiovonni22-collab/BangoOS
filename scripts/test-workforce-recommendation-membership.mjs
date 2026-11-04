@@ -16,6 +16,12 @@ try {
     create function company_role_weight(text) returns integer language sql as $$ select 0 $$;
     create table workforce_orion_recommendations(id uuid primary key default gen_random_uuid(),company_id uuid not null,actor_profile_id uuid,
       constraint workforce_orion_recommendations_actor_company_fkey foreign key(actor_profile_id,company_id) references profiles(id,company_id) on delete set null);
+    create table workforce_orion_recommendation_history(id uuid primary key default gen_random_uuid(),company_id uuid not null,actor_profile_id uuid,
+      constraint workforce_orion_recommendation_history_actor_company_fkey foreign key(actor_profile_id,company_id) references profiles(id,company_id) on delete set null);
+    create table workforce_orion_recommendation_outcomes(id uuid primary key default gen_random_uuid(),company_id uuid not null,actor_profile_id uuid,
+      constraint workforce_orion_recommendation_outcomes_actor_company_fkey foreign key(actor_profile_id,company_id) references profiles(id,company_id) on delete set null);
+    create table workforce_orion_timeline_events(id uuid primary key default gen_random_uuid(),company_id uuid not null,actor_profile_id uuid,
+      constraint workforce_orion_timeline_events_actor_company_fkey foreign key(actor_profile_id,company_id) references profiles(id,company_id) on delete set null);
     insert into profiles(id,company_id,role) values('${actor}','${company}','foreman'),('${outsider}','${otherCompany}','foreman');
   `);
   const foundation = await readFile("supabase/migrations/20260729170000_multi_company_foundation.sql","utf8");
@@ -26,9 +32,14 @@ try {
     create trigger membership_sync after insert or update or delete on company_memberships for each row execute function trg_company_memberships_sync_profiles_fn();
     insert into company_memberships(company_id,user_id,status,role) values('${company}','${actor}','active','foreman'),('${otherCompany}','${outsider}','active','foreman');
     insert into workforce_orion_recommendations(company_id,actor_profile_id) values('${company}','${actor}');
+    insert into workforce_orion_recommendation_history(company_id,actor_profile_id) values('${company}','${actor}');
+    insert into workforce_orion_recommendation_outcomes(company_id,actor_profile_id) values('${company}','${actor}');
+    insert into workforce_orion_timeline_events(company_id,actor_profile_id) values('${company}','${actor}');
   `);
   await assert.rejects(db.exec(`update company_memberships set status='inactive' where user_id='${actor}'`),/foreign key/i);
   await db.exec(await readFile(process.argv[3],"utf8"));
+  await assert.rejects(db.exec(`update company_memberships set status=\'inactive\' where user_id=\'${actor}\'`),/foreign key/i);
+  await db.exec(await readFile(process.argv[4],"utf8"));
   await db.exec(`update company_memberships set status='inactive' where user_id='${actor}'`);
   assert.equal((await q(`select company_id from profiles where id='${actor}'`))[0].company_id,null);
   assert.equal((await q(`select status from company_memberships where user_id='${actor}'`))[0].status,"inactive");
@@ -39,5 +50,9 @@ try {
   await db.exec(`insert into company_memberships(company_id,user_id,status,role) values('${otherCompany}','${actor}','active','employee')`);
   assert.equal((await q(`select company_id from profiles where id='${actor}'`))[0].company_id,otherCompany);
   assert.deepEqual((await q("select company_id,actor_profile_id from workforce_orion_recommendations"))[0],{company_id:company,actor_profile_id:actor});
-  console.log("Recommendation membership history: 9 regression assertions passed");
+  for (const table of ["workforce_orion_recommendation_history","workforce_orion_recommendation_outcomes","workforce_orion_timeline_events"]) {
+    assert.deepEqual((await q("select company_id,actor_profile_id from "+table))[0],{company_id:company,actor_profile_id:actor});
+    await assert.rejects(db.exec(`insert into ${table}(company_id,actor_profile_id) values('${company}','${outsider}')`),/foreign key/i);
+  }
+  console.log("Recommendation membership history and related events: regression passed");
 } finally { await db.close(); }
