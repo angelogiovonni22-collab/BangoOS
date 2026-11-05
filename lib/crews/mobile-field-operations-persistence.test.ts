@@ -41,11 +41,16 @@ function createQueueProvider(): { queue: OfflineQueueItem[]; provider: OfflineQu
       async list() {
         return [...queue];
       },
+      async setStatus(id, status) {
+        const item = queue.find((entry) => entry.id === id);
+        if (item) item.status = status;
+      },
     },
   };
 }
 
-function createWorkflowSupabaseStub(workflowEvents: WorkflowEventRow[]) {
+function createWorkflowSupabaseStub(workflowEvents: WorkflowEventRow[], failInserts = 0) {
+  let remainingFailures = failInserts;
   const api = {
     from(table: string) {
       if (table !== "workflow_events") {
@@ -54,6 +59,8 @@ function createWorkflowSupabaseStub(workflowEvents: WorkflowEventRow[]) {
 
       return {
         insert(payload: Record<string, unknown>) {
+          if (payload.reference_entity === "equipment_checkout" && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(payload.reference_id))) return Promise.resolve({ error: { message: "Equipment checkout reference must be a UUID" } });
+          if (remainingFailures > 0) { remainingFailures -= 1; return Promise.resolve({ error: { message: "Simulated connection interruption" } }); }
           workflowEvents.push(payload as unknown as WorkflowEventRow);
           return Promise.resolve({ error: null });
         },
@@ -234,12 +241,12 @@ function createDailyReportsStub() {
   };
 }
 
-function createServiceHarness(workflowEvents: WorkflowEventRow[], queueProvider?: OfflineQueueProvider) {
+function createServiceHarness(workflowEvents: WorkflowEventRow[], queueProvider?: OfflineQueueProvider, failInserts = 0) {
   return createMobileFieldOperationsService({
     workforceService: createWorkforceStub() as never,
     dailyReportsService: createDailyReportsStub() as never,
     offlineQueue: queueProvider,
-    supabaseClient: createWorkflowSupabaseStub(workflowEvents) as never,
+    supabaseClient: createWorkflowSupabaseStub(workflowEvents, failInserts) as never,
     resolveWorkspace: async () => ({
       context: {
         userId: "user-1",
@@ -368,6 +375,29 @@ async function main() {
       await service.submitMobileDailyReport({ crewId: "crew-without-assignment", reportDate: "2026-11-03", status: "draft", draft: createEmptyMobileDailyReportDraft() });
     } catch { rejected = true; }
     check(rejected && !created, "an unmatched assignment cannot create a report for another crew's project");
+  });
+
+
+  await test("5. equipment condition notes survive queued checkout and return replay", async () => {
+    const events: WorkflowEventRow[] = [];
+    const { queue, provider } = createQueueProvider();
+    const first = createServiceHarness(events, provider, 1);
+    const checkout = await first.checkoutEquipment({ crewId: "crew-1", equipmentIds: ["equip-queued-notes"], conditionNotes: "Synthetic checkout: cracked handle, do not operate" });
+    check(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(checkout.id), "checkout identity is compatible with the database UUID reference");
+    check(queue[0]?.status === "queued", "interrupted checkout remains queued");
+    const checkoutSync = await first.syncOfflineActions();
+    check(checkoutSync.synced === 1 && checkoutSync.failed === 0, "queued checkout passes the persisted UUID reference boundary");
+    const second = createServiceHarness(events, provider, 1);
+    const afterCheckout = await second.getForemanDashboard();
+    check(afterCheckout.equipmentCheckouts.find((row) => row.id === checkout.id)?.conditionNotes === "Synthetic checkout: cracked handle, do not operate", "checkout condition notes survive synchronization and reload");
+    await second.returnEquipment({ checkoutId: checkout.id, conditionNotes: "Synthetic return: isolated for repair" });
+    check(queue.some((item) => item.type === "equipment_return" && item.status === "queued"), "interrupted return remains queued");
+    await second.syncOfflineActions();
+    for (const event of events) event.occurred_at = "2026-11-04T18:00:00.000Z";
+    const third = createServiceHarness(events, provider);
+    const afterReturn = await third.getForemanDashboard();
+    const returned = afterReturn.equipmentCheckouts.find((row) => row.id === checkout.id);
+    check(Boolean(returned?.returnedAt) && returned?.conditionNotes === "Synthetic return: isolated for repair", "return condition notes survive synchronization and reload even with tied event timestamps");
   });
 
   console.log(`\nMobile field persistence results: ${passed} passed, ${failed} failed`);
