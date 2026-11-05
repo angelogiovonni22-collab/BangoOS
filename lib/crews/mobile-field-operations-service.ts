@@ -86,7 +86,7 @@ const inMemoryConflictProvider: OfflineConflictResolutionProvider = {
 const inMemoryEquipmentCheckoutProvider: EquipmentCheckoutProvider = {
   async createCheckout(input) {
     const record = {
-      id: `checkout-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: createRuntimeId(),
       crewId: input.crewId,
       equipmentIds: input.equipmentIds,
       conditionNotes: input.conditionNotes,
@@ -142,12 +142,8 @@ function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 }
 
-function createRuntimeId(prefix: string): string {
-  try {
-    return `${prefix}-${crypto.randomUUID()}`;
-  } catch {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  }
+function createRuntimeId(): string {
+  return crypto.randomUUID();
 }
 
 function extractChecklistByCrew(events: WorkflowMobileEventRow[]): Record<string, DailyChecklist> {
@@ -208,6 +204,11 @@ function extractEquipmentCheckouts(events: WorkflowMobileEventRow[]) {
       });
     }
 
+  }
+
+  // Build checkout records first so a return is retained even when timestamps tie.
+  for (const event of [...events].reverse()) {
+    if (!isRecord(event.payload)) continue;
     if (event.event_type === MOBILE_EQUIPMENT_RETURN_EVENT) {
       const checkoutId = typeof event.payload.checkoutId === "string" ? event.payload.checkoutId : event.reference_id;
       if (!checkoutId) {
@@ -667,7 +668,7 @@ export function createMobileFieldOperationsService(
       });
 
       let checkout: EquipmentCheckoutRecord = {
-        id: createRuntimeId("checkout"),
+        id: createRuntimeId(),
         crewId: input.crewId,
         equipmentIds,
         conditionNotes: input.conditionNotes,
@@ -709,6 +710,7 @@ export function createMobileFieldOperationsService(
           checkoutId: checkout.id,
           crewId: input.crewId,
           equipmentIds,
+          conditionNotes: input.conditionNotes,
           persistenceState: saved ? "saved" : "queued",
         },
       });
@@ -768,6 +770,7 @@ export function createMobileFieldOperationsService(
           payload: {
             checkoutId: input.checkoutId,
             at: now,
+            conditionNotes: returned.conditionNotes,
             persistenceState: saved ? "saved" : "queued",
           },
         });
