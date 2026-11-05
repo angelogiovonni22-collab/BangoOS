@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { claimStartupIntro } from "@/lib/mobile/startup-session";
 import { useEffect, useRef, useState } from "react";
 import styles from "./BosStartupIntro.module.css";
 
@@ -35,6 +36,7 @@ export function BosStartupIntro() {
 
   const releasePrepaint = () => {
     document.documentElement.classList.remove(PREPAINT_CLASS);
+    document.documentElement.dataset.bosStartup = "skip";
   };
 
   const finish = () => {
@@ -54,7 +56,7 @@ export function BosStartupIntro() {
       const isMobile = window.matchMedia("(max-width: 1023px)").matches;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      if (!isMobile || reducedMotion) {
+      if (!isMobile || reducedMotion || !claimStartupIntro(document.documentElement)) {
         releasePrepaint();
         setState("hidden");
         return;
@@ -115,6 +117,7 @@ export function BosStartupIntro() {
   return (
     <div
       className={`${styles.root} ${state === "fading" ? styles.fading : ""}`}
+      data-bos-startup-intro=""
       aria-hidden="true"
     >
       <div className={styles.ambient} />

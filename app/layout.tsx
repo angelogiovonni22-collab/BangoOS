@@ -18,6 +18,7 @@ import "./mobile-reference.css";
 import "./mobile-login.css";
 import "./mobile-reliability.css";
 import "./sidebar-uniform-background.css";
+import { startupSessionBootstrap } from "@/lib/mobile/startup-session";
 import { BosStartupIntro } from "@/components/startup/BosStartupIntro";
 import { I18nProvider } from "@/lib/i18n/provider";
 
@@ -77,6 +78,10 @@ const themeBootstrapScript = `(() => {
 })();`;
 
 const startupPrepaintCss = `
+html[data-bos-startup="skip"] [data-bos-startup-intro] {
+  display: none;
+}
+
 html.bos-startup-prepaint,
 html.bos-startup-prepaint body {
   margin: 0;
@@ -121,6 +126,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           />
         ))}
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <script dangerouslySetInnerHTML={{ __html: startupSessionBootstrap }} />
       </head>
       <body className="min-h-full flex flex-col">
         <BosStartupIntro />
