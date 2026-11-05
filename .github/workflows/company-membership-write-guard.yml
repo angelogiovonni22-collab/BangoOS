@@ -1,0 +1,31 @@
+name: Company Membership Write Guard
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/*_company_membership_write_guard.sql"
+      - "scripts/test-company-membership-write-guard.mjs"
+      - ".github/workflows/company-membership-write-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*_company_membership_write_guard.sql"
+      - "scripts/test-company-membership-write-guard.mjs"
+      - ".github/workflows/company-membership-write-guard.yml"
+permissions:
+  contents: read
+jobs:
+  postgres-membership-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare isolated PostgreSQL runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/membership-postgres"
+          npm pack @electric-sql/pglite@0.3.14 --pack-destination "$RUNNER_TEMP/membership-postgres"
+          tar -xzf "$RUNNER_TEMP/membership-postgres/electric-sql-pglite-0.3.14.tgz" -C "$RUNNER_TEMP/membership-postgres"
+      - name: Verify membership authorization and onboarding compatibility
+        run: node scripts/test-company-membership-write-guard.mjs "$RUNNER_TEMP/membership-postgres/package/dist/index.js"
