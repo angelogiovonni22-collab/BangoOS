@@ -1,0 +1,27 @@
+name: Measurement membership access
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261105235000_measurement_active_membership.sql'
+      - 'scripts/test-measurement-active-membership.mjs'
+      - '.github/workflows/measurement-access.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261105235000_measurement_active_membership.sql'
+      - 'scripts/test-measurement-active-membership.mjs'
+      - '.github/workflows/measurement-access.yml'
+permissions:
+  contents: read
+jobs:
+  measurement-access:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install isolated PostgreSQL test runtime
+        run: npm install --prefix "$RUNNER_TEMP/measurement-rls" --no-package-lock --ignore-scripts @electric-sql/pglite@0.3.14
+      - name: Verify active membership boundaries
+        run: node scripts/test-measurement-active-membership.mjs "$RUNNER_TEMP/measurement-rls/node_modules/@electric-sql/pglite/dist/index.js"

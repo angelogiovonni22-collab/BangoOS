@@ -1,0 +1,10 @@
+-- Inactive memberships must not authorize measurement records or their private photos.
+-- Preserve the existing active-member operations; do not change data, grants, or bucket settings.
+alter policy measurements_company_select on public.measurements using (exists (select 1 from public.company_memberships m where m.company_id = measurements.company_id and m.user_id = (select auth.uid()) and m.status = 'active'));
+alter policy measurements_company_insert on public.measurements with check (created_by = (select auth.uid()) and exists (select 1 from public.company_memberships m where m.company_id = measurements.company_id and m.user_id = (select auth.uid()) and m.status = 'active'));
+alter policy measurements_company_update on public.measurements using (exists (select 1 from public.company_memberships m where m.company_id = measurements.company_id and m.user_id = (select auth.uid()) and m.status = 'active')) with check (exists (select 1 from public.company_memberships m where m.company_id = measurements.company_id and m.user_id = (select auth.uid()) and m.status = 'active'));
+alter policy measurements_company_delete on public.measurements using (exists (select 1 from public.company_memberships m where m.company_id = measurements.company_id and m.user_id = (select auth.uid()) and m.status = 'active'));
+alter policy bos_measurements_storage_select on storage.objects using (bucket_id = 'bos-measurements' and exists (select 1 from public.company_memberships m where m.user_id = (select auth.uid()) and m.status = 'active' and m.company_id::text = (storage.foldername(name))[1]));
+alter policy bos_measurements_storage_insert on storage.objects with check (bucket_id = 'bos-measurements' and exists (select 1 from public.company_memberships m where m.user_id = (select auth.uid()) and m.status = 'active' and m.company_id::text = (storage.foldername(name))[1]));
+alter policy bos_measurements_storage_delete on storage.objects using (bucket_id = 'bos-measurements' and exists (select 1 from public.company_memberships m where m.user_id = (select auth.uid()) and m.status = 'active' and m.company_id::text = (storage.foldername(name))[1]));
+
