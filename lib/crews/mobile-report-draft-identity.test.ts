@@ -84,7 +84,8 @@ async function main(){
  check(creates===1&&updates===1,"receipt replay never creates or updates the server report again");
  const emptySync=await service().syncOfflineActions();
  check(emptySync.synced===0&&emptySync.failed===0,"a second reconnect has nothing left to replay");
- check(saved?.timeline[0]?.description==="Synthetic interruption recovery"&&saved?.attachments[0]?.projectPhotoId==="retained-photo","recovery preserves notes and uploaded photo references");
+ const recoveredReport=await reports.getReport("saved-report");
+ check(recoveredReport?.timeline[0]?.description==="Synthetic interruption recovery"&&recoveredReport?.attachments[0]?.projectPhotoId==="retained-photo","recovery preserves notes and uploaded photo references");
  receiptFailure="enqueue";
  const finalSubmit=await service().submitMobileDailyReport({...recoveryInput,status:"submitted",draft:{...recoveryDraft,reportId:updated.reportId,reportUpdatedAt:updated.reportUpdatedAt}});
  check(creates===1&&updates===2&&finalSubmit.reportId===recovered.reportId,"submission still returns the same report after local receipt failure");
