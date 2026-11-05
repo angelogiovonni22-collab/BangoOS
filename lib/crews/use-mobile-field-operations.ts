@@ -64,6 +64,8 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
         if (result.synced > 0) setActionMessage(`${result.synced} offline field action${result.synced === 1 ? "" : "s"} synchronized.`);
         if (result.failed > 0) setErrorMessage(`${result.failed} offline field action${result.failed === 1 ? "" : "s"} need review.`);
         if (result.synced > 0 || result.failed > 0) void refresh();
+      }).catch(() => {
+        setErrorMessage("Unable to synchronize field actions. Your pending actions remain on this device. Check your connection and reopen this workspace to try again.");
       });
     };
     const markOnline=()=>{setIsOnline(true);synchronize();};
