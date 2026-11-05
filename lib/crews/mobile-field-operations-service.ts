@@ -632,20 +632,15 @@ export function createMobileFieldOperationsService(
 
     async submitMobileDailyReport(input) {
       if(input.status!=="draft"){const errors=validateMobileDailyReport(input.draft);if(errors.length)throw new Error(errors[0]);}
-      const [workforceData, baseDraft] = await Promise.all([
-        workforce.getDashboard(),
-        dailyReports.createDraftFromSchedule(input.reportDate),
-      ]);
-
-      const assignment = workforceData.dailyAssignments.find((item) => item.crewId === input.crewId) || null;
-      const crew = workforceData.crewStatus.find((item) => item.crewId === input.crewId) || null;
+      if (!input.crewId) throw new Error("Choose a crew before saving a daily report.");
+      const baseDraft = await dailyReports.createDraftFromSchedule(input.reportDate, input.crewId);
 
       const reportInput = createMobileReportInput({
         baseDraft,
         source: input,
-        projectId: assignment?.projectId || baseDraft.header.projectId,
-        projectName: assignment?.projectName || baseDraft.header.projectName,
-        superintendentName: crew?.supervisorName || baseDraft.header.superintendentName,
+        projectId: baseDraft.header.projectId,
+        projectName: baseDraft.header.projectName,
+        superintendentName: baseDraft.header.superintendentName,
       });
 
       const created = await dailyReports.createReport(reportInput, input.status as DailyReportStatus);

@@ -1,3 +1,5 @@
+import type { DailyReportUpsertInput } from "@/lib/daily-reports";
+import { createEmptyMobileDailyReportDraft } from "./mobile-field-operations-types";
 import { createMobileFieldOperationsService } from "./mobile-field-operations-service";
 import type {
   DailyChecklist,
@@ -323,6 +325,49 @@ async function main() {
     check(dashboard.checklistByCrew["crew-1"]?.dailyGoals === "Pour slab section B", "checklist data reloads from persisted workflow events");
     check(queue.length === 1, "a queue audit entry is recorded");
     check(queue[0]?.status === "synced", "saved checklist entry is marked as synced rather than queued");
+  });
+
+
+  await test("3. mobile reports preserve the selected crew and historical date draft", async () => {
+    const baseDraft: DailyReportUpsertInput = {
+      header: { projectId: "historical-project", projectName: "Historical job", date: "2026-11-03", shift: "night", superintendentId: "", superintendentName: "Historical supervisor", projectManagerName: "", weather: "mixed", temperatureF: 0, siteConditions: "dry", overallStatus: "draft" },
+      schedulingPreload: { assignmentId: "historical-assignment", assignmentTitle: "Yesterday's work", plannedHours: 6, scheduledProjectId: "historical-project", scheduledProjectName: "Historical job", assignedCrewNames: ["Selected crew"], scheduledEmployees: ["Historical employee"], supervisor: "Historical supervisor" },
+      labor: [{ id: "labor-1", crewName: "Selected crew", employeeName: "Historical employee", trade: "", scheduled: true, present: true, late: false, regularHours: 6, overtimeHours: 0, notes: "" }],
+      workCompleted: [], materials: [], equipment: [], safety: [], delays: [], attachments: [], timeline: [], aiSummaryVersion: 1,
+    };
+    let created: DailyReportUpsertInput | null = null;
+    const service = createMobileFieldOperationsService({
+      workforceService: { getDashboard: async () => { throw new Error("Today's assignments must not choose a historical report's project."); } } as never,
+      dailyReportsService: {
+        createDraftFromSchedule: async (date: string, crewId?: string) => {
+          check(date === "2026-11-03" && crewId === "crew-2", "draft lookup uses both the report date and selected crew");
+          return baseDraft;
+        },
+        createReport: async (input: DailyReportUpsertInput) => { created = input; return { id: "report-1" }; },
+      } as never,
+      supabaseClient: createWorkflowSupabaseStub([]) as never,
+    });
+    await service.submitMobileDailyReport({ crewId: "crew-2", reportDate: "2026-11-03", status: "draft", draft: createEmptyMobileDailyReportDraft() });
+    const saved = created as DailyReportUpsertInput | null;
+    check(saved?.header.projectId === "historical-project" && saved?.header.superintendentName === "Historical supervisor", "project and supervisor stay aligned with the dated draft");
+    check(saved?.schedulingPreload?.assignmentId === "historical-assignment" && saved?.labor[0]?.employeeName === "Historical employee", "labor and schedule evidence remain attached to the same assignment");
+  });
+
+  await test("4. missing crew assignments stop before report creation", async () => {
+    let created = false;
+    const service = createMobileFieldOperationsService({
+      workforceService: createWorkforceStub() as never,
+      dailyReportsService: {
+        createDraftFromSchedule: async () => { throw new Error("No scheduled assignment matches this crew and report date."); },
+        createReport: async () => { created = true; return { id: "unexpected" }; },
+      } as never,
+      supabaseClient: createWorkflowSupabaseStub([]) as never,
+    });
+    let rejected = false;
+    try {
+      await service.submitMobileDailyReport({ crewId: "crew-without-assignment", reportDate: "2026-11-03", status: "draft", draft: createEmptyMobileDailyReportDraft() });
+    } catch { rejected = true; }
+    check(rejected && !created, "an unmatched assignment cannot create a report for another crew's project");
   });
 
   console.log(`\nMobile field persistence results: ${passed} passed, ${failed} failed`);
