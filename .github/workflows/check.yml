@@ -250,6 +250,11 @@ jobs:
           npx -y tsx lib/crews/field-photo-drafts.test.ts
           npx -y tsx lib/crews/field-photo-recovery.contract.test.ts
 
+      - name: Run report creation acknowledgement recovery
+        run: |
+          npx -y tsx lib/daily-reports/report-creation-recovery.test.ts
+          npx -y tsx lib/crews/mobile-report-creation-recovery.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 

@@ -213,21 +213,30 @@ export function MobileFieldOperationsWorkspace() {
     reportSubmissionRef.current = true;
     setIsSavingReport(true);
     const draft = { ...mobileReport, assignmentId: effectiveReportAssignmentId };
+    if (!draft.reportId && !draft.creationId) draft.creationId = crypto.randomUUID();
     try {
+      if (!draft.reportId) {
+        setMobileReport(draft);
+        try { await reportDraftStore.save(effectiveCrewId,reportDate,draft); }
+        catch {
+          setReportStorageWarning({ key: reportDraftKey, message: "Unable to save this report’s recovery reference on this device. Nothing was sent. Keep your notes and try again when device storage is available." });
+          return;
+        }
+      }
       const result = await submitMobileDailyReport({ crewId: effectiveCrewId, reportDate, status, draft });
       if (result) {
         setLastSavedReport({ key: reportDraftKey, assignmentId: effectiveReportAssignmentId, id: result.reportId });
         setReportStorageWarning(null);
-        const saved = { ...draft, reportId: result.reportId, reportUpdatedAt: result.reportUpdatedAt };
-        if (status === "draft") setMobileReport(saved);
+        const saved = { ...draft, reportId: result.reportId, reportUpdatedAt: result.reportUpdatedAt, creationId: undefined };
+        if (status === "draft" || result.recoveredCreation) setMobileReport(saved);
         try {
-          if (status === "draft") await reportDraftStore.save(effectiveCrewId,reportDate,saved);
+          if (status === "draft" || result.recoveredCreation) await reportDraftStore.save(effectiveCrewId,reportDate,saved);
           else await reportDraftStore.remove(effectiveCrewId,reportDate);
         } catch {
           setReportStorageWarning({ key: reportDraftKey, message: "Report saved online, but this device could not update its local draft. Open the saved report before retrying." });
         }
       }
-      if (result && status === "submitted") {
+      if (result && status === "submitted" && !result.recoveredCreation) {
         setMobileReport(createEmptyMobileDailyReportDraft());
       }
     } finally {
@@ -461,7 +470,7 @@ export function MobileFieldOperationsWorkspace() {
           <Input type="date" aria-label="Report date" disabled={!companyTimeZone} value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
           <label className="block text-sm text-[var(--text-secondary)]">
             Scheduled job
-            <Select aria-label="Report scheduled job" value={effectiveReportAssignmentId} disabled={reportAssignmentsLoading || reportAssignments.length === 0} onChange={(event) => setMobileReport((current) => ({ ...current, assignmentId: event.target.value, reportId: undefined, reportUpdatedAt: undefined }))}>
+            <Select aria-label="Report scheduled job" value={effectiveReportAssignmentId} disabled={reportAssignmentsLoading || reportAssignments.length === 0} onChange={(event) => setMobileReport((current) => ({ ...current, assignmentId: event.target.value, reportId: undefined, reportUpdatedAt: undefined, creationId: undefined }))}>
               <option value="">Choose scheduled job</option>
               {reportAssignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.scope.projectName || assignment.scope.projectId} — {assignment.title}</option>)}
             </Select>
@@ -503,6 +512,7 @@ export function MobileFieldOperationsWorkspace() {
 
           {reportErrors.length?<div role="alert" className="rounded-[var(--radius-card)] border border-[var(--color-warning-300)] bg-[var(--color-warning-50)] p-3"><p className="text-xs font-semibold text-[var(--color-warning-700)]">Complete before final submission:</p><ul className="mt-1 list-disc pl-4 text-xs text-[var(--color-warning-700)]">{reportErrors.map(error=><li key={error}>{error}</li>)}</ul></div>:null}
 
+          {mobileReport.creationId && !mobileReport.reportId ? <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] p-3"><Link className="text-sm font-semibold underline" href={`/daily-reports/${mobileReport.creationId}`}>Check previous save attempt</Link><p className="mt-1 text-xs text-[var(--text-secondary)]">If your connection was interrupted, check this report before starting a separate one. Your current notes remain on this device.</p></div> : null}
           {mobileReport.reportId || (lastSavedReport?.key === reportDraftKey && lastSavedReport.assignmentId === effectiveReportAssignmentId) ? <div className="space-y-2 rounded-[var(--radius-card)] border border-[var(--border-subtle)] p-3">
             <Link className="text-sm font-semibold underline" href={`/daily-reports/${mobileReport.reportId || lastSavedReport?.id}`}>Open saved report</Link>
             {mobileReport.reportId ? <p className="text-xs text-[var(--text-secondary)]">Further saves update this draft. Reports already submitted or changed elsewhere must be opened before continuing.</p> : null}
