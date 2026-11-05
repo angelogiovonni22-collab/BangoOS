@@ -54,6 +54,9 @@ jobs:
       - name: Run offline queue account isolation regression
         run: npx -y tsx lib/crews/field-offline-queue.test.ts
 
+      - name: Run field photo preview lifecycle regression
+        run: npx -y tsx lib/crews/field-photo-preview.test.ts
+
       - name: Run mobile field persistence regression
         run: npx -y tsx lib/crews/mobile-field-operations-persistence.test.ts
 
