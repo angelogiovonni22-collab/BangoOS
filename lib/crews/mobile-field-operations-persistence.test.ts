@@ -19,6 +19,7 @@ type WorkflowEventRow = {
   payload: Record<string, unknown>;
   metadata: Record<string, unknown>;
   occurred_at: string;
+  idempotency_key?: string | null;
 };
 
 function createQueueProvider(): { queue: OfflineQueueItem[]; provider: OfflineQueueProvider } {
@@ -61,7 +62,8 @@ function createWorkflowSupabaseStub(workflowEvents: WorkflowEventRow[], failInse
         insert(payload: Record<string, unknown>) {
           if (payload.reference_entity === "equipment_checkout" && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(payload.reference_id))) return Promise.resolve({ error: { message: "Equipment checkout reference must be a UUID" } });
           if (remainingFailures > 0) { remainingFailures -= 1; return Promise.resolve({ error: { message: "Simulated connection interruption" } }); }
-          workflowEvents.push(payload as unknown as WorkflowEventRow);
+          if (payload.idempotency_key && workflowEvents.some((event) => event.company_id === payload.company_id && event.event_type === payload.event_type && event.idempotency_key === payload.idempotency_key)) return Promise.resolve({ error: { code: "23505", message: "Duplicate event idempotency key" } });
+          workflowEvents.push(structuredClone(payload) as unknown as WorkflowEventRow);
           return Promise.resolve({ error: null });
         },
         select() {
@@ -71,6 +73,21 @@ function createWorkflowSupabaseStub(workflowEvents: WorkflowEventRow[], failInse
             eq(column: keyof WorkflowEventRow, value: unknown) {
               rows = rows.filter((row) => (row[column] as unknown) === value);
               return chain;
+            },
+            is(column: keyof WorkflowEventRow, value: unknown) {
+              rows = rows.filter((row) => row[column] === value);
+              return chain;
+            },
+            contains(column: keyof WorkflowEventRow, value: unknown) {
+              const contains = (actual: unknown, expected: unknown): boolean => {
+                if (expected && typeof expected === "object" && !Array.isArray(expected)) return Boolean(actual && typeof actual === "object" && Object.entries(expected).every(([key, entry]) => contains((actual as Record<string, unknown>)[key], entry)));
+                return JSON.stringify(actual) === JSON.stringify(expected);
+              };
+              rows = rows.filter((row) => contains(row[column], value));
+              return chain;
+            },
+            maybeSingle() {
+              return Promise.resolve({ data: rows.length === 1 ? rows[0] : null, error: rows.length > 1 ? { message: "Multiple matching rows" } : null });
             },
             in(column: keyof WorkflowEventRow, values: unknown[]) {
               rows = rows.filter((row) => values.includes(row[column]));
@@ -445,6 +462,45 @@ async function main() {
     try { await service.syncOfflineActions(); } catch { rejected = true; }
     const recovered = await service.syncOfflineActions();
     check(rejected && recovered.synced === 0 && recovered.failed === 0, "storage failure does not leave future synchronization stuck");
+  });
+
+
+  await test("9. retry recognizes a recorded action after local acknowledgement fails", async () => {
+    const events: WorkflowEventRow[] = [];
+    const { queue, provider } = createQueueProvider();
+    let loseAcknowledgement = true;
+    const service = createServiceHarness(events, {
+      ...provider,
+      async setStatus(id, status) {
+        if (status === "synced" && loseAcknowledgement) { loseAcknowledgement = false; throw new Error("Synthetic lost local acknowledgement"); }
+        await provider.setStatus?.(id, status);
+      },
+    }, 1);
+    await service.saveDailyChecklist({ crewId: "crew-1", checklist: { safetyBriefing: false, ppeVerification: false, equipmentInspection: false, dailyGoals: "Synthetic acknowledgement recovery", supervisorNotes: "", updatedAt: null } });
+    const first = await service.syncOfflineActions();
+    check(first.failed === 1 && events.length === 1, "server event survives a failed local acknowledgement");
+    const retry = await service.retryOfflineAction(queue[0].id);
+    check(retry.synced === 1 && retry.failed === 0 && queue[0].status === "synced", "matching recorded action recovers to synchronized status");
+    check(events.length === 1, "recovery preserves the original audit event without a duplicate");
+  });
+
+  await test("10. a reused key cannot acknowledge different action contents", async () => {
+    const events: WorkflowEventRow[] = [];
+    const { queue, provider } = createQueueProvider();
+    let loseAcknowledgement = true;
+    const service = createServiceHarness(events, {
+      ...provider,
+      async setStatus(id, status) {
+        if (status === "synced" && loseAcknowledgement) { loseAcknowledgement = false; throw new Error("Synthetic lost local acknowledgement"); }
+        await provider.setStatus?.(id, status);
+      },
+    }, 1);
+    await service.saveDailyChecklist({ crewId: "crew-1", checklist: { safetyBriefing: false, ppeVerification: false, equipmentInspection: false, dailyGoals: "Original synthetic command", supervisorNotes: "", updatedAt: null } });
+    await service.syncOfflineActions();
+    queue[0].payload.checklist = { ...(queue[0].payload.checklist as DailyChecklist), dailyGoals: "Different synthetic command" };
+    const retry = await service.retryOfflineAction(queue[0].id);
+    check(retry.failed === 1 && queue[0].status === "failed", "different contents remain a conflict instead of being reported saved");
+    check(events.length === 1 && (events[0].payload.checklist as DailyChecklist).dailyGoals === "Original synthetic command", "conflicting retry leaves the recorded audit contents unchanged");
   });
 
   console.log(`\nMobile field persistence results: ${passed} passed, ${failed} failed`);

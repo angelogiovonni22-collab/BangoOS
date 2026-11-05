@@ -422,6 +422,22 @@ export function createMobileFieldOperationsService(
       });
 
     if (error) {
+      if (input.idempotencyKey && error.code === "23505") {
+        let existingQuery = context.supabase
+          .from("workflow_events")
+          .select("id")
+          .eq("company_id", context.workspace.companyId)
+          .eq("workflow_name", "mobile_field_operations")
+          .eq("event_type", input.eventType)
+          .eq("idempotency_key", input.idempotencyKey)
+          .eq("reference_entity", input.referenceEntity)
+          .contains("payload", input.payload);
+        existingQuery = input.referenceId === null
+          ? existingQuery.is("reference_id", null)
+          : existingQuery.eq("reference_id", input.referenceId);
+        const existing = await existingQuery.maybeSingle();
+        if (!existing.error && existing.data) return;
+      }
       throw error;
     }
   };
