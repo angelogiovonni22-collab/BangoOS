@@ -116,8 +116,8 @@ export function MobileWorkforceTimeClock({ employees, projectId, assignmentId }:
       <Input className="mt-2" aria-label="Time entry notes" placeholder="Optional time note" disabled={busy || employees.length === 0} value={notes} onChange={(event) => setNotes(event.target.value)} />
       <Input className="mt-2" aria-label="Break minutes" inputMode="numeric" placeholder="Break minutes (enter before clock-out)" disabled={busy || employees.length === 0} value={breakMinutes} onChange={(event) => setBreakMinutes(event.target.value)} />
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <Button variant="secondary" aria-pressed={clockedIn} style={clockedIn ? confirmedStyle("var(--color-success-700)") : undefined} disabled={!canRecord || clockedIn} onClick={() => void run("clock_in")}>{clockedIn ? "Clocked in" : "Clock in"}</Button>
-        <Button variant="secondary" aria-pressed={clockedOut} style={clockedOut ? confirmedStyle("var(--color-danger-700)") : undefined} disabled={!canRecord || !clockedIn} onClick={() => void run("clock_out")}>{clockedOut ? "Clocked out" : "Clock out"}</Button>
+        <Button variant="secondary" aria-pressed={clockedIn} style={clockedIn ? confirmedStyle("var(--color-success-700)") : undefined} disabled={!canRecord || clockedIn} onClick={() => void run("clock_in")}><span style={clockedIn ? { color: "white" } : undefined}>{clockedIn ? "Clocked in" : "Clock in"}</span></Button>
+        <Button variant="secondary" aria-pressed={clockedOut} style={clockedOut ? confirmedStyle("var(--color-danger-700)") : undefined} disabled={!canRecord || !clockedIn} onClick={() => void run("clock_out")}><span style={clockedOut ? { color: "white" } : undefined}>{clockedOut ? "Clocked out" : "Clock out"}</span></Button>
       </div>
       {message ? <p role="status" className="mt-2 text-xs text-[var(--text-secondary)]">{message}</p> : null}
     </section>
