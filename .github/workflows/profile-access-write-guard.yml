@@ -1,0 +1,39 @@
+name: Profile Access Write Guard
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/*_profile_access_write_guard.sql"
+      - "supabase/migrations/*_company_membership_write_guard.sql"
+      - "supabase/migrations/20260729170000_multi_company_foundation.sql"
+      - "app/onboarding/page.tsx"
+      - "lib/supabase/workspace.ts"
+      - "scripts/test-profile-access-write-guard.mjs"
+      - ".github/workflows/profile-access-write-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/*_profile_access_write_guard.sql"
+      - "supabase/migrations/*_company_membership_write_guard.sql"
+      - "supabase/migrations/20260729170000_multi_company_foundation.sql"
+      - "app/onboarding/page.tsx"
+      - "lib/supabase/workspace.ts"
+      - "scripts/test-profile-access-write-guard.mjs"
+      - ".github/workflows/profile-access-write-guard.yml"
+permissions:
+  contents: read
+jobs:
+  postgres-profile-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare isolated PostgreSQL runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/profile-postgres"
+          npm pack @electric-sql/pglite@0.3.14 --pack-destination "$RUNNER_TEMP/profile-postgres"
+          tar -xzf "$RUNNER_TEMP/profile-postgres/electric-sql-pglite-0.3.14.tgz" -C "$RUNNER_TEMP/profile-postgres"
+      - name: Verify profile authorization and onboarding compatibility
+        run: node scripts/test-profile-access-write-guard.mjs "$RUNNER_TEMP/profile-postgres/package/dist/index.js"

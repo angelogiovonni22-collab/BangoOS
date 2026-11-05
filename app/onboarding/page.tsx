@@ -162,15 +162,17 @@ export default function OnboardingPage() {
         updated_by: user.id,
       } satisfies CompanyUpdate;
 
-      const { error: seedError } = await supabase.from("profiles").upsert(
-        {
-          id: user.id,
-          role: "owner",
-          first_name: owner.firstName,
-          last_name: owner.lastName,
-        },
-        { onConflict: "id" },
-      );
+      const { data: existingProfile, error: profileLookupError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profileLookupError) return setError(t("onboarding.errorWorkspaceLookup", { message: profileLookupError.message }));
+
+      const profileNames = { first_name: owner.firstName, last_name: owner.lastName };
+      const { error: seedError } = existingProfile
+        ? await supabase.from("profiles").update(profileNames).eq("id", user.id)
+        : await supabase.from("profiles").insert({ id: user.id, ...profileNames });
       if (seedError) return setError(t("onboarding.errorWorkspaceUpdate", { message: seedError.message }));
 
       const { data: existingCompany, error: lookupError } = await supabase
