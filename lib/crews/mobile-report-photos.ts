@@ -1,6 +1,7 @@
 import type { MobileDailyReportDraft } from "./mobile-field-operations-types";
 
 export function appendReportPhoto(draft: MobileDailyReportDraft, photo: { id: string; fileName: string }): MobileDailyReportDraft {
+  if (draft.photoIds?.includes(photo.id)) return draft;
   return { ...draft, photos: [...draft.photos, photo.fileName], photoIds: [...draft.photos.map((_, index) => draft.photoIds?.[index] ?? null), photo.id] };
 }
 export function removeReportPhoto(draft: MobileDailyReportDraft, index: number): MobileDailyReportDraft {

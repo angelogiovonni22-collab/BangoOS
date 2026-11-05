@@ -75,6 +75,8 @@ export function MobileFieldOperationsWorkspace() {
   const [separateReportId, setSeparateReportId] = useState<string | null>(null);
   const [reportStorageWarning, setReportStorageWarning] = useState<{ key: string; message: string } | null>(null);
   const reportSubmissionRef = useRef(false);
+  const reportDraftLatestRef = useRef(mobileReport);
+  useEffect(() => { reportDraftLatestRef.current = mobileReport; }, [mobileReport]);
   const reportDraftHydrationRef = useRef("");
   const checklistDraftHydrationRef = useRef("");
   const reportDraftStore = useMemo(() => createMobileReportDraftStore(async () => {
@@ -235,9 +237,10 @@ export function MobileFieldOperationsWorkspace() {
   };
 
   const attachFieldPhoto = async (photo: FieldPhotoUpload) => {
+    const next = appendReportPhoto(reportDraftLatestRef.current, photo);
+    setMobileReport(next);
+    await reportDraftStore.save(effectiveCrewId,reportDate,next);
     setUploadedPhoto({ crewId: effectiveCrewId, projectId: selectedCrewAssignments[0]?.projectId || "", reportDate, fileName: photo.fileName });
-    setMobileReport((current) => appendReportPhoto(current, photo));
-    await refresh();
   };
 
   const assignEquipment = async () => {
@@ -382,7 +385,7 @@ export function MobileFieldOperationsWorkspace() {
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-photos">
         {uploadedPhoto && uploadedPhoto.crewId === effectiveCrewId && uploadedPhoto.reportDate === reportDate && uploadedPhoto.projectId === selectedCrewAssignments[0]?.projectId ? <div role="status" className="mb-3 rounded-[var(--radius-card)] border border-[var(--color-success-700)] p-3"><p className="text-sm font-semibold text-[var(--text-primary)]">Photo saved</p><p className="text-sm text-[var(--text-secondary)]">{uploadedPhoto.fileName} was uploaded and attached to this daily report.</p><Button variant="secondary" size="sm" onClick={() => setUploadedPhoto(null)}>Dismiss photo confirmation</Button></div> : null}
-        <FieldPhotoCapture key={selectedCrewAssignments[0]?.projectId || "unassigned"} projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""} onUploaded={attachFieldPhoto}/></Card>
+        <FieldPhotoCapture key={`${selectedCrewAssignments[0]?.projectId || "unassigned"}:${reportDraftKey}`} draftKey={reportDraftKey} projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""} onUploaded={attachFieldPhoto}/></Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-inspections"><MobileFieldInspections key={selectedCrewAssignments[0]?.projectId || "unassigned"} projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""}/></Card>
 
