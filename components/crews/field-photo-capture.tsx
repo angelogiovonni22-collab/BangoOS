@@ -123,7 +123,10 @@ export function FieldPhotoCapture({ projectId, projectName, draftKey, onUploaded
           find: async id => {
             const found = await supabase.from("project_photos").select("id,company_id,project_id,uploaded_by,storage_path,original_filename,mime_type,file_size,category,note,captured_at").eq("id", id).eq("company_id", scope.companyId).eq("project_id", projectId).maybeSingle();
             if (found.error) throw new Error(found.error.message);
-            return found.data;
+            const row = found.data;
+            if (!row) return null;
+            if (!row.uploaded_by || !row.original_filename || row.file_size === null || !row.captured_at || !categories.includes(row.category as FieldPhotoUpload["category"])) throw new Error("The saved photo has incomplete details. Keep this device copy and ask your supervisor to review it.");
+            return { ...row, uploaded_by: row.uploaded_by, original_filename: row.original_filename, file_size: row.file_size, captured_at: row.captured_at, category: row.category as FieldPhotoUpload["category"] };
           },
           upload: async (path, blob) => (await supabase.storage.from("project-photos").upload(path, blob, { upsert: false, contentType: blob.type || undefined })).error,
           insert: async row => {
