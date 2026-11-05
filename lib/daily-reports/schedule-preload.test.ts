@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { selectDailyReportAssignment } from "./schedule-preload";
+import { matchingDailyReportAssignments, selectDailyReportAssignment } from "./schedule-preload";
 
 const cancelled = { id: "cancelled", date: "2026-11-04", status: "cancelled" as const };
 const previous = { id: "previous", date: "2026-11-03", status: "published" as const };
@@ -19,4 +19,15 @@ assert.equal(selectDailyReportAssignment([cancelledCrew, previousCrew, otherCrew
 assert.equal(selectDailyReportAssignment([previousCrew, selectedCrew], "2026-11-03", "crew-1"), previousCrew);
 assert.equal(selectDailyReportAssignment([active], "2026-11-04", "crew-1"), null);
 assert.equal(selectDailyReportAssignment([otherCrew, selectedCrew], "2026-11-04"), otherCrew);
-console.log("Daily report scheduling preload regression: 10 passed");
+
+const secondJob = { ...selectedCrew, id: "second-job" };
+const jobs = [cancelledCrew, previousCrew, otherCrew, selectedCrew, secondJob];
+assert.deepEqual(matchingDailyReportAssignments(jobs, "2026-11-04", "crew-1"), [selectedCrew, secondJob]);
+assert.equal(selectDailyReportAssignment(jobs, "2026-11-04", "crew-1", "second-job"), secondJob);
+assert.equal(selectDailyReportAssignment(jobs, "2026-11-04", "crew-1", "selected-crew"), selectedCrew);
+assert.throws(() => selectDailyReportAssignment(jobs, "2026-11-04", "crew-1"), /Choose a scheduled job/);
+assert.throws(() => selectDailyReportAssignment(jobs, "2026-11-04", "crew-1", "other-crew"), /no longer matches/);
+assert.throws(() => selectDailyReportAssignment([cancelledCrew], "2026-11-04", "crew-1", "selected-crew"), /no longer matches/);
+assert.throws(() => selectDailyReportAssignment([previousCrew], "2026-11-04", "crew-1", "selected-crew"), /no longer matches/);
+assert.throws(() => selectDailyReportAssignment(jobs, "2026-11-04", "crew-1", "removed-job"), /no longer matches/);
+console.log("Daily report scheduling preload regression: 18 passed");

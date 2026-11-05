@@ -13,6 +13,7 @@ export type DailyChecklist = {
 };
 
 export type MobileDailyReportDraft = {
+  assignmentId?: string;
   photos: string[];
   notes: string;
   completedWork: string;

@@ -363,15 +363,15 @@ async function main() {
     const service = createMobileFieldOperationsService({
       workforceService: { getDashboard: async () => { throw new Error("Today's assignments must not choose a historical report's project."); } } as never,
       dailyReportsService: {
-        createDraftFromSchedule: async (date: string, crewId?: string) => {
-          check(date === "2026-11-03" && crewId === "crew-2", "draft lookup uses both the report date and selected crew");
+        createDraftFromSchedule: async (date: string, crewId?: string, assignmentId?: string) => {
+          check(date === "2026-11-03" && crewId === "crew-2" && assignmentId === "historical-assignment", "draft lookup uses the report date, selected crew and chosen job");
           return baseDraft;
         },
         createReport: async (input: DailyReportUpsertInput) => { created = input; return { id: "report-1" }; },
       } as never,
       supabaseClient: createWorkflowSupabaseStub([]) as never,
     });
-    await service.submitMobileDailyReport({ crewId: "crew-2", reportDate: "2026-11-03", status: "draft", draft: createEmptyMobileDailyReportDraft() });
+    await service.submitMobileDailyReport({ crewId: "crew-2", reportDate: "2026-11-03", status: "draft", draft: { ...createEmptyMobileDailyReportDraft(), assignmentId: "historical-assignment" } });
     const saved = created as DailyReportUpsertInput | null;
     check(saved?.header.projectId === "historical-project" && saved?.header.superintendentName === "Historical supervisor", "project and supervisor stay aligned with the dated draft");
     check(saved?.schedulingPreload?.assignmentId === "historical-assignment" && saved?.labor[0]?.employeeName === "Historical employee", "labor and schedule evidence remain attached to the same assignment");

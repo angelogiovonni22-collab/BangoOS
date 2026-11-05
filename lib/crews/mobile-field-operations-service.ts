@@ -663,7 +663,7 @@ export function createMobileFieldOperationsService(
     async submitMobileDailyReport(input) {
       if(input.status!=="draft"){const errors=validateMobileDailyReport(input.draft);if(errors.length)throw new Error(errors[0]);}
       if (!input.crewId) throw new Error("Choose a crew before saving a daily report.");
-      const baseDraft = await dailyReports.createDraftFromSchedule(input.reportDate, input.crewId);
+      const baseDraft = await dailyReports.createDraftFromSchedule(input.reportDate, input.crewId, input.draft.assignmentId);
 
       const reportInput = createMobileReportInput({
         baseDraft,

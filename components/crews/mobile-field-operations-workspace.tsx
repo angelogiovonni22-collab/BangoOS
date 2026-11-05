@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { createSchedulingService, type ScheduleAssignment } from "@/lib/scheduling";
+import { matchingDailyReportAssignments } from "@/lib/daily-reports/schedule-preload";
 import { loadScheduleTimeZone } from "@/lib/scheduling/workspace-time-zone";
 import { activeFieldCrews, effectiveFieldCrewId, mobileReportDate } from "@/lib/crews/mobile-field-context";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -104,6 +106,25 @@ export function MobileFieldOperationsWorkspace() {
   const fieldCrews = useMemo(() => activeFieldCrews(data?.workforce.crewStatus || []), [data]);
   const effectiveCrewId = effectiveFieldCrewId(fieldCrews, selectedCrewId);
   const reportDraftKey = `${effectiveCrewId}:${reportDate}`;
+  const reportScheduling = useMemo(() => createSchedulingService(), []);
+  const [reportAssignmentState, setReportAssignmentState] = useState<{ key: string; assignments: ScheduleAssignment[]; error: string | null }>({ key: "", assignments: [], error: null });
+  const reportAssignments = reportAssignmentState.key === reportDraftKey ? reportAssignmentState.assignments : [];
+  const reportAssignmentsLoading = Boolean(effectiveCrewId && reportDate && reportAssignmentState.key !== reportDraftKey);
+  const reportAssignmentError = reportAssignmentState.key === reportDraftKey ? reportAssignmentState.error : null;
+  const effectiveReportAssignmentId = reportAssignments.some((assignment) => assignment.id === mobileReport.assignmentId)
+    ? mobileReport.assignmentId || ""
+    : !mobileReport.assignmentId && reportAssignments.length === 1 ? reportAssignments[0].id : "";
+
+  useEffect(() => {
+    if (!effectiveCrewId || !reportDate) return;
+    let active = true;
+    void reportScheduling.getScheduling().then((payload) => {
+      if (active) setReportAssignmentState({ key: reportDraftKey, assignments: matchingDailyReportAssignments(payload.assignments, reportDate, effectiveCrewId), error: null });
+    }).catch(() => {
+      if (active) setReportAssignmentState({ key: reportDraftKey, assignments: [], error: "Unable to load scheduled jobs. Refresh before saving this report." });
+    });
+    return () => { active = false; };
+  }, [effectiveCrewId, reportDate, reportDraftKey, reportScheduling]);
 
   useEffect(() => {
     if(!effectiveCrewId)return;
@@ -183,7 +204,7 @@ export function MobileFieldOperationsWorkspace() {
     if (reportSubmissionRef.current) return;
     reportSubmissionRef.current = true;
     try {
-      const result = await submitMobileDailyReport({ crewId: effectiveCrewId, reportDate, status, draft: mobileReport });
+      const result = await submitMobileDailyReport({ crewId: effectiveCrewId, reportDate, status, draft: { ...mobileReport, assignmentId: effectiveReportAssignmentId } });
       if (result && status === "submitted") {
         await reportDraftStore.remove(effectiveCrewId,reportDate);
         setMobileReport(createEmptyMobileDailyReportDraft());
@@ -412,6 +433,14 @@ export function MobileFieldOperationsWorkspace() {
         <fieldset disabled={isMutating} aria-label="Daily report details" className="min-w-0 space-y-3">
           {calendarError ? <p role="alert" className="text-sm text-[var(--color-danger-700)]">{calendarError}</p> : null}
           <Input type="date" aria-label="Report date" disabled={!companyTimeZone} value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
+          <label className="block text-sm text-[var(--text-secondary)]">
+            Scheduled job
+            <Select aria-label="Report scheduled job" value={effectiveReportAssignmentId} disabled={reportAssignmentsLoading || reportAssignments.length === 0} onChange={(event) => setMobileReport((current) => ({ ...current, assignmentId: event.target.value }))}>
+              <option value="">Choose scheduled job</option>
+              {reportAssignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.scope.projectName || assignment.scope.projectId} — {assignment.title}</option>)}
+            </Select>
+          </label>
+          {reportAssignmentsLoading ? <p role="status" className="text-sm text-[var(--text-secondary)]">Loading scheduled jobs…</p> : reportAssignmentError ? <p role="alert" className="text-sm text-[var(--color-danger-700)]">{reportAssignmentError}</p> : !reportAssignments.length ? <p className="text-sm text-[var(--text-secondary)]">No scheduled job matches this crew and report date. Ask your supervisor to update the schedule.</p> : reportAssignments.length > 1 && !effectiveReportAssignmentId ? <p className="text-sm text-[var(--text-secondary)]">This crew has multiple jobs on this date. Choose the job this report covers.</p> : null}
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Attached field photos</p>
             {mobileReport.photos.length ? <ul className="mt-2 space-y-1">{mobileReport.photos.map((photo, index) => <li key={`${photo}-${index}`} className="flex items-center justify-between gap-2 text-sm text-[var(--text-primary)]"><span className="truncate">{photo}</span><Button type="button" size="sm" variant="ghost" aria-label={`Remove ${photo}`} onClick={() => setMobileReport((current) => ({ ...current, photos: current.photos.filter((_, photoIndex) => photoIndex !== index) }))}>Remove</Button></li>)}</ul> : <p className="mt-1 text-xs text-[var(--text-secondary)]">Use Jobsite Photo above to capture evidence directly into this report.</p>}
@@ -452,14 +481,14 @@ export function MobileFieldOperationsWorkspace() {
             <Button
               size="lg"
               variant="outline"
-              disabled={isMutating || !effectiveCrewId || !reportDate}
+              disabled={isMutating || !effectiveCrewId || !reportDate || reportAssignmentsLoading || !effectiveReportAssignmentId}
               onClick={() => void submitReport("draft")}
             >
               Save Draft
             </Button>
             <Button
               size="lg"
-              disabled={isMutating || !effectiveCrewId || !reportDate || !reportReady}
+              disabled={isMutating || !effectiveCrewId || !reportDate || reportAssignmentsLoading || !effectiveReportAssignmentId || !reportReady}
               onClick={() => void submitReport("submitted")}
             >
               Submit Report
