@@ -222,6 +222,12 @@ jobs:
       - name: User content localization boundaries
         run: npx -y tsx lib/i18n/user-content.test.ts
 
+      - name: Run workforce clock duration and scoped read regression
+        run: |
+          npx -y tsx lib/crews/workforce-clock-state.test.ts
+          npx -y tsx lib/crews/workforce-clock-read.test.ts
+          node scripts/test-workforce-clock-state.mjs node_modules/typescript/lib/typescript.js
+
       - name: Run repository checks
         run: npm run check
 
