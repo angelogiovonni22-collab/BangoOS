@@ -108,7 +108,7 @@ export function MobileWorkforceTimeClock({ employees, projectId, assignmentId }:
       {hasSelectedEmployee && !current ? <p role="status" className="mt-2 text-sm text-[var(--text-secondary)]">Checking saved clock status…</p> : null}
       {current?.error ? <div className="mt-2"><p role="alert" className="text-sm text-[var(--color-danger-700)]">{current.error}</p><Button variant="secondary" disabled={busy} onClick={refreshStatus}>Retry clock status</Button></div> : null}
       {entry ? <div className="mt-3 rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3">
-        <p className="text-sm font-semibold" style={{ color: clockedIn ? "var(--color-success-700)" : "var(--color-danger-700)" }}>{clockedIn ? "Clocked in" : "Clocked out"}</p>
+        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{clockedIn ? "Clocked in" : "Clocked out"}</p>
         <p className="text-xs text-[var(--text-secondary)]">{clockedIn ? "Live time worked" : "Last shift time worked"}</p>
         <p role="timer" aria-label={clockedIn ? "Live time worked" : "Last shift time worked"} className="mt-1 font-mono text-2xl font-semibold tabular-nums text-[var(--text-primary)]">{formatWorkforceDuration(workforceWorkedSeconds(entry, now))}</p>
         <p className="mt-1 text-xs text-[var(--text-secondary)]">{entry.endedAt ? `Unpaid break deducted: ${entry.breakMinutes} min.` : "Unpaid breaks are deducted at clock-out."}</p>
