@@ -44,7 +44,10 @@ async function transaction<T>(mode: IDBTransactionMode, operation: (store: IDBOb
 
 const browserStorage: FieldPhotoDraftStorage = {
   async read(key) { return (await transaction<FieldPhotoDraft | undefined>("readonly", store => store.get(key))) ?? null; },
-  async write(key, draft) { await transaction("readwrite", store => draft ? store.put(draft, key) : store.delete(key)); },
+  async write(key, draft) {
+    if (draft) await transaction("readwrite", store => store.put(draft, key));
+    else await transaction("readwrite", store => store.delete(key));
+  },
 };
 
 /** One pending photo per account/project/crew/report-date; never a public URL or automatic upload. */
