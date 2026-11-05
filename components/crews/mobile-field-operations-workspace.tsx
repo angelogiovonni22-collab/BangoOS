@@ -75,6 +75,8 @@ export function MobileFieldOperationsWorkspace() {
   const [separateReportId, setSeparateReportId] = useState<string | null>(null);
   const [reportStorageWarning, setReportStorageWarning] = useState<{ key: string; message: string } | null>(null);
   const reportSubmissionRef = useRef(false);
+  const reportDraftLatestRef = useRef(mobileReport);
+  useEffect(() => { reportDraftLatestRef.current = mobileReport; }, [mobileReport]);
   const reportDraftHydrationRef = useRef("");
   const checklistDraftHydrationRef = useRef("");
   const reportDraftStore = useMemo(() => createMobileReportDraftStore(async () => {
@@ -236,7 +238,7 @@ export function MobileFieldOperationsWorkspace() {
 
   const attachFieldPhoto = async (photo: FieldPhotoUpload) => {
     setUploadedPhoto({ crewId: effectiveCrewId, projectId: selectedCrewAssignments[0]?.projectId || "", reportDate, fileName: photo.fileName });
-    const next = appendReportPhoto(mobileReport, photo);
+    const next = appendReportPhoto(reportDraftLatestRef.current, photo);
     setMobileReport(next);
     await reportDraftStore.save(effectiveCrewId,reportDate,next);
     await refresh();

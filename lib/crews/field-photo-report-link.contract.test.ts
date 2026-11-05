@@ -9,7 +9,7 @@ const workspace = readFileSync(resolve(root, "components/crews/mobile-field-oper
 assert.match(capture, /await onUploaded\(uploaded\)/);
 assert.match(capture, /uploaded and attached to the daily report/);
 assert.match(workspace, /const attachFieldPhoto = async/);
-assert.match(workspace, /appendReportPhoto\(mobileReport, photo\)/);
+assert.match(workspace, /appendReportPhoto\(reportDraftLatestRef.current, photo\)/);
 assert.match(workspace, /await reportDraftStore\.save\(effectiveCrewId,reportDate,next\)/);
 assert.match(workspace, /removeReportPhoto\(current, index\)/);
 assert.match(workspace, /onUploaded=\{attachFieldPhoto\}/);
