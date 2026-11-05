@@ -12,4 +12,9 @@ assert.match(surface,/reportDraftStore\.save\(effectiveCrewId,reportDate,mobileR
 assert.match(surface,/await reportDraftStore\.remove\(effectiveCrewId,reportDate\)/);
 assert.match(surface,/const timer=window\.setTimeout/);
 
+assert.match(surface,/reportId: result.reportId, reportUpdatedAt: result.reportUpdatedAt/);
+assert.match(surface,/reportDraftStore\.save\(effectiveCrewId,reportDate,saved\)/);
+assert.match(surface,/Open saved report/);
+assert.match(surface,/Start separate report/);
+assert.match(surface,/isMutating \|\| isSavingReport/);
 console.log("Mobile report draft durability contract checks passed.");

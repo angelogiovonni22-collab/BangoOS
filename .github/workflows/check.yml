@@ -239,6 +239,12 @@ jobs:
           npx -y tsx lib/daily-reports/report-photo-evidence.test.ts
           npx -y tsx lib/crews/field-photo-report-link.contract.test.ts
 
+      - name: Run saved mobile draft lifecycle regression
+        run: |
+          npx -y tsx lib/crews/mobile-report-draft-identity.test.ts
+          npx -y tsx lib/crews/mobile-report-draft-durability.contract.test.ts
+          npx -y tsx lib/crews/mobile-report-submission.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
