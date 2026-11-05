@@ -7,6 +7,7 @@ export type FieldPhotoDraft = {
   note: string;
   category: FieldPhotoCategory;
   uploaded?: UploadedFieldPhoto;
+  uploadAttempt?: { id: string; sha256: string; capturedAt: string };
 };
 export type FieldPhotoDraftScope = { companyId: string; userId: string; projectId: string; draftKey: string };
 export type FieldPhotoDraftStorage = {
@@ -67,3 +68,4 @@ export function createFieldPhotoDraftStore(scope: FieldPhotoDraftScope, storage:
     remove: () => serial(() => storage.write(key, null)),
   };
 }
+
