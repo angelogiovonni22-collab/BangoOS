@@ -31,22 +31,27 @@ function createHarness(membershipError: { message: string; code?: string } | nul
   return { client, reads, writes };
 }
 
-for (const role of ["owner", "employee", "foreman"]) {
-  const harness = createHarness(null, role);
-  const result = await resolveWorkspaceContext(harness.client as never);
-  assert.equal(result.context?.role, role, "active membership keeps its verified role");
-  assert.equal(result.context?.membershipId, "synthetic-membership");
-  assert.deepEqual(harness.writes, [], "verified membership lookup does not repair or change access");
+async function main() {
+  for (const role of ["owner", "employee", "foreman"]) {
+    const harness = createHarness(null, role);
+    const result = await resolveWorkspaceContext(harness.client as never);
+    assert.equal(result.context?.role, role, "active membership keeps its verified role");
+    assert.equal(result.context?.membershipId, "synthetic-membership");
+    assert.deepEqual(harness.writes, [], "verified membership lookup does not repair or change access");
+  }
+
+  for (const error of [{ message: "Synthetic network interruption" }, { message: "Synthetic policy rejection", code: "42501" }, { message: "Synthetic schema unavailable", code: "PGRST205" }]) {
+    const harness = createHarness(error, "owner");
+    const result = await resolveWorkspaceContext(harness.client as never);
+    assert.equal(result.context, null, "failed membership read cannot fall back to a profile role");
+    assert.equal(result.errorCode, "company_unavailable");
+    assert.match(result.errorMessage || "", /verify your company access/);
+    assert.deepEqual(harness.writes, [], "read failure must not repair profiles or memberships");
+    assert.equal(harness.reads.includes("companies"), false, "stop before loading a tenant after failed access verification");
+  }
+
+  console.log("Workspace membership verification: 24 assertions passed.");
+
 }
 
-for (const error of [{ message: "Synthetic network interruption" }, { message: "Synthetic policy rejection", code: "42501" }, { message: "Synthetic schema unavailable", code: "PGRST205" }]) {
-  const harness = createHarness(error, "owner");
-  const result = await resolveWorkspaceContext(harness.client as never);
-  assert.equal(result.context, null, "failed membership read cannot fall back to a profile role");
-  assert.equal(result.errorCode, "company_unavailable");
-  assert.match(result.errorMessage || "", /verify your company access/);
-  assert.deepEqual(harness.writes, [], "read failure must not repair profiles or memberships");
-  assert.equal(harness.reads.includes("companies"), false, "stop before loading a tenant after failed access verification");
-}
-
-console.log("Workspace membership verification: 24 assertions passed.");
+void main().catch((error) => { console.error(error); process.exitCode = 1; });
