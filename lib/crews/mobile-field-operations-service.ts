@@ -1,3 +1,4 @@
+import { reportPhotoAttachments } from "./mobile-report-photos";
 import {
   createDailyReportsService,
   type DailyReportUpsertInput,
@@ -310,13 +311,7 @@ function createMobileReportInput(params: {
           correctiveAction: source.draft.delayCorrectiveAction.trim(),
         }]
       : [],
-    attachments: source.draft.photos.map((photo, index) => ({
-      id: `photo-${index}-${Date.now()}`,
-      fileName: photo,
-      caption: "Field photo",
-      category: "progress",
-      uploadedAt: now,
-    })),
+    attachments: reportPhotoAttachments(source.draft, now),
     timeline: [
       {
         id: `event-${Date.now()}`,

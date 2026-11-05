@@ -15,6 +15,8 @@ export type DailyChecklist = {
 export type MobileDailyReportDraft = {
   assignmentId?: string;
   photos: string[];
+  /** Project photo IDs align by index; older saved drafts may omit them. */
+  photoIds?: Array<string | null>;
   notes: string;
   completedWork: string;
   productionQuantity: string;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ReportPhotoEvidenceSection } from "@/components/daily-reports/report-photo-evidence-section";
 import { useParams } from "next/navigation";
 import { AiSummaryPanel, ReportLoadingState, ReportStatusChip } from "@/components/daily-reports";
 import { Card, CardContent, CardHeader, CardTitle, ErrorState, PageHeader } from "@/components/ui";
@@ -167,6 +168,8 @@ export default function DailyReportDetailsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ReportPhotoEvidenceSection projectId={report.header.projectId} attachments={report.attachments} title={t("dailyReports.sections.attachments")} />
 
       <AiSummaryPanel summary={report.aiSummary} t={t} />
     </div>
