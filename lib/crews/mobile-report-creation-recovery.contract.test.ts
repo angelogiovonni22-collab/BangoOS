@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+const surface=readFileSync("components/crews/mobile-field-operations-workspace.tsx","utf8");
+const hook=readFileSync("lib/crews/use-mobile-field-operations.ts","utf8");
+const start=surface.indexOf("const submitReport =");
+const save=surface.indexOf("await reportDraftStore.save(effectiveCrewId,reportDate,draft)",start);
+const send=surface.indexOf("await submitMobileDailyReport(",start);
+assert.ok(save>start&&save<send,"recovery reference must commit locally before transmitting the first save");
+assert.match(surface,/draft.creationId = crypto.randomUUID\(\)/);
+assert.match(surface,/Nothing was sent/);
+assert.match(surface,/status === "draft" \|\| result.recoveredCreation/);
+assert.match(surface,/status === "submitted" && !result.recoveredCreation/);
+assert.match(hook,/Your current fields were not submitted again/);
+console.log("Mobile creation recovery handoff: 6 contract checks passed.");

@@ -25,7 +25,8 @@ export type DailyReportsService = {
   createReport: (
     input: DailyReportUpsertInput,
     status: DailyReportStatus,
-  ) => Promise<DailyReport>;
+    creationId?: string,
+  ) => Promise<DailyReport & { recoveredCreation?: boolean }>;
   updateReport: (
     reportId: string,
     input: DailyReportUpsertInput,
@@ -40,6 +41,7 @@ export type DailyReportsService = {
 type CreateDailyReportsServiceDeps = {
   supabaseClient?: ReturnType<typeof createClient>;
   resolveWorkspace?: typeof resolveWorkspaceContext;
+  eventPublisher?: Pick<ReturnType<typeof createSupabaseOrionEventPublisher>, "publishEvent">;
 };
 
 const DAILY_REPORT_EVENT_TYPES = ["daily_report.created", "daily_report.updated"];
@@ -49,6 +51,8 @@ type WorkflowDailyReportEventRow = {
   reference_id: string;
   occurred_at: string;
   event_type: string;
+  actor_profile_id: string | null;
+  idempotency_key: string | null;
   payload: Record<string, unknown>;
 };
 
@@ -318,7 +322,7 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
     const db = supabase as unknown as LooseSupabase;
     let query = db
       .from("workflow_events")
-      .select("id, reference_id, occurred_at, event_type, payload")
+      .select("id, reference_id, occurred_at, event_type, actor_profile_id, idempotency_key, payload")
       .eq("company_id", companyId)
       .eq("reference_entity", "daily_report")
       .in("event_type", DAILY_REPORT_EVENT_TYPES)
@@ -383,6 +387,21 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
     return parseDailyReportFromEvent(row);
   }
 
+  async function recoverCreation(companyId: string, userId: string, creationId: string, input: DailyReportUpsertInput) {
+    const rows = await fetchDailyReportEvents(companyId, creationId);
+    if (!rows.length) return null;
+    const original = rows.find(row => row.event_type === "daily_report.created"
+      && row.actor_profile_id === userId && row.idempotency_key === `daily-report:${creationId}:create`);
+    if (!original) throw new Error("This report save reference is unavailable for this account.");
+    const report = parseDailyReportFromEvent(rows[0]);
+    if (!report || report.id !== creationId || report.header.projectId !== input.header.projectId
+      || report.header.date !== input.header.date
+      || report.schedulingPreload?.assignmentId !== input.schedulingPreload?.assignmentId) {
+      throw new Error("This report save reference belongs to a different job or date. Open Daily Reports before continuing.");
+    }
+    return { ...report, recoveredCreation: true };
+  }
+
   function applySort(items: DailyReport[], sortBy: DailyReportFilters["sortBy"]) {
     const copy = [...items];
 
@@ -412,9 +431,9 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
       throw new Error("Unable to connect to event store.");
     }
 
-    const publisher = createSupabaseOrionEventPublisher(supabase);
+    const publisher = deps.eventPublisher ?? createSupabaseOrionEventPublisher(supabase);
 
-    await publisher.publishEvent({
+    return publisher.publishEvent({
       company_id: params.companyId,
       actor_profile_id: params.actorProfileId,
       event_type: params.eventType,
@@ -532,13 +551,18 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
       return loadReportById(workspace.companyId, reportId);
     },
 
-    async createReport(input, status) {
+    async createReport(input, status, creationId) {
       const { workspace } = await resolveContext();
+      if (creationId) {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(creationId)) throw new Error("The report recovery reference is invalid.");
+        const recovered = await recoverCreation(workspace.companyId, workspace.userId, creationId, input);
+        if (recovered) return recovered;
+      }
       const reports = await loadReportsFromEvents(workspace.companyId);
       const nextOrdinal = reports.filter((item) => item.header.date === input.header.date).length + 1;
       const compactDate = input.header.date.replace(/-/g, "");
       const report: DailyReport = hydrateReportFromInput({
-        id: crypto.randomUUID(),
+        id: creationId || crypto.randomUUID(),
         reportNumber: `DR-${compactDate}-${String(nextOrdinal).padStart(3, "0")}`,
         createdAt: new Date().toISOString(),
         submittedAt: null,
@@ -546,13 +570,26 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
         approvedAt: null,
       }, input, status);
 
-      await publishDailyReportEvent({
+      try {
+      const published = await publishDailyReportEvent({
         companyId: workspace.companyId,
         actorProfileId: workspace.userId,
         report,
         eventType: "daily_report.created",
         idempotencySuffix: "create",
       });
+      if (creationId && published.idempotent) {
+        const recovered = await recoverCreation(workspace.companyId, workspace.userId, creationId, input);
+        if (!recovered) throw new Error("Unable to confirm the previous report save. Keep this draft and try again.");
+        return recovered;
+      }
+      } catch (error) {
+        if (creationId) {
+          const recovered = await recoverCreation(workspace.companyId, workspace.userId, creationId, input).catch(() => null);
+          if (recovered) return recovered;
+        }
+        throw error;
+      }
 
       return report;
     },

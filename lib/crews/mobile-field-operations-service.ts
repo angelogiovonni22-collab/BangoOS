@@ -681,7 +681,7 @@ export function createMobileFieldOperationsService(
 
       const created = current
         ? await dailyReports.updateReport(current.id, reportInput, input.status as DailyReportStatus, { status: "draft", updatedAt: current.updatedAt })
-        : await dailyReports.createReport(reportInput, input.status as DailyReportStatus);
+        : await dailyReports.createReport(reportInput, input.status as DailyReportStatus, input.draft.creationId);
       if (!created) throw new Error("The saved report is unavailable. Open Daily Reports before continuing.");
 
       // This queue entry is an activity receipt, not a report write to replay.
@@ -690,7 +690,7 @@ export function createMobileFieldOperationsService(
       try {
         const queued = await offlineQueue.enqueue({
           type: "mobile_report",
-          payload: { crewId: input.crewId, reportId: created.id, status: input.status },
+          payload: { crewId: input.crewId, reportId: created.id, status: created.header.overallStatus },
         });
         await markQueueStatus(offlineQueue, queued, "synced");
       } catch {
@@ -700,6 +700,7 @@ export function createMobileFieldOperationsService(
       return {
         reportId: created.id,
         reportUpdatedAt: created.updatedAt,
+        recoveredCreation: "recoveredCreation" in created && created.recoveredCreation === true,
       };
     },
 
