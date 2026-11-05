@@ -57,6 +57,8 @@ export type EquipmentCheckoutRecord = {
 
 export type OfflineQueueItem = {
   id: string;
+  /** Browser queue partition; injected non-browser providers may omit it. */
+  scopeKey?: string;
   type: "check_in" | "checklist" | "mobile_report" | "equipment_checkout" | "equipment_return";
   payload: Record<string, unknown>;
   createdAt: string;

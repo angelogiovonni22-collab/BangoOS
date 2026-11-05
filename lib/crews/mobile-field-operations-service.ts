@@ -449,7 +449,8 @@ export function createMobileFieldOperationsService(
         const context = await resolveContext();
         if (!context) return { synced: 0, failed: 0 };
         const pending = (await offlineQueue.list())
-          .filter((item) => item.status === "queued")
+          .filter((item) => item.status === "queued"
+            && (!item.scopeKey || item.scopeKey === `${context.workspace.companyId}:${context.workspace.userId}`))
           .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
         let synced = 0;
         let failed = 0;
