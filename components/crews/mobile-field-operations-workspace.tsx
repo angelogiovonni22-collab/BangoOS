@@ -237,11 +237,10 @@ export function MobileFieldOperationsWorkspace() {
   };
 
   const attachFieldPhoto = async (photo: FieldPhotoUpload) => {
-    setUploadedPhoto({ crewId: effectiveCrewId, projectId: selectedCrewAssignments[0]?.projectId || "", reportDate, fileName: photo.fileName });
     const next = appendReportPhoto(reportDraftLatestRef.current, photo);
     setMobileReport(next);
     await reportDraftStore.save(effectiveCrewId,reportDate,next);
-    await refresh();
+    setUploadedPhoto({ crewId: effectiveCrewId, projectId: selectedCrewAssignments[0]?.projectId || "", reportDate, fileName: photo.fileName });
   };
 
   const assignEquipment = async () => {
