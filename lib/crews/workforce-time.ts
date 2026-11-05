@@ -1,3 +1,4 @@
+import { parseWorkforceClockEntry, type WorkforceClockEntry } from "./workforce-clock-state";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 
@@ -58,4 +59,27 @@ export async function correctWorkforceTime(input:{
   });
   if(error)throw new Error(error.message||"Unable to correct time entry.");
   return data;
+}
+
+/** Read persisted employee state; an open shift takes priority over closed history. */
+export async function getWorkforceClockEntry(employeeId: string, deps: { supabaseClient?: ReturnType<typeof createClient>; resolveWorkspace?: typeof resolveWorkspaceContext } = {}): Promise<WorkforceClockEntry | null> {
+  const supabase = deps.supabaseClient ?? createClient();
+  const workspace = await (deps.resolveWorkspace ?? resolveWorkspaceContext)(supabase);
+  if (!supabase || !workspace.context) throw new Error(workspace.errorMessage || "Unable to verify clock status.");
+  const db = supabase as unknown as LooseDb;
+  const companyId = workspace.context.companyId;
+  const find = (open: boolean) => {
+    let query = db.from("workforce_time_entries").select("id,status,started_at,ended_at,break_minutes")
+      .eq("company_id", companyId).eq("employee_id", employeeId);
+    if (open) query = query.eq("status", "open");
+    return query.order("created_at", { ascending: false }).limit(1).maybeSingle();
+  };
+  const active = await find(true);
+  if (active.error) throw new Error(active.error.message || "Unable to verify clock status.");
+  const result = active.data ? active : await find(false);
+  if (result.error) throw new Error(result.error.message || "Unable to verify clock status.");
+  if (!result.data) return null;
+  const entry = parseWorkforceClockEntry(result.data);
+  if (!entry) throw new Error("Unable to verify the saved time entry.");
+  return entry;
 }
