@@ -255,6 +255,11 @@ jobs:
           npx -y tsx lib/daily-reports/report-creation-recovery.test.ts
           npx -y tsx lib/crews/mobile-report-creation-recovery.contract.test.ts
 
+      - name: Run full editor recovery regression
+        run: |
+          npx -y tsx lib/daily-reports/report-creation-draft.test.ts
+          npx -y tsx lib/daily-reports/report-editor-recovery.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 

@@ -20,6 +20,7 @@ type DailyReportFormProps = {
   superintendentOptions: Array<{ id: string; name: string }>;
   validationErrors: string[];
   isSaving: boolean;
+  isSaveBlocked?: boolean;
   onChange: (next: DailyReportUpsertInput) => void;
   onSave: (status: DailyReportStatus) => Promise<void>;
   onRegenerateSummary?: () => Promise<void> | void;
@@ -32,12 +33,13 @@ export function DailyReportForm({
   superintendentOptions,
   validationErrors,
   isSaving,
+  isSaveBlocked,
   onChange,
   onSave,
   t,
 }: DailyReportFormProps) {
   return (
-    <div className="space-y-5">
+    <fieldset disabled={isSaving} className="min-w-0 space-y-5">
       {validationErrors.length > 0 ? (
         <section className="rounded-[var(--radius-lg)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] p-3">
           <p className="text-sm font-semibold text-[var(--color-danger-700)]">{t("dailyReports.validation.title")}</p>
@@ -86,13 +88,13 @@ export function DailyReportForm({
       </section>
 
       <section className="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" disabled={isSaving} onClick={() => void onSave("draft")}>
+        <Button variant="outline" disabled={isSaving || isSaveBlocked} onClick={() => void onSave("draft")}>
           {isSaving ? t("dailyReports.actions.saving") : t("dailyReports.actions.saveDraft")}
         </Button>
-        <Button variant="secondary" disabled={isSaving} onClick={() => void onSave("submitted")}>{t("dailyReports.actions.submit")}</Button>
-        <Button variant="secondary" disabled={isSaving} onClick={() => void onSave("reviewed")}>{t("dailyReports.actions.markReviewed")}</Button>
-        <Button disabled={isSaving} onClick={() => void onSave("approved")}>{t("dailyReports.actions.approve")}</Button>
+        <Button variant="secondary" disabled={isSaving || isSaveBlocked} onClick={() => void onSave("submitted")}>{t("dailyReports.actions.submit")}</Button>
+        <Button variant="secondary" disabled={isSaving || isSaveBlocked} onClick={() => void onSave("reviewed")}>{t("dailyReports.actions.markReviewed")}</Button>
+        <Button disabled={isSaving || isSaveBlocked} onClick={() => void onSave("approved")}>{t("dailyReports.actions.approve")}</Button>
       </section>
-    </div>
+    </fieldset>
   );
 }
