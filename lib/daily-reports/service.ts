@@ -32,7 +32,7 @@ export type DailyReportsService = {
     status: DailyReportStatus,
   ) => Promise<DailyReport | null>;
   regenerateSummary: (reportId: string) => Promise<DailyReport | null>;
-  createDraftFromSchedule: (date: string, crewId?: string) => Promise<DailyReportUpsertInput>;
+  createDraftFromSchedule: (date: string, crewId?: string, assignmentId?: string) => Promise<DailyReportUpsertInput>;
   toUpsertInput: (report: DailyReport) => DailyReportUpsertInput;
 };
 
@@ -114,10 +114,10 @@ export function calculateLaborTotals(labor: LaborEntry[]): LaborTotals {
   };
 }
 
-async function buildLiveDraft(date: string, crewId?: string): Promise<DailyReportUpsertInput> {
+async function buildLiveDraft(date: string, crewId?: string, assignmentId?: string): Promise<DailyReportUpsertInput> {
   const scheduling = createSchedulingService();
   const payload = await scheduling.getScheduling();
-  const matchingAssignment = selectDailyReportAssignment(payload.assignments, date, crewId);
+  const matchingAssignment = selectDailyReportAssignment(payload.assignments, date, crewId, assignmentId);
 
   if (!matchingAssignment) {
     if (crewId) throw new Error("No scheduled assignment matches this crew and report date. Ask your supervisor to update the schedule before saving a report.");
@@ -610,8 +610,8 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
       return report;
     },
 
-    async createDraftFromSchedule(date, crewId) {
-      return buildLiveDraft(date, crewId);
+    async createDraftFromSchedule(date, crewId, assignmentId) {
+      return buildLiveDraft(date, crewId, assignmentId);
     },
 
     toUpsertInput,
