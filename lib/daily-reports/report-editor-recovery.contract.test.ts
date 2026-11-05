@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+const hook=readFileSync("lib/daily-reports/use-daily-report.ts","utf8"),page=readFileSync("app/(app)/daily-reports/new/page.tsx","utf8"),edit=readFileSync("app/(app)/daily-reports/[id]/edit/page.tsx","utf8"),form=readFileSync("components/daily-reports/daily-report-form.tsx","utf8");
+assert.ok(hook.indexOf("await creationStore.save({creationId,draft})")<hook.indexOf("createReport(draft, nextStatus, creationId)"));
+assert.match(hook,/if \(created.recoveredCreation\) \{[\s\S]*?setRecoveredReportId\(created.id\);[\s\S]*?return null;/);
+assert.match(hook,/setSaveErrorMessage\(error instanceof Error/);
+assert.match(hook,/savingRef.current \|\| recoveredReportId/);
+assert.match(hook,/updateReport\(resolvedReportId, draft, nextStatus, reportVersionRef.current\)/);
+assert.match(hook,/if \(pending\) \{[\s\S]*?setDraft\(pending.draft\)/);
+assert.match(page,/isSaveBlocked=\{Boolean\(recoveredReportId\)\}/);
+assert.match(page,/ReportCreationRecoveryNotice/);
+assert.match(page,/saveErrorMessage \? <p role="alert"/);
+assert.match(edit,/saveErrorMessage \? <p role="alert"/);
+assert.match(form,/<fieldset disabled=\{isSaving\}/);
+assert.match(form,/disabled=\{isSaving \|\| isSaveBlocked\}/);
+console.log("Full editor recovery wiring: 12 checks passed.");

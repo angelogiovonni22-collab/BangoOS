@@ -20,6 +20,7 @@ export default function EditDailyReportPage() {
     isSaving,
     errorMessage,
     validationErrors,
+    saveErrorMessage,
     setDraft,
     save,
     regenerateSummary,
@@ -45,6 +46,7 @@ export default function EditDailyReportPage() {
         </Link>
       </div>
 
+      {saveErrorMessage ? <p role="alert" className="rounded-[var(--radius-md)] border border-[var(--color-danger-200)] bg-[var(--color-danger-50)] p-3 text-sm text-[var(--color-danger-700)]">{saveErrorMessage}</p> : null}
       <DailyReportForm
         value={draft}
         projectOptions={projectOptions}
