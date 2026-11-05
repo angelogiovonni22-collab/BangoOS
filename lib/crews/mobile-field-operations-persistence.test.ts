@@ -503,6 +503,22 @@ async function main() {
     check(events.length === 1 && (events[0].payload.checklist as DailyChecklist).dailyGoals === "Original synthetic command", "conflicting retry leaves the recorded audit contents unchanged");
   });
 
+  await test("11. replay keeps another account or company's action untouched", async () => {
+    const events: WorkflowEventRow[] = [];
+    const { queue, provider } = createQueueProvider();
+    const service = createServiceHarness(events, provider);
+    const item = await provider.enqueue({ type: "checklist", payload: { crewId: "crew-1", checklist: { safetyBriefing: false, ppeVerification: false, equipmentInspection: false, dailyGoals: "Synthetic scoped replay", supervisorNotes: "", updatedAt: null } } });
+    item.scopeKey = "company-1:other-user";
+    const otherUser = await service.syncOfflineActions();
+    check(otherUser.synced === 0 && otherUser.failed === 0 && events.length === 0 && queue[0].status === "queued", "another user's action stays pending without a write");
+    item.scopeKey = "other-company:user-1";
+    const otherCompany = await service.syncOfflineActions();
+    check(otherCompany.synced === 0 && otherCompany.failed === 0 && events.length === 0 && queue[0].status === "queued", "another company's action stays pending without a write");
+    item.scopeKey = "company-1:user-1";
+    const matching = await service.syncOfflineActions();
+    check(matching.synced === 1 && matching.failed === 0 && events.length === 1 && queue[0].status === "synced", "matching account and company can synchronize the preserved action");
+  });
+
   console.log(`\nMobile field persistence results: ${passed} passed, ${failed} failed`);
 
   if (failed > 0) {

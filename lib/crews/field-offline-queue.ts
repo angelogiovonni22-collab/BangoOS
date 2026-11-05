@@ -1,3 +1,5 @@
+import type { createClient } from "@/lib/supabase/client";
+import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { OfflineQueueItem, OfflineQueueProvider, OfflineSyncProvider } from "./mobile-field-operations-types";
 
 const DATABASE_NAME = "bango-field-operations";
@@ -40,13 +42,28 @@ function createQueueId(): string {
 
 type StoredOfflineQueueItem = OfflineQueueItem & { scopeKey: string };
 
-export function createBrowserFieldOfflineProviders(resolveScope: () => Promise<{ companyId: string; userId: string }>): { queue: OfflineQueueProvider; sync: OfflineSyncProvider } {
-  let cachedScopeKey: string | null = null;
+export type FieldOfflineScope = { companyId: string; userId: string };
+
+export async function resolveBrowserFieldQueueScope(client: ReturnType<typeof createClient>, previousScope?: FieldOfflineScope): Promise<FieldOfflineScope> {
+  if (typeof navigator !== "undefined" && !navigator.onLine && previousScope && client) {
+    // Cached session identity only partitions local device data. Server writes
+    // still require the service's verified workspace and database authorization.
+    const { data, error } = await client.auth.getSession();
+    if (!error && data.session?.user.id === previousScope.userId) return previousScope;
+    throw new Error("Sign in again before opening saved field actions on this device.");
+  }
+  const result = await resolveWorkspaceContext(client);
+  if (!result.context) throw new Error(result.errorMessage || "Unable to verify access to saved field actions.");
+  return { companyId: result.context.companyId, userId: result.context.userId };
+}
+
+export function createBrowserFieldOfflineProviders(resolveScope: (previousScope?: FieldOfflineScope) => Promise<FieldOfflineScope>): { queue: OfflineQueueProvider; sync: OfflineSyncProvider } {
+  let previousScope: FieldOfflineScope | undefined;
   const getScopeKey = async () => {
-    if (cachedScopeKey) return cachedScopeKey;
-    const scope = await resolveScope();
-    cachedScopeKey = `${scope.companyId}:${scope.userId}`;
-    return cachedScopeKey;
+    const scope = await resolveScope(previousScope);
+    if (!scope.companyId || !scope.userId) throw new Error("Unable to verify access to saved field actions.");
+    previousScope = scope;
+    return `${scope.companyId}:${scope.userId}`;
   };
   const queue: OfflineQueueProvider = {
     async enqueue(input) {
