@@ -70,6 +70,10 @@ export function MobileFieldOperationsWorkspace() {
   const [checkoutNotes, setCheckoutNotes] = useState("");
   const [returnCheckoutId, setReturnCheckoutId] = useState("");
   const [returnNotes, setReturnNotes] = useState("");
+  const [isSavingReport, setIsSavingReport] = useState(false);
+  const [lastSavedReport, setLastSavedReport] = useState<{ key: string; assignmentId: string; id: string } | null>(null);
+  const [separateReportId, setSeparateReportId] = useState<string | null>(null);
+  const [reportStorageWarning, setReportStorageWarning] = useState<{ key: string; message: string } | null>(null);
   const reportSubmissionRef = useRef(false);
   const reportDraftHydrationRef = useRef("");
   const checklistDraftHydrationRef = useRef("");
@@ -205,14 +209,28 @@ export function MobileFieldOperationsWorkspace() {
   const submitReport = async (status: "draft" | "submitted") => {
     if (reportSubmissionRef.current) return;
     reportSubmissionRef.current = true;
+    setIsSavingReport(true);
+    const draft = { ...mobileReport, assignmentId: effectiveReportAssignmentId };
     try {
-      const result = await submitMobileDailyReport({ crewId: effectiveCrewId, reportDate, status, draft: { ...mobileReport, assignmentId: effectiveReportAssignmentId } });
+      const result = await submitMobileDailyReport({ crewId: effectiveCrewId, reportDate, status, draft });
+      if (result) {
+        setLastSavedReport({ key: reportDraftKey, assignmentId: effectiveReportAssignmentId, id: result.reportId });
+        setReportStorageWarning(null);
+        const saved = { ...draft, reportId: result.reportId, reportUpdatedAt: result.reportUpdatedAt };
+        if (status === "draft") setMobileReport(saved);
+        try {
+          if (status === "draft") await reportDraftStore.save(effectiveCrewId,reportDate,saved);
+          else await reportDraftStore.remove(effectiveCrewId,reportDate);
+        } catch {
+          setReportStorageWarning({ key: reportDraftKey, message: "Report saved online, but this device could not update its local draft. Open the saved report before retrying." });
+        }
+      }
       if (result && status === "submitted") {
-        await reportDraftStore.remove(effectiveCrewId,reportDate);
         setMobileReport(createEmptyMobileDailyReportDraft());
       }
     } finally {
       reportSubmissionRef.current = false;
+      setIsSavingReport(false);
     }
   };
 
@@ -276,7 +294,7 @@ export function MobileFieldOperationsWorkspace() {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Today&apos;s Crew</p>
-            <Select value={effectiveCrewId} disabled={isMutating || fieldCrews.length === 0} onChange={(event) => setSelectedCrewId(event.target.value)} aria-label="Select crew">
+            <Select value={effectiveCrewId} disabled={isMutating || isSavingReport || fieldCrews.length === 0} onChange={(event) => setSelectedCrewId(event.target.value)} aria-label="Select crew">
               {fieldCrews.length === 0 ? <option value="">No active crews available</option> : null}
               {fieldCrews.map((crew) => (
                 <option key={crew.crewId} value={crew.crewId}>{crew.crewName}</option>
@@ -435,12 +453,12 @@ export function MobileFieldOperationsWorkspace() {
         <h2 className="mb-3 text-base font-semibold text-[var(--text-primary)]">Mobile Daily Report</h2>
 
         <p className="mb-3 text-sm text-[var(--text-secondary)]">Save a draft to keep working, or submit the report for review.</p>
-        <fieldset disabled={isMutating} aria-label="Daily report details" className="min-w-0 space-y-3">
+        <fieldset disabled={isMutating || isSavingReport} aria-label="Daily report details" className="min-w-0 space-y-3">
           {calendarError ? <p role="alert" className="text-sm text-[var(--color-danger-700)]">{calendarError}</p> : null}
           <Input type="date" aria-label="Report date" disabled={!companyTimeZone} value={reportDate} onChange={(event) => setReportDate(event.target.value)} />
           <label className="block text-sm text-[var(--text-secondary)]">
             Scheduled job
-            <Select aria-label="Report scheduled job" value={effectiveReportAssignmentId} disabled={reportAssignmentsLoading || reportAssignments.length === 0} onChange={(event) => setMobileReport((current) => ({ ...current, assignmentId: event.target.value }))}>
+            <Select aria-label="Report scheduled job" value={effectiveReportAssignmentId} disabled={reportAssignmentsLoading || reportAssignments.length === 0} onChange={(event) => setMobileReport((current) => ({ ...current, assignmentId: event.target.value, reportId: undefined, reportUpdatedAt: undefined }))}>
               <option value="">Choose scheduled job</option>
               {reportAssignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.scope.projectName || assignment.scope.projectId} — {assignment.title}</option>)}
             </Select>
@@ -481,6 +499,14 @@ export function MobileFieldOperationsWorkspace() {
           </div> : null}
 
           {reportErrors.length?<div role="alert" className="rounded-[var(--radius-card)] border border-[var(--color-warning-300)] bg-[var(--color-warning-50)] p-3"><p className="text-xs font-semibold text-[var(--color-warning-700)]">Complete before final submission:</p><ul className="mt-1 list-disc pl-4 text-xs text-[var(--color-warning-700)]">{reportErrors.map(error=><li key={error}>{error}</li>)}</ul></div>:null}
+
+          {mobileReport.reportId || (lastSavedReport?.key === reportDraftKey && lastSavedReport.assignmentId === effectiveReportAssignmentId) ? <div className="space-y-2 rounded-[var(--radius-card)] border border-[var(--border-subtle)] p-3">
+            <Link className="text-sm font-semibold underline" href={`/daily-reports/${mobileReport.reportId || lastSavedReport?.id}`}>Open saved report</Link>
+            {mobileReport.reportId ? <p className="text-xs text-[var(--text-secondary)]">Further saves update this draft. Reports already submitted or changed elsewhere must be opened before continuing.</p> : null}
+            {mobileReport.reportId && separateReportId !== mobileReport.reportId ? <Button type="button" variant="secondary" size="sm" onClick={() => setSeparateReportId(mobileReport.reportId || null)}>Start separate report</Button> : null}
+            {mobileReport.reportId && separateReportId === mobileReport.reportId ? <div role="group" aria-label="New report confirmation"><p className="text-sm text-[var(--text-secondary)]">Start a separate report? Save any current edits first. The saved report and its history will be kept.</p><Button type="button" variant="secondary" size="sm" onClick={() => { setMobileReport({ ...createEmptyMobileDailyReportDraft(), assignmentId: effectiveReportAssignmentId }); setSeparateReportId(null); setReportStorageWarning(null); }}>Start new blank report</Button><Button type="button" variant="ghost" size="sm" onClick={() => setSeparateReportId(null)}>Keep editing</Button></div> : null}
+          </div> : null}
+          {reportStorageWarning?.key === reportDraftKey ? <p role="alert" className="text-sm text-[var(--text-primary)]">{reportStorageWarning.message}</p> : null}
 
           <div className="grid grid-cols-2 gap-2">
             <Button

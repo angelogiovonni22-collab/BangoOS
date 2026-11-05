@@ -30,6 +30,7 @@ export type DailyReportsService = {
     reportId: string,
     input: DailyReportUpsertInput,
     status: DailyReportStatus,
+    expected?: { status: DailyReportStatus; updatedAt: string },
   ) => Promise<DailyReport | null>;
   regenerateSummary: (reportId: string) => Promise<DailyReport | null>;
   createDraftFromSchedule: (date: string, crewId?: string, assignmentId?: string) => Promise<DailyReportUpsertInput>;
@@ -556,12 +557,15 @@ export function createDailyReportsService(deps: CreateDailyReportsServiceDeps = 
       return report;
     },
 
-    async updateReport(reportId, input, status) {
+    async updateReport(reportId, input, status, expected) {
       const { workspace } = await resolveContext();
       const current = await loadReportById(workspace.companyId, reportId);
 
       if (!current) {
         return null;
+      }
+      if (expected && (current.header.overallStatus !== expected.status || current.updatedAt !== expected.updatedAt)) {
+        throw new Error("This report changed since the field draft was saved. Open the saved report before continuing.");
       }
 
       const report = hydrateReportFromInput({

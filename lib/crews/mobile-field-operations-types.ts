@@ -13,6 +13,8 @@ export type DailyChecklist = {
 };
 
 export type MobileDailyReportDraft = {
+  reportId?: string;
+  reportUpdatedAt?: string;
   assignmentId?: string;
   photos: string[];
   /** Project photo IDs align by index; older saved drafts may omit them. */
@@ -121,7 +123,7 @@ export type MobileFieldOperationsService = {
   getForemanDashboard: () => Promise<ForemanDashboardData>;
   runCheckInAction: (input: { crewId: string; action: CrewCheckInAction }) => Promise<FieldActionSaveResult>;
   saveDailyChecklist: (input: { crewId: string; checklist: DailyChecklist }) => Promise<FieldActionSaveResult>;
-  submitMobileDailyReport: (input: SubmitMobileDailyReportInput) => Promise<{ reportId: string }>;
+  submitMobileDailyReport: (input: SubmitMobileDailyReportInput) => Promise<{ reportId: string; reportUpdatedAt?: string }>;
   checkoutEquipment: (input: { crewId: string; equipmentIds: string[]; conditionNotes: string }) => Promise<EquipmentCheckoutRecord & FieldActionSaveResult>;
   returnEquipment: (input: { checkoutId: string; conditionNotes: string }) => Promise<(EquipmentCheckoutRecord & FieldActionSaveResult) | null>;
   syncOfflineActions: () => Promise<{ synced: number; failed: number }>;

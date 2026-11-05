@@ -660,15 +660,29 @@ export function createMobileFieldOperationsService(
       if (!input.crewId) throw new Error("Choose a crew before saving a daily report.");
       const baseDraft = await dailyReports.createDraftFromSchedule(input.reportDate, input.crewId, input.draft.assignmentId);
 
+      const current = input.draft.reportId ? await dailyReports.getReport(input.draft.reportId) : null;
+      if (input.draft.reportId) {
+        if (!current) throw new Error("The saved report is unavailable. Open Daily Reports before continuing.");
+        if (current.header.overallStatus !== "draft") throw new Error("This report has already left Draft. Open the saved report; it will not be overwritten.");
+        if (!input.draft.reportUpdatedAt || current.updatedAt !== input.draft.reportUpdatedAt) throw new Error("This draft changed elsewhere. Open the saved report before continuing.");
+        if (current.header.date !== input.reportDate || current.header.projectId !== baseDraft.header.projectId
+          || current.schedulingPreload?.assignmentId !== baseDraft.schedulingPreload?.assignmentId) {
+          throw new Error("This saved draft belongs to a different scheduled job or date. Open it or start a separate report.");
+        }
+      }
+
       const reportInput = createMobileReportInput({
-        baseDraft,
+        baseDraft: current ? dailyReports.toUpsertInput(current) : baseDraft,
         source: input,
         projectId: baseDraft.header.projectId,
         projectName: baseDraft.header.projectName,
         superintendentName: baseDraft.header.superintendentName,
       });
 
-      const created = await dailyReports.createReport(reportInput, input.status as DailyReportStatus);
+      const created = current
+        ? await dailyReports.updateReport(current.id, reportInput, input.status as DailyReportStatus, { status: "draft", updatedAt: current.updatedAt })
+        : await dailyReports.createReport(reportInput, input.status as DailyReportStatus);
+      if (!created) throw new Error("The saved report is unavailable. Open Daily Reports before continuing.");
 
       const queued = await offlineQueue.enqueue({
         type: "mobile_report",
@@ -678,6 +692,7 @@ export function createMobileFieldOperationsService(
 
       return {
         reportId: created.id,
+        reportUpdatedAt: created.updatedAt,
       };
     },
 
