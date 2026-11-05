@@ -7,6 +7,7 @@ import {
   type CrewCheckInAction,
   type DailyChecklist,
   type ForemanDashboardData,
+  type FieldActionSaveResult,
   type MobileDailyReportDraft,
   type MobileFieldOperationsService,
 } from "./mobile-field-operations-types";
@@ -36,6 +37,7 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
   const [isMutating, setIsMutating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [isActionQueued, setIsActionQueued] = useState(false);
   const [isOnline,setIsOnline]=useState(()=>typeof navigator==="undefined"||navigator.onLine);
   const mutationRef = useRef(false);
   const refreshRequestRef = useRef(0);
@@ -58,6 +60,7 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
   useEffect(() => {
     const synchronize = () => {
       void service.syncOfflineActions().then((result) => {
+        if (result.synced > 0) setIsActionQueued(false);
         if (result.synced > 0) setActionMessage(`${result.synced} offline field action${result.synced === 1 ? "" : "s"} synchronized.`);
         if (result.failed > 0) setErrorMessage(`${result.failed} offline field action${result.failed === 1 ? "" : "s"} need review.`);
         if (result.synced > 0 || result.failed > 0) void refresh();
@@ -71,16 +74,19 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
     return () => {window.removeEventListener("online", markOnline);window.removeEventListener("offline", markOffline);};
   }, [refresh, service]);
 
-  const runAction = useCallback(async (action: () => Promise<void>, successMessage: string) => {
+  const runAction = useCallback(async (action: () => Promise<void | FieldActionSaveResult | null>, successMessage: string) => {
     if(mutationRef.current)return false;
     mutationRef.current=true;
     setIsMutating(true);
     setActionMessage(null);
+    setIsActionQueued(false);
     setErrorMessage(null);
 
     try {
-      await action();
-      setActionMessage(successMessage);
+      const result = await action();
+      const queued = Boolean(result && result.persistenceState === "queued");
+      setIsActionQueued(queued);
+      setActionMessage(queued ? "This field action is saved on this device and is waiting to synchronize. Keep this device’s local data until synchronization finishes." : successMessage);
       await refresh();
       return true;
     } catch (error) {
@@ -99,6 +105,7 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
     isOnline,
     errorMessage,
     actionMessage,
+    isActionQueued,
     refresh,
     createEmptyChecklist,
     createEmptyMobileDailyReportDraft,
@@ -132,9 +139,9 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
       }
     },
     checkoutEquipment: async (input: { crewId: string; equipmentIds: string[]; conditionNotes: string }) =>
-      runAction(() => service.checkoutEquipment(input).then(() => undefined), "Equipment checked out."),
+      runAction(() => service.checkoutEquipment(input), "Equipment checked out."),
     returnEquipment: async (input: { checkoutId: string; conditionNotes: string }) =>
-      runAction(() => service.returnEquipment(input).then(() => undefined), "Equipment returned."),
+      runAction(() => service.returnEquipment(input), "Equipment returned."),
     retryOfflineAction: async (id: string) =>
       runAction(() => service.retryOfflineAction(id).then(() => undefined), "Offline action retried."),
     discardOfflineAction: async (id: string) =>

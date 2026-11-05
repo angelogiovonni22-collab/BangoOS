@@ -41,6 +41,7 @@ export function MobileFieldOperationsWorkspace() {
     isOnline,
     errorMessage,
     actionMessage,
+    isActionQueued,
     refresh,
     createEmptyChecklist,
     createEmptyMobileDailyReportDraft,
@@ -238,7 +239,7 @@ export function MobileFieldOperationsWorkspace() {
           </div>
           <Button variant="secondary" size="sm" disabled={isMutating} onClick={() => void refresh()}>Refresh</Button>
         </div>
-        {actionMessage ? <p className="mt-2 text-sm font-medium text-[var(--color-success-700)]">{actionMessage}</p> : null}
+        {actionMessage ? <p role="status" className={`mt-2 text-sm font-medium ${isActionQueued ? "text-[var(--color-warning-700)]" : "text-[var(--color-success-700)]"}`}>{actionMessage}</p> : null}
         {errorMessage ? <div role="alert" className="mt-2 flex items-start justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--color-danger-300)] bg-[var(--color-danger-50)] p-3"><p className="text-sm text-[var(--color-danger-700)]">{errorMessage}</p><Button size="sm" variant="outline" disabled={isLoading||isMutating} onClick={()=>void refresh()}>Retry</Button></div> : null}
       </Card>
 
