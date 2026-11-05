@@ -417,6 +417,36 @@ async function main() {
     check(savedChecklist.persistenceState === "saved", "persisted checklist reports a server save");
   });
 
+
+  await test("7. overlapping synchronization shares one replay pass", async () => {
+    const events: WorkflowEventRow[] = [];
+    const { provider } = createQueueProvider();
+    const service = createServiceHarness(events, provider, 1);
+    await service.saveDailyChecklist({ crewId: "crew-1", checklist: { safetyBriefing: true, ppeVerification: false, equipmentInspection: false, dailyGoals: "Synthetic concurrency", supervisorNotes: "", updatedAt: null } });
+    const results = await Promise.all([service.syncOfflineActions(), service.syncOfflineActions()]);
+    check(results.every((result) => result.synced === 1 && result.failed === 0), "overlapping callers share a successful synchronization result");
+    check(events.filter((event) => event.event_type === "mobile_field.checklist.saved").length === 1, "one queued action produces one persisted event");
+    const next = await service.syncOfflineActions();
+    check(next.synced === 0 && next.failed === 0, "a finished synchronization releases its lock for subsequent passes");
+  });
+
+  await test("8. failed synchronization releases its lock", async () => {
+    const events: WorkflowEventRow[] = [];
+    const { provider } = createQueueProvider();
+    let interrupted = false;
+    const service = createServiceHarness(events, {
+      ...provider,
+      async list() {
+        if (!interrupted) { interrupted = true; throw new Error("Synthetic local storage interruption"); }
+        return provider.list();
+      },
+    });
+    let rejected = false;
+    try { await service.syncOfflineActions(); } catch { rejected = true; }
+    const recovered = await service.syncOfflineActions();
+    check(rejected && recovered.synced === 0 && recovered.failed === 0, "storage failure does not leave future synchronization stuck");
+  });
+
   console.log(`\nMobile field persistence results: ${passed} passed, ${failed} failed`);
 
   if (failed > 0) {
