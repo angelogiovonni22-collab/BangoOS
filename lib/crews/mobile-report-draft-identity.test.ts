@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createMobileFieldOperationsService } from "./mobile-field-operations-service";
-import { createEmptyMobileDailyReportDraft, type MobileDailyReportDraft } from "./mobile-field-operations-types";
+import { createEmptyMobileDailyReportDraft, type MobileDailyReportDraft, type OfflineQueueItem } from "./mobile-field-operations-types";
 import type { DailyReport, DailyReportUpsertInput } from "@/lib/daily-reports";
 
 const base: DailyReportUpsertInput = {
@@ -9,14 +9,27 @@ const base: DailyReportUpsertInput = {
  labor:[],workCompleted:[],materials:[],equipment:[],safety:[],delays:[],attachments:[],timeline:[],aiSummaryVersion:1,
 };
 let saved:DailyReport|null=null,creates=0,updates=0,revision=0,updateExpected:unknown;
+let failServerSave = false;
+let receiptFailure: "none" | "enqueue" | "acknowledge" = "none";
+let receiptAttempts = 0;
+const receipts: OfflineQueueItem[] = [];
 const reports = {
  async createDraftFromSchedule(){return structuredClone(base);},
- async createReport(input:DailyReportUpsertInput,status:string){creates++;saved={...structuredClone(input),id:"saved-report",reportNumber:"SYNTHETIC-1",header:{...input.header,overallStatus:status},updatedAt:String(++revision),createdAt:"0",submittedAt:null,reviewedAt:null,approvedAt:null} as DailyReport;return saved;},
+ async createReport(input:DailyReportUpsertInput,status:string){if(failServerSave) throw new Error("Simulated connection loss before report write");creates++;saved={...structuredClone(input),id:"saved-report",reportNumber:"SYNTHETIC-1",header:{...input.header,overallStatus:status},updatedAt:String(++revision),createdAt:"0",submittedAt:null,reviewedAt:null,approvedAt:null} as DailyReport;return saved;},
  async getReport(id:string){return saved?.id===id?structuredClone(saved):null;},
  toUpsertInput(report:DailyReport){return structuredClone(report) as DailyReportUpsertInput;},
  async updateReport(id:string,input:DailyReportUpsertInput,status:string,expected:unknown){assert.equal(id,saved?.id);updateExpected=expected;updates++;saved={...saved!,...structuredClone(input),id,header:{...input.header,overallStatus:status},updatedAt:String(++revision)} as DailyReport;return saved;},
 };
-const service = () => createMobileFieldOperationsService({dailyReportsService:reports as never,workforceService:{} as never,supabaseClient:null,offlineQueue:{async enqueue(item){return {...item,id:"queue",status:"queued",createdAt:"0"};},async list(){return [];},async setStatus(){}}});
+const service = () => createMobileFieldOperationsService({
+ dailyReportsService:reports as never,workforceService:{} as never,
+ supabaseClient:{} as never,
+ resolveWorkspace: (async()=>({context:{companyId:"company-a",userId:"user-a"},errorMessage:null})) as never,
+ offlineQueue:{
+  async enqueue(item){receiptAttempts++;if(receiptFailure==="enqueue")throw new Error("Simulated local receipt storage failure");const next:OfflineQueueItem={...item,id:"queue-"+receiptAttempts,status:"queued",createdAt:"0"};receipts.push(structuredClone(next));return next;},
+  async list(){return structuredClone(receipts);},
+  async setStatus(id,status){if(receiptFailure==="acknowledge")throw new Error("Simulated local receipt acknowledgement failure");const item=receipts.find(entry=>entry.id===id);if(item)item.status=status;},
+ },
+});
 let draft: MobileDailyReportDraft={...createEmptyMobileDailyReportDraft(),assignmentId:"assignment-a",notes:"Synthetic first save",photos:["test.png"],photoIds:["photo-a"]};
 let checks=0;
 function check(value:unknown,label:string){assert.ok(value,label);checks++;}
@@ -50,6 +63,32 @@ async function main(){
  saved!.header.date="2026-11-05";saved!.schedulingPreload!.assignmentId="other-assignment";
  await assert.rejects(()=>service().submitMobileDailyReport({...input,draft:{...reopened,reportUpdatedAt:saved!.updatedAt}}),/different scheduled job/);checks++;
  check(creates===1&&updates===2,"all rejected saves preserve report count and contents");
+ // Fault injection: no hosted business records or browser settings are changed.
+ saved=null;creates=0;updates=0;revision=0;receipts.length=0;receiptAttempts=0;
+ const recoveryDraft:MobileDailyReportDraft={...createEmptyMobileDailyReportDraft(),assignmentId:"assignment-a",notes:"Synthetic interruption recovery",photos:["retained.png"],photoIds:["retained-photo"]};
+ const recoveryInput={...input,draft:recoveryDraft};
+ failServerSave=true;
+ await assert.rejects(()=>service().submitMobileDailyReport(recoveryInput),/connection loss/);checks++;
+ check(creates===0&&receiptAttempts===0,"a server failure never records a receipt or claims a saved report");
+ check(recoveryDraft.notes==="Synthetic interruption recovery"&&recoveryDraft.photoIds?.[0]==="retained-photo"&&!recoveryDraft.reportId,"failed server save leaves caller notes and photo references intact");
+ failServerSave=false;receiptFailure="enqueue";
+ const recovered=await service().submitMobileDailyReport(recoveryInput);
+ check(creates===1&&recovered.reportId==="saved-report"&&recovered.reportUpdatedAt==="1","local enqueue failure does not hide an acknowledged server identity");
+ receiptFailure="acknowledge";
+ const updated=await service().submitMobileDailyReport({...recoveryInput,draft:{...recoveryDraft,reportId:recovered.reportId,reportUpdatedAt:recovered.reportUpdatedAt}});
+ check(creates===1&&updates===1&&updated.reportUpdatedAt==="2","local acknowledgement failure preserves the same report update");
+ check(receipts.length===1&&receipts[0].status==="queued","an unacknowledged receipt stays available for recovery");
+ receiptFailure="none";
+ const sync=await service().syncOfflineActions();
+ check(sync.synced===1&&sync.failed===0,"reconnect acknowledges the pending report receipt");
+ check(creates===1&&updates===1,"receipt replay never creates or updates the server report again");
+ const emptySync=await service().syncOfflineActions();
+ check(emptySync.synced===0&&emptySync.failed===0,"a second reconnect has nothing left to replay");
+ const recoveredReport=await reports.getReport("saved-report");
+ check(recoveredReport?.timeline[0]?.description==="Synthetic interruption recovery"&&recoveredReport?.attachments[0]?.projectPhotoId==="retained-photo","recovery preserves notes and uploaded photo references");
+ receiptFailure="enqueue";
+ const finalSubmit=await service().submitMobileDailyReport({...recoveryInput,status:"submitted",draft:{...recoveryDraft,reportId:updated.reportId,reportUpdatedAt:updated.reportUpdatedAt}});
+ check(creates===1&&updates===2&&finalSubmit.reportId===recovered.reportId,"submission still returns the same report after local receipt failure");
  console.log("Mobile saved-draft lifecycle: "+checks+" assertions passed.");
 }
 void main();

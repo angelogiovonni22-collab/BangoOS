@@ -684,11 +684,18 @@ export function createMobileFieldOperationsService(
         : await dailyReports.createReport(reportInput, input.status as DailyReportStatus);
       if (!created) throw new Error("The saved report is unavailable. Open Daily Reports before continuing.");
 
-      const queued = await offlineQueue.enqueue({
-        type: "mobile_report",
-        payload: { crewId: input.crewId, reportId: created.id, status: input.status },
-      });
-      await markQueueStatus(offlineQueue, queued, "synced");
+      // This queue entry is an activity receipt, not a report write to replay.
+      // Once the server acknowledges the report, local receipt failure must not
+      // hide its identity or make the caller retry it as a new report.
+      try {
+        const queued = await offlineQueue.enqueue({
+          type: "mobile_report",
+          payload: { crewId: input.crewId, reportId: created.id, status: input.status },
+        });
+        await markQueueStatus(offlineQueue, queued, "synced");
+      } catch {
+        // The workspace persists the acknowledged report ID/version separately.
+      }
 
       return {
         reportId: created.id,
