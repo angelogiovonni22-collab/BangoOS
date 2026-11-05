@@ -110,13 +110,15 @@ export type SubmitMobileDailyReportInput = {
   draft: MobileDailyReportDraft;
 };
 
+export type FieldActionSaveResult = { persistenceState: "saved" | "queued" };
+
 export type MobileFieldOperationsService = {
   getForemanDashboard: () => Promise<ForemanDashboardData>;
-  runCheckInAction: (input: { crewId: string; action: CrewCheckInAction }) => Promise<void>;
-  saveDailyChecklist: (input: { crewId: string; checklist: DailyChecklist }) => Promise<void>;
+  runCheckInAction: (input: { crewId: string; action: CrewCheckInAction }) => Promise<FieldActionSaveResult>;
+  saveDailyChecklist: (input: { crewId: string; checklist: DailyChecklist }) => Promise<FieldActionSaveResult>;
   submitMobileDailyReport: (input: SubmitMobileDailyReportInput) => Promise<{ reportId: string }>;
-  checkoutEquipment: (input: { crewId: string; equipmentIds: string[]; conditionNotes: string }) => Promise<EquipmentCheckoutRecord>;
-  returnEquipment: (input: { checkoutId: string; conditionNotes: string }) => Promise<EquipmentCheckoutRecord | null>;
+  checkoutEquipment: (input: { crewId: string; equipmentIds: string[]; conditionNotes: string }) => Promise<EquipmentCheckoutRecord & FieldActionSaveResult>;
+  returnEquipment: (input: { checkoutId: string; conditionNotes: string }) => Promise<(EquipmentCheckoutRecord & FieldActionSaveResult) | null>;
   syncOfflineActions: () => Promise<{ synced: number; failed: number }>;
   retryOfflineAction: (id: string) => Promise<{ synced: number; failed: number }>;
   discardOfflineAction: (id: string) => Promise<void>;

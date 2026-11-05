@@ -400,6 +400,23 @@ async function main() {
     check(Boolean(returned?.returnedAt) && returned?.conditionNotes === "Synthetic return: isolated for repair", "return condition notes survive synchronization and reload even with tied event timestamps");
   });
 
+
+  await test("6. field actions distinguish server saves from queued recovery", async () => {
+    const events: WorkflowEventRow[] = [];
+    const { provider } = createQueueProvider();
+    const checklist: DailyChecklist = { safetyBriefing: true, ppeVerification: false, equipmentInspection: false, dailyGoals: "Synthetic", supervisorNotes: "", updatedAt: null };
+    const first = createServiceHarness(events, provider, 1);
+    const queuedChecklist = await first.saveDailyChecklist({ crewId: "crew-1", checklist });
+    check(queuedChecklist.persistenceState === "queued", "interrupted checklist reports pending synchronization");
+    const savedCheckIn = await first.runCheckInAction({ crewId: "crew-1", action: "start_shift" });
+    check(savedCheckIn.persistenceState === "saved", "persisted check-in reports a server save");
+    const second = createServiceHarness(events, provider, 1);
+    const queuedCheckIn = await second.runCheckInAction({ crewId: "crew-1", action: "end_shift" });
+    check(queuedCheckIn.persistenceState === "queued", "interrupted check-in reports pending synchronization");
+    const savedChecklist = await second.saveDailyChecklist({ crewId: "crew-1", checklist });
+    check(savedChecklist.persistenceState === "saved", "persisted checklist reports a server save");
+  });
+
   console.log(`\nMobile field persistence results: ${passed} passed, ${failed} failed`);
 
   if (failed > 0) {

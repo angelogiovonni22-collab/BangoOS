@@ -586,6 +586,7 @@ export function createMobileFieldOperationsService(
         },
       });
       await markQueueStatus(offlineQueue, queued, saved ? "synced" : "queued");
+      return { persistenceState: saved ? "saved" : "queued" };
     },
 
     async saveDailyChecklist(input) {
@@ -629,6 +630,7 @@ export function createMobileFieldOperationsService(
       if (!saved) {
         checklistStore.set(input.crewId, nextChecklist);
       }
+      return { persistenceState: saved ? "saved" : "queued" };
     },
 
     async submitMobileDailyReport(input) {
@@ -716,7 +718,7 @@ export function createMobileFieldOperationsService(
       });
       await markQueueStatus(offlineQueue, queued, saved ? "synced" : "queued");
 
-      return checkout;
+      return { ...checkout, persistenceState: saved ? "saved" : "queued" };
     },
 
     async returnEquipment(input) {
@@ -778,7 +780,7 @@ export function createMobileFieldOperationsService(
       }
 
       if (!returned) throw new Error("This equipment checkout is no longer active. Refreshing custody records.");
-      return returned;
+      return { ...returned, persistenceState: saved ? "saved" : "queued" };
     },
   };
 }
