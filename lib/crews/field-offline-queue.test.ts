@@ -67,6 +67,9 @@ async function main() {
     scope={companyId:"company-a",userId:"user-a"};
     check((await offline.queue.list()).map(x=>x.id).join()===first.id,"original account's pending action is retained");
     check((await offline.sync.getStatus()).state==="pending","sync summary follows current scope");
+    const beforeConcurrent=calls;
+    await Promise.all([offline.queue.list(),offline.sync.getStatus()]);
+    check(calls===beforeConcurrent+1,"concurrent queue reads share verification without caching it for future operations");
     unavailable=true;
     await assert.rejects(offline.queue.list(),/Synthetic access/); checks++;
     check(calls>=10,"scope is checked again instead of permanently caching the first result");

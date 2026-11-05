@@ -59,11 +59,20 @@ export async function resolveBrowserFieldQueueScope(client: ReturnType<typeof cr
 
 export function createBrowserFieldOfflineProviders(resolveScope: (previousScope?: FieldOfflineScope) => Promise<FieldOfflineScope>): { queue: OfflineQueueProvider; sync: OfflineSyncProvider } {
   let previousScope: FieldOfflineScope | undefined;
+  let scopeRequest: Promise<string> | null = null;
   const getScopeKey = async () => {
-    const scope = await resolveScope(previousScope);
-    if (!scope.companyId || !scope.userId) throw new Error("Unable to verify access to saved field actions.");
-    previousScope = scope;
-    return `${scope.companyId}:${scope.userId}`;
+    if (scopeRequest) return scopeRequest;
+    scopeRequest = (async () => {
+      const scope = await resolveScope(previousScope);
+      if (!scope.companyId || !scope.userId) throw new Error("Unable to verify access to saved field actions.");
+      previousScope = scope;
+      return `${scope.companyId}:${scope.userId}`;
+    })();
+    try {
+      return await scopeRequest;
+    } finally {
+      scopeRequest = null;
+    }
   };
   const queue: OfflineQueueProvider = {
     async enqueue(input) {
