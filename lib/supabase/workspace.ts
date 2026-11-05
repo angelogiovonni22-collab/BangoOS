@@ -90,6 +90,14 @@ export async function resolveWorkspaceContext(
     .order("joined_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
 
+  if (membershipsError) {
+    return {
+      context: null,
+      errorMessage: "Unable to verify your company access right now. Please try again shortly.",
+      errorCode: "company_unavailable",
+    };
+  }
+
   const hasMembershipsTable = !membershipsError;
 
   const activeMemberships = (memberships ?? []).filter((membership) => membership.status === "active");
