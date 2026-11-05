@@ -112,6 +112,7 @@ export type DelayItem = {
 
 export type AttachmentItem = {
   id: string;
+  projectPhotoId?: string;
   fileName: string;
   caption: string;
   category: AttachmentCategory;

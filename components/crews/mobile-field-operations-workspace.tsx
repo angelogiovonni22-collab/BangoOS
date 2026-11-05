@@ -22,6 +22,7 @@ import { createMobileReportDraftStore } from "@/lib/crews/mobile-report-drafts";
 import { createMobileChecklistDraftStore } from "@/lib/crews/mobile-checklist-drafts";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
+import { appendReportPhoto, removeReportPhoto } from "@/lib/crews/mobile-report-photos";
 import { FieldPhotoCapture, type FieldPhotoUpload } from "./field-photo-capture";
 import { MobileFieldInspections } from "./mobile-field-inspections";
 import { MobileWorkforceTimeClock } from "./mobile-workforce-time-clock";
@@ -217,7 +218,7 @@ export function MobileFieldOperationsWorkspace() {
 
   const attachFieldPhoto = async (photo: FieldPhotoUpload) => {
     setUploadedPhoto({ crewId: effectiveCrewId, projectId: selectedCrewAssignments[0]?.projectId || "", reportDate, fileName: photo.fileName });
-    setMobileReport((current) => ({ ...current, photos: [...current.photos, photo.fileName] }));
+    setMobileReport((current) => appendReportPhoto(current, photo));
     await refresh();
   };
 
@@ -447,7 +448,7 @@ export function MobileFieldOperationsWorkspace() {
           {reportAssignmentsLoading ? <p role="status" className="text-sm text-[var(--text-secondary)]">Loading scheduled jobs…</p> : reportAssignmentError ? <p role="alert" className="text-sm text-[var(--color-danger-700)]">{reportAssignmentError}</p> : !reportAssignments.length ? <p className="text-sm text-[var(--text-secondary)]">No scheduled job matches this crew and report date. Ask your supervisor to update the schedule.</p> : reportAssignments.length > 1 && !effectiveReportAssignmentId ? <p className="text-sm text-[var(--text-secondary)]">This crew has multiple jobs on this date. Choose the job this report covers.</p> : null}
           <div className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Attached field photos</p>
-            {mobileReport.photos.length ? <ul className="mt-2 space-y-1">{mobileReport.photos.map((photo, index) => <li key={`${photo}-${index}`} className="flex items-center justify-between gap-2 text-sm text-[var(--text-primary)]"><span className="truncate">{photo}</span><Button type="button" size="sm" variant="ghost" aria-label={`Remove ${photo}`} onClick={() => setMobileReport((current) => ({ ...current, photos: current.photos.filter((_, photoIndex) => photoIndex !== index) }))}>Remove</Button></li>)}</ul> : <p className="mt-1 text-xs text-[var(--text-secondary)]">Use Jobsite Photo above to capture evidence directly into this report.</p>}
+            {mobileReport.photos.length ? <ul className="mt-2 space-y-1">{mobileReport.photos.map((photo, index) => <li key={`${photo}-${index}`} className="flex items-center justify-between gap-2 text-sm text-[var(--text-primary)]"><span className="truncate">{photo}</span><Button type="button" size="sm" variant="ghost" aria-label={`Remove ${photo}`} onClick={() => setMobileReport((current) => removeReportPhoto(current, index))}>Remove</Button></li>)}</ul> : <p className="mt-1 text-xs text-[var(--text-secondary)]">Use Jobsite Photo above to capture evidence directly into this report.</p>}
           </div>
           <Textarea rows={3} placeholder="Notes" value={mobileReport.notes} onChange={(event) => setMobileReport((current) => ({ ...current, notes: event.target.value }))} />
           <Textarea rows={2} placeholder="Completed work" value={mobileReport.completedWork} onChange={(event) => setMobileReport((current) => ({ ...current, completedWork: event.target.value }))} />

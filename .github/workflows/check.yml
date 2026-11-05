@@ -233,6 +233,12 @@ jobs:
           npx -y tsx lib/mobile/startup-session.test.ts
           npx -y tsx lib/mobile/startup-splash.contract.test.ts
 
+      - name: Run report photo identity and access regression
+        run: |
+          npx -y tsx lib/crews/mobile-report-photos.test.ts
+          npx -y tsx lib/daily-reports/report-photo-evidence.test.ts
+          npx -y tsx lib/crews/field-photo-report-link.contract.test.ts
+
       - name: Run repository checks
         run: npm run check
 
