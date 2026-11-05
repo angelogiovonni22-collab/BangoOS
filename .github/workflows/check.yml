@@ -228,6 +228,9 @@ jobs:
           npx -y tsx lib/crews/workforce-clock-read.test.ts
           node scripts/test-workforce-clock-state.mjs node_modules/typescript/lib/typescript.js
 
+      - name: Run startup session regression
+        run: npx -y tsx lib/mobile/startup-session.test.ts
+
       - name: Run repository checks
         run: npm run check
 
