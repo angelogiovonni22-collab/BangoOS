@@ -57,6 +57,7 @@ export function MobileFieldOperationsWorkspace() {
   } = useMobileFieldOperations();
 
   const [selectedCrewId, setSelectedCrewId] = useState("");
+  const [uploadedPhoto, setUploadedPhoto] = useState<{ crewId: string; projectId: string; reportDate: string; fileName: string } | null>(null);
   const [selectedTimeAssignmentId, setSelectedTimeAssignmentId] = useState("");
   const [checklistDraftByCrewId, setChecklistDraftByCrewId] = useState<Record<string, DailyChecklist>>({});
   const [mobileReport, setMobileReport] = useState<MobileDailyReportDraft>(createEmptyMobileDailyReportDraft());
@@ -215,6 +216,7 @@ export function MobileFieldOperationsWorkspace() {
   };
 
   const attachFieldPhoto = async (photo: FieldPhotoUpload) => {
+    setUploadedPhoto({ crewId: effectiveCrewId, projectId: selectedCrewAssignments[0]?.projectId || "", reportDate, fileName: photo.fileName });
     setMobileReport((current) => ({ ...current, photos: [...current.photos, photo.fileName] }));
     await refresh();
   };
@@ -359,7 +361,9 @@ export function MobileFieldOperationsWorkspace() {
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="time-approvals"><MobileTimeApprovals/></Card>
 
-      <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-photos"><FieldPhotoCapture key={selectedCrewAssignments[0]?.projectId || "unassigned"} projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""} onUploaded={attachFieldPhoto}/></Card>
+      <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-photos">
+        {uploadedPhoto && uploadedPhoto.crewId === effectiveCrewId && uploadedPhoto.reportDate === reportDate && uploadedPhoto.projectId === selectedCrewAssignments[0]?.projectId ? <div role="status" className="mb-3 rounded-[var(--radius-card)] border border-[var(--color-success-700)] p-3"><p className="text-sm font-semibold text-[var(--color-success-700)]">Photo saved</p><p className="text-sm text-[var(--text-secondary)]">{uploadedPhoto.fileName} was uploaded and attached to this daily report.</p><Button variant="secondary" size="sm" onClick={() => setUploadedPhoto(null)}>Dismiss photo confirmation</Button></div> : null}
+        <FieldPhotoCapture key={selectedCrewAssignments[0]?.projectId || "unassigned"} projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""} onUploaded={attachFieldPhoto}/></Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="field-inspections"><MobileFieldInspections key={selectedCrewAssignments[0]?.projectId || "unassigned"} projectId={selectedCrewAssignments[0]?.projectId || ""} projectName={selectedCrewAssignments[0]?.projectName || selectedCrew?.currentProjectName || ""}/></Card>
 
