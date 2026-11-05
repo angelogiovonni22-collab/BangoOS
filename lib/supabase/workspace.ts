@@ -132,7 +132,7 @@ export async function resolveWorkspaceContext(
     if (ownerCompany?.id) {
       const { error: patchProfileError } = await supabase
         .from("profiles")
-        .update({ company_id: ownerCompany.id })
+        .update({ company_id: ownerCompany.id, role: "owner" })
         .eq("id", user.id);
 
       if (!patchProfileError) {
