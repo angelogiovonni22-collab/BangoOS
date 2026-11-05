@@ -13,7 +13,9 @@ import type { DailyReport } from "@/lib/daily-reports";
 export default function DailyReportDetailsPage() {
   const params = useParams<{ id: string }>();
   const reportId = typeof params.id === "string" ? params.id : "";
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const l = (en: string, es: string) => locale === "es" ? es : en;
+  const yesNo = (value: boolean) => value ? l("Yes", "Sí") : l("No", "No");
   const [report, setReport] = useState<DailyReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -111,6 +113,47 @@ export default function DailyReportDetailsPage() {
       </div>
 
       <Card as="section">
+        <CardHeader><CardTitle>{t("dailyReports.sections.labor")}</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {report.labor.length === 0 ? <p className="text-sm text-[var(--color-text-secondary)]">{l("No labor entries recorded.", "No hay registros de personal.")}</p> : report.labor.map((item) => (
+            <article key={item.id} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] p-3">
+              <h3 className="mb-2 font-semibold text-[var(--color-text-primary)]">{item.employeeName || t("dailyReports.common.none")}</h3>
+              <dl className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                <ReviewValue label={t("dailyReports.fields.crew")} value={item.crewName} />
+                <ReviewValue label={t("dailyReports.fields.trade")} value={item.trade} />
+                <ReviewValue label={t("dailyReports.fields.regularHours")} value={item.regularHours.toFixed(2)} />
+                <ReviewValue label={t("dailyReports.fields.overtimeHours")} value={item.overtimeHours.toFixed(2)} />
+                <ReviewValue label={t("dailyReports.attendance.scheduled")} value={yesNo(item.scheduled)} />
+                <ReviewValue label={t("dailyReports.attendance.present")} value={yesNo(item.present)} />
+                <ReviewValue label={t("dailyReports.attendance.late")} value={yesNo(item.late)} />
+                <ReviewValue label={t("dailyReports.fields.notes")} value={item.notes || t("dailyReports.common.none")} />
+              </dl>
+            </article>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card as="section">
+        <CardHeader><CardTitle>{t("dailyReports.sections.materials")}</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {report.materials.length === 0 ? <p className="text-sm text-[var(--color-text-secondary)]">{l("No material entries recorded.", "No hay registros de materiales.")}</p> : report.materials.map((item) => (
+            <article key={item.id} className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] p-3">
+              <h3 className="mb-2 font-semibold text-[var(--color-text-primary)]">{item.delivery || t("dailyReports.common.none")}</h3>
+              <dl className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                <ReviewValue label={t("dailyReports.fields.supplier")} value={item.supplier || t("dailyReports.common.none")} />
+                <ReviewValue label={t("dailyReports.fields.quantity")} value={String(item.quantity)} />
+                <ReviewValue label={t("dailyReports.fields.unit")} value={item.unit} />
+                <ReviewValue label={t("dailyReports.fields.receivedTime")} value={item.receivedTime || t("dailyReports.common.none")} />
+                <ReviewValue label={t("dailyReports.fields.shortages")} value={yesNo(item.shortages)} />
+                <ReviewValue label={t("dailyReports.fields.rejectedMaterial")} value={yesNo(item.rejected)} />
+                <ReviewValue label={t("dailyReports.fields.notes")} value={item.notes || t("dailyReports.common.none")} />
+              </dl>
+            </article>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card as="section">
         <CardHeader><CardTitle>{t("dailyReports.sections.workCompleted")}</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           {report.workCompleted.map((item) => (
@@ -183,4 +226,8 @@ function Info({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{value}</p>
     </div>
   );
+}
+
+function ReviewValue({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0 rounded-[var(--radius-md)] bg-[var(--color-surface-subtle)] px-3 py-2"><dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">{label}</dt><dd className="mt-1 break-words whitespace-pre-wrap text-sm text-[var(--color-text-primary)]">{value || "—"}</dd></div>;
 }
