@@ -146,7 +146,10 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
     returnEquipment: async (input: { checkoutId: string; conditionNotes: string }) =>
       runAction(() => service.returnEquipment(input), "Equipment returned."),
     retryOfflineAction: async (id: string) =>
-      runAction(() => service.retryOfflineAction(id).then(() => undefined), "Offline action retried."),
+      runAction(async () => {
+        const result = await service.retryOfflineAction(id);
+        if (result.failed > 0) throw new Error("Offline synchronization still needs review. Your queued actions have been kept on this device. Check the listed conflicts and try again.");
+      }, "Offline action retry completed."),
     discardOfflineAction: async (id: string) =>
       runAction(() => service.discardOfflineAction(id), "Offline action discarded."),
   };
