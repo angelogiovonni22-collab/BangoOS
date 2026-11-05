@@ -6,10 +6,11 @@ const root = process.cwd();
 const capture = readFileSync(resolve(root, "components/crews/field-photo-capture.tsx"), "utf8");
 const workspace = readFileSync(resolve(root, "components/crews/mobile-field-operations-workspace.tsx"), "utf8");
 
-assert.match(capture, /onUploaded\(\{ id: photoId, fileName: file\.name, category \}\)/);
+assert.match(capture, /await onUploaded\(uploaded\)/);
 assert.match(capture, /uploaded and attached to the daily report/);
 assert.match(workspace, /const attachFieldPhoto = async/);
-assert.match(workspace, /appendReportPhoto\(current, photo\)/);
+assert.match(workspace, /appendReportPhoto\(mobileReport, photo\)/);
+assert.match(workspace, /await reportDraftStore\.save\(effectiveCrewId,reportDate,next\)/);
 assert.match(workspace, /removeReportPhoto\(current, index\)/);
 assert.match(workspace, /onUploaded=\{attachFieldPhoto\}/);
 assert.match(workspace, /Attached field photos/);

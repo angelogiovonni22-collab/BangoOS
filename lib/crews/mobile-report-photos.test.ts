@@ -21,4 +21,6 @@ assert.equal(saved[1].fileName,"same.png");
 assert.equal(saved[1].uploadedAt,"2026-11-05T14:00:00Z");
 assert.ok(!("url" in saved[1]),"short-lived signed URLs are not persisted into reports");
 assert.deepEqual(removeReportPhoto(original,0).photoIds,[]);
-console.log("Mobile report photo identity: 14 assertions passed.");
+assert.equal(appendReportPhoto(first,{id:"photo-a",fileName:"same.png"}), first, "recovered upload handoff does not append the same photo twice");
+assert.deepEqual(appendReportPhoto(second,{id:"photo-b",fileName:"same.png"}).photoIds,[null,"photo-a","photo-b"]);
+console.log("Mobile report photo identity: 16 assertions passed.");

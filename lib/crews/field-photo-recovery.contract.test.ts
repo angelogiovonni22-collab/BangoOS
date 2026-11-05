@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const capture = readFileSync("components/crews/field-photo-capture.tsx", "utf8");
+const workspace = readFileSync("components/crews/mobile-field-operations-workspace.tsx", "utf8");
+const storage = readFileSync("lib/crews/field-photo-drafts.ts", "utf8");
+assert.match(capture, /new File\(\[saved.file\], saved.fileName/);
+assert.match(capture, /setNote\(saved.note\); setCategory\(saved.category\)/);
+assert.match(capture, /setUploadedPhoto\(saved.uploaded \?\? null\)/);
+assert.match(capture, /if \(!uploaded\) \{/);
+assert.ok(capture.indexOf("await onUploaded(uploaded)") < capture.indexOf("await draftStoreRef.current?.remove()", capture.indexOf("const upload =")));
+assert.match(capture, /scope.companyId !== workspace.context.companyId \|\| scope.userId !== workspace.context.userId/);
+assert.match(capture, /busy \|\| hydrating \|\| savingOnDevice/);
+assert.match(workspace, /draftKey=\{reportDraftKey\}/);
+assert.match(workspace, /await reportDraftStore.save\(effectiveCrewId,reportDate,next\)/);
+assert.match(storage, /tx.oncomplete = .*resolve\(result\)/);
+console.log("Field photo recovery surface: 10 contract checks passed.");
