@@ -48,6 +48,12 @@ jobs:
       - name: Run scheduling company time zone regression
         run: npx -y tsx lib/scheduling/time-zone.test.ts
 
+      - name: Run daily report crew and date regression
+        run: npx -y tsx lib/daily-reports/schedule-preload.test.ts
+
+      - name: Run mobile field persistence regression
+        run: npx -y tsx lib/crews/mobile-field-operations-persistence.test.ts
+
       - name: Run employee record persistence regression
         run: npx -y tsx lib/employees/employee-record-input.test.ts
 
