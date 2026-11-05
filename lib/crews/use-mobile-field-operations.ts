@@ -123,6 +123,7 @@ export function useMobileFieldOperations(params: UseMobileFieldOperationsParams 
       mutationRef.current=true;
       setIsMutating(true);
       setActionMessage(null);
+      setIsActionQueued(false);
       setErrorMessage(null);
 
       try {
