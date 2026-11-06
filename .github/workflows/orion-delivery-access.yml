@@ -1,0 +1,28 @@
+name: Orion delivery membership access
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20261106000500_orion_delivery_active_membership.sql'
+      - 'scripts/test-orion-delivery-membership.mjs'
+      - '.github/workflows/orion-delivery-access.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261106000500_orion_delivery_active_membership.sql'
+      - 'scripts/test-orion-delivery-membership.mjs'
+      - '.github/workflows/orion-delivery-access.yml'
+permissions:
+  contents: read
+jobs:
+  orion-delivery-access:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install isolated PostgreSQL test runtime
+        run: npm install --prefix "$RUNNER_TEMP/orion-delivery-rls" --no-package-lock --ignore-scripts @electric-sql/pglite@0.3.14
+      - name: Verify active membership boundaries
+        run: node scripts/test-orion-delivery-membership.mjs "$RUNNER_TEMP/orion-delivery-rls/node_modules/@electric-sql/pglite/dist/index.js"
+
