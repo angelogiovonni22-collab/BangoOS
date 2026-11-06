@@ -85,6 +85,56 @@ begin
 end;
 $function$;
 
+-- Derived mobilization refresh keeps its internal/service context but revokes inactive clients.
+CREATE OR REPLACE FUNCTION public.refresh_subcontractor_mobilization_status(p_company_id uuid, p_assignment_id uuid)
+ RETURNS TABLE(mobilization_status text, blockers jsonb)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_blockers jsonb;
+  v_status text;
+begin
+  if auth.uid() is not null
+     and coalesce(auth.role(), '') <> 'service_role'
+     and (not public.is_company_member(p_company_id, (select auth.uid()))
+          or not exists (
+       select 1 from public.profiles
+       where id = auth.uid() and company_id = p_company_id
+     )) then
+    raise exception 'Unauthorized subcontractor mobilization access';
+  end if;
+
+  if not exists (
+    select 1 from public.trade_partner_assignments
+    where id = p_assignment_id and company_id = p_company_id
+  ) then
+    raise exception 'Subcontractor assignment not found';
+  end if;
+
+  select coalesce(jsonb_agg(requirement_type order by requirement_type), '[]'::jsonb)
+    into v_blockers
+  from public.subcontractor_mobilization_requirements
+  where company_id = p_company_id
+    and assignment_id = p_assignment_id
+    and required = true
+    and status not in ('verified','waived');
+
+  v_status := case when jsonb_array_length(v_blockers) = 0 then 'cleared' else 'not_cleared' end;
+
+  update public.trade_partner_assignments
+     set mobilization_status = v_status,
+         mobilization_blockers = v_blockers,
+         mobilization_cleared_at = case when v_status = 'cleared' then coalesce(mobilization_cleared_at, now()) else null end,
+         updated_at = now()
+   where id = p_assignment_id and company_id = p_company_id;
+
+  return query select v_status, v_blockers;
+end;
+$function$;
+
+
 CREATE OR REPLACE FUNCTION public.complete_orion_event_delivery(p_company_id uuid, p_event_id uuid, p_subscriber_key text)
  RETURNS void
  LANGUAGE plpgsql
