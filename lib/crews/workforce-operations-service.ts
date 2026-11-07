@@ -35,6 +35,7 @@ import type {
 } from "./workforce-operations-types";
 import { evaluateOrionWorkforceIntelligence } from "./workforce-orion-intelligence";
 import { createWorkforceIntelligencePersistenceService } from "./workforce-intelligence-persistence";
+import { requireEquipmentDispatchSuccess } from "./equipment-dispatch-result";
 
 export type WorkforceOperationsService = {
   getDashboard: () => Promise<WorkforceOperationsDashboardData>;
@@ -972,10 +973,10 @@ export function createWorkforceOperationsService(deps: WorkforceOperationsDeps =
     async assignEquipmentToCrew(input) {
       const { workspace } = await resolveRuntime();
       const asOf = new Date();
-      await equipmentDispatch.assignCrewEquipment({
+      await requireEquipmentDispatchSuccess(() => equipmentDispatch.assignCrewEquipment({
         companyId: workspace.companyId,
         asOf,
-      }, input);
+      }, input));
     },
 
     async setCrewShiftStatus(input) {
