@@ -10,7 +10,6 @@ import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import type { Database } from "@/types/database.types";
 import { createWorkforceOperationsService, type WorkforceOperationsService } from "./workforce-operations-service";
 import {
-  createEmptyChecklist,
   type CrewCheckInAction,
   type CrewCheckInProvider,
   type DailyChecklist,
@@ -27,13 +26,15 @@ import {
 } from "./mobile-field-operations-types";
 import { normalizeFieldProduction } from "./field-production";
 import { validateMobileDailyReport } from "./mobile-report-validation";
+import { loadScheduleTimeZone } from "@/lib/scheduling/workspace-time-zone";
+import { mobileReportDate } from "./mobile-field-context";
+import { MOBILE_CHECKLIST_EVENT, dailyChecklistForDay, selectDailyChecklists } from "./mobile-checklist-day";
 
 const checklistStore = new Map<string, DailyChecklist>();
 const checkoutStore = new Map<string, { id: string; crewId: string; equipmentIds: string[]; conditionNotes: string; checkedOutAt: string; returnedAt: string | null }>();
 const offlineQueueStore: OfflineQueueItem[] = [];
 
 const MOBILE_CHECK_IN_EVENT = "mobile_field.check_in.logged";
-const MOBILE_CHECKLIST_EVENT = "mobile_field.checklist.saved";
 const MOBILE_EQUIPMENT_CHECKOUT_EVENT = "mobile_field.equipment.checkout";
 const MOBILE_EQUIPMENT_RETURN_EVENT = "mobile_field.equipment.returned";
 
@@ -145,37 +146,6 @@ function asStringArray(value: unknown): string[] {
 
 function createRuntimeId(): string {
   return crypto.randomUUID();
-}
-
-function extractChecklistByCrew(events: WorkflowMobileEventRow[]): Record<string, DailyChecklist> {
-  const result: Record<string, DailyChecklist> = {};
-
-  for (const event of events) {
-    if (event.event_type !== MOBILE_CHECKLIST_EVENT || !isRecord(event.payload)) {
-      continue;
-    }
-
-    const payloadCrewId = typeof event.payload.crewId === "string" ? event.payload.crewId : event.reference_id;
-    if (!payloadCrewId || result[payloadCrewId]) {
-      continue;
-    }
-
-    const rawChecklist = event.payload.checklist;
-    if (!isRecord(rawChecklist)) {
-      continue;
-    }
-
-    result[payloadCrewId] = {
-      safetyBriefing: rawChecklist.safetyBriefing === true,
-      ppeVerification: rawChecklist.ppeVerification === true,
-      equipmentInspection: rawChecklist.equipmentInspection === true,
-      dailyGoals: typeof rawChecklist.dailyGoals === "string" ? rawChecklist.dailyGoals : "",
-      supervisorNotes: typeof rawChecklist.supervisorNotes === "string" ? rawChecklist.supervisorNotes : "",
-      updatedAt: typeof rawChecklist.updatedAt === "string" ? rawChecklist.updatedAt : event.occurred_at,
-    };
-  }
-
-  return result;
 }
 
 function extractEquipmentCheckouts(events: WorkflowMobileEventRow[]) {
@@ -510,13 +480,15 @@ export function createMobileFieldOperationsService(
       ]);
 
       let checklistByCrew: Record<string, DailyChecklist> = {};
+      let checklistTimeZone: string | null = context ? null : "UTC";
       let equipmentCheckouts = await equipmentCheckoutProvider.list();
 
       if (context) {
         try {
           const events = await listMobileEvents(context);
-          checklistByCrew = extractChecklistByCrew(events);
           equipmentCheckouts = extractEquipmentCheckouts(events);
+          checklistTimeZone = await loadScheduleTimeZone(context.supabase, context.workspace.companyId);
+          checklistByCrew = selectDailyChecklists(events, mobileReportDate(checklistTimeZone, ""), checklistTimeZone);
         } catch {
           // Fall back to local stores when persistence is unavailable.
         }
@@ -524,7 +496,7 @@ export function createMobileFieldOperationsService(
 
       for (const crew of workforceData.crewStatus) {
         if (!checklistByCrew[crew.crewId]) {
-          checklistByCrew[crew.crewId] = checklistStore.get(crew.crewId) || createEmptyChecklist();
+          checklistByCrew[crew.crewId] = dailyChecklistForDay(checklistStore.get(crew.crewId), mobileReportDate(checklistTimeZone, ""), checklistTimeZone);
         }
       }
 

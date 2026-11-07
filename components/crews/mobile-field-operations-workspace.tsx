@@ -20,6 +20,7 @@ import { isFieldProductionValid } from "@/lib/crews/field-production";
 import { validateMobileDailyReport } from "@/lib/crews/mobile-report-validation";
 import { createMobileReportDraftStore } from "@/lib/crews/mobile-report-drafts";
 import { createMobileChecklistDraftStore } from "@/lib/crews/mobile-checklist-drafts";
+import { dailyChecklistForDay } from "@/lib/crews/mobile-checklist-day";
 import { createClient } from "@/lib/supabase/client";
 import { resolveWorkspaceContext } from "@/lib/supabase/workspace";
 import { appendReportPhoto, removeReportPhoto } from "@/lib/crews/mobile-report-photos";
@@ -46,7 +47,6 @@ export function MobileFieldOperationsWorkspace() {
     actionMessage,
     isActionQueued,
     refresh,
-    createEmptyChecklist,
     createEmptyMobileDailyReportDraft,
     runCheckInAction,
     saveChecklist,
@@ -66,6 +66,8 @@ export function MobileFieldOperationsWorkspace() {
   const [companyTimeZone, setCompanyTimeZone] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const reportDate = mobileReportDate(companyTimeZone, selectedReportDate);
+  const [checklistNow, setChecklistNow] = useState(() => new Date());
+  const checklistDate = mobileReportDate(companyTimeZone, "", checklistNow);
   const [equipmentIdsInput, setEquipmentIdsInput] = useState("");
   const [checkoutNotes, setCheckoutNotes] = useState("");
   const [returnCheckoutId, setReturnCheckoutId] = useState("");
@@ -95,6 +97,13 @@ export function MobileFieldOperationsWorkspace() {
   }, [refresh]);
 
   useEffect(() => {
+    const updateDate = () => setChecklistNow(new Date());
+    const timer = window.setInterval(updateDate, 30_000);
+    window.addEventListener("focus", updateDate);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", updateDate); };
+  }, []);
+
+  useEffect(() => {
     let active = true;
     const loadCalendar = async () => {
       try {
@@ -114,6 +123,7 @@ export function MobileFieldOperationsWorkspace() {
   const fieldCrews = useMemo(() => activeFieldCrews(data?.workforce.crewStatus || []), [data]);
   const effectiveCrewId = effectiveFieldCrewId(fieldCrews, selectedCrewId);
   const reportDraftKey = `${effectiveCrewId}:${reportDate}`;
+  const checklistDraftKey = `${effectiveCrewId}:${checklistDate}`;
   const reportScheduling = useMemo(() => createSchedulingService(), []);
   const [reportAssignmentState, setReportAssignmentState] = useState<{ key: string; assignments: ScheduleAssignment[]; error: string | null }>({ key: "", assignments: [], error: null });
   const reportAssignments = reportAssignmentState.key === reportDraftKey ? reportAssignmentState.assignments : [];
@@ -135,16 +145,16 @@ export function MobileFieldOperationsWorkspace() {
   }, [effectiveCrewId, reportDate, reportDraftKey, reportScheduling]);
 
   useEffect(() => {
-    if(!effectiveCrewId)return;
+    if(!effectiveCrewId||!checklistDate||!companyTimeZone)return;
     let active=true;
     checklistDraftHydrationRef.current="";
-    void checklistDraftStore.load(effectiveCrewId).then(saved=>{
+    void checklistDraftStore.load(effectiveCrewId,checklistDate,companyTimeZone).then(saved=>{
       if(!active)return;
-      if(saved)setChecklistDraftByCrewId(current=>({...current,[effectiveCrewId]:saved}));
-      checklistDraftHydrationRef.current=effectiveCrewId;
-    }).catch(()=>{if(active)checklistDraftHydrationRef.current=effectiveCrewId;});
+      if(saved)setChecklistDraftByCrewId(current=>current[checklistDraftKey]?current:({...current,[checklistDraftKey]:saved}));
+      checklistDraftHydrationRef.current=checklistDraftKey;
+    }).catch(()=>{if(active)checklistDraftHydrationRef.current=checklistDraftKey;});
     return()=>{active=false;};
-  },[checklistDraftStore,effectiveCrewId]);
+  },[checklistDate,checklistDraftKey,checklistDraftStore,companyTimeZone,effectiveCrewId]);
 
   useEffect(() => {
     if(!effectiveCrewId||!reportDate)return;
@@ -165,15 +175,15 @@ export function MobileFieldOperationsWorkspace() {
   },[effectiveCrewId,mobileReport,reportDate,reportDraftKey,reportDraftStore]);
 
   const checklist = useMemo(
-    () => checklistDraftByCrewId[effectiveCrewId] || data?.checklistByCrew[effectiveCrewId] || createEmptyChecklist(),
-    [checklistDraftByCrewId, data, effectiveCrewId, createEmptyChecklist],
+    () => dailyChecklistForDay(checklistDraftByCrewId[checklistDraftKey] || data?.checklistByCrew[effectiveCrewId], checklistDate, companyTimeZone),
+    [checklistDate, checklistDraftByCrewId, checklistDraftKey, companyTimeZone, data, effectiveCrewId],
   );
 
   useEffect(() => {
-    if(!effectiveCrewId||checklistDraftHydrationRef.current!==effectiveCrewId||!checklistDraftByCrewId[effectiveCrewId])return;
-    const timer=window.setTimeout(()=>void checklistDraftStore.save(effectiveCrewId,checklistDraftByCrewId[effectiveCrewId]),300);
+    if(!effectiveCrewId||!checklistDate||checklistDraftHydrationRef.current!==checklistDraftKey||!checklistDraftByCrewId[checklistDraftKey])return;
+    const timer=window.setTimeout(()=>void checklistDraftStore.save(effectiveCrewId,checklistDate,checklistDraftByCrewId[checklistDraftKey]),300);
     return()=>window.clearTimeout(timer);
-  },[checklistDraftByCrewId,checklistDraftStore,effectiveCrewId]);
+  },[checklistDate,checklistDraftByCrewId,checklistDraftKey,checklistDraftStore,effectiveCrewId]);
 
   const selectedCrew = useMemo(
     () => fieldCrews.find((crew) => crew.crewId === effectiveCrewId) || null,
@@ -263,8 +273,9 @@ export function MobileFieldOperationsWorkspace() {
   };
 
   const persistChecklist = async () => {
-    const saved=await saveChecklist({crewId:effectiveCrewId,checklist});
-    if(saved){await checklistDraftStore.remove(effectiveCrewId);setChecklistDraftByCrewId(current=>{const next={...current};delete next[effectiveCrewId];return next;});}
+    if(!checklistDate)return;
+    const saved=await saveChecklist({crewId:effectiveCrewId,checklist:{...checklist,workDate:checklistDate}});
+    if(saved){await checklistDraftStore.remove(effectiveCrewId,checklistDate);setChecklistDraftByCrewId(current=>{const next={...current};delete next[checklistDraftKey];return next;});}
   };
 
   if (isLoading) {
@@ -404,14 +415,15 @@ export function MobileFieldOperationsWorkspace() {
           <h2 className="text-base font-semibold text-[var(--text-primary)]">Daily Checklist</h2>
         </div>
 
-        <div className="space-y-3">
+        <p className="mb-3 text-sm text-[var(--text-secondary)]">Checklist date: {checklistDate || "Loading company calendar…"}</p>
+        <fieldset disabled={isMutating || !checklistDate} className="space-y-3">
           <label className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-[var(--surface-default)] px-3 py-3 text-sm font-medium text-[var(--text-primary)]">
             <input
               type="checkbox"
               checked={checklist.safetyBriefing}
               onChange={(event) => setChecklistDraftByCrewId((current) => ({
                 ...current,
-                [effectiveCrewId]: { ...checklist, safetyBriefing: event.target.checked },
+                [checklistDraftKey]: { ...checklist, workDate: checklistDate, safetyBriefing: event.target.checked },
               }))}
             />
             Safety briefing
@@ -422,7 +434,7 @@ export function MobileFieldOperationsWorkspace() {
               checked={checklist.ppeVerification}
               onChange={(event) => setChecklistDraftByCrewId((current) => ({
                 ...current,
-                [effectiveCrewId]: { ...checklist, ppeVerification: event.target.checked },
+                [checklistDraftKey]: { ...checklist, workDate: checklistDate, ppeVerification: event.target.checked },
               }))}
             />
             PPE verification
@@ -433,7 +445,7 @@ export function MobileFieldOperationsWorkspace() {
               checked={checklist.equipmentInspection}
               onChange={(event) => setChecklistDraftByCrewId((current) => ({
                 ...current,
-                [effectiveCrewId]: { ...checklist, equipmentInspection: event.target.checked },
+                [checklistDraftKey]: { ...checklist, workDate: checklistDate, equipmentInspection: event.target.checked },
               }))}
             />
             Equipment inspection
@@ -444,7 +456,7 @@ export function MobileFieldOperationsWorkspace() {
             value={checklist.dailyGoals}
             onChange={(event) => setChecklistDraftByCrewId((current) => ({
               ...current,
-              [effectiveCrewId]: { ...checklist, dailyGoals: event.target.value },
+              [checklistDraftKey]: { ...checklist, workDate: checklistDate, dailyGoals: event.target.value },
             }))}
           />
           <Textarea
@@ -452,13 +464,13 @@ export function MobileFieldOperationsWorkspace() {
             value={checklist.supervisorNotes}
             onChange={(event) => setChecklistDraftByCrewId((current) => ({
               ...current,
-              [effectiveCrewId]: { ...checklist, supervisorNotes: event.target.value },
+              [checklistDraftKey]: { ...checklist, workDate: checklistDate, supervisorNotes: event.target.value },
             }))}
             rows={3}
           />
 
-          <Button fullWidth size="lg" disabled={isMutating || !effectiveCrewId} onClick={() => void persistChecklist()}>Save Checklist</Button>
-        </div>
+          <Button fullWidth size="lg" disabled={isMutating || !effectiveCrewId || !checklistDate} onClick={() => void persistChecklist()}>Save Checklist</Button>
+        </fieldset>
       </Card>
 
       <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-4" id="mobile-report">
