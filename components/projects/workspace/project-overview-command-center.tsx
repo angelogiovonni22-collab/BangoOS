@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { ProjectFinancialReport } from "@/lib/financial-reporting";
+import { loadScheduleTimeZone } from "@/lib/scheduling/workspace-time-zone";
+import { projectAssignmentsOnDay, projectCalendarDay, projectScheduleSummary } from "@/lib/projects/project-overview-calendar";
 
 type OverviewTask = {
   id: string;
@@ -88,6 +90,23 @@ export function ProjectOverviewCommandCenter(props: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [tradePartners, setTradePartners] = useState<TradePartnerSummary[]>([]);
   const [crewMembers, setCrewMembers] = useState<Array<{ crew_id: string; employee_id: string }>>([]);
+  const [calendar, setCalendar] = useState<{ companyId: string; timeZone: string; today: string | null } | null>(null);
+  const companyCalendar = calendar?.companyId === props.companyId ? calendar : null;
+
+  useEffect(() => {
+    let active = true;
+    let zone: string | null = null;
+    const refresh = () => {
+      if (active && zone) setCalendar({ companyId: props.companyId, timeZone: zone, today: projectCalendarDay(new Date(), zone) });
+    };
+    if (supabase) void loadScheduleTimeZone(supabase, props.companyId).then((value) => {
+      zone = value;
+      refresh();
+    }).catch(() => { if (active) setCalendar(null); });
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [props.companyId, supabase]);
 
   useEffect(() => {
     let active = true;
@@ -171,9 +190,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
   const bosCrewAssignments = props.assignments.filter((row) => Boolean(row.crew_id) && !["completed", "cancelled"].includes(row.status));
   const assignedBosCrewCount = new Set(bosCrewAssignments.map((row) => row.crew_id).filter(Boolean)).size;
   const effectiveCrewMembers = crewIds.length ? crewMembers : [];
-  const today = new Date();
-  const todayKey = today.toISOString().slice(0, 10);
-  const assignmentsToday = props.assignments.filter((row) => row.starts_at.slice(0, 10) <= todayKey && row.ends_at.slice(0, 10) >= todayKey && !["completed", "cancelled"].includes(row.status));
+  const assignmentsToday = projectAssignmentsOnDay(props.assignments, companyCalendar?.today || null, companyCalendar?.timeZone || null);
   const employeeIdsToday = new Set(assignmentsToday.map((row) => row.employee_id).filter((value): value is string => Boolean(value)));
   const crewIdsToday = new Set(assignmentsToday.map((row) => row.crew_id).filter((value): value is string => Boolean(value)));
   for (const member of effectiveCrewMembers) {
@@ -199,23 +216,12 @@ export function ProjectOverviewCommandCenter(props: Props) {
   const grossProfit = summary?.grossProfit || 0;
   const margin = summary?.grossMarginPercent;
 
-  const daysRemaining = computeDaysRemaining(props.targetDateRaw);
   const hasPlannedWork = props.assignments.length > 0 || props.tasks.some((task) => Boolean(task.planned_start || task.planned_finish));
-  const scheduleHealth = !hasPlannedWork
-    ? "Not Scheduled"
-    : !props.targetDateRaw
-      ? "Needs Setup"
-      : props.pendingInspections > 0 || props.openPunchItems > 0
-        ? "Needs Attention"
-        : "On Track";
-  const scheduleHealthSub = scheduleHealth === "On Track"
-    ? "No current schedule alerts"
-    : scheduleHealth === "Not Scheduled"
-      ? "No workforce or task schedule established"
-      : scheduleHealth === "Needs Setup"
-        ? "Target completion date is missing"
-        : "Review open items";
-  const scheduleTone = scheduleHealth === "On Track" ? "success" : "warning";
+  const schedule = projectScheduleSummary({ targetDate: props.targetDateRaw, today: companyCalendar?.today || null, status: normalizeStatus(props.projectStatus), hasPlannedWork, hasOpenItems: props.pendingInspections > 0 || props.openPunchItems > 0 });
+  const { daysRemaining } = schedule;
+  const scheduleHealth = schedule.health;
+  const scheduleHealthSub = schedule.detail;
+  const scheduleTone = ["On Track", "Completed"].includes(scheduleHealth) ? "success" : "warning";
   const latestActivity = props.activityItems.slice(0, 4);
   const displayCustomerName = normalizeLeadingCase(props.customerName);
   const displayAddress = normalizeProjectAddress(props.address);
@@ -226,6 +232,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
   ].filter((value): value is string => Boolean(value));
 
   const riskRows = [
+    schedule.overdueDays > 0 ? { label: "Target completion overdue", detail: schedule.detail, badge: `${schedule.overdueDays} Days`, tone: "danger" } : null,
     mobilizationBlockers > 0 ? { label: "Trade Partner mobilization hold", detail: `${mobilizationBlockers} requirement${mobilizationBlockers === 1 ? "" : "s"} must be cleared before work starts.`, badge: `${mobilizationBlockers} Open`, tone: "danger" } : null,
     bosCrewAssignments.length === 0 ? { label: "No B.O.S. crew assigned", detail: "No internal crew is currently assigned to this project.", badge: "Action Needed", tone: "warning" } : null,
     props.assignments.length === 0 ? { label: "No internal schedule established", detail: "Create workforce assignments to establish the active job schedule.", badge: "Not Scheduled", tone: "warning" } : null,
@@ -298,9 +305,9 @@ export function ProjectOverviewCommandCenter(props: Props) {
                 </div>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <Metric label="Days Remaining" value={daysRemaining === null ? "—" : String(daysRemaining)} sub="to target" />
+                <Metric label={schedule.overdueDays ? "Days Overdue" : "Days Remaining"} value={daysRemaining === null ? "—" : String(schedule.overdueDays || Math.max(0, daysRemaining))} sub={schedule.overdueDays ? "past target" : "to target"} />
                 <Metric label="Schedule Health" value={scheduleHealth} sub={scheduleHealthSub} tone={scheduleTone} />
-                <Metric label="Target Completion" value={props.targetDate} sub={daysRemaining === null ? "Not calculated" : `${daysRemaining} days remaining`} />
+                <Metric label="Target Completion" value={props.targetDate} sub={daysRemaining === null ? "Not calculated" : schedule.overdueDays ? scheduleHealthSub : `${Math.max(0, daysRemaining)} days remaining`} />
               </div>
             </>
           )}
@@ -341,7 +348,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
             <Metric label="Assigned B.O.S. Crew" value={assignedBosCrewCount ? String(assignedBosCrewCount) : "None Assigned"} />
             <Metric label="Trade Partners" value={`${activeTradePartners} Assigned`} sub="View Subcontractors" />
             <Metric label="Trade Partner Crew Size" value={String(tradePartnerCrewSize)} sub="Workers" />
-            <Metric label="Workers Expected Onsite" value={String(onsiteToday)} sub="Today" />
+            <Metric label="Workers Expected Onsite" value={companyCalendar?.today ? String(onsiteToday) : "—"} sub={companyCalendar?.today ? "Today" : "Company calendar unavailable"} />
             <Metric label="Next Scheduled Mobilization" value={nextMobilization ? formatDate(nextMobilization, props.localeTag) : "Not Scheduled"} />
           </div>
         </Panel>
@@ -476,11 +483,4 @@ function normalizeProjectAddress(value: string) {
   const inline = cleaned.match(/^(.*?)\s+([A-Za-z .'-]+)\s+(oh|ohio)\s+(\d{5}(?:-\d{4})?)$/i);
   if (inline) return `${titleWords(inline[1])}, ${titleWords(inline[2])}, OH ${inline[4]}`;
   return titleWords(cleaned);
-}
-function computeDaysRemaining(targetValue: string | null) {
-  if (!targetValue) return null;
-  const target = new Date(targetValue);
-  if (Number.isNaN(target.getTime())) return null;
-  const diff = target.getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / 86400000));
 }
