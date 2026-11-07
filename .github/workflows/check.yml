@@ -269,6 +269,9 @@ jobs:
       - name: Run field photo upload acknowledgement recovery
         run: npx -y tsx lib/crews/field-photo-upload.test.ts
 
+      - name: Run project overview company calendar regression
+        run: npx -y tsx lib/projects/project-overview-calendar.test.ts
+
       - name: Run repository checks
         run: npm run check
 
