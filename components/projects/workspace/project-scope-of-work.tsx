@@ -348,8 +348,12 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
     }
   };
 
-  if (loading) {
+  if (loading && estimateId) {
     return <div className="rounded-[18px] border border-[#183d5c] bg-[#061624] p-6 text-sm font-semibold text-[#9fb7ca]">Loading scope of work…</div>;
+  }
+
+  if (error) {
+    return <div className="rounded-[18px] border border-red-400/30 bg-red-400/5 p-6 text-sm font-semibold text-red-200">{error}</div>;
   }
 
   if (!estimateId || !estimate) {
@@ -359,10 +363,6 @@ export function ProjectScopeOfWork({ companyId, projectId, estimateId, localeTag
         <p className="mt-2 text-sm text-[#9fb7ca]">This project does not have an accepted estimate linked yet.</p>
       </div>
     );
-  }
-
-  if (error) {
-    return <div className="rounded-[18px] border border-red-400/30 bg-red-400/5 p-6 text-sm font-semibold text-red-200">{error}</div>;
   }
 
   return (
