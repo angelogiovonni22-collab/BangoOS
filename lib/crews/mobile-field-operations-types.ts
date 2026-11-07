@@ -4,6 +4,7 @@ import type { WorkforceOperationsDashboardData, WorkforceShiftStatus } from "./w
 export type CrewCheckInAction = "start_shift" | "end_shift" | "break" | "lunch" | "return_to_work";
 
 export type DailyChecklist = {
+  workDate?: string;
   safetyBriefing: boolean;
   ppeVerification: boolean;
   equipmentInspection: boolean;

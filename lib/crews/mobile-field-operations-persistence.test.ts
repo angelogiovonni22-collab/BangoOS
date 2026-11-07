@@ -54,6 +54,7 @@ function createWorkflowSupabaseStub(workflowEvents: WorkflowEventRow[], failInse
   let remainingFailures = failInserts;
   const api = {
     from(table: string) {
+      if (table === "companies") return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { timezone: "UTC" }, error: null }) }) }) };
       if (table !== "workflow_events") {
         throw new Error(`Unexpected table ${table}`);
       }

@@ -60,6 +60,9 @@ jobs:
       - name: Run mobile field persistence regression
         run: npx -y tsx lib/crews/mobile-field-operations-persistence.test.ts
 
+      - name: Run daily checklist calendar and draft isolation regression
+        run: npx -y tsx --test lib/crews/mobile-checklist-day.test.ts lib/crews/mobile-checklist-draft-durability.contract.test.ts
+
       - name: Run workspace membership verification regression
         run: npx -y tsx lib/supabase/workspace-membership-read.test.ts
 
