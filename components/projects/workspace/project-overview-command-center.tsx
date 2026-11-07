@@ -305,7 +305,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
                 </div>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <Metric label={schedule.overdueDays ? "Days Overdue" : "Days Remaining"} value={daysRemaining === null ? "—" : String(schedule.overdueDays || Math.max(0, daysRemaining)))} sub={schedule.overdueDays ? "past target" : "to target"} />
+                <Metric label={schedule.overdueDays ? "Days Overdue" : "Days Remaining"} value={daysRemaining === null ? "—" : String(schedule.overdueDays || Math.max(0, daysRemaining))} sub={schedule.overdueDays ? "past target" : "to target"} />
                 <Metric label="Schedule Health" value={scheduleHealth} sub={scheduleHealthSub} tone={scheduleTone} />
                 <Metric label="Target Completion" value={props.targetDate} sub={daysRemaining === null ? "Not calculated" : schedule.overdueDays ? scheduleHealthSub : `${Math.max(0, daysRemaining)} days remaining`} />
               </div>
