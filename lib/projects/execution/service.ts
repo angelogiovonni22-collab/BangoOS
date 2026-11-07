@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import type { Database } from "@/types/database.types";
+import { assertInspectionActionTime } from "./inspection-action-time";
 
 type LooseDb = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -272,10 +273,12 @@ export function createProjectExecutionService(supabase: SupabaseClient<Database>
     }
 
     const updatedAt = nowIso();
+    assertInspectionActionTime({ nextStatus: input.nextStatus, scheduledAt: current.scheduled_at, reinspectionRequired: current.reinspection_required, reinspectionAt: current.reinspection_date, completedAt: input.patch?.completed_at, now: updatedAt });
     const updateResult = await db
       .from("project_inspections")
       .update({
         ...input.patch,
+        ...(input.nextStatus === "scheduled" && current.reinspection_required && typeof input.patch?.scheduled_at === "string" ? { reinspection_date: input.patch.scheduled_at } : {}),
         status: input.nextStatus,
         updated_at: updatedAt,
         updated_by: input.actorProfileId,
