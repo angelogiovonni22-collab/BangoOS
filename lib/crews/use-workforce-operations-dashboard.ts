@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { EquipmentDispatchUnavailableError } from "./equipment-dispatch-result";
 import {
   createWorkforceOperationsService,
   type WorkforceOperationsService,
@@ -61,8 +62,8 @@ export function useWorkforceOperationsDashboard(
       await action();
       setActionMessage(successMessage);
       await refresh();
-    } catch {
-      setErrorMessage("Unable to complete supervisor action.");
+    } catch (caught) {
+      setErrorMessage(caught instanceof EquipmentDispatchUnavailableError ? caught.message : "Unable to complete supervisor action.");
     } finally {
       setIsMutating(false);
     }

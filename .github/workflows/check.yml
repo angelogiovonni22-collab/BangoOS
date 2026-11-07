@@ -75,6 +75,9 @@ jobs:
       - name: Run scheduling inactive assignment regression
         run: npx -y tsx lib/scheduling/assignment-lifecycle.test.ts
 
+      - name: Run equipment dispatch result regression
+        run: npx -y tsx --test lib/crews/equipment-dispatch-result.test.ts
+
       - name: Run receipt command retry identity regression
         run: npx -y tsx lib/accounts-receivable/receipt-operation-id.test.ts
 
