@@ -1,0 +1,25 @@
+name: Full B.O.S. function test audit
+on:
+  push:
+    branches: [audit/full-system-20261107]
+permissions:
+  contents: read
+jobs:
+  all-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-key
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run every discovered test file without production credentials
+        run: node scripts/full-system-test-audit.mjs
