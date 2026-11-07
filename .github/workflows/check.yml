@@ -272,6 +272,9 @@ jobs:
       - name: Run project overview company calendar regression
         run: npx -y tsx lib/projects/project-overview-calendar.test.ts
 
+      - name: Run inspection timing regression
+        run: npx -y tsx lib/projects/execution/inspection-action-time.test.ts
+
       - name: Run repository checks
         run: npm run check
 
