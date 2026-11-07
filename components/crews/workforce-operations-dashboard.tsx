@@ -409,7 +409,7 @@ export function WorkforceOperationsDashboard() {
     );
   }
 
-  if (errorMessage) {
+  if (errorMessage && !data) {
     return (
       <ErrorState
         title="Unable to load CrewOS workspace"
@@ -448,6 +448,12 @@ export function WorkforceOperationsDashboard() {
         <WorkspaceShortcut href="/employees" label="Employees" detail="Workforce records and status" />
         <WorkspaceShortcut href="/equipment" label="Equipment" detail="Equipment availability and assignments" />
       </nav>
+
+      {errorMessage ? (
+        <div role="alert">
+          <ErrorState title="Supervisor action was not completed" description={errorMessage} compact />
+        </div>
+      ) : null}
 
       {actionMessage ? (
         <Card className="border-[var(--border-default)] bg-[var(--surface-raised)] p-3">

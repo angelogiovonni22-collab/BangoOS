@@ -28,4 +28,7 @@ test("the workforce assignment path requires provider success before returning",
   assert.match(service, /await requireEquipmentDispatchSuccess\(\(\) => equipmentDispatch\.assignCrewEquipment/);
   const hook = readFileSync("lib/crews/use-workforce-operations-dashboard.ts", "utf8");
   assert.match(hook, /caught instanceof EquipmentDispatchUnavailableError \? caught\.message/);
+  const dashboard = readFileSync("components/crews/workforce-operations-dashboard.tsx", "utf8");
+  assert.match(dashboard, /if \(errorMessage && !data\)/, "action failures retain the already loaded workspace");
+  assert.match(dashboard, /title="Supervisor action was not completed" description=\{errorMessage\}/);
 });
