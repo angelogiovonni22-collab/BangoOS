@@ -163,3 +163,13 @@ test("scope line-item editor uses the mobile viewport without dead space", () =>
   assert.match(scope, /flex-1 content-start/, "form fields must start at the top of the available mobile sheet");
   assert.match(scope, /shrink-0 justify-end/, "editor actions must stay attached to the bottom of the sheet");
 });
+
+
+test("unlinked projects show the empty state without waiting for a request that cannot start", () => {
+  assert.match(scope, /if \(loading && estimateId\)/);
+  const loadingBranch = scope.indexOf("  if (loading && estimateId)");
+  const errorBranch = scope.indexOf("  if (error)");
+  const emptyBranch = scope.indexOf("  if (!estimateId || !estimate)");
+  assert.ok(loadingBranch >= 0 && errorBranch > loadingBranch && emptyBranch > errorBranch,
+    "linked-estimate request errors must not be disguised as missing estimates");
+});
