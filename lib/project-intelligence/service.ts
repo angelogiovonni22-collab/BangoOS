@@ -1,3 +1,4 @@
+import { latestInspectionResult } from "./inspection-summary";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseOrionEventPublisher } from "@/lib/orion/events";
 import { createOrionTimelineService } from "@/lib/orion/timeline";
@@ -63,7 +64,7 @@ export function createProjectIntelligenceService(params: {
         lastDailyReportAt: events.find((event) => event.eventType === "daily_report_created")?.occurredAt || null,
         lastSiteCamUploadAt: events.find((event) => event.eventType === "site_photo_uploaded")?.occurredAt || null,
         latestCustomerActivityAt: events.find((event) => event.category === "customer")?.occurredAt || null,
-        latestInspectionResult: "none",
+        latestInspectionResult: latestInspectionResult(events),
         latestActivityAt: events[0]?.occurredAt || null,
         firstActivityAt: events[events.length - 1]?.occurredAt || null,
       };
@@ -125,6 +126,7 @@ export function createProjectIntelligenceService(params: {
 function mapTimelineToProjectEvent(projectId: string, item: Awaited<ReturnType<ReturnType<typeof createOrionTimelineService>["listProjectTimeline"]>>["items"][number]): ProjectEvent {
   const isSitePhoto = item.eventType === "document.uploaded" && typeof item.displayData.photo_id === "string";
   const eventType = isSitePhoto ? "site_photo_uploaded" : toProjectEventType(item.eventType);
+  const isComplianceEvent = item.entityType === "inspection" || item.entityType === "permit";
   const category = isSitePhoto ? "sitecam" : toProjectCategory(item.category, item.eventType);
 
   return {
@@ -132,8 +134,8 @@ function mapTimelineToProjectEvent(projectId: string, item: Awaited<ReturnType<R
     projectId,
     eventType,
     category,
-    title: isSitePhoto ? "projects.intelligenceSitePhotoUploadedTitle" : item.title,
-    description: isSitePhoto ? "projects.intelligenceSitePhotoUploadedDescription" : item.summary,
+    title: isSitePhoto ? "projects.intelligenceSitePhotoUploadedTitle" : isComplianceEvent ? item.titleKey : item.title,
+    description: isSitePhoto ? "projects.intelligenceSitePhotoUploadedDescription" : isComplianceEvent ? item.summaryKey : item.summary,
     occurredAt: item.occurredAt,
     createdAt: item.occurredAt,
     actor: {
@@ -226,6 +228,25 @@ function toProjectEventType(eventType: string): ProjectEvent["eventType"] {
     "change_order.created": "change_order_created",
     "daily_report.created": "daily_report_created",
     "task.completed": "task_completed",
+    "inspection.created": "inspection_created",
+    "inspection.scheduled": "inspection_scheduled",
+    "inspection.rescheduled": "inspection_rescheduled",
+    "inspection.started": "inspection_started",
+    "inspection.passed": "inspection_passed",
+    "inspection.failed": "inspection_failed",
+    "inspection.cancelled": "inspection_cancelled",
+    "inspection.reinspection_required": "inspection_reinspection_required",
+    "permit.created": "permit_created",
+    "permit.required": "permit_required",
+    "permit.not_required": "permit_not_required",
+    "permit.submitted": "permit_submitted",
+    "permit.approved": "permit_approved",
+    "permit.issued": "permit_issued",
+    "permit.rejected": "permit_rejected",
+    "permit.expired": "permit_expired",
+    "permit.renewal_required": "permit_renewal_required",
+    "permit.renewed": "permit_renewed",
+    "permit.closed": "permit_closed",
   };
 
   return map[eventType] || "project_updated";
@@ -291,6 +312,10 @@ function impactAreaForCategory(category: ProjectEvent["category"]): ProjectEvent
 }
 
 function toRelatedEntityType(entityType: string): ProjectRelatedEntityType {
+  if (entityType === "inspection" || entityType === "permit") {
+    return entityType;
+  }
+
   if (entityType === "customer") {
     return "customer";
   }
