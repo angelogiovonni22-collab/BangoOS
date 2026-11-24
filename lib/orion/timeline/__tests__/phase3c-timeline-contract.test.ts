@@ -596,6 +596,16 @@ async function main() {
     });
     assert(result.items.length === 2, "both canonical operations remain while legacy duplicate is suppressed");
     assert(result.items.every(item => item.id.startsWith("workflow:")), "legacy duplicate does not replace canonical identities");
+    db.workflow_events = [];
+    db.invoice_payment_history.push({
+      ...db.invoice_payment_history[0], id: "newer-legacy-payment", created_at: "2026-08-01T10:15:40.000Z",
+    });
+    const legacyOnly = await queryOrionTimeline(new MockSupabase(db) as never, "co-1", {
+      pageSize: 20, includeLegacyAdapters: true,
+    });
+    assert(legacyOnly.items.length === 1, "legacy-only duplicate suppression remains compatible");
+    assert(legacyOnly.items[0]?.sourceEventId === "newer-legacy-payment", "newest legacy adapter copy wins");
+
   });
 
   console.log(`\nPhase 3C timeline contract results: ${passed} passed, ${failed} failed`);
