@@ -177,9 +177,9 @@ export function useProjectTimeline({
         return true;
       }
 
-      return searchProjectEvent(event, debouncedSearchTerm);
+      return searchProjectEvent(event, debouncedSearchTerm, t);
     });
-  }, [debouncedSearchTerm, filters, mergedEvents]);
+  }, [debouncedSearchTerm, filters, mergedEvents, t]);
 
   const groupedEvents = useMemo<ProjectTimelineDateGroup[]>(() => {
     const groups = new Map<string, ProjectEvent[]>();
@@ -375,14 +375,14 @@ function matchesDateRange(occurredAt: string, dateRange: ProjectTimelineDateRang
   return date >= boundary;
 }
 
-function searchProjectEvent(event: ProjectEvent, query: string) {
+function searchProjectEvent(event: ProjectEvent, query: string, t: (key: string) => string) {
   const metadataKeywords = Array.isArray(event.metadata.keywords)
     ? (event.metadata.keywords as string[])
     : [];
 
   const searchBody = [
-    event.title,
-    event.description,
+    t(event.title),
+    t(event.description),
     event.actor.name,
     event.category,
     event.relatedEntity?.label || "",
