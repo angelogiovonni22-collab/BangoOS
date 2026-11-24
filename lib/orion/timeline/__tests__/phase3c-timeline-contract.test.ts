@@ -548,6 +548,56 @@ async function main() {
     assert(!source.includes("getProjectEventsMockData"), "project intelligence service does not call mock timeline event provider");
   });
 
+  await test("14. repeated canonical operations within one minute remain visible", async () => {
+    const db = makeBaseDb();
+    for (const eventType of ["permit.renewed", "permit.renewal_required", "inspection.started", "inspection.rescheduled"]) {
+      for (const cycle of [1, 2]) {
+        db.workflow_events.push({
+          id: `${eventType}-${cycle}`, company_id: "co-1", event_type: eventType,
+          reference_entity: eventType.startsWith("permit.") ? "permit" : "inspection",
+          reference_id: "same-record", source_module: "projects", actor_profile_id: "actor-1",
+          occurred_at: "2026-11-24T18:08:30.000Z",
+          correlation_id: null, causation_id: null, payload: { project_id: "project-1" }, metadata: {},
+        });
+      }
+    }
+    const result = await queryOrionTimeline(new MockSupabase(db) as never, "co-1", {
+      pageSize: 20, includeLegacyAdapters: false, projectId: "project-1",
+    });
+    assert(result.items.length === 8, "all distinct canonical operations survive an identical timestamp");
+    assert(new Set(result.items.map(item => item.sourceEventId)).size === 8, "each source ledger identity remains distinct");
+    const firstPage = await queryOrionTimeline(new MockSupabase(db) as never, "co-1", {
+      pageSize: 4, includeLegacyAdapters: false,
+    });
+    const nextPage = await queryOrionTimeline(new MockSupabase(db) as never, "co-1", {
+      pageSize: 4, includeLegacyAdapters: false, cursor: firstPage.nextCursor || undefined,
+    });
+    assert(firstPage.items.length === 4 && nextPage.items.length === 4, "same-time operations paginate without losing rows");
+    assert(new Set([...firstPage.items, ...nextPage.items].map(item => item.id)).size === 8, "pagination does not repeat canonical rows");
+  });
+
+  await test("15. legacy adapters do not hide multiple canonical operations", async () => {
+    const db = makeBaseDb();
+    for (const cycle of [1, 2]) {
+      db.workflow_events.push({
+        id: `payment-${cycle}`, company_id: "co-1", event_type: "invoice.paid",
+        reference_entity: "invoice", reference_id: "inv-1", source_module: "invoices",
+        actor_profile_id: "actor-1", occurred_at: `2026-08-01T10:15:${cycle}0.000Z`,
+        correlation_id: null, causation_id: null, payload: {}, metadata: {},
+      });
+    }
+    db.invoice_payment_history.push({
+      id: "legacy-payment", company_id: "co-1", invoice_id: "inv-1",
+      created_by: "actor-1", created_at: "2026-08-01T10:15:00.000Z",
+      payment_date: "2026-08-01", amount: 10,
+    });
+    const result = await queryOrionTimeline(new MockSupabase(db) as never, "co-1", {
+      pageSize: 20, includeLegacyAdapters: true,
+    });
+    assert(result.items.length === 2, "both canonical operations remain while legacy duplicate is suppressed");
+    assert(result.items.every(item => item.id.startsWith("workflow:")), "legacy duplicate does not replace canonical identities");
+  });
+
   console.log(`\nPhase 3C timeline contract results: ${passed} passed, ${failed} failed`);
 
   if (failed > 0) {
