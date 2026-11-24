@@ -681,21 +681,21 @@ function MetricCard(params: {
   tone: "neutral" | "info" | "warning" | "danger" | "success";
 }) {
   const toneClass: Record<typeof params.tone, string> = {
-    neutral: "border-[var(--bos-border-light)] bg-[var(--bos-bg-control)]",
-    info: "border-[var(--color-info-200)] bg-[var(--color-info-50)]",
-    warning: "border-[var(--color-warning-200)] bg-[var(--color-warning-50)]",
-    danger: "border-[var(--color-danger-200)] bg-[var(--color-danger-50)]",
-    success: "border-[var(--color-success-200)] bg-[var(--color-success-50)]",
+    neutral: "border-[var(--color-border-subtle)]",
+    info: "border-[var(--color-info-500)]",
+    warning: "border-[var(--color-warning-200)]",
+    danger: "border-[var(--color-danger-200)]",
+    success: "border-[var(--color-success-500)]",
   };
 
   return (
-    <article className={["rounded-[12px] border px-3 py-3", toneClass[params.tone]].join(" ")}>
-      <div className="mb-2 flex items-center gap-2 text-[var(--bos-text-medium-on-light)]">
+    <article className={["rounded-[12px] border bg-[var(--color-surface-card)] px-3 py-3", toneClass[params.tone]].join(" ")}>
+      <div className="mb-2 flex items-center gap-2 text-[var(--color-text-secondary)]">
         {params.icon}
         <p className="text-xs font-semibold uppercase tracking-[0.08em]">{params.label}</p>
       </div>
-      <p className="text-lg font-bold text-[var(--bos-text-strong-on-light)]">{params.value}</p>
-      <p className="mt-1 text-xs font-medium text-[var(--bos-text-medium-on-light)]">{params.detail}</p>
+      <p className="text-lg font-bold text-[var(--color-text-primary)]">{params.value}</p>
+      <p className="mt-1 text-xs font-medium text-[var(--color-text-secondary)]">{params.detail}</p>
     </article>
   );
 }
