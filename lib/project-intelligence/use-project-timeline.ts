@@ -1,5 +1,6 @@
 "use client";
 
+import { latestInspectionResult } from "./inspection-summary";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createManualNoteEvent } from "./mock-data";
 import { createProjectIntelligenceService, type ProjectIntelligenceService } from "./service";
@@ -237,7 +238,7 @@ export function useProjectTimeline({
       lastDailyReportAt: mergedEvents.find((event) => event.eventType === "daily_report_created")?.occurredAt || null,
       lastSiteCamUploadAt: mergedEvents.find((event) => event.eventType === "site_photo_uploaded")?.occurredAt || null,
       latestCustomerActivityAt: mergedEvents.find((event) => event.category === "customer")?.occurredAt || null,
-      latestInspectionResult: "none" as const,
+      latestInspectionResult: latestInspectionResult(mergedEvents),
       latestActivityAt: mergedEvents[0]?.occurredAt || null,
       firstActivityAt: mergedEvents[mergedEvents.length - 1]?.occurredAt || null,
     };
