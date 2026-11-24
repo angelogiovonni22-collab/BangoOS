@@ -11,6 +11,19 @@ export const PROJECT_EVENT_TYPES = [
   "permit_submitted",
   "permit_approved",
   "permit_rejected",
+  "inspection_created",
+  "inspection_rescheduled",
+  "inspection_started",
+  "inspection_cancelled",
+  "inspection_reinspection_required",
+  "permit_created",
+  "permit_required",
+  "permit_not_required",
+  "permit_issued",
+  "permit_expired",
+  "permit_renewal_required",
+  "permit_renewed",
+  "permit_closed",
   "inspection_scheduled",
   "inspection_passed",
   "inspection_failed",
@@ -229,7 +242,7 @@ export type ProjectTimelineSummary = {
   lastDailyReportAt: string | null;
   lastSiteCamUploadAt: string | null;
   latestCustomerActivityAt: string | null;
-  latestInspectionResult: "passed" | "failed" | "scheduled" | "none";
+  latestInspectionResult: "passed" | "failed" | "scheduled" | "required" | "in_progress" | "cancelled" | "reinspection_required" | "none";
   latestActivityAt: string | null;
   firstActivityAt: string | null;
 };
