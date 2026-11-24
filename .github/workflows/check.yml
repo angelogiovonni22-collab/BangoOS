@@ -275,6 +275,9 @@ jobs:
       - name: Run inspection timing regression
         run: npx -y tsx lib/projects/execution/inspection-action-time.test.ts
 
+      - name: Run repeated execution audit regression
+        run: npx -y tsx lib/projects/execution/execution-repeat-audit.test.ts
+
       - name: Run repository checks
         run: npm run check
 
