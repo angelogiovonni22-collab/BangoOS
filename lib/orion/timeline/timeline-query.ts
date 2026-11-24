@@ -595,33 +595,24 @@ function applyFilters(items: OrionTimelineItem[], filters: OrionTimelineQueryFil
 }
 
 function dedupePreferCanonical(items: OrionTimelineItem[]) {
-  const byKey = new Map<string, OrionTimelineItem>();
+  // Canonical ledger rows represent distinct operations, even within one minute.
+  const canonicalById = new Map(
+    items.filter((item) => item.id.startsWith("workflow:")).map((item) => [item.id, item]),
+  );
+  const canonicalKeys = new Set([...canonicalById.values()].map(timelineDedupeKey));
+  const legacyByKey = new Map<string, OrionTimelineItem>();
 
   for (const item of items) {
+    if (item.id.startsWith("workflow:")) continue;
     const key = timelineDedupeKey(item);
-    const existing = byKey.get(key);
-
-    if (!existing) {
-      byKey.set(key, item);
-      continue;
-    }
-
-    const existingIsCanonical = existing.id.startsWith("workflow:");
-    const nextIsCanonical = item.id.startsWith("workflow:");
-
-    if (!existingIsCanonical && nextIsCanonical) {
-      byKey.set(key, item);
-      continue;
-    }
-
-    if (existingIsCanonical === nextIsCanonical) {
-      if (item.occurredAt > existing.occurredAt) {
-        byKey.set(key, item);
-      }
+    if (canonicalKeys.has(key)) continue;
+    const existing = legacyByKey.get(key);
+    if (!existing || item.occurredAt > existing.occurredAt) {
+      legacyByKey.set(key, item);
     }
   }
 
-  return [...byKey.values()];
+  return [...canonicalById.values(), ...legacyByKey.values()];
 }
 
 export async function queryOrionTimeline(
