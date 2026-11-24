@@ -184,7 +184,7 @@ export function ProjectOverviewCommandCenter(props: Props) {
   const openTasks = props.tasks.filter((task) => normalizeStatus(task.status) !== "completed");
   const nextTask = [...openTasks].sort((a, b) => (a.planned_start || "9999").localeCompare(b.planned_start || "9999"))[0] || null;
   const nextInspection = [...props.inspections]
-    .filter((item) => !["passed", "completed", "closed"].includes(item.status.toLowerCase()))
+    .filter((item) => !["passed", "completed", "closed", "cancelled", "canceled"].includes(item.status.toLowerCase()))
     .sort((a, b) => (a.scheduled_at || a.created_at).localeCompare(b.scheduled_at || b.created_at))[0] || null;
 
   const bosCrewAssignments = props.assignments.filter((row) => Boolean(row.crew_id) && !["completed", "cancelled"].includes(row.status));
