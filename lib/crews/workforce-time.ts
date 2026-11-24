@@ -25,11 +25,23 @@ export async function recordWorkforceTimeEvent(input:{employeeId:string;action:"
   return data;
 }
 
-export async function listSubmittedWorkforceTime():Promise<WorkforceTimeReview[]>{
-  const supabase=createClient(),workspace=await resolveWorkspaceContext(supabase);if(!supabase||!workspace.context)throw new Error(workspace.errorMessage||"Time approvals are unavailable.");if(!canReviewWorkforceTime(workspace.context.role))throw new Error("Your role does not include workforce time approval.");const db=supabase as unknown as LooseDb;
+export async function listSubmittedWorkforceTime(deps: { supabaseClient?: ReturnType<typeof createClient>; resolveWorkspace?: typeof resolveWorkspaceContext } = {}):Promise<WorkforceTimeReview[]>{
+  const supabase=deps.supabaseClient??createClient(),workspace=await(deps.resolveWorkspace??resolveWorkspaceContext)(supabase);if(!supabase||!workspace.context)throw new Error(workspace.errorMessage||"Time approvals are unavailable.");if(!canReviewWorkforceTime(workspace.context.role))throw new Error("Your role does not include workforce time approval.");const db=supabase as unknown as LooseDb;
   const entries:QueryResult=await db.from("workforce_time_entries").select("id, employee_id, project_id, started_at, ended_at, break_minutes, notes, status, clock_in_location, clock_out_location").eq("company_id",workspace.context.companyId).in("status",["submitted","rejected"]).order("ended_at",{ascending:false}).limit(50);if(entries.error)throw new Error(entries.error.message||"Unable to load submitted time.");
-  const ids=[...new Set((entries.data||[]).map(row=>String(row.employee_id)))];let names=new Map<string,string>();if(ids.length){const employees:QueryResult=await db.from("employees").select("id, profile_id, employee_number, position_title").eq("company_id",workspace.context.companyId).in("id",ids);if(!employees.error){const profileIds=[...new Set((employees.data||[]).flatMap(row=>row.profile_id?[String(row.profile_id)]:[]))];let profileNames=new Map<string,string>();if(profileIds.length){const profiles:QueryResult=await db.from("profiles").select("id, display_name").eq("company_id",workspace.context.companyId).in("id",profileIds);if(!profiles.error)profileNames=new Map((profiles.data||[]).map(row=>[String(row.id),String(row.display_name||"")]));}names=new Map((employees.data||[]).map(row=>[String(row.id),profileNames.get(String(row.profile_id))||String(row.employee_number||row.position_title||"Employee")]));}}
-  const projectIds=[...new Set((entries.data||[]).flatMap(row=>row.project_id?[String(row.project_id)]:[]))];let projects=new Map<string,string>();if(projectIds.length){const projectRows:QueryResult=await db.from("projects").select("id, name").eq("company_id",workspace.context.companyId).in("id",projectIds);if(!projectRows.error)projects=new Map((projectRows.data||[]).map(row=>[String(row.id),String(row.name||"Project")]));}
+  const ids=[...new Set((entries.data||[]).map(row=>String(row.employee_id)))];let names=new Map<string,string>();
+  if(ids.length){
+    const employees:QueryResult=await db.from("employees").select("id, full_name, profile_id, employee_number, position_title").eq("company_id",workspace.context.companyId).in("id",ids);
+    if(employees.error)throw new Error("Unable to load employee names. Refresh time approvals and try again.");
+    const profileIds=[...new Set((employees.data||[]).flatMap(row=>row.profile_id?[String(row.profile_id)]:[]))];
+    let profileNames=new Map<string,string>();
+    if(profileIds.length){
+      const profiles:QueryResult=await db.from("profiles").select("id, first_name, last_name").eq("company_id",workspace.context.companyId).in("id",profileIds);
+      if(profiles.error)throw new Error("Unable to load employee names. Refresh time approvals and try again.");
+      profileNames=new Map((profiles.data||[]).map(row=>[String(row.id),[row.first_name,row.last_name].filter(value=>typeof value==="string"&&value.trim()).map(value=>String(value).trim()).join(" ")]));
+    }
+    names=new Map((employees.data||[]).map(row=>[String(row.id),(typeof row.full_name==="string"?row.full_name.trim():"")||profileNames.get(String(row.profile_id))||String(row.employee_number||row.position_title||"Employee")]));
+  }
+  const projectIds=[...new Set((entries.data||[]).flatMap(row=>row.project_id?[String(row.project_id)]:[]))];let projects=new Map<string,string>();if(projectIds.length){const projectRows:QueryResult=await db.from("projects").select("id, name").eq("company_id",workspace.context.companyId).in("id",projectIds);if(projectRows.error)throw new Error("Unable to load project names. Refresh time approvals and try again.");projects=new Map((projectRows.data||[]).map(row=>[String(row.id),String(row.name||"Project")]));}
   return(entries.data||[]).map(row=>{const started=String(row.started_at),ended=String(row.ended_at),breakMinutes=Number(row.break_minutes||0),projectId=row.project_id?String(row.project_id):null;return{status:row.status==="rejected"?"rejected":"submitted",id:String(row.id),employeeId:String(row.employee_id),employeeName:names.get(String(row.employee_id))||"Employee",projectId,projectName:projectId?projects.get(projectId)||"Assigned project":null,startedAt:started,endedAt:ended,breakMinutes,hours:Math.max(0,(new Date(ended).getTime()-new Date(started).getTime())/3600000-breakMinutes/60),notes:row.notes?String(row.notes):null,clockInLocation:toLocation(row.clock_in_location),clockOutLocation:toLocation(row.clock_out_location)};});
 }
 
@@ -83,3 +95,4 @@ export async function getWorkforceClockEntry(employeeId: string, deps: { supabas
   if (!entry) throw new Error("Unable to verify the saved time entry.");
   return entry;
 }
+
