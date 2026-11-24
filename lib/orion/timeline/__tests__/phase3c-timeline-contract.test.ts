@@ -604,7 +604,7 @@ async function main() {
       pageSize: 20, includeLegacyAdapters: true,
     });
     assert(legacyOnly.items.length === 1, "legacy-only duplicate suppression remains compatible");
-    assert(legacyOnly.items[0]?.sourceEventId === "newer-legacy-payment", "newest legacy adapter copy wins");
+    assert(legacyOnly.items[0]?.sourceEventId === "invoice_payment_history:newer-legacy-payment", "newest legacy adapter copy wins");
 
   });
 
