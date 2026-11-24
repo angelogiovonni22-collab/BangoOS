@@ -1,5 +1,6 @@
 "use client";
 
+import { latestInspectionResult } from "./inspection-summary";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createManualNoteEvent } from "./mock-data";
 import { createProjectIntelligenceService, type ProjectIntelligenceService } from "./service";
@@ -176,9 +177,9 @@ export function useProjectTimeline({
         return true;
       }
 
-      return searchProjectEvent(event, debouncedSearchTerm);
+      return searchProjectEvent(event, debouncedSearchTerm, t);
     });
-  }, [debouncedSearchTerm, filters, mergedEvents]);
+  }, [debouncedSearchTerm, filters, mergedEvents, t]);
 
   const groupedEvents = useMemo<ProjectTimelineDateGroup[]>(() => {
     const groups = new Map<string, ProjectEvent[]>();
@@ -237,7 +238,7 @@ export function useProjectTimeline({
       lastDailyReportAt: mergedEvents.find((event) => event.eventType === "daily_report_created")?.occurredAt || null,
       lastSiteCamUploadAt: mergedEvents.find((event) => event.eventType === "site_photo_uploaded")?.occurredAt || null,
       latestCustomerActivityAt: mergedEvents.find((event) => event.category === "customer")?.occurredAt || null,
-      latestInspectionResult: "none" as const,
+      latestInspectionResult: latestInspectionResult(mergedEvents),
       latestActivityAt: mergedEvents[0]?.occurredAt || null,
       firstActivityAt: mergedEvents[mergedEvents.length - 1]?.occurredAt || null,
     };
@@ -374,14 +375,14 @@ function matchesDateRange(occurredAt: string, dateRange: ProjectTimelineDateRang
   return date >= boundary;
 }
 
-function searchProjectEvent(event: ProjectEvent, query: string) {
+function searchProjectEvent(event: ProjectEvent, query: string, t: (key: string) => string) {
   const metadataKeywords = Array.isArray(event.metadata.keywords)
     ? (event.metadata.keywords as string[])
     : [];
 
   const searchBody = [
-    event.title,
-    event.description,
+    t(event.title),
+    t(event.description),
     event.actor.name,
     event.category,
     event.relatedEntity?.label || "",

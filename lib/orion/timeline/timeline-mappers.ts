@@ -96,25 +96,25 @@ const EVENT_DESCRIPTORS: Record<string, EventDescriptor> = {
   "change_order.completed": { category: "projects", severity: "success", titleKey: "orion.timeline.event.changeOrderCompleted.title", summaryKey: "orion.timeline.event.changeOrderCompleted.summary" },
   "daily_report.created": { category: "field", severity: "info", titleKey: "orion.timeline.event.dailyReportCreated.title", summaryKey: "orion.timeline.event.dailyReportCreated.summary" },
   "daily_report.updated": { category: "field", severity: "info", titleKey: "orion.timeline.event.dailyReportUpdated.title", summaryKey: "orion.timeline.event.dailyReportUpdated.summary" },
-  "inspection.created": { category: "projects", severity: "info", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "inspection.scheduled": { category: "projects", severity: "info", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "inspection.rescheduled": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "inspection.started": { category: "projects", severity: "info", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "inspection.passed": { category: "projects", severity: "success", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "inspection.failed": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "inspection.cancelled": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "inspection.reinspection_required": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.created": { category: "projects", severity: "info", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.required": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.not_required": { category: "projects", severity: "info", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.submitted": { category: "projects", severity: "info", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.approved": { category: "projects", severity: "success", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.issued": { category: "projects", severity: "success", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.rejected": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.expired": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.renewal_required": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.renewed": { category: "projects", severity: "success", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
-  "permit.closed": { category: "projects", severity: "success", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
+  "inspection.created": { category: "projects", severity: "info", titleKey: "orion.timeline.event.inspectionCreated.title", summaryKey: "orion.timeline.event.inspectionCreated.summary" },
+  "inspection.scheduled": { category: "projects", severity: "info", titleKey: "orion.timeline.event.inspectionScheduled.title", summaryKey: "orion.timeline.event.inspectionScheduled.summary" },
+  "inspection.rescheduled": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.inspectionRescheduled.title", summaryKey: "orion.timeline.event.inspectionRescheduled.summary" },
+  "inspection.started": { category: "projects", severity: "info", titleKey: "orion.timeline.event.inspectionStarted.title", summaryKey: "orion.timeline.event.inspectionStarted.summary" },
+  "inspection.passed": { category: "projects", severity: "success", titleKey: "orion.timeline.event.inspectionPassed.title", summaryKey: "orion.timeline.event.inspectionPassed.summary" },
+  "inspection.failed": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.inspectionFailed.title", summaryKey: "orion.timeline.event.inspectionFailed.summary" },
+  "inspection.cancelled": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.inspectionCancelled.title", summaryKey: "orion.timeline.event.inspectionCancelled.summary" },
+  "inspection.reinspection_required": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.inspectionReinspectionRequired.title", summaryKey: "orion.timeline.event.inspectionReinspectionRequired.summary" },
+  "permit.created": { category: "projects", severity: "info", titleKey: "orion.timeline.event.permitCreated.title", summaryKey: "orion.timeline.event.permitCreated.summary" },
+  "permit.required": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.permitRequired.title", summaryKey: "orion.timeline.event.permitRequired.summary" },
+  "permit.not_required": { category: "projects", severity: "info", titleKey: "orion.timeline.event.permitNotRequired.title", summaryKey: "orion.timeline.event.permitNotRequired.summary" },
+  "permit.submitted": { category: "projects", severity: "info", titleKey: "orion.timeline.event.permitSubmitted.title", summaryKey: "orion.timeline.event.permitSubmitted.summary" },
+  "permit.approved": { category: "projects", severity: "success", titleKey: "orion.timeline.event.permitApproved.title", summaryKey: "orion.timeline.event.permitApproved.summary" },
+  "permit.issued": { category: "projects", severity: "success", titleKey: "orion.timeline.event.permitIssued.title", summaryKey: "orion.timeline.event.permitIssued.summary" },
+  "permit.rejected": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.permitRejected.title", summaryKey: "orion.timeline.event.permitRejected.summary" },
+  "permit.expired": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.permitExpired.title", summaryKey: "orion.timeline.event.permitExpired.summary" },
+  "permit.renewal_required": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.permitRenewalRequired.title", summaryKey: "orion.timeline.event.permitRenewalRequired.summary" },
+  "permit.renewed": { category: "projects", severity: "success", titleKey: "orion.timeline.event.permitRenewed.title", summaryKey: "orion.timeline.event.permitRenewed.summary" },
+  "permit.closed": { category: "projects", severity: "success", titleKey: "orion.timeline.event.permitClosed.title", summaryKey: "orion.timeline.event.permitClosed.summary" },
   "punch_item.created": { category: "projects", severity: "info", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
   "punch_item.completed": { category: "projects", severity: "success", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
   "punch_item.reopened": { category: "projects", severity: "attention", titleKey: "orion.timeline.event.projectUpdated.title", summaryKey: "orion.timeline.event.projectUpdated.summary" },
@@ -313,6 +313,16 @@ function summaryFor(record: TimelineRawRecord, context: ReturnType<typeof resolv
       return "A daily report was created.";
     case "task.completed":
       return "A task was completed.";
+    case "inspection.started":
+      return "An inspection was started.";
+    case "inspection.cancelled":
+      return "An inspection was cancelled.";
+    case "permit.required":
+      return "A permit is required.";
+    case "permit.not_required":
+      return "A permit was marked as not required.";
+    case "permit.renewal_required":
+      return "A permit renewal is required.";
     case "inspection.created":
       return "An inspection record was created.";
     case "inspection.scheduled":
@@ -430,6 +440,16 @@ function titleFor(eventType: string) {
       return "Daily Report Created";
     case "task.completed":
       return "Task Completed";
+    case "inspection.started":
+      return "Inspection Started";
+    case "inspection.cancelled":
+      return "Inspection Cancelled";
+    case "permit.required":
+      return "Permit Required";
+    case "permit.not_required":
+      return "Permit Not Required";
+    case "permit.renewal_required":
+      return "Permit Renewal Required";
     case "inspection.created":
       return "Inspection Created";
     case "inspection.scheduled":
@@ -499,7 +519,7 @@ function titleFor(eventType: string) {
   }
 }
 
-function hrefFor(entityType: string, entityId: string) {
+function hrefFor(entityType: string, entityId: string, projectId: string | null) {
   if (!entityId) {
     return null;
   }
@@ -525,6 +545,7 @@ function hrefFor(entityType: string, entityId: string) {
       return "/dashboard";
     case "inspection":
     case "permit":
+      return projectId ? `/projects/${encodeURIComponent(projectId)}?tab=inspections` : "/projects";
     case "punch_item":
     case "warranty":
     case "communication":
@@ -589,7 +610,7 @@ export function mapTimelineItem(record: TimelineRawRecord, contextMaps: OrionTim
     severity: descriptor.severity,
     title,
     summary,
-    href: hrefFor(record.entityType, record.entityId),
+    href: hrefFor(record.entityType, record.entityId, context.projectId),
     occurredAt: record.occurredAt,
     correlationId: record.correlationId,
     causationId: record.causationId,

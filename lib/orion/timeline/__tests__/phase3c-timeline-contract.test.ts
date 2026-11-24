@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { mapTimelineItem, mapWorkflowEventRow } from "../timeline-mappers";
 import { queryOrionTimeline } from "../timeline-query";
+import { createProjectIntelligenceService } from "../../../project-intelligence/service";
+import { latestInspectionResult } from "../../../project-intelligence/inspection-summary";
 import type { OrionTimelineContextMaps } from "../timeline-types";
 
 type Row = Record<string, unknown>;
@@ -606,6 +608,174 @@ async function main() {
     assert(legacyOnly.items.length === 1, "legacy-only duplicate suppression remains compatible");
     assert(legacyOnly.items[0]?.sourceEventId === "invoice_payment_history:newer-legacy-payment", "newest legacy adapter copy wins");
 
+  });
+
+  await test("16. compliance operations have specific titles and project links", () => {
+    const cases = [
+  [
+    "inspection.created",
+    "inspectionCreated",
+    "Inspection Created"
+  ],
+  [
+    "inspection.scheduled",
+    "inspectionScheduled",
+    "Inspection Scheduled"
+  ],
+  [
+    "inspection.rescheduled",
+    "inspectionRescheduled",
+    "Inspection Rescheduled"
+  ],
+  [
+    "inspection.started",
+    "inspectionStarted",
+    "Inspection Started"
+  ],
+  [
+    "inspection.passed",
+    "inspectionPassed",
+    "Inspection Passed"
+  ],
+  [
+    "inspection.failed",
+    "inspectionFailed",
+    "Inspection Failed"
+  ],
+  [
+    "inspection.cancelled",
+    "inspectionCancelled",
+    "Inspection Cancelled"
+  ],
+  [
+    "inspection.reinspection_required",
+    "inspectionReinspectionRequired",
+    "Reinspection Required"
+  ],
+  [
+    "permit.created",
+    "permitCreated",
+    "Permit Created"
+  ],
+  [
+    "permit.required",
+    "permitRequired",
+    "Permit Required"
+  ],
+  [
+    "permit.not_required",
+    "permitNotRequired",
+    "Permit Not Required"
+  ],
+  [
+    "permit.submitted",
+    "permitSubmitted",
+    "Permit Submitted"
+  ],
+  [
+    "permit.approved",
+    "permitApproved",
+    "Permit Approved"
+  ],
+  [
+    "permit.issued",
+    "permitIssued",
+    "Permit Issued"
+  ],
+  [
+    "permit.rejected",
+    "permitRejected",
+    "Permit Rejected"
+  ],
+  [
+    "permit.expired",
+    "permitExpired",
+    "Permit Expired"
+  ],
+  [
+    "permit.renewal_required",
+    "permitRenewalRequired",
+    "Permit Renewal Required"
+  ],
+  [
+    "permit.renewed",
+    "permitRenewed",
+    "Permit Renewed"
+  ],
+  [
+    "permit.closed",
+    "permitClosed",
+    "Permit Closed"
+  ]
+];
+    for (const [eventType, key, title] of cases) {
+      const mapped = mapTimelineItem(mapWorkflowEventRow({
+        id: eventType, company_id: "co-1", event_type: eventType,
+        reference_entity: eventType.split(".")[0], reference_id: "record-1",
+        source_module: "projects", actor_profile_id: null,
+        occurred_at: "2026-11-24T18:00:00.000Z", correlation_id: null, causation_id: null,
+        payload: { project_id: "project-1" }, metadata: {},
+      }), makeContext());
+      assert(mapped.title === title, `${eventType} has a specific human-readable title`);
+      assert(mapped.titleKey === `orion.timeline.event.${key}.title`, `${eventType} has its own localized title key`);
+      assert(mapped.href === "/projects/project-1?tab=inspections", `${eventType} links to its project compliance workspace`);
+    }
+  });
+
+  await test("17. live service summary reflects the latest inspection state", async () => {
+    const db = makeBaseDb();
+    const inspection = {
+      id: "inspection-pass", company_id: "co-1", event_type: "inspection.passed",
+      reference_entity: "inspection", reference_id: "inspection-1", source_module: "projects",
+      actor_profile_id: null, occurred_at: "2026-11-24T18:00:00.000Z",
+      correlation_id: null, causation_id: null, payload: { project_id: "project-1" }, metadata: {},
+    };
+    db.workflow_events.push(inspection, {
+      ...inspection, id: "later-permit", event_type: "permit.closed", reference_entity: "permit",
+      reference_id: "permit-1", occurred_at: "2026-11-24T18:01:00.000Z",
+    });
+    const service = createProjectIntelligenceService({ supabase: new MockSupabase(db) as never, companyId: "co-1" });
+    assert((await service.getProjectTimelineSummary("project-1")).latestInspectionResult === "passed", "later permit activity does not hide the inspection result");
+    const events = await service.getProjectEvents("project-1");
+    const event = events.find(row => row.eventType === "inspection_passed");
+    assert(event?.title === "orion.timeline.event.inspectionPassed.title", "project service preserves the localized inspection title");
+    assert(event?.description === "orion.timeline.event.inspectionPassed.summary", "project service preserves the localized summary");
+    assert(event?.relatedEntity?.type === "inspection", "related entity retains inspection type");
+    assert(event?.relatedEntity?.href === "/projects/project-1?tab=inspections", "expanded event navigates to the owning project");
+    inspection.event_type = "inspection.failed";
+    assert((await service.getProjectTimelineSummary("project-1")).latestInspectionResult === "failed", "failed state is derived from the ledger");
+    inspection.event_type = "inspection.started";
+    assert((await service.getProjectTimelineSummary("project-1")).latestInspectionResult === "in_progress", "started inspection shows in-progress state");
+    assert((await service.getProjectTimelineSummary("another-project")).latestInspectionResult === "none", "unrelated project has no inspection result");
+  });
+
+  await test("18. inspection summary handles all lifecycle states and ordering", () => {
+    const states = {
+      inspection_created: "required", inspection_scheduled: "scheduled", inspection_rescheduled: "scheduled",
+      inspection_started: "in_progress", inspection_passed: "passed", inspection_failed: "failed",
+      inspection_cancelled: "cancelled", inspection_reinspection_required: "reinspection_required",
+    } as const;
+    for (const [eventType, result] of Object.entries(states)) {
+      assert(latestInspectionResult([{ eventType: eventType as keyof typeof states, occurredAt: "2026-11-24T18:00:00Z" }]) === result, `${eventType} summary is truthful`);
+    }
+    const unsorted = [
+      { eventType: "inspection_failed" as const, occurredAt: "2026-11-24T14:00:00-05:00" },
+      { eventType: "inspection_passed" as const, occurredAt: "2026-11-24T18:30:00Z" },
+      { eventType: "inspection_cancelled" as const, occurredAt: "invalid" },
+    ];
+    assert(latestInspectionResult(unsorted) === "failed", "summary compares instants and ignores invalid timestamps");
+    assert(unsorted[0].eventType === "inspection_failed", "summary leaves event ordering unchanged");
+    assert(latestInspectionResult([]) === "none", "empty inspection history shows none");
+  });
+
+  await test("19. compliance presentation keys exist in English and Spanish", () => {
+    const keys = ["inspectionCreated","inspectionScheduled","inspectionRescheduled","inspectionStarted","inspectionPassed","inspectionFailed","inspectionCancelled","inspectionReinspectionRequired","permitCreated","permitRequired","permitNotRequired","permitSubmitted","permitApproved","permitIssued","permitRejected","permitExpired","permitRenewalRequired","permitRenewed","permitClosed"];
+    for (const locale of ["en", "es"]) {
+      const orion = JSON.parse(readFileSync(join(process.cwd(), `locales/${locale}/orion.json`), "utf8"));
+      const projects = JSON.parse(readFileSync(join(process.cwd(), `locales/${locale}/projects.json`), "utf8"));
+      assert(keys.every(key => typeof orion[`timeline.event.${key}.title`] === "string" && typeof orion[`timeline.event.${key}.summary`] === "string"), `${locale} has all compliance event titles and summaries`);
+      assert(["Required", "InProgress", "Cancelled", "ReinspectionRequired"].every(key => typeof projects[`intelligenceInspection${key}`] === "string"), `${locale} has all new inspection summary states`);
+    }
   });
 
   console.log(`\nPhase 3C timeline contract results: ${passed} passed, ${failed} failed`);
