@@ -45,7 +45,6 @@ function fixture(fault: "read" | "missing" | "throw" | "event" | "second-event" 
     from(table: string) {
       let columns = "";
       let action = "read";
-      let payload: unknown;
       const filters = new Map<string, unknown>();
       const resolve = () => {
         if (action !== "insert") assert.equal(filters.get("company_id"), company);
@@ -75,10 +74,10 @@ function fixture(fault: "read" | "missing" | "throw" | "event" | "second-event" 
       const query = {
         order() { return query; },
         range() { return query; },
-        update(value: unknown) { action = "update"; payload = value; return query; },
+        update() { action = "update"; return query; },
         select(value: string) { columns = value; return query; },
         eq(key: string, value: unknown) { filters.set(key, value); return query; },
-        insert(value: unknown) { action = "insert"; payload = value; return query; },
+        insert() { action = "insert"; return query; },
         delete() { action = "delete"; return query; },
         maybeSingle() { return Promise.resolve().then(resolve); },
         single() { return Promise.resolve().then(resolve); },

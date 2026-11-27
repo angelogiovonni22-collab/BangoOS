@@ -5,7 +5,7 @@
   "scripts": {
     "postinstall": "node scripts/copy-web-ifc-wasm.mjs",
     "dev": "next dev",
-    "build": "next build",
+    "build": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next build",
     "start": "next start",
     "lint": "eslint",
     "precheck": "npx -y tsx lib/blueprints/engine/vector-bim-pipeline.contract.test.ts && npx -y tsx lib/blueprints/visual-mockup.contract.test.ts && npx -y tsx lib/billing/webhook-processing.contract.test.ts && npx -y tsx lib/billing/intelligence-usage.contract.test.ts && npx -y tsx lib/billing/intelligence-usage-ledger.contract.test.ts && npx -y tsx lib/billing/intelligence-usage-events.contract.test.ts && npx -y tsx lib/billing/intelligence-usage-reporting.contract.test.ts && npx -y tsx lib/orion/intelligence/active-project-summary.contract.test.ts",
