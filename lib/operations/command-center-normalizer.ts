@@ -230,7 +230,7 @@ export function buildSummaryMetrics(input: {
     metric("tasksDueToday", "Tasks due today", tasksDueToday, "/projects", tasksDueToday > 0 ? "warning" : "default"),
     metric("overdueTasks", "Overdue tasks", overdueTasks, "/projects", overdueTasks > 0 ? "danger" : "default"),
     {
-      ...metric("assignedWorkforce", "Assigned workforce", assignedWorkforce, "/team", assignedWorkforce > 0 ? "success" : "muted"),
+      ...metric("assignedWorkforce", "Assigned workforce", assignedWorkforce, "/crews", assignedWorkforce > 0 ? "success" : "muted"),
       availability: input.workforceAvailability,
       description: input.workforceAvailability === "partial" ? "Real crew assignment services are not available yet; showing profile task assignments." : undefined,
     },
@@ -423,7 +423,7 @@ export function buildWorkforceBoard(input: {
         taskCount: tasks.length,
         status,
         hasConflict,
-        href: assignedProject ? `/projects/${primaryTask.projectId}` : "/team",
+        href: assignedProject ? `/projects/${primaryTask.projectId}` : "/crews",
       };
     })
     .sort((left, right) => workloadWeight(right.status) - workloadWeight(left.status) || right.taskCount - left.taskCount || left.fullName.localeCompare(right.fullName));
@@ -611,7 +611,7 @@ export function buildDashboardLikeData(input: {
 
   const metrics: DashboardMetric[] = [
     metricToDashboard(input.summaryMetrics.find((item) => item.id === "activeProjects"), "active-projects", "dashboard.metricActiveProjects", "P", "/projects"),
-    metricToDashboard(input.summaryMetrics.find((item) => item.id === "assignedWorkforce"), "assigned-active-work", "dashboard.metricAssignedActiveWork", "A", "/team"),
+    metricToDashboard(input.summaryMetrics.find((item) => item.id === "assignedWorkforce"), "assigned-active-work", "dashboard.metricAssignedActiveWork", "A", "/crews"),
     {
       id: "open-estimates",
       icon: "S",

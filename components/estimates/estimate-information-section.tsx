@@ -23,7 +23,7 @@ export function EstimateInformationSection({
       </CardHeader>
       <CardContent className="grid gap-5 md:grid-cols-2">
         <Field label="Estimate Name" htmlFor="estimate-title" error={errors.title} required>
-          <Input id="estimate-title" name="bos_estimate_title_new" autoComplete="off" autoCorrect="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" value={values.title} onChange={(event) => onFieldChange("title", event.target.value)} />
+          <Input id="estimate-title" name="bos_estimate_title_new" autoComplete="off" data-lpignore="true" data-1p-ignore="true" value={values.title} onChange={(event) => onFieldChange("title", event.target.value)} />
         </Field>
 
         <Field label="Estimate Number" htmlFor="estimate-number">
@@ -60,8 +60,6 @@ export function EstimateInformationSection({
             id="estimate-description"
             name="bos_estimate_scope_new"
             autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
             data-lpignore="true"
             data-1p-ignore="true"
             value={values.description}

@@ -25,7 +25,7 @@ const metrics: DashboardMetric[] = [
     titleKey: "dashboard.metricEmployeesWorking",
     value: 26,
     valueKind: "number",
-    href: "/team",
+    href: "/crews",
     tooltipKey: "dashboard.metricEmployeesWorkingTooltip",
     trendPercent: 4.1,
     subtitleKey: "dashboard.metricEmployeesWorkingSubtitle",
